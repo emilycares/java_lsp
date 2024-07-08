@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use thiserror::Error;
 #[allow(dead_code)]
 mod pom;
@@ -22,8 +24,11 @@ pub fn add(left: usize, right: usize) -> usize {
 }
 
 /// Takes a class path list
-pub fn class_path_to_local(cpl: Vec<&str>) {
-    // https://github.com/micmine/qute-lsp/blob/main/src/parser/fragemnt.rs
+pub fn class_path_to_local(cpl: Vec<&str>) -> Vec<String> {
+    cpl.iter()
+        .map(|p| format!("./target/dependency/{}.class", p.replace('.', "/")))
+        .filter(|p| Path::new(&p).exists())
+        .collect()
 }
 
 #[cfg(test)]

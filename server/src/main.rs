@@ -1,5 +1,6 @@
 mod imports;
 
+use std::path::Path;
 use std::str::FromStr;
 
 use class::Class;
@@ -112,9 +113,24 @@ impl LanguageServer for Backend {
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let cpl = imports::get_classes_to_load(&params.text_document.text);
-        let paths = maven::class_path_to_local(cpl);
-        //self.client
-            //.log_message(MessageType::INFO, format!("cpl {cpl:?}")).await;
+        let new_classes: Vec<_> = cpl
+            .iter()
+            .filter(|cp| !self.class_map.contains_key(**cp))
+            .map(|p| format!("./target/dependency/{}.class", p.replace('.', "/")))
+            .filter(|p| Path::new(p).exists())
+            .map(|p| match class::load_fs(Path::new(&p)) {
+                Ok(class) => Some((p, class)),
+                Err(_) => None,
+            })
+            .filter(|e| e.is_some())
+            .map(|e| e.unwrap())
+            .collect();
+        for (path, class) in new_classes {
+            dbg!(&path);
+            dbg!(&class);
+            self.class_map.insert(path, class);
+        }
+
         self.on_change(TextDocumentItem {
             uri: params.text_document.uri,
             text: params.text_document.text,
@@ -146,7 +162,15 @@ impl LanguageServer for Backend {
             eprintln!("Unable to read the line referecned");
             return Ok(None);
         };
-        let out = vec![];
+        let mut out = vec![];
+        out.extend(self.class_map.iter().map(|v| {
+            let val = v.value();
+            let methods: Vec<_> = val.methods.iter().map(|m| m.name.to_string()).collect();
+            CompletionItem::new_simple(val.name.to_string(), methods.join("\n"))
+        }));
+
+        eprintln!("{:?}", out);
+
         Ok(Some(CompletionResponse::Array(out)))
     }
 
@@ -190,7 +214,8 @@ impl LanguageServer for Backend {
         let Some(url) = uri else {
             return Ok(None);
         };
-        let Some(_document) = self.get_document(&url).await else { eprintln!("Document is not opened.");
+        let Some(_document) = self.get_document(&url).await else {
+            eprintln!("Document is not opened.");
             return Ok(None);
         };
 
