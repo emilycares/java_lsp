@@ -1,0 +1,15 @@
+---
+source: maven/src/pom.rs
+expression: pom.unwrap()
+---
+modelVersion: ~
+groupId: ""
+artifactId: ""
+packaging: ~
+name: ~
+version: ""
+parent: ~
+dependencies: ~
+dependencyManagement: ~
+properties:
+  mapstruct.version: 1.5.3.Final

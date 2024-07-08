@@ -1,0 +1,14 @@
+[package]
+name = "class"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+java_asm = "0.0.4"
+java_class_parser = "0.0.2"
+thiserror = "1.0.61"
+
+[dev-dependencies]
+insta = { version = "1.39.0", features = ["yaml"] }
