@@ -3,14 +3,14 @@ mod imports;
 use std::path::Path;
 use std::str::FromStr;
 
-use class::Class;
 use dashmap::DashMap;
+use parser::dto::Class;
 use ropey::Rope;
 use serde_json::Value;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
-use tree_sitter::Point;
+use tree_sitter::{Parser, Point, Tree};
 
 #[tokio::main]
 async fn main() {
@@ -25,23 +25,50 @@ async fn main() {
     Server::new(stdin, stdout, socket).serve(service).await;
 }
 
-#[derive(Debug)]
+pub struct Document {
+    text: ropey::Rope,
+    tree: Tree,
+    parser: Parser,
+}
+
 struct Backend {
     client: Client,
-    document_map: DashMap<String, Rope>,
+    document_map: DashMap<String, Document>,
     class_map: DashMap<String, Class>,
 }
 impl Backend {
     async fn on_change(&self, params: TextDocumentItem) {
         let rope = ropey::Rope::from_str(&params.text);
-        self.document_map
-            .insert(params.uri.to_string(), rope.clone());
+        let key = params.uri.to_string();
+        if let Some(mut document) = self.document_map.get_mut(&key) {
+            let tree = Some(document.tree.clone());
+            if let Some(ntree) = document.parser.parse(params.text, tree.as_ref()) {
+                document.tree = ntree;
+            }
+            document.text = rope;
+        } else {
+            let mut parser = Parser::new();
+            if parser.set_language(tree_sitter_java::language()).is_err() {
+                return;
+            }
+            let Some(tree) = parser.parse(params.text, None) else {
+                return;
+            };
+            self.document_map.insert(
+                key,
+                Document {
+                    text: rope,
+                    tree,
+                    parser,
+                },
+            );
+        }
     }
 
     fn _get_opened_document(
         &self,
         uri: &Url,
-    ) -> Option<dashmap::mapref::one::Ref<'_, std::string::String, Rope>> {
+    ) -> Option<dashmap::mapref::one::Ref<'_, std::string::String, Document>> {
         // when file is open
         if let Some(document) = self.document_map.get(uri.as_str()) {
             return Some(document);
@@ -52,7 +79,7 @@ impl Backend {
     async fn get_document(
         &self,
         uri: &Url,
-    ) -> Option<dashmap::mapref::one::Ref<'_, std::string::String, Rope>> {
+    ) -> Option<dashmap::mapref::one::Ref<'_, std::string::String, Document>> {
         // when file is open
         if let Some(document) = self._get_opened_document(uri) {
             return Some(document);
@@ -118,7 +145,7 @@ impl LanguageServer for Backend {
             .filter(|cp| !self.class_map.contains_key(**cp))
             .map(|p| format!("./target/dependency/{}.class", p.replace('.', "/")))
             .filter(|p| Path::new(p).exists())
-            .map(|p| match class::load_fs(Path::new(&p)) {
+            .map(|p| match parser::load_class_fs(Path::new(&p)) {
                 Ok(class) => Some((p, class)),
                 Err(_) => None,
             })
@@ -158,10 +185,6 @@ impl LanguageServer for Backend {
             eprintln!("Document is not opened.");
             return Ok(None);
         };
-        let Some(_line) = document.get_line(position.line.try_into().unwrap_or_default()) else {
-            eprintln!("Unable to read the line referecned");
-            return Ok(None);
-        };
         let mut out = vec![];
         out.extend(self.class_map.iter().map(|v| {
             let val = v.value();
@@ -183,10 +206,6 @@ impl LanguageServer for Backend {
         let position = params.position;
         let Some(document) = self.get_document(&uri).await else {
             eprintln!("Document is not opened.");
-            return Ok(None);
-        };
-        let Some(_line) = document.get_line(position.line.try_into().unwrap_or_default()) else {
-            eprintln!("Unable to read the line referecned");
             return Ok(None);
         };
 
