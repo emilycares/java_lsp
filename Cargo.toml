@@ -7,7 +7,7 @@ edition = "2021"
 
 [workspace]
 members = [
-  "class",
+  "parser",
   "maven",
   "server"
 ]
