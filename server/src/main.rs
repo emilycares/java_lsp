@@ -192,7 +192,7 @@ impl LanguageServer for Backend {
         let tree = &document.tree;
 
         if let Ok(node) = get_node_at_point(&tree, ttp(position)) {
-            let text = node
+            let _text = node
                 .utf8_text(document.text.to_string().as_bytes())
                 .unwrap();
             match node.kind() {

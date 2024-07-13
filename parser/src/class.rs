@@ -1,5 +1,5 @@
-use java_asm::jvms::{element::Const, read::JvmsClassReader};
 use crate::dto;
+use java_asm::jvms::{element::Const, read::JvmsClassReader};
 
 pub fn load_class(bytes: &[u8]) -> Result<dto::Class, dto::ClassError> {
     let class = JvmsClassReader::read_class_bytes(bytes).unwrap();
@@ -10,6 +10,13 @@ pub fn load_class(bytes: &[u8]) -> Result<dto::Class, dto::ClassError> {
     let methods: Vec<_> = class
         .methods
         .iter()
+        .filter(|method| {
+            let name = lookup_string(&class, method.name_index);
+            match name.as_str() {
+                "<init>" => false,
+                _ => true,
+            }
+        })
         .map(|method| {
             let descriptor = lookup_string(&class, method.descriptor_index);
             let (params, ret) = parse_method_descriptor(&descriptor);
@@ -55,7 +62,6 @@ pub fn load_class(bytes: &[u8]) -> Result<dto::Class, dto::ClassError> {
         methods,
     })
 }
-
 
 pub fn parse_access_fields(value: u16) -> Vec<dto::Access> {
     let mut out = vec![];
@@ -178,66 +184,13 @@ fn lookup_class(class: &java_asm::jvms::element::ClassFile, idx: u16) -> u16 {
 
 #[cfg(test)]
 mod tests {
-    use crate::{class::load_class, dto::{Class, Method, JType, Access, Parameter}};
+    use crate::{class::load_class, everything_data};
     use pretty_assertions::assert_eq;
 
     #[test]
     fn everything() {
         let result = load_class(include_bytes!("../test/Everything.class"));
 
-        assert_eq!(
-            result.unwrap(),
-            Class {
-                name: "Everything".to_string(),
-                access: vec![],
-                methods: vec![
-                    Method {
-                        access: vec![Access::Public],
-                        name: "<init>".to_string(),
-                        parameters: vec![],
-                        ret: JType::Void,
-                    },
-                    Method {
-                        access: vec![],
-                        name: "method".to_string(),
-                        parameters: vec![],
-                        ret: JType::Void,
-                    },
-                    Method {
-                        access: vec![Access::Public],
-                        name: "public_method".to_string(),
-                        parameters: vec![],
-                        ret: JType::Void,
-                    },
-                    Method {
-                        access: vec![Access::Private],
-                        name: "private_method".to_string(),
-                        parameters: vec![],
-                        ret: JType::Void,
-                    },
-                    Method {
-                        access: vec![],
-                        name: "out".to_string(),
-                        parameters: vec![],
-                        ret: JType::Int,
-                    },
-                    Method {
-                        access: vec![],
-                        name: "add".to_string(),
-                        parameters: vec![
-                            Parameter {
-                                name: "a".to_string(),
-                                jtype: JType::Int,
-                            },
-                            Parameter {
-                                name: "b".to_string(),
-                                jtype: JType::Int,
-                            },
-                        ],
-                        ret: JType::Int,
-                    },
-                ]
-            }
-        );
+        assert_eq!(result.unwrap(), everything_data());
     }
 }
