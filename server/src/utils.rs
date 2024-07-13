@@ -1,4 +1,3 @@
-use thiserror::Error;
 use tree_sitter::Point;
 
 pub fn tlp(point: Point) -> tower_lsp::lsp_types::Position {
