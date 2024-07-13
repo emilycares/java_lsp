@@ -1,16 +1,20 @@
 mod imports;
+mod utils;
 
+use core::panic;
 use std::path::Path;
 use std::str::FromStr;
 
 use dashmap::DashMap;
 use parser::dto::Class;
-use ropey::Rope;
 use serde_json::Value;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use tree_sitter::{Parser, Point, Tree};
+use tree_sitter_util::get_node_at_point;
+
+use crate::utils::{ttp};
 
 #[tokio::main]
 async fn main() {
@@ -18,7 +22,7 @@ async fn main() {
     let stdout = tokio::io::stdout();
 
     let (service, socket) = LspService::new(|client| Backend {
-        client,
+        _client: client,
         document_map: DashMap::new(),
         class_map: DashMap::new(),
     });
@@ -32,7 +36,7 @@ pub struct Document {
 }
 
 struct Backend {
-    client: Client,
+    _client: Client,
     document_map: DashMap<String, Document>,
     class_map: DashMap<String, Class>,
 }
@@ -48,7 +52,7 @@ impl Backend {
             document.text = rope;
         } else {
             let mut parser = Parser::new();
-            if parser.set_language(tree_sitter_java::language()).is_err() {
+            if parser.set_language(&tree_sitter_java::language()).is_err() {
                 return;
             }
             let Some(tree) = parser.parse(params.text, None) else {
@@ -123,7 +127,7 @@ impl LanguageServer for Backend {
                     },
                 )),
                 completion_provider: Some(CompletionOptions {
-                    trigger_characters: Some([' ', '.'].iter().map(|i| i.to_string()).collect()),
+                    trigger_characters: Some(['.', '('].iter().map(|i| i.to_string()).collect()),
                     ..CompletionOptions::default()
                 }),
                 ..ServerCapabilities::default()
@@ -132,10 +136,12 @@ impl LanguageServer for Backend {
         })
     }
 
-    async fn initialized(&self, _: InitializedParams) {}
+    async fn initialized(&self, _: InitializedParams) {
+        eprintln!("Init");
+    }
 
     async fn shutdown(&self) -> Result<()> {
-        Ok(())
+        panic!("Stop");
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
@@ -153,8 +159,6 @@ impl LanguageServer for Backend {
             .map(|e| e.unwrap())
             .collect();
         for (path, class) in new_classes {
-            dbg!(&path);
-            dbg!(&class);
             self.class_map.insert(path, class);
         }
 
@@ -185,14 +189,38 @@ impl LanguageServer for Backend {
             eprintln!("Document is not opened.");
             return Ok(None);
         };
+        let tree = &document.tree;
+
+        if let Ok(node) = get_node_at_point(&tree, ttp(position)) {
+            let text = node
+                .utf8_text(document.text.to_string().as_bytes())
+                .unwrap();
+            match node.kind() {
+                "type_identifier" => {
+                },
+                _ => {}
+            }
+        }
+
         let mut out = vec![];
         out.extend(self.class_map.iter().map(|v| {
             let val = v.value();
-            let methods: Vec<_> = val.methods.iter().map(|m| m.name.to_string()).collect();
+            let methods: Vec<_> = val
+                .methods
+                .iter()
+                .map(|m| {
+                    format!(
+                        "{}({:?})",
+                        m.name,
+                        m.parameters
+                            .iter()
+                            .map(|p| p.jtype.clone())
+                            .collect::<Vec<_>>()
+                    )
+                })
+                .collect();
             CompletionItem::new_simple(val.name.to_string(), methods.join("\n"))
         }));
-
-        eprintln!("{:?}", out);
 
         Ok(Some(CompletionResponse::Array(out)))
     }
@@ -203,8 +231,8 @@ impl LanguageServer for Backend {
     ) -> Result<Option<GotoDefinitionResponse>> {
         let params = params.text_document_position_params;
         let uri = params.text_document.uri;
-        let position = params.position;
-        let Some(document) = self.get_document(&uri).await else {
+        let _position = params.position;
+        let Some(_document) = self.get_document(&uri).await else {
             eprintln!("Document is not opened.");
             return Ok(None);
         };
