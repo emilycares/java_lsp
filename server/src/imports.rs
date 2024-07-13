@@ -1,10 +1,11 @@
-use tree_sitter::{Parser, TreeCursor};
+use tree_sitter::Parser;
+use tree_sitter_util::CommentSkiper;
 
 pub fn get_classes_to_load<'a>(content: &'a str) -> Vec<&'a str> {
     let mut parser = Parser::new();
     let language = tree_sitter_java::language();
     parser
-        .set_language(language)
+        .set_language(&language)
         .expect("Error loading java grammar");
     let Some(tree) = parser.parse(content, None) else {
         return vec![];
@@ -40,44 +41,6 @@ pub fn get_classes_to_load<'a>(content: &'a str) -> Vec<&'a str> {
     out
 }
 
-pub trait CommentSkiper {
-    fn parent(&mut self) -> bool;
-    fn sibling(&mut self) -> bool;
-    fn first_child(&mut self) -> bool;
-}
-
-impl CommentSkiper for TreeCursor<'_> {
-    fn parent(&mut self) -> bool {
-        if self.goto_parent() {
-            return skip_comments(self);
-        }
-        false
-    }
-    fn sibling(&mut self) -> bool {
-        if self.goto_next_sibling() {
-            return skip_comments(self);
-        }
-        false
-    }
-    fn first_child(&mut self) -> bool {
-        if self.goto_first_child() {
-            return skip_comments(self);
-        }
-        false
-    }
-}
-
-fn skip_comments(cursor: &mut TreeCursor<'_>) -> bool {
-    match cursor.node().kind() {
-        "block_comment" | "line_comment" => {
-            if !cursor.goto_next_sibling() {
-                return false;
-            }
-            skip_comments(cursor)
-        }
-        _ => true,
-    }
-}
 
 #[cfg(test)]
 mod tests {

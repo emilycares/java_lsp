@@ -11,6 +11,7 @@ java_class_parser = "0.0.2"
 thiserror = "1.0.61"
 tree-sitter = "0.22.6"
 tree-sitter-java = "0.21.0"
+tree-sitter-util = { path = "../tree-sitter-util"}
 
 [dev-dependencies]
 pretty_assertions = "1.4"
