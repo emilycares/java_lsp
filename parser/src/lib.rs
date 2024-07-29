@@ -2,21 +2,47 @@ mod class;
 pub mod dto;
 mod java;
 
-use std::path::Path;
+use std::{fmt::Debug, path::Path};
 
-pub fn load_class_fs<T: AsRef<Path>>(path: T) -> Result<dto::Class, dto::ClassError> {
+use dto::SourceKind;
+
+pub fn load_class_fs<T>(path: T, source: SourceKind) -> Result<dto::Class, dto::ClassError>
+where
+    T: AsRef<Path> + Debug,
+{
     let bytes = std::fs::read(path)?;
-    class::load_class(&bytes)
+    class::load_class(&bytes, source)
 }
 
-pub fn load_java_fs<T: AsRef<Path>>(path: T) -> Result<dto::Class, dto::ClassError> {
+pub fn load_java_fs<T>(path: T, source: SourceKind) -> Result<dto::Class, dto::ClassError>
+where
+    T: AsRef<Path> + Debug,
+{
     let bytes = std::fs::read(path)?;
-    java::load_java(&bytes)
+    java::load_java(&bytes, source)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use crate::load_class_fs;
+
+    #[test]
+    fn fsbug() {
+        let _ = load_class_fs(
+            Path::new(
+                "/home/emily/Documents/java/getting-started/jdk/classes/java/util/HashMap.class",
+            ),
+            crate::dto::SourceKind::Jdk("".to_string()),
+        );
+    }
 }
 
 #[cfg(test)]
 pub fn everything_data() -> dto::Class {
     dto::Class {
+        source: SourceKind::Jdk("".to_string()),
         name: "Everything".to_string(),
         access: vec![],
         methods: vec![

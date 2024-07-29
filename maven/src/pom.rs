@@ -167,7 +167,6 @@ mod tests {
             parse(include_str!("../tests/parse.pom.xml")).unwrap(),
             vec![],
         );
-        dbg!(&pom);
         assert!(pom.is_err());
     }
 }
