@@ -6,15 +6,12 @@ use std::path::Path;
 use std::str::FromStr;
 
 use dashmap::DashMap;
-use parser::dto::Class;
+use parser::dto::{Class, SourceKind};
 use serde_json::Value;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use tree_sitter::{Parser, Point, Tree};
-use tree_sitter_util::get_node_at_point;
-
-use crate::utils::{ttp};
 
 #[tokio::main]
 async fn main() {
@@ -48,11 +45,14 @@ impl Backend {
             let tree = Some(document.tree.clone());
             if let Some(ntree) = document.parser.parse(params.text, tree.as_ref()) {
                 document.tree = ntree;
+            } else {
+                eprintln!("----- Not updated -----");
             }
             document.text = rope;
         } else {
             let mut parser = Parser::new();
             if parser.set_language(&tree_sitter_java::language()).is_err() {
+                eprintln!("----- Not initialized -----");
                 return;
             }
             let Some(tree) = parser.parse(params.text, None) else {
@@ -109,6 +109,43 @@ impl Backend {
         };
         None
     }
+
+    /// cpl -> class path list
+    fn load_classes(&self, cpl: Vec<&str>) {
+        let new_classes: Vec<_> = cpl
+            .iter()
+            .filter(|cp| !self.class_map.contains_key(**cp))
+            .filter_map(|p| {
+                let jdk = format!("./jdk/classes/{}.class", p.replace('.', "/"));
+                if Path::new(&jdk).exists() {
+                    return match parser::load_class_fs(Path::new(&jdk), SourceKind::Jdk(jdk.clone()))
+                    {
+                        Ok(class) => Some((jdk, class)),
+                        Err(_) => None,
+                    };
+                }
+                let mvn = format!("./target/dependency/{}.class", p.replace('.', "/"));
+                if Path::new(&mvn).exists() {
+                    return match parser::load_class_fs(
+                        Path::new(&mvn),
+                        SourceKind::Maven(mvn.clone()),
+                    ) {
+                        Ok(class) => Some((mvn, class)),
+                        Err(_) => None,
+                    };
+                };
+
+                None
+            })
+            //.filter_map(|p| match parser::load_class_fs(Path::new(&p)) {
+            //    Ok(class) => Some((p, class)),
+            //    Err(_) => None,
+            //})
+            .collect();
+        for (path, class) in new_classes {
+            self.class_map.insert(path, class);
+        }
+    }
 }
 
 #[tower_lsp::async_trait]
@@ -127,7 +164,9 @@ impl LanguageServer for Backend {
                     },
                 )),
                 completion_provider: Some(CompletionOptions {
-                    trigger_characters: Some(['.', '('].iter().map(|i| i.to_string()).collect()),
+                    trigger_characters: Some(
+                        [' ', '.', '('].iter().map(|i| i.to_string()).collect(),
+                    ),
                     ..CompletionOptions::default()
                 }),
                 ..ServerCapabilities::default()
@@ -145,30 +184,17 @@ impl LanguageServer for Backend {
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        let cpl = imports::get_classes_to_load(&params.text_document.text);
-        let new_classes: Vec<_> = cpl
-            .iter()
-            .filter(|cp| !self.class_map.contains_key(**cp))
-            .map(|p| format!("./target/dependency/{}.class", p.replace('.', "/")))
-            .filter(|p| Path::new(p).exists())
-            .map(|p| match parser::load_class_fs(Path::new(&p)) {
-                Ok(class) => Some((p, class)),
-                Err(_) => None,
-            })
-            .filter(|e| e.is_some())
-            .map(|e| e.unwrap())
-            .collect();
-        for (path, class) in new_classes {
-            self.class_map.insert(path, class);
-        }
-
         self.on_change(TextDocumentItem {
-            uri: params.text_document.uri,
-            text: params.text_document.text,
+            uri: params.text_document.uri.clone(),
+            text: params.text_document.text.clone(),
             version: params.text_document.version,
             language_id: params.text_document.language_id,
         })
-        .await
+        .await;
+        if let Some(document) = self.get_document(&params.text_document.uri).await {
+            let cpl = imports::get_classes_to_load(&params.text_document.text.as_bytes(), &document.tree);
+            self.load_classes(cpl);
+        }
     }
 
     async fn did_change(&self, mut params: DidChangeTextDocumentParams) {
@@ -178,29 +204,28 @@ impl LanguageServer for Backend {
             version: params.text_document.version,
             language_id: "".to_owned(),
         })
-        .await
+        .await;
     }
 
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
         let params = params.text_document_position;
         let uri = params.text_document.uri;
-        let position = params.position;
         let Some(document) = self.get_document(&uri).await else {
             eprintln!("Document is not opened.");
             return Ok(None);
         };
-        let tree = &document.tree;
+        let _position = params.position;
+        let _tree = &document.tree;
 
-        if let Ok(node) = get_node_at_point(&tree, ttp(position)) {
-            let _text = node
-                .utf8_text(document.text.to_string().as_bytes())
-                .unwrap();
-            match node.kind() {
-                "type_identifier" => {
-                },
-                _ => {}
-            }
-        }
+        //if let Ok(node) = get_node_at_point(&tree, ttp(position)) {
+        //    let _text = node
+        //        .utf8_text(document.text.to_string().as_bytes())
+        //        .unwrap();
+        //    match node.kind() {
+        //        "type_identifier" => {}
+        //        _ => {}
+        //    }
+        //}
 
         let mut out = vec![];
         out.extend(self.class_map.iter().map(|v| {
