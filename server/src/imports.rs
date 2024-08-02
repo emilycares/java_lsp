@@ -63,7 +63,7 @@ import java.util.stream.Collectors;
 
 public class Controller {}";
         assert_eq!(
-            get_classes_to_load(demo, get_tree(demo).unwrap()),
+            get_classes_to_load(demo.as_bytes(), &get_tree(demo).unwrap()),
             vec!["java.util.List", "java.util.stream.Collectors"]
         );
     }
