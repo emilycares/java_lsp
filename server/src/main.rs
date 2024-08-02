@@ -142,6 +142,8 @@ impl Backend {
             //    Err(_) => None,
             //})
             .collect();
+
+        dbg!(&new_classes);
         for (path, class) in new_classes {
             self.class_map.insert(path, class);
         }
@@ -208,6 +210,7 @@ impl LanguageServer for Backend {
     }
 
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
+        eprintln!("compl, [{}]", &self.class_map.len());
         let params = params.text_document_position;
         let uri = params.text_document.uri;
         let Some(document) = self.get_document(&uri).await else {
@@ -246,6 +249,7 @@ impl LanguageServer for Backend {
                 .collect();
             CompletionItem::new_simple(val.name.to_string(), methods.join("\n"))
         }));
+        dbg!(&out);
 
         Ok(Some(CompletionResponse::Array(out)))
     }
