@@ -90,5 +90,22 @@ pub fn everything_data() -> dto::Class {
                 ret: dto::JType::Int,
             },
         ],
+        fields: vec![
+            dto::Field {
+                access: vec![],
+                name: "noprop".to_string(),
+                jtype: dto::JType::Int,
+            },
+            dto::Field {
+                access: vec![dto::Access::Public],
+                name: "publicproperty".to_string(),
+                jtype: dto::JType::Int,
+            },
+            dto::Field {
+                access: vec![dto::Access::Private],
+                name: "privateproperty".to_string(),
+                jtype: dto::JType::Int,
+            },
+        ],
     }
 }
