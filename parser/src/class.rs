@@ -1,6 +1,7 @@
 use crate::dto::{self, Parameter, SourceKind};
 use classfile_parser::constant_info::ConstantInfo;
-use classfile_parser::method_info::MethodAccessFlags;
+use classfile_parser::field_info::{FieldAccessFlags, FieldInfo};
+use classfile_parser::method_info::{MethodAccessFlags, MethodInfo};
 use classfile_parser::{class_parser, ClassAccessFlags, ClassFile};
 
 pub fn load_class(bytes: &[u8], source: SourceKind) -> Result<dto::Class, dto::ClassError> {
@@ -12,6 +13,11 @@ pub fn load_class(bytes: &[u8], source: SourceKind) -> Result<dto::Class, dto::C
                 .iter()
                 .filter_map(|method| parse_method(&c, method))
                 .filter(|m| m.name != "<init>")
+                .collect();
+            let fields: Vec<_> = c
+                .fields
+                .iter()
+                .filter_map(|field| parse_field(&c, field))
                 .collect();
             Ok(dto::Class {
                 source,
@@ -32,16 +38,22 @@ pub fn load_class(bytes: &[u8], source: SourceKind) -> Result<dto::Class, dto::C
                     _ => "".to_string(),
                 },
                 methods,
+                fields,
             })
         }
         _ => panic!("Not a class file"),
     }
 }
 
-fn parse_method(
-    c: &ClassFile,
-    method: &classfile_parser::method_info::MethodInfo,
-) -> Option<dto::Method> {
+fn parse_field(c: &ClassFile, field: &FieldInfo) -> Option<dto::Field> {
+    Some(dto::Field {
+        access: parse_field_access(field),
+        name: lookup_string(c, field.name_index)?,
+        jtype: parse_field_descriptor(&lookup_string(c, field.descriptor_index)?)?,
+    })
+}
+
+fn parse_method(c: &ClassFile, method: &MethodInfo) -> Option<dto::Method> {
     let (params, ret) = parse_method_descriptor(&lookup_string(c, method.descriptor_index)?);
     let mut params = params.into_iter();
     let mut methods: Vec<dto::Parameter> = method
@@ -92,28 +104,49 @@ fn parse_method(
 
 fn parse_method_access(method: &classfile_parser::method_info::MethodInfo) -> Vec<dto::Access> {
     let mut access = vec![];
-    {
-        if method.access_flags == MethodAccessFlags::PUBLIC {
-            access.push(dto::Access::Public);
-        }
-        if method.access_flags == MethodAccessFlags::PRIVATE {
-            access.push(dto::Access::Private);
-        }
-        if method.access_flags == MethodAccessFlags::PROTECTED {
-            access.push(dto::Access::Protected);
-        }
-        if method.access_flags == MethodAccessFlags::STATIC {
-            access.push(dto::Access::Static);
-        }
-        if method.access_flags == MethodAccessFlags::FINAL {
-            access.push(dto::Access::Final);
-        }
-        if method.access_flags == MethodAccessFlags::ABSTRACT {
-            access.push(dto::Access::Abstract);
-        }
-        if method.access_flags == MethodAccessFlags::SYNTHETIC {
-            access.push(dto::Access::Synthetic);
-        }
+    if method.access_flags == MethodAccessFlags::PUBLIC {
+        access.push(dto::Access::Public);
+    }
+    if method.access_flags == MethodAccessFlags::PRIVATE {
+        access.push(dto::Access::Private);
+    }
+    if method.access_flags == MethodAccessFlags::PROTECTED {
+        access.push(dto::Access::Protected);
+    }
+    if method.access_flags == MethodAccessFlags::STATIC {
+        access.push(dto::Access::Static);
+    }
+    if method.access_flags == MethodAccessFlags::FINAL {
+        access.push(dto::Access::Final);
+    }
+    if method.access_flags == MethodAccessFlags::ABSTRACT {
+        access.push(dto::Access::Abstract);
+    }
+    if method.access_flags == MethodAccessFlags::SYNTHETIC {
+        access.push(dto::Access::Synthetic);
+    }
+    access
+}
+
+fn parse_field_access(method: &FieldInfo) -> Vec<dto::Access> {
+    let mut access = vec![];
+    if method.access_flags == FieldAccessFlags::PUBLIC {
+        access.push(dto::Access::Public);
+    }
+    if method.access_flags == FieldAccessFlags::PRIVATE {
+        access.push(dto::Access::Private);
+    }
+    if method.access_flags == FieldAccessFlags::PROTECTED {
+        access.push(dto::Access::Protected);
+    }
+    if method.access_flags == FieldAccessFlags::STATIC {
+        access.push(dto::Access::Static);
+    }
+    if method.access_flags == FieldAccessFlags::FINAL {
+        access.push(dto::Access::Final);
+    }
+    if method.access_flags == FieldAccessFlags::SYNTHETIC {
+        access.push(dto::Access::Synthetic);
     }
     access
 }
@@ -148,6 +181,11 @@ fn parse_method_descriptor(descriptor: &str) -> (Vec<dto::JType>, dto::JType) {
         }
         _ => (vec![], dto::JType::Void),
     }
+}
+fn parse_field_descriptor(descriptor: &str) -> Option<dto::JType> {
+    let mut chars = descriptor.chars();
+    let current = chars.next()?;
+    Some(parse_field_type(current, &mut chars))
 }
 
 fn parse_field_type(c: char, chars: &mut std::str::Chars) -> dto::JType {

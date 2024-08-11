@@ -14,7 +14,20 @@ pub fn load_java(bytes: &[u8], source: SourceKind) -> Result<crate::dto::Class, 
         return Err(dto::ClassError::ParseError);
     };
 
-    // Define the query to match method declarations
+    let methods = parse_methods(&tree, bytes);
+    let fields = parse_fields(&tree, bytes);
+
+    Ok(dto::Class {
+        source,
+        access: vec![],
+        name: get_class_name(tree, bytes),
+        methods,
+        fields,
+    })
+}
+
+/// Define the query to match method declarations
+fn parse_methods(tree: &tree_sitter::Tree, bytes: &[u8]) -> Vec<dto::Method> {
     let query_str = r#"
     (method_declaration) @method
     "#;
@@ -29,13 +42,25 @@ pub fn load_java(bytes: &[u8], source: SourceKind) -> Result<crate::dto::Class, 
         .flat_map(|m| m.captures)
         .map(|c| parse_method(c.node, bytes))
         .collect::<Vec<_>>();
+    methods
+}
 
-    Ok(dto::Class {
-        source,
-        access: vec![],
-        name: get_class_name(tree, bytes),
-        methods,
-    })
+fn parse_fields(tree: &tree_sitter::Tree, bytes: &[u8]) -> Vec<dto::Field> {
+    let query_str = r#"
+    (field_declaration) @field
+    "#;
+    let query = Query::new(&language(), query_str).expect("Error compiling query");
+
+    // Execute the query
+    let mut query_cursor = QueryCursor::new();
+    let matches = query_cursor.matches(&query, tree.root_node(), bytes);
+
+    let fields = matches
+        .into_iter()
+        .flat_map(|m| m.captures)
+        .map(|c| parse_field(c.node, bytes))
+        .collect::<Vec<_>>();
+    fields
 }
 
 fn parse_method(node: tree_sitter::Node<'_>, bytes: &[u8]) -> dto::Method {
@@ -72,6 +97,38 @@ fn parse_method(node: tree_sitter::Node<'_>, bytes: &[u8]) -> dto::Method {
     }
 
     method
+}
+
+fn parse_field(node: tree_sitter::Node<'_>, bytes: &[u8]) -> dto::Field {
+    let mut cursor = node.walk();
+    cursor.first_child();
+
+    let mut field = dto::Field {
+        access: vec![],
+        name: "".to_owned(),
+        jtype: dto::JType::Void,
+    };
+
+    loop {
+        match cursor.node().kind() {
+            "modifiers" => {
+                field.access = parser_modifiers(get_string(&cursor, bytes));
+            }
+            "integral_type" => {
+                field.jtype = parse_jtype(&cursor, bytes);
+            }
+            "variable_declarator" => field.name = get_string(&cursor, bytes),
+            _ => {
+                dbg!(cursor.node().kind());
+                dbg!(get_string(&cursor, bytes));
+            }
+        };
+        if !cursor.sibling() {
+            break;
+        }
+    }
+
+    field
 }
 
 fn parser_modifiers(input: String) -> Vec<dto::Access> {

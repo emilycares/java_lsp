@@ -25,6 +25,7 @@ pub struct Class {
     pub access: Vec<Access>,
     pub name: String,
     pub methods: Vec<Method>,
+    pub fields: Vec<Field>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -49,7 +50,6 @@ pub enum Access {
     Abstract,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, PartialEq)]
 pub struct Method {
     pub access: Vec<Access>,
@@ -58,7 +58,13 @@ pub struct Method {
     pub ret: JType,
 }
 
-#[allow(dead_code)]
+#[derive(Debug, PartialEq)]
+pub struct Field {
+    pub access: Vec<Access>,
+    pub name: String,
+    pub jtype: JType,
+}
+
 #[derive(Debug, PartialEq)]
 pub struct Parameter {
     pub name: String,
