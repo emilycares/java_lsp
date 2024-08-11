@@ -273,7 +273,6 @@ impl LanguageServer for Backend {
         };
         let position = params.position;
         let tree = &document.tree;
-
         let mut out = vec![];
 
         if let Ok(node) = get_node_at_point(&tree, ttp(position)) {
