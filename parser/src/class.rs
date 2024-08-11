@@ -53,7 +53,10 @@ fn parse_field(c: &ClassFile, field: &FieldInfo) -> Option<dto::Field> {
     })
 }
 
-fn parse_method(c: &ClassFile, method: &MethodInfo) -> Option<dto::Method> {
+fn parse_method(
+    c: &ClassFile,
+    method: &classfile_parser::method_info::MethodInfo,
+) -> Option<dto::Method> {
     let (params, ret) = parse_method_descriptor(&lookup_string(c, method.descriptor_index)?);
     let mut params = params.into_iter();
     let mut methods: Vec<dto::Parameter> = method
