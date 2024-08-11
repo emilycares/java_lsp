@@ -45,7 +45,7 @@ fn parse_method(node: tree_sitter::Node<'_>, bytes: &[u8]) -> dto::Method {
     let mut method = dto::Method {
         access: vec![],
         name: "".to_owned(),
-        parameters: vec![],
+        methods: vec![],
         ret: dto::JType::Void,
     };
 
@@ -59,7 +59,7 @@ fn parse_method(node: tree_sitter::Node<'_>, bytes: &[u8]) -> dto::Method {
             }
             "identifier" => method.name = get_string(&cursor, bytes),
             "formal_parameters" => {
-                method.parameters = parse_formal_parameters(&mut cursor, bytes);
+                method.methods = parse_formal_parameters(&mut cursor, bytes);
             }
             _ => {
                 //dbg!(cursor.node().kind());

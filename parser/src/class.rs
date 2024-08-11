@@ -1,4 +1,4 @@
-use crate::dto::{self, SourceKind};
+use crate::dto::{self, Parameter, SourceKind};
 use classfile_parser::constant_info::ConstantInfo;
 use classfile_parser::method_info::MethodAccessFlags;
 use classfile_parser::{class_parser, ClassAccessFlags, ClassFile};
@@ -10,43 +10,8 @@ pub fn load_class(bytes: &[u8], source: SourceKind) -> Result<dto::Class, dto::C
             let methods: Vec<_> = c
                 .methods
                 .iter()
-                .filter_map(|method| {
-                    let (params, ret) =
-                        parse_method_descriptor(&lookup_string(&c, method.descriptor_index)?);
-                    let mut params = params.into_iter();
-                    Some(dto::Method {
-                        access: match method.access_flags {
-                            MethodAccessFlags::PUBLIC => vec![dto::Access::Public],
-                            MethodAccessFlags::PRIVATE => vec![dto::Access::Private],
-                            MethodAccessFlags::PROTECTED => vec![dto::Access::Protected],
-                            MethodAccessFlags::STATIC => vec![dto::Access::Static],
-                            MethodAccessFlags::FINAL => vec![dto::Access::Final],
-                            MethodAccessFlags::ABSTRACT => vec![dto::Access::Abstract],
-                            MethodAccessFlags::SYNTHETIC => vec![dto::Access::Synthetic],
-                            _ => vec![],
-                        },
-                        name: lookup_string(&c, method.name_index)?,
-                        parameters: method
-                            .attributes
-                            .iter()
-                            .filter_map(|attribute_info| {
-                                let attribute_parsed =
-                                    classfile_parser::attribute_info::code_attribute_parser(
-                                        &attribute_info.info,
-                                    )
-                                    .ok();
-                                if let Some(attribute_parsed) = attribute_parsed {
-                                    return Some(dto::Parameter {
-                                        name: lookup_string(&c, attribute_parsed.1.max_stack)?,
-                                        jtype: params.next()?,
-                                    });
-                                }
-                                None
-                            })
-                            .collect(),
-                        ret,
-                    })
-                })
+                .filter_map(|method| parse_method(&c, method))
+                .filter(|m| m.name != "<init>")
                 .collect();
             Ok(dto::Class {
                 source,
@@ -71,6 +36,86 @@ pub fn load_class(bytes: &[u8], source: SourceKind) -> Result<dto::Class, dto::C
         }
         _ => panic!("Not a class file"),
     }
+}
+
+fn parse_method(
+    c: &ClassFile,
+    method: &classfile_parser::method_info::MethodInfo,
+) -> Option<dto::Method> {
+    let (params, ret) = parse_method_descriptor(&lookup_string(c, method.descriptor_index)?);
+    let mut params = params.into_iter();
+    let mut methods: Vec<dto::Parameter> = method
+        .attributes
+        .iter()
+        .filter_map(|attribute_info| {
+            match lookup_string(c, attribute_info.attribute_name_index)?.as_str() {
+                "MethodParameters" => {
+                    classfile_parser::attribute_info::method_parameters_attribute_parser(
+                        &attribute_info.info,
+                    )
+                    .ok()
+                }
+                _ => None,
+            }
+        })
+        .flat_map(|method_parameters| {
+            method_parameters
+                .1
+                .parameters
+                .into_iter()
+                .filter_map(|pa| {
+                    Some(dto::Parameter {
+                        //name: lookup_string(&c, attribute_parsed.1.attribute_name_index)?,
+                        name: lookup_string(c, pa.name_index)?,
+                        jtype: params.next()?,
+                    })
+                })
+                .collect::<Vec<Parameter>>()
+        })
+        .collect();
+    // Remaining method descriptor data as params
+    {
+        while let Some(jtype) = params.next() {
+            methods.push(dto::Parameter {
+                name: String::new(),
+                jtype,
+            });
+        }
+    }
+    Some(dto::Method {
+        access: parse_method_access(method),
+        name: lookup_string(c, method.name_index)?,
+        methods,
+        ret,
+    })
+}
+
+fn parse_method_access(method: &classfile_parser::method_info::MethodInfo) -> Vec<dto::Access> {
+    let mut access = vec![];
+    {
+        if method.access_flags == MethodAccessFlags::PUBLIC {
+            access.push(dto::Access::Public);
+        }
+        if method.access_flags == MethodAccessFlags::PRIVATE {
+            access.push(dto::Access::Private);
+        }
+        if method.access_flags == MethodAccessFlags::PROTECTED {
+            access.push(dto::Access::Protected);
+        }
+        if method.access_flags == MethodAccessFlags::STATIC {
+            access.push(dto::Access::Static);
+        }
+        if method.access_flags == MethodAccessFlags::FINAL {
+            access.push(dto::Access::Final);
+        }
+        if method.access_flags == MethodAccessFlags::ABSTRACT {
+            access.push(dto::Access::Abstract);
+        }
+        if method.access_flags == MethodAccessFlags::SYNTHETIC {
+            access.push(dto::Access::Synthetic);
+        }
+    }
+    access
 }
 
 fn lookup_string(c: &ClassFile, index: u16) -> Option<String> {

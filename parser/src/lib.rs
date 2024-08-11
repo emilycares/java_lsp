@@ -53,31 +53,31 @@ pub fn everything_data() -> dto::Class {
             dto::Method {
                 access: vec![],
                 name: "method".to_string(),
-                parameters: vec![],
+                methods: vec![],
                 ret: dto::JType::Void,
             },
             dto::Method {
                 access: vec![dto::Access::Public],
                 name: "public_method".to_string(),
-                parameters: vec![],
+                methods: vec![],
                 ret: dto::JType::Void,
             },
             dto::Method {
                 access: vec![dto::Access::Private],
                 name: "private_method".to_string(),
-                parameters: vec![],
+                methods: vec![],
                 ret: dto::JType::Void,
             },
             dto::Method {
                 access: vec![],
                 name: "out".to_string(),
-                parameters: vec![],
+                methods: vec![],
                 ret: dto::JType::Int,
             },
             dto::Method {
                 access: vec![],
                 name: "add".to_string(),
-                parameters: vec![
+                methods: vec![
                     dto::Parameter {
                         name: "a".to_string(),
                         jtype: dto::JType::Int,
