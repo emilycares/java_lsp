@@ -1,0 +1,12 @@
+---
+source: maven/src/compile.rs
+expression: out.1
+---
+- path: src/main/java/org/acme/GreetingResource.java
+  message: "> or ',' expected"
+  row: 15
+  col: 45
+- path: src/main/java/org/acme/GreetingResource.java
+  message: "> or ',' expected"
+  row: 15
+  col: 45

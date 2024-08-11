@@ -174,6 +174,8 @@ mod tests {
         let inp = include_str!("../tests/tverify.bacic.txt");
         let cut = cut_output(inp.to_string());
         let out = parser(&cut);
-        insta::assert_yaml_snapshot!(out.unwrap().1);
+        let out = out.unwrap();
+        dbg!(out.0);
+        insta::assert_yaml_snapshot!(out.1);
     }
 }
