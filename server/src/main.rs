@@ -7,7 +7,7 @@ use std::path::Path;
 use std::str::FromStr;
 
 use dashmap::DashMap;
-use parser::dto::{self, Class, SourceKind};
+use parser::dto::{Class, SourceKind};
 use ropey::Rope;
 use serde_json::Value;
 use tower_lsp::jsonrpc::Result;
@@ -232,7 +232,6 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
         let position = params.position;
-        let point = ttp(position);
         let tree = &document.tree;
 
         let mut out = vec![];

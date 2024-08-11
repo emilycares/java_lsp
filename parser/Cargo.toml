@@ -6,7 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-classfile-parser = "0.3.7"
+# classfile-parser = "0.3.7"
+classfile-parser = { git = "https://github.com/emilycares/classfile-parser.git", branch = "feature/MethodParameters" }
 # java_asm = { path = "../../rust-java-asm/asm" }
 # java_asm = "0.0.4"
 thiserror = "1.0.61"

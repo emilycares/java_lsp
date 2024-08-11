@@ -113,9 +113,8 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "classfile-parser"
-version = "0.3.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad0013fc9416446703ffca0696a72226ffd3955ab80ec2814c4154cc3da1f766"
+version = "0.3.8"
+source = "git+https://github.com/emilycares/classfile-parser.git?branch=feature/MethodParameters#7f9a7130553bfa5a5dd848b860337454a3cf8bc0"
 dependencies = [
  "bitflags 2.6.0",
  "cesu8",

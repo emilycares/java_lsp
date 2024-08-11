@@ -1,19 +1,10 @@
 use parser::dto;
 use tower_lsp::lsp_types::CompletionItem;
-use tree_sitter::{Node, Point};
+use tree_sitter::Point;
 use tree_sitter_util::CommentSkiper;
 
 use crate::Document;
 
-pub fn class_variables(cursor: &Point, document: Document) {
-    if let Some(class) = get_this_class(cursor, document) {
-        dbg!(class);
-    }
-}
-
-fn get_this_class<'a>(cursor: &Point, document: Document) -> Option<Node<'a>> {
-    todo!()
-}
 
 #[derive(Debug, PartialEq)]
 struct LevelThing {
@@ -157,9 +148,9 @@ pub fn class(val: &dto::Class) -> CompletionItem {
             format!(
                 "{}({:?})",
                 m.name,
-                m.parameters
+                m.methods
                     .iter()
-                    .map(|p| format!("{} {}", p.jtype, p.name))
+                    .map(|p| format!("{}", p.name))
                     .collect::<Vec<_>>()
             )
         })

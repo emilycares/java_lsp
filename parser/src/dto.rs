@@ -54,7 +54,7 @@ pub enum Access {
 pub struct Method {
     pub access: Vec<Access>,
     pub name: String,
-    pub parameters: Vec<Parameter>,
+    pub methods: Vec<Parameter>,
     pub ret: JType,
 }
 
