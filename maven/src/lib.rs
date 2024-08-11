@@ -5,6 +5,7 @@ use thiserror::Error;
 mod pom;
 #[allow(dead_code)]
 mod tree;
+pub mod compile;
 
 #[derive(Error, Debug)]
 pub enum MavenError {
@@ -19,9 +20,6 @@ pub enum MavenError {
     #[error("Run into a error running Dependency diagram")]
     TreeParseError(#[from] nom::Err<nom::error::Error<&'static str>>),
 }
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
 
 /// Takes a class path list
 pub fn class_path_to_local(cpl: Vec<&str>) -> Vec<String> {
@@ -31,13 +29,3 @@ pub fn class_path_to_local(cpl: Vec<&str>) -> Vec<String> {
         .collect()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}

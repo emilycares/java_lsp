@@ -23,7 +23,7 @@ async fn main() {
     let stdout = tokio::io::stdout();
 
     let (service, socket) = LspService::new(|client| Backend {
-        _client: client,
+        client,
         document_map: DashMap::new(),
         class_map: DashMap::new(),
     });
@@ -60,7 +60,8 @@ impl Document {
 }
 
 struct Backend {
-    _client: Client,
+    #[allow(dead_code)]
+    client: Client,
     document_map: DashMap<String, Document>,
     class_map: DashMap<String, Class>,
 }
@@ -162,6 +163,21 @@ impl Backend {
             self.class_map.insert(path, class);
         }
     }
+
+    fn compile(path: &str) -> Vec<Diagnostic> {
+        if let Some(classpath) = maven::compile::generate_classpath() {
+            if let Some(errors) = maven::compile::compile_java_file(path, &classpath) {
+                return errors
+                    .into_iter()
+                    .map(|e| {
+                        let p = Position::new(e.row as u32 - 1, e.col as u32);
+                        Diagnostic::new_simple(Range::new(p, p), e.message)
+                    })
+                    .collect();
+            }
+        }
+        vec![]
+    }
 }
 
 #[tower_lsp::async_trait]
@@ -185,6 +201,16 @@ impl LanguageServer for Backend {
                     ),
                     ..CompletionOptions::default()
                 }),
+                diagnostic_provider: Some(DiagnosticServerCapabilities::Options(
+                    DiagnosticOptions {
+                        identifier: None,
+                        inter_file_dependencies: false,
+                        workspace_diagnostics: false,
+                        work_done_progress_options: WorkDoneProgressOptions {
+                            work_done_progress: None,
+                        },
+                    },
+                )),
                 ..ServerCapabilities::default()
             },
             server_info: None,
@@ -212,16 +238,30 @@ impl LanguageServer for Backend {
                 imports::get_classes_to_load(&params.text_document.text.as_bytes(), &document.tree);
             self.load_classes(cpl);
         }
+        self.client
+            .publish_diagnostics(
+                params.text_document.uri.clone(),
+                Backend::compile(&params.text_document.uri.path()),
+                Some(params.text_document.version),
+            )
+            .await;
     }
 
     async fn did_change(&self, mut params: DidChangeTextDocumentParams) {
         self.on_change(TextDocumentItem {
-            uri: params.text_document.uri,
+            uri: params.text_document.uri.clone(),
             text: std::mem::take(&mut params.content_changes[0].text),
             version: params.text_document.version,
             language_id: "".to_owned(),
         })
         .await;
+        self.client
+            .publish_diagnostics(
+                params.text_document.uri.clone(),
+                Backend::compile(&params.text_document.uri.path()),
+                Some(params.text_document.version),
+            )
+            .await;
     }
 
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
