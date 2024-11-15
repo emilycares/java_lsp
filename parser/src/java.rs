@@ -4,9 +4,9 @@ use tree_sitter::{Parser, Query, QueryCursor};
 use tree_sitter_java::language;
 use tree_sitter_util::CommentSkiper;
 
-use crate::dto::{self, SourceKind};
+use crate::dto::{self};
 
-pub fn load_java(bytes: &[u8], source: SourceKind) -> Result<crate::dto::Class, dto::ClassError> {
+pub fn load_java(bytes: &[u8], class_path: String) -> Result<crate::dto::Class, dto::ClassError> {
     let mut parser = Parser::new();
     parser.set_language(&language())?;
 
@@ -18,7 +18,7 @@ pub fn load_java(bytes: &[u8], source: SourceKind) -> Result<crate::dto::Class, 
     let fields = parse_fields(&tree, bytes);
 
     Ok(dto::Class {
-        source,
+        class_path,
         access: vec![],
         name: get_class_name(tree, bytes),
         methods,
@@ -201,7 +201,7 @@ mod tests {
     fn everything() {
         let result = load_java(
             include_bytes!("../test/Everything.java"),
-            crate::dto::SourceKind::Jdk("".to_string()),
+            "".to_string()
         );
 
         assert_eq!(everything_data(), result.unwrap());

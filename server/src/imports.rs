@@ -14,7 +14,7 @@ fn get_tree(content: &str) -> Option<Tree> {
     Some(tree)
 }
 
-pub fn get_classes_to_load<'a>(content: &'a [u8], tree: &Tree) -> Vec<&'a str> {
+pub fn get_imported_classpaths<'a>(content: &'a [u8], tree: &Tree) -> Vec<&'a str> {
     let mut out = vec![];
     let mut cursor = tree.walk();
     cursor.first_child();
@@ -52,7 +52,7 @@ pub fn get_classes_to_load<'a>(content: &'a [u8], tree: &Tree) -> Vec<&'a str> {
 mod tests {
     use crate::imports::get_tree;
 
-    use super::get_classes_to_load;
+    use super::get_imported_classpaths;
 
     #[test]
     fn classes() {
@@ -63,7 +63,7 @@ import java.util.stream.Collectors;
 
 public class Controller {}";
         assert_eq!(
-            get_classes_to_load(demo.as_bytes(), &get_tree(demo).unwrap()),
+            get_imported_classpaths(demo.as_bytes(), &get_tree(demo).unwrap()),
             vec!["java.util.List", "java.util.stream.Collectors"]
         );
     }

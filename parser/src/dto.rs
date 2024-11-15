@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tree_sitter::LanguageError;
 
@@ -15,26 +16,33 @@ pub enum ClassError {
     Unknown,
     #[error("Parse error")]
     ParseError,
+    #[error("Serialize error")]
+    SerializeError(#[from] postcard::Error),
     #[error("Could not find the class name")]
     UnknownClassName,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub struct ClassFolder {
+    pub classes: Vec<Class>,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Class {
-    pub source: SourceKind,
+    pub class_path: String,
     pub access: Vec<Access>,
     pub name: String,
     pub methods: Vec<Method>,
     pub fields: Vec<Field>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum SourceKind {
     Jdk(String),
     Maven(String),
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub enum Access {
     Public,
     Private,
@@ -45,12 +53,13 @@ pub enum Access {
     Volatile,
     Transient,
     Synthetic,
+    Annotation,
     Enum,
     Interface,
     Abstract,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Method {
     pub access: Vec<Access>,
     pub name: String,
@@ -58,20 +67,20 @@ pub struct Method {
     pub ret: JType,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Field {
     pub access: Vec<Access>,
     pub name: String,
     pub jtype: JType,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Parameter {
     pub name: String,
     pub jtype: JType,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub enum JType {
     Void,
     Byte,
@@ -101,5 +110,21 @@ impl Display for JType {
             JType::Class(c) => write!(f, "{}", c),
             JType::Array(i) => write!(f, "Array<{}>", i),
         }
+    }
+}
+#[cfg(test)]
+mod tests {
+    use std::ops::Deref;
+
+    use super::JType;
+
+  
+    #[test]
+    fn ser() {
+        let inp = JType::Void;
+        let ser: Vec<u8> = postcard::to_allocvec(&inp).unwrap();
+        let out: JType = postcard::from_bytes(ser.deref()).unwrap();
+
+        assert_eq!(inp, out);
     }
 }
