@@ -18,3 +18,6 @@ thiserror = "1.0.62"
 parser = { path = "../parser"}
 maven = { path = "../maven"}
 tree-sitter-util = { path = "../tree-sitter-util" }
+
+[dev-dependencies]
+pretty_assertions = "1.4"

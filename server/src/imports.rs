@@ -25,18 +25,18 @@ pub fn get_classes_to_load<'a>(content: &'a [u8], tree: &Tree) -> Vec<&'a str> {
                 cursor.first_child();
                 cursor.sibling();
 
-                //dbg!(cursor.node().kind());
-                //dbg!(cursor.node().utf8_text(content.as_bytes()).unwrap());
-                assert_eq!(cursor.node().kind(), "scoped_identifier");
-                let class_path = cursor.node().utf8_text(content).unwrap();
-                if class_path.contains('{') {
-                    unimplemented!();
-                }
-                if class_path.contains('*') {
-                    unimplemented!();
-                }
+                // skip import when not correctly formated
+                if cursor.node().kind() == "scoped_identifier" {
+                    let class_path = cursor.node().utf8_text(content).unwrap();
+                    if class_path.contains('{') {
+                        unimplemented!();
+                    }
+                    if class_path.contains('*') {
+                        unimplemented!();
+                    }
 
-                out.push(class_path);
+                    out.push(class_path);
+                }
                 cursor.parent();
                 cursor.sibling();
             }
