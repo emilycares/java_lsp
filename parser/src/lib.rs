@@ -1,6 +1,7 @@
 mod class;
 pub mod dto;
 mod java;
+pub mod loader;
 
 use std::{fmt::Debug, path::Path};
 
@@ -41,71 +42,71 @@ mod tests {
             crate::dto::SourceKind::Jdk("".to_string()),
         );
     }
-}
 
-#[cfg(test)]
-pub fn everything_data() -> dto::Class {
-    dto::Class {
-        source: SourceKind::Jdk("".to_string()),
-        name: "Everything".to_string(),
-        access: vec![],
-        methods: vec![
-            dto::Method {
-                access: vec![],
-                name: "method".to_string(),
-                methods: vec![],
-                ret: dto::JType::Void,
-            },
-            dto::Method {
-                access: vec![dto::Access::Public],
-                name: "public_method".to_string(),
-                methods: vec![],
-                ret: dto::JType::Void,
-            },
-            dto::Method {
-                access: vec![dto::Access::Private],
-                name: "private_method".to_string(),
-                methods: vec![],
-                ret: dto::JType::Void,
-            },
-            dto::Method {
-                access: vec![],
-                name: "out".to_string(),
-                methods: vec![],
-                ret: dto::JType::Int,
-            },
-            dto::Method {
-                access: vec![],
-                name: "add".to_string(),
-                methods: vec![
-                    dto::Parameter {
-                        name: "a".to_string(),
-                        jtype: dto::JType::Int,
-                    },
-                    dto::Parameter {
-                        name: "b".to_string(),
-                        jtype: dto::JType::Int,
-                    },
-                ],
-                ret: dto::JType::Int,
-            },
-        ],
-        fields: vec![
-            dto::Field {
-                access: vec![],
-                name: "noprop".to_string(),
-                jtype: dto::JType::Int,
-            },
-            dto::Field {
-                access: vec![dto::Access::Public],
-                name: "publicproperty".to_string(),
-                jtype: dto::JType::Int,
-            },
-            dto::Field {
-                access: vec![dto::Access::Private],
-                name: "privateproperty".to_string(),
-                jtype: dto::JType::Int,
-            },
-        ],
+    #[cfg(test)]
+    pub fn everything_data() -> dto::Class {
+        dto::Class {
+            class_path: "".to_string(),
+            name: "Everything".to_string(),
+            access: vec![],
+            methods: vec![
+                dto::Method {
+                    access: vec![],
+                    name: "method".to_string(),
+                    methods: vec![],
+                    ret: dto::JType::Void,
+                },
+                dto::Method {
+                    access: vec![dto::Access::Public],
+                    name: "public_method".to_string(),
+                    methods: vec![],
+                    ret: dto::JType::Void,
+                },
+                dto::Method {
+                    access: vec![dto::Access::Private],
+                    name: "private_method".to_string(),
+                    methods: vec![],
+                    ret: dto::JType::Void,
+                },
+                dto::Method {
+                    access: vec![],
+                    name: "out".to_string(),
+                    methods: vec![],
+                    ret: dto::JType::Int,
+                },
+                dto::Method {
+                    access: vec![],
+                    name: "add".to_string(),
+                    methods: vec![
+                        dto::Parameter {
+                            name: "a".to_string(),
+                            jtype: dto::JType::Int,
+                        },
+                        dto::Parameter {
+                            name: "b".to_string(),
+                            jtype: dto::JType::Int,
+                        },
+                    ],
+                    ret: dto::JType::Int,
+                },
+            ],
+            fields: vec![
+                dto::Field {
+                    access: vec![],
+                    name: "noprop".to_string(),
+                    jtype: dto::JType::Int,
+                },
+                dto::Field {
+                    access: vec![dto::Access::Public],
+                    name: "publicproperty".to_string(),
+                    jtype: dto::JType::Int,
+                },
+                dto::Field {
+                    access: vec![dto::Access::Private],
+                    name: "privateproperty".to_string(),
+                    jtype: dto::JType::Int,
+                },
+            ],
+        }
     }
 }
