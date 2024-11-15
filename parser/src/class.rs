@@ -1,10 +1,10 @@
-use crate::dto::{self, Parameter, SourceKind};
+use crate::dto::{self, ClassError, Parameter};
 use classfile_parser::constant_info::ConstantInfo;
 use classfile_parser::field_info::{FieldAccessFlags, FieldInfo};
 use classfile_parser::method_info::{MethodAccessFlags, MethodInfo};
 use classfile_parser::{class_parser, ClassAccessFlags, ClassFile};
 
-pub fn load_class(bytes: &[u8], source: SourceKind) -> Result<dto::Class, dto::ClassError> {
+pub fn load_class(bytes: &[u8], class_path: String) -> Result<dto::Class, dto::ClassError> {
     let res = class_parser(bytes);
     match res {
         Result::Ok((_, c)) => {
@@ -13,21 +13,17 @@ pub fn load_class(bytes: &[u8], source: SourceKind) -> Result<dto::Class, dto::C
                 .iter()
                 .filter_map(|method| parse_method(&c, method))
                 .filter(|m| m.name != "<init>")
+                .filter(|f| !f.access.contains(&dto::Access::Private))
                 .collect();
             let fields: Vec<_> = c
                 .fields
                 .iter()
                 .filter_map(|field| parse_field(&c, field))
+                .filter(|f| !f.access.contains(&dto::Access::Private))
                 .collect();
             Ok(dto::Class {
-                source,
-                access: match c.access_flags {
-                    ClassAccessFlags::PUBLIC => vec![dto::Access::Public],
-                    ClassAccessFlags::FINAL => vec![dto::Access::Final],
-                    ClassAccessFlags::ABSTRACT => vec![dto::Access::Abstract],
-                    ClassAccessFlags::SYNTHETIC => vec![dto::Access::Synthetic],
-                    _ => vec![],
-                },
+                class_path,
+                access: parse_class_access(c.access_flags),
                 name: match &c.const_pool[(c.this_class - 1) as usize] {
                     ConstantInfo::Class(class) => lookup_string(&c, class.name_index)
                         .expect("Class to have name")
@@ -41,7 +37,7 @@ pub fn load_class(bytes: &[u8], source: SourceKind) -> Result<dto::Class, dto::C
                 fields,
             })
         }
-        _ => panic!("Not a class file"),
+        _ => Err(ClassError::ParseError),
     }
 }
 
@@ -53,7 +49,10 @@ fn parse_field(c: &ClassFile, field: &FieldInfo) -> Option<dto::Field> {
     })
 }
 
-fn parse_method(c: &ClassFile, method: &MethodInfo) -> Option<dto::Method> {
+fn parse_method(
+    c: &ClassFile,
+    method: &classfile_parser::method_info::MethodInfo,
+) -> Option<dto::Method> {
     let (params, ret) = parse_method_descriptor(&lookup_string(c, method.descriptor_index)?);
     let mut params = params.into_iter();
     let mut methods: Vec<dto::Parameter> = method
@@ -100,6 +99,32 @@ fn parse_method(c: &ClassFile, method: &MethodInfo) -> Option<dto::Method> {
         methods,
         ret,
     })
+}
+
+fn parse_class_access(flags: ClassAccessFlags) -> Vec<dto::Access> {
+    let mut access = vec![];
+    if flags == ClassAccessFlags::PUBLIC {
+        access.push(dto::Access::Public);
+    }
+    if flags == ClassAccessFlags::FINAL {
+        access.push(dto::Access::Final);
+    }
+    if flags == ClassAccessFlags::SUPER {
+        access.push(dto::Access::Super);
+    }
+    if flags == ClassAccessFlags::INTERFACE {
+        access.push(dto::Access::Interface);
+    }
+    if flags == ClassAccessFlags::SYNTHETIC {
+        access.push(dto::Access::Synthetic);
+    }
+    if flags == ClassAccessFlags::ANNOTATION {
+        access.push(dto::Access::Annotation);
+    }
+    if flags == ClassAccessFlags::ENUM {
+        access.push(dto::Access::Enum);
+    }
+    access
 }
 
 fn parse_method_access(method: &classfile_parser::method_info::MethodInfo) -> Vec<dto::Access> {
@@ -152,6 +177,9 @@ fn parse_field_access(method: &FieldInfo) -> Vec<dto::Access> {
 }
 
 fn lookup_string(c: &ClassFile, index: u16) -> Option<String> {
+    if index == 0 {
+        return None;
+    }
     let con = &c.const_pool[(index - 1) as usize];
     match con {
         ConstantInfo::Utf8(utf8) => Some(utf8.utf8_string.clone()),
@@ -224,10 +252,7 @@ mod tests {
 
     #[test]
     fn everything() {
-        let result = load_class(
-            include_bytes!("../test/Everything.class"),
-            crate::dto::SourceKind::Jdk("".to_string()),
-        );
+        let result = load_class(include_bytes!("../test/Everything.class"), "".to_string());
 
         assert_eq!(everything_data(), result.unwrap());
     }

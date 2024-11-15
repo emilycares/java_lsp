@@ -125,44 +125,38 @@ impl Backend {
     }
 
     /// cpl -> class path list
-    fn load_classes(&self, cpl: Vec<&str>) {
-        let new_classes: Vec<_> = cpl
-            .iter()
-            .filter(|cp| !self.class_map.contains_key(**cp))
-            .filter_map(|p| {
-                let jdk = format!("./jdk/classes/{}.class", p.replace('.', "/"));
-                if Path::new(&jdk).exists() {
-                    return match parser::load_class_fs(
-                        Path::new(&jdk),
-                        SourceKind::Jdk(jdk.clone()),
-                    ) {
-                        Ok(class) => Some((jdk, class)),
-                        Err(_) => None,
-                    };
-                }
-                let mvn = format!("./target/dependency/{}.class", p.replace('.', "/"));
-                if Path::new(&mvn).exists() {
-                    return match parser::load_class_fs(
-                        Path::new(&mvn),
-                        SourceKind::Maven(mvn.clone()),
-                    ) {
-                        Ok(class) => Some((mvn, class)),
-                        Err(_) => None,
-                    };
-                };
-
-                None
-            })
-            //.filter_map(|p| match parser::load_class_fs(Path::new(&p)) {
-            //    Ok(class) => Some((p, class)),
-            //    Err(_) => None,
-            //})
-            .collect();
-
-        for (path, class) in new_classes {
-            self.class_map.insert(path, class);
-        }
-    }
+    //fn load_classes(&self, cpl: Vec<&str>) {
+    //    let new_classes: Vec<_> = cpl
+    //        .iter()
+    //        .filter(|cp| !self.class_map.contains_key(**cp))
+    //        .filter_map(|p| {
+    //            let jdk = format!("./jdk/classes/{}.class", p.replace('.', "/"));
+    //            if Path::new(&jdk).exists() {
+    //                return match parser::loader::load_class_fs(Path::new(&jdk), p.to_string()) {
+    //                    Ok(class) => Some((jdk, class)),
+    //                    Err(_) => None,
+    //                };
+    //            }
+    //            let mvn = format!("./target/dependency/{}.class", p.replace('.', "/"));
+    //            if Path::new(&mvn).exists() {
+    //                return match parser::loader::load_class_fs(Path::new(&mvn), p.to_string()) {
+    //                    Ok(class) => Some((mvn, class)),
+    //                    Err(_) => None,
+    //                };
+    //            };
+    //
+    //            None
+    //        })
+    //        //.filter_map(|p| match parser::load_class_fs(Path::new(&p)) {
+    //        //    Ok(class) => Some((p, class)),
+    //        //    Err(_) => None,
+    //        //})
+    //        .collect();
+    //
+    //    for (path, class) in new_classes {
+    //        self.class_map.insert(path, class);
+    //    }
+    //}
 
     fn compile(path: &str) -> Vec<Diagnostic> {
         if let Some(classpath) = maven::compile::generate_classpath() {
@@ -188,13 +182,13 @@ impl LanguageServer for Backend {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
                     TextDocumentSyncKind::FULL,
                 )),
-                definition_provider: Some(OneOf::Left(true)),
-                code_action_provider: Some(CodeActionProviderCapability::Options(
-                    CodeActionOptions {
-                        code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
-                        ..CodeActionOptions::default()
-                    },
-                )),
+                //definition_provider: Some(OneOf::Left(true)),
+                //code_action_provider: Some(CodeActionProviderCapability::Options(
+                //    CodeActionOptions {
+                //        code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
+                //        ..CodeActionOptions::default()
+                //    },
+                //)),
                 completion_provider: Some(CompletionOptions {
                     trigger_characters: Some(
                         [' ', '.', '('].iter().map(|i| i.to_string()).collect(),
@@ -219,6 +213,36 @@ impl LanguageServer for Backend {
 
     async fn initialized(&self, _: InitializedParams) {
         eprintln!("Init");
+
+        let path = Path::new(".jdk.cfc");
+        if path.exists() {
+            if let Ok(classes) = parser::loader::load_class_folder("jdk") {
+                for class in classes.classes {
+                    self.class_map.insert(class.class_path.clone(), class);
+                }
+            }
+        } else {
+            let classes = parser::loader::load_classes("./jdk/classes/");
+            parser::loader::save_class_folder("jdk", &classes).unwrap();
+            for class in classes.classes {
+                self.class_map.insert(class.class_path.clone(), class);
+            }
+        }
+
+        let path = Path::new(".maven.cfc");
+        if path.exists() {
+            if let Ok(classes) = parser::loader::load_class_folder("maven") {
+                for class in classes.classes {
+                    self.class_map.insert(class.class_path.clone(), class);
+                }
+            }
+        } else {
+            let classes = parser::loader::load_classes("./target/dependency/");
+            parser::loader::save_class_folder("maven", &classes).unwrap();
+            for class in classes.classes {
+                self.class_map.insert(class.class_path.clone(), class);
+            }
+        }
     }
 
     async fn shutdown(&self) -> Result<()> {
@@ -233,18 +257,13 @@ impl LanguageServer for Backend {
             language_id: params.text_document.language_id,
         })
         .await;
-        if let Some(document) = self.get_document(&params.text_document.uri).await {
-            let cpl =
-                imports::get_classes_to_load(&params.text_document.text.as_bytes(), &document.tree);
-            self.load_classes(cpl);
-        }
-        self.client
-            .publish_diagnostics(
-                params.text_document.uri.clone(),
-                Backend::compile(&params.text_document.uri.path()),
-                Some(params.text_document.version),
-            )
-            .await;
+        //self.client
+        //    .publish_diagnostics(
+        //        params.text_document.uri.clone(),
+        //        Backend::compile(&params.text_document.uri.path()),
+        //        Some(params.text_document.version),
+        //    )
+        //    .await;
     }
 
     async fn did_change(&self, mut params: DidChangeTextDocumentParams) {
@@ -255,13 +274,13 @@ impl LanguageServer for Backend {
             language_id: "".to_owned(),
         })
         .await;
-        self.client
-            .publish_diagnostics(
-                params.text_document.uri.clone(),
-                Backend::compile(&params.text_document.uri.path()),
-                Some(params.text_document.version),
-            )
-            .await;
+        //self.client
+        //    .publish_diagnostics(
+        //        params.text_document.uri.clone(),
+        //        Backend::compile(&params.text_document.uri.path()),
+        //        Some(params.text_document.version),
+        //    )
+        //    .await;
     }
 
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
@@ -273,7 +292,6 @@ impl LanguageServer for Backend {
         };
         let position = params.position;
         let tree = &document.tree;
-
         let mut out = vec![];
 
         if let Ok(node) = get_node_at_point(&tree, ttp(position)) {
@@ -281,8 +299,34 @@ impl LanguageServer for Backend {
                 .utf8_text(document.text.to_string().as_bytes())
                 .unwrap();
             match node.kind() {
-                "type_identifier" => {}
-                _ => {}
+                "type_identifier" => {},
+                "identifier" => {
+                    out.extend(
+                        self.class_map
+                            .iter()
+                            .filter(|v| {
+                                let val = v.value();
+                                if val.access.contains(&dto::Access::Private) {
+                                    return false;
+                                }
+                                if val.name.contains("$") {
+                                    return false;
+                                }
+                                true
+                            })
+                            .take(50)
+                            .map(|v| {
+                                let val = v.value();
+                                CompletionItem::new_simple(val.name.clone(), val.class_path.clone())
+                            }),
+                    );
+                }
+                _ => {
+                    out.push(CompletionItem::new_simple(
+                        "node".to_string(),
+                        format!("[{}]{}", node.kind(), text),
+                    ));
+                }
             }
         }
 
@@ -293,6 +337,25 @@ impl LanguageServer for Backend {
         if false {
             out.extend(self.class_map.iter().map(|v| completion::class(v.value())));
         }
+
+        //out.extend(self.class_map.iter().map(|v| {
+        //    let val = v.value();
+        //    let methods: Vec<_> = val
+        //        .methods
+        //        .iter()
+        //        .map(|m| {
+        //            format!(
+        //                "{}({:?})",
+        //                m.name,
+        //                m.methods
+        //                    .iter()
+        //                    .map(|p| p.jtype.clone())
+        //                    .collect::<Vec<_>>()
+        //            )
+        //        })
+        //        .collect();
+        //    CompletionItem::new_simple(val.name.to_string(), methods.join("\n"))
+        //}));
 
         Ok(Some(CompletionResponse::Array(out)))
     }

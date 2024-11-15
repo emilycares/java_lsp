@@ -5,13 +5,17 @@ use std::{
     process::Command,
 };
 
-use nom::{bytes::{complete::take_until, streaming::tag}, combinator::opt, multi::many0_count};
 use nom::{
     branch::alt,
     character::complete::{alpha0, digit0},
     multi::separated_list0,
     sequence::{pair, separated_pair},
     IResult,
+};
+use nom::{
+    bytes::{complete::take_until, streaming::tag},
+    combinator::opt,
+    multi::many0_count,
 };
 use serde::{Deserialize, Serialize};
 
@@ -76,7 +80,7 @@ fn parse_compile_errors(input: &str) -> IResult<&str, Vec<CompileError>> {
 }
 
 fn parse_error(input: &str) -> IResult<&str, CompileError> {
-    let (input, (_, path)) = pair(opt(tag("\n")),separated_list0(tag("/"), alpha0))(input)?;
+    let (input, (_, path)) = pair(opt(tag("\n")), separated_list0(tag("/"), alpha0))(input)?;
     let (input, _) = take_until(".java:")(input)?;
     let (input, _) = tag(".java:")(input)?;
     let (input, (row, (msg, col))) =
@@ -101,6 +105,7 @@ fn parse_message_and_col(input: &str) -> IResult<&str, (&str, usize)> {
     let (input, (col, _)) = pair(many0_count(alt((tag(" "), tag("\t")))), tag("^"))(input)?;
     Ok((input, (message, col)))
 }
+
 
 #[cfg(test)]
 mod tests {
