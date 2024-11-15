@@ -214,13 +214,6 @@ impl LanguageServer for Backend {
             language_id: params.text_document.language_id,
         })
         .await;
-        //self.client
-        //    .publish_diagnostics(
-        //        params.text_document.uri.clone(),
-        //        Backend::compile(&params.text_document.uri.path()),
-        //        Some(params.text_document.version),
-        //    )
-        //    .await;
     }
 
     async fn did_change(&self, mut params: DidChangeTextDocumentParams) {
@@ -231,13 +224,16 @@ impl LanguageServer for Backend {
             language_id: "".to_owned(),
         })
         .await;
-        //self.client
-        //    .publish_diagnostics(
-        //        params.text_document.uri.clone(),
-        //        Backend::compile(&params.text_document.uri.path()),
-        //        Some(params.text_document.version),
-        //    )
-        //    .await;
+    }
+
+    async fn did_save(&self, params: DidSaveTextDocumentParams) {
+        self.client
+            .publish_diagnostics(
+                params.text_document.uri.clone(),
+                Backend::compile(&params.text_document.uri.path()),
+                None
+            )
+            .await;
     }
 
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
