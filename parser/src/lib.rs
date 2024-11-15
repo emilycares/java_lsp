@@ -14,6 +14,10 @@ where
     class::load_class(&bytes, source)
 }
 
+pub fn load_java(data: &Vec<u8>, source: SourceKind) -> Result<dto::Class, dto::ClassError> {
+    java::load_java(data, source)
+}
+
 pub fn load_java_fs<T>(path: T, source: SourceKind) -> Result<dto::Class, dto::ClassError>
 where
     T: AsRef<Path> + Debug,

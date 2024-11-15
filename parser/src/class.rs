@@ -34,16 +34,14 @@ pub fn load_class(bytes: &[u8], source: SourceKind) -> Result<dto::Class, dto::C
                                     classfile_parser::attribute_info::code_attribute_parser(
                                         &attribute_info.info,
                                     )
-                                    .unwrap();
-                                //if let Some(attribute_parsed) =
-                                //classfile_parser::attribute_info::attribute_parser(&attribute_info.info)
-                                //.ok()
-                                //{
-                                return Some(dto::Parameter {
-                                    name: lookup_string(&c, attribute_parsed.1.max_stack)?,
-                                    jtype: params.next()?,
-                                });
-                                //}
+                                    .ok();
+                                if let Some(attribute_parsed) = attribute_parsed {
+                                    return Some(dto::Parameter {
+                                        name: lookup_string(&c, attribute_parsed.1.max_stack)?,
+                                        jtype: params.next()?,
+                                    });
+                                }
+                                None
                             })
                             .collect(),
                         ret,

@@ -703,6 +703,7 @@ dependencies = [
  "dashmap 6.0.1",
  "maven",
  "parser",
+ "pretty_assertions",
  "ropey",
  "serde",
  "serde_json",

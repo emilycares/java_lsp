@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use thiserror::Error;
 use tree_sitter::LanguageError;
 
@@ -15,7 +17,6 @@ pub enum ClassError {
     ParseError,
     #[error("Could not find the class name")]
     UnknownClassName,
-
 }
 
 #[derive(Debug, PartialEq)]
@@ -77,4 +78,22 @@ pub enum JType {
     Boolean,
     Class(String),
     Array(Box<JType>),
+}
+
+impl Display for JType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            JType::Void => write!(f, ""),
+            JType::Byte => write!(f, "byte"),
+            JType::Char => write!(f, "char"),
+            JType::Double => write!(f, "double"),
+            JType::Float => write!(f, "float"),
+            JType::Int => write!(f, "int"),
+            JType::Long => write!(f, "long"),
+            JType::Short => write!(f, "short"),
+            JType::Boolean => write!(f, "boolean"),
+            JType::Class(c) => write!(f, "{}", c),
+            JType::Array(i) => write!(f, "Array<{}>", i),
+        }
+    }
 }

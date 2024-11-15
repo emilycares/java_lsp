@@ -1,3 +1,4 @@
+pub mod completion;
 mod imports;
 mod utils;
 
@@ -6,12 +7,15 @@ use std::path::Path;
 use std::str::FromStr;
 
 use dashmap::DashMap;
-use parser::dto::{Class, SourceKind};
+use parser::dto::{self, Class, SourceKind};
+use ropey::Rope;
 use serde_json::Value;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use tree_sitter::{Parser, Point, Tree};
+use tree_sitter_util::get_node_at_point;
+use utils::ttp;
 
 #[tokio::main]
 async fn main() {
@@ -32,6 +36,29 @@ pub struct Document {
     parser: Parser,
 }
 
+impl Document {
+    pub fn setup(text: &str) -> Option<Self> {
+        let rope = ropey::Rope::from_str(text);
+        Self::setup_rope(text, rope)
+    }
+
+    pub fn setup_rope(text: &str, rope: Rope) -> Option<Self> {
+        let mut parser = Parser::new();
+        if parser.set_language(&tree_sitter_java::language()).is_err() {
+            eprintln!("----- Not initialized -----");
+            return None;
+        }
+        let Some(tree) = parser.parse(text, None) else {
+            return None;
+        };
+        Some(Self {
+            parser,
+            text: rope,
+            tree,
+        })
+    }
+}
+
 struct Backend {
     _client: Client,
     document_map: DashMap<String, Document>,
@@ -50,22 +77,8 @@ impl Backend {
             }
             document.text = rope;
         } else {
-            let mut parser = Parser::new();
-            if parser.set_language(&tree_sitter_java::language()).is_err() {
-                eprintln!("----- Not initialized -----");
-                return;
-            }
-            let Some(tree) = parser.parse(params.text, None) else {
-                return;
-            };
-            self.document_map.insert(
-                key,
-                Document {
-                    text: rope,
-                    tree,
-                    parser,
-                },
-            );
+            self.document_map
+                .insert(key, Document::setup_rope(&params.text, rope).unwrap());
         }
     }
 
@@ -118,8 +131,10 @@ impl Backend {
             .filter_map(|p| {
                 let jdk = format!("./jdk/classes/{}.class", p.replace('.', "/"));
                 if Path::new(&jdk).exists() {
-                    return match parser::load_class_fs(Path::new(&jdk), SourceKind::Jdk(jdk.clone()))
-                    {
+                    return match parser::load_class_fs(
+                        Path::new(&jdk),
+                        SourceKind::Jdk(jdk.clone()),
+                    ) {
                         Ok(class) => Some((jdk, class)),
                         Err(_) => None,
                     };
@@ -143,7 +158,6 @@ impl Backend {
             //})
             .collect();
 
-        dbg!(&new_classes);
         for (path, class) in new_classes {
             self.class_map.insert(path, class);
         }
@@ -194,7 +208,8 @@ impl LanguageServer for Backend {
         })
         .await;
         if let Some(document) = self.get_document(&params.text_document.uri).await {
-            let cpl = imports::get_classes_to_load(&params.text_document.text.as_bytes(), &document.tree);
+            let cpl =
+                imports::get_classes_to_load(&params.text_document.text.as_bytes(), &document.tree);
             self.load_classes(cpl);
         }
     }
@@ -210,46 +225,35 @@ impl LanguageServer for Backend {
     }
 
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
-        eprintln!("compl, [{}]", &self.class_map.len());
         let params = params.text_document_position;
         let uri = params.text_document.uri;
         let Some(document) = self.get_document(&uri).await else {
             eprintln!("Document is not opened.");
             return Ok(None);
         };
-        let _position = params.position;
-        let _tree = &document.tree;
-
-        //if let Ok(node) = get_node_at_point(&tree, ttp(position)) {
-        //    let _text = node
-        //        .utf8_text(document.text.to_string().as_bytes())
-        //        .unwrap();
-        //    match node.kind() {
-        //        "type_identifier" => {}
-        //        _ => {}
-        //    }
-        //}
+        let position = params.position;
+        let point = ttp(position);
+        let tree = &document.tree;
 
         let mut out = vec![];
-        out.extend(self.class_map.iter().map(|v| {
-            let val = v.value();
-            let methods: Vec<_> = val
-                .methods
-                .iter()
-                .map(|m| {
-                    format!(
-                        "{}({:?})",
-                        m.name,
-                        m.parameters
-                            .iter()
-                            .map(|p| p.jtype.clone())
-                            .collect::<Vec<_>>()
-                    )
-                })
-                .collect();
-            CompletionItem::new_simple(val.name.to_string(), methods.join("\n"))
-        }));
-        dbg!(&out);
+
+        if let Ok(node) = get_node_at_point(&tree, ttp(position)) {
+            let _text = node
+                .utf8_text(document.text.to_string().as_bytes())
+                .unwrap();
+            match node.kind() {
+                "type_identifier" => {}
+                _ => {}
+            }
+        }
+
+        if true {
+            //dbg!(completion::class_variables(&point, document));
+        }
+
+        if false {
+            out.extend(self.class_map.iter().map(|v| completion::class(v.value())));
+        }
 
         Ok(Some(CompletionResponse::Array(out)))
     }

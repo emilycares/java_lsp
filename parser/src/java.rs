@@ -142,8 +142,10 @@ mod tests {
 
     #[test]
     fn everything() {
-        let result = load_java(include_bytes!("../test/Everything.java")
-            , crate::dto::SourceKind::Jdk("".to_string()));
+        let result = load_java(
+            include_bytes!("../test/Everything.java"),
+            crate::dto::SourceKind::Jdk("".to_string()),
+        );
 
         assert_eq!(everything_data(), result.unwrap());
     }
