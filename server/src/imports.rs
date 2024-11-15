@@ -4,9 +4,9 @@ use tree_sitter_util::CommentSkiper;
 #[allow(dead_code)]
 fn get_tree(content: &str) -> Option<Tree> {
     let mut parser = Parser::new();
-    let language = tree_sitter_java::language();
+    let language = tree_sitter_java::LANGUAGE;
     parser
-        .set_language(&language)
+        .set_language(&language.into())
         .expect("Error loading java grammar");
     let Some(tree) = parser.parse(content, None) else {
         return None;
@@ -14,6 +14,7 @@ fn get_tree(content: &str) -> Option<Tree> {
     Some(tree)
 }
 
+#[allow(dead_code)]
 pub fn get_imported_classpaths<'a>(content: &'a [u8], tree: &Tree) -> Vec<&'a str> {
     let mut out = vec![];
     let mut cursor = tree.walk();

@@ -1,7 +1,7 @@
 use crate::dto::{self, ClassError, Parameter};
 use classfile_parser::constant_info::ConstantInfo;
 use classfile_parser::field_info::{FieldAccessFlags, FieldInfo};
-use classfile_parser::method_info::{MethodAccessFlags, MethodInfo};
+use classfile_parser::method_info::MethodAccessFlags;
 use classfile_parser::{class_parser, ClassAccessFlags, ClassFile};
 
 pub fn load_class(bytes: &[u8], class_path: String) -> Result<dto::Class, dto::ClassError> {
@@ -13,13 +13,13 @@ pub fn load_class(bytes: &[u8], class_path: String) -> Result<dto::Class, dto::C
                 .iter()
                 .filter_map(|method| parse_method(&c, method))
                 .filter(|m| m.name != "<init>")
-                .filter(|f| !f.access.contains(&dto::Access::Private))
+                //.filter(|f| !f.access.contains(&dto::Access::Private))
                 .collect();
             let fields: Vec<_> = c
                 .fields
                 .iter()
                 .filter_map(|field| parse_field(&c, field))
-                .filter(|f| !f.access.contains(&dto::Access::Private))
+                //.filter(|f| !f.access.contains(&dto::Access::Private))
                 .collect();
             Ok(dto::Class {
                 class_path,
@@ -247,13 +247,13 @@ fn parse_field_type(c: char, chars: &mut std::str::Chars) -> dto::JType {
 
 #[cfg(test)]
 mod tests {
-    use crate::{class::load_class, everything_data};
+    use crate::class::load_class;
     use pretty_assertions::assert_eq;
 
     #[test]
     fn everything() {
         let result = load_class(include_bytes!("../test/Everything.class"), "".to_string());
 
-        assert_eq!(everything_data(), result.unwrap());
+        assert_eq!(crate::tests::everything_data(), result.unwrap());
     }
 }

@@ -118,7 +118,6 @@ mod tests {
 
     use super::JType;
 
-  
     #[test]
     fn ser() {
         let inp = JType::Void;

@@ -7,18 +7,16 @@ use std::path::Path;
 use std::str::FromStr;
 
 use dashmap::DashMap;
-use parser::dto::{Class, SourceKind};
+use parser::dto::Class;
 use ropey::Rope;
 use serde_json::Value;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use tree_sitter::{Parser, Point, Tree};
-use tree_sitter_util::get_node_at_point;
 use utils::ttp;
 
-#[tokio::main]
-async fn main() {
+pub async fn main() {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
 
@@ -44,7 +42,8 @@ impl Document {
 
     pub fn setup_rope(text: &str, rope: Rope) -> Option<Self> {
         let mut parser = Parser::new();
-        if parser.set_language(&tree_sitter_java::language()).is_err() {
+        let language = tree_sitter_java::LANGUAGE;
+        if parser.set_language(&language.into()).is_err() {
             eprintln!("----- Not initialized -----");
             return None;
         }
@@ -124,40 +123,7 @@ impl Backend {
         None
     }
 
-    /// cpl -> class path list
-    //fn load_classes(&self, cpl: Vec<&str>) {
-    //    let new_classes: Vec<_> = cpl
-    //        .iter()
-    //        .filter(|cp| !self.class_map.contains_key(**cp))
-    //        .filter_map(|p| {
-    //            let jdk = format!("./jdk/classes/{}.class", p.replace('.', "/"));
-    //            if Path::new(&jdk).exists() {
-    //                return match parser::loader::load_class_fs(Path::new(&jdk), p.to_string()) {
-    //                    Ok(class) => Some((jdk, class)),
-    //                    Err(_) => None,
-    //                };
-    //            }
-    //            let mvn = format!("./target/dependency/{}.class", p.replace('.', "/"));
-    //            if Path::new(&mvn).exists() {
-    //                return match parser::loader::load_class_fs(Path::new(&mvn), p.to_string()) {
-    //                    Ok(class) => Some((mvn, class)),
-    //                    Err(_) => None,
-    //                };
-    //            };
-    //
-    //            None
-    //        })
-    //        //.filter_map(|p| match parser::load_class_fs(Path::new(&p)) {
-    //        //    Ok(class) => Some((p, class)),
-    //        //    Err(_) => None,
-    //        //})
-    //        .collect();
-    //
-    //    for (path, class) in new_classes {
-    //        self.class_map.insert(path, class);
-    //    }
-    //}
-
+    #[allow(dead_code)]
     fn compile(path: &str) -> Vec<Diagnostic> {
         if let Some(classpath) = maven::compile::generate_classpath() {
             if let Some(errors) = maven::compile::compile_java_file(path, &classpath) {
@@ -195,16 +161,7 @@ impl LanguageServer for Backend {
                     ),
                     ..CompletionOptions::default()
                 }),
-                diagnostic_provider: Some(DiagnosticServerCapabilities::Options(
-                    DiagnosticOptions {
-                        identifier: None,
-                        inter_file_dependencies: false,
-                        workspace_diagnostics: false,
-                        work_done_progress_options: WorkDoneProgressOptions {
-                            work_done_progress: None,
-                        },
-                    },
-                )),
+                diagnostic_provider: None,
                 ..ServerCapabilities::default()
             },
             server_info: None,
@@ -290,49 +247,24 @@ impl LanguageServer for Backend {
             eprintln!("Document is not opened.");
             return Ok(None);
         };
-        let position = params.position;
-        let tree = &document.tree;
         let mut out = vec![];
 
-        if let Ok(node) = get_node_at_point(&tree, ttp(position)) {
-            let _text = node
-                .utf8_text(document.text.to_string().as_bytes())
-                .unwrap();
-            match node.kind() {
-                "type_identifier" => {},
-                "identifier" => {
-                    out.extend(
-                        self.class_map
-                            .iter()
-                            .filter(|v| {
-                                let val = v.value();
-                                if val.access.contains(&dto::Access::Private) {
-                                    return false;
-                                }
-                                if val.name.contains("$") {
-                                    return false;
-                                }
-                                true
-                            })
-                            .take(50)
-                            .map(|v| {
-                                let val = v.value();
-                                CompletionItem::new_simple(val.name.clone(), val.class_path.clone())
-                            }),
-                    );
-                }
-                _ => {
-                    out.push(CompletionItem::new_simple(
-                        "node".to_string(),
-                        format!("[{}]{}", node.kind(), text),
-                    ));
-                }
-            }
-        }
-
-        if true {
-            //dbg!(completion::class_variables(&point, document));
-        }
+        out.extend(
+            completion::find(document.value(), &ttp(params.position))
+                .iter()
+                .map(|a| CompletionItem {
+                    label: a.name.to_owned(),
+                    label_details: Some(CompletionItemLabelDetails {
+                        detail: Some(a.ty.to_string()),
+                        ..Default::default()
+                    }),
+                    kind: match a.is_fun {
+                        true => Some(CompletionItemKind::FUNCTION),
+                        false => Some(CompletionItemKind::VARIABLE),
+                    },
+                    ..Default::default()
+                }),
+        );
 
         if false {
             out.extend(self.class_map.iter().map(|v| completion::class(v.value())));

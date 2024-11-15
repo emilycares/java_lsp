@@ -57,7 +57,6 @@ pub struct CompileError {
 }
 
 pub fn compile_java_file(file_path: &str, classpath: &str) -> Option<Vec<CompileError>> {
-    dbg!(&file_path);
     // Compile the Java file using `javac` with the generated classpath
     let out = Command::new("javac")
         .arg("-cp")
@@ -105,7 +104,6 @@ fn parse_message_and_col(input: &str) -> IResult<&str, (&str, usize)> {
     let (input, (col, _)) = pair(many0_count(alt((tag(" "), tag("\t")))), tag("^"))(input)?;
     Ok((input, (message, col)))
 }
-
 
 #[cfg(test)]
 mod tests {

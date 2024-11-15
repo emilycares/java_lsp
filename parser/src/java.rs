@@ -1,14 +1,14 @@
 use std::vec;
 
 use tree_sitter::{Parser, Query, QueryCursor};
-use tree_sitter_java::language;
 use tree_sitter_util::CommentSkiper;
 
 use crate::dto::{self};
 
 pub fn load_java(bytes: &[u8], class_path: String) -> Result<crate::dto::Class, dto::ClassError> {
     let mut parser = Parser::new();
-    parser.set_language(&language())?;
+    let language = tree_sitter_java::LANGUAGE;
+    parser.set_language(&language.into())?;
 
     let Some(tree) = parser.parse(bytes, None) else {
         return Err(dto::ClassError::ParseError);
@@ -31,7 +31,8 @@ fn parse_methods(tree: &tree_sitter::Tree, bytes: &[u8]) -> Vec<dto::Method> {
     let query_str = r#"
     (method_declaration) @method
     "#;
-    let query = Query::new(&language(), query_str).expect("Error compiling query");
+    let language = tree_sitter_java::LANGUAGE;
+    let query = Query::new(&language.into(), query_str).expect("Error compiling query");
 
     // Execute the query
     let mut query_cursor = QueryCursor::new();
@@ -49,7 +50,8 @@ fn parse_fields(tree: &tree_sitter::Tree, bytes: &[u8]) -> Vec<dto::Field> {
     let query_str = r#"
     (field_declaration) @field
     "#;
-    let query = Query::new(&language(), query_str).expect("Error compiling query");
+    let language = tree_sitter_java::LANGUAGE;
+    let query = Query::new(&language.into(), query_str).expect("Error compiling query");
 
     // Execute the query
     let mut query_cursor = QueryCursor::new();
@@ -193,17 +195,12 @@ fn parse_jtype(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> dto::JType
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use crate::everything_data;
-
     use super::load_java;
 
     #[test]
     fn everything() {
-        let result = load_java(
-            include_bytes!("../test/Everything.java"),
-            "".to_string()
-        );
+        let result = load_java(include_bytes!("../test/Everything.java"), "".to_string());
 
-        assert_eq!(everything_data(), result.unwrap());
+        assert_eq!(crate::tests::everything_data(), result.unwrap());
     }
 }

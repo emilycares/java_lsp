@@ -1,11 +1,11 @@
 use std::path::Path;
 
 use thiserror::Error;
+pub mod compile;
 #[allow(dead_code)]
 mod pom;
 #[allow(dead_code)]
 mod tree;
-pub mod compile;
 
 #[derive(Error, Debug)]
 pub enum MavenError {
@@ -28,4 +28,3 @@ pub fn class_path_to_local(cpl: Vec<&str>) -> Vec<String> {
         .filter(|p| Path::new(&p).exists())
         .collect()
 }
-

@@ -28,7 +28,10 @@ where
     java::load_java(&bytes, class_path)
 }
 
-pub fn save_class_folder(prefix: &str, class_folder: &dto::ClassFolder) -> Result<(), dto::ClassError> {
+pub fn save_class_folder(
+    prefix: &str,
+    class_folder: &dto::ClassFolder,
+) -> Result<(), dto::ClassError> {
     let mut file = OpenOptions::new()
         .create(true)
         .write(true)
@@ -92,7 +95,7 @@ mod tests {
             Path::new(
                 "/home/emily/Documents/java/getting-started/jdk/classes/java/util/HashMap.class",
             ),
-            "".to_string()
+            "".to_string(),
         );
     }
 }

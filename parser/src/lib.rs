@@ -5,30 +5,29 @@ pub mod loader;
 
 use std::{fmt::Debug, path::Path};
 
-use dto::SourceKind;
-
-pub fn load_class_fs<T>(path: T, source: SourceKind) -> Result<dto::Class, dto::ClassError>
+pub fn load_class_fs<T>(path: T, class_path: String) -> Result<dto::Class, dto::ClassError>
 where
     T: AsRef<Path> + Debug,
 {
     let bytes = std::fs::read(path)?;
-    class::load_class(&bytes, source)
+    class::load_class(&bytes, class_path)
 }
 
-pub fn load_java(data: &Vec<u8>, source: SourceKind) -> Result<dto::Class, dto::ClassError> {
-    java::load_java(data, source)
+pub fn load_java(data: &Vec<u8>, class_path: String) -> Result<dto::Class, dto::ClassError> {
+    java::load_java(data, class_path)
 }
 
-pub fn load_java_fs<T>(path: T, source: SourceKind) -> Result<dto::Class, dto::ClassError>
+pub fn load_java_fs<T>(path: T, class_path: String) -> Result<dto::Class, dto::ClassError>
 where
     T: AsRef<Path> + Debug,
 {
     let bytes = std::fs::read(path)?;
-    java::load_java(&bytes, source)
+    java::load_java(&bytes, class_path)
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::dto;
     use std::path::Path;
 
     use crate::load_class_fs;
@@ -39,7 +38,7 @@ mod tests {
             Path::new(
                 "/home/emily/Documents/java/getting-started/jdk/classes/java/util/HashMap.class",
             ),
-            crate::dto::SourceKind::Jdk("".to_string()),
+            "java.util.HashMap".to_string(),
         );
     }
 

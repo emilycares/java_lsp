@@ -5,17 +5,16 @@ use tree_sitter_util::CommentSkiper;
 
 use crate::Document;
 
-
 #[derive(Debug, PartialEq)]
-struct LevelThing {
-    level: usize,
-    ty: String,
-    name: String,
-    is_fun: bool,
+pub struct LevelThing {
+    pub level: usize,
+    pub ty: String,
+    pub name: String,
+    pub is_fun: bool,
 }
 
-fn find<'a>(document: Document, point: &Point) -> Vec<LevelThing> {
-    let tree = document.tree;
+pub fn find<'a>(document: &Document, point: &Point) -> Vec<LevelThing> {
+    let tree = &document.tree;
     let bytes = document
         .text
         .slice(..)
@@ -43,6 +42,8 @@ fn find<'a>(document: Document, point: &Point) -> Vec<LevelThing> {
                             }
                             let ty = get_string(&class_cursor, &bytes);
                             class_cursor.sibling();
+                            class_cursor.first_child();
+
                             let name = get_string(&class_cursor, &bytes);
                             out.push(LevelThing {
                                 level,
@@ -51,6 +52,7 @@ fn find<'a>(document: Document, point: &Point) -> Vec<LevelThing> {
                                 is_fun: false,
                             });
 
+                            class_cursor.parent();
                             class_cursor.parent();
                         }
                         "method_declaration" => {
@@ -71,8 +73,8 @@ fn find<'a>(document: Document, point: &Point) -> Vec<LevelThing> {
                         }
                         "{" | "}" => {}
                         _ => {
-                            dbg!(class_cursor.node().kind());
-                            dbg!(get_string(&class_cursor, &bytes));
+                            //dbg!(class_cursor.node().kind());
+                            //dbg!(get_string(&class_cursor, &bytes));
                         }
                     }
                     if !class_cursor.sibling() {
@@ -187,6 +189,8 @@ public class GreetingResource {
     @Inject
     Template se;
 
+    private String other = \"\";
+
     @GET
     @Produces(MediaType.TEXT_HTML)
     public TemplateInstance hello() {
@@ -199,7 +203,7 @@ public class GreetingResource {
         ";
         let doc = Document::setup(content).unwrap();
 
-        let out = find(doc, &Point::new(24, 17));
+        let out = find(&doc, &Point::new(24, 17));
         assert_eq!(
             out,
             vec![
@@ -213,6 +217,12 @@ public class GreetingResource {
                     level: 2,
                     ty: "Template".to_owned(),
                     name: "se".to_owned(),
+                    is_fun: false,
+                },
+                LevelThing {
+                    level: 2,
+                    ty: "String".to_owned(),
+                    name: "other".to_owned(),
                     is_fun: false,
                 },
                 LevelThing {
