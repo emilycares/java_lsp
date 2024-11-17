@@ -20,6 +20,7 @@ where
     class::load_class(&bytes, class_path)
 }
 
+/// 
 pub fn load_java_fs<T>(path: T, class_path: String) -> Result<dto::Class, dto::ClassError>
 where
     T: AsRef<Path> + Debug,
@@ -72,30 +73,4 @@ fn get_classes(dir: &str) -> Vec<String> {
         .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
         .filter(|e| e.ends_with(".class"))
         .collect::<Vec<_>>()
-}
-
-#[cfg(test)]
-mod tests {
-    use std::path::Path;
-
-    use super::load_class_fs;
-
-    //#[test]
-    //fn load_jdk() {
-    //    dbg!(load_jdk_folder(
-    //        "/home/emily/Documents/java/getting-started/jdk/classes/" //"D:\\rust\\jdk\\classes\\"
-    //    )
-    //    .len());
-    //    assert!(false);
-    //}
-
-    #[test]
-    fn fsbug() {
-        let _ = load_class_fs(
-            Path::new(
-                "/home/emily/Documents/java/getting-started/jdk/classes/java/util/HashMap.class",
-            ),
-            "".to_string(),
-        );
-    }
 }

@@ -76,8 +76,14 @@ fn parse_method(
                 .into_iter()
                 .filter_map(|pa| {
                     Some(dto::Parameter {
-                        //name: lookup_string(&c, attribute_parsed.1.attribute_name_index)?,
-                        name: lookup_string(c, pa.name_index)?,
+                        name: lookup_string(c, pa.name_index)
+                            .map(|s| {
+                                if s.is_empty() {
+                                    return None;
+                                }
+                                Some(s)
+                            })
+                            .flatten(),
                         jtype: params.next()?,
                     })
                 })
@@ -87,16 +93,13 @@ fn parse_method(
     // Remaining method descriptor data as params
     {
         while let Some(jtype) = params.next() {
-            methods.push(dto::Parameter {
-                name: String::new(),
-                jtype,
-            });
+            methods.push(dto::Parameter { name: None, jtype });
         }
     }
     Some(dto::Method {
         access: parse_method_access(method),
         name: lookup_string(c, method.name_index)?,
-        methods,
+        parameters: methods,
         ret,
     })
 }

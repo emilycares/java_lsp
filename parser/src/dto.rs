@@ -27,7 +27,7 @@ pub struct ClassFolder {
     pub classes: Vec<Class>,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Class {
     pub class_path: String,
     pub access: Vec<Access>,
@@ -59,24 +59,24 @@ pub enum Access {
     Abstract,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Method {
     pub access: Vec<Access>,
     pub name: String,
-    pub methods: Vec<Parameter>,
+    pub parameters: Vec<Parameter>,
     pub ret: JType,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Field {
     pub access: Vec<Access>,
     pub name: String,
     pub jtype: JType,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Parameter {
-    pub name: String,
+    pub name: Option<String>,
     pub jtype: JType,
 }
 

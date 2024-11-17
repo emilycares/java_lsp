@@ -28,19 +28,6 @@ where
 #[cfg(test)]
 mod tests {
     use crate::dto;
-    use std::path::Path;
-
-    use crate::load_class_fs;
-
-    #[test]
-    fn fsbug() {
-        let _ = load_class_fs(
-            Path::new(
-                "/home/emily/Documents/java/getting-started/jdk/classes/java/util/HashMap.class",
-            ),
-            "java.util.HashMap".to_string(),
-        );
-    }
 
     #[cfg(test)]
     pub fn everything_data() -> dto::Class {
@@ -52,37 +39,37 @@ mod tests {
                 dto::Method {
                     access: vec![],
                     name: "method".to_string(),
-                    methods: vec![],
+                    parameters: vec![],
                     ret: dto::JType::Void,
                 },
                 dto::Method {
                     access: vec![dto::Access::Public],
                     name: "public_method".to_string(),
-                    methods: vec![],
+                    parameters: vec![],
                     ret: dto::JType::Void,
                 },
                 dto::Method {
                     access: vec![dto::Access::Private],
                     name: "private_method".to_string(),
-                    methods: vec![],
+                    parameters: vec![],
                     ret: dto::JType::Void,
                 },
                 dto::Method {
                     access: vec![],
                     name: "out".to_string(),
-                    methods: vec![],
+                    parameters: vec![],
                     ret: dto::JType::Int,
                 },
                 dto::Method {
                     access: vec![],
                     name: "add".to_string(),
-                    methods: vec![
+                    parameters: vec![
                         dto::Parameter {
-                            name: "a".to_string(),
+                            name: Some("a".to_string()),
                             jtype: dto::JType::Int,
                         },
                         dto::Parameter {
-                            name: "b".to_string(),
+                            name: Some("b".to_string()),
                             jtype: dto::JType::Int,
                         },
                     ],

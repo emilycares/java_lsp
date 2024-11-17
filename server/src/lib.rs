@@ -1,5 +1,6 @@
 pub mod completion;
 mod imports;
+mod tyres;
 mod utils;
 
 use core::panic;
@@ -179,6 +180,9 @@ impl LanguageServer for Backend {
                 }
             }
         } else {
+            // nix run github:nix-community/nix-index#nix-locate -- jmods/java.base.jmod
+            // jmod extract openjdk-22.0.2_windows-x64_bin/jdk-22.0.2/jmods/java.base.jmod
+            // mvn dependency:unpack
             let classes = parser::loader::load_classes("./jdk/classes/");
             parser::loader::save_class_folder("jdk", &classes).unwrap();
             for class in classes.classes {
@@ -231,7 +235,7 @@ impl LanguageServer for Backend {
             .publish_diagnostics(
                 params.text_document.uri.clone(),
                 Backend::compile(&params.text_document.uri.path()),
-                None
+                None,
             )
             .await;
     }
@@ -244,27 +248,27 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
         let mut out = vec![];
+        let vars = completion::get_vars(document.value(), &ttp(params.position));
+
+        let imports = imports::imports(document.value());
+
+        out.extend(completion::extend_completion(
+            document.value(),
+            &ttp(params.position),
+            &vars,
+            &imports,
+            &self.class_map,
+        ));
+
+        out.extend(completion::complete_vars(&vars));
+
 
         out.extend(
-            completion::find(document.value(), &ttp(params.position))
+            self.class_map
                 .iter()
-                .map(|a| CompletionItem {
-                    label: a.name.to_owned(),
-                    label_details: Some(CompletionItemLabelDetails {
-                        detail: Some(a.ty.to_string()),
-                        ..Default::default()
-                    }),
-                    kind: match a.is_fun {
-                        true => Some(CompletionItemKind::FUNCTION),
-                        false => Some(CompletionItemKind::VARIABLE),
-                    },
-                    ..Default::default()
-                }),
+                .filter(|i| i.access.contains(&parser::dto::Access::Public))
+                .map(|v| completion::class_describe(v.value())),
         );
-
-        if false {
-            out.extend(self.class_map.iter().map(|v| completion::class(v.value())));
-        }
 
         //out.extend(self.class_map.iter().map(|v| {
         //    let val = v.value();
