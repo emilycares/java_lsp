@@ -15,7 +15,7 @@ fn get_tree(content: &str) -> Option<Tree> {
     };
     Some(tree)
 }
-pub fn imports<'a>( document: &'a Document) -> Vec<&'a str> {
+pub fn imports<'a>(document: &'a Document) -> Vec<&'a str> {
     let tree = &document.tree;
     let bytes = document
         .text

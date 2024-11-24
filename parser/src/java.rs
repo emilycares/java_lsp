@@ -121,8 +121,8 @@ fn parse_field(node: tree_sitter::Node<'_>, bytes: &[u8]) -> dto::Field {
             }
             "variable_declarator" => field.name = get_string(&cursor, bytes),
             _ => {
-                dbg!(cursor.node().kind());
-                dbg!(get_string(&cursor, bytes));
+                // dbg!(cursor.node().kind());
+                // dbg!(get_string(&cursor, bytes));
             }
         };
         if !cursor.sibling() {

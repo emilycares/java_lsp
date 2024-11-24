@@ -152,10 +152,6 @@ pub fn current_symbol<'a>(
     lo_va: &'a Vec<LocalVariable>,
 ) -> Option<&'a LocalVariable> {
     let tree = &document.tree;
-    document
-        .text
-        .write_to(BufWriter::new(File::create("/home/emily/tmp/source.java").unwrap()))
-        .unwrap();
     let bytes = document
         .text
         .slice(..)
@@ -167,8 +163,8 @@ pub fn current_symbol<'a>(
     let mut level = 0;
     let mut prev = String::new();
     loop {
-        dbg!(cursor.node().kind());
-        dbg!(get_string(&cursor, bytes));
+        // dbg!(cursor.node().kind());
+        // dbg!(get_string(&cursor, bytes));
         // This scoped_type_identifier thing does not work. Real world this works.
         if cursor.node().kind() == "." {
             let l = prev.trim_end_matches('.');
@@ -181,12 +177,9 @@ pub fn current_symbol<'a>(
 
         if cursor.node().kind() == "scoped_type_identifier" {
             let l = get_string(&cursor, &bytes);
-            dbg!(&l);
             let l = l.split_once("\n").unwrap_or_default().0;
             let l = l.trim();
             let l = l.trim_end_matches('.');
-
-            dbg!(&l);
 
             let lo = lo_va.iter().find(|va| va.name == l);
 

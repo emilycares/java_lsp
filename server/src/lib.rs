@@ -78,8 +78,8 @@ impl Backend {
         }
 
         let bytes = text.slice(..).as_str().unwrap_or_default().as_bytes();
-        let tree = Some(document.tree.clone());
-        if let Some(ntree) = document.parser.parse(bytes, tree.as_ref()) {
+        // Reusing the previous tree causes issues
+        if let Some(ntree) = document.parser.parse(bytes, None) {
             document.tree = ntree;
         } else {
             eprintln!("----- Not updated -----");
@@ -335,7 +335,10 @@ impl LanguageServer for Backend {
     }
 }
 
-fn apply_text_changes(changes: Vec<TextDocumentContentChangeEvent>, text: &mut Rope) -> Option<Rope> {
+fn apply_text_changes(
+    changes: Vec<TextDocumentContentChangeEvent>,
+    text: &mut Rope,
+) -> Option<Rope> {
     for change in changes {
         if let Some(range) = change.range {
             let sp = range.start;

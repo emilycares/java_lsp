@@ -175,7 +175,6 @@ mod tests {
         let cut = cut_output(inp.to_string());
         let out = parser(&cut);
         let out = out.unwrap();
-        dbg!(out.0);
         insta::assert_yaml_snapshot!(out.1);
     }
 }

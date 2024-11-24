@@ -2,7 +2,11 @@ use parser::dto;
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails};
 use tree_sitter::Point;
 
-use crate::{tyres, variable::{current_symbol, LocalVariable}, Document};
+use crate::{
+    tyres,
+    variable::{current_symbol, LocalVariable},
+    Document,
+};
 
 /// Convert list LocalVariable to CompletionItem
 pub fn complete_vars(vars: &Vec<LocalVariable>) -> Vec<CompletionItem> {
@@ -21,7 +25,6 @@ pub fn complete_vars(vars: &Vec<LocalVariable>) -> Vec<CompletionItem> {
         })
         .collect()
 }
-
 
 /// Preview class with the description of methods
 pub fn class_describe(val: &dto::Class) -> CompletionItem {
@@ -92,7 +95,6 @@ pub fn class_unpack(val: &dto::Class) -> Vec<CompletionItem> {
     return out;
 }
 
-
 /// Completion of the previous variable
 pub fn extend_completion<'a>(
     document: &Document,
@@ -124,8 +126,6 @@ mod tests {
     use pretty_assertions::assert_eq;
     use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails};
     use tree_sitter::Point;
-
-
 
     #[test]
     fn extend_completion_base() {
@@ -207,4 +207,3 @@ public class GreetingResource {
         );
     }
 }
-
