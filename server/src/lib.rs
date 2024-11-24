@@ -67,45 +67,24 @@ struct Backend {
     class_map: DashMap<String, Class>,
 }
 impl Backend {
-    async fn on_change(
-        &self,
-        uri: String,
-        changes: Vec<TextDocumentContentChangeEvent>
-    ) {
+    async fn on_change(&self, uri: String, changes: Vec<TextDocumentContentChangeEvent>) {
         let Some(mut document) = self.document_map.get_mut(&uri) else {
             return;
         };
         let mut text = document.text.clone();
-
-        for change in changes {
-            let Some(range) = change.range else {
-                continue;
-            };
-
-            let sp = range.start;
-            let ep = range.end;
-
-            // Get the start/end char indices of the line.
-            let start_idx = text.line_to_char(sp.line.try_into().unwrap())
-                + TryInto::<usize>::try_into(sp.character).unwrap();
-            let end_idx = text.line_to_char(ep.line.try_into().unwrap())
-                + TryInto::<usize>::try_into(ep.character).unwrap();
-
-            // Remove the line...
-            text.remove(start_idx..end_idx);
-
-            // ...and replace it with something better.
-            text.insert(start_idx, &change.text);
+        let ntext = apply_text_changes(changes, &mut text);
+        if let Some(n) = ntext {
+            text = n;
         }
 
         let bytes = text.slice(..).as_str().unwrap_or_default().as_bytes();
-        document.text = text.clone();
         let tree = Some(document.tree.clone());
         if let Some(ntree) = document.parser.parse(bytes, tree.as_ref()) {
             document.tree = ntree;
         } else {
             eprintln!("----- Not updated -----");
         }
+        document.text = text;
     }
 
     async fn on_open(&self, params: TextDocumentItem) {
@@ -264,12 +243,9 @@ impl LanguageServer for Backend {
         .await;
     }
 
-    async fn did_change(&self, mut params: DidChangeTextDocumentParams) {
-        self.on_change(
-            params.text_document.uri.to_string(),
-            params.content_changes
-        )
-        .await;
+    async fn did_change(&self, params: DidChangeTextDocumentParams) {
+        self.on_change(params.text_document.uri.to_string(), params.content_changes)
+            .await;
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
@@ -357,6 +333,31 @@ impl LanguageServer for Backend {
 
         Ok(None)
     }
+}
+
+fn apply_text_changes(changes: Vec<TextDocumentContentChangeEvent>, text: &mut Rope) -> Option<Rope> {
+    for change in changes {
+        if let Some(range) = change.range {
+            let sp = range.start;
+            let ep = range.end;
+
+            // Get the start/end char indices of the line.
+            let start_idx = text.line_to_char(sp.line.try_into().unwrap())
+                + TryInto::<usize>::try_into(sp.character).unwrap();
+            let end_idx = text.line_to_char(ep.line.try_into().unwrap())
+                + TryInto::<usize>::try_into(ep.character).unwrap();
+
+            text.remove(start_idx..end_idx);
+
+            text.insert(start_idx, &change.text);
+            continue;
+        }
+
+        if change.range.is_none() && change.range_length.is_none() {
+            return Some(Rope::from_str(&change.text));
+        }
+    }
+    None
 }
 
 pub fn parser_command_args(params: ExecuteCommandParams) -> (Point, Option<Url>) {

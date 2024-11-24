@@ -1,4 +1,3 @@
-use core::panic;
 use std::{
     fs::{self, OpenOptions},
     io::Write,
@@ -21,7 +20,7 @@ where
     class::load_class(&bytes, class_path)
 }
 
-/// 
+///
 pub fn load_java_fs<T>(path: T, class_path: String) -> Result<dto::Class, dto::ClassError>
 where
     T: AsRef<Path> + Debug,
@@ -59,12 +58,13 @@ pub fn load_classes(path: &str) -> dto::ClassFolder {
                 let class_path = &p.trim_start_matches(path);
                 let class_path = class_path.trim_end_matches(".class");
                 let class_path = class_path.replace("/", ".");
-                dbg!(&class_path);
+                //dbg!(&class_path);
                 match load_class_fs(p.clone(), class_path.to_string()) {
                     Ok(c) => Some(c),
                     Err(e) => {
-                        panic!("Unable to load class: {p}: {e}");
-                    },
+                        dbg!("Unable to load class: {}: {}", p, e);
+                        None
+                    }
                 }
             })
             .collect(),
@@ -74,6 +74,13 @@ pub fn load_classes(path: &str) -> dto::ClassFolder {
 fn get_classes(dir: &str) -> Vec<String> {
     WalkDir::new(dir)
         .into_iter()
+        .filter(|a| {
+            if let Err(e) = a {
+                dbg!(e);
+                return false;
+            }
+            return true;
+        })
         .filter_map(Result::ok)
         .filter(|e| !e.file_type().is_dir())
         .filter_map(|e| e.path().to_str().map(|s| s.to_string()))

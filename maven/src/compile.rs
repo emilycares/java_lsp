@@ -69,7 +69,6 @@ pub fn compile_java_file(file_path: &str, classpath: &str) -> Option<Vec<Compile
 
     let stdout = out.stderr;
     let stdout = std::str::from_utf8(&stdout).ok()?;
-    dbg!(&stdout);
     parse_compile_errors(stdout).ok().map(|e| e.1)
 }
 

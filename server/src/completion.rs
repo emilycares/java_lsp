@@ -104,7 +104,11 @@ pub fn extend_completion<'a>(
     if let Some(extend) = current_symbol(document, point, &vars) {
         if let Some(extend_class) = tyres::resolve_var(extend, imports, class_map) {
             return class_unpack(&extend_class);
+        } else {
+            dbg!("unable to resolve var", extend);
         }
+    } else {
+        dbg!("did not finnd a current_symbol");
     }
     vec![]
 }
