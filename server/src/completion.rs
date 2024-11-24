@@ -1,144 +1,12 @@
 use parser::dto;
 use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails};
 use tree_sitter::Point;
-use tree_sitter_util::CommentSkiper;
+use tree_sitter_util::get_string;
 
-use crate::{tyres, Document};
+use crate::{tyres, variable::LocalVariable, Document};
 
-#[derive(Debug, PartialEq)]
-pub struct LocaleVariableFunction {
-    pub level: usize,
-    pub ty: String,
-    pub name: String,
-    pub is_fun: bool,
-}
-
-/// Get Locale variables and Functions
-pub fn get_vars<'a>(document: &Document, point: &Point) -> Vec<LocaleVariableFunction> {
-    let tree = &document.tree;
-    let bytes = document
-        .text
-        .slice(..)
-        .as_str()
-        .unwrap_or_default()
-        .as_bytes();
-
-    let mut cursor = tree.walk();
-    let mut level = 0;
-    let mut out: Vec<LocaleVariableFunction> = vec![];
-    loop {
-        match cursor.node().kind() {
-            "class_declaration" => {}
-            "class_body" => {
-                let mut class_cursor = tree.walk();
-                class_cursor.reset(cursor.node());
-                class_cursor.first_child();
-                class_cursor.first_child();
-                'class: loop {
-                    match class_cursor.node().kind() {
-                        "field_declaration" => {
-                            class_cursor.first_child();
-                            if class_cursor.node().kind() == "modifiers" {
-                                class_cursor.sibling();
-                            }
-                            let ty = get_string(&class_cursor, &bytes);
-                            class_cursor.sibling();
-                            class_cursor.first_child();
-
-                            let name = get_string(&class_cursor, &bytes);
-                            out.push(LocaleVariableFunction {
-                                level,
-                                ty,
-                                name,
-                                is_fun: false,
-                            });
-
-                            class_cursor.parent();
-                            class_cursor.parent();
-                        }
-                        "method_declaration" => {
-                            class_cursor.first_child();
-                            if class_cursor.node().kind() == "modifiers" {
-                                class_cursor.sibling();
-                            }
-                            let ty = get_string(&class_cursor, &bytes);
-                            class_cursor.sibling();
-                            let name = get_string(&class_cursor, &bytes);
-                            out.push(LocaleVariableFunction {
-                                level,
-                                ty,
-                                name,
-                                is_fun: true,
-                            });
-                            class_cursor.parent();
-                        }
-                        "{" | "}" => {}
-                        _ => {
-                            //dbg!(class_cursor.node().kind());
-                            //dbg!(get_string(&class_cursor, &bytes));
-                        }
-                    }
-                    if !class_cursor.sibling() {
-                        break 'class;
-                    }
-                }
-            }
-            "method_declaration" => {
-                let mut method_cursor = tree.walk();
-                method_cursor.reset(cursor.node());
-                method_cursor.first_child();
-                method_cursor.sibling();
-                method_cursor.sibling();
-                method_cursor.sibling();
-                method_cursor.sibling();
-                method_cursor.first_child();
-                'method: loop {
-                    match method_cursor.node().kind() {
-                        "local_variable_declaration" => {
-                            method_cursor.first_child();
-                            let ty = get_string(&method_cursor, &bytes);
-                            method_cursor.sibling();
-                            method_cursor.first_child();
-                            let name = get_string(&method_cursor, &bytes);
-                            method_cursor.sibling();
-                            out.push(LocaleVariableFunction {
-                                level,
-                                ty,
-                                name,
-                                is_fun: false,
-                            });
-                            method_cursor.parent();
-                            method_cursor.parent();
-                        }
-                        "{" | "}" => {}
-                        _ => {
-                            //dbg!(method_cursor.node().kind());
-                            //dbg!(get_string(&method_cursor, &bytes));
-                        }
-                    }
-                    if !method_cursor.sibling() {
-                        break 'method;
-                    }
-                }
-                method_cursor.parent();
-            }
-            _ => {}
-        }
-
-        let n = cursor.goto_first_child_for_point(*point);
-        level += 1;
-        if n.is_none() {
-            break;
-        }
-        if level >= 200 {
-            break;
-        }
-    }
-
-    out
-}
-
-pub fn complete_vars(vars: &Vec<LocaleVariableFunction>) -> Vec<CompletionItem> {
+/// Convert list LocalVariable to CompletionItem
+pub fn complete_vars(vars: &Vec<LocalVariable>) -> Vec<CompletionItem> {
     vars.iter()
         .map(|a| CompletionItem {
             label: a.name.to_owned(),
@@ -155,10 +23,8 @@ pub fn complete_vars(vars: &Vec<LocaleVariableFunction>) -> Vec<CompletionItem> 
         .collect()
 }
 
-fn get_string(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> String {
-    cursor.node().utf8_text(bytes).unwrap().to_owned()
-}
 
+/// Preview class with the description of methods
 pub fn class_describe(val: &dto::Class) -> CompletionItem {
     let methods: Vec<_> = val
         .methods
@@ -176,6 +42,8 @@ pub fn class_describe(val: &dto::Class) -> CompletionItem {
         .collect();
     CompletionItem::new_simple(val.name.to_string(), methods.join("\n"))
 }
+
+/// Unpack class as completion items with methods and fields
 pub fn class_unpack(val: &dto::Class) -> Vec<CompletionItem> {
     let mut out = vec![];
 
@@ -225,11 +93,18 @@ pub fn class_unpack(val: &dto::Class) -> Vec<CompletionItem> {
     return out;
 }
 
+/// Provides data abuilt the current variable before the cursor
+/// ``` java
+/// Long other = 1l;
+/// other.
+///       ^
+/// ```
+/// Then it would return info about the variable other
 pub fn current_symbol<'a>(
     document: &Document,
     point: &Point,
-    lo_va_fu: &'a Vec<LocaleVariableFunction>,
-) -> Option<&'a LocaleVariableFunction> {
+    lo_va: &'a Vec<LocalVariable>,
+) -> Option<&'a LocalVariable> {
     let tree = &document.tree;
     let bytes = document
         .text
@@ -247,7 +122,7 @@ pub fn current_symbol<'a>(
             let l = l.trim_end();
             let l = l.trim_end_matches('.');
 
-            let lo = lo_va_fu.iter().find(|va| va.name == l);
+            let lo = lo_va.iter().find(|va| va.name == l);
 
             return lo;
         }
@@ -263,10 +138,12 @@ pub fn current_symbol<'a>(
     }
     None
 }
+
+/// Completion of the previous variable
 pub fn extend_completion<'a>(
     document: &Document,
     point: &Point,
-    vars: &'a Vec<LocaleVariableFunction>,
+    vars: &'a Vec<LocalVariable>,
     imports: &'a Vec<&str>,
     class_map: &'a dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Vec<CompletionItem> {
@@ -280,9 +157,8 @@ pub fn extend_completion<'a>(
 
 #[cfg(test)]
 mod tests {
-    use super::get_vars;
     use crate::{
-        completion::{current_symbol, extend_completion, LocaleVariableFunction},
+        completion::{current_symbol, extend_completion, LocalVariable},
         Document,
     };
     use dashmap::DashMap;
@@ -291,85 +167,6 @@ mod tests {
     use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails};
     use tree_sitter::Point;
 
-    #[test]
-    fn this_context() {
-        let content = "
-package ch.emilycares;
-
-import jakarta.inject.Inject;
-import jakarta.ws.rs.GET;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.core.MediaType;
-
-import io.quarkus.qute.TemplateInstance;
-import io.quarkus.qute.Template;
-
-@Path(\"/user/interact\")
-public class GreetingResource {
-
-    @Inject
-    Template hello;
-    @Inject
-    Template se;
-
-    private String other = \"\";
-
-    @GET
-    @Produces(MediaType.TEXT_HTML)
-    public TemplateInstance hello() {
-	    String local = \"\";
-
-        var lo = 
-	    return hello.data(\"name\", \"emilycares\");
-    }
-}
-        ";
-        let doc = Document::setup(content).unwrap();
-
-        let out = get_vars(&doc, &Point::new(26, 17));
-        assert_eq!(
-            out,
-            vec![
-                LocaleVariableFunction {
-                    level: 2,
-                    ty: "Template".to_owned(),
-                    name: "hello".to_owned(),
-                    is_fun: false,
-                },
-                LocaleVariableFunction {
-                    level: 2,
-                    ty: "Template".to_owned(),
-                    name: "se".to_owned(),
-                    is_fun: false,
-                },
-                LocaleVariableFunction {
-                    level: 2,
-                    ty: "String".to_owned(),
-                    name: "other".to_owned(),
-                    is_fun: false,
-                },
-                LocaleVariableFunction {
-                    level: 2,
-                    ty: "TemplateInstance".to_owned(),
-                    name: "hello".to_owned(),
-                    is_fun: true,
-                },
-                LocaleVariableFunction {
-                    level: 3,
-                    ty: "String".to_owned(),
-                    name: "local".to_owned(),
-                    is_fun: false,
-                },
-                LocaleVariableFunction {
-                    level: 3,
-                    ty: "var".to_owned(),
-                    name: "lo".to_owned(),
-                    is_fun: false,
-                },
-            ]
-        );
-    }
 
     #[test]
     fn symbol_base() {
@@ -406,17 +203,17 @@ public class GreetingResource {
 }
         ";
         let doc = Document::setup(content).unwrap();
-        let lo_va_fu = vec![LocaleVariableFunction {
+        let lo_va = vec![LocalVariable {
             level: 3,
             ty: "String".to_owned(),
             name: "local".to_owned(),
             is_fun: false,
         }];
 
-        let out = current_symbol(&doc, &Point::new(27, 24), &lo_va_fu);
+        let out = current_symbol(&doc, &Point::new(27, 24), &lo_va);
         assert_eq!(
             out,
-            Some(&LocaleVariableFunction {
+            Some(&LocalVariable {
                 level: 3,
                 ty: "String".to_owned(),
                 name: "local".to_owned(),
@@ -458,7 +255,7 @@ public class GreetingResource {
 }
         ";
         let doc = Document::setup(content).unwrap();
-        let lo_va_fu = vec![LocaleVariableFunction {
+        let lo_va = vec![LocalVariable {
             level: 3,
             ty: "String".to_owned(),
             name: "other".to_owned(),
@@ -490,7 +287,7 @@ public class GreetingResource {
             },
         );
 
-        let out = extend_completion(&doc, &Point::new(25, 24), &lo_va_fu, &imports, &class_map);
+        let out = extend_completion(&doc, &Point::new(25, 24), &lo_va, &imports, &class_map);
         assert_eq!(
             out,
             vec![CompletionItem {
@@ -505,3 +302,4 @@ public class GreetingResource {
         );
     }
 }
+

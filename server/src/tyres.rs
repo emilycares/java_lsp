@@ -1,11 +1,12 @@
 use std::ops::Deref;
 
-use crate::completion::LocaleVariableFunction;
 use dashmap::DashMap;
 use parser::dto::Class;
 
+use crate::variable::LocalVariable;
+
 pub fn resolve_var<'a>(
-    extend: &LocaleVariableFunction,
+    extend: &LocalVariable,
     imports: &Vec<&'a str>,
     class_map: &'a DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<Class> {

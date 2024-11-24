@@ -2,6 +2,7 @@ pub mod completion;
 mod imports;
 mod tyres;
 mod utils;
+mod variable;
 
 use core::panic;
 use std::path::Path;
@@ -248,7 +249,7 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
         let mut out = vec![];
-        let vars = completion::get_vars(document.value(), &ttp(params.position));
+        let vars = variable::get_vars(document.value(), &ttp(params.position));
 
         let imports = imports::imports(document.value());
 
@@ -263,31 +264,12 @@ impl LanguageServer for Backend {
         out.extend(completion::complete_vars(&vars));
 
 
-        out.extend(
-            self.class_map
-                .iter()
-                .filter(|i| i.access.contains(&parser::dto::Access::Public))
-                .map(|v| completion::class_describe(v.value())),
-        );
-
-        //out.extend(self.class_map.iter().map(|v| {
-        //    let val = v.value();
-        //    let methods: Vec<_> = val
-        //        .methods
+        //out.extend(
+        //    self.class_map
         //        .iter()
-        //        .map(|m| {
-        //            format!(
-        //                "{}({:?})",
-        //                m.name,
-        //                m.methods
-        //                    .iter()
-        //                    .map(|p| p.jtype.clone())
-        //                    .collect::<Vec<_>>()
-        //            )
-        //        })
-        //        .collect();
-        //    CompletionItem::new_simple(val.name.to_string(), methods.join("\n"))
-        //}));
+        //        .filter(|i| i.access.contains(&parser::dto::Access::Public))
+        //        .map(|v| completion::class_describe(v.value())),
+        //);
 
         Ok(Some(CompletionResponse::Array(out)))
     }

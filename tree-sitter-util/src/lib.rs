@@ -62,3 +62,7 @@ fn skip_comments(cursor: &mut TreeCursor<'_>) -> bool {
         _ => true,
     }
 }
+/// Return string under cursor
+pub fn get_string(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> String {
+    cursor.node().utf8_text(bytes).unwrap().to_owned()
+}
