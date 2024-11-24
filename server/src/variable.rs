@@ -137,8 +137,58 @@ pub fn get_vars<'a>(document: &Document, point: &Point) -> Vec<LocalVariable> {
     out
 }
 
+/// Provides data abuilt the current variable before the cursor
+/// ``` java
+/// Long other = 1l;
+/// other.
+///       ^
+/// ```
+/// Then it would return info about the variable other
+pub fn current_symbol<'a>(
+    document: &Document,
+    point: &Point,
+    lo_va: &'a Vec<LocalVariable>,
+) -> Option<&'a LocalVariable> {
+    let tree = &document.tree;
+    let bytes = document
+        .text
+        .slice(..)
+        .as_str()
+        .unwrap_or_default()
+        .as_bytes();
+
+    let mut cursor = tree.walk();
+    let mut level = 0;
+    loop {
+        if cursor.node().kind() == "scoped_type_identifier" {
+            let l = get_string(&cursor, &bytes);
+            let l = l.split_once("\n").unwrap_or_default().0;
+            let l = l.trim_end();
+            let l = l.trim_end_matches('.');
+
+            let lo = lo_va.iter().find(|va| va.name == l);
+
+            return lo;
+        }
+
+        let n = cursor.goto_first_child_for_point(*point);
+        level += 1;
+        if n.is_none() {
+            break;
+        }
+        if level >= 200 {
+            break;
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
+    use tree_sitter::Point;
+
+    use crate::{variable::{current_symbol, get_vars, LocalVariable}, Document};
+
   
     #[test]
     fn this_context() {
@@ -217,6 +267,60 @@ public class GreetingResource {
                     is_fun: false,
                 },
             ]
+        );
+    }
+
+    #[test]
+    fn symbol_base() {
+        let content = "
+package ch.emilycares;
+
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+
+import io.quarkus.qute.TemplateInstance;
+import io.quarkus.qute.Template;
+
+@Path(\"/user/interact\")
+public class GreetingResource {
+
+    @Inject
+    Template hello;
+    @Inject
+    Template se;
+
+    private String other = \"\";
+
+    @GET
+    @Produces(MediaType.TEXT_HTML)
+    public TemplateInstance hello() {
+	    String local = \"\";
+
+        var lo = local. 
+	    return hello.data(\"name\", \"emilycares\");
+    }
+}
+        ";
+        let doc = Document::setup(content).unwrap();
+        let lo_va = vec![LocalVariable {
+            level: 3,
+            ty: "String".to_owned(),
+            name: "local".to_owned(),
+            is_fun: false,
+        }];
+
+        let out = current_symbol(&doc, &Point::new(27, 24), &lo_va);
+        assert_eq!(
+            out,
+            Some(&LocalVariable {
+                level: 3,
+                ty: "String".to_owned(),
+                name: "local".to_owned(),
+                is_fun: false,
+            })
         );
     }
 }
