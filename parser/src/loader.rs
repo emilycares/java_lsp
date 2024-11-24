@@ -1,3 +1,4 @@
+use core::panic;
 use std::{
     fs::{self, OpenOptions},
     io::Write,
@@ -55,11 +56,16 @@ pub fn load_classes(path: &str) -> dto::ClassFolder {
         classes: get_classes(path)
             .into_iter()
             .filter_map(|p| {
-                let class_path = p.trim_start_matches(path);
+                let class_path = &p.trim_start_matches(path);
                 let class_path = class_path.trim_end_matches(".class");
                 let class_path = class_path.replace("/", ".");
                 dbg!(&class_path);
-                load_class_fs(p.clone(), class_path.to_string()).ok()
+                match load_class_fs(p.clone(), class_path.to_string()) {
+                    Ok(c) => Some(c),
+                    Err(e) => {
+                        panic!("Unable to load class: {p}: {e}");
+                    },
+                }
             })
             .collect(),
     }

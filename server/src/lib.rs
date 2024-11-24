@@ -67,17 +67,58 @@ struct Backend {
     class_map: DashMap<String, Class>,
 }
 impl Backend {
-    async fn on_change(&self, params: TextDocumentItem) {
+    async fn on_change(
+        &self,
+        uri: String,
+        changes: Vec<TextDocumentContentChangeEvent>
+    ) {
+        let Some(mut document) = self.document_map.get_mut(&uri) else {
+            return;
+        };
+        let mut text = document.text.clone();
+
+        for change in changes {
+            let Some(range) = change.range else {
+                continue;
+            };
+
+            let sp = range.start;
+            let ep = range.end;
+
+            // Get the start/end char indices of the line.
+            let start_idx = text.line_to_char(sp.line.try_into().unwrap())
+                + TryInto::<usize>::try_into(sp.character).unwrap();
+            let end_idx = text.line_to_char(ep.line.try_into().unwrap())
+                + TryInto::<usize>::try_into(ep.character).unwrap();
+
+            // Remove the line...
+            text.remove(start_idx..end_idx);
+
+            // ...and replace it with something better.
+            text.insert(start_idx, &change.text);
+        }
+
+        let bytes = text.slice(..).as_str().unwrap_or_default().as_bytes();
+        document.text = text.clone();
+        let tree = Some(document.tree.clone());
+        if let Some(ntree) = document.parser.parse(bytes, tree.as_ref()) {
+            document.tree = ntree;
+        } else {
+            eprintln!("----- Not updated -----");
+        }
+    }
+
+    async fn on_open(&self, params: TextDocumentItem) {
         let rope = ropey::Rope::from_str(&params.text);
         let key = params.uri.to_string();
         if let Some(mut document) = self.document_map.get_mut(&key) {
             let tree = Some(document.tree.clone());
+            document.text = rope;
             if let Some(ntree) = document.parser.parse(params.text, tree.as_ref()) {
                 document.tree = ntree;
             } else {
                 eprintln!("----- Not updated -----");
             }
-            document.text = rope;
         } else {
             self.document_map
                 .insert(key, Document::setup_rope(&params.text, rope).unwrap());
@@ -110,7 +151,7 @@ impl Backend {
         };
 
         // The file was no opened yet on the client so we have to open it.
-        self.on_change(TextDocumentItem {
+        self.on_open(TextDocumentItem {
             uri: uri.clone(),
             text,
             version: 1,
@@ -205,6 +246,8 @@ impl LanguageServer for Backend {
                 self.class_map.insert(class.class_path.clone(), class);
             }
         }
+
+        eprintln!("Init done");
     }
 
     async fn shutdown(&self) -> Result<()> {
@@ -212,7 +255,7 @@ impl LanguageServer for Backend {
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        self.on_change(TextDocumentItem {
+        self.on_open(TextDocumentItem {
             uri: params.text_document.uri.clone(),
             text: params.text_document.text.clone(),
             version: params.text_document.version,
@@ -222,12 +265,10 @@ impl LanguageServer for Backend {
     }
 
     async fn did_change(&self, mut params: DidChangeTextDocumentParams) {
-        self.on_change(TextDocumentItem {
-            uri: params.text_document.uri.clone(),
-            text: std::mem::take(&mut params.content_changes[0].text),
-            version: params.text_document.version,
-            language_id: "".to_owned(),
-        })
+        self.on_change(
+            params.text_document.uri.to_string(),
+            params.content_changes
+        )
         .await;
     }
 
@@ -262,7 +303,6 @@ impl LanguageServer for Backend {
         ));
 
         out.extend(completion::complete_vars(&vars));
-
 
         //out.extend(
         //    self.class_map
