@@ -69,7 +69,6 @@ pub fn compile_java_file(file_path: &str, classpath: &str) -> Option<Vec<Compile
 
     let stdout = out.stderr;
     let stdout = std::str::from_utf8(&stdout).ok()?;
-    dbg!(&stdout);
     parse_compile_errors(stdout).ok().map(|e| e.1)
 }
 
@@ -129,7 +128,6 @@ src/main/java/org/acme/GreetingResource.java:15: error: > or ',' expected
     fn parse_compile_errors_real() {
         let input = "/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java:16: error: > or ',' expected\n\tvar hash = new HashMap<String, String();\n\t                                     ^\n1 error\n";
         let out = parse_compile_errors(input).unwrap();
-        dbg!(&out.0);
         insta::assert_yaml_snapshot!(out.1);
     }
 }

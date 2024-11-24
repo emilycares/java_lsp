@@ -1,3 +1,5 @@
+use std::{fs::File, io::BufWriter};
+
 use tree_sitter::Point;
 use tree_sitter_util::{get_string, CommentSkiper};
 
@@ -159,11 +161,24 @@ pub fn current_symbol<'a>(
 
     let mut cursor = tree.walk();
     let mut level = 0;
+    let mut prev = String::new();
     loop {
+        // dbg!(cursor.node().kind());
+        // dbg!(get_string(&cursor, bytes));
+        // This scoped_type_identifier thing does not work. Real world this works.
+        if cursor.node().kind() == "." {
+            let l = prev.trim_end_matches('.');
+            let l = l.trim();
+            if let Some(lo) = lo_va.iter().find(|va| va.name == l) {
+                return Some(lo);
+            }
+        }
+        prev = get_string(&cursor, bytes);
+
         if cursor.node().kind() == "scoped_type_identifier" {
             let l = get_string(&cursor, &bytes);
             let l = l.split_once("\n").unwrap_or_default().0;
-            let l = l.trim_end();
+            let l = l.trim();
             let l = l.trim_end_matches('.');
 
             let lo = lo_va.iter().find(|va| va.name == l);
@@ -187,9 +202,11 @@ pub fn current_symbol<'a>(
 mod tests {
     use tree_sitter::Point;
 
-    use crate::{variable::{current_symbol, get_vars, LocalVariable}, Document};
+    use crate::{
+        variable::{current_symbol, get_vars, LocalVariable},
+        Document,
+    };
 
-  
     #[test]
     fn this_context() {
         let content = "
