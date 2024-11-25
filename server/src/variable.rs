@@ -1,5 +1,3 @@
-use std::{fs::File, io::BufWriter};
-
 use tree_sitter::Point;
 use tree_sitter_util::{get_string, CommentSkiper};
 

@@ -3,6 +3,7 @@ mod imports;
 mod tyres;
 mod utils;
 mod variable;
+mod codeaction;
 
 use core::panic;
 use std::path::Path;
@@ -171,12 +172,12 @@ impl LanguageServer for Backend {
                     TextDocumentSyncKind::FULL,
                 )),
                 //definition_provider: Some(OneOf::Left(true)),
-                //code_action_provider: Some(CodeActionProviderCapability::Options(
-                //    CodeActionOptions {
-                //        code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
-                //        ..CodeActionOptions::default()
-                //    },
-                //)),
+                code_action_provider: Some(CodeActionProviderCapability::Options(
+                    CodeActionOptions {
+                        code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
+                        ..CodeActionOptions::default()
+                    },
+                )),
                 completion_provider: Some(CompletionOptions {
                     trigger_characters: Some(
                         [' ', '.', '('].iter().map(|i| i.to_string()).collect(),
@@ -305,20 +306,25 @@ impl LanguageServer for Backend {
         Ok(None)
     }
     async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
-        let Some(_document) = self.get_document(&params.text_document.uri).await else {
+        let Some(document) = self.get_document(&params.text_document.uri).await else {
             eprintln!("Document is not opened.");
             return Ok(None);
         };
-        let point = params.range.start;
-        let point = Point {
-            row: point.line.try_into().unwrap_or_default(),
-            column: point.character.try_into().unwrap_or_default(),
-        };
-        let _arguments = Some(vec![
-            Value::String(params.text_document.uri.to_string()),
-            Value::Number(point.row.into()),
-            Value::Number(point.column.into()),
-        ]);
+        let current_file = params.text_document.uri;
+        let point = ttp(params.range.start);
+        let bytes = document
+            .text
+            .slice(..)
+            .as_str()
+            .unwrap_or_default()
+            .as_bytes();
+
+        let imports = imports::imports(document.value());
+
+        if let Some(imps) = codeaction::import_jtype(&document.tree, bytes, point, &imports, &current_file, &self.class_map) {
+            return Ok(Some(imps));
+        }
+
         Ok(None)
     }
     async fn execute_command(&self, params: ExecuteCommandParams) -> Result<Option<Value>> {
