@@ -10,8 +10,8 @@ classfile-parser = { git = "https://github.com/emilycares/classfile-parser.git" 
 # java_asm = { path = "../../rust-java-asm/asm" }
 # java_asm = "0.0.4"
 thiserror = "2.0.3"
-tree-sitter = "0.23.2"
-tree-sitter-java = "0.23.0"
+tree-sitter = "0.24.4"
+tree-sitter-java = "0.23.4"
 tree-sitter-util = { path = "../tree-sitter-util"}
 walkdir = "2.5.0"
 serde = { version = "1.0", features = ["derive"] }

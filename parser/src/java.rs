@@ -1,6 +1,6 @@
 use std::vec;
 
-use tree_sitter::{Parser, Query, QueryCursor};
+use tree_sitter::Parser;
 use tree_sitter_util::CommentSkiper;
 
 use crate::dto::{self};
@@ -14,55 +14,40 @@ pub fn load_java(bytes: &[u8], class_path: String) -> Result<crate::dto::Class, 
         return Err(dto::ClassError::ParseError);
     };
 
-    let methods = parse_methods(&tree, bytes);
-    let fields = parse_fields(&tree, bytes);
+    let mut methods = vec![];
+    let mut fields = vec![];
+    let mut class_name = None;
+
+    let mut cursor = tree.walk();
+    cursor.first_child();
+    cursor.sibling();
+    cursor.sibling();
+    if cursor.node().kind() == "class_declaration" {
+        cursor.first_child();
+        cursor.sibling();
+        cursor.sibling();
+        if cursor.node().kind() == "identifier" {
+            class_name = Some(get_string(&cursor, bytes))
+        }
+        cursor.sibling();
+        cursor.first_child();
+        while cursor.sibling() {
+            if cursor.node().kind() == "field_declaration" {
+                fields.push(parse_field(cursor.node(), bytes))
+            }
+            if cursor.node().kind() == "method_declaration" {
+                methods.push(parse_method(cursor.node(), bytes))
+            }
+        }
+    }
 
     Ok(dto::Class {
         class_path,
         access: vec![],
-        name: get_class_name(tree, bytes),
+        name: class_name.unwrap(),
         methods,
         fields,
     })
-}
-
-/// Define the query to match method declarations
-fn parse_methods(tree: &tree_sitter::Tree, bytes: &[u8]) -> Vec<dto::Method> {
-    let query_str = r#"
-    (method_declaration) @method
-    "#;
-    let language = tree_sitter_java::LANGUAGE;
-    let query = Query::new(&language.into(), query_str).expect("Error compiling query");
-
-    // Execute the query
-    let mut query_cursor = QueryCursor::new();
-    let matches = query_cursor.matches(&query, tree.root_node(), bytes);
-
-    let methods = matches
-        .into_iter()
-        .flat_map(|m| m.captures)
-        .map(|c| parse_method(c.node, bytes))
-        .collect::<Vec<_>>();
-    methods
-}
-
-fn parse_fields(tree: &tree_sitter::Tree, bytes: &[u8]) -> Vec<dto::Field> {
-    let query_str = r#"
-    (field_declaration) @field
-    "#;
-    let language = tree_sitter_java::LANGUAGE;
-    let query = Query::new(&language.into(), query_str).expect("Error compiling query");
-
-    // Execute the query
-    let mut query_cursor = QueryCursor::new();
-    let matches = query_cursor.matches(&query, tree.root_node(), bytes);
-
-    let fields = matches
-        .into_iter()
-        .flat_map(|m| m.captures)
-        .map(|c| parse_field(c.node, bytes))
-        .collect::<Vec<_>>();
-    fields
 }
 
 fn parse_method(node: tree_sitter::Node<'_>, bytes: &[u8]) -> dto::Method {
@@ -142,16 +127,6 @@ fn parser_modifiers(input: String) -> Vec<dto::Access> {
         out.push(dto::Access::Private);
     }
     out
-}
-
-fn get_class_name(tree: tree_sitter::Tree, bytes: &[u8]) -> String {
-    let mut cursor = tree.walk();
-    cursor.first_child();
-    cursor.sibling();
-    cursor.first_child();
-    cursor.sibling();
-    cursor.sibling();
-    get_string(&cursor, bytes)
 }
 
 fn parse_formal_parameters(

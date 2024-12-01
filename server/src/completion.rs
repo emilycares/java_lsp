@@ -1,5 +1,7 @@
 use parser::dto;
-use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails};
+use tower_lsp::lsp_types::{
+    CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat,
+};
 use tree_sitter::Point;
 
 use crate::{
@@ -53,26 +55,7 @@ pub fn class_unpack(val: &dto::Class) -> Vec<CompletionItem> {
         val.methods
             .iter()
             .filter(|i| i.access.contains(&parser::dto::Access::Public))
-            .map(|m| {
-                let params: Vec<String> = m
-                    .parameters
-                    .iter()
-                    .map(|p| match &p.name {
-                        Some(name) => format!("{} {}", p.jtype, name),
-                        None => p.jtype.to_string(),
-                    })
-                    .collect();
-
-                CompletionItem {
-                    label: m.name.to_owned(),
-                    label_details: Some(CompletionItemLabelDetails {
-                        detail: Some(format!("{} ({})", m.ret, params.join(", "))),
-                        ..Default::default()
-                    }),
-                    kind: Some(CompletionItemKind::FUNCTION),
-                    ..Default::default()
-                }
-            }),
+            .map(|m| complete_method(m)),
     );
 
     out.extend(
@@ -85,7 +68,7 @@ pub fn class_unpack(val: &dto::Class) -> Vec<CompletionItem> {
                     detail: Some(f.jtype.to_string()),
                     ..Default::default()
                 }),
-                kind: Some(CompletionItemKind::FUNCTION),
+                kind: Some(CompletionItemKind::FIELD),
                 ..Default::default()
             }),
     );
@@ -93,6 +76,46 @@ pub fn class_unpack(val: &dto::Class) -> Vec<CompletionItem> {
     out.sort_by(|a, b| a.label.to_lowercase().cmp(&b.label.to_lowercase()));
 
     return out;
+}
+
+fn complete_method(m: &dto::Method) -> CompletionItem {
+    let params_detail: Vec<String> = m
+        .parameters
+        .iter()
+        .map(|p| match &p.name {
+            Some(name) => format!("{} {}", p.jtype, name),
+            None => p.jtype.to_string(),
+        })
+        .collect();
+
+    let snippet = method_snippet(m);
+    CompletionItem {
+        label: m.name.to_owned(),
+        label_details: Some(CompletionItemLabelDetails {
+            detail: Some(format!("{} ({})", m.ret, params_detail.join(", "))),
+            ..Default::default()
+        }),
+        kind: Some(CompletionItemKind::FUNCTION),
+        insert_text: Some(snippet),
+        insert_text_format: Some(InsertTextFormat::SNIPPET),
+        ..Default::default()
+    }
+}
+
+fn method_snippet(m: &dto::Method) -> String {
+    let mut params_snippet = String::new();
+    let p_len = *&m.parameters.len();
+    let mut i = 1;
+    for p in &m.parameters {
+        params_snippet.push_str(format!("${{{}:{}}}", i, p.jtype).as_str());
+        i += 1;
+        if i <= p_len {
+            params_snippet.push_str(", ");
+        }
+    }
+
+    let snippet = format!("{}({})", m.name, params_snippet);
+    snippet
 }
 
 /// Completion of the previous variable
@@ -106,11 +129,7 @@ pub fn extend_completion<'a>(
     if let Some(extend) = current_symbol(document, point, &vars) {
         if let Some(extend_class) = tyres::resolve_var(extend, imports, class_map) {
             return class_unpack(&extend_class);
-        } else {
-            dbg!("unable to resolve var", extend);
         }
-    } else {
-        dbg!("did not finnd a current_symbol");
     }
     vec![]
 }
@@ -124,8 +143,12 @@ mod tests {
     use dashmap::DashMap;
     use parser::dto;
     use pretty_assertions::assert_eq;
-    use tower_lsp::lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails};
+    use tower_lsp::lsp_types::{
+        CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat,
+    };
     use tree_sitter::Point;
+
+    use super::method_snippet;
 
     #[test]
     fn extend_completion_base() {
@@ -202,8 +225,55 @@ public class GreetingResource {
                     description: None,
                 },),
                 kind: Some(CompletionItemKind::FUNCTION),
+                insert_text: Some("length()".to_string()),
+                insert_text_format: Some(InsertTextFormat::SNIPPET),
                 ..Default::default()
             }]
         );
+    }
+
+    #[test]
+    fn method_snippet_no_param() {
+        let method = dto::Method {
+            access: vec![dto::Access::Public],
+            name: "length".to_string(),
+            parameters: vec![],
+            ret: dto::JType::Int,
+        };
+        let out = method_snippet(&method);
+        assert_eq!(out, "length()");
+    }
+
+    #[test]
+    fn method_snippet_base() {
+        let method = dto::Method {
+            access: vec![dto::Access::Public],
+            name: "compute".to_string(),
+            parameters: vec![dto::Parameter {
+                name: None,
+                jtype: dto::JType::Int,
+            }],
+            ret: dto::JType::Int,
+        };
+        let out = method_snippet(&method);
+        assert_eq!(out, "compute(${1:int})");
+    }
+
+    #[test]
+    fn method_snippet_args() {
+        let method = dto::Method {
+            access: vec![dto::Access::Public],
+            name: "split".to_string(),
+            parameters: vec![dto::Parameter {
+                name: None,
+                jtype: dto::JType::Class("java.lang.String".to_string()),
+            }, dto::Parameter {
+                name: None,
+                jtype: dto::JType::Int,
+            }],
+            ret: dto::JType::Int,
+        };
+        let out = method_snippet(&method);
+        assert_eq!(out, "split(${1:java.lang.String}, ${2:int})");
     }
 }

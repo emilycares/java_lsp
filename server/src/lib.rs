@@ -250,10 +250,17 @@ impl LanguageServer for Backend {
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
+        #[allow(unused_mut)]
+        let mut path = params.text_document.uri.path();
+        // The path on windows should not look like this: /C:/asdas remove the leading slash
+        #[cfg(target_os = "windows")]
+        {
+            path = &path[1..];
+        }
         self.client
             .publish_diagnostics(
                 params.text_document.uri.clone(),
-                Backend::compile(&params.text_document.uri.path()),
+                Backend::compile(path),
                 None,
             )
             .await;

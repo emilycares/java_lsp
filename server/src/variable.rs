@@ -161,8 +161,6 @@ pub fn current_symbol<'a>(
     let mut level = 0;
     let mut prev = String::new();
     loop {
-        // dbg!(cursor.node().kind());
-        // dbg!(get_string(&cursor, bytes));
         // This scoped_type_identifier thing does not work. Real world this works.
         if cursor.node().kind() == "." {
             let l = prev.trim_end_matches('.');
@@ -183,6 +181,12 @@ pub fn current_symbol<'a>(
 
             return lo;
         }
+
+        // TODO: This should also support method and propety chanes
+        // if cursor.node().kind() == "method_invocation" {
+        // dbg!(cursor.node().kind());
+        // dbg!(get_string(&cursor, bytes));
+        // }
 
         let n = cursor.goto_first_child_for_point(*point);
         level += 1;
@@ -328,6 +332,60 @@ public class GreetingResource {
         }];
 
         let out = current_symbol(&doc, &Point::new(27, 24), &lo_va);
+        assert_eq!(
+            out,
+            Some(&LocalVariable {
+                level: 3,
+                ty: "String".to_owned(),
+                name: "local".to_owned(),
+                is_fun: false,
+            })
+        );
+    }
+
+    #[test]
+    fn symbol_method() {
+        let content = "
+package ch.emilycares;
+
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+
+import io.quarkus.qute.TemplateInstance;
+import io.quarkus.qute.Template;
+
+@Path(\"/user/interact\")
+public class GreetingResource {
+
+    @Inject
+    Template hello;
+    @Inject
+    Template se;
+
+    private String other = \"\";
+
+    @GET
+    @Produces(MediaType.TEXT_HTML)
+    public TemplateInstance hello() {
+	    String local = \"\";
+
+        var lo = local.concat(\"hehe\"). 
+	    return hello.data(\"name\", \"emilycares\");
+    }
+}
+        ";
+        let doc = Document::setup(content).unwrap();
+        let lo_va = vec![LocalVariable {
+            level: 3,
+            ty: "String".to_owned(),
+            name: "local".to_owned(),
+            is_fun: false,
+        }];
+
+        let out = current_symbol(&doc, &Point::new(27, 40), &lo_va);
         assert_eq!(
             out,
             Some(&LocalVariable {

@@ -51,15 +51,10 @@ fn import_to_code_action(current_file: &Url, classpath: &str) -> CodeActionOrCom
     CodeActionOrCommand::CodeAction(CodeAction {
         kind: Some(CodeActionKind::QUICKFIX),
         title: format!("Import {}", classpath),
-        diagnostics: None,
         edit: Some(WorkspaceEdit {
             changes: Some(changes),
-            document_changes: None,
-            change_annotations: None,
+            ..Default::default()
         }),
-        command: None,
-        is_preferred: None,
-        disabled: None,
-        data: None,
+        ..Default::default()
     })
 }
