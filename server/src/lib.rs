@@ -1,9 +1,9 @@
+mod codeaction;
 pub mod completion;
 mod imports;
 mod tyres;
 mod utils;
 mod variable;
-mod codeaction;
 
 use core::panic;
 use std::path::Path;
@@ -50,9 +50,7 @@ impl Document {
             eprintln!("----- Not initialized -----");
             return None;
         }
-        let Some(tree) = parser.parse(text, None) else {
-            return None;
-        };
+        let tree = parser.parse(text, None)?;
         Some(Self {
             parser,
             text: rope,
@@ -328,7 +326,14 @@ impl LanguageServer for Backend {
 
         let imports = imports::imports(document.value());
 
-        if let Some(imps) = codeaction::import_jtype(&document.tree, bytes, point, &imports, &current_file, &self.class_map) {
+        if let Some(imps) = codeaction::import_jtype(
+            &document.tree,
+            bytes,
+            point,
+            &imports,
+            &current_file,
+            &self.class_map,
+        ) {
             return Ok(Some(imps));
         }
 

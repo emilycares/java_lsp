@@ -10,12 +10,10 @@ fn get_tree(content: &str) -> Option<Tree> {
     parser
         .set_language(&language.into())
         .expect("Error loading java grammar");
-    let Some(tree) = parser.parse(content, None) else {
-        return None;
-    };
+    let tree = parser.parse(content, None)?;
     Some(tree)
 }
-pub fn imports<'a>(document: &'a Document) -> Vec<&'a str> {
+pub fn imports(document: &Document) -> Vec<&str> {
     let tree = &document.tree;
     let bytes = document
         .text

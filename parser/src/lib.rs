@@ -13,7 +13,7 @@ where
     class::load_class(&bytes, class_path)
 }
 
-pub fn load_java(data: &Vec<u8>, class_path: String) -> Result<dto::Class, dto::ClassError> {
+pub fn load_java(data: &[u8], class_path: String) -> Result<dto::Class, dto::ClassError> {
     java::load_java(data, class_path)
 }
 

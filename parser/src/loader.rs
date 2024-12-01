@@ -20,7 +20,6 @@ where
     class::load_class(&bytes, class_path)
 }
 
-///
 pub fn load_java_fs<T>(path: T, class_path: String) -> Result<dto::Class, dto::ClassError>
 where
     T: AsRef<Path> + Debug,
@@ -35,8 +34,9 @@ pub fn save_class_folder(
 ) -> Result<(), dto::ClassError> {
     let mut file = OpenOptions::new()
         .create(true)
+        .truncate(true)
         .write(true)
-        .open(&format!(".{}.cfc", prefix))?;
+        .open(format!(".{}.cfc", prefix))?;
     let data = postcard::to_allocvec(class_folder)?;
 
     let _ = file.write_all(&data);
@@ -79,7 +79,7 @@ fn get_classes(dir: &str) -> Vec<String> {
                 dbg!(e);
                 return false;
             }
-            return true;
+            true
         })
         .filter_map(Result::ok)
         .filter(|e| !e.file_type().is_dir())

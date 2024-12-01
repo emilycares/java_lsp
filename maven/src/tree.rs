@@ -21,7 +21,7 @@ pub fn load<'a>() -> Result<Dependency<'a>, MavenError> {
     unimplemented!()
 }
 
-fn get_cli_output<'a>() -> Result<String, MavenError> {
+fn get_cli_output() -> Result<String, MavenError> {
     let output = Command::new("mvn")
         .arg("dependency:tree")
         .arg("-DoutputType=dot")
@@ -83,7 +83,7 @@ pub enum DependencyScope {
     Import,
 }
 
-impl<'a> FromStr for DependencyScope {
+impl FromStr for DependencyScope {
     type Err = MavenError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {

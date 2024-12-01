@@ -76,14 +76,12 @@ fn parse_method(
                 .into_iter()
                 .filter_map(|pa| {
                     Some(dto::Parameter {
-                        name: lookup_string(c, pa.name_index)
-                            .map(|s| {
-                                if s.is_empty() {
-                                    return None;
-                                }
-                                Some(s)
-                            })
-                            .flatten(),
+                        name: lookup_string(c, pa.name_index).and_then(|s| {
+                            if s.is_empty() {
+                                return None;
+                            }
+                            Some(s)
+                        }),
                         jtype: params.next()?,
                     })
                 })
@@ -92,7 +90,7 @@ fn parse_method(
         .collect();
     // Remaining method descriptor data as params
     {
-        while let Some(jtype) = params.next() {
+        for jtype in params {
             methods.push(dto::Parameter { name: None, jtype });
         }
     }
@@ -232,7 +230,7 @@ fn parse_field_type(c: char, chars: &mut std::str::Chars) -> dto::JType {
         'V' => dto::JType::Void,
         'L' => {
             let mut class_name = String::new();
-            while let Some(ch) = chars.next() {
+            for ch in chars.by_ref() {
                 if ch == ';' {
                     break;
                 }

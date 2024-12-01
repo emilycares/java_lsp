@@ -11,7 +11,7 @@ use crate::{
 };
 
 /// Convert list LocalVariable to CompletionItem
-pub fn complete_vars(vars: &Vec<LocalVariable>) -> Vec<CompletionItem> {
+pub fn complete_vars(vars: &[LocalVariable]) -> Vec<CompletionItem> {
     vars.iter()
         .map(|a| CompletionItem {
             label: a.name.to_owned(),
@@ -55,7 +55,7 @@ pub fn class_unpack(val: &dto::Class) -> Vec<CompletionItem> {
         val.methods
             .iter()
             .filter(|i| i.access.contains(&parser::dto::Access::Public))
-            .map(|m| complete_method(m)),
+            .map(complete_method),
     );
 
     out.extend(
@@ -75,7 +75,7 @@ pub fn class_unpack(val: &dto::Class) -> Vec<CompletionItem> {
 
     out.sort_by(|a, b| a.label.to_lowercase().cmp(&b.label.to_lowercase()));
 
-    return out;
+    out
 }
 
 fn complete_method(m: &dto::Method) -> CompletionItem {
@@ -104,7 +104,7 @@ fn complete_method(m: &dto::Method) -> CompletionItem {
 
 fn method_snippet(m: &dto::Method) -> String {
     let mut params_snippet = String::new();
-    let p_len = *&m.parameters.len();
+    let p_len = m.parameters.len();
     let mut i = 1;
     for p in &m.parameters {
         params_snippet.push_str(format!("${{{}:{}}}", i, p.jtype).as_str());
@@ -119,14 +119,14 @@ fn method_snippet(m: &dto::Method) -> String {
 }
 
 /// Completion of the previous variable
-pub fn extend_completion<'a>(
+pub fn extend_completion(
     document: &Document,
     point: &Point,
-    vars: &'a Vec<LocalVariable>,
-    imports: &'a Vec<&str>,
-    class_map: &'a dashmap::DashMap<std::string::String, parser::dto::Class>,
+    vars: &[LocalVariable],
+    imports: &[&str],
+    class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Vec<CompletionItem> {
-    if let Some(extend) = current_symbol(document, point, &vars) {
+    if let Some(extend) = current_symbol(document, point, vars) {
         if let Some(extend_class) = tyres::resolve_var(extend, imports, class_map) {
             return class_unpack(&extend_class);
         }
@@ -264,13 +264,16 @@ public class GreetingResource {
         let method = dto::Method {
             access: vec![dto::Access::Public],
             name: "split".to_string(),
-            parameters: vec![dto::Parameter {
-                name: None,
-                jtype: dto::JType::Class("java.lang.String".to_string()),
-            }, dto::Parameter {
-                name: None,
-                jtype: dto::JType::Int,
-            }],
+            parameters: vec![
+                dto::Parameter {
+                    name: None,
+                    jtype: dto::JType::Class("java.lang.String".to_string()),
+                },
+                dto::Parameter {
+                    name: None,
+                    jtype: dto::JType::Int,
+                },
+            ],
             ret: dto::JType::Int,
         };
         let out = method_snippet(&method);

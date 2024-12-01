@@ -5,13 +5,13 @@ use parser::dto::Class;
 
 use crate::variable::LocalVariable;
 
-pub fn is_imported(jtype: &str, imports: &Vec<&str>) -> bool {
-    imports.iter().find(|i| i.ends_with(jtype)).is_some()
+pub fn is_imported(jtype: &str, imports: &[&str]) -> bool {
+    imports.iter().any(|i| i.ends_with(jtype))
 }
 
 pub fn resolve<'a>(
     jtype: &str,
-    imports: &Vec<&'a str>,
+    imports: &[&'a str],
     class_map: &'a DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<Class> {
     let lang_class_key = format!("java.lang.{}", jtype);
@@ -25,11 +25,12 @@ pub fn resolve<'a>(
     }
     None
 }
-pub fn resolve_import<'a>(
+pub fn resolve_import(
     jtype: &str,
-    class_map: &'a DashMap<std::string::String, parser::dto::Class>,
+    class_map: &DashMap<std::string::String, parser::dto::Class>,
 ) -> Vec<String> {
-    class_map.clone()
+    class_map
+        .clone()
         .into_read_only()
         .keys()
         .filter(|p| p.ends_with(jtype))
@@ -39,7 +40,7 @@ pub fn resolve_import<'a>(
 
 pub fn resolve_var<'a>(
     extend: &LocalVariable,
-    imports: &Vec<&'a str>,
+    imports: &[&'a str],
     class_map: &'a DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<Class> {
     resolve(&extend.ty, imports, class_map)
