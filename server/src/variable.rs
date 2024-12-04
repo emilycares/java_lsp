@@ -1,4 +1,4 @@
-use tree_sitter::Point;
+use tree_sitter::{Point, TreeCursor};
 use tree_sitter_util::{get_string, CommentSkiper};
 
 use crate::Document;
@@ -7,7 +7,7 @@ use crate::Document;
 #[derive(Debug, PartialEq)]
 pub struct LocalVariable {
     pub level: usize,
-    pub ty: String,
+    pub jtype: String,
     pub name: String,
     pub is_fun: bool,
 }
@@ -47,7 +47,7 @@ pub fn get_vars(document: &Document, point: &Point) -> Vec<LocalVariable> {
                             let name = get_string(&class_cursor, bytes);
                             out.push(LocalVariable {
                                 level,
-                                ty,
+                                jtype: ty,
                                 name,
                                 is_fun: false,
                             });
@@ -65,7 +65,7 @@ pub fn get_vars(document: &Document, point: &Point) -> Vec<LocalVariable> {
                             let name = get_string(&class_cursor, bytes);
                             out.push(LocalVariable {
                                 level,
-                                ty,
+                                jtype: ty,
                                 name,
                                 is_fun: true,
                             });
@@ -102,7 +102,7 @@ pub fn get_vars(document: &Document, point: &Point) -> Vec<LocalVariable> {
                             method_cursor.sibling();
                             out.push(LocalVariable {
                                 level,
-                                ty,
+                                jtype: ty,
                                 name,
                                 is_fun: false,
                             });
@@ -137,6 +137,21 @@ pub fn get_vars(document: &Document, point: &Point) -> Vec<LocalVariable> {
     out
 }
 
+fn tdbc(cursor: &TreeCursor, bytes: &[u8]) {
+    eprintln!(
+        "{} - kind:{} - text:\"{}\"",
+        cursor.node().to_sexp(),
+        cursor.node().kind(),
+        get_string(&cursor, bytes)
+    );
+}
+
+#[derive(Debug, PartialEq)]
+pub enum CallItem<'a> {
+    MethodCall(String),
+    Variable(&'a LocalVariable),
+}
+
 /// Provides data abuilt the current variable before the cursor
 /// ``` java
 /// Long other = 1l;
@@ -148,7 +163,7 @@ pub fn current_symbol<'a>(
     document: &Document,
     point: &Point,
     lo_va: &'a [LocalVariable],
-) -> Option<&'a LocalVariable> {
+) -> Option<Vec<CallItem<'a>>> {
     let tree = &document.tree;
     let bytes = document
         .text
@@ -166,7 +181,7 @@ pub fn current_symbol<'a>(
             let l = prev.trim_end_matches('.');
             let l = l.trim();
             if let Some(lo) = lo_va.iter().find(|va| va.name == l) {
-                return Some(lo);
+                return Some(vec![CallItem::Variable(lo)]);
             }
         }
         prev = get_string(&cursor, bytes);
@@ -177,16 +192,28 @@ pub fn current_symbol<'a>(
             let l = l.trim();
             let l = l.trim_end_matches('.');
 
-            let lo = lo_va.iter().find(|va| va.name == l);
-
-            return lo;
+            if let Some(lo) = lo_va.iter().find(|va| va.name == l) {
+                return Some(vec![CallItem::Variable(lo)]);
+            }
         }
 
-        // TODO: This should also support method and propety chanes
-        // if cursor.node().kind() == "method_invocation" {
-        // dbg!(cursor.node().kind());
-        // dbg!(get_string(&cursor, bytes));
-        // }
+        if cursor.node().kind() == "field_access" || cursor.node().kind() == "template_expression" {
+            cursor.first_child();
+            match cursor.node().kind() {
+                "method_invocation" => {
+                    let (variable, called) = parse_method_invocation(cursor.node(), bytes);
+                    if let Some(lo) = lo_va.iter().find(|va| va.name == variable) {
+                        return Some(vec![CallItem::Variable(lo), CallItem::MethodCall(called)]);
+                    }
+                }
+                _ => {
+                    tdbc(&cursor, bytes);
+                }
+            }
+            // method_invocation
+            // end method_invocation
+            cursor.parent();
+        }
 
         let n = cursor.goto_first_child_for_point(*point);
         level += 1;
@@ -200,12 +227,24 @@ pub fn current_symbol<'a>(
     None
 }
 
+fn parse_method_invocation(node: tree_sitter::Node<'_>, bytes: &[u8]) -> (String, String) {
+    let mut cursor = node.walk();
+    cursor.first_child();
+    let var_name = get_string(&cursor, bytes);
+    cursor.sibling();
+    cursor.sibling();
+    let method_name = get_string(&cursor, bytes);
+    cursor.parent();
+    (var_name, method_name)
+}
+
 #[cfg(test)]
-mod tests {
+pub mod tests {
+    use pretty_assertions::assert_eq;
     use tree_sitter::Point;
 
     use crate::{
-        variable::{current_symbol, get_vars, LocalVariable},
+        variable::{current_symbol, get_vars, CallItem, LocalVariable},
         Document,
     };
 
@@ -251,37 +290,37 @@ public class GreetingResource {
             vec![
                 LocalVariable {
                     level: 2,
-                    ty: "Template".to_owned(),
+                    jtype: "Template".to_owned(),
                     name: "hello".to_owned(),
                     is_fun: false,
                 },
                 LocalVariable {
                     level: 2,
-                    ty: "Template".to_owned(),
+                    jtype: "Template".to_owned(),
                     name: "se".to_owned(),
                     is_fun: false,
                 },
                 LocalVariable {
                     level: 2,
-                    ty: "String".to_owned(),
+                    jtype: "String".to_owned(),
                     name: "other".to_owned(),
                     is_fun: false,
                 },
                 LocalVariable {
                     level: 2,
-                    ty: "TemplateInstance".to_owned(),
+                    jtype: "TemplateInstance".to_owned(),
                     name: "hello".to_owned(),
                     is_fun: true,
                 },
                 LocalVariable {
                     level: 3,
-                    ty: "String".to_owned(),
+                    jtype: "String".to_owned(),
                     name: "local".to_owned(),
                     is_fun: false,
                 },
                 LocalVariable {
                     level: 3,
-                    ty: "var".to_owned(),
+                    jtype: "var".to_owned(),
                     name: "lo".to_owned(),
                     is_fun: false,
                 },
@@ -326,7 +365,7 @@ public class GreetingResource {
         let doc = Document::setup(content).unwrap();
         let lo_va = vec![LocalVariable {
             level: 3,
-            ty: "String".to_owned(),
+            jtype: "String".to_owned(),
             name: "local".to_owned(),
             is_fun: false,
         }];
@@ -334,19 +373,16 @@ public class GreetingResource {
         let out = current_symbol(&doc, &Point::new(27, 24), &lo_va);
         assert_eq!(
             out,
-            Some(&LocalVariable {
+            Some(vec![CallItem::Variable(&LocalVariable {
                 level: 3,
-                ty: "String".to_owned(),
+                jtype: "String".to_owned(),
                 name: "local".to_owned(),
                 is_fun: false,
-            })
+            })])
         );
     }
 
-    // TODO: work on this test
-    //#[test]
-    fn _symbol_method() {
-        let content = "
+    pub const SYMBOL_METHOD: &str = "
 package ch.emilycares;
 
 import jakarta.inject.Inject;
@@ -376,12 +412,14 @@ public class GreetingResource {
         var lo = local.concat(\"hehe\"). 
 	    return hello.data(\"name\", \"emilycares\");
     }
-}
         ";
-        let doc = Document::setup(content).unwrap();
+
+    #[test]
+    fn symbol_method() {
+        let doc = Document::setup(SYMBOL_METHOD).unwrap();
         let lo_va = vec![LocalVariable {
             level: 3,
-            ty: "String".to_owned(),
+            jtype: "String".to_owned(),
             name: "local".to_owned(),
             is_fun: false,
         }];
@@ -389,12 +427,50 @@ public class GreetingResource {
         let out = current_symbol(&doc, &Point::new(27, 40), &lo_va);
         assert_eq!(
             out,
-            Some(&LocalVariable {
-                level: 3,
-                ty: "String".to_owned(),
-                name: "local".to_owned(),
-                is_fun: false,
-            })
+            Some(vec![
+                CallItem::Variable(&LocalVariable {
+                    level: 3,
+                    jtype: "String".to_owned(),
+                    name: "local".to_owned(),
+                    is_fun: false,
+                }),
+                CallItem::MethodCall("concat".to_string())
+            ])
+        );
+    }
+
+    #[test]
+    fn symbol_method_base() {
+        let content = "
+package ch.emilycares;
+public class GreetingResource {
+    String a;
+    public String hello() {
+        a.concat(\"\"). 
+        return \"huh\";
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+        let lo_va = vec![LocalVariable {
+            level: 3,
+            jtype: "String".to_owned(),
+            name: "a".to_owned(),
+            is_fun: false,
+        }];
+
+        let out = current_symbol(&doc, &Point::new(5, 24), &lo_va);
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::Variable(&LocalVariable {
+                    level: 3,
+                    jtype: "String".to_owned(),
+                    name: "a".to_owned(),
+                    is_fun: false,
+                }),
+                CallItem::MethodCall("concat".to_string())
+            ])
         );
     }
 }

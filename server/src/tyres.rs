@@ -1,9 +1,9 @@
 use std::ops::Deref;
 
 use dashmap::DashMap;
-use parser::dto::Class;
+use parser::dto::{Class, JType};
 
-use crate::variable::LocalVariable;
+use crate::variable::{CallItem, LocalVariable};
 
 pub fn is_imported(jtype: &str, imports: &[&str]) -> bool {
     imports.iter().any(|i| i.ends_with(jtype))
@@ -43,5 +43,62 @@ pub fn resolve_var<'a>(
     imports: &[&'a str],
     class_map: &'a DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<Class> {
-    resolve(&extend.ty, imports, class_map)
+    resolve(&extend.jtype, imports, class_map)
+}
+
+pub fn resolve_call_chain(
+    call_chain: &[CallItem<'_>],
+    imports: &[&str],
+    class_map: &DashMap<String, Class>,
+) -> Option<Class> {
+    let mut ops: Vec<Class> = vec![];
+    for item in call_chain {
+        let op = match item {
+            CallItem::MethodCall(called) => {
+                let Some(class) = ops.last() else {
+                    eprintln!("There is no class in ops");
+                    break;
+                };
+                if let Some(method) = class.methods.iter().find(|m| m.name == *called) {
+                    if let Some(c) = resolve_jtype(&method.ret, imports, class_map) {
+                        return Some(c);
+                    }
+                }
+                None
+            }
+            CallItem::Variable(var) => resolve_var(var, imports, class_map),
+        };
+        if let Some(op) = op {
+            ops.push(op);
+        }
+    }
+    ops.last().cloned()
+}
+
+fn resolve_jtype(
+    jtype: &JType,
+    imports: &[&str],
+    class_map: &DashMap<String, Class>,
+) -> Option<Class> {
+    match jtype {
+        JType::Void
+        | JType::Byte
+        | JType::Char
+        | JType::Double
+        | JType::Float
+        | JType::Int
+        | JType::Long
+        | JType::Short
+        | JType::Boolean
+        | JType::Array(_) => {
+            eprintln!("Handle jvm resolve for internal types");
+            return None;
+        }
+        JType::Class(c) => {
+            if let Some(class) = resolve(&c, imports, class_map) {
+                return Some(class);
+            }
+            return None;
+        }
+    }
 }

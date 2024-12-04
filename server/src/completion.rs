@@ -16,7 +16,7 @@ pub fn complete_vars(vars: &[LocalVariable]) -> Vec<CompletionItem> {
         .map(|a| CompletionItem {
             label: a.name.to_owned(),
             label_details: Some(CompletionItemLabelDetails {
-                detail: Some(a.ty.to_string()),
+                detail: Some(a.jtype.to_string()),
                 ..Default::default()
             }),
             kind: match a.is_fun {
@@ -126,8 +126,8 @@ pub fn extend_completion(
     imports: &[&str],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Vec<CompletionItem> {
-    if let Some(extend) = current_symbol(document, point, vars) {
-        if let Some(extend_class) = tyres::resolve_var(extend, imports, class_map) {
+    if let Some(call_chain) = current_symbol(document, point, vars).as_deref() {
+        if let Some(extend_class) = tyres::resolve_call_chain(call_chain, imports, class_map) {
             return class_unpack(&extend_class);
         }
     }
@@ -185,7 +185,7 @@ public class GreetingResource {
         let doc = Document::setup(content).unwrap();
         let lo_va = vec![LocalVariable {
             level: 3,
-            ty: "String".to_owned(),
+            jtype: "String".to_owned(),
             name: "other".to_owned(),
             is_fun: false,
         }];
@@ -226,6 +226,51 @@ public class GreetingResource {
                 },),
                 kind: Some(CompletionItemKind::FUNCTION),
                 insert_text: Some("length()".to_string()),
+                insert_text_format: Some(InsertTextFormat::SNIPPET),
+                ..Default::default()
+            }]
+        );
+    }
+
+
+    #[test]
+    fn extend_completion_method() {
+        let doc = Document::setup(crate::variable::tests::SYMBOL_METHOD).unwrap();
+        let lo_va = vec![LocalVariable {
+            level: 3,
+            jtype: "String".to_owned(),
+            name: "local".to_owned(),
+            is_fun: false,
+        }];
+        let imports = vec![ ];
+        let class_map: DashMap<String, dto::Class> = DashMap::new();
+        class_map.insert(
+            "java.lang.String".to_string(),
+            dto::Class {
+                class_path: "".to_string(),
+                access: vec![dto::Access::Public],
+                name: "String".to_string(),
+                methods: vec![dto::Method {
+                    access: vec![dto::Access::Public],
+                    name: "concat".to_string(),
+                    parameters: vec![],
+                    ret: dto::JType::Class("java.lang.String".to_string()),
+                }],
+                fields: vec![],
+            },
+        );
+
+        let out = extend_completion(&doc, &Point::new(27, 40), &lo_va, &imports, &class_map);
+        assert_eq!(
+            out,
+            vec![CompletionItem {
+                label: "concat".to_string(),
+                label_details: Some(CompletionItemLabelDetails {
+                    detail: Some("java.lang.String ()".to_string()),
+                    description: None,
+                },),
+                kind: Some(CompletionItemKind::FUNCTION),
+                insert_text: Some("concat()".to_string()),
                 insert_text_format: Some(InsertTextFormat::SNIPPET),
                 ..Default::default()
             }]
