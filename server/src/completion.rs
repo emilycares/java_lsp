@@ -232,7 +232,6 @@ public class GreetingResource {
         );
     }
 
-
     #[test]
     fn extend_completion_method() {
         let doc = Document::setup(crate::variable::tests::SYMBOL_METHOD).unwrap();
@@ -242,7 +241,7 @@ public class GreetingResource {
             name: "local".to_owned(),
             is_fun: false,
         }];
-        let imports = vec![ ];
+        let imports = vec![];
         let class_map: DashMap<String, dto::Class> = DashMap::new();
         class_map.insert(
             "java.lang.String".to_string(),

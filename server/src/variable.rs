@@ -28,98 +28,11 @@ pub fn get_vars(document: &Document, point: &Point) -> Vec<LocalVariable> {
     loop {
         match cursor.node().kind() {
             "class_declaration" => {}
-            "class_body" => {
-                let mut class_cursor = tree.walk();
-                class_cursor.reset(cursor.node());
-                class_cursor.first_child();
-                class_cursor.first_child();
-                'class: loop {
-                    match class_cursor.node().kind() {
-                        "field_declaration" => {
-                            class_cursor.first_child();
-                            if class_cursor.node().kind() == "modifiers" {
-                                class_cursor.sibling();
-                            }
-                            let ty = get_string(&class_cursor, bytes);
-                            class_cursor.sibling();
-                            class_cursor.first_child();
-
-                            let name = get_string(&class_cursor, bytes);
-                            out.push(LocalVariable {
-                                level,
-                                jtype: ty,
-                                name,
-                                is_fun: false,
-                            });
-
-                            class_cursor.parent();
-                            class_cursor.parent();
-                        }
-                        "method_declaration" => {
-                            class_cursor.first_child();
-                            if class_cursor.node().kind() == "modifiers" {
-                                class_cursor.sibling();
-                            }
-                            let ty = get_string(&class_cursor, bytes);
-                            class_cursor.sibling();
-                            let name = get_string(&class_cursor, bytes);
-                            out.push(LocalVariable {
-                                level,
-                                jtype: ty,
-                                name,
-                                is_fun: true,
-                            });
-                            class_cursor.parent();
-                        }
-                        "{" | "}" => {}
-                        _ => {
-                            //dbg!(class_cursor.node().kind());
-                            //dbg!(get_string(&class_cursor, &bytes));
-                        }
-                    }
-                    if !class_cursor.sibling() {
-                        break 'class;
-                    }
-                }
-            }
             "method_declaration" => {
-                let mut method_cursor = tree.walk();
-                method_cursor.reset(cursor.node());
-                method_cursor.first_child();
-                method_cursor.sibling();
-                method_cursor.sibling();
-                method_cursor.sibling();
-                method_cursor.sibling();
-                method_cursor.first_child();
-                'method: loop {
-                    match method_cursor.node().kind() {
-                        "local_variable_declaration" => {
-                            method_cursor.first_child();
-                            let ty = get_string(&method_cursor, bytes);
-                            method_cursor.sibling();
-                            method_cursor.first_child();
-                            let name = get_string(&method_cursor, bytes);
-                            method_cursor.sibling();
-                            out.push(LocalVariable {
-                                level,
-                                jtype: ty,
-                                name,
-                                is_fun: false,
-                            });
-                            method_cursor.parent();
-                            method_cursor.parent();
-                        }
-                        "{" | "}" => {}
-                        _ => {
-                            //dbg!(method_cursor.node().kind());
-                            //dbg!(get_string(&method_cursor, &bytes));
-                        }
-                    }
-                    if !method_cursor.sibling() {
-                        break 'method;
-                    }
-                }
-                method_cursor.parent();
+                get_method_vars(tree, cursor.node(), bytes, &mut out, level);
+            }
+            "class_body" => {
+                get_class_vars(tree, cursor.node(), bytes, &mut out, level);
             }
             _ => {}
         }
@@ -135,6 +48,135 @@ pub fn get_vars(document: &Document, point: &Point) -> Vec<LocalVariable> {
     }
 
     out
+}
+
+/// Get all vars of class
+fn get_class_vars(
+    tree: &tree_sitter::Tree,
+    start_node: tree_sitter::Node,
+    bytes: &[u8],
+    out: &mut Vec<LocalVariable>,
+    level: usize,
+) {
+    let mut cursor = tree.walk();
+    cursor.reset(start_node);
+    cursor.first_child();
+    cursor.first_child();
+    'class: loop {
+        match cursor.node().kind() {
+            "field_declaration" => {
+                cursor.first_child();
+                if cursor.node().kind() == "modifiers" {
+                    cursor.sibling();
+                }
+                let ty = get_string(&cursor, bytes);
+                cursor.sibling();
+                cursor.first_child();
+
+                let name = get_string(&cursor, bytes);
+                out.push(LocalVariable {
+                    level,
+                    jtype: ty,
+                    name,
+                    is_fun: false,
+                });
+
+                cursor.parent();
+                cursor.parent();
+            }
+            "method_declaration" => {
+                cursor.first_child();
+                if cursor.node().kind() == "modifiers" {
+                    cursor.sibling();
+                }
+                let ty = get_string(&cursor, bytes);
+                cursor.sibling();
+                let name = get_string(&cursor, bytes);
+                out.push(LocalVariable {
+                    level,
+                    jtype: ty,
+                    name,
+                    is_fun: true,
+                });
+                cursor.parent();
+            }
+            "{" | "}" => {}
+            _ => {
+                //dbg!(class_cursor.node().kind());
+                //dbg!(get_string(&class_cursor, &bytes));
+            }
+        }
+        if !cursor.sibling() {
+            break 'class;
+        }
+    }
+}
+
+/// Get all vars of method
+fn get_method_vars(
+    tree: &tree_sitter::Tree,
+    start_node: tree_sitter::Node,
+    bytes: &[u8],
+    out: &mut Vec<LocalVariable>,
+    level: usize,
+) {
+    let mut cursor = tree.walk();
+    cursor.reset(start_node);
+    cursor.first_child();
+    cursor.sibling();
+    cursor.sibling();
+    cursor.sibling();
+    if cursor.node().kind() == "formal_parameters" {
+        cursor.first_child();
+        while cursor.sibling() {
+            if cursor.node().kind() != "formal_parameter" {
+                continue;
+            }
+            cursor.first_child();
+            let ty = get_string(&cursor, bytes);
+            cursor.sibling();
+            let name = get_string(&cursor, bytes);
+            out.push(LocalVariable {
+                level,
+                jtype: ty,
+                name,
+                is_fun: false,
+            });
+            cursor.parent();
+        }
+        cursor.parent();
+    }
+    cursor.sibling();
+    cursor.first_child();
+    'method: loop {
+        match cursor.node().kind() {
+            "local_variable_declaration" => {
+                cursor.first_child();
+                let ty = get_string(&cursor, bytes);
+                cursor.sibling();
+                cursor.first_child();
+                let name = get_string(&cursor, bytes);
+                cursor.sibling();
+                out.push(LocalVariable {
+                    level,
+                    jtype: ty,
+                    name,
+                    is_fun: false,
+                });
+                cursor.parent();
+                cursor.parent();
+            }
+            "{" | "}" => {}
+            _ => {
+                //dbg!(method_cursor.node().kind());
+                //dbg!(get_string(&method_cursor, &bytes));
+            }
+        }
+        if !cursor.sibling() {
+            break 'method;
+        }
+    }
+    cursor.parent();
 }
 
 fn tdbc(cursor: &TreeCursor, bytes: &[u8]) {
@@ -274,7 +316,7 @@ public class GreetingResource {
 
     @GET
     @Produces(MediaType.TEXT_HTML)
-    public TemplateInstance hello() {
+    public TemplateInstance hello(String a) {
 	    String local = \"\";
 
         var lo = 
@@ -311,6 +353,12 @@ public class GreetingResource {
                     jtype: "TemplateInstance".to_owned(),
                     name: "hello".to_owned(),
                     is_fun: true,
+                },
+                LocalVariable {
+                    level: 3,
+                    jtype: "String".to_owned(),
+                    name: "a".to_owned(),
+                    is_fun: false,
                 },
                 LocalVariable {
                     level: 3,
