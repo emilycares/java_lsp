@@ -259,7 +259,7 @@ public class GreetingResource {
             },
         );
 
-        let out = extend_completion(&doc, &Point::new(27, 40), &lo_va, &imports, &class_map);
+        let out = extend_completion(&doc, &Point::new(8, 40), &lo_va, &imports, &class_map);
         assert_eq!(
             out,
             vec![CompletionItem {

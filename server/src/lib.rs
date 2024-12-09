@@ -272,19 +272,24 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
         let mut out = vec![];
-        let vars = variable::get_vars(document.value(), &ttp(params.position));
+        let point = ttp(params.position);
+        let vars = variable::get_vars(document.value(), &point);
 
         let imports = imports::imports(document.value());
 
-        out.extend(completion::extend_completion(
+        let extend = completion::extend_completion(
             document.value(),
-            &ttp(params.position),
+            &point,
             &vars,
             &imports,
             &self.class_map,
-        ));
+        );
 
-        out.extend(completion::complete_vars(&vars));
+        // If there is any extend completion ignore completing vars
+        if extend.is_empty() {
+            out.extend(completion::complete_vars(&vars));
+        }
+        out.extend(extend);
 
         //out.extend(
         //    self.class_map

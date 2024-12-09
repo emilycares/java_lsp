@@ -66,6 +66,18 @@ pub fn resolve_call_chain(
                 }
                 None
             }
+            CallItem::FieldAccess(called) => {
+                let Some(class) = ops.last() else {
+                    eprintln!("There is no class in ops");
+                    break;
+                };
+                if let Some(method) = class.fields.iter().find(|m| m.name == *called) {
+                    if let Some(c) = resolve_jtype(&method.jtype, imports, class_map) {
+                        return Some(c);
+                    }
+                }
+                None
+            }
             CallItem::Variable(var) => resolve_var(var, imports, class_map),
         };
         if let Some(op) = op {

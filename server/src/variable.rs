@@ -179,6 +179,7 @@ fn get_method_vars(
     cursor.parent();
 }
 
+#[allow(dead_code)]
 fn tdbc(cursor: &TreeCursor, bytes: &[u8]) {
     eprintln!(
         "{} - kind:{} - text:\"{}\"",
@@ -191,6 +192,7 @@ fn tdbc(cursor: &TreeCursor, bytes: &[u8]) {
 #[derive(Debug, PartialEq)]
 pub enum CallItem<'a> {
     MethodCall(String),
+    FieldAccess(String),
     Variable(&'a LocalVariable),
 }
 
@@ -217,6 +219,7 @@ pub fn current_symbol<'a>(
     let mut cursor = tree.walk();
     let mut level = 0;
     let mut prev = String::new();
+    let mut out = vec![];
     loop {
         // This scoped_type_identifier thing does not work. Real world this works.
         if cursor.node().kind() == "." {
@@ -238,6 +241,17 @@ pub fn current_symbol<'a>(
                 return Some(vec![CallItem::Variable(lo)]);
             }
         }
+        //tdbc(&cursor, bytes);
+
+        match cursor.node().kind() {
+            "field_access" => {
+                let (variable, called) = parse_field_access(cursor.node(), bytes);
+                if let Some(lo) = lo_va.iter().find(|va| va.name == variable) {
+                    out.extend(vec![CallItem::Variable(lo), CallItem::FieldAccess(called)]);
+                }
+            }
+            _ => {}
+        }
 
         if cursor.node().kind() == "field_access" || cursor.node().kind() == "template_expression" {
             cursor.first_child();
@@ -245,12 +259,16 @@ pub fn current_symbol<'a>(
                 "method_invocation" => {
                     let (variable, called) = parse_method_invocation(cursor.node(), bytes);
                     if let Some(lo) = lo_va.iter().find(|va| va.name == variable) {
-                        return Some(vec![CallItem::Variable(lo), CallItem::MethodCall(called)]);
+                        out.extend(vec![CallItem::Variable(lo), CallItem::MethodCall(called)]);
                     }
                 }
-                _ => {
-                    tdbc(&cursor, bytes);
+                "field_access" => {
+                    let (variable, called) = parse_field_access(cursor.node(), bytes);
+                    if let Some(lo) = lo_va.iter().find(|va| va.name == variable) {
+                        out.extend(vec![CallItem::Variable(lo), CallItem::FieldAccess(called)]);
+                    }
                 }
+                _ => {}
             }
             // method_invocation
             // end method_invocation
@@ -266,10 +284,24 @@ pub fn current_symbol<'a>(
             break;
         }
     }
+    if !out.is_empty() {
+        return Some(out);
+    }
     None
 }
 
 fn parse_method_invocation(node: tree_sitter::Node<'_>, bytes: &[u8]) -> (String, String) {
+    let mut cursor = node.walk();
+    cursor.first_child();
+    let var_name = get_string(&cursor, bytes);
+    cursor.sibling();
+    cursor.sibling();
+    let method_name = get_string(&cursor, bytes);
+    cursor.parent();
+    (var_name, method_name)
+}
+
+fn parse_field_access(node: tree_sitter::Node<'_>, bytes: &[u8]) -> (String, String) {
     let mut cursor = node.walk();
     cursor.first_child();
     let var_name = get_string(&cursor, bytes);
@@ -295,50 +327,36 @@ pub mod tests {
         let content = "
 package ch.emilycares;
 
-import jakarta.inject.Inject;
-import jakarta.ws.rs.GET;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.core.MediaType;
+public class Test {
 
-import io.quarkus.qute.TemplateInstance;
-import io.quarkus.qute.Template;
-
-@Path(\"/user/interact\")
-public class GreetingResource {
-
-    @Inject
-    Template hello;
-    @Inject
-    Template se;
+    String hello;
+    String se;
 
     private String other = \"\";
 
-    @GET
-    @Produces(MediaType.TEXT_HTML)
-    public TemplateInstance hello(String a) {
-	    String local = \"\";
+    public void hello(String a) {
+	String local = \"\";
 
         var lo = 
-	    return hello.data(\"name\", \"emilycares\");
+	return;
     }
 }
         ";
         let doc = Document::setup(content).unwrap();
 
-        let out = get_vars(&doc, &Point::new(26, 17));
+        let out = get_vars(&doc, &Point::new(12, 17));
         assert_eq!(
             out,
             vec![
                 LocalVariable {
                     level: 2,
-                    jtype: "Template".to_owned(),
+                    jtype: "String".to_owned(),
                     name: "hello".to_owned(),
                     is_fun: false,
                 },
                 LocalVariable {
                     level: 2,
-                    jtype: "Template".to_owned(),
+                    jtype: "String".to_owned(),
                     name: "se".to_owned(),
                     is_fun: false,
                 },
@@ -350,7 +368,7 @@ public class GreetingResource {
                 },
                 LocalVariable {
                     level: 2,
-                    jtype: "TemplateInstance".to_owned(),
+                    jtype: "void".to_owned(),
                     name: "hello".to_owned(),
                     is_fun: true,
                 },
@@ -381,32 +399,13 @@ public class GreetingResource {
         let content = "
 package ch.emilycares;
 
-import jakarta.inject.Inject;
-import jakarta.ws.rs.GET;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.core.MediaType;
+public class Test {
 
-import io.quarkus.qute.TemplateInstance;
-import io.quarkus.qute.Template;
-
-@Path(\"/user/interact\")
-public class GreetingResource {
-
-    @Inject
-    Template hello;
-    @Inject
-    Template se;
-
-    private String other = \"\";
-
-    @GET
-    @Produces(MediaType.TEXT_HTML)
-    public TemplateInstance hello() {
-	    String local = \"\";
+    public void hello(String a) {
+        String local = \"\";
 
         var lo = local. 
-	    return hello.data(\"name\", \"emilycares\");
+        return;
     }
 }
         ";
@@ -418,48 +417,33 @@ public class GreetingResource {
             is_fun: false,
         }];
 
-        let out = current_symbol(&doc, &Point::new(27, 24), &lo_va);
+        let out = current_symbol(&doc, &Point::new(8, 24), &lo_va);
         assert_eq!(
             out,
-            Some(vec![CallItem::Variable(&LocalVariable {
-                level: 3,
-                jtype: "String".to_owned(),
-                name: "local".to_owned(),
-                is_fun: false,
-            })])
+            Some(vec![
+                CallItem::Variable(&LocalVariable {
+                    level: 3,
+                    jtype: "String".to_owned(),
+                    name: "local".to_owned(),
+                    is_fun: false,
+                }),
+                CallItem::FieldAccess("return".to_owned()),
+            ])
         );
     }
 
     pub const SYMBOL_METHOD: &str = "
 package ch.emilycares;
 
-import jakarta.inject.Inject;
-import jakarta.ws.rs.GET;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.core.MediaType;
+public class Test {
 
-import io.quarkus.qute.TemplateInstance;
-import io.quarkus.qute.Template;
-
-@Path(\"/user/interact\")
-public class GreetingResource {
-
-    @Inject
-    Template hello;
-    @Inject
-    Template se;
-
-    private String other = \"\";
-
-    @GET
-    @Produces(MediaType.TEXT_HTML)
-    public TemplateInstance hello() {
-	    String local = \"\";
+    public void hello() {
+        String local = \"\";
 
         var lo = local.concat(\"hehe\"). 
-	    return hello.data(\"name\", \"emilycares\");
+        return;
     }
+}
         ";
 
     #[test]
@@ -472,7 +456,7 @@ public class GreetingResource {
             is_fun: false,
         }];
 
-        let out = current_symbol(&doc, &Point::new(27, 40), &lo_va);
+        let out = current_symbol(&doc, &Point::new(8, 40), &lo_va);
         assert_eq!(
             out,
             Some(vec![
@@ -483,6 +467,44 @@ public class GreetingResource {
                     is_fun: false,
                 }),
                 CallItem::MethodCall("concat".to_string())
+            ])
+        );
+    }
+
+    #[test]
+    fn symbol_field() {
+        let content = "
+package ch.emilycares;
+
+public class Test {
+
+    public void hello() {
+        Thing local = \"\";
+
+        var lo = local.a.
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+        let lo_va = vec![LocalVariable {
+            level: 3,
+            jtype: "Thing".to_owned(),
+            name: "local".to_owned(),
+            is_fun: false,
+        }];
+
+        let out = current_symbol(&doc, &Point::new(8, 26), &lo_va);
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::Variable(&LocalVariable {
+                    level: 3,
+                    jtype: "Thing".to_owned(),
+                    name: "local".to_owned(),
+                    is_fun: false,
+                }),
+                CallItem::FieldAccess("a".to_string())
             ])
         );
     }
