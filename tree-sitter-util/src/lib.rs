@@ -64,5 +64,23 @@ fn skip_comments(cursor: &mut TreeCursor<'_>) -> bool {
 }
 /// Return string under cursor
 pub fn get_string(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> String {
-    cursor.node().utf8_text(bytes).unwrap().to_owned()
+    cursor
+        .node()
+        .utf8_text(bytes)
+        .unwrap_or_default()
+        .to_owned()
+}
+/// Return string under node
+pub fn get_string_node(node: &Node, bytes: &[u8]) -> String {
+    node.utf8_text(bytes).unwrap_or_default().to_owned()
+}
+
+#[allow(dead_code)]
+pub fn tdbc(cursor: &tree_sitter::TreeCursor, bytes: &[u8]) {
+    eprintln!(
+        "{} - kind:{} - text:\"{}\"",
+        cursor.node().to_sexp(),
+        cursor.node().kind(),
+        get_string(&cursor, bytes)
+    );
 }

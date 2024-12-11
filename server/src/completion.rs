@@ -126,8 +126,9 @@ pub fn extend_completion(
     imports: &[&str],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Vec<CompletionItem> {
-    if let Some(call_chain) = current_symbol(document, point, vars).as_deref() {
-        if let Some(extend_class) = tyres::resolve_call_chain(call_chain, imports, class_map) {
+    if let Some(call_chain) = current_symbol(document, point).as_deref() {
+        if let Some(extend_class) = tyres::resolve_call_chain(call_chain, vars, imports, class_map)
+        {
             return class_unpack(&extend_class);
         }
     }

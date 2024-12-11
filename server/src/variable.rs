@@ -1,4 +1,4 @@
-use tree_sitter::{Point, TreeCursor};
+use tree_sitter::Point;
 use tree_sitter_util::{get_string, CommentSkiper};
 
 use crate::Document;
@@ -179,21 +179,11 @@ fn get_method_vars(
     cursor.parent();
 }
 
-#[allow(dead_code)]
-fn tdbc(cursor: &TreeCursor, bytes: &[u8]) {
-    eprintln!(
-        "{} - kind:{} - text:\"{}\"",
-        cursor.node().to_sexp(),
-        cursor.node().kind(),
-        get_string(&cursor, bytes)
-    );
-}
-
 #[derive(Debug, PartialEq)]
-pub enum CallItem<'a> {
+pub enum CallItem {
     MethodCall(String),
     FieldAccess(String),
-    Variable(&'a LocalVariable),
+    Variable(String),
 }
 
 /// Provides data abuilt the current variable before the cursor
@@ -203,11 +193,7 @@ pub enum CallItem<'a> {
 ///       ^
 /// ```
 /// Then it would return info about the variable other
-pub fn current_symbol<'a>(
-    document: &Document,
-    point: &Point,
-    lo_va: &'a [LocalVariable],
-) -> Option<Vec<CallItem<'a>>> {
+pub fn current_symbol<'a>(document: &Document, point: &Point) -> Option<Vec<CallItem>> {
     let tree = &document.tree;
     let bytes = document
         .text
@@ -225,9 +211,7 @@ pub fn current_symbol<'a>(
         if cursor.node().kind() == "." {
             let l = prev.trim_end_matches('.');
             let l = l.trim();
-            if let Some(lo) = lo_va.iter().find(|va| va.name == l) {
-                return Some(vec![CallItem::Variable(lo)]);
-            }
+            return Some(vec![CallItem::Variable(l.to_string())]);
         }
         prev = get_string(&cursor, bytes);
 
@@ -237,42 +221,24 @@ pub fn current_symbol<'a>(
             let l = l.trim();
             let l = l.trim_end_matches('.');
 
-            if let Some(lo) = lo_va.iter().find(|va| va.name == l) {
-                return Some(vec![CallItem::Variable(lo)]);
-            }
+            return Some(vec![CallItem::Variable(l.to_string())]);
         }
-        //tdbc(&cursor, bytes);
 
         match cursor.node().kind() {
             "field_access" => {
-                let (variable, called) = parse_field_access(cursor.node(), bytes);
-                if let Some(lo) = lo_va.iter().find(|va| va.name == variable) {
-                    out.extend(vec![CallItem::Variable(lo), CallItem::FieldAccess(called)]);
+                out.extend(parse_field_access(cursor.node(), bytes));
+            }
+            "template_expression" => {
+                cursor.first_child();
+                match cursor.node().kind() {
+                    "method_invocation" => {
+                        out.extend(parse_method_invocation(cursor.node(), bytes));
+                    }
+                    _ => {}
                 }
+                cursor.parent();
             }
             _ => {}
-        }
-
-        if cursor.node().kind() == "field_access" || cursor.node().kind() == "template_expression" {
-            cursor.first_child();
-            match cursor.node().kind() {
-                "method_invocation" => {
-                    let (variable, called) = parse_method_invocation(cursor.node(), bytes);
-                    if let Some(lo) = lo_va.iter().find(|va| va.name == variable) {
-                        out.extend(vec![CallItem::Variable(lo), CallItem::MethodCall(called)]);
-                    }
-                }
-                "field_access" => {
-                    let (variable, called) = parse_field_access(cursor.node(), bytes);
-                    if let Some(lo) = lo_va.iter().find(|va| va.name == variable) {
-                        out.extend(vec![CallItem::Variable(lo), CallItem::FieldAccess(called)]);
-                    }
-                }
-                _ => {}
-            }
-            // method_invocation
-            // end method_invocation
-            cursor.parent();
         }
 
         let n = cursor.goto_first_child_for_point(*point);
@@ -290,26 +256,66 @@ pub fn current_symbol<'a>(
     None
 }
 
-fn parse_method_invocation(node: tree_sitter::Node<'_>, bytes: &[u8]) -> (String, String) {
+fn parse_method_invocation(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem> {
     let mut cursor = node.walk();
+    let mut out = vec![];
     cursor.first_child();
-    let var_name = get_string(&cursor, bytes);
-    cursor.sibling();
-    cursor.sibling();
-    let method_name = get_string(&cursor, bytes);
+    match cursor.node().kind() {
+        "field_access" => {
+            out.extend(parse_field_access(node, bytes));
+            cursor.sibling();
+            cursor.sibling();
+            let method_name = get_string(&cursor, bytes);
+            out.extend(vec![CallItem::MethodCall(method_name)]);
+        }
+        "identifier" => {
+            let var_name = get_string(&cursor, bytes);
+            cursor.sibling();
+            cursor.sibling();
+            let method_name = get_string(&cursor, bytes);
+            out.extend(vec![
+                CallItem::Variable(var_name),
+                CallItem::MethodCall(method_name),
+            ]);
+        }
+        "method_invocation" => {
+            out.extend(parse_method_invocation(cursor.node(), bytes));
+        }
+        _ => {}
+    };
     cursor.parent();
-    (var_name, method_name)
+    out
 }
 
-fn parse_field_access(node: tree_sitter::Node<'_>, bytes: &[u8]) -> (String, String) {
+fn parse_field_access(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem> {
     let mut cursor = node.walk();
+    let mut out = vec![];
     cursor.first_child();
-    let var_name = get_string(&cursor, bytes);
-    cursor.sibling();
-    cursor.sibling();
-    let method_name = get_string(&cursor, bytes);
+    match cursor.node().kind() {
+        "identifier" => {
+            let var_name = get_string(&cursor, bytes);
+            cursor.sibling();
+            cursor.sibling();
+            let field_name = get_string(&cursor, bytes);
+            out.extend(vec![
+                CallItem::Variable(var_name),
+                CallItem::FieldAccess(field_name),
+            ]);
+        }
+        "method_invocation" => {
+            out.extend(parse_method_invocation(cursor.node(), bytes));
+            cursor.sibling();
+            cursor.sibling();
+            let field_name = get_string(&cursor, bytes);
+            out.extend(vec![CallItem::FieldAccess(field_name)]);
+        }
+        "field_access" => {
+            out.extend(parse_field_access(cursor.node(), bytes));
+        }
+        _ => {}
+    }
     cursor.parent();
-    (var_name, method_name)
+    out
 }
 
 #[cfg(test)]
@@ -335,10 +341,10 @@ public class Test {
     private String other = \"\";
 
     public void hello(String a) {
-	String local = \"\";
+        String local = \"\";
 
         var lo = 
-	return;
+        return;
     }
 }
         ";
@@ -410,23 +416,12 @@ public class Test {
 }
         ";
         let doc = Document::setup(content).unwrap();
-        let lo_va = vec![LocalVariable {
-            level: 3,
-            jtype: "String".to_owned(),
-            name: "local".to_owned(),
-            is_fun: false,
-        }];
 
-        let out = current_symbol(&doc, &Point::new(8, 24), &lo_va);
+        let out = current_symbol(&doc, &Point::new(8, 24));
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable(&LocalVariable {
-                    level: 3,
-                    jtype: "String".to_owned(),
-                    name: "local".to_owned(),
-                    is_fun: false,
-                }),
+                CallItem::Variable("local".to_string()),
                 CallItem::FieldAccess("return".to_owned()),
             ])
         );
@@ -449,24 +444,14 @@ public class Test {
     #[test]
     fn symbol_method() {
         let doc = Document::setup(SYMBOL_METHOD).unwrap();
-        let lo_va = vec![LocalVariable {
-            level: 3,
-            jtype: "String".to_owned(),
-            name: "local".to_owned(),
-            is_fun: false,
-        }];
 
-        let out = current_symbol(&doc, &Point::new(8, 40), &lo_va);
+        let out = current_symbol(&doc, &Point::new(8, 40));
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable(&LocalVariable {
-                    level: 3,
-                    jtype: "String".to_owned(),
-                    name: "local".to_owned(),
-                    is_fun: false,
-                }),
-                CallItem::MethodCall("concat".to_string())
+                CallItem::Variable("local".to_string()),
+                CallItem::MethodCall("concat".to_string()),
+                CallItem::FieldAccess("return".to_string()),
             ])
         );
     }
@@ -475,35 +460,21 @@ public class Test {
     fn symbol_field() {
         let content = "
 package ch.emilycares;
-
 public class Test {
-
     public void hello() {
         Thing local = \"\";
-
         var lo = local.a.
         return;
     }
 }
 ";
         let doc = Document::setup(content).unwrap();
-        let lo_va = vec![LocalVariable {
-            level: 3,
-            jtype: "Thing".to_owned(),
-            name: "local".to_owned(),
-            is_fun: false,
-        }];
 
-        let out = current_symbol(&doc, &Point::new(8, 26), &lo_va);
+        let out = current_symbol(&doc, &Point::new(5, 26));
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable(&LocalVariable {
-                    level: 3,
-                    jtype: "Thing".to_owned(),
-                    name: "local".to_owned(),
-                    is_fun: false,
-                }),
+                CallItem::Variable("local".to_string()),
                 CallItem::FieldAccess("a".to_string())
             ])
         );
@@ -522,24 +493,64 @@ public class GreetingResource {
 }
 ";
         let doc = Document::setup(content).unwrap();
-        let lo_va = vec![LocalVariable {
-            level: 3,
-            jtype: "String".to_owned(),
-            name: "a".to_owned(),
-            is_fun: false,
-        }];
 
-        let out = current_symbol(&doc, &Point::new(5, 24), &lo_va);
+        let out = current_symbol(&doc, &Point::new(5, 24));
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable(&LocalVariable {
-                    level: 3,
-                    jtype: "String".to_owned(),
-                    name: "a".to_owned(),
-                    is_fun: false,
-                }),
+                CallItem::Variable("a".to_string()),
                 CallItem::MethodCall("concat".to_string())
+            ])
+        );
+    }
+
+    #[test]
+    fn symbol_field_method() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        var lo = local.a.b().
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = current_symbol(&doc, &Point::new(5, 30));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::Variable("local".to_string()),
+                CallItem::FieldAccess("a".to_string()),
+                CallItem::MethodCall("b".to_string()),
+                CallItem::FieldAccess("return".to_string()),
+            ])
+        );
+    }
+
+    #[test]
+    fn symbol_menthod_field() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        var lo = local.a().b.
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = current_symbol(&doc, &Point::new(5, 30));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::Variable("local".to_string()),
+                CallItem::MethodCall("a".to_string()),
+                CallItem::FieldAccess("b".to_string())
             ])
         );
     }

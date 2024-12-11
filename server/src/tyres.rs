@@ -47,7 +47,8 @@ pub fn resolve_var<'a>(
 }
 
 pub fn resolve_call_chain(
-    call_chain: &[CallItem<'_>],
+    call_chain: &[CallItem],
+    lo_va: &[LocalVariable],
     imports: &[&str],
     class_map: &DashMap<String, Class>,
 ) -> Option<Class> {
@@ -78,7 +79,12 @@ pub fn resolve_call_chain(
                 }
                 None
             }
-            CallItem::Variable(var) => resolve_var(var, imports, class_map),
+            CallItem::Variable(var) => {
+                if let Some(lo) = lo_va.iter().find(|va| va.name == *var) {
+                    return resolve_var(lo, imports, class_map);
+                }
+                None
+            }
         };
         if let Some(op) = op {
             ops.push(op);
