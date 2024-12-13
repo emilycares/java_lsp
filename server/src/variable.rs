@@ -1,5 +1,5 @@
 use tree_sitter::Point;
-use tree_sitter_util::{get_string, CommentSkiper};
+use tree_sitter_util::{get_string, tdbc, CommentSkiper};
 
 use crate::Document;
 
@@ -184,6 +184,7 @@ pub enum CallItem {
     MethodCall(String),
     FieldAccess(String),
     Variable(String),
+    Class(String),
 }
 
 /// Provides data abuilt the current variable before the cursor
@@ -204,29 +205,22 @@ pub fn current_symbol<'a>(document: &Document, point: &Point) -> Option<Vec<Call
 
     let mut cursor = tree.walk();
     let mut level = 0;
-    let mut prev = String::new();
     let mut out = vec![];
     loop {
-        // This scoped_type_identifier thing does not work. Real world this works.
-        if cursor.node().kind() == "." {
-            let l = prev.trim_end_matches('.');
-            let l = l.trim();
-            return Some(vec![CallItem::Variable(l.to_string())]);
-        }
-        prev = get_string(&cursor, bytes);
-
-        if cursor.node().kind() == "scoped_type_identifier" {
-            let l = get_string(&cursor, bytes);
-            let l = l.split_once("\n").unwrap_or_default().0;
-            let l = l.trim();
-            let l = l.trim_end_matches('.');
-
-            return Some(vec![CallItem::Variable(l.to_string())]);
-        }
-
         match cursor.node().kind() {
-            "field_access" => {
-                out.extend(parse_field_access(cursor.node(), bytes));
+            "scoped_type_identifier" => {
+                let l = get_string(&cursor, bytes);
+                let l = l.split_once("\n").unwrap_or_default().0;
+                let l = l.trim();
+                let l = l.trim_end_matches('.');
+
+                if let Some(c) = l.chars().next() {
+                    let val = match c.is_uppercase() {
+                        true => CallItem::Class(l.to_string()),
+                        false => CallItem::Variable(l.to_string()),
+                    };
+                    out.push(val);
+                }
             }
             "template_expression" => {
                 cursor.first_child();
@@ -235,6 +229,23 @@ pub fn current_symbol<'a>(document: &Document, point: &Point) -> Option<Vec<Call
                         out.extend(parse_method_invocation(cursor.node(), bytes));
                     }
                     _ => {}
+                }
+                cursor.parent();
+            }
+            "expression_statement" => {
+                cursor.first_child();
+                out.extend(parse_value(&cursor, bytes));
+                cursor.parent();
+            }
+            "local_variable_declaration" => {
+                cursor.first_child();
+                cursor.sibling();
+                if cursor.node().kind() == "variable_declarator" {
+                    cursor.first_child();
+                    cursor.sibling();
+                    cursor.sibling();
+                    out.extend(parse_value(&cursor, bytes));
+                    cursor.parent();
                 }
                 cursor.parent();
             }
@@ -254,6 +265,15 @@ pub fn current_symbol<'a>(document: &Document, point: &Point) -> Option<Vec<Call
         return Some(out);
     }
     None
+}
+
+fn parse_value(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> Vec<CallItem> {
+    match cursor.node().kind() {
+        "identifier" => vec![CallItem::Variable(get_string(cursor, bytes))],
+        "field_access" => parse_field_access(cursor.node(), bytes),
+        "method_invocation" => parse_method_invocation(cursor.node(), bytes),
+        _ => vec![],
+    }
 }
 
 fn parse_method_invocation(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem> {
@@ -297,10 +317,16 @@ fn parse_field_access(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem
             cursor.sibling();
             cursor.sibling();
             let field_name = get_string(&cursor, bytes);
-            out.extend(vec![
-                CallItem::Variable(var_name),
-                CallItem::FieldAccess(field_name),
-            ]);
+            if let Some(c) = var_name.chars().next() {
+                let item = match c.is_uppercase() {
+                    true => CallItem::Class(var_name),
+                    false => CallItem::Variable(var_name),
+                };
+                out.push(item);
+                if field_name != "return" {
+                    out.push(CallItem::FieldAccess(field_name));
+                }
+            }
         }
         "method_invocation" => {
             out.extend(parse_method_invocation(cursor.node(), bytes));
@@ -418,13 +444,7 @@ public class Test {
         let doc = Document::setup(content).unwrap();
 
         let out = current_symbol(&doc, &Point::new(8, 24));
-        assert_eq!(
-            out,
-            Some(vec![
-                CallItem::Variable("local".to_string()),
-                CallItem::FieldAccess("return".to_owned()),
-            ])
-        );
+        assert_eq!(out, Some(vec![CallItem::Variable("local".to_string()),]));
     }
 
     pub const SYMBOL_METHOD: &str = "
@@ -553,5 +573,134 @@ public class Test {
                 CallItem::FieldAccess("b".to_string())
             ])
         );
+    }
+
+    #[test]
+    fn symbol_semicolon_simple() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        var lo = local. ;
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = current_symbol(&doc, &Point::new(5, 23));
+        assert_eq!(out, Some(vec![CallItem::Variable("local".to_string())]));
+    }
+
+    #[test]
+    fn symbol_semicolon_field() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        int c = local.a().c.;
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = current_symbol(&doc, &Point::new(5, 28));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::Variable("local".to_string()),
+                CallItem::MethodCall("a".to_string()),
+                CallItem::FieldAccess("c".to_string()),
+            ])
+        );
+    }
+
+    #[test]
+    fn symbol_semicolon_method() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        int c = local.a.c().;
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = current_symbol(&doc, &Point::new(5, 28));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::Variable("local".to_string()),
+                CallItem::FieldAccess("a".to_string()),
+                CallItem::MethodCall("c".to_string()),
+            ])
+        );
+    }
+
+    #[test]
+    fn symbol_statement() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        local.a.c().;
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = current_symbol(&doc, &Point::new(5, 20));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::Variable("local".to_string()),
+                CallItem::FieldAccess("a".to_string()),
+                CallItem::MethodCall("c".to_string()),
+            ])
+        );
+    }
+
+    #[test]
+    fn symbol_class() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        String. 
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = current_symbol(&doc, &Point::new(5, 16));
+        assert_eq!(out, Some(vec![CallItem::Class("String".to_string()),]));
+    }
+
+    #[test]
+    fn symbol_varible_class() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        var local = String. 
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = current_symbol(&doc, &Point::new(5, 28));
+        assert_eq!(out, Some(vec![CallItem::Class("String".to_string()),]));
     }
 }

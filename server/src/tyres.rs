@@ -85,6 +85,12 @@ pub fn resolve_call_chain(
                 }
                 None
             }
+            CallItem::Class(class) => {
+                if let Some(c) = resolve(&class, imports, class_map) {
+                    return Some(c);
+                }
+                None
+            }
         };
         if let Some(op) = op {
             ops.push(op);
