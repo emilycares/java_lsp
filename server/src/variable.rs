@@ -1,5 +1,5 @@
 use tree_sitter::Point;
-use tree_sitter_util::{get_string, tdbc, CommentSkiper};
+use tree_sitter_util::{get_string, CommentSkiper};
 
 use crate::Document;
 

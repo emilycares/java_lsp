@@ -15,6 +15,7 @@ tree-sitter-java = "0.23.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.108"
 thiserror = "2.0.3"
+format = { path = "../format"}
 parser = { path = "../parser"}
 maven = { path = "../maven"}
 tree-sitter-util = { path = "../tree-sitter-util" }

@@ -26,6 +26,7 @@ pub fn get_node_at_point(tree: &Tree, point: Point) -> Result<Node, TreesitterEr
 }
 pub trait CommentSkiper {
     fn parent(&mut self) -> bool;
+    fn previous_sibling(&mut self) -> bool;
     fn sibling(&mut self) -> bool;
     fn first_child(&mut self) -> bool;
 }
@@ -33,6 +34,12 @@ pub trait CommentSkiper {
 impl CommentSkiper for TreeCursor<'_> {
     fn parent(&mut self) -> bool {
         if self.goto_parent() {
+            return skip_comments(self);
+        }
+        false
+    }
+    fn previous_sibling(&mut self) -> bool {
+        if self.goto_previous_sibling() {
             return skip_comments(self);
         }
         false

@@ -10,7 +10,8 @@ members = [
   "parser",
   "maven",
   "server",
-  "tree-sitter-util"
+  "tree-sitter-util",
+  "format"
 ]
 
 [dependencies]
