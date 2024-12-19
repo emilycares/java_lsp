@@ -225,9 +225,9 @@ checksum = "325918d6fe32f23b19878fe4b34794ae41fc19ddbe53b10571a4874d44ffd39b"
 
 [[package]]
 name = "cc"
-version = "1.2.3"
+version = "1.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "27f657647bcff5394bf56c7317665bbf790a137a50eaaa5c6bfbb9e27a518f2d"
+checksum = "9157bbaa6b165880c27a4293a474c91cdcf265cc68cc829bf10be0964a391caf"
 dependencies = [
  "shlex",
 ]
@@ -329,14 +329,14 @@ checksum = "5b63caa9aa9397e2d9480a9b13673856c78d8ac123288526c37d7839f2a86990"
 
 [[package]]
 name = "console"
-version = "0.15.8"
+version = "0.15.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e1f83fc076bd6dd27517eacdf25fef6c4dfe5f1d7448bafaaf3a26f13b5e4eb"
+checksum = "ea3c6ecd8059b57859df5c69830340ed3c41d30e3da0c1cbed90a96ac853041b"
 dependencies = [
  "encode_unicode",
- "lazy_static",
  "libc",
- "windows-sys 0.52.0",
+ "once_cell",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -375,9 +375,9 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-utils"
-version = "0.8.20"
+version = "0.8.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22ec99545bb0ed0ea7bb9b8e1e9122ea386ff8a48c0922e43f36d45ab09e0e80"
+checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
 
 [[package]]
 name = "crunchy"
@@ -520,9 +520,9 @@ dependencies = [
 
 [[package]]
 name = "encode_unicode"
-version = "0.3.6"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a357d28ed41a50f9c765dbfe56cbc04a64e53e5fc58ba79fbc34c10ef3df831f"
+checksum = "34aa73646ffb006b8f5147f3dc182bd4bcb190227ce861fc4a4844bf8e3cb2c0"
 
 [[package]]
 name = "equivalent"
@@ -1173,7 +1173,7 @@ dependencies = [
  "nom",
  "serde",
  "serde-xml-rs",
- "thiserror 2.0.6",
+ "thiserror 2.0.8",
 ]
 
 [[package]]
@@ -1200,9 +1200,9 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 
 [[package]]
 name = "miniz_oxide"
-version = "0.8.0"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2d80299ef12ff69b16a84bb182e3b9df68b5a91574d3d4fa6e41b65deec4df1"
+checksum = "4ffbe83022cedc1d264172192511ae958937694cd57ce297164951b8b3568394"
 dependencies = [
  "adler2",
 ]
@@ -1330,7 +1330,7 @@ dependencies = [
  "postcard",
  "pretty_assertions",
  "serde",
- "thiserror 2.0.6",
+ "thiserror 2.0.8",
  "tree-sitter",
  "tree-sitter-java",
  "tree-sitter-util",
@@ -1715,7 +1715,7 @@ dependencies = [
  "ropey",
  "serde",
  "serde_json",
- "thiserror 2.0.6",
+ "thiserror 2.0.8",
  "tokio",
  "tower-lsp",
  "tree-sitter",
@@ -1941,11 +1941,11 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "2.0.6"
+version = "2.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fec2a1820ebd077e2b90c4df007bebf344cd394098a13c563957d0afc83ea47"
+checksum = "08f5383f3e0071702bf93ab5ee99b52d26936be9dedd9413067cbdcddcb6141a"
 dependencies = [
- "thiserror-impl 2.0.6",
+ "thiserror-impl 2.0.8",
 ]
 
 [[package]]
@@ -1961,9 +1961,9 @@ dependencies = [
 
 [[package]]
 name = "thiserror-impl"
-version = "2.0.6"
+version = "2.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d65750cab40f4ff1929fb1ba509e9914eb756131cef4210da8d5d700d26f6312"
+checksum = "f2f357fcec90b3caef6623a099691be676d033b40a058ac95d2a6ade6fa0c943"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2093,7 +2093,7 @@ dependencies = [
 [[package]]
 name = "topiary-config"
 version = "0.5.1"
-source = "git+https://github.com/emilycares/topiary.git?branch=new_lang_java#2ca50dc34c81fe94605ab5aa50b113a14446747d"
+source = "git+https://github.com/emilycares/topiary.git?branch=new_lang_java#1f8c1063a161f21fa708953f7fa18a4a64a58280"
 dependencies = [
  "cc",
  "clap",
@@ -2115,7 +2115,7 @@ dependencies = [
 [[package]]
 name = "topiary-core"
 version = "0.5.1"
-source = "git+https://github.com/emilycares/topiary.git?branch=new_lang_java#2ca50dc34c81fe94605ab5aa50b113a14446747d"
+source = "git+https://github.com/emilycares/topiary.git?branch=new_lang_java#1f8c1063a161f21fa708953f7fa18a4a64a58280"
 dependencies = [
  "futures",
  "itertools",
@@ -2134,12 +2134,12 @@ dependencies = [
 [[package]]
 name = "topiary-queries"
 version = "0.5.1"
-source = "git+https://github.com/emilycares/topiary.git?branch=new_lang_java#2ca50dc34c81fe94605ab5aa50b113a14446747d"
+source = "git+https://github.com/emilycares/topiary.git?branch=new_lang_java#1f8c1063a161f21fa708953f7fa18a4a64a58280"
 
 [[package]]
 name = "topiary-tree-sitter-facade"
 version = "0.5.1"
-source = "git+https://github.com/emilycares/topiary.git?branch=new_lang_java#2ca50dc34c81fe94605ab5aa50b113a14446747d"
+source = "git+https://github.com/emilycares/topiary.git?branch=new_lang_java#1f8c1063a161f21fa708953f7fa18a4a64a58280"
 dependencies = [
  "js-sys",
  "streaming-iterator",
@@ -2153,7 +2153,7 @@ dependencies = [
 [[package]]
 name = "topiary-web-tree-sitter-sys"
 version = "0.5.1"
-source = "git+https://github.com/emilycares/topiary.git?branch=new_lang_java#2ca50dc34c81fe94605ab5aa50b113a14446747d"
+source = "git+https://github.com/emilycares/topiary.git?branch=new_lang_java#1f8c1063a161f21fa708953f7fa18a4a64a58280"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
@@ -2285,7 +2285,7 @@ checksum = "c199356c799a8945965bb5f2c55b2ad9d9aa7c4b4f6e587fe9dea0bc715e5f9c"
 name = "tree-sitter-util"
 version = "0.1.0"
 dependencies = [
- "thiserror 2.0.6",
+ "thiserror 2.0.8",
  "tree-sitter",
 ]
 

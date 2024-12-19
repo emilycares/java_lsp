@@ -101,10 +101,7 @@ fn get_class_vars(
                 cursor.parent();
             }
             "{" | "}" => {}
-            _ => {
-                //dbg!(class_cursor.node().kind());
-                //dbg!(get_string(&class_cursor, &bytes));
-            }
+            _ => {}
         }
         if !cursor.sibling() {
             break 'class;
@@ -167,10 +164,7 @@ fn get_method_vars(
                 cursor.parent();
             }
             "{" | "}" => {}
-            _ => {
-                //dbg!(method_cursor.node().kind());
-                //dbg!(get_string(&method_cursor, &bytes));
-            }
+            _ => {}
         }
         if !cursor.sibling() {
             break 'method;

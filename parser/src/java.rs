@@ -73,10 +73,7 @@ fn parse_method(node: tree_sitter::Node<'_>, bytes: &[u8]) -> dto::Method {
             "formal_parameters" => {
                 method.parameters = parse_formal_parameters(&mut cursor, bytes);
             }
-            _ => {
-                //dbg!(cursor.node().kind());
-                //dbg!(get_string(&cursor, bytes));
-            }
+            _ => {}
         };
         if !cursor.sibling() {
             break;
@@ -105,10 +102,7 @@ fn parse_field(node: tree_sitter::Node<'_>, bytes: &[u8]) -> dto::Field {
                 field.jtype = parse_jtype(&cursor, bytes);
             }
             "variable_declarator" => field.name = get_string(&cursor, bytes),
-            _ => {
-                // dbg!(cursor.node().kind());
-                // dbg!(get_string(&cursor, bytes));
-            }
+            _ => {}
         };
         if !cursor.sibling() {
             break;

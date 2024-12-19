@@ -29,11 +29,18 @@ pub fn resolve_import(
     jtype: &str,
     class_map: &DashMap<std::string::String, parser::dto::Class>,
 ) -> Vec<String> {
+    resolve_class_key(class_map, |p| p.ends_with(jtype))
+}
+
+pub fn resolve_class_key(
+    class_map: &DashMap<std::string::String, parser::dto::Class>,
+    infl: impl Fn(&&std::string::String) -> bool,
+) -> Vec<String> {
     class_map
         .clone()
         .into_read_only()
         .keys()
-        .filter(|p| p.ends_with(jtype))
+        .filter(infl)
         .map(|a| a.to_string())
         .collect::<Vec<String>>()
 }

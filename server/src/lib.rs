@@ -4,6 +4,7 @@ mod imports;
 mod tyres;
 mod utils;
 mod variable;
+mod hover;
 
 use core::panic;
 use std::path::Path;
@@ -17,7 +18,7 @@ use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use tree_sitter::{Parser, Point, Tree};
-use utils::ttp;
+use utils::to_treesitter_point;
 
 pub async fn main() {
     let stdin = tokio::io::stdin();
@@ -182,7 +183,8 @@ impl LanguageServer for Backend {
                     ),
                     ..CompletionOptions::default()
                 }),
-                diagnostic_provider: None,
+                document_formatting_provider: Some(OneOf::Left(true)),
+                hover_provider: Some(HoverProviderCapability::Simple(true)),
                 ..ServerCapabilities::default()
             },
             server_info: None,
@@ -264,6 +266,48 @@ impl LanguageServer for Backend {
             .await;
     }
 
+
+    async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let Some(document) = self.get_document(&uri).await else {
+            eprintln!("Document is not opened.");
+            return Ok(None);
+        };
+        let point = to_treesitter_point(params.text_document_position_params.position);
+        let imports = imports::imports(document.value());
+
+        let class_hover = hover::class(
+            document.value(),
+            &point,
+            &imports,
+            &self.class_map,
+        );
+        return Ok(class_hover);
+    }
+
+    async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
+        let uri = params.text_document.uri;
+        let Some(document) = self.get_document(&uri).await else {
+            eprintln!("Document is not opened.");
+            return Ok(None);
+        };
+        let text = document.text.to_string();
+        let Some(lines) = document.text.lines().len().try_into().ok() else {
+            return Ok(None);
+        };
+        let Some(text) = format::format(text, format::Formatter::Topiary) else {
+            return Ok(None);
+        };
+        Ok(Some(vec![TextEdit::new(
+            Range::new(
+                Position::new(0, 0),
+                Position::new(lines, 0),
+            ),
+            text,
+        )]))
+    }
+
+
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
         let params = params.text_document_position;
         let uri = params.text_document.uri;
@@ -272,7 +316,7 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
         let mut out = vec![];
-        let point = ttp(params.position);
+        let point = to_treesitter_point(params.position);
         let vars = variable::get_vars(document.value(), &point);
 
         let imports = imports::imports(document.value());
@@ -289,14 +333,13 @@ impl LanguageServer for Backend {
         if extend.is_empty() {
             out.extend(completion::complete_vars(&vars));
         }
-        out.extend(extend);
 
-        //out.extend(
-        //    self.class_map
-        //        .iter()
-        //        .filter(|i| i.access.contains(&parser::dto::Access::Public))
-        //        .map(|v| completion::class_describe(v.value())),
-        //);
+        //if extend.is_empty() {
+        //    let classes = completion::classes(document.value(), &point, &imports, &self.class_map);
+        //    out.extend(classes);
+        //}
+
+        out.extend(extend);
 
         Ok(Some(CompletionResponse::Array(out)))
     }
@@ -321,7 +364,7 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
         let current_file = params.text_document.uri;
-        let point = ttp(params.range.start);
+        let point = to_treesitter_point(params.range.start);
         let bytes = document
             .text
             .slice(..)
