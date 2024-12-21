@@ -114,6 +114,9 @@ fn parse_field(node: tree_sitter::Node<'_>, bytes: &[u8]) -> dto::Field {
 
 fn parser_modifiers(input: String) -> Vec<dto::Access> {
     let mut out = vec![];
+    if input.contains("static") {
+        out.push(dto::Access::Static);
+    }
     if input.contains("public") {
         out.push(dto::Access::Public);
     }

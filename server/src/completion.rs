@@ -3,8 +3,14 @@ use tower_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat,
 };
 use tree_sitter::Point;
+use tree_sitter_util::{get_node_at_point, get_string_node, tdbc};
 
 use crate::{call_chain::get_call_chain, tyres, variable::LocalVariable, Document};
+use crate::{
+    completion, tyres,
+    variable::{current_symbol, LocalVariable},
+    Document,
+};
 
 /// Convert list LocalVariable to CompletionItem
 pub fn complete_vars(vars: &[LocalVariable]) -> Vec<CompletionItem> {
@@ -131,6 +137,53 @@ pub fn complete_call_chain(
     vec![]
 }
 
+pub fn classes(
+    document: &Document,
+    point: &Point,
+    _imports: &[&str],
+    class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
+) -> Vec<CompletionItem> {
+    let tree = &document.tree;
+
+    let Ok(node) = get_node_at_point(tree, *point) else {
+        return vec![];
+    };
+
+    let bytes = document
+        .text
+        .slice(..)
+        .as_str()
+        .unwrap_or_default()
+        .as_bytes();
+
+    if let Some(text) = is_class_completion(node, bytes) {
+        return class_map
+            .iter()
+            .filter(|c| c.name.starts_with(&text))
+            // .filter(|i| i.access.contains(&parser::dto::Access::Public))
+            .map(|v| completion::class_describe(v.value()))
+            .take(20)
+            .collect();
+    }
+    vec![]
+}
+
+fn is_class_completion(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Option<String> {
+    tdbc(&node.walk(), bytes);
+    match node.kind() {
+        "identifier" => {
+            let text = get_string_node(&node, bytes);
+            if let Some(c) = text.chars().next() {
+                if c.is_uppercase() {
+                    return Some(text);
+                }
+            }
+            None
+        }
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use dashmap::DashMap;
@@ -180,7 +233,7 @@ public class GreetingResource {
         let doc = Document::setup(content).unwrap();
         let lo_va = vec![LocalVariable {
             level: 3,
-            jtype: "String".to_owned(),
+            jtype: dto::JType::Class("String".to_owned()),
             name: "other".to_owned(),
             is_fun: false,
         }];
@@ -232,7 +285,7 @@ public class GreetingResource {
         let doc = Document::setup(crate::variable::tests::SYMBOL_METHOD).unwrap();
         let lo_va = vec![LocalVariable {
             level: 3,
-            jtype: "String".to_owned(),
+            jtype: dto::JType::Class("String".to_owned()),
             name: "local".to_owned(),
             is_fun: false,
         }];

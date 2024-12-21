@@ -75,6 +75,21 @@ mod tests {
                     ],
                     ret: dto::JType::Int,
                 },
+                dto::Method {
+                    access: vec![dto::Access::Static],
+                    name: "sadd".to_string(),
+                    parameters: vec![
+                        dto::Parameter {
+                            name: Some("a".to_string()),
+                            jtype: dto::JType::Int,
+                        },
+                        dto::Parameter {
+                            name: Some("b".to_string()),
+                            jtype: dto::JType::Int,
+                        },
+                    ],
+                    ret: dto::JType::Int,
+                },
             ],
             fields: vec![
                 dto::Field {

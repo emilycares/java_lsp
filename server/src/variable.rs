@@ -1,3 +1,4 @@
+use parser::dto;
 use tree_sitter::Point;
 use tree_sitter_util::{get_string, CommentSkiper};
 
@@ -7,7 +8,7 @@ use crate::Document;
 #[derive(Debug, PartialEq)]
 pub struct LocalVariable {
     pub level: usize,
-    pub jtype: String,
+    pub jtype: dto::JType,
     pub name: String,
     pub is_fun: bool,
 }
@@ -72,14 +73,9 @@ fn get_class_vars(
                 let ty = get_string(&cursor, bytes);
                 cursor.sibling();
                 cursor.first_child();
-
                 let name = get_string(&cursor, bytes);
-                out.push(LocalVariable {
-                    level,
-                    jtype: ty,
-                    name,
-                    is_fun: false,
-                });
+                let var = parse_variable(level, ty, name);
+                out.push(var);
 
                 cursor.parent();
                 cursor.parent();
@@ -94,10 +90,11 @@ fn get_class_vars(
                 let name = get_string(&cursor, bytes);
                 out.push(LocalVariable {
                     level,
-                    jtype: ty,
+                    jtype: parse_jtype(ty),
                     name,
                     is_fun: true,
                 });
+
                 cursor.parent();
             }
             "{" | "}" => {}
@@ -106,6 +103,26 @@ fn get_class_vars(
         if !cursor.sibling() {
             break 'class;
         }
+    }
+}
+
+fn parse_variable(level: usize, ty: String, name: String) -> LocalVariable {
+    LocalVariable {
+        level,
+        jtype: parse_jtype(ty),
+        name,
+        is_fun: false,
+    }
+}
+
+fn parse_jtype(ty: String) -> dto::JType {
+    match ty.as_str() {
+        "void" => dto::JType::Void,
+        ty if ty.ends_with("[]") => {
+            let ty = ty[..ty.len() - 2].to_string();
+            dto::JType::Array(Box::new(parse_jtype(ty)))
+        }
+        ty => dto::JType::Class(ty.to_string()),
     }
 }
 
@@ -133,12 +150,7 @@ fn get_method_vars(
             let ty = get_string(&cursor, bytes);
             cursor.sibling();
             let name = get_string(&cursor, bytes);
-            out.push(LocalVariable {
-                level,
-                jtype: ty,
-                name,
-                is_fun: false,
-            });
+            out.push(parse_variable(level, ty, name));
             cursor.parent();
         }
         cursor.parent();
@@ -154,12 +166,8 @@ fn get_method_vars(
                 cursor.first_child();
                 let name = get_string(&cursor, bytes);
                 cursor.sibling();
-                out.push(LocalVariable {
-                    level,
-                    jtype: ty,
-                    name,
-                    is_fun: false,
-                });
+                let var = parse_variable(level, ty, name);
+                out.push(var);
                 cursor.parent();
                 cursor.parent();
             }
@@ -175,6 +183,7 @@ fn get_method_vars(
 
 #[cfg(test)]
 pub mod tests {
+    use parser::dto;
     use pretty_assertions::assert_eq;
     use tree_sitter::Point;
 
@@ -212,43 +221,115 @@ public class Test {
             vec![
                 LocalVariable {
                     level: 2,
-                    jtype: "String".to_owned(),
+                    jtype: dto::JType::Class("String".to_owned()),
                     name: "hello".to_owned(),
                     is_fun: false,
                 },
                 LocalVariable {
                     level: 2,
-                    jtype: "String".to_owned(),
+                    jtype: dto::JType::Class("String".to_owned()),
                     name: "se".to_owned(),
                     is_fun: false,
                 },
                 LocalVariable {
                     level: 2,
-                    jtype: "String".to_owned(),
+                    jtype: dto::JType::Class("String".to_owned()),
                     name: "other".to_owned(),
                     is_fun: false,
                 },
                 LocalVariable {
                     level: 2,
-                    jtype: "void".to_owned(),
+                    jtype: dto::JType::Void,
                     name: "hello".to_owned(),
                     is_fun: true,
                 },
                 LocalVariable {
                     level: 3,
-                    jtype: "String".to_owned(),
+                    jtype: dto::JType::Class("String".to_owned()),
                     name: "a".to_owned(),
                     is_fun: false,
                 },
                 LocalVariable {
                     level: 3,
-                    jtype: "String".to_owned(),
+                    jtype: dto::JType::Class("String".to_owned()),
                     name: "local".to_owned(),
                     is_fun: false,
                 },
                 LocalVariable {
                     level: 3,
-                    jtype: "var".to_owned(),
+                    jtype: dto::JType::Class("var".to_owned()),
+                    name: "lo".to_owned(),
+                    is_fun: false,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn this_context_array() {
+        let content = "
+package ch.emilycares;
+
+public class Test {
+
+    String[] hello;
+    String[] se;
+
+    private String[] other = \"\";
+
+    public void hello(String[] a) {
+        String[] local = \"\";
+
+        var lo = 
+        return;
+    }
+}
+        ";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_vars(&doc, &Point::new(12, 17));
+        assert_eq!(
+            out,
+            vec![
+                LocalVariable {
+                    level: 2,
+                    jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_owned()))),
+                    name: "hello".to_owned(),
+                    is_fun: false,
+                },
+                LocalVariable {
+                    level: 2,
+                    jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_owned()))),
+                    name: "se".to_owned(),
+                    is_fun: false,
+                },
+                LocalVariable {
+                    level: 2,
+                    jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_owned()))),
+                    name: "other".to_owned(),
+                    is_fun: false,
+                },
+                LocalVariable {
+                    level: 2,
+                    jtype: dto::JType::Void,
+                    name: "hello".to_owned(),
+                    is_fun: true,
+                },
+                LocalVariable {
+                    level: 3,
+                    jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_owned()))),
+                    name: "a".to_owned(),
+                    is_fun: false,
+                },
+                LocalVariable {
+                    level: 3,
+                    jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_owned()))),
+                    name: "local".to_owned(),
+                    is_fun: false,
+                },
+                LocalVariable {
+                    level: 3,
+                    jtype: dto::JType::Class("var".to_owned()),
                     name: "lo".to_owned(),
                     is_fun: false,
                 },

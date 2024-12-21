@@ -30,4 +30,8 @@ public class Everything {
     int add(int a, int b) {
         return a + b;
     }
+
+    static int sadd(int a, int b) {
+      return a + b;
+    }
 }

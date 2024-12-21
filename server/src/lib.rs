@@ -325,12 +325,12 @@ impl LanguageServer for Backend {
             out.extend(completion::complete_vars(&vars));
         }
 
-        //if extend.is_empty() {
-        //    let classes = completion::classes(document.value(), &point, &imports, &self.class_map);
-        //    out.extend(classes);
-        //}
-
-        out.extend(extend);
+        out.extend(completion::classes(
+            document.value(),
+            &point,
+            &imports,
+            &self.class_map,
+        ));
 
         Ok(Some(CompletionResponse::Array(out)))
     }
@@ -417,7 +417,7 @@ fn apply_text_changes(
             return Some(Rope::from_str(&change.text));
         }
     }
-    None
+    Some(text.clone())
 }
 
 pub fn parser_command_args(params: ExecuteCommandParams) -> (Point, Option<Url>) {

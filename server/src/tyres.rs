@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use dashmap::DashMap;
-use parser::dto::{Class, JType};
+use parser::dto::{self, Class, JType};
 
 use crate::{call_chain::CallItem, variable::LocalVariable};
 
@@ -50,7 +50,7 @@ pub fn resolve_var<'a>(
     imports: &[&'a str],
     class_map: &'a DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<Class> {
-    resolve(&extend.jtype, imports, class_map)
+    resolve_jtype(&extend.jtype, imports, class_map)
 }
 
 pub fn resolve_call_chain(
@@ -120,10 +120,27 @@ fn resolve_jtype(
         | JType::Int
         | JType::Long
         | JType::Short
-        | JType::Boolean
-        | JType::Array(_) => {
-            eprintln!("Handle jvm resolve for internal types");
-            None
+        | JType::Boolean => {
+            return Some(Class {
+                class_path: "".to_owned(),
+                access: vec![],
+                name: "".to_string(),
+                methods: vec![],
+                fields: vec![],
+            });
+        }
+        JType::Array(gen) => {
+            return Some(Class {
+                class_path: "".to_owned(),
+                access: vec![],
+                name: "array".to_string(),
+                methods: vec![
+                    dto::Method { access:vec![], name:"clone".to_string(), ret:JType::Array(gen.clone()), parameters: vec![] }
+                ],
+                fields: vec![
+                    dto::Field { access: vec![], name: "length".to_string(), jtype: JType::Int }
+                ],
+            });
         }
         JType::Class(c) => {
             if let Some(class) = resolve(c, imports, class_map) {

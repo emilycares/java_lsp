@@ -108,7 +108,7 @@ impl Display for JType {
             JType::Short => write!(f, "short"),
             JType::Boolean => write!(f, "boolean"),
             JType::Class(c) => write!(f, "{}", c),
-            JType::Array(i) => write!(f, "Array<{}>", i),
+            JType::Array(i) => write!(f, "{}[]", i),
         }
     }
 }
