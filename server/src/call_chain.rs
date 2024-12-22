@@ -83,6 +83,15 @@ pub fn get_call_chain<'a>(document: &Document, point: &Point) -> Option<Vec<Call
                 }
                 cursor.parent();
             }
+            "parenthesized_expression" => {
+                cursor.first_child();
+                cursor.sibling();
+                let offset = 3;
+                let point = Point::new(point.row, point.column - offset);
+                cursor.goto_first_child_for_point(point);
+                out.extend(parse_value(&cursor, bytes));
+                cursor.parent();
+            }
             _ => {}
         }
 
@@ -109,7 +118,6 @@ fn parse_argument_list_argument(
     cursor.sibling();
     match cursor.node().kind() {
         "identifier" => 'block: {
-            tdbc(&cursor, bytes);
             if cursor.node().kind() == "identifier" {
                 let identifier = get_string(&*cursor, bytes);
                 cursor.sibling();
@@ -631,5 +639,41 @@ public class Test {
                 CallItem::MethodCall("a".to_string()),
             ])
         );
+    }
+
+    #[test]
+    fn call_chain_if() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        if (a ) {
+        }
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(4, 14));
+        assert_eq!(out, Some(vec![CallItem::Variable("a".to_string()),]));
+    }
+
+    #[test]
+    fn call_chain_if_condition() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        if (a == b ) {
+        }
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(4, 19));
+        assert_eq!(out, Some(vec![CallItem::Variable("b".to_string()),]));
     }
 }
