@@ -173,180 +173,13 @@ fn get_method_vars(
     cursor.parent();
 }
 
-#[derive(Debug, PartialEq)]
-pub enum CallItem {
-    MethodCall(String),
-    FieldAccess(String),
-    Variable(String),
-    Class(String),
-}
-
-/// Provides data abuilt the current variable before the cursor
-/// ``` java
-/// Long other = 1l;
-/// other.
-///       ^
-/// ```
-/// Then it would return info about the variable other
-pub fn current_symbol<'a>(document: &Document, point: &Point) -> Option<Vec<CallItem>> {
-    let tree = &document.tree;
-    let bytes = document
-        .text
-        .slice(..)
-        .as_str()
-        .unwrap_or_default()
-        .as_bytes();
-
-    let mut cursor = tree.walk();
-    let mut level = 0;
-    let mut out = vec![];
-    loop {
-        match cursor.node().kind() {
-            "scoped_type_identifier" => {
-                let l = get_string(&cursor, bytes);
-                let l = l.split_once("\n").unwrap_or_default().0;
-                let l = l.trim();
-                let l = l.trim_end_matches('.');
-
-                if let Some(c) = l.chars().next() {
-                    let val = match c.is_uppercase() {
-                        true => CallItem::Class(l.to_string()),
-                        false => CallItem::Variable(l.to_string()),
-                    };
-                    out.push(val);
-                }
-            }
-            "template_expression" => {
-                cursor.first_child();
-                match cursor.node().kind() {
-                    "method_invocation" => {
-                        out.extend(parse_method_invocation(cursor.node(), bytes));
-                    }
-                    _ => {}
-                }
-                cursor.parent();
-            }
-            "expression_statement" => {
-                cursor.first_child();
-                out.extend(parse_value(&cursor, bytes));
-                cursor.parent();
-            }
-            "local_variable_declaration" => {
-                cursor.first_child();
-                cursor.sibling();
-                if cursor.node().kind() == "variable_declarator" {
-                    cursor.first_child();
-                    cursor.sibling();
-                    cursor.sibling();
-                    out.extend(parse_value(&cursor, bytes));
-                    cursor.parent();
-                }
-                cursor.parent();
-            }
-            _ => {}
-        }
-
-        let n = cursor.goto_first_child_for_point(*point);
-        level += 1;
-        if n.is_none() {
-            break;
-        }
-        if level >= 200 {
-            break;
-        }
-    }
-    if !out.is_empty() {
-        return Some(out);
-    }
-    None
-}
-
-fn parse_value(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> Vec<CallItem> {
-    match cursor.node().kind() {
-        "identifier" => vec![CallItem::Variable(get_string(cursor, bytes))],
-        "field_access" => parse_field_access(cursor.node(), bytes),
-        "method_invocation" => parse_method_invocation(cursor.node(), bytes),
-        _ => vec![],
-    }
-}
-
-fn parse_method_invocation(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem> {
-    let mut cursor = node.walk();
-    let mut out = vec![];
-    cursor.first_child();
-    match cursor.node().kind() {
-        "field_access" => {
-            out.extend(parse_field_access(node, bytes));
-            cursor.sibling();
-            cursor.sibling();
-            let method_name = get_string(&cursor, bytes);
-            out.extend(vec![CallItem::MethodCall(method_name)]);
-        }
-        "identifier" => {
-            let var_name = get_string(&cursor, bytes);
-            cursor.sibling();
-            cursor.sibling();
-            let method_name = get_string(&cursor, bytes);
-            out.extend(vec![
-                CallItem::Variable(var_name),
-                CallItem::MethodCall(method_name),
-            ]);
-        }
-        "method_invocation" => {
-            out.extend(parse_method_invocation(cursor.node(), bytes));
-        }
-        _ => {}
-    };
-    cursor.parent();
-    out
-}
-
-fn parse_field_access(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem> {
-    let mut cursor = node.walk();
-    let mut out = vec![];
-    cursor.first_child();
-    match cursor.node().kind() {
-        "identifier" => {
-            let var_name = get_string(&cursor, bytes);
-            cursor.sibling();
-            cursor.sibling();
-            let field_name = get_string(&cursor, bytes);
-            if let Some(c) = var_name.chars().next() {
-                let item = match c.is_uppercase() {
-                    true => CallItem::Class(var_name),
-                    false => CallItem::Variable(var_name),
-                };
-                out.push(item);
-                if field_name != "return" {
-                    out.push(CallItem::FieldAccess(field_name));
-                }
-            }
-        }
-        "method_invocation" => {
-            out.extend(parse_method_invocation(cursor.node(), bytes));
-            cursor.sibling();
-            cursor.sibling();
-            let field_name = get_string(&cursor, bytes);
-            out.extend(vec![CallItem::FieldAccess(field_name)]);
-        }
-        "field_access" => {
-            out.extend(parse_field_access(cursor.node(), bytes));
-        }
-        _ => {}
-    }
-    cursor.parent();
-    out
-}
 
 #[cfg(test)]
 pub mod tests {
     use pretty_assertions::assert_eq;
     use tree_sitter::Point;
 
-    use crate::{
-        variable::{current_symbol, get_vars, CallItem, LocalVariable},
-        Document,
-    };
+    use crate::{call_chain::{get_call_chain, CallItem}, variable::{get_vars, LocalVariable}, Document};
 
     #[test]
     fn this_context() {
@@ -437,7 +270,7 @@ public class Test {
         ";
         let doc = Document::setup(content).unwrap();
 
-        let out = current_symbol(&doc, &Point::new(8, 24));
+        let out = get_call_chain(&doc, &Point::new(8, 24));
         assert_eq!(out, Some(vec![CallItem::Variable("local".to_string()),]));
     }
 
@@ -459,7 +292,7 @@ public class Test {
     fn symbol_method() {
         let doc = Document::setup(SYMBOL_METHOD).unwrap();
 
-        let out = current_symbol(&doc, &Point::new(8, 40));
+        let out = get_call_chain(&doc, &Point::new(8, 40));
         assert_eq!(
             out,
             Some(vec![
@@ -484,7 +317,7 @@ public class Test {
 ";
         let doc = Document::setup(content).unwrap();
 
-        let out = current_symbol(&doc, &Point::new(5, 26));
+        let out = get_call_chain(&doc, &Point::new(5, 26));
         assert_eq!(
             out,
             Some(vec![
@@ -508,7 +341,7 @@ public class GreetingResource {
 ";
         let doc = Document::setup(content).unwrap();
 
-        let out = current_symbol(&doc, &Point::new(5, 24));
+        let out = get_call_chain(&doc, &Point::new(5, 24));
         assert_eq!(
             out,
             Some(vec![
@@ -532,7 +365,7 @@ public class Test {
 ";
         let doc = Document::setup(content).unwrap();
 
-        let out = current_symbol(&doc, &Point::new(5, 30));
+        let out = get_call_chain(&doc, &Point::new(5, 30));
         assert_eq!(
             out,
             Some(vec![
@@ -558,7 +391,7 @@ public class Test {
 ";
         let doc = Document::setup(content).unwrap();
 
-        let out = current_symbol(&doc, &Point::new(5, 30));
+        let out = get_call_chain(&doc, &Point::new(5, 30));
         assert_eq!(
             out,
             Some(vec![
@@ -583,7 +416,7 @@ public class Test {
 ";
         let doc = Document::setup(content).unwrap();
 
-        let out = current_symbol(&doc, &Point::new(5, 23));
+        let out = get_call_chain(&doc, &Point::new(5, 23));
         assert_eq!(out, Some(vec![CallItem::Variable("local".to_string())]));
     }
 
@@ -601,7 +434,7 @@ public class Test {
 ";
         let doc = Document::setup(content).unwrap();
 
-        let out = current_symbol(&doc, &Point::new(5, 28));
+        let out = get_call_chain(&doc, &Point::new(5, 28));
         assert_eq!(
             out,
             Some(vec![
@@ -626,7 +459,7 @@ public class Test {
 ";
         let doc = Document::setup(content).unwrap();
 
-        let out = current_symbol(&doc, &Point::new(5, 28));
+        let out = get_call_chain(&doc, &Point::new(5, 28));
         assert_eq!(
             out,
             Some(vec![
@@ -651,7 +484,7 @@ public class Test {
 ";
         let doc = Document::setup(content).unwrap();
 
-        let out = current_symbol(&doc, &Point::new(5, 20));
+        let out = get_call_chain(&doc, &Point::new(5, 20));
         assert_eq!(
             out,
             Some(vec![
@@ -676,7 +509,7 @@ public class Test {
 ";
         let doc = Document::setup(content).unwrap();
 
-        let out = current_symbol(&doc, &Point::new(5, 16));
+        let out = get_call_chain(&doc, &Point::new(5, 16));
         assert_eq!(out, Some(vec![CallItem::Class("String".to_string()),]));
     }
 
@@ -694,7 +527,7 @@ public class Test {
 ";
         let doc = Document::setup(content).unwrap();
 
-        let out = current_symbol(&doc, &Point::new(5, 28));
+        let out = get_call_chain(&doc, &Point::new(5, 28));
         assert_eq!(out, Some(vec![CallItem::Class("String".to_string()),]));
     }
 }

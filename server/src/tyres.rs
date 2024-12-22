@@ -3,7 +3,7 @@ use std::ops::Deref;
 use dashmap::DashMap;
 use parser::dto::{Class, JType};
 
-use crate::variable::{CallItem, LocalVariable};
+use crate::{call_chain::CallItem, variable::LocalVariable};
 
 pub fn is_imported(jtype: &str, imports: &[&str]) -> bool {
     imports.iter().any(|i| i.ends_with(jtype))

@@ -4,11 +4,8 @@ use tower_lsp::lsp_types::{
 };
 use tree_sitter::Point;
 
-use crate::{
-    tyres,
-    variable::{current_symbol, LocalVariable},
-    Document,
-};
+use crate::{call_chain::get_call_chain, tyres, variable::LocalVariable, Document};
+
 
 /// Convert list LocalVariable to CompletionItem
 pub fn complete_vars(vars: &[LocalVariable]) -> Vec<CompletionItem> {
@@ -119,14 +116,14 @@ fn method_snippet(m: &dto::Method) -> String {
 }
 
 /// Completion of the previous variable
-pub fn extend_completion(
+pub fn complete_call_chain(
     document: &Document,
     point: &Point,
     vars: &[LocalVariable],
     imports: &[&str],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Vec<CompletionItem> {
-    if let Some(call_chain) = current_symbol(document, point).as_deref() {
+    if let Some(call_chain) = get_call_chain(document, point).as_deref() {
         if let Some(extend_class) = tyres::resolve_call_chain(call_chain, vars, imports, class_map)
         {
             return class_unpack(&extend_class);
@@ -137,10 +134,6 @@ pub fn extend_completion(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        completion::{extend_completion, LocalVariable},
-        Document,
-    };
     use dashmap::DashMap;
     use parser::dto;
     use pretty_assertions::assert_eq;
@@ -148,6 +141,8 @@ mod tests {
         CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat,
     };
     use tree_sitter::Point;
+
+    use crate::{completion::complete_call_chain, variable::LocalVariable, Document};
 
     use super::method_snippet;
 
@@ -216,7 +211,7 @@ public class GreetingResource {
             },
         );
 
-        let out = extend_completion(&doc, &Point::new(25, 24), &lo_va, &imports, &class_map);
+        let out = complete_call_chain(&doc, &Point::new(25, 24), &lo_va, &imports, &class_map);
         assert_eq!(
             out,
             vec![CompletionItem {
@@ -260,7 +255,7 @@ public class GreetingResource {
             },
         );
 
-        let out = extend_completion(&doc, &Point::new(8, 40), &lo_va, &imports, &class_map);
+        let out = complete_call_chain(&doc, &Point::new(8, 40), &lo_va, &imports, &class_map);
         assert_eq!(
             out,
             vec![CompletionItem {

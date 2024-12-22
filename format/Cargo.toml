@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-topiary-queries = { git = "https://github.com/emilycares/topiary.git", branch = "new_lang_java", default-features = false, features = ["java"] }
-topiary-core = { git = "https://github.com/emilycares/topiary.git", branch = "new_lang_java", default-features = false }
-topiary-config = { git = "https://github.com/emilycares/topiary.git", branch = "new_lang_java", default-features = false, features = ["java", "parallel"] }
+topiary-queries.workspace = true
+topiary-core.workspace = true
+topiary-config.workspace = true

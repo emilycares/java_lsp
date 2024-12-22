@@ -5,6 +5,7 @@ mod tyres;
 mod utils;
 mod variable;
 mod hover;
+mod call_chain;
 
 use core::panic;
 use std::path::Path;
@@ -321,7 +322,7 @@ impl LanguageServer for Backend {
 
         let imports = imports::imports(document.value());
 
-        let extend = completion::extend_completion(
+        let extend = completion::complete_call_chain(
             document.value(),
             &point,
             &vars,

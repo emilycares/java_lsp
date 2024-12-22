@@ -1,0 +1,635 @@
+use tree_sitter::Point;
+use tree_sitter_util::{get_string, tdbc, CommentSkiper};
+
+use crate::Document;
+
+#[derive(Debug, PartialEq)]
+pub enum CallItem {
+    MethodCall(String),
+    FieldAccess(String),
+    Variable(String),
+    Class(String),
+}
+
+/// Provides data abuilt the current variable before the cursor
+/// ``` java
+/// Long other = 1l;
+/// other.
+///       ^
+/// ```
+/// Then it would return info about the variable other
+pub fn get_call_chain<'a>(document: &Document, point: &Point) -> Option<Vec<CallItem>> {
+    let tree = &document.tree;
+    let bytes = document
+        .text
+        .slice(..)
+        .as_str()
+        .unwrap_or_default()
+        .as_bytes();
+
+    let mut cursor = tree.walk();
+    let mut level = 0;
+    let mut out = vec![];
+    loop {
+        tdbc(&cursor, bytes);
+        match cursor.node().kind() {
+            "argument_list" => {
+                out.clear();
+                cursor.first_child();
+                out.extend(parse_argument_list_argument(&mut cursor, bytes));
+                while cursor.node().kind() == "," {
+                    out.extend(parse_argument_list_argument(&mut cursor, bytes));
+                }
+                cursor.parent();
+            }
+            "scoped_type_identifier" => {
+                let l = get_string(&cursor, bytes);
+                let l = l.split_once("\n").unwrap_or_default().0;
+                let l = l.trim();
+                let l = l.trim_end_matches('.');
+
+                if let Some(c) = l.chars().next() {
+                    let val = match c.is_uppercase() {
+                        true => CallItem::Class(l.to_string()),
+                        false => CallItem::Variable(l.to_string()),
+                    };
+                    out.push(val);
+                }
+            }
+            "template_expression" => {
+                cursor.first_child();
+                match cursor.node().kind() {
+                    "method_invocation" => {
+                        out.extend(parse_method_invocation(cursor.node(), bytes));
+                    }
+                    _ => {}
+                }
+                cursor.parent();
+            }
+            "expression_statement" => {
+                cursor.first_child();
+                out.extend(parse_value(&cursor, bytes));
+                cursor.parent();
+            }
+            "local_variable_declaration" => {
+                cursor.first_child();
+                cursor.sibling();
+                if cursor.node().kind() == "variable_declarator" {
+                    cursor.first_child();
+                    cursor.sibling();
+                    cursor.sibling();
+                    out.extend(parse_value(&cursor, bytes));
+                    cursor.parent();
+                }
+                cursor.parent();
+            }
+            _ => {}
+        }
+
+        let n = cursor.goto_first_child_for_point(*point);
+        level += 1;
+        if n.is_none() {
+            break;
+        }
+        if level >= 200 {
+            break;
+        }
+    }
+    if !out.is_empty() {
+        return Some(out);
+    }
+    None
+}
+
+fn parse_argument_list_argument(
+    cursor: &mut tree_sitter::TreeCursor<'_>,
+    bytes: &[u8],
+) -> Vec<CallItem> {
+    let mut out = vec![];
+    cursor.sibling();
+    match cursor.node().kind() {
+        "identifier" => 'block: {
+            tdbc(&cursor, bytes);
+            if cursor.node().kind() == "identifier" {
+                let identifier = get_string(&*cursor, bytes);
+                cursor.sibling();
+                if cursor.node().kind() == ")" {
+                    out.push(CallItem::Variable(identifier));
+                    break 'block;
+                }
+                if cursor.node().kind() == "ERROR" {
+                    out.push(CallItem::Variable(identifier));
+                }
+            }
+        }
+        _ => {
+            out.extend(parse_value(cursor, bytes));
+        }
+    }
+
+    return out;
+}
+
+fn parse_value(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> Vec<CallItem> {
+    match cursor.node().kind() {
+        "identifier" => vec![CallItem::Variable(get_string(cursor, bytes))],
+        "field_access" => parse_field_access(cursor.node(), bytes),
+        "method_invocation" => parse_method_invocation(cursor.node(), bytes),
+        _ => vec![],
+    }
+}
+
+fn parse_method_invocation(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem> {
+    let mut cursor = node.walk();
+    let mut out = vec![];
+    cursor.first_child();
+    match cursor.node().kind() {
+        "field_access" => {
+            out.extend(parse_field_access(node, bytes));
+            cursor.sibling();
+            cursor.sibling();
+            let method_name = get_string(&cursor, bytes);
+            out.extend(vec![CallItem::MethodCall(method_name)]);
+        }
+        "identifier" => {
+            let var_name = get_string(&cursor, bytes);
+            cursor.sibling();
+            cursor.sibling();
+            let method_name = get_string(&cursor, bytes);
+            out.extend(vec![
+                CallItem::Variable(var_name),
+                CallItem::MethodCall(method_name),
+            ]);
+        }
+        "method_invocation" => {
+            out.extend(parse_method_invocation(cursor.node(), bytes));
+        }
+        _ => {}
+    };
+    cursor.parent();
+    out
+}
+
+fn parse_field_access(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem> {
+    let mut cursor = node.walk();
+    let mut out = vec![];
+    cursor.first_child();
+    match cursor.node().kind() {
+        "identifier" => {
+            let var_name = get_string(&cursor, bytes);
+            cursor.sibling();
+            cursor.sibling();
+            let field_name = get_string(&cursor, bytes);
+            if let Some(c) = var_name.chars().next() {
+                let item = match c.is_uppercase() {
+                    true => CallItem::Class(var_name),
+                    false => CallItem::Variable(var_name),
+                };
+                out.push(item);
+                if field_name != "return" {
+                    out.push(CallItem::FieldAccess(field_name));
+                }
+            }
+        }
+        "method_invocation" => {
+            out.extend(parse_method_invocation(cursor.node(), bytes));
+            cursor.sibling();
+            cursor.sibling();
+            let field_name = get_string(&cursor, bytes);
+            out.extend(vec![CallItem::FieldAccess(field_name)]);
+        }
+        "field_access" => {
+            out.extend(parse_field_access(cursor.node(), bytes));
+        }
+        _ => {}
+    }
+    cursor.parent();
+    out
+}
+
+#[cfg(test)]
+pub mod tests {
+    use pretty_assertions::assert_eq;
+    use tree_sitter::Point;
+
+    use crate::{
+        call_chain::{get_call_chain, CallItem},
+        Document,
+    };
+
+    #[test]
+    fn call_chain_base() {
+        let content = "
+package ch.emilycares;
+
+public class Test {
+
+    public void hello(String a) {
+        String local = \"\";
+
+        var lo = local. 
+        return;
+    }
+}
+        ";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(8, 24));
+        assert_eq!(out, Some(vec![CallItem::Variable("local".to_string()),]));
+    }
+
+    pub const SYMBOL_METHOD: &str = "
+package ch.emilycares;
+
+public class Test {
+
+    public void hello() {
+        String local = \"\";
+
+        var lo = local.concat(\"hehe\"). 
+        return;
+    }
+}
+        ";
+
+    #[test]
+    fn call_chain_method() {
+        let doc = Document::setup(SYMBOL_METHOD).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(8, 40));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::Variable("local".to_string()),
+                CallItem::MethodCall("concat".to_string()),
+                CallItem::FieldAccess("return".to_string()),
+            ])
+        );
+    }
+
+    #[test]
+    fn call_chain_field() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        var lo = local.a.
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(5, 26));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::Variable("local".to_string()),
+                CallItem::FieldAccess("a".to_string())
+            ])
+        );
+    }
+
+    #[test]
+    fn call_chain_method_base() {
+        let content = "
+package ch.emilycares;
+public class GreetingResource {
+    String a;
+    public String hello() {
+        a.concat(\"\"). 
+        return \"huh\";
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(5, 24));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::Variable("a".to_string()),
+                CallItem::MethodCall("concat".to_string())
+            ])
+        );
+    }
+
+    #[test]
+    fn call_chain_field_method() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        var lo = local.a.b().
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(5, 30));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::Variable("local".to_string()),
+                CallItem::FieldAccess("a".to_string()),
+                CallItem::MethodCall("b".to_string()),
+                CallItem::FieldAccess("return".to_string()),
+            ])
+        );
+    }
+
+    #[test]
+    fn call_chain_menthod_field() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        var lo = local.a().b.
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(5, 30));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::Variable("local".to_string()),
+                CallItem::MethodCall("a".to_string()),
+                CallItem::FieldAccess("b".to_string())
+            ])
+        );
+    }
+
+    #[test]
+    fn call_chain_semicolon_simple() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        var lo = local. ;
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(5, 23));
+        assert_eq!(out, Some(vec![CallItem::Variable("local".to_string())]));
+    }
+
+    #[test]
+    fn call_chain_semicolon_field() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        int c = local.a().c.;
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(5, 28));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::Variable("local".to_string()),
+                CallItem::MethodCall("a".to_string()),
+                CallItem::FieldAccess("c".to_string()),
+            ])
+        );
+    }
+
+    #[test]
+    fn call_chain_semicolon_method() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        int c = local.a.c().;
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(5, 28));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::Variable("local".to_string()),
+                CallItem::FieldAccess("a".to_string()),
+                CallItem::MethodCall("c".to_string()),
+            ])
+        );
+    }
+
+    #[test]
+    fn call_chain_statement() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        local.a.c().;
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(5, 20));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::Variable("local".to_string()),
+                CallItem::FieldAccess("a".to_string()),
+                CallItem::MethodCall("c".to_string()),
+            ])
+        );
+    }
+
+    #[test]
+    fn call_chain_class() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        String. 
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(5, 16));
+        assert_eq!(out, Some(vec![CallItem::Class("String".to_string()),]));
+    }
+
+    #[test]
+    fn call_chain_varible_class() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        var local = String. 
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(5, 28));
+        assert_eq!(out, Some(vec![CallItem::Class("String".to_string()),]));
+    }
+
+    #[test]
+    fn call_chain_argument() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        local.concat( )
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(5, 22));
+        assert_eq!(out, None);
+    }
+
+    #[test]
+    fn call_chain_argument_var() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        local.concat(local. );
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(5, 27));
+        assert_eq!(out, Some(vec![CallItem::Variable("local".to_string()),]));
+    }
+
+    #[test]
+    fn call_chain_argument_var_no_dot() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        local.concat(local );
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(5, 27));
+        assert_eq!(out, Some(vec![CallItem::Variable("local".to_string()),]));
+    }
+
+    #[test]
+    fn call_chain_argument_second_var() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        a.concat(b, c. );
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(5, 23));
+        assert_eq!(out, Some(vec![CallItem::Variable("c".to_string()),]));
+    }
+
+    #[test]
+    fn call_chain_argument_second_var_no_dot() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        a.concat(b, c );
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(5, 22));
+        assert_eq!(out, Some(vec![CallItem::Variable("c".to_string()),]));
+    }
+
+    #[test]
+    fn call_chain_argument_field() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        a.concat(b.a  );
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(5, 22));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::Variable("b".to_string()),
+                CallItem::FieldAccess("a".to_string()),
+            ])
+        );
+    }
+
+    #[test]
+    fn call_chain_argument_method() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        a.concat(b.a() );
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(5, 23));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::Variable("b".to_string()),
+                CallItem::MethodCall("a".to_string()),
+            ])
+        );
+    }
+}

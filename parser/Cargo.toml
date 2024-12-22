@@ -6,16 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-classfile-parser = { git = "https://github.com/emilycares/classfile-parser.git" }
-# java_asm = { path = "../../rust-java-asm/asm" }
-# java_asm = "0.0.4"
-thiserror = "2.0.3"
-tree-sitter = "0.24.5"
-tree-sitter-java = "0.23.4"
 tree-sitter-util = { path = "../tree-sitter-util"}
-walkdir = "2.5.0"
-serde = { version = "1.0", features = ["derive"] }
-postcard = { version = "1.0.0", features = ["alloc"] }
+classfile-parser.workspace = true
+thiserror.workspace = true
+tree-sitter.workspace = true
+tree-sitter-java.workspace = true
+walkdir.workspace = true
+postcard.workspace = true
+serde.workspace = true
 
 [dev-dependencies]
-pretty_assertions = "1.4"
+pretty_assertions.workspace = true
