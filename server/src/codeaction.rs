@@ -30,24 +30,24 @@ pub fn import_jtype<'a>(
     }
     None
 }
-fn import_to_code_action(current_file: &Url, classpath: &str) -> CodeActionOrCommand {
+pub fn import_text_edit(classpath: &str) -> Vec<TextEdit> {
+    vec![TextEdit {
+        range: Range::new(
+            Position {
+                line: 2,
+                character: 0,
+            },
+            Position {
+                line: 2,
+                character: 0,
+            },
+        ),
+        new_text: format!("import {};\n", classpath),
+    }]
+}
+pub fn import_to_code_action(current_file: &Url, classpath: &str) -> CodeActionOrCommand {
     let mut changes = HashMap::new();
-    changes.insert(
-        current_file.to_owned(),
-        vec![TextEdit {
-            range: Range::new(
-                Position {
-                    line: 2,
-                    character: 0,
-                },
-                Position {
-                    line: 2,
-                    character: 0,
-                },
-            ),
-            new_text: format!("import {};\n", classpath),
-        }],
-    );
+    changes.insert(current_file.to_owned(), import_text_edit(classpath));
     CodeActionOrCommand::CodeAction(CodeAction {
         kind: Some(CodeActionKind::QUICKFIX),
         title: format!("Import {}", classpath),

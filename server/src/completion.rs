@@ -5,7 +5,7 @@ use tower_lsp::lsp_types::{
 use tree_sitter::Point;
 use tree_sitter_util::{get_node_at_point, get_string_node, tdbc};
 
-use crate::{call_chain::get_call_chain, tyres, variable::LocalVariable, Document};
+use crate::{call_chain::get_call_chain, codeaction, tyres, variable::LocalVariable, Document};
 
 /// Convert list LocalVariable to CompletionItem
 pub fn complete_vars(vars: &[LocalVariable]) -> Vec<CompletionItem> {
@@ -26,7 +26,7 @@ pub fn complete_vars(vars: &[LocalVariable]) -> Vec<CompletionItem> {
 }
 
 /// Preview class with the description of methods
-pub fn class_describe(val: &dto::Class) -> CompletionItem {
+pub fn class_describe(val: &dto::Class, add_import: bool) -> CompletionItem {
     let methods: Vec<_> = val
         .methods
         .iter()
@@ -41,7 +41,20 @@ pub fn class_describe(val: &dto::Class) -> CompletionItem {
             )
         })
         .collect();
-    CompletionItem::new_simple(val.name.to_string(), methods.join("\n"))
+
+    let mut addi = None;
+
+    if add_import {
+        addi = Some(codeaction::import_text_edit(&val.class_path));
+    }
+
+    CompletionItem {
+        label: val.name.to_string(),
+        detail: Some(methods.join(", ")),
+        kind: Some(CompletionItemKind::CLASS),
+        additional_text_edits: addi,
+        ..Default::default()
+    }
 }
 
 /// Unpack class as completion items with methods and fields
@@ -152,12 +165,12 @@ pub fn complete_call_chain(
 pub fn classes(
     document: &Document,
     point: &Point,
-    _imports: &[&str],
+    imports: &[&str],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Vec<CompletionItem> {
     let tree = &document.tree;
 
-    let Ok(node) = get_node_at_point(tree, *point) else {
+    let Ok(node) = get_node_at_point(tree, Point::new(point.row, point.column - 2)) else {
         return vec![];
     };
 
@@ -173,7 +186,11 @@ pub fn classes(
             .iter()
             .filter(|c| c.name.starts_with(&text))
             // .filter(|i| i.access.contains(&parser::dto::Access::Public))
-            .map(|v| class_describe(v.value()))
+            .map(|v| {
+                let class_path = v.value().class_path.as_str();
+                let add_import = !imports.contains(&class_path);
+                class_describe(v.value(), add_import)
+            })
             .take(20)
             .collect();
     }
@@ -183,7 +200,7 @@ pub fn classes(
 fn is_class_completion(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Option<String> {
     tdbc(&node.walk(), bytes);
     match node.kind() {
-        "identifier" => {
+        "identifier" | "type_identifier" => {
             let text = get_string_node(&node, bytes);
             if let Some(c) = text.chars().next() {
                 if c.is_uppercase() {
@@ -202,11 +219,16 @@ mod tests {
     use parser::dto;
     use pretty_assertions::assert_eq;
     use tower_lsp::lsp_types::{
-        CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat,
+        CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat, Position,
+        Range, TextEdit,
     };
     use tree_sitter::Point;
 
-    use crate::{completion::complete_call_chain, variable::LocalVariable, Document};
+    use crate::{
+        completion::{classes, complete_call_chain},
+        variable::LocalVariable,
+        Document,
+    };
 
     use super::method_snippet;
 
@@ -382,5 +404,95 @@ public class GreetingResource {
         };
         let out = method_snippet(&method);
         assert_eq!(out, "split(${1:java.lang.String}, ${2:int})");
+    }
+
+    #[test]
+    fn class_completion_base() {
+        let class_map: DashMap<String, dto::Class> = DashMap::new();
+        class_map.insert(
+            "java.lang.StringBuilder".to_string(),
+            dto::Class {
+                class_path: "java.lang.StringBuilder".to_string(),
+                access: vec![dto::Access::Public],
+                name: "StringBuilder".to_string(),
+                methods: vec![],
+                fields: vec![],
+            },
+        );
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        String local = other.toString();
+        StringB 
+
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = classes(&doc, &Point::new(5, 16), &vec![], &class_map);
+        assert_eq!(
+            out,
+            vec![CompletionItem {
+                label: "StringBuilder".to_string(),
+                detail: Some("".to_string()),
+                kind: Some(CompletionItemKind::CLASS),
+                additional_text_edits: Some(vec![TextEdit {
+                    range: Range {
+                        start: Position {
+                            line: 2,
+                            character: 0,
+                        },
+                        end: Position {
+                            line: 2,
+                            character: 0,
+                        },
+                    },
+                    new_text: "import java.lang.StringBuilder;\n".to_string(),
+                },],),
+                ..Default::default()
+            }]
+        );
+    }
+
+    #[test]
+    fn class_completion_imported() {
+        let class_map: DashMap<String, dto::Class> = DashMap::new();
+        class_map.insert(
+            "java.lang.StringBuilder".to_string(),
+            dto::Class {
+                class_path: "java.lang.StringBuilder".to_string(),
+                access: vec![dto::Access::Public],
+                name: "StringBuilder".to_string(),
+                methods: vec![],
+                fields: vec![],
+            },
+        );
+        let content = "
+package ch.emilycares;
+import java.lang.StringBuilder;
+public class Test {
+    public void hello() {
+        String local = other.toString();
+        StringB 
+
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = classes(&doc, &Point::new(6, 16), &vec!["java.lang.StringBuilder"], &class_map);
+        assert_eq!(
+            out,
+            vec![CompletionItem {
+                label: "StringBuilder".to_string(),
+                detail: Some("".to_string()),
+                kind: Some(CompletionItemKind::CLASS),
+                ..Default::default()
+            }]
+        );
     }
 }
