@@ -1,11 +1,11 @@
+mod call_chain;
 mod codeaction;
 pub mod completion;
+mod hover;
 mod imports;
 mod tyres;
 mod utils;
 mod variable;
-mod hover;
-mod call_chain;
 
 use core::panic;
 use std::path::Path;
@@ -169,7 +169,7 @@ impl LanguageServer for Backend {
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
-                    TextDocumentSyncKind::FULL,
+                    TextDocumentSyncKind::INCREMENTAL,
                 )),
                 //definition_provider: Some(OneOf::Left(true)),
                 code_action_provider: Some(CodeActionProviderCapability::Options(
@@ -267,7 +267,6 @@ impl LanguageServer for Backend {
             .await;
     }
 
-
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
         let uri = params.text_document_position_params.text_document.uri;
         let Some(document) = self.get_document(&uri).await else {
@@ -277,12 +276,7 @@ impl LanguageServer for Backend {
         let point = to_treesitter_point(params.text_document_position_params.position);
         let imports = imports::imports(document.value());
 
-        let class_hover = hover::class(
-            document.value(),
-            &point,
-            &imports,
-            &self.class_map,
-        );
+        let class_hover = hover::class(document.value(), &point, &imports, &self.class_map);
         return Ok(class_hover);
     }
 
@@ -300,14 +294,10 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
         Ok(Some(vec![TextEdit::new(
-            Range::new(
-                Position::new(0, 0),
-                Position::new(lines, 0),
-            ),
+            Range::new(Position::new(0, 0), Position::new(lines, 0)),
             text,
         )]))
     }
-
 
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
         let params = params.text_document_position;

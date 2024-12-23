@@ -37,5 +37,5 @@ fn topiary(text: String) -> Option<String> {
     )
     .unwrap();
     let formatted = String::from_utf8(output).expect("valid utf-8");
-    return Some(formatted);
+    Some(formatted)
 }

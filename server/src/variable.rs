@@ -173,13 +173,16 @@ fn get_method_vars(
     cursor.parent();
 }
 
-
 #[cfg(test)]
 pub mod tests {
     use pretty_assertions::assert_eq;
     use tree_sitter::Point;
 
-    use crate::{call_chain::{get_call_chain, CallItem}, variable::{get_vars, LocalVariable}, Document};
+    use crate::{
+        call_chain::{get_call_chain, CallItem},
+        variable::{get_vars, LocalVariable},
+        Document,
+    };
 
     #[test]
     fn this_context() {

@@ -18,7 +18,7 @@ pub fn class(
         .unwrap_or_default()
         .as_bytes();
 
-    if let Ok(n) = tree_sitter_util::get_node_at_point(&tree, *point) {
+    if let Ok(n) = tree_sitter_util::get_node_at_point(tree, *point) {
         if n.kind() == "type_identifier" {
             if let Ok(jtype) = n.utf8_text(bytes) {
                 if let Some(class) = tyres::resolve(jtype, imports, class_map) {
@@ -28,7 +28,7 @@ pub fn class(
         }
 
         'annotation: {
-            if n.kind() == "identifier"  {
+            if n.kind() == "identifier" {
                 let Some(n) = n.parent() else {
                     break 'annotation;
                 };

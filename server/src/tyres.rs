@@ -93,7 +93,7 @@ pub fn resolve_call_chain(
                 None
             }
             CallItem::Class(class) => {
-                if let Some(c) = resolve(&class, imports, class_map) {
+                if let Some(c) = resolve(class, imports, class_map) {
                     return Some(c);
                 }
                 None
@@ -123,13 +123,13 @@ fn resolve_jtype(
         | JType::Boolean
         | JType::Array(_) => {
             eprintln!("Handle jvm resolve for internal types");
-            return None;
+            None
         }
         JType::Class(c) => {
-            if let Some(class) = resolve(&c, imports, class_map) {
+            if let Some(class) = resolve(c, imports, class_map) {
                 return Some(class);
             }
-            return None;
+            None
         }
     }
 }

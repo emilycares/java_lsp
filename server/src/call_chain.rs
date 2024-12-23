@@ -1,5 +1,5 @@
 use tree_sitter::Point;
-use tree_sitter_util::{get_string, tdbc, CommentSkiper};
+use tree_sitter_util::{get_string, CommentSkiper};
 
 use crate::Document;
 
@@ -18,7 +18,7 @@ pub enum CallItem {
 ///       ^
 /// ```
 /// Then it would return info about the variable other
-pub fn get_call_chain<'a>(document: &Document, point: &Point) -> Option<Vec<CallItem>> {
+pub fn get_call_chain(document: &Document, point: &Point) -> Option<Vec<CallItem>> {
     let tree = &document.tree;
     let bytes = document
         .text
@@ -31,7 +31,6 @@ pub fn get_call_chain<'a>(document: &Document, point: &Point) -> Option<Vec<Call
     let mut level = 0;
     let mut out = vec![];
     loop {
-        tdbc(&cursor, bytes);
         match cursor.node().kind() {
             "argument_list" => {
                 out.clear();
@@ -58,11 +57,8 @@ pub fn get_call_chain<'a>(document: &Document, point: &Point) -> Option<Vec<Call
             }
             "template_expression" => {
                 cursor.first_child();
-                match cursor.node().kind() {
-                    "method_invocation" => {
-                        out.extend(parse_method_invocation(cursor.node(), bytes));
-                    }
-                    _ => {}
+                if cursor.node().kind() == "method_invocation" {
+                    out.extend(parse_method_invocation(cursor.node(), bytes));
                 }
                 cursor.parent();
             }
@@ -86,9 +82,7 @@ pub fn get_call_chain<'a>(document: &Document, point: &Point) -> Option<Vec<Call
             "parenthesized_expression" => {
                 cursor.first_child();
                 cursor.sibling();
-                let offset = 3;
-                let point = Point::new(point.row, point.column - offset);
-                cursor.goto_first_child_for_point(point);
+                cursor.goto_first_child_for_point(Point::new(point.row, point.column - 3));
                 out.extend(parse_value(&cursor, bytes));
                 cursor.parent();
             }
@@ -135,7 +129,7 @@ fn parse_argument_list_argument(
         }
     }
 
-    return out;
+    out
 }
 
 fn parse_value(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> Vec<CallItem> {

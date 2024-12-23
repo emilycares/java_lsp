@@ -6,7 +6,6 @@ use tree_sitter::Point;
 
 use crate::{call_chain::get_call_chain, tyres, variable::LocalVariable, Document};
 
-
 /// Convert list LocalVariable to CompletionItem
 pub fn complete_vars(vars: &[LocalVariable]) -> Vec<CompletionItem> {
     vars.iter()

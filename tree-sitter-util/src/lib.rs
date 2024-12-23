@@ -88,6 +88,6 @@ pub fn tdbc(cursor: &tree_sitter::TreeCursor, bytes: &[u8]) {
         "{} - kind:{} - text:\"{}\"",
         cursor.node().to_sexp(),
         cursor.node().kind(),
-        get_string(&cursor, bytes)
+        get_string(cursor, bytes)
     );
 }

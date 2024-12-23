@@ -30,32 +30,26 @@ fn get_imported_classpaths<'a>(content: &'a [u8], tree: &Tree) -> Vec<&'a str> {
     let mut cursor = tree.walk();
     cursor.first_child();
     cursor.sibling();
-    loop {
-        match cursor.node().kind() {
-            "import_declaration" => {
-                cursor.first_child();
-                cursor.sibling();
+    while let "import_declaration" = cursor.node().kind() {
+        cursor.first_child();
+        cursor.sibling();
 
-                // skip import when not correctly formated
-                if cursor.node().kind() == "scoped_identifier" {
-                    let class_path = cursor.node().utf8_text(content).unwrap();
-                    if class_path.contains('{') {
-                        unimplemented!();
-                    }
-                    if class_path.contains('*') {
-                        unimplemented!();
-                    }
+        // skip import when not correctly formated
+        if cursor.node().kind() == "scoped_identifier" {
+            let class_path = cursor.node().utf8_text(content).unwrap();
+            if class_path.contains('{') {
+                unimplemented!();
+            }
+            if class_path.contains('*') {
+                unimplemented!();
+            }
 
-                    out.push(class_path);
-                }
-                cursor.parent();
-                cursor.sibling();
-            }
-            _ => {
-                break;
-            }
+            out.push(class_path);
         }
+        cursor.parent();
+        cursor.sibling();
     }
+
     out
 }
 
