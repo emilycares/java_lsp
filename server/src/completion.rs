@@ -6,11 +6,6 @@ use tree_sitter::Point;
 use tree_sitter_util::{get_node_at_point, get_string_node, tdbc};
 
 use crate::{call_chain::get_call_chain, tyres, variable::LocalVariable, Document};
-use crate::{
-    completion, tyres,
-    variable::{current_symbol, LocalVariable},
-    Document,
-};
 
 /// Convert list LocalVariable to CompletionItem
 pub fn complete_vars(vars: &[LocalVariable]) -> Vec<CompletionItem> {
@@ -56,14 +51,31 @@ pub fn class_unpack(val: &dto::Class) -> Vec<CompletionItem> {
     out.extend(
         val.methods
             .iter()
-            .filter(|i| i.access.contains(&parser::dto::Access::Public))
+            .filter(|i| {
+                if i.access.is_empty() {
+                    return true;
+                }
+                i.access.contains(&parser::dto::Access::Public)
+            })
             .map(complete_method),
     );
 
     out.extend(
         val.fields
             .iter()
-            .filter(|i| i.access.contains(&parser::dto::Access::Public))
+            // TODO: Create trait to check access boundery
+            // #To check:
+            //  - access empty
+            //  - has public
+            //  - not private
+            //  - protected
+            // .filter(|i| i.hasAccess(current_class_with_package))
+            .filter(|i| {
+                if i.access.is_empty() {
+                    return true;
+                }
+                i.access.contains(&parser::dto::Access::Public)
+            })
             .map(|f| CompletionItem {
                 label: f.name.to_owned(),
                 label_details: Some(CompletionItemLabelDetails {
@@ -161,7 +173,7 @@ pub fn classes(
             .iter()
             .filter(|c| c.name.starts_with(&text))
             // .filter(|i| i.access.contains(&parser::dto::Access::Public))
-            .map(|v| completion::class_describe(v.value()))
+            .map(|v| class_describe(v.value()))
             .take(20)
             .collect();
     }

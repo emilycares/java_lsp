@@ -312,7 +312,7 @@ impl LanguageServer for Backend {
 
         let imports = imports::imports(document.value());
 
-        let extend = completion::complete_call_chain(
+        let call_chain = completion::complete_call_chain(
             document.value(),
             &point,
             &vars,
@@ -321,9 +321,11 @@ impl LanguageServer for Backend {
         );
 
         // If there is any extend completion ignore completing vars
-        if extend.is_empty() {
+        if call_chain.is_empty() {
             out.extend(completion::complete_vars(&vars));
         }
+
+        out.extend(call_chain);
 
         out.extend(completion::classes(
             document.value(),
