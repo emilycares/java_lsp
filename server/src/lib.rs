@@ -333,6 +333,7 @@ impl LanguageServer for Backend {
 
         out.extend(call_chain);
 
+        // TODO: Sort classes by name
         out.extend(completion::classes(
             document.value(),
             &point,

@@ -42,6 +42,7 @@ pub fn get_vars(document: &Document, point: &Point) -> Vec<LocalVariable> {
                 parse_local_variable_declaration(&mut cursor, bytes, level, &mut out);
                 cursor.parent();
             }
+            // for (String a : list) {
             "enhanced_for_statement" => {
                 cursor.first_child();
                 cursor.sibling();

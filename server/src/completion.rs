@@ -3,7 +3,7 @@ use tower_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat,
 };
 use tree_sitter::Point;
-use tree_sitter_util::{get_node_at_point, get_string_node, tdbc};
+use tree_sitter_util::{get_node_at_point, get_string_node};
 
 use crate::{call_chain::get_call_chain, codeaction, tyres, variable::LocalVariable, Document};
 
@@ -76,7 +76,7 @@ pub fn class_unpack(val: &dto::Class) -> Vec<CompletionItem> {
     out.extend(
         val.fields
             .iter()
-            // TODO: Create trait to check access boundery
+            // TODO: Create trait to check access boundary
             // #To check:
             //  - access empty
             //  - has public
@@ -198,7 +198,6 @@ pub fn classes(
 }
 
 fn is_class_completion(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Option<String> {
-    tdbc(&node.walk(), bytes);
     match node.kind() {
         "identifier" | "type_identifier" => {
             let text = get_string_node(&node, bytes);
@@ -484,7 +483,12 @@ public class Test {
 ";
         let doc = Document::setup(content).unwrap();
 
-        let out = classes(&doc, &Point::new(6, 16), &vec!["java.lang.StringBuilder"], &class_map);
+        let out = classes(
+            &doc,
+            &Point::new(6, 16),
+            &vec!["java.lang.StringBuilder"],
+            &class_map,
+        );
         assert_eq!(
             out,
             vec![CompletionItem {
