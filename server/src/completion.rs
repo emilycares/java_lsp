@@ -316,7 +316,7 @@ public class GreetingResource {
 
     #[test]
     fn extend_completion_method() {
-        let doc = Document::setup(crate::variable::tests::SYMBOL_METHOD).unwrap();
+        let doc = Document::setup(crate::call_chain::tests::SYMBOL_METHOD).unwrap();
         let lo_va = vec![LocalVariable {
             level: 3,
             jtype: dto::JType::Class("String".to_owned()),

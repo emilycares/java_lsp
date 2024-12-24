@@ -35,6 +35,27 @@ pub fn get_vars(document: &Document, point: &Point) -> Vec<LocalVariable> {
             "class_body" => {
                 get_class_vars(tree, cursor.node(), bytes, &mut out, level);
             }
+            "for_statement" => {
+                cursor.first_child();
+                cursor.sibling();
+                cursor.sibling();
+                parse_local_variable_declaration(&mut cursor, bytes, level, &mut out);
+                cursor.parent();
+            }
+            "enhanced_for_statement" => {
+                cursor.first_child();
+                cursor.sibling();
+                cursor.sibling();
+                let ty = get_string(&cursor, bytes);
+                cursor.sibling();
+                let name = get_string(&cursor, bytes);
+                let var = parse_variable(level, ty, name);
+                out.push(var);
+                cursor.parent();
+            }
+            "lambda_expression" => {
+                get_lambda_vars(&mut cursor, bytes, level, &mut out);
+            }
             _ => {}
         }
 
@@ -49,6 +70,34 @@ pub fn get_vars(document: &Document, point: &Point) -> Vec<LocalVariable> {
     }
 
     out
+}
+
+fn get_lambda_vars(cursor: &mut tree_sitter::TreeCursor<'_>, bytes: &[u8], level: usize, out: &mut Vec<LocalVariable>) {
+    cursor.first_child();
+    match cursor.node().kind() {
+        "identifier" => {
+            let name = get_string(&*cursor, bytes);
+            let var = parse_variable(level, "void".to_string(), name);
+            out.push(var);
+        }
+        "inferred_parameters" => {
+            cursor.first_child();
+            cursor.sibling();
+            let name = get_string(&*cursor, bytes);
+            let var = parse_variable(level, "void".to_string(), name);
+            out.push(var);
+            cursor.sibling();
+            while cursor.node().kind() == "," {
+                cursor.sibling();
+                let name = get_string(&*cursor, bytes);
+                let var = parse_variable(level, "void".to_string(), name);
+                out.push(var);
+            }
+            cursor.parent();
+        }
+        _ => {}
+    }
+    cursor.parent();
 }
 
 /// Get all vars of class
@@ -118,6 +167,7 @@ fn parse_variable(level: usize, ty: String, name: String) -> LocalVariable {
 fn parse_jtype(ty: String) -> dto::JType {
     match ty.as_str() {
         "void" => dto::JType::Void,
+        "int" => dto::JType::Int,
         ty if ty.ends_with("[]") => {
             let ty = ty[..ty.len() - 2].to_string();
             dto::JType::Array(Box::new(parse_jtype(ty)))
@@ -160,16 +210,7 @@ fn get_method_vars(
     'method: loop {
         match cursor.node().kind() {
             "local_variable_declaration" => {
-                cursor.first_child();
-                let ty = get_string(&cursor, bytes);
-                cursor.sibling();
-                cursor.first_child();
-                let name = get_string(&cursor, bytes);
-                cursor.sibling();
-                let var = parse_variable(level, ty, name);
-                out.push(var);
-                cursor.parent();
-                cursor.parent();
+                parse_local_variable_declaration(&mut cursor, bytes, level, out);
             }
             "{" | "}" => {}
             _ => {}
@@ -181,6 +222,24 @@ fn get_method_vars(
     cursor.parent();
 }
 
+fn parse_local_variable_declaration(
+    cursor: &mut tree_sitter::TreeCursor<'_>,
+    bytes: &[u8],
+    level: usize,
+    out: &mut Vec<LocalVariable>,
+) {
+    cursor.first_child();
+    let ty = get_string(&*cursor, bytes);
+    cursor.sibling();
+    cursor.first_child();
+    let name = get_string(&*cursor, bytes);
+    cursor.sibling();
+    let var = parse_variable(level, ty, name);
+    out.push(var);
+    cursor.parent();
+    cursor.parent();
+}
+
 #[cfg(test)]
 pub mod tests {
     use parser::dto;
@@ -188,7 +247,6 @@ pub mod tests {
     use tree_sitter::Point;
 
     use crate::{
-        call_chain::{get_call_chain, CallItem},
         variable::{get_vars, LocalVariable},
         Document,
     };
@@ -338,280 +396,73 @@ public class Test {
     }
 
     #[test]
-    fn symbol_base() {
+    fn get_loop_vars_base() {
         let content = "
 package ch.emilycares;
-
 public class Test {
-
-    public void hello(String a) {
-        String local = \"\";
-
-        var lo = local. 
+    public void hello() {
+        List<String> names = List.of(\"a\", \"b\");
+        for (int i = 0; i < 5; i++) {
+          for (String name : names) {
+            names.stream().map((n, m) -> {
+              n.chars().asDoubleStream().filter(c -> true);
+             return n + \"_\";
+            });
+          }
+        }
         return;
     }
 }
         ";
         let doc = Document::setup(content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(8, 24));
-        assert_eq!(out, Some(vec![CallItem::Variable("local".to_string()),]));
-    }
-
-    pub const SYMBOL_METHOD: &str = "
-package ch.emilycares;
-
-public class Test {
-
-    public void hello() {
-        String local = \"\";
-
-        var lo = local.concat(\"hehe\"). 
-        return;
-    }
-}
-        ";
-
-    #[test]
-    fn symbol_method() {
-        let doc = Document::setup(SYMBOL_METHOD).unwrap();
-
-        let out = get_call_chain(&doc, &Point::new(8, 40));
+        let out = get_vars(&doc, &Point::new(8, 54));
         assert_eq!(
             out,
-            Some(vec![
-                CallItem::Variable("local".to_string()),
-                CallItem::MethodCall("concat".to_string()),
-                CallItem::FieldAccess("return".to_string()),
-            ])
+            vec![
+                LocalVariable {
+                    level: 2,
+                    jtype: dto::JType::Void,
+                    name: "hello".to_string(),
+                    is_fun: true,
+                },
+                LocalVariable {
+                    level: 3,
+                    jtype: dto::JType::Class("List<String>".to_owned(),),
+                    name: "names".to_string(),
+                    is_fun: false,
+                },
+                LocalVariable {
+                    level: 5,
+                    jtype: dto::JType::Int,
+                    name: "i".to_string(),
+                    is_fun: false,
+                },
+                LocalVariable {
+                    level: 7,
+                    jtype: dto::JType::Class("String".to_owned(),),
+                    name: "name".to_string(),
+                    is_fun: false,
+                },
+                LocalVariable {
+                    level: 12,
+                    jtype: dto::JType::Void,
+                    name: "n".to_string(),
+                    is_fun: false,
+                },
+                LocalVariable {
+                    level: 12,
+                    jtype: dto::JType::Void,
+                    name: "m".to_string(),
+                    is_fun: false,
+                },
+                LocalVariable {
+                    level: 17,
+                    jtype: dto::JType::Void,
+                    name: "c".to_string(),
+                    is_fun: false,
+                },
+            ]
         );
-    }
-
-    #[test]
-    fn symbol_field() {
-        let content = "
-package ch.emilycares;
-public class Test {
-    public void hello() {
-        Thing local = \"\";
-        var lo = local.a.
-        return;
-    }
-}
-";
-        let doc = Document::setup(content).unwrap();
-
-        let out = get_call_chain(&doc, &Point::new(5, 26));
-        assert_eq!(
-            out,
-            Some(vec![
-                CallItem::Variable("local".to_string()),
-                CallItem::FieldAccess("a".to_string())
-            ])
-        );
-    }
-
-    #[test]
-    fn symbol_method_base() {
-        let content = "
-package ch.emilycares;
-public class GreetingResource {
-    String a;
-    public String hello() {
-        a.concat(\"\"). 
-        return \"huh\";
-    }
-}
-";
-        let doc = Document::setup(content).unwrap();
-
-        let out = get_call_chain(&doc, &Point::new(5, 24));
-        assert_eq!(
-            out,
-            Some(vec![
-                CallItem::Variable("a".to_string()),
-                CallItem::MethodCall("concat".to_string())
-            ])
-        );
-    }
-
-    #[test]
-    fn symbol_field_method() {
-        let content = "
-package ch.emilycares;
-public class Test {
-    public void hello() {
-        Thing local = \"\";
-        var lo = local.a.b().
-        return;
-    }
-}
-";
-        let doc = Document::setup(content).unwrap();
-
-        let out = get_call_chain(&doc, &Point::new(5, 30));
-        assert_eq!(
-            out,
-            Some(vec![
-                CallItem::Variable("local".to_string()),
-                CallItem::FieldAccess("a".to_string()),
-                CallItem::MethodCall("b".to_string()),
-                CallItem::FieldAccess("return".to_string()),
-            ])
-        );
-    }
-
-    #[test]
-    fn symbol_menthod_field() {
-        let content = "
-package ch.emilycares;
-public class Test {
-    public void hello() {
-        Thing local = \"\";
-        var lo = local.a().b.
-        return;
-    }
-}
-";
-        let doc = Document::setup(content).unwrap();
-
-        let out = get_call_chain(&doc, &Point::new(5, 30));
-        assert_eq!(
-            out,
-            Some(vec![
-                CallItem::Variable("local".to_string()),
-                CallItem::MethodCall("a".to_string()),
-                CallItem::FieldAccess("b".to_string())
-            ])
-        );
-    }
-
-    #[test]
-    fn symbol_semicolon_simple() {
-        let content = "
-package ch.emilycares;
-public class Test {
-    public void hello() {
-        Thing local = \"\";
-        var lo = local. ;
-        return;
-    }
-}
-";
-        let doc = Document::setup(content).unwrap();
-
-        let out = get_call_chain(&doc, &Point::new(5, 23));
-        assert_eq!(out, Some(vec![CallItem::Variable("local".to_string())]));
-    }
-
-    #[test]
-    fn symbol_semicolon_field() {
-        let content = "
-package ch.emilycares;
-public class Test {
-    public void hello() {
-        Thing local = \"\";
-        int c = local.a().c.;
-        return;
-    }
-}
-";
-        let doc = Document::setup(content).unwrap();
-
-        let out = get_call_chain(&doc, &Point::new(5, 28));
-        assert_eq!(
-            out,
-            Some(vec![
-                CallItem::Variable("local".to_string()),
-                CallItem::MethodCall("a".to_string()),
-                CallItem::FieldAccess("c".to_string()),
-            ])
-        );
-    }
-
-    #[test]
-    fn symbol_semicolon_method() {
-        let content = "
-package ch.emilycares;
-public class Test {
-    public void hello() {
-        Thing local = \"\";
-        int c = local.a.c().;
-        return;
-    }
-}
-";
-        let doc = Document::setup(content).unwrap();
-
-        let out = get_call_chain(&doc, &Point::new(5, 28));
-        assert_eq!(
-            out,
-            Some(vec![
-                CallItem::Variable("local".to_string()),
-                CallItem::FieldAccess("a".to_string()),
-                CallItem::MethodCall("c".to_string()),
-            ])
-        );
-    }
-
-    #[test]
-    fn symbol_statement() {
-        let content = "
-package ch.emilycares;
-public class Test {
-    public void hello() {
-        Thing local = \"\";
-        local.a.c().;
-        return;
-    }
-}
-";
-        let doc = Document::setup(content).unwrap();
-
-        let out = get_call_chain(&doc, &Point::new(5, 20));
-        assert_eq!(
-            out,
-            Some(vec![
-                CallItem::Variable("local".to_string()),
-                CallItem::FieldAccess("a".to_string()),
-                CallItem::MethodCall("c".to_string()),
-            ])
-        );
-    }
-
-    #[test]
-    fn symbol_class() {
-        let content = "
-package ch.emilycares;
-public class Test {
-    public void hello() {
-        Thing local = \"\";
-        String. 
-        return;
-    }
-}
-";
-        let doc = Document::setup(content).unwrap();
-
-        let out = get_call_chain(&doc, &Point::new(5, 16));
-        assert_eq!(out, Some(vec![CallItem::Class("String".to_string()),]));
-    }
-
-    #[test]
-    fn symbol_varible_class() {
-        let content = "
-package ch.emilycares;
-public class Test {
-    public void hello() {
-        Thing local = \"\";
-        var local = String. 
-        return;
-    }
-}
-";
-        let doc = Document::setup(content).unwrap();
-
-        let out = get_call_chain(&doc, &Point::new(5, 28));
-        assert_eq!(out, Some(vec![CallItem::Class("String".to_string()),]));
     }
 }
