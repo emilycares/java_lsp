@@ -1,4 +1,6 @@
 use std::{
+    fs,
+    io::Cursor,
     path::{Path, PathBuf},
     process::Command,
 };
@@ -83,6 +85,11 @@ pub fn fetch_deps<'a>(
                 return None;
             }
         };
+        let Some(home) = dirs::home_dir() else {
+            eprintln!("Could not find home");
+            return None;
+        };
+        let m2 = home.join(".m2");
         let mut maven_class_folder = ClassFolder::new();
         for dep in tree.deps {
             eprintln!("Loading dependency: {}", dep.artivact_id);
@@ -91,10 +98,14 @@ pub fn fetch_deps<'a>(
                 eprintln!("dependency folder does not exist {:?}", folder);
                 continue;
             }
+            let source_jar = pom_sources_jar(&dep, &m2);
+            let source = extract_jar(source_jar, "source");
+            let javadoc_jar = pom_javadoc_jar(&dep, &m2);
+            let _ = extract_jar(javadoc_jar, "javadoc");
+
             let classes =
-                parser::loader::load_classes(folder.as_path().to_str().unwrap_or_default());
+                parser::loader::load_classes(folder.as_path().to_str().unwrap_or_default(), source);
             maven_class_folder.append(classes.clone());
-            eprintln!("classes: {}", classes.classes.len());
             for class in classes.classes {
                 class_map.insert(class.class_path.clone(), class);
             }
@@ -103,6 +114,21 @@ pub fn fetch_deps<'a>(
     }
 
     None
+}
+
+fn extract_jar(jar: PathBuf, folder_name: &str) -> String {
+    let mut dir = jar.clone();
+    dir.set_file_name("");
+    dir = dir.join(folder_name);
+
+    if let Ok(data) = fs::read(&jar) {
+        let res = zip_extract::extract(Cursor::new(data), &dir, false);
+        if let Err(e) = res {
+            eprintln!("Unable to unzip: {:?}, {e}", jar);
+        }
+    }
+    let source = dir.as_path().to_str().unwrap_or_default().to_string();
+    source
 }
 
 pub fn pom_sources_jar<'a>(pom: &'a Pom, m2: &Path) -> PathBuf {

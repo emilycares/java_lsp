@@ -1,6 +1,6 @@
 use parser::dto;
 use tower_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
-use tree_sitter::Point;
+use tree_sitter::{Point, Tree};
 
 use crate::{tyres, utils::to_lsp_range, Document};
 
@@ -18,11 +18,25 @@ pub fn class(
         .unwrap_or_default()
         .as_bytes();
 
+    if let Some((class, range)) = class_action(tree, bytes, point, imports, class_map) {
+        return class_to_hover(class, range);
+    }
+
+    None
+}
+
+pub fn class_action(
+    tree: &Tree,
+    bytes: &[u8],
+    point: &Point,
+    imports: &[&str],
+    class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
+) -> Option<(dto::Class, Range)> {
     if let Ok(n) = tree_sitter_util::get_node_at_point(tree, *point) {
         if n.kind() == "type_identifier" {
             if let Ok(jtype) = n.utf8_text(bytes) {
                 if let Some(class) = tyres::resolve(jtype, imports, class_map) {
-                    return class_to_hover(class, to_lsp_range(n.range()));
+                    return Some((class, to_lsp_range(n.range())));
                 }
             }
         }
@@ -35,14 +49,13 @@ pub fn class(
                 if n.kind() == "annotation" || n.kind() == "marker_annotation" {
                     if let Ok(jtype) = n.utf8_text(bytes) {
                         if let Some(class) = tyres::resolve(jtype, imports, class_map) {
-                            return class_to_hover(class, to_lsp_range(n.range()));
+                            return Some((class, to_lsp_range(n.range())));
                         }
                     }
                 }
             }
         }
     }
-
     None
 }
 

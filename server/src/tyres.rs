@@ -123,6 +123,7 @@ fn resolve_jtype(
         | JType::Boolean => {
             return Some(Class {
                 class_path: "".to_owned(),
+                source: "".to_owned(),
                 access: vec![],
                 name: "".to_string(),
                 methods: vec![],
@@ -132,6 +133,7 @@ fn resolve_jtype(
         JType::Array(gen) => {
             return Some(Class {
                 class_path: "".to_owned(),
+                source: "".to_owned(),
                 access: vec![],
                 name: "array".to_string(),
                 methods: vec![

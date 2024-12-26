@@ -284,6 +284,7 @@ public class GreetingResource {
             "java.lang.String".to_string(),
             dto::Class {
                 class_path: "".to_string(),
+                source: "".to_string(),
                 access: vec![dto::Access::Public],
                 name: "String".to_string(),
                 methods: vec![dto::Method {
@@ -328,6 +329,7 @@ public class GreetingResource {
             "java.lang.String".to_string(),
             dto::Class {
                 class_path: "".to_string(),
+                source: "".to_string(),
                 access: vec![dto::Access::Public],
                 name: "String".to_string(),
                 methods: vec![dto::Method {
@@ -412,6 +414,7 @@ public class GreetingResource {
             "java.lang.StringBuilder".to_string(),
             dto::Class {
                 class_path: "java.lang.StringBuilder".to_string(),
+                source: "".to_string(),
                 access: vec![dto::Access::Public],
                 name: "StringBuilder".to_string(),
                 methods: vec![],
@@ -463,6 +466,7 @@ public class Test {
             "java.lang.StringBuilder".to_string(),
             dto::Class {
                 class_path: "java.lang.StringBuilder".to_string(),
+                source: "".to_string(),
                 access: vec![dto::Access::Public],
                 name: "StringBuilder".to_string(),
                 methods: vec![],

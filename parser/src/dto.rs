@@ -42,6 +42,7 @@ impl ClassFolder {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Class {
     pub class_path: String,
+    pub source: String,
     pub access: Vec<Access>,
     pub name: String,
     pub methods: Vec<Method>,

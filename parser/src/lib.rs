@@ -5,24 +5,24 @@ pub mod loader;
 
 use std::{fmt::Debug, path::Path};
 
-pub fn load_class_fs<T>(path: T, class_path: String) -> Result<dto::Class, dto::ClassError>
+pub fn load_class_fs<T>(path: T, class_path: String, source: String) -> Result<dto::Class, dto::ClassError>
 where
     T: AsRef<Path> + Debug,
 {
     let bytes = std::fs::read(path)?;
-    class::load_class(&bytes, class_path)
+    class::load_class(&bytes, class_path, source)
 }
 
-pub fn load_java(data: &[u8], class_path: String) -> Result<dto::Class, dto::ClassError> {
-    java::load_java(data, class_path)
+pub fn load_java(data: &[u8], class_path: String, source: String) -> Result<dto::Class, dto::ClassError> {
+    java::load_java(data, class_path, source)
 }
 
-pub fn load_java_fs<T>(path: T, class_path: String) -> Result<dto::Class, dto::ClassError>
+pub fn load_java_fs<T>(path: T, class_path: String, source: String) -> Result<dto::Class, dto::ClassError>
 where
     T: AsRef<Path> + Debug,
 {
     let bytes = std::fs::read(path)?;
-    java::load_java(&bytes, class_path)
+    java::load_java(&bytes, class_path, source)
 }
 
 #[cfg(test)]
@@ -32,6 +32,7 @@ mod tests {
     #[cfg(test)]
     pub fn everything_data() -> dto::Class {
         dto::Class {
+            source: "".to_string(),
             class_path: "".to_string(),
             name: "Everything".to_string(),
             access: vec![],

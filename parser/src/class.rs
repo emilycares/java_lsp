@@ -4,7 +4,7 @@ use classfile_parser::field_info::{FieldAccessFlags, FieldInfo};
 use classfile_parser::method_info::MethodAccessFlags;
 use classfile_parser::{class_parser, ClassAccessFlags, ClassFile};
 
-pub fn load_class(bytes: &[u8], class_path: String) -> Result<dto::Class, dto::ClassError> {
+pub fn load_class(bytes: &[u8], class_path: String, source: String) -> Result<dto::Class, dto::ClassError> {
     let res = class_parser(bytes);
     match res {
         Result::Ok((_, c)) => {
@@ -23,6 +23,7 @@ pub fn load_class(bytes: &[u8], class_path: String) -> Result<dto::Class, dto::C
                 .collect();
             Ok(dto::Class {
                 class_path,
+                source,
                 access: parse_class_access(c.access_flags),
                 name: match &c.const_pool[(c.this_class - 1) as usize] {
                     ConstantInfo::Class(class) => lookup_string(&c, class.name_index)
@@ -253,7 +254,7 @@ mod tests {
 
     #[test]
     fn everything() {
-        let result = load_class(include_bytes!("../test/Everything.class"), "".to_string());
+        let result = load_class(include_bytes!("../test/Everything.class"), "".to_string(), "".to_string());
 
         assert_eq!(crate::tests::everything_data(), result.unwrap());
     }

@@ -6,6 +6,7 @@ mod imports;
 mod tyres;
 mod utils;
 mod variable;
+mod definition;
 
 use core::panic;
 use std::path::Path;
@@ -171,7 +172,7 @@ impl LanguageServer for Backend {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
                     TextDocumentSyncKind::INCREMENTAL,
                 )),
-                //definition_provider: Some(OneOf::Left(true)),
+                definition_provider: Some(OneOf::Left(true)),
                 code_action_provider: Some(CodeActionProviderCapability::Options(
                     CodeActionOptions {
                         code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
@@ -226,7 +227,7 @@ impl LanguageServer for Backend {
             // cd ..
             // mvn dependency:unpack
             // ```
-            let classes = parser::loader::load_classes("./jdk/classes/");
+            let classes = parser::loader::load_classes("./jdk/classes/", "".to_string());
             parser::loader::save_class_folder("jdk", &classes).unwrap();
             for class in classes.classes {
                 self.class_map.insert(class.class_path.clone(), class);
@@ -382,12 +383,17 @@ impl LanguageServer for Backend {
     ) -> Result<Option<GotoDefinitionResponse>> {
         let params = params.text_document_position_params;
         let uri = params.text_document.uri;
-        let _position = params.position;
-        let Some(_document) = self.get_document(&uri).await else {
+        let Some(document) = self.get_document(&uri).await else {
             eprintln!("Document is not opened.");
             return Ok(None);
         };
 
+        let point = to_treesitter_point(params.position);
+        let imports = imports::imports(document.value());
+
+        if let Some(c) = definition::class(document.value(), &point, &imports, &self.class_map) {
+            return Ok(Some(c));
+        }
         Ok(None)
     }
     async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {

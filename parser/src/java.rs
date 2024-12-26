@@ -5,7 +5,7 @@ use tree_sitter_util::CommentSkiper;
 
 use crate::dto::{self};
 
-pub fn load_java(bytes: &[u8], class_path: String) -> Result<crate::dto::Class, dto::ClassError> {
+pub fn load_java(bytes: &[u8], class_path: String, source: String) -> Result<crate::dto::Class, dto::ClassError> {
     let mut parser = Parser::new();
     let language = tree_sitter_java::LANGUAGE;
     parser.set_language(&language.into())?;
@@ -43,6 +43,7 @@ pub fn load_java(bytes: &[u8], class_path: String) -> Result<crate::dto::Class, 
 
     Ok(dto::Class {
         class_path,
+        source,
         access: vec![],
         name: class_name.unwrap(),
         methods,
@@ -171,7 +172,7 @@ mod tests {
 
     #[test]
     fn everything() {
-        let result = load_java(include_bytes!("../test/Everything.java"), "".to_string());
+        let result = load_java(include_bytes!("../test/Everything.java"), "".to_string(), "".to_string());
 
         assert_eq!(crate::tests::everything_data(), result.unwrap());
     }
