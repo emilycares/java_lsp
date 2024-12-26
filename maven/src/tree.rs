@@ -1,5 +1,6 @@
 use std::{process::Command, str::FromStr};
 
+use nom::branch::alt;
 use nom::{
     bytes::complete::{tag, take_until},
     multi::separated_list0,
@@ -11,21 +12,24 @@ use serde::{Deserialize, Serialize};
 use crate::MavenError;
 
 pub fn load<'a>() -> Result<Dependency<'a>, MavenError> {
-    //let log: String = get_cli_output()?;
-    //let cut: String = cut_output(log);
-    //let out: Result<(&str, Dependency<'_>), nom::Err<nom::error::Error<&str>>> = parser(&cut);
-    //match out {
-    //    Ok(o) => Ok(o.1),
-    //    Err(e) => Err(MavenError::TreeParseError(e)),
-    //}
-    unimplemented!()
+    let log: String = get_cli_output()?;
+    let cut: String = cut_output(log);
+    // let mut output = File::create("/tmp/tree")?;
+    // write!(output, "{}", cut)?;
+    let input: &'static str = Box::leak(cut.into_boxed_str());
+    let out = parser(input);
+    match out {
+        Ok(o) => Ok(o.1),
+        Err(e) => Err(MavenError::TreeParseError(e)),
+    }
 }
 
 fn get_cli_output() -> Result<String, MavenError> {
+    // mvn dependency:tree -DoutputType=dot -b
     let output = Command::new("mvn")
         .arg("dependency:tree")
         .arg("-DoutputType=dot")
-        .arg("-b")
+        // .arg("-b")
         .output()?;
 
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
@@ -148,10 +152,13 @@ fn parse_relation(input: &str) -> IResult<&str, Pom> {
 fn parser(input: &str) -> IResult<&str, Dependency> {
     let (input, _) = tag("[INFO] digraph ")(input)?;
     let (input, base) = delimited(tag("\""), parse_pom, tag("\""))(input)?;
-    let (input, _) = tag(" {\n[INFO]  ")(input)?;
-    let (input, deps) = separated_list0(tag(" ;\n[INFO]  "), parse_relation)(input)?;
+    let (input, _) = alt((tag(" {\n[INFO]  "), tag(" { \n[INFO] \t")))(input)?;
+    let (input, deps) = separated_list0(alt((tag(" ;\n[INFO]  "), tag(" ; \n[INFO] \t"))), parse_relation)(input)?;
 
-    let (input, _) = tag(" ;\n[INFO]  }\n")(input)?;
+    let (input, _) = take_until("[INFO]")(input)?;
+    let (input, _) = tag("[INFO]  }")(input)?;
+    let (input, _) = take_until("\n")(input)?;
+    let (input, _) = tag("\n")(input)?;
     Ok((input, Dependency { base, deps }))
 }
 
@@ -174,6 +181,14 @@ mod tests {
         let inp = include_str!("../tests/tverify.bacic.txt");
         let cut = cut_output(inp.to_string());
         let out = parser(&cut);
+        let out = out.unwrap();
+        insta::assert_yaml_snapshot!(out.1);
+    }
+
+    #[test]
+    fn parse_diagram_with_tab() {
+        let inp = include_str!("../tests/tverify-tap.bacic.txt");
+        let out = parser(inp);
         let out = out.unwrap();
         insta::assert_yaml_snapshot!(out.1);
     }

@@ -2,6 +2,7 @@ use std::path::Path;
 
 use thiserror::Error;
 pub mod compile;
+pub mod fetch;
 #[allow(dead_code)]
 mod pom;
 #[allow(dead_code)]

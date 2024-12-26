@@ -10,6 +10,9 @@ serde.workspace = true
 serde-xml-rs.workspace = true
 thiserror.workspace = true
 nom.workspace = true
+dashmap.workspace = true
+parser = { path = "../parser"}
 
 [dev-dependencies]
 insta.workspace = true
+pretty_assertions.workspace = true

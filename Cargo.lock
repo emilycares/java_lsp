@@ -1169,8 +1169,11 @@ dependencies = [
 name = "maven"
 version = "0.1.0"
 dependencies = [
+ "dashmap 6.1.0",
  "insta",
  "nom",
+ "parser",
+ "pretty_assertions",
  "serde",
  "serde-xml-rs",
  "thiserror 2.0.9",

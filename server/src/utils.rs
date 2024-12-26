@@ -8,7 +8,6 @@ pub fn to_lsp_position(point: Point) -> tower_lsp::lsp_types::Position {
     )
 }
 
-#[allow(dead_code)]
 pub fn to_treesitter_point(position: tower_lsp::lsp_types::Position) -> Point {
     Point::new(
         position.line.try_into().unwrap_or_default(),

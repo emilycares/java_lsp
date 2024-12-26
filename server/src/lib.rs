@@ -12,6 +12,7 @@ use std::path::Path;
 use std::str::FromStr;
 
 use dashmap::DashMap;
+use notification::Progress;
 use parser::dto::Class;
 use ropey::Rope;
 use serde_json::Value;
@@ -146,7 +147,6 @@ impl Backend {
         None
     }
 
-    #[allow(dead_code)]
     fn compile(path: &str) -> Vec<Diagnostic> {
         if let Some(classpath) = maven::compile::generate_classpath() {
             if let Some(errors) = maven::compile::compile_java_file(path, &classpath) {
@@ -195,6 +195,20 @@ impl LanguageServer for Backend {
     async fn initialized(&self, _: InitializedParams) {
         eprintln!("Init");
 
+        self.client
+            .send_notification::<Progress>(ProgressParams {
+                token: ProgressToken::String("Load jdk".to_string()),
+                value: ProgressParamsValue::WorkDone(WorkDoneProgress::Begin(
+                    WorkDoneProgressBegin {
+                        title: "Loading jdk".to_string(),
+                        cancellable: None,
+                        message: None,
+                        percentage: None,
+                    },
+                )),
+            })
+            .await;
+
         let path = Path::new(".jdk.cfc");
         if path.exists() {
             if let Ok(classes) = parser::loader::load_class_folder("jdk") {
@@ -219,20 +233,38 @@ impl LanguageServer for Backend {
             }
         }
 
-        let path = Path::new(".maven.cfc");
-        if path.exists() {
-            if let Ok(classes) = parser::loader::load_class_folder("maven") {
-                for class in classes.classes {
-                    self.class_map.insert(class.class_path.clone(), class);
-                }
-            }
-        } else {
-            let classes = parser::loader::load_classes("./target/dependency/");
-            parser::loader::save_class_folder("maven", &classes).unwrap();
-            for class in classes.classes {
-                self.class_map.insert(class.class_path.clone(), class);
-            }
-        }
+        self.client
+            .send_notification::<Progress>(ProgressParams {
+                token: ProgressToken::String("Load jdk".to_string()),
+                value: ProgressParamsValue::WorkDone(WorkDoneProgress::End(WorkDoneProgressEnd {
+                    message: None,
+                })),
+            })
+            .await;
+
+        self.client
+            .send_notification::<Progress>(ProgressParams {
+                token: ProgressToken::String("Load maven dependencies".to_string()),
+                value: ProgressParamsValue::WorkDone(WorkDoneProgress::Begin(
+                    WorkDoneProgressBegin {
+                        title: "Loading maven dependencies".to_string(),
+                        cancellable: None,
+                        message: None,
+                        percentage: None,
+                    },
+                )),
+            })
+            .await;
+        maven::fetch::fetch_deps(&self.class_map);
+
+        self.client
+            .send_notification::<Progress>(ProgressParams {
+                token: ProgressToken::String("Load maven dependencies".to_string()),
+                value: ProgressParamsValue::WorkDone(WorkDoneProgress::End(WorkDoneProgressEnd {
+                    message: None,
+                })),
+            })
+            .await;
 
         eprintln!("Init done");
     }

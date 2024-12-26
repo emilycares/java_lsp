@@ -50,12 +50,17 @@ pub fn load_class_folder(prefix: &str) -> Result<dto::ClassFolder, dto::ClassErr
     Ok(out)
 }
 
-pub fn load_classes(path: &str) -> dto::ClassFolder {
+pub fn load_classes<P: AsRef<Path>>(path: P) -> dto::ClassFolder {
+    let Some(str_path) = &path.as_ref().to_str() else {
+        eprintln!("load_classes failed could not make path into str");
+        return dto::ClassFolder::new();
+    };
     dto::ClassFolder {
-        classes: get_classes(path)
+        classes: get_classes(&path)
             .into_iter()
             .filter_map(|p| {
-                let class_path = &p.trim_start_matches(path);
+                let class_path = &p.trim_start_matches(str_path);
+                let class_path = class_path.trim_start_matches("/");
                 let class_path = class_path.trim_end_matches(".class");
                 let class_path = class_path.replace("/", ".");
                 match load_class_fs(p.as_str(), class_path.to_string()) {
@@ -70,7 +75,7 @@ pub fn load_classes(path: &str) -> dto::ClassFolder {
     }
 }
 
-fn get_classes(dir: &str) -> Vec<String> {
+fn get_classes<P: AsRef<Path>>(dir: P) -> Vec<String> {
     WalkDir::new(dir)
         .into_iter()
         .filter(|a| {

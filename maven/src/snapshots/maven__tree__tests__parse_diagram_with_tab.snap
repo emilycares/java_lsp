@@ -1,0 +1,811 @@
+---
+source: maven/src/tree.rs
+expression: out.1
+snapshot_kind: text
+---
+base:
+  group_id: ch.emilycares
+  artivact_id: quarkus-test
+  version: 1.0.0-SNAPSHOT
+  scope: Test
+deps:
+  - group_id: io.quarkus
+    artivact_id: quarkus-resteasy-reactive
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.quarkus
+    artivact_id: quarkus-arc
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.quarkus
+    artivact_id: quarkus-resteasy-reactive-qute
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.quarkus
+    artivact_id: quarkus-junit5
+    version: 3.7.2
+    scope: Test
+  - group_id: io.rest-assured
+    artivact_id: rest-assured
+    version: 5.4.0
+    scope: Test
+  - group_id: io.quarkus
+    artivact_id: quarkus-resteasy-reactive-common
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.quarkus.resteasy.reactive
+    artivact_id: resteasy-reactive-vertx
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.quarkus
+    artivact_id: quarkus-vertx-http
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.quarkus
+    artivact_id: quarkus-jsonp
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.quarkus
+    artivact_id: quarkus-virtual-threads
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.quarkus.resteasy.reactive
+    artivact_id: resteasy-reactive-common
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.quarkus
+    artivact_id: quarkus-mutiny
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.quarkus
+    artivact_id: quarkus-vertx
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.quarkus.resteasy.reactive
+    artivact_id: resteasy-reactive-common-types
+    version: 3.7.2
+    scope: Compile
+  - group_id: org.reactivestreams
+    artivact_id: reactive-streams
+    version: 1.0.4
+    scope: Compile
+  - group_id: io.smallrye.reactive
+    artivact_id: mutiny-zero-flow-adapters
+    version: 1.0.0
+    scope: Compile
+  - group_id: io.smallrye.common
+    artivact_id: smallrye-common-annotation
+    version: 2.1.2
+    scope: Compile
+  - group_id: io.quarkus
+    artivact_id: quarkus-smallrye-context-propagation
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.smallrye.reactive
+    artivact_id: mutiny-smallrye-context-propagation
+    version: 2.5.6
+    scope: Compile
+  - group_id: io.smallrye
+    artivact_id: smallrye-context-propagation
+    version: 2.1.0
+    scope: Compile
+  - group_id: io.smallrye
+    artivact_id: smallrye-context-propagation-api
+    version: 2.1.0
+    scope: Compile
+  - group_id: io.smallrye
+    artivact_id: smallrye-context-propagation-storage
+    version: 2.1.0
+    scope: Compile
+  - group_id: io.quarkus
+    artivact_id: quarkus-netty
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.netty
+    artivact_id: netty-codec-haproxy
+    version: 4.1.106.Final
+    scope: Compile
+  - group_id: io.quarkus
+    artivact_id: quarkus-vertx-latebound-mdc-provider
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.smallrye
+    artivact_id: smallrye-fault-tolerance-vertx
+    version: 6.2.6
+    scope: Compile
+  - group_id: io.netty
+    artivact_id: netty-codec
+    version: 4.1.106.Final
+    scope: Compile
+  - group_id: com.aayushatharva.brotli4j
+    artivact_id: brotli4j
+    version: 1.12.0
+    scope: Compile
+  - group_id: com.aayushatharva.brotli4j
+    artivact_id: service
+    version: 1.12.0
+    scope: Compile
+  - group_id: com.aayushatharva.brotli4j
+    artivact_id: native-linux-x86_64
+    version: 1.12.0
+    scope: Compile
+  - group_id: io.vertx
+    artivact_id: vertx-web
+    version: 4.5.3
+    scope: Compile
+  - group_id: io.smallrye.reactive
+    artivact_id: smallrye-mutiny-vertx-core
+    version: 3.8.0
+    scope: Compile
+  - group_id: io.quarkus.resteasy.reactive
+    artivact_id: resteasy-reactive
+    version: 3.7.2
+    scope: Compile
+  - group_id: jakarta.enterprise
+    artivact_id: jakarta.enterprise.cdi-api
+    version: 4.0.1
+    scope: Compile
+  - group_id: jakarta.ws.rs
+    artivact_id: jakarta.ws.rs-api
+    version: 3.1.0
+    scope: Compile
+  - group_id: jakarta.annotation
+    artivact_id: jakarta.annotation-api
+    version: 2.1.1
+    scope: Compile
+  - group_id: org.jboss.logging
+    artivact_id: commons-logging-jboss-logging
+    version: 1.0.0.Final
+    scope: Compile
+  - group_id: jakarta.xml.bind
+    artivact_id: jakarta.xml.bind-api
+    version: 4.0.1
+    scope: Compile
+  - group_id: org.jboss.logging
+    artivact_id: jboss-logging
+    version: 3.5.3.Final
+    scope: Compile
+  - group_id: io.vertx
+    artivact_id: vertx-web-common
+    version: 4.5.3
+    scope: Compile
+  - group_id: io.vertx
+    artivact_id: vertx-auth-common
+    version: 4.5.3
+    scope: Compile
+  - group_id: io.vertx
+    artivact_id: vertx-bridge-common
+    version: 4.5.3
+    scope: Compile
+  - group_id: io.smallrye.reactive
+    artivact_id: smallrye-mutiny-vertx-runtime
+    version: 3.8.0
+    scope: Compile
+  - group_id: io.smallrye.reactive
+    artivact_id: vertx-mutiny-generator
+    version: 3.8.0
+    scope: Compile
+  - group_id: io.vertx
+    artivact_id: vertx-codegen
+    version: 4.5.3
+    scope: Compile
+  - group_id: jakarta.enterprise
+    artivact_id: jakarta.enterprise.lang-model
+    version: 4.0.1
+    scope: Compile
+  - group_id: jakarta.el
+    artivact_id: jakarta.el-api
+    version: 5.0.1
+    scope: Compile
+  - group_id: jakarta.interceptor
+    artivact_id: jakarta.interceptor-api
+    version: 2.1.0
+    scope: Compile
+  - group_id: jakarta.activation
+    artivact_id: jakarta.activation-api
+    version: 2.1.2
+    scope: Compile
+  - group_id: io.quarkus
+    artivact_id: quarkus-security-runtime-spi
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.quarkus
+    artivact_id: quarkus-credentials
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.smallrye.common
+    artivact_id: smallrye-common-vertx-context
+    version: 2.1.2
+    scope: Compile
+  - group_id: io.quarkus.security
+    artivact_id: quarkus-security
+    version: 2.0.3.Final
+    scope: Compile
+  - group_id: io.smallrye.reactive
+    artivact_id: smallrye-mutiny-vertx-web
+    version: 3.8.0
+    scope: Compile
+  - group_id: io.github.crac
+    artivact_id: org-crac
+    version: 0.1.3
+    scope: Compile
+  - group_id: io.smallrye.common
+    artivact_id: smallrye-common-constraint
+    version: 2.1.2
+    scope: Compile
+  - group_id: io.smallrye.reactive
+    artivact_id: smallrye-mutiny-vertx-web-common
+    version: 3.8.0
+    scope: Compile
+  - group_id: io.smallrye.reactive
+    artivact_id: smallrye-mutiny-vertx-auth-common
+    version: 3.8.0
+    scope: Compile
+  - group_id: io.smallrye.reactive
+    artivact_id: smallrye-mutiny-vertx-bridge-common
+    version: 3.8.0
+    scope: Compile
+  - group_id: io.smallrye.reactive
+    artivact_id: smallrye-mutiny-vertx-uri-template
+    version: 3.8.0
+    scope: Compile
+  - group_id: io.vertx
+    artivact_id: vertx-uri-template
+    version: 4.5.3
+    scope: Compile
+  - group_id: org.eclipse.parsson
+    artivact_id: parsson
+    version: 1.1.5
+    scope: Compile
+  - group_id: jakarta.json
+    artivact_id: jakarta.json-api
+    version: 2.1.3
+    scope: Compile
+  - group_id: io.vertx
+    artivact_id: vertx-core
+    version: 4.5.3
+    scope: Compile
+  - group_id: io.netty
+    artivact_id: netty-common
+    version: 4.1.106.Final
+    scope: Compile
+  - group_id: io.netty
+    artivact_id: netty-buffer
+    version: 4.1.106.Final
+    scope: Compile
+  - group_id: io.netty
+    artivact_id: netty-transport
+    version: 4.1.106.Final
+    scope: Compile
+  - group_id: io.netty
+    artivact_id: netty-handler
+    version: 4.1.106.Final
+    scope: Compile
+  - group_id: io.netty
+    artivact_id: netty-handler-proxy
+    version: 4.1.106.Final
+    scope: Compile
+  - group_id: io.netty
+    artivact_id: netty-codec-http
+    version: 4.1.106.Final
+    scope: Compile
+  - group_id: io.netty
+    artivact_id: netty-codec-http2
+    version: 4.1.106.Final
+    scope: Compile
+  - group_id: io.netty
+    artivact_id: netty-resolver
+    version: 4.1.106.Final
+    scope: Compile
+  - group_id: io.netty
+    artivact_id: netty-resolver-dns
+    version: 4.1.106.Final
+    scope: Compile
+  - group_id: com.fasterxml.jackson.core
+    artivact_id: jackson-core
+    version: 2.16.1
+    scope: Compile
+  - group_id: io.netty
+    artivact_id: netty-transport-native-unix-common
+    version: 4.1.106.Final
+    scope: Compile
+  - group_id: io.netty
+    artivact_id: netty-codec-socks
+    version: 4.1.106.Final
+    scope: Compile
+  - group_id: io.netty
+    artivact_id: netty-codec-dns
+    version: 4.1.106.Final
+    scope: Compile
+  - group_id: io.quarkus.arc
+    artivact_id: arc
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.quarkus
+    artivact_id: quarkus-core
+    version: 3.7.2
+    scope: Compile
+  - group_id: org.eclipse.microprofile.context-propagation
+    artivact_id: microprofile-context-propagation-api
+    version: "1.3"
+    scope: Compile
+  - group_id: jakarta.transaction
+    artivact_id: jakarta.transaction-api
+    version: 2.0.1
+    scope: Compile
+  - group_id: io.smallrye.reactive
+    artivact_id: mutiny
+    version: 2.5.6
+    scope: Compile
+  - group_id: jakarta.inject
+    artivact_id: jakarta.inject-api
+    version: 2.0.1
+    scope: Compile
+  - group_id: io.smallrye.common
+    artivact_id: smallrye-common-os
+    version: 2.1.2
+    scope: Compile
+  - group_id: io.quarkus
+    artivact_id: quarkus-ide-launcher
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.quarkus
+    artivact_id: quarkus-development-mode-spi
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.smallrye.config
+    artivact_id: smallrye-config
+    version: 3.5.4
+    scope: Compile
+  - group_id: org.jboss.logmanager
+    artivact_id: jboss-logmanager
+    version: 3.0.4.Final
+    scope: Compile
+  - group_id: org.jboss.logging
+    artivact_id: jboss-logging-annotations
+    version: 2.2.1.Final
+    scope: Compile
+  - group_id: org.jboss.threads
+    artivact_id: jboss-threads
+    version: 3.5.1.Final
+    scope: Compile
+  - group_id: org.slf4j
+    artivact_id: slf4j-api
+    version: 2.0.6
+    scope: Compile
+  - group_id: org.jboss.slf4j
+    artivact_id: slf4j-jboss-logmanager
+    version: 2.0.0.Final
+    scope: Compile
+  - group_id: org.wildfly.common
+    artivact_id: wildfly-common
+    version: 1.7.0.Final
+    scope: Compile
+  - group_id: io.quarkus
+    artivact_id: quarkus-bootstrap-runner
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.quarkus
+    artivact_id: quarkus-fs-util
+    version: 0.0.10
+    scope: Compile
+  - group_id: io.smallrye.config
+    artivact_id: smallrye-config-core
+    version: 3.5.4
+    scope: Compile
+  - group_id: org.eclipse.microprofile.config
+    artivact_id: microprofile-config-api
+    version: 3.0.3
+    scope: Compile
+  - group_id: io.smallrye.common
+    artivact_id: smallrye-common-classloader
+    version: 2.1.2
+    scope: Compile
+  - group_id: io.smallrye.config
+    artivact_id: smallrye-config-common
+    version: 3.5.4
+    scope: Compile
+  - group_id: io.smallrye.common
+    artivact_id: smallrye-common-cpu
+    version: 2.1.2
+    scope: Compile
+  - group_id: io.smallrye.common
+    artivact_id: smallrye-common-expression
+    version: 2.1.2
+    scope: Compile
+  - group_id: io.smallrye.common
+    artivact_id: smallrye-common-net
+    version: 2.1.2
+    scope: Compile
+  - group_id: io.smallrye.common
+    artivact_id: smallrye-common-ref
+    version: 2.1.2
+    scope: Compile
+  - group_id: io.smallrye.common
+    artivact_id: smallrye-common-function
+    version: 2.1.2
+    scope: Compile
+  - group_id: io.quarkus
+    artivact_id: quarkus-qute
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.quarkus.qute
+    artivact_id: qute-core
+    version: 3.7.2
+    scope: Compile
+  - group_id: io.quarkus
+    artivact_id: quarkus-bootstrap-core
+    version: 3.7.2
+    scope: Test
+  - group_id: org.eclipse.sisu
+    artivact_id: org.eclipse.sisu.inject
+    version: 0.9.0.M2
+    scope: Test
+  - group_id: io.quarkus
+    artivact_id: quarkus-test-common
+    version: 3.7.2
+    scope: Test
+  - group_id: io.quarkus
+    artivact_id: quarkus-junit5-properties
+    version: 3.7.2
+    scope: Test
+  - group_id: org.junit.jupiter
+    artivact_id: junit-jupiter
+    version: 5.10.1
+    scope: Test
+  - group_id: com.thoughtworks.xstream
+    artivact_id: xstream
+    version: 1.4.20
+    scope: Test
+  - group_id: io.quarkus
+    artivact_id: quarkus-bootstrap-app-model
+    version: 3.7.2
+    scope: Test
+  - group_id: io.smallrye.common
+    artivact_id: smallrye-common-io
+    version: 2.1.2
+    scope: Compile
+  - group_id: io.quarkus
+    artivact_id: quarkus-core-deployment
+    version: 3.7.2
+    scope: Test
+  - group_id: io.quarkus
+    artivact_id: quarkus-bootstrap-maven-resolver
+    version: 3.7.2
+    scope: Test
+  - group_id: io.quarkus
+    artivact_id: quarkus-bootstrap-gradle-resolver
+    version: 3.7.2
+    scope: Test
+  - group_id: io.smallrye
+    artivact_id: jandex
+    version: 3.1.6
+    scope: Test
+  - group_id: commons-io
+    artivact_id: commons-io
+    version: 2.15.1
+    scope: Test
+  - group_id: org.aesh
+    artivact_id: readline
+    version: "2.4"
+    scope: Test
+  - group_id: org.aesh
+    artivact_id: aesh
+    version: "2.7"
+    scope: Test
+  - group_id: io.quarkus.gizmo
+    artivact_id: gizmo
+    version: 1.7.0
+    scope: Test
+  - group_id: org.ow2.asm
+    artivact_id: asm
+    version: "9.6"
+    scope: Test
+  - group_id: org.ow2.asm
+    artivact_id: asm-commons
+    version: "9.6"
+    scope: Test
+  - group_id: io.quarkus
+    artivact_id: quarkus-class-change-agent
+    version: 3.7.2
+    scope: Test
+  - group_id: io.quarkus
+    artivact_id: quarkus-devtools-utilities
+    version: 3.7.2
+    scope: Test
+  - group_id: io.quarkus
+    artivact_id: quarkus-builder
+    version: 3.7.2
+    scope: Test
+  - group_id: org.graalvm.sdk
+    artivact_id: graal-sdk
+    version: 23.0.1
+    scope: Test
+  - group_id: org.junit.platform
+    artivact_id: junit-platform-launcher
+    version: 1.10.1
+    scope: Test
+  - group_id: org.fusesource.jansi
+    artivact_id: jansi
+    version: 2.4.0
+    scope: Test
+  - group_id: org.ow2.asm
+    artivact_id: asm-util
+    version: "9.6"
+    scope: Test
+  - group_id: org.ow2.asm
+    artivact_id: asm-analysis
+    version: "9.6"
+    scope: Test
+  - group_id: org.ow2.asm
+    artivact_id: asm-tree
+    version: "9.6"
+    scope: Test
+  - group_id: io.smallrye.beanbag
+    artivact_id: smallrye-beanbag-maven
+    version: 1.3.2
+    scope: Test
+  - group_id: org.apache.maven
+    artivact_id: maven-embedder
+    version: 3.9.6
+    scope: Test
+  - group_id: org.eclipse.sisu
+    artivact_id: org.eclipse.sisu.plexus
+    version: 0.9.0.M2
+    scope: Test
+  - group_id: org.apache.maven
+    artivact_id: maven-settings-builder
+    version: 3.9.6
+    scope: Test
+  - group_id: org.apache.maven
+    artivact_id: maven-resolver-provider
+    version: 3.9.6
+    scope: Test
+  - group_id: org.apache.maven.resolver
+    artivact_id: maven-resolver-connector-basic
+    version: 1.9.18
+    scope: Test
+  - group_id: org.apache.maven.resolver
+    artivact_id: maven-resolver-transport-wagon
+    version: 1.9.18
+    scope: Test
+  - group_id: org.apache.maven.wagon
+    artivact_id: wagon-http
+    version: 3.5.3
+    scope: Test
+  - group_id: org.apache.maven.wagon
+    artivact_id: wagon-file
+    version: 3.5.3
+    scope: Test
+  - group_id: io.smallrye.beanbag
+    artivact_id: smallrye-beanbag-sisu
+    version: 1.3.2
+    scope: Test
+  - group_id: javax.inject
+    artivact_id: javax.inject
+    version: "1"
+    scope: Test
+  - group_id: org.apache.maven
+    artivact_id: maven-artifact
+    version: 3.9.6
+    scope: Test
+  - group_id: org.apache.maven
+    artivact_id: maven-builder-support
+    version: 3.9.6
+    scope: Test
+  - group_id: org.apache.maven
+    artivact_id: maven-model
+    version: 3.9.6
+    scope: Test
+  - group_id: org.apache.maven
+    artivact_id: maven-model-builder
+    version: 3.9.6
+    scope: Test
+  - group_id: org.apache.maven
+    artivact_id: maven-repository-metadata
+    version: 3.9.6
+    scope: Test
+  - group_id: org.apache.maven
+    artivact_id: maven-settings
+    version: 3.9.6
+    scope: Test
+  - group_id: org.apache.maven.resolver
+    artivact_id: maven-resolver-api
+    version: 1.9.18
+    scope: Test
+  - group_id: org.apache.maven.resolver
+    artivact_id: maven-resolver-impl
+    version: 1.9.18
+    scope: Test
+  - group_id: org.apache.maven.resolver
+    artivact_id: maven-resolver-spi
+    version: 1.9.18
+    scope: Test
+  - group_id: org.apache.maven.resolver
+    artivact_id: maven-resolver-util
+    version: 1.9.18
+    scope: Test
+  - group_id: org.apache.maven.resolver
+    artivact_id: maven-resolver-transport-http
+    version: 1.9.10
+    scope: Test
+  - group_id: org.apache.maven.wagon
+    artivact_id: wagon-provider-api
+    version: 3.5.3
+    scope: Test
+  - group_id: org.apache.maven.wagon
+    artivact_id: wagon-http-shared
+    version: 3.5.3
+    scope: Test
+  - group_id: org.codehaus.plexus
+    artivact_id: plexus-interpolation
+    version: "1.26"
+    scope: Test
+  - group_id: org.codehaus.plexus
+    artivact_id: plexus-utils
+    version: 3.5.1
+    scope: Test
+  - group_id: org.codehaus.plexus
+    artivact_id: plexus-xml
+    version: 4.0.0
+    scope: Test
+  - group_id: org.codehaus.plexus
+    artivact_id: plexus-cipher
+    version: "2.0"
+    scope: Test
+  - group_id: org.codehaus.plexus
+    artivact_id: plexus-sec-dispatcher
+    version: "2.0"
+    scope: Test
+  - group_id: io.smallrye.beanbag
+    artivact_id: smallrye-beanbag
+    version: 1.3.2
+    scope: Test
+  - group_id: org.apache.maven.resolver
+    artivact_id: maven-resolver-named-locks
+    version: 1.9.18
+    scope: Test
+  - group_id: org.apache.maven
+    artivact_id: maven-xml-impl
+    version: 4.0.0-alpha-5
+    scope: Test
+  - group_id: org.apache.maven
+    artivact_id: maven-api-xml
+    version: 4.0.0-alpha-5
+    scope: Test
+  - group_id: org.apache.maven
+    artivact_id: maven-api-meta
+    version: 4.0.0-alpha-5
+    scope: Test
+  - group_id: org.apache.maven
+    artivact_id: maven-core
+    version: 3.9.6
+    scope: Test
+  - group_id: org.apache.maven
+    artivact_id: maven-plugin-api
+    version: 3.9.6
+    scope: Test
+  - group_id: org.apache.maven.shared
+    artivact_id: maven-shared-utils
+    version: 3.3.4
+    scope: Test
+  - group_id: com.google.inject
+    artivact_id: guice
+    version: 5.1.0
+    scope: Test
+  - group_id: com.google.guava
+    artivact_id: guava
+    version: 33.0.0-jre
+    scope: Test
+  - group_id: com.google.guava
+    artivact_id: failureaccess
+    version: 1.0.1
+    scope: Test
+  - group_id: javax.annotation
+    artivact_id: javax.annotation-api
+    version: 1.3.2
+    scope: Test
+  - group_id: org.codehaus.plexus
+    artivact_id: plexus-classworlds
+    version: 2.6.0
+    scope: Test
+  - group_id: commons-cli
+    artivact_id: commons-cli
+    version: 1.5.0
+    scope: Test
+  - group_id: org.codehaus.plexus
+    artivact_id: plexus-component-annotations
+    version: 2.1.0
+    scope: Test
+  - group_id: aopalliance
+    artivact_id: aopalliance
+    version: "1.0"
+    scope: Test
+  - group_id: org.junit.jupiter
+    artivact_id: junit-jupiter-api
+    version: 5.10.1
+    scope: Test
+  - group_id: org.junit.jupiter
+    artivact_id: junit-jupiter-params
+    version: 5.10.1
+    scope: Test
+  - group_id: org.junit.jupiter
+    artivact_id: junit-jupiter-engine
+    version: 5.10.1
+    scope: Test
+  - group_id: org.opentest4j
+    artivact_id: opentest4j
+    version: 1.3.0
+    scope: Test
+  - group_id: org.junit.platform
+    artivact_id: junit-platform-commons
+    version: 1.10.1
+    scope: Test
+  - group_id: org.apiguardian
+    artivact_id: apiguardian-api
+    version: 1.1.2
+    scope: Test
+  - group_id: org.junit.platform
+    artivact_id: junit-platform-engine
+    version: 1.10.1
+    scope: Test
+  - group_id: io.github.x-stream
+    artivact_id: mxparser
+    version: 1.2.2
+    scope: Test
+  - group_id: xmlpull
+    artivact_id: xmlpull
+    version: 1.1.3.1
+    scope: Test
+  - group_id: org.apache.groovy
+    artivact_id: groovy
+    version: 4.0.16
+    scope: Test
+  - group_id: org.apache.groovy
+    artivact_id: groovy-xml
+    version: 4.0.16
+    scope: Test
+  - group_id: org.apache.httpcomponents
+    artivact_id: httpclient
+    version: 4.5.14
+    scope: Test
+  - group_id: org.apache.httpcomponents
+    artivact_id: httpmime
+    version: 4.5.14
+    scope: Test
+  - group_id: org.hamcrest
+    artivact_id: hamcrest
+    version: "2.2"
+    scope: Test
+  - group_id: org.ccil.cowan.tagsoup
+    artivact_id: tagsoup
+    version: 1.2.1
+    scope: Test
+  - group_id: io.rest-assured
+    artivact_id: json-path
+    version: 5.4.0
+    scope: Test
+  - group_id: io.rest-assured
+    artivact_id: xml-path
+    version: 5.4.0
+    scope: Test
+  - group_id: org.apache.httpcomponents
+    artivact_id: httpcore
+    version: 4.4.16
+    scope: Test
+  - group_id: commons-codec
+    artivact_id: commons-codec
+    version: 1.16.0
+    scope: Test
+  - group_id: org.apache.groovy
+    artivact_id: groovy-json
+    version: 4.0.16
+    scope: Test
+  - group_id: io.rest-assured
+    artivact_id: rest-assured-common
+    version: 5.4.0
+    scope: Test
+  - group_id: org.apache.commons
+    artivact_id: commons-lang3
+    version: 3.14.0
+    scope: Test
