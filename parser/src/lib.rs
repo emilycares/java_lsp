@@ -32,8 +32,8 @@ mod tests {
     #[cfg(test)]
     pub fn everything_data() -> dto::Class {
         dto::Class {
-            source: "".to_string(),
-            class_path: "".to_string(),
+            source: "/path/to/source/ch/emilycares/Everything.java".to_string(),
+            class_path: "ch.emilycares.Everything".to_string(),
             name: "Everything".to_string(),
             access: vec![],
             methods: vec![

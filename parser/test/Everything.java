@@ -1,4 +1,4 @@
-package ch.micmine;
+package ch.emilycares;
 
 public class Everything {
 

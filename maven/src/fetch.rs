@@ -2,11 +2,12 @@ use std::{
     fs,
     io::Cursor,
     path::{Path, PathBuf},
-    process::Command,
+    sync::Arc,
 };
 
 use dashmap::DashMap;
 use parser::dto::ClassFolder;
+use tokio::{process::Command, sync::Mutex};
 
 use crate::tree::{self, Pom};
 
@@ -42,9 +43,9 @@ use crate::tree::{self, Pom};
 // currently in. (There might be overwrites. Less important) But we should only find test classes
 // from a test. And not from the implementation
 
-pub fn fetch_deps<'a>(
+pub async fn fetch_deps<'a>(
     class_map: &'a DashMap<std::string::String, parser::dto::Class>,
-) -> Option<()> {
+) -> DashMap<std::string::String, parser::dto::Class> {
     let file_name = ".maven.cfc";
     let path = Path::new(&file_name);
     if path.exists() {
@@ -53,67 +54,74 @@ pub fn fetch_deps<'a>(
                 class_map.insert(class.class_path.clone(), class);
             }
         }
+        return class_map.clone();
     } else {
-        eprintln!("dependency:unpack-dependencies start");
-        let _output = Command::new("mvn")
+        let unpack = Command::new("mvn")
             .args([
                 "dependency:unpack-dependencies",
                 "-Dmdep.useRepositoryLayout=true",
             ])
-            .output()
-            .ok()?;
-        eprintln!("dependency:unpack-dependencies done");
-
-        eprintln!("dependency:resolve (sources) start");
-        let _output = Command::new("mvn")
+            .output();
+        let res_src = Command::new("mvn")
             .args(["dependency:resolve", "-Dclassifier=sources"])
-            .output()
-            .ok()?;
-        eprintln!("dependency:resolve (sources) done");
-
-        eprintln!("dependency:resolve (javadoc) start");
-        let _output = Command::new("mvn")
+            .output();
+        let res_doc = Command::new("mvn")
             .args(["dependency:resolve", "-Dclassifier=javadoc"])
-            .output()
-            .ok()?;
-        eprintln!("dependency:resolve (javadoc) done");
+            .output();
+
+        let _ = futures::future::join3(unpack, res_src, res_doc);
 
         let tree = match tree::load() {
             Ok(tree) => tree,
             Err(e) => {
                 eprintln!("failed to load tree: {:?}", e);
-                return None;
+                return class_map.clone();
             }
         };
         let Some(home) = dirs::home_dir() else {
             eprintln!("Could not find home");
-            return None;
+            return class_map.clone();
         };
         let m2 = home.join(".m2");
-        let mut maven_class_folder = ClassFolder::new();
+        let m2 = Arc::new(m2);
+        let class_map = Arc::new(class_map.clone());
+        let maven_class_folder = Arc::new(Mutex::new(ClassFolder::new()));
+        let mut handles = Vec::new();
         for dep in tree.deps {
-            eprintln!("Loading dependency: {}", dep.artivact_id);
-            let folder = pom_get_class_folder(&dep);
-            if !folder.exists() {
-                eprintln!("dependency folder does not exist {:?}", folder);
-                continue;
-            }
-            let source_jar = pom_sources_jar(&dep, &m2);
-            let source = extract_jar(source_jar, "source");
-            let javadoc_jar = pom_javadoc_jar(&dep, &m2);
-            let _ = extract_jar(javadoc_jar, "javadoc");
+            let m2 = m2.clone();
+            let class_map = class_map.clone();
+            let maven_class_folder = maven_class_folder.clone();
+            handles.push(tokio::spawn(async move {
+                eprintln!("Loading dependency: {}", dep.artivact_id);
+                let folder = pom_get_class_folder(&dep);
+                if !folder.exists() {
+                    eprintln!("dependency folder does not exist {:?}", folder);
+                } else {
+                    let source_jar = pom_sources_jar(&dep, &m2);
+                    let source = extract_jar(source_jar, "source");
+                    let javadoc_jar = pom_javadoc_jar(&dep, &m2);
+                    let _ = extract_jar(javadoc_jar, "javadoc");
 
-            let classes =
-                parser::loader::load_classes(folder.as_path().to_str().unwrap_or_default(), source);
-            maven_class_folder.append(classes.clone());
-            for class in classes.classes {
-                class_map.insert(class.class_path.clone(), class);
-            }
+                    let classes = parser::loader::load_classes(
+                        folder.as_path().to_str().unwrap_or_default(),
+                        source,
+                    );
+                    {
+                        let mut guard = maven_class_folder.lock().await;
+                        guard.append(classes.clone());
+                    }
+                    for class in classes.classes {
+                        class_map.insert(class.class_path.clone(), class);
+                    }
+                }
+            }));
         }
-        parser::loader::save_class_folder("maven", &maven_class_folder).unwrap();
+        futures::future::join_all(handles).await;
+        let guard = maven_class_folder.lock().await;
+        let cloned = guard.clone();
+        parser::loader::save_class_folder("maven", &cloned).unwrap();
+        return Arc::try_unwrap(class_map).expect("Classmap should be free to take");
     }
-
-    None
 }
 
 fn extract_jar(jar: PathBuf, folder_name: &str) -> String {

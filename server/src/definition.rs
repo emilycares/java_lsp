@@ -36,11 +36,6 @@ pub fn class_to_definition(c: &dto::Class) -> Option<GotoDefinitionResponse> {
             character: 0,
         },
     };
-    let uri = Url::parse(&format!(
-        "file:/{}/{}.java",
-        c.source,
-        c.class_path.replace(".", "/")
-    ))
-    .unwrap();
+    let uri = Url::parse(&format!("file:/{}", c.source)).unwrap();
     return Some(GotoDefinitionResponse::Scalar(Location { uri, range }));
 }

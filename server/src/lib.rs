@@ -256,7 +256,10 @@ impl LanguageServer for Backend {
                 )),
             })
             .await;
-        maven::fetch::fetch_deps(&self.class_map);
+        let cm = maven::fetch::fetch_deps(&self.class_map).await;
+        for pair in cm.into_iter() {
+            self.class_map.insert(pair.0, pair.1);
+        }
 
         self.client
             .send_notification::<Progress>(ProgressParams {

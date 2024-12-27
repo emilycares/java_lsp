@@ -13,6 +13,8 @@ nom.workspace = true
 dashmap.workspace = true
 zip-extract.workspace = true
 dirs.workspace = true
+tokio.workspace = true
+futures.workspace = true
 parser = { path = "../parser"}
 
 [dev-dependencies]

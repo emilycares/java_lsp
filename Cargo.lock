@@ -1343,6 +1343,7 @@ version = "0.1.0"
 dependencies = [
  "dashmap 6.1.0",
  "dirs",
+ "futures",
  "insta",
  "nom",
  "parser",
@@ -1350,6 +1351,7 @@ dependencies = [
  "serde",
  "serde-xml-rs",
  "thiserror 2.0.9",
+ "tokio",
  "zip-extract",
 ]
 
