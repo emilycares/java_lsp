@@ -2,7 +2,12 @@ use parser::dto;
 use tower_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
 use tree_sitter::{Point, Tree};
 
-use crate::{tyres, utils::to_lsp_range, Document};
+use crate::{
+    call_chain::{class_or_variable, CallItem},
+    tyres,
+    utils::to_lsp_range,
+    Document,
+};
 
 pub fn class(
     document: &Document,
@@ -40,17 +45,11 @@ pub fn class_action(
                 }
             }
         }
-
-        'annotation: {
-            if n.kind() == "identifier" {
-                let Some(n) = n.parent() else {
-                    break 'annotation;
-                };
-                if n.kind() == "annotation" || n.kind() == "marker_annotation" {
-                    if let Ok(jtype) = n.utf8_text(bytes) {
-                        if let Some(class) = tyres::resolve(jtype, imports, class_map) {
-                            return Some((class, to_lsp_range(n.range())));
-                        }
+        if n.kind() == "identifier" {
+            if let Ok(text) = n.utf8_text(bytes) {
+                if let Some(CallItem::Class(class)) = class_or_variable(text.to_string()) {
+                    if let Some(class) = tyres::resolve(&class, imports, class_map) {
+                        return Some((class, to_lsp_range(n.range())));
                     }
                 }
             }
@@ -82,4 +81,82 @@ fn class_to_hover(class: dto::Class, range: Range) -> Option<Hover> {
         }),
         range: Some(range),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use dashmap::DashMap;
+    use parser::dto;
+    use tree_sitter::Point;
+
+    use crate::{hover::class_action, Document};
+
+    #[test]
+    fn class_action_base() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public String hello() {
+        return;
+    }
+}
+";
+        let bytes = content.as_bytes();
+        let doc = Document::setup(content).unwrap();
+
+        let out = class_action(
+            &doc.tree,
+            bytes,
+            &Point::new(3, 14),
+            &[],
+            &string_class_map(),
+        );
+        assert!(out.is_some());
+    }
+    #[test]
+
+    fn class_action_marker_annotation() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    @String
+    public void hello() {
+        return;
+    }
+}
+";
+        let bytes = content.as_bytes();
+        let doc = Document::setup(content).unwrap();
+
+        let out = class_action(
+            &doc.tree,
+            bytes,
+            &Point::new(3, 9),
+            &[],
+            &string_class_map(),
+        );
+        dbg!(&out);
+        assert!(out.is_some());
+    }
+
+    fn string_class_map() -> DashMap<String, dto::Class> {
+        let class_map: DashMap<String, dto::Class> = DashMap::new();
+        class_map.insert(
+            "java.lang.String".to_string(),
+            dto::Class {
+                class_path: "".to_string(),
+                source: "".to_string(),
+                access: vec![dto::Access::Public],
+                name: "String".to_string(),
+                methods: vec![dto::Method {
+                    access: vec![dto::Access::Public],
+                    name: "length".to_string(),
+                    parameters: vec![],
+                    ret: dto::JType::Int,
+                }],
+                fields: vec![],
+            },
+        );
+        class_map
+    }
 }

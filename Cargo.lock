@@ -1961,6 +1961,7 @@ dependencies = [
  "ropey",
  "serde",
  "serde_json",
+ "streaming-iterator",
  "thiserror 2.0.9",
  "tokio",
  "tower-lsp",

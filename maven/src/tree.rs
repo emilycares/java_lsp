@@ -153,7 +153,10 @@ fn parser(input: &str) -> IResult<&str, Dependency> {
     let (input, _) = tag("[INFO] digraph ")(input)?;
     let (input, base) = delimited(tag("\""), parse_pom, tag("\""))(input)?;
     let (input, _) = alt((tag(" {\n[INFO]  "), tag(" { \n[INFO] \t")))(input)?;
-    let (input, deps) = separated_list0(alt((tag(" ;\n[INFO]  "), tag(" ; \n[INFO] \t"))), parse_relation)(input)?;
+    let (input, deps) = separated_list0(
+        alt((tag(" ;\n[INFO]  "), tag(" ; \n[INFO] \t"))),
+        parse_relation,
+    )(input)?;
 
     let (input, _) = take_until("[INFO]")(input)?;
     let (input, _) = tag("[INFO]  }")(input)?;

@@ -47,12 +47,8 @@ pub fn get_call_chain(document: &Document, point: &Point) -> Option<Vec<CallItem
                 let l = l.trim();
                 let l = l.trim_end_matches('.');
 
-                if let Some(c) = l.chars().next() {
-                    let val = match c.is_uppercase() {
-                        true => CallItem::Class(l.to_string()),
-                        false => CallItem::Variable(l.to_string()),
-                    };
-                    out.push(val);
+                if let Some(c) = class_or_variable(l.to_owned()) {
+                    out.push(c);
                 }
             }
             "template_expression" => {
@@ -116,11 +112,15 @@ fn parse_argument_list_argument(
                 let identifier = get_string(&*cursor, bytes);
                 cursor.sibling();
                 if cursor.node().kind() == ")" {
-                    out.push(CallItem::Variable(identifier));
+                    if let Some(c) = class_or_variable(identifier) {
+                        out.push(c);
+                    }
                     break 'block;
                 }
                 if cursor.node().kind() == "ERROR" {
-                    out.push(CallItem::Variable(identifier));
+                    if let Some(c) = class_or_variable(identifier) {
+                        out.push(c);
+                    }
                 }
             }
         }
@@ -134,7 +134,12 @@ fn parse_argument_list_argument(
 
 fn parse_value(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> Vec<CallItem> {
     match cursor.node().kind() {
-        "identifier" => vec![CallItem::Variable(get_string(cursor, bytes))],
+        "identifier" => {
+            if let Some(c) = class_or_variable(get_string(cursor, bytes)) {
+                return vec![c];
+            }
+            vec![]
+        }
         "field_access" => parse_field_access(cursor.node(), bytes),
         "method_invocation" => parse_method_invocation(cursor.node(), bytes),
         _ => vec![],
@@ -155,13 +160,13 @@ fn parse_method_invocation(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<Cal
         }
         "identifier" => {
             let var_name = get_string(&cursor, bytes);
+            if let Some(c) = class_or_variable(var_name) {
+                out.push(c);
+            }
             cursor.sibling();
             cursor.sibling();
             let method_name = get_string(&cursor, bytes);
-            out.extend(vec![
-                CallItem::Variable(var_name),
-                CallItem::MethodCall(method_name),
-            ]);
+            out.push(CallItem::MethodCall(method_name));
         }
         "method_invocation" => {
             out.extend(parse_method_invocation(cursor.node(), bytes));
@@ -182,15 +187,11 @@ fn parse_field_access(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem
             cursor.sibling();
             cursor.sibling();
             let field_name = get_string(&cursor, bytes);
-            if let Some(c) = var_name.chars().next() {
-                let item = match c.is_uppercase() {
-                    true => CallItem::Class(var_name),
-                    false => CallItem::Variable(var_name),
-                };
+            if let Some(item) = class_or_variable(var_name) {
                 out.push(item);
-                if field_name != "return" {
-                    out.push(CallItem::FieldAccess(field_name));
-                }
+            }
+            if field_name != "return" {
+                out.push(CallItem::FieldAccess(field_name));
             }
         }
         "method_invocation" => {
@@ -205,8 +206,18 @@ fn parse_field_access(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem
         }
         _ => {}
     }
+
     cursor.parent();
     out
+}
+pub fn class_or_variable(var_name: String) -> Option<CallItem> {
+    if let Some(c) = var_name.chars().next() {
+        return Some(match c.is_uppercase() {
+            true => CallItem::Class(var_name),
+            false => CallItem::Variable(var_name),
+        });
+    }
+    None
 }
 
 #[cfg(test)]
@@ -318,13 +329,38 @@ public class GreetingResource {
     }
 
     #[test]
+    fn call_chain_method_info() {
+        let content = "
+package ch.emilycares;
+public class GreetingResource {
+    public String hello() {
+        a.concat(\"\").other();
+        return \"huh\";
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        // the cursor is on the concat method_call
+        let out = get_call_chain(&doc, &Point::new(4, 14));
+        dbg!(&out);
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::Variable("a".to_string()),
+                CallItem::MethodCall("concat".to_string())
+            ])
+        );
+    }
+
+    #[test]
     fn call_chain_field_method() {
         let content = "
 package ch.emilycares;
 public class Test {
     public void hello() {
         Thing local = \"\";
-        var lo = local.a.b().
+        var lo = local.a.b(). ;
         return;
     }
 }
@@ -338,7 +374,6 @@ public class Test {
                 CallItem::Variable("local".to_string()),
                 CallItem::FieldAccess("a".to_string()),
                 CallItem::MethodCall("b".to_string()),
-                CallItem::FieldAccess("return".to_string()),
             ])
         );
     }

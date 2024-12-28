@@ -29,9 +29,7 @@ pub struct ClassFolder {
 
 impl ClassFolder {
     pub fn new() -> Self {
-        Self {
-            classes: vec![]
-        }
+        Self { classes: vec![] }
     }
 
     pub fn append(&mut self, other: Self) {

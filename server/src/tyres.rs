@@ -136,12 +136,17 @@ fn resolve_jtype(
                 source: "".to_owned(),
                 access: vec![],
                 name: "array".to_string(),
-                methods: vec![
-                    dto::Method { access:vec![], name:"clone".to_string(), ret:JType::Array(gen.clone()), parameters: vec![] }
-                ],
-                fields: vec![
-                    dto::Field { access: vec![], name: "length".to_string(), jtype: JType::Int }
-                ],
+                methods: vec![dto::Method {
+                    access: vec![],
+                    name: "clone".to_string(),
+                    ret: JType::Array(gen.clone()),
+                    parameters: vec![],
+                }],
+                fields: vec![dto::Field {
+                    access: vec![],
+                    name: "length".to_string(),
+                    jtype: JType::Int,
+                }],
             });
         }
         JType::Class(c) => {

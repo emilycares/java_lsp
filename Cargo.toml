@@ -37,6 +37,7 @@ walkdir = "2.5.0"
 zip-extract = "0.2.1"
 dirs = "5.0.1"
 futures = "0.3.31"
+streaming-iterator = "0.1.9"
 
 [dependencies]
 tokio.workspace = true

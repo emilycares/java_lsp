@@ -12,7 +12,11 @@ use crate::{
 use std::fmt::Debug;
 use walkdir::WalkDir;
 
-pub fn load_class_fs<T>(path: T, class_path: String, source: String) -> Result<dto::Class, dto::ClassError>
+pub fn load_class_fs<T>(
+    path: T,
+    class_path: String,
+    source: String,
+) -> Result<dto::Class, dto::ClassError>
 where
     T: AsRef<Path> + Debug,
 {
@@ -20,7 +24,11 @@ where
     class::load_class(&bytes, class_path, source)
 }
 
-pub fn load_java_fs<T>(path: T, class_path: String, source: String) -> Result<dto::Class, dto::ClassError>
+pub fn load_java_fs<T>(
+    path: T,
+    class_path: String,
+    source: String,
+) -> Result<dto::Class, dto::ClassError>
 where
     T: AsRef<Path> + Debug,
 {

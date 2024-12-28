@@ -5,7 +5,11 @@ pub mod loader;
 
 use std::{fmt::Debug, path::Path};
 
-pub fn load_class_fs<T>(path: T, class_path: String, source: String) -> Result<dto::Class, dto::ClassError>
+pub fn load_class_fs<T>(
+    path: T,
+    class_path: String,
+    source: String,
+) -> Result<dto::Class, dto::ClassError>
 where
     T: AsRef<Path> + Debug,
 {
@@ -13,11 +17,19 @@ where
     class::load_class(&bytes, class_path, source)
 }
 
-pub fn load_java(data: &[u8], class_path: String, source: String) -> Result<dto::Class, dto::ClassError> {
+pub fn load_java(
+    data: &[u8],
+    class_path: String,
+    source: String,
+) -> Result<dto::Class, dto::ClassError> {
     java::load_java(data, class_path, source)
 }
 
-pub fn load_java_fs<T>(path: T, class_path: String, source: String) -> Result<dto::Class, dto::ClassError>
+pub fn load_java_fs<T>(
+    path: T,
+    class_path: String,
+    source: String,
+) -> Result<dto::Class, dto::ClassError>
 where
     T: AsRef<Path> + Debug,
 {

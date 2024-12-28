@@ -15,6 +15,7 @@ tree-sitter-java.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+streaming-iterator.workspace = true
 format = { path = "../format"}
 parser = { path = "../parser"}
 maven = { path = "../maven"}

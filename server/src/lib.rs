@@ -1,12 +1,13 @@
 mod call_chain;
 mod codeaction;
 pub mod completion;
+mod definition;
 mod hover;
 mod imports;
+mod position;
 mod tyres;
 mod utils;
 mod variable;
-mod definition;
 
 use core::panic;
 use std::path::Path;

@@ -73,7 +73,12 @@ pub fn get_vars(document: &Document, point: &Point) -> Vec<LocalVariable> {
     out
 }
 
-fn get_lambda_vars(cursor: &mut tree_sitter::TreeCursor<'_>, bytes: &[u8], level: usize, out: &mut Vec<LocalVariable>) {
+fn get_lambda_vars(
+    cursor: &mut tree_sitter::TreeCursor<'_>,
+    bytes: &[u8],
+    level: usize,
+    out: &mut Vec<LocalVariable>,
+) {
     cursor.first_child();
     match cursor.node().kind() {
         "identifier" => {
