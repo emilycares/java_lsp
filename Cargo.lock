@@ -381,6 +381,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b63caa9aa9397e2d9480a9b13673856c78d8ac123288526c37d7839f2a86990"
 
 [[package]]
+name = "common"
+version = "0.1.0"
+dependencies = [
+ "dashmap 6.1.0",
+ "insta",
+ "nom",
+ "parser",
+ "serde",
+]
+
+[[package]]
 name = "console"
 version = "0.15.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -822,6 +833,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
 
 [[package]]
+name = "gradle"
+version = "0.1.0"
+dependencies = [
+ "common",
+ "insta",
+ "nom",
+ "pretty_assertions",
+ "serde",
+]
+
+[[package]]
 name = "hash32"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1090,6 +1112,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1130,7 +1161,7 @@ dependencies = [
  "ascii-canvas",
  "bit-set",
  "ena",
- "itertools",
+ "itertools 0.11.0",
  "lalrpop-util",
  "petgraph",
  "pico-args",
@@ -1295,7 +1326,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46059721011b0458b7bd6d9179be5d0b60294281c23320c207adceaecc54d13b"
 dependencies = [
  "hashbrown 0.14.5",
- "itertools",
+ "itertools 0.11.0",
  "libm",
  "ryu",
 ]
@@ -1306,7 +1337,7 @@ version = "0.4.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a9bfda4e3628f09bf7c42242d590b5d0cc04ff0a29c820d81e9afa25db7b089e"
 dependencies = [
- "itertools",
+ "itertools 0.11.0",
  "malachite-base",
  "malachite-nz",
  "malachite-q",
@@ -1319,7 +1350,7 @@ version = "0.4.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1503b27e825cabd1c3d0ff1e95a39fb2ec9eab6fd3da6cfa41aec7091d273e78"
 dependencies = [
- "itertools",
+ "itertools 0.11.0",
  "libm",
  "malachite-base",
  "serde",
@@ -1331,7 +1362,7 @@ version = "0.4.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a475503a70a3679dbe3b9b230a23622516742528ba614a7b2490f180ea9cb514"
 dependencies = [
- "itertools",
+ "itertools 0.11.0",
  "malachite-base",
  "malachite-nz",
  "serde",
@@ -1953,8 +1984,11 @@ dependencies = [
 name = "server"
 version = "0.1.0"
 dependencies = [
+ "common",
  "dashmap 6.1.0",
  "format",
+ "gradle",
+ "itertools 0.13.0",
  "maven",
  "parser",
  "pretty_assertions",
@@ -2387,7 +2421,7 @@ dependencies = [
  "cc",
  "clap",
  "directories",
- "itertools",
+ "itertools 0.11.0",
  "libloading",
  "log",
  "nickel-lang-core",
@@ -2407,7 +2441,7 @@ version = "0.5.1"
 source = "git+https://github.com/emilycares/topiary.git?branch=new_lang_java#12e8ad25ecf46b4f778cc535f58f90b7070a1746"
 dependencies = [
  "futures",
- "itertools",
+ "itertools 0.11.0",
  "log",
  "pretty_assertions",
  "prettydiff",

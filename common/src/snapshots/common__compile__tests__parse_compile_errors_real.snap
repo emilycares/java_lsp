@@ -1,0 +1,9 @@
+---
+source: common/src/compile.rs
+expression: out.1
+snapshot_kind: text
+---
+- path: /home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java
+  message: "> or ',' expected"
+  row: 16
+  col: 38

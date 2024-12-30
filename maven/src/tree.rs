@@ -14,8 +14,6 @@ use crate::MavenError;
 pub fn load<'a>() -> Result<Dependency<'a>, MavenError> {
     let log: String = get_cli_output()?;
     let cut: String = cut_output(log);
-    // let mut output = File::create("/tmp/tree")?;
-    // write!(output, "{}", cut)?;
     let input: &'static str = Box::leak(cut.into_boxed_str());
     let out = parser(input);
     match out {
@@ -25,7 +23,7 @@ pub fn load<'a>() -> Result<Dependency<'a>, MavenError> {
 }
 
 fn get_cli_output() -> Result<String, MavenError> {
-    // mvn dependency:tree -DoutputType=dot -b
+    // mvn dependency:tree -DoutputType=dot
     let output = Command::new("mvn")
         .arg("dependency:tree")
         .arg("-DoutputType=dot")

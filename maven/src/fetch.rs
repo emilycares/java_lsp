@@ -56,15 +56,18 @@ pub async fn fetch_deps<'a>(
         }
         return class_map.clone();
     } else {
+        // mvn dependency:unpack-dependencies -Dmdep.useRepositoryLayout=true
         let unpack = Command::new("mvn")
             .args([
                 "dependency:unpack-dependencies",
                 "-Dmdep.useRepositoryLayout=true",
             ])
             .output();
+        // mvn dependency:resolve -Dclassifier=sources
         let res_src = Command::new("mvn")
             .args(["dependency:resolve", "-Dclassifier=sources"])
             .output();
+        // mvn dependency:resolve -Dclassifier=javadoc
         let res_doc = Command::new("mvn")
             .args(["dependency:resolve", "-Dclassifier=javadoc"])
             .output();

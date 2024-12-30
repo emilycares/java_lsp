@@ -63,6 +63,12 @@ pub fn get_call_chain(document: &Document, point: &Point) -> Option<Vec<CallItem
                 out.extend(parse_value(&cursor, bytes));
                 cursor.parent();
             }
+            "return_statement" => {
+                cursor.first_child();
+                cursor.sibling();
+                out.extend(parse_value(&cursor, bytes));
+                cursor.parent();
+            }
             "local_variable_declaration" => {
                 cursor.first_child();
                 cursor.sibling();
@@ -704,5 +710,43 @@ public class Test {
 
         let out = get_call_chain(&doc, &Point::new(4, 19));
         assert_eq!(out, Some(vec![CallItem::Variable("b".to_string()),]));
+    }
+
+    #[test]
+    fn call_chain_return() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        return a. ;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(4, 18));
+        assert_eq!(out, Some(vec![CallItem::Variable("a".to_string()),]));
+    }
+
+    #[test]
+    fn call_chain_return_method_call() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        return a.b(). ;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(4, 22));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::Variable("a".to_string()),
+                CallItem::MethodCall("b".to_string())
+            ])
+        );
     }
 }

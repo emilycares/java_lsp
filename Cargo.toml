@@ -12,7 +12,7 @@ members = [
   "server",
   "tree-sitter-util",
   "format"
-]
+, "gradle", "common"]
 
 [workspace.dependencies]
 classfile-parser = { git = "https://github.com/emilycares/classfile-parser.git" }
@@ -38,6 +38,7 @@ zip-extract = "0.2.1"
 dirs = "5.0.1"
 futures = "0.3.31"
 streaming-iterator = "0.1.9"
+itertools = "0.13.0"
 
 [dependencies]
 tokio.workspace = true

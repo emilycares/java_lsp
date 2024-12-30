@@ -9,11 +9,12 @@ mod tyres;
 mod utils;
 mod variable;
 
-use core::panic;
-use std::path::Path;
+use std::collections::HashMap;
 use std::str::FromStr;
 
-use dashmap::DashMap;
+use common::compile::CompileError;
+use common::project_kind::ProjectKind;
+use dashmap::{DashMap, DashSet};
 use notification::Progress;
 use parser::dto::Class;
 use ropey::Rope;
@@ -28,10 +29,16 @@ pub async fn main() {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
 
-    let (service, socket) = LspService::new(|client| Backend {
-        client,
-        document_map: DashMap::new(),
-        class_map: DashMap::new(),
+    let (service, socket) = LspService::new(|client| {
+        let project_kind = common::project_kind::get_project_kind();
+        eprintln!("Start java_lsp with project_kind: {:?}", project_kind);
+        Backend {
+            client,
+            error_files: DashSet::new(),
+            project_kind,
+            document_map: DashMap::new(),
+            class_map: DashMap::new(),
+        }
     });
     Server::new(stdin, stdout, socket).serve(service).await;
 }
@@ -67,6 +74,8 @@ impl Document {
 struct Backend {
     #[allow(dead_code)]
     client: Client,
+    error_files: DashSet<String>,
+    project_kind: ProjectKind,
     document_map: DashMap<String, Document>,
     class_map: DashMap<String, Class>,
 }
@@ -149,17 +158,21 @@ impl Backend {
         None
     }
 
-    fn compile(path: &str) -> Vec<Diagnostic> {
-        if let Some(classpath) = maven::compile::generate_classpath() {
-            if let Some(errors) = maven::compile::compile_java_file(path, &classpath) {
-                return errors
-                    .into_iter()
-                    .map(|e| {
-                        let p = Position::new(e.row as u32 - 1, e.col as u32);
-                        Diagnostic::new_simple(Range::new(p, p), e.message)
-                    })
-                    .collect();
+    fn compile(&self, path: &str) -> Vec<CompileError> {
+        match self.project_kind {
+            ProjectKind::Maven => {
+                if let Some(classpath) = maven::compile::generate_classpath() {
+                    if let Some(errors) = common::compile::compile_java_file(path, &classpath) {
+                        return errors;
+                    }
+                }
             }
+            ProjectKind::Gradle => {
+                if let Some(errors) = gradle::compile::compile_java() {
+                    return errors;
+                }
+            }
+            ProjectKind::Unknown => eprintln!("Could not find project kind maven or gradle"),
         }
         vec![]
     }
@@ -211,29 +224,7 @@ impl LanguageServer for Backend {
             })
             .await;
 
-        let path = Path::new(".jdk.cfc");
-        if path.exists() {
-            if let Ok(classes) = parser::loader::load_class_folder("jdk") {
-                for class in classes.classes {
-                    self.class_map.insert(class.class_path.clone(), class);
-                }
-            }
-        } else {
-            // nix run github:nix-community/nix-index#nix-locate -- jmods/java.base.jmod
-            // ``` bash
-            // mkdir jdk
-            // cd jdk
-            // # jmod is in the jdk bin dir
-            // jmod extract openjdk-22.0.2_windows-x64_bin/jdk-22.0.2/jmods/java.base.jmod
-            // cd ..
-            // mvn dependency:unpack
-            // ```
-            let classes = parser::loader::load_classes("./jdk/classes/", "".to_string());
-            parser::loader::save_class_folder("jdk", &classes).unwrap();
-            for class in classes.classes {
-                self.class_map.insert(class.class_path.clone(), class);
-            }
-        }
+        common::jdk::load_classes(&self.class_map);
 
         self.client
             .send_notification::<Progress>(ProgressParams {
@@ -244,32 +235,34 @@ impl LanguageServer for Backend {
             })
             .await;
 
-        self.client
-            .send_notification::<Progress>(ProgressParams {
-                token: ProgressToken::String("Load maven dependencies".to_string()),
-                value: ProgressParamsValue::WorkDone(WorkDoneProgress::Begin(
-                    WorkDoneProgressBegin {
-                        title: "Loading maven dependencies".to_string(),
-                        cancellable: None,
-                        message: None,
-                        percentage: None,
-                    },
-                )),
-            })
-            .await;
-        let cm = maven::fetch::fetch_deps(&self.class_map).await;
-        for pair in cm.into_iter() {
-            self.class_map.insert(pair.0, pair.1);
-        }
+        if self.project_kind == ProjectKind::Maven {
+            self.client
+                .send_notification::<Progress>(ProgressParams {
+                    token: ProgressToken::String("Load maven dependencies".to_string()),
+                    value: ProgressParamsValue::WorkDone(WorkDoneProgress::Begin(
+                        WorkDoneProgressBegin {
+                            title: "Loading maven dependencies".to_string(),
+                            cancellable: None,
+                            message: None,
+                            percentage: None,
+                        },
+                    )),
+                })
+                .await;
+            let cm = maven::fetch::fetch_deps(&self.class_map).await;
+            for pair in cm.into_iter() {
+                self.class_map.insert(pair.0, pair.1);
+            }
 
-        self.client
-            .send_notification::<Progress>(ProgressParams {
-                token: ProgressToken::String("Load maven dependencies".to_string()),
-                value: ProgressParamsValue::WorkDone(WorkDoneProgress::End(WorkDoneProgressEnd {
-                    message: None,
-                })),
-            })
-            .await;
+            self.client
+                .send_notification::<Progress>(ProgressParams {
+                    token: ProgressToken::String("Load maven dependencies".to_string()),
+                    value: ProgressParamsValue::WorkDone(WorkDoneProgress::End(
+                        WorkDoneProgressEnd { message: None },
+                    )),
+                })
+                .await;
+        }
 
         eprintln!("Init done");
     }
@@ -301,13 +294,34 @@ impl LanguageServer for Backend {
         {
             path = &path[1..];
         }
-        self.client
-            .publish_diagnostics(
-                params.text_document.uri.clone(),
-                Backend::compile(path),
-                None,
-            )
-            .await;
+        let errors = self.compile(path);
+        let mut emap = HashMap::<String, Vec<CompileError>>::new();
+        for e in errors {
+            self.error_files.insert(e.path.clone());
+            if let Some(list) = emap.get_mut(&e.path) {
+                list.push(e);
+            } else {
+                emap.insert(e.path.to_owned(), vec![e]);
+            }
+        }
+
+        for path in self.error_files.iter() {
+            let Some(path) = path.get(..) else { continue; };
+            if let Ok(uri) = Url::parse(&format!("file:/{}", path)) {
+                if let Some(errs) = emap.get(path) {
+                    let errs: Vec<Diagnostic> = errs
+                        .into_iter()
+                        .map(|e| {
+                            let p = Position::new(e.row as u32 - 1, e.col as u32);
+                            Diagnostic::new_simple(Range::new(p, p), e.message.clone())
+                        })
+                        .collect();
+                    self.client.publish_diagnostics(uri, errs, None).await
+                } else {
+                    self.client.publish_diagnostics(uri, vec![], None).await
+                }
+            }
+        }
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {

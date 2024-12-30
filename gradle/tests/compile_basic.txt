@@ -1,0 +1,19 @@
+/home/emily/tmp/vanilla-gradle/app/src/main/java/org/example/Other.java:4: error: illegal start of type
+  return
+  ^
+/home/emily/tmp/vanilla-gradle/app/src/main/java/org/example/App.java:4: error: ';' expected
+package org.example
+                   ^
+2 errors
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileJava'.
+> Compilation failed; see the compiler error output for details.
+
+* Try:
+> Run with --info option to get more log output.
+> Run with --scan to get full insights.
+
+BUILD FAILED in 788ms

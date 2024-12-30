@@ -1,0 +1,13 @@
+[package]
+name = "gradle"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nom.workspace = true
+serde.workspace = true
+common = {path = "../common"}
+
+[dev-dependencies]
+insta.workspace = true
+pretty_assertions.workspace = true
