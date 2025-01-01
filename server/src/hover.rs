@@ -135,7 +135,6 @@ public class Test {
             &[],
             &string_class_map(),
         );
-        dbg!(&out);
         assert!(out.is_some());
     }
 

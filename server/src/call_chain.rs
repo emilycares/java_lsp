@@ -349,7 +349,6 @@ public class GreetingResource {
 
         // the cursor is on the concat method_call
         let out = get_call_chain(&doc, &Point::new(4, 14));
-        dbg!(&out);
         assert_eq!(
             out,
             Some(vec![

@@ -235,13 +235,16 @@ impl LanguageServer for Backend {
             })
             .await;
 
-        if self.project_kind == ProjectKind::Maven {
+        if self.project_kind != ProjectKind::Unknown {
             self.client
                 .send_notification::<Progress>(ProgressParams {
-                    token: ProgressToken::String("Load maven dependencies".to_string()),
+                    token: ProgressToken::String(format!(
+                        "Load {} dependencies",
+                        self.project_kind
+                    )),
                     value: ProgressParamsValue::WorkDone(WorkDoneProgress::Begin(
                         WorkDoneProgressBegin {
-                            title: "Loading maven dependencies".to_string(),
+                            title: format!("Load {} dependencies", self.project_kind),
                             cancellable: None,
                             message: None,
                             percentage: None,
@@ -249,14 +252,21 @@ impl LanguageServer for Backend {
                     )),
                 })
                 .await;
-            let cm = maven::fetch::fetch_deps(&self.class_map).await;
+            let cm = match self.project_kind {
+                ProjectKind::Maven => maven::fetch::fetch_deps(&self.class_map).await,
+                ProjectKind::Gradle => gradle::fetch::fetch_deps(&self.class_map).await,
+                ProjectKind::Unknown => self.class_map.clone(),
+            };
             for pair in cm.into_iter() {
                 self.class_map.insert(pair.0, pair.1);
             }
 
             self.client
                 .send_notification::<Progress>(ProgressParams {
-                    token: ProgressToken::String("Load maven dependencies".to_string()),
+                    token: ProgressToken::String(format!(
+                        "Load {} dependencies",
+                        self.project_kind
+                    )),
                     value: ProgressParamsValue::WorkDone(WorkDoneProgress::End(
                         WorkDoneProgressEnd { message: None },
                     )),
@@ -306,7 +316,9 @@ impl LanguageServer for Backend {
         }
 
         for path in self.error_files.iter() {
-            let Some(path) = path.get(..) else { continue; };
+            let Some(path) = path.get(..) else {
+                continue;
+            };
             if let Ok(uri) = Url::parse(&format!("file:/{}", path)) {
                 if let Some(errs) = emap.get(path) {
                     let errs: Vec<Diagnostic> = errs

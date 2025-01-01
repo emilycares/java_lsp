@@ -123,7 +123,9 @@ pub async fn fetch_deps<'a>(
         let guard = maven_class_folder.lock().await;
         let cloned = guard.clone();
         parser::loader::save_class_folder("maven", &cloned).unwrap();
-        return Arc::try_unwrap(class_map).expect("Classmap should be free to take");
+        return Arc::try_unwrap(class_map)
+            .expect("Classmap should be free to take")
+            .clone();
     }
 }
 

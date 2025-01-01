@@ -40,6 +40,9 @@ pub fn save_class_folder(
     prefix: &str,
     class_folder: &dto::ClassFolder,
 ) -> Result<(), dto::ClassError> {
+    if class_folder.classes.is_empty() {
+        return Ok(());
+    }
     let mut file = OpenOptions::new()
         .create(true)
         .truncate(true)

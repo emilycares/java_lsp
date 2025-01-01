@@ -6,7 +6,11 @@ edition = "2021"
 [dependencies]
 nom.workspace = true
 serde.workspace = true
+dashmap.workspace = true
+tokio.workspace = true
+futures.workspace = true
 common = {path = "../common"}
+parser = {path = "../parser"}
 
 [dev-dependencies]
 insta.workspace = true
