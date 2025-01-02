@@ -5,10 +5,30 @@ pub mod loader;
 
 use std::{fmt::Debug, path::Path};
 
+use loader::SourceDestination;
+
+pub fn update_project_java_file<T: AsRef<Path>>(file: T, bytes: &[u8]) -> Option<dto::Class> {
+    load_java(
+        bytes,
+        SourceDestination::Here(file.as_ref().to_str().unwrap_or_default().to_string()),
+    )
+    .ok()
+}
+
+pub fn load_src_folder<T: AsRef<Path>>(folder: T) -> Option<dto::ClassFolder> {
+    let folder = folder.as_ref();
+    if !folder.exists() {
+        return None;
+    }
+    let path = std::env::current_dir().ok()?.join(folder);
+    let path = path.to_str().unwrap_or_default();
+    Some(loader::load_java_files(path))
+}
+
 pub fn load_class_fs<T>(
     path: T,
     class_path: String,
-    source: String,
+    source: SourceDestination,
 ) -> Result<dto::Class, dto::ClassError>
 where
     T: AsRef<Path> + Debug,
@@ -17,24 +37,16 @@ where
     class::load_class(&bytes, class_path, source)
 }
 
-pub fn load_java(
-    data: &[u8],
-    class_path: String,
-    source: String,
-) -> Result<dto::Class, dto::ClassError> {
-    java::load_java(data, class_path, source)
+pub fn load_java(data: &[u8], source: SourceDestination) -> Result<dto::Class, dto::ClassError> {
+    java::load_java(data, source)
 }
 
-pub fn load_java_fs<T>(
-    path: T,
-    class_path: String,
-    source: String,
-) -> Result<dto::Class, dto::ClassError>
+pub fn load_java_fs<T>(path: T, source: SourceDestination) -> Result<dto::Class, dto::ClassError>
 where
     T: AsRef<Path> + Debug,
 {
     let bytes = std::fs::read(path)?;
-    java::load_java(&bytes, class_path, source)
+    java::load_java(&bytes, source)
 }
 
 #[cfg(test)]

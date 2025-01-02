@@ -1,4 +1,5 @@
 use crate::dto::{self, ClassError, Parameter};
+use crate::loader::SourceDestination;
 use classfile_parser::constant_info::ConstantInfo;
 use classfile_parser::field_info::{FieldAccessFlags, FieldInfo};
 use classfile_parser::method_info::MethodAccessFlags;
@@ -7,7 +8,7 @@ use classfile_parser::{class_parser, ClassAccessFlags, ClassFile};
 pub fn load_class(
     bytes: &[u8],
     class_path: String,
-    source: String,
+    source: SourceDestination,
 ) -> Result<dto::Class, dto::ClassError> {
     let res = class_parser(bytes);
     match res {
@@ -25,8 +26,15 @@ pub fn load_class(
                 .filter_map(|field| parse_field(&c, field))
                 //.filter(|f| !f.access.contains(&dto::Access::Private))
                 .collect();
+            let source = match source {
+                SourceDestination::RelativeInFolder(e) => {
+                    format!("{}/{}.java", e, &class_path.replace(".", "/"))
+                }
+                SourceDestination::Here(e) => e,
+                SourceDestination::None => "".to_string(),
+            };
             Ok(dto::Class {
-                source: format!("{}/{}.java", source, &class_path.replace(".", "/")),
+                source,
                 class_path,
                 access: parse_class_access(c.access_flags),
                 name: match &c.const_pool[(c.this_class - 1) as usize] {
@@ -253,7 +261,7 @@ fn parse_field_type(c: char, chars: &mut std::str::Chars) -> dto::JType {
 
 #[cfg(test)]
 mod tests {
-    use crate::class::load_class;
+    use crate::{class::load_class, loader::SourceDestination};
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -261,7 +269,7 @@ mod tests {
         let result = load_class(
             include_bytes!("../test/Everything.class"),
             "ch.emilycares.Everything".to_string(),
-            "/path/to/source".to_string(),
+            SourceDestination::RelativeInFolder("/path/to/source".to_string()),
         );
 
         assert_eq!(crate::tests::everything_data(), result.unwrap());

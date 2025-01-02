@@ -120,35 +120,31 @@ fn resolve_jtype(
         | JType::Int
         | JType::Long
         | JType::Short
-        | JType::Boolean => {
-            Some(Class {
-                class_path: "".to_owned(),
-                source: "".to_owned(),
+        | JType::Boolean => Some(Class {
+            class_path: "".to_owned(),
+            source: "".to_owned(),
+            access: vec![],
+            name: "".to_string(),
+            methods: vec![],
+            fields: vec![],
+        }),
+        JType::Array(gen) => Some(Class {
+            class_path: "".to_owned(),
+            source: "".to_owned(),
+            access: vec![],
+            name: "array".to_string(),
+            methods: vec![dto::Method {
                 access: vec![],
-                name: "".to_string(),
-                methods: vec![],
-                fields: vec![],
-            })
-        }
-        JType::Array(gen) => {
-            Some(Class {
-                class_path: "".to_owned(),
-                source: "".to_owned(),
+                name: "clone".to_string(),
+                ret: JType::Array(gen.clone()),
+                parameters: vec![],
+            }],
+            fields: vec![dto::Field {
                 access: vec![],
-                name: "array".to_string(),
-                methods: vec![dto::Method {
-                    access: vec![],
-                    name: "clone".to_string(),
-                    ret: JType::Array(gen.clone()),
-                    parameters: vec![],
-                }],
-                fields: vec![dto::Field {
-                    access: vec![],
-                    name: "length".to_string(),
-                    jtype: JType::Int,
-                }],
-            })
-        }
+                name: "length".to_string(),
+                jtype: JType::Int,
+            }],
+        }),
         JType::Class(c) => {
             if let Some(class) = resolve(c, imports, class_map) {
                 return Some(class);

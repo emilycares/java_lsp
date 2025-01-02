@@ -34,5 +34,3 @@ pub fn generate_classpath() -> Option<String> {
 
     Some(full_classpath)
 }
-
-

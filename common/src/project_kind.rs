@@ -4,7 +4,7 @@ use std::{fmt::Display, path::PathBuf};
 pub enum ProjectKind {
     Maven,
     Gradle,
-    Unknown
+    Unknown,
 }
 
 impl Display for ProjectKind {

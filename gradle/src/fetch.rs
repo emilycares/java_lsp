@@ -6,7 +6,7 @@ use std::{
 };
 
 use dashmap::DashMap;
-use parser::dto::ClassFolder;
+use parser::{dto::ClassFolder, loader::SourceDestination};
 use tokio::sync::Mutex;
 
 use crate::tree;
@@ -49,7 +49,7 @@ pub async fn fetch_deps(
                 } else {
                     let classes = parser::loader::load_classes(
                         folder.as_path().to_str().unwrap_or_default(),
-                        unpack_folder,
+                        SourceDestination::None,
                     );
                     {
                         let mut guard = maven_class_folder.lock().await;

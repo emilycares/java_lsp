@@ -5,9 +5,9 @@ pub mod compile;
 pub mod fetch;
 #[allow(dead_code)]
 mod pom;
+pub mod project;
 #[allow(dead_code)]
 mod tree;
-pub mod project;
 
 #[derive(Error, Debug)]
 pub enum MavenError {

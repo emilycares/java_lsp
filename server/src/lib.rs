@@ -2,15 +2,16 @@ mod call_chain;
 mod codeaction;
 pub mod completion;
 mod definition;
+pub mod document;
 mod hover;
 mod imports;
 mod position;
 mod tyres;
 mod utils;
 mod variable;
-pub mod document;
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use common::compile::CompileError;
 use common::project_kind::ProjectKind;
@@ -258,6 +259,38 @@ impl LanguageServer for Backend {
                 .await;
         }
 
+        self.client
+            .send_notification::<Progress>(ProgressParams {
+                token: ProgressToken::String("Load project files".to_string()),
+                value: ProgressParamsValue::WorkDone(WorkDoneProgress::Begin(
+                    WorkDoneProgressBegin {
+                        title: "Load project files".to_string(),
+                        cancellable: None,
+                        message: None,
+                        percentage: None,
+                    },
+                )),
+            })
+            .await;
+
+        let project_classes = match self.project_kind {
+            ProjectKind::Maven => maven::project::load_project_folders(),
+            ProjectKind::Gradle => vec![],
+            ProjectKind::Unknown => vec![],
+        };
+        for class in project_classes {
+            self.class_map.insert(class.class_path.clone(), class);
+        }
+
+        self.client
+            .send_notification::<Progress>(ProgressParams {
+                token: ProgressToken::String("Load project files".to_string()),
+                value: ProgressParamsValue::WorkDone(WorkDoneProgress::End(WorkDoneProgressEnd {
+                    message: None,
+                })),
+            })
+            .await;
+
         eprintln!("Init done");
     }
 
@@ -288,14 +321,29 @@ impl LanguageServer for Backend {
         {
             path = &path[1..];
         }
+
         let errors = self.compile(path);
         self.publish_compile_errors(errors).await;
+
+        let Some(document) = self.get_document(params.text_document.uri.clone()).await else {
+            eprintln!("no doc found");
+            return;
+        };
+        dbg!(&path);
+        if let Some(class) =
+            parser::update_project_java_file(PathBuf::from(path), document.as_bytes())
+        {
+            eprintln!(
+                "save class: {} {} {}",
+                class.name, class.class_path, class.source
+            );
+            self.class_map.insert(class.class_path.clone(), class);
+        }
     }
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
         let uri = params.text_document_position_params.text_document.uri;
         let Some(document) = self.get_document(uri).await else {
-            eprintln!("Document is not opened.");
             return Ok(None);
         };
         let point = to_treesitter_point(params.text_document_position_params.position);
@@ -314,7 +362,8 @@ impl LanguageServer for Backend {
         let Some(lines) = document.text.lines().len().try_into().ok() else {
             return Ok(None);
         };
-        let Some(text) = format::format(document.text.to_string(), format::Formatter::Topiary) else {
+        let Some(text) = format::format(document.text.to_string(), format::Formatter::Topiary)
+        else {
             return Ok(None);
         };
         Ok(Some(vec![TextEdit::new(

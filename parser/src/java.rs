@@ -1,14 +1,11 @@
-use std::vec;
-
 use tree_sitter::Parser;
 use tree_sitter_util::CommentSkiper;
 
-use crate::dto::{self};
+use crate::{dto, loader::SourceDestination};
 
 pub fn load_java(
     bytes: &[u8],
-    class_path: String,
-    source: String,
+    source: SourceDestination,
 ) -> Result<crate::dto::Class, dto::ClassError> {
     let mut parser = Parser::new();
     let language = tree_sitter_java::LANGUAGE;
@@ -21,11 +18,20 @@ pub fn load_java(
     let mut methods = vec![];
     let mut fields = vec![];
     let mut class_name = None;
+    let mut class_path_base: Option<String> = None;
 
     let mut cursor = tree.walk();
     cursor.first_child();
+    if cursor.node().kind() == "package_declaration" {
+        cursor.first_child();
+        cursor.sibling();
+        class_path_base = Some(get_string(&cursor, bytes));
+        cursor.parent();
+    }
     cursor.sibling();
-    cursor.sibling();
+    while let "import_declaration" = cursor.node().kind() {
+        cursor.sibling();
+    }
     if cursor.node().kind() == "class_declaration" {
         cursor.first_child();
         cursor.sibling();
@@ -45,11 +51,24 @@ pub fn load_java(
         }
     }
 
+    let Some(name) = class_name else {
+        return Err(dto::ClassError::UnknownClassName);
+    };
+    let Some(class_path_base) = class_path_base else {
+        return Err(dto::ClassError::UnknownClassPath);
+    };
+    let source = match source {
+        SourceDestination::RelativeInFolder(e) => {
+            format!("{}/{}/{}.java", e, &class_path_base.replace(".", "/"), name)
+        }
+        SourceDestination::Here(e) => e,
+        SourceDestination::None => "".to_string(),
+    };
     Ok(dto::Class {
-        source: format!("{}/{}.java", source, &class_path.replace(".", "/")),
-        class_path,
+        source,
+        class_path: format!("{}.{}", class_path_base, name),
         access: vec![],
-        name: class_name.unwrap(),
+        name,
         methods,
         fields,
     })
@@ -172,16 +191,47 @@ fn parse_jtype(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> dto::JType
 mod tests {
     use pretty_assertions::assert_eq;
 
+    use crate::{dto, loader::SourceDestination};
+
     use super::load_java;
 
     #[test]
     fn everything() {
         let result = load_java(
             include_bytes!("../test/Everything.java"),
-            "ch.emilycares.Everything".to_string(),
-            "/path/to/source".to_string(),
+            SourceDestination::RelativeInFolder("/path/to/source".to_string()),
         );
 
         assert_eq!(crate::tests::everything_data(), result.unwrap());
+    }
+
+    #[test]
+    fn int() {
+        let src = r#"
+package a.test;
+
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+
+import jakarta.ws.rs.Path;
+
+public class Test {
+}
+ "#;
+        let result = load_java(
+            src.as_bytes(),
+            SourceDestination::RelativeInFolder("/path/to/source".to_string()),
+        );
+        assert_eq!(
+            result.unwrap(),
+            dto::Class {
+                class_path: "a.test.Test".to_string(),
+                source: "/path/to/source/a/test/Test.java".to_string(),
+                access: vec![],
+                name: "Test".to_string(),
+                methods: vec![],
+                fields: vec![]
+            }
+        );
     }
 }

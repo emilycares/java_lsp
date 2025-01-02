@@ -12,10 +12,17 @@ use crate::{
 use std::fmt::Debug;
 use walkdir::WalkDir;
 
+#[derive(Clone)]
+pub enum SourceDestination {
+    Here(String),
+    RelativeInFolder(String),
+    None,
+}
+
 pub fn load_class_fs<T>(
     path: T,
     class_path: String,
-    source: String,
+    source: SourceDestination,
 ) -> Result<dto::Class, dto::ClassError>
 where
     T: AsRef<Path> + Debug,
@@ -24,16 +31,12 @@ where
     class::load_class(&bytes, class_path, source)
 }
 
-pub fn load_java_fs<T>(
-    path: T,
-    class_path: String,
-    source: String,
-) -> Result<dto::Class, dto::ClassError>
+pub fn load_java_fs<T>(path: T, source: SourceDestination) -> Result<dto::Class, dto::ClassError>
 where
     T: AsRef<Path> + Debug,
 {
     let bytes = std::fs::read(path)?;
-    java::load_java(&bytes, class_path, source)
+    java::load_java(&bytes, source)
 }
 
 pub fn save_class_folder(
@@ -61,13 +64,30 @@ pub fn load_class_folder(prefix: &str) -> Result<dto::ClassFolder, dto::ClassErr
     Ok(out)
 }
 
-pub fn load_classes<P: AsRef<Path>>(path: P, source: String) -> dto::ClassFolder {
+pub fn load_java_files<P: AsRef<Path>>(path: P) -> dto::ClassFolder {
+    dto::ClassFolder {
+        classes: get_files(&path, ".java")
+            .into_iter()
+            .filter_map(|p| {
+                match load_java_fs(p.as_str(), SourceDestination::Here(p.as_str().to_string())) {
+                    Ok(c) => Some(c),
+                    Err(e) => {
+                        eprintln!("Unable to load java: {}: {}", p, e);
+                        None
+                    }
+                }
+            })
+            .collect(),
+    }
+}
+
+pub fn load_classes<P: AsRef<Path>>(path: P, source: SourceDestination) -> dto::ClassFolder {
     let Some(str_path) = &path.as_ref().to_str() else {
         eprintln!("load_classes failed could not make path into str");
         return dto::ClassFolder::default();
     };
     dto::ClassFolder {
-        classes: get_classes(&path)
+        classes: get_files(&path, ".class")
             .into_iter()
             .filter_map(|p| {
                 let class_path = &p.trim_start_matches(str_path);
@@ -77,7 +97,7 @@ pub fn load_classes<P: AsRef<Path>>(path: P, source: String) -> dto::ClassFolder
                 match load_class_fs(p.as_str(), class_path.to_string(), source.clone()) {
                     Ok(c) => Some(c),
                     Err(e) => {
-                        dbg!("Unable to load class: {}: {}", p, e);
+                        eprintln!("Unable to load class: {}: {}", p, e);
                         None
                     }
                 }
@@ -86,7 +106,7 @@ pub fn load_classes<P: AsRef<Path>>(path: P, source: String) -> dto::ClassFolder
     }
 }
 
-fn get_classes<P: AsRef<Path>>(dir: P) -> Vec<String> {
+fn get_files<P: AsRef<Path>>(dir: P, ending: &str) -> Vec<String> {
     WalkDir::new(dir)
         .into_iter()
         .filter(|a| {
@@ -99,6 +119,6 @@ fn get_classes<P: AsRef<Path>>(dir: P) -> Vec<String> {
         .filter_map(Result::ok)
         .filter(|e| !e.file_type().is_dir())
         .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
-        .filter(|e| e.ends_with(".class"))
+        .filter(|e| e.ends_with(ending))
         .collect::<Vec<_>>()
 }

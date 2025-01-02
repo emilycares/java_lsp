@@ -22,7 +22,8 @@ fn get_cli_output() -> Option<String> {
         .arg("--console")
         .arg("plain")
         // .arg("-b")
-        .output().ok()?;
+        .output()
+        .ok()?;
 
     Some(String::from_utf8_lossy(&output.stdout).to_string())
 }

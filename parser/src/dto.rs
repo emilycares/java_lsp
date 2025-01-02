@@ -20,6 +20,8 @@ pub enum ClassError {
     SerializeError(#[from] postcard::Error),
     #[error("Could not find the class name")]
     UnknownClassName,
+    #[error("Could not find the class path")]
+    UnknownClassPath,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]

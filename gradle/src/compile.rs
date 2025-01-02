@@ -56,13 +56,15 @@ mod tests {
             out,
             Some(vec![
                 CompileError {
-                    path: "/home/emily/tmp/vanilla-gradle/app/src/main/java/org/example/Other.java".to_string(),
+                    path: "/home/emily/tmp/vanilla-gradle/app/src/main/java/org/example/Other.java"
+                        .to_string(),
                     message: "illegal start of type".to_string(),
                     row: 4,
                     col: 2,
                 },
                 CompileError {
-                    path: "/home/emily/tmp/vanilla-gradle/app/src/main/java/org/example/App.java".to_string(),
+                    path: "/home/emily/tmp/vanilla-gradle/app/src/main/java/org/example/App.java"
+                        .to_string(),
                     message: "';' expected".to_string(),
                     row: 4,
                     col: 19,

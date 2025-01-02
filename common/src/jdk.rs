@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use dashmap::DashMap;
+use parser::loader::SourceDestination;
 
 pub fn load_classes(class_map: &DashMap<std::string::String, parser::dto::Class>) {
     let path = Path::new(".jdk.cfc");
@@ -20,7 +21,7 @@ pub fn load_classes(class_map: &DashMap<std::string::String, parser::dto::Class>
         // cd ..
         // mvn dependency:unpack
         // ```
-        let classes = parser::loader::load_classes("./jdk/classes/", "".to_string());
+        let classes = parser::loader::load_classes("./jdk/classes/", SourceDestination::None);
         parser::loader::save_class_folder("jdk", &classes).unwrap();
         for class in classes.classes {
             class_map.insert(class.class_path.clone(), class);
