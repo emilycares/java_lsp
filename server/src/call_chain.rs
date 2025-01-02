@@ -20,12 +20,7 @@ pub enum CallItem {
 /// Then it would return info about the variable other
 pub fn get_call_chain(document: &Document, point: &Point) -> Option<Vec<CallItem>> {
     let tree = &document.tree;
-    let bytes = document
-        .text
-        .slice(..)
-        .as_str()
-        .unwrap_or_default()
-        .as_bytes();
+    let bytes = document.as_bytes();
 
     let mut cursor = tree.walk();
     let mut level = 0;

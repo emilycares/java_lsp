@@ -11,9 +11,9 @@ use tokio::sync::Mutex;
 
 use crate::tree;
 
-pub async fn fetch_deps<'a>(
-    class_map: &'a DashMap<std::string::String, parser::dto::Class>,
-) -> DashMap<std::string::String, parser::dto::Class> {
+pub async fn fetch_deps(
+    class_map: &DashMap<std::string::String, parser::dto::Class>,
+) -> Option<DashMap<std::string::String, parser::dto::Class>> {
     let file_name = ".gradle.cfc";
     let path = Path::new(&file_name);
     if path.exists() {
@@ -22,20 +22,18 @@ pub async fn fetch_deps<'a>(
                 class_map.insert(class.class_path.clone(), class);
             }
         }
-        return class_map.clone();
+        None
     } else {
-        let Some(unpack_folder) = unpack_dependencies() else {
-            return class_map.clone();
-        };
+        let unpack_folder = unpack_dependencies()?;
         let tree = match tree::load() {
             Some(tree) => tree,
             None => {
                 eprintln!("failed to load tree");
-                return class_map.clone();
+                return None;
             }
         };
         let class_map = Arc::new(class_map.clone());
-        let maven_class_folder = Arc::new(Mutex::new(ClassFolder::new()));
+        let maven_class_folder = Arc::new(Mutex::new(ClassFolder::default()));
         let mut handles = Vec::new();
 
         for dep in tree {
@@ -66,11 +64,8 @@ pub async fn fetch_deps<'a>(
 
         futures::future::join_all(handles).await;
         let guard = maven_class_folder.lock().await;
-        let cloned = guard.clone();
-        parser::loader::save_class_folder("gradle", &cloned).unwrap();
-        return Arc::try_unwrap(class_map)
-            .expect("Classmap should be free to take")
-            .clone();
+        parser::loader::save_class_folder("gradle", &guard).unwrap();
+        Some(Arc::try_unwrap(class_map).expect("Classmap should be free to take"))
     }
 }
 
@@ -114,12 +109,8 @@ fn unpack_dependencies() -> Option<String> {
 }
 
 fn get_unpack_folder(stdout: &str) -> Option<&str> {
-    let Some((_, spl)) = stdout.split_once("STARTPATH_") else {
-        return None;
-    };
-    let Some((path, _)) = spl.split_once("\n") else {
-        return None;
-    };
+    let (_, spl) = stdout.split_once("STARTPATH_")?;
+    let (path, _) = spl.split_once("\n")?;
     Some(path)
 }
 

@@ -15,12 +15,7 @@ fn get_tree(content: &str) -> Option<Tree> {
 }
 pub fn imports(document: &Document) -> Vec<&str> {
     let tree = &document.tree;
-    let bytes = document
-        .text
-        .slice(..)
-        .as_str()
-        .unwrap_or_default()
-        .as_bytes();
+    let bytes = document.as_bytes();
     return get_imported_classpaths(bytes, tree);
 }
 

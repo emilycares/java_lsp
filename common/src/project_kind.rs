@@ -26,5 +26,5 @@ pub fn get_project_kind() -> ProjectKind {
         return ProjectKind::Gradle;
     }
 
-    return ProjectKind::Unknown;
+    ProjectKind::Unknown
 }

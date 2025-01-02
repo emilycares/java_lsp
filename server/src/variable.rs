@@ -16,12 +16,7 @@ pub struct LocalVariable {
 /// Get Local Variables and Functions of the current Document
 pub fn get_vars(document: &Document, point: &Point) -> Vec<LocalVariable> {
     let tree = &document.tree;
-    let bytes = document
-        .text
-        .slice(..)
-        .as_str()
-        .unwrap_or_default()
-        .as_bytes();
+    let bytes = document.as_bytes();
 
     let mut cursor = tree.walk();
     let mut level = 0;

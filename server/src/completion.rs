@@ -174,12 +174,7 @@ pub fn classes(
         return vec![];
     };
 
-    let bytes = document
-        .text
-        .slice(..)
-        .as_str()
-        .unwrap_or_default()
-        .as_bytes();
+    let bytes = document.as_bytes();
 
     if let Some(text) = is_class_completion(node, bytes) {
         return class_map

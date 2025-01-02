@@ -22,16 +22,12 @@ pub enum ClassError {
     UnknownClassName,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
 pub struct ClassFolder {
     pub classes: Vec<Class>,
 }
 
 impl ClassFolder {
-    pub fn new() -> Self {
-        Self { classes: vec![] }
-    }
-
     pub fn append(&mut self, other: Self) {
         self.classes.extend(other.classes);
     }

@@ -64,7 +64,7 @@ pub fn load_class_folder(prefix: &str) -> Result<dto::ClassFolder, dto::ClassErr
 pub fn load_classes<P: AsRef<Path>>(path: P, source: String) -> dto::ClassFolder {
     let Some(str_path) = &path.as_ref().to_str() else {
         eprintln!("load_classes failed could not make path into str");
-        return dto::ClassFolder::new();
+        return dto::ClassFolder::default();
     };
     dto::ClassFolder {
         classes: get_classes(&path)

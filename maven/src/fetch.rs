@@ -43,9 +43,9 @@ use crate::tree::{self, Pom};
 // currently in. (There might be overwrites. Less important) But we should only find test classes
 // from a test. And not from the implementation
 
-pub async fn fetch_deps<'a>(
-    class_map: &'a DashMap<std::string::String, parser::dto::Class>,
-) -> DashMap<std::string::String, parser::dto::Class> {
+pub async fn fetch_deps(
+    class_map: &DashMap<std::string::String, parser::dto::Class>,
+) -> Option<DashMap<std::string::String, parser::dto::Class>> {
     let file_name = ".maven.cfc";
     let path = Path::new(&file_name);
     if path.exists() {
@@ -54,7 +54,7 @@ pub async fn fetch_deps<'a>(
                 class_map.insert(class.class_path.clone(), class);
             }
         }
-        return class_map.clone();
+        None
     } else {
         // mvn dependency:unpack-dependencies -Dmdep.useRepositoryLayout=true
         let unpack = Command::new("mvn")
@@ -72,23 +72,23 @@ pub async fn fetch_deps<'a>(
             .args(["dependency:resolve", "-Dclassifier=javadoc"])
             .output();
 
-        let _ = futures::future::join3(unpack, res_src, res_doc);
+        let _ = futures::future::join3(unpack, res_src, res_doc).await;
 
         let tree = match tree::load() {
             Ok(tree) => tree,
             Err(e) => {
                 eprintln!("failed to load tree: {:?}", e);
-                return class_map.clone();
+                return None;
             }
         };
         let Some(home) = dirs::home_dir() else {
             eprintln!("Could not find home");
-            return class_map.clone();
+            return None;
         };
         let m2 = home.join(".m2");
         let m2 = Arc::new(m2);
         let class_map = Arc::new(class_map.clone());
-        let maven_class_folder = Arc::new(Mutex::new(ClassFolder::new()));
+        let maven_class_folder = Arc::new(Mutex::new(ClassFolder::default()));
         let mut handles = Vec::new();
         for dep in tree.deps {
             let m2 = m2.clone();
@@ -121,11 +121,8 @@ pub async fn fetch_deps<'a>(
         }
         futures::future::join_all(handles).await;
         let guard = maven_class_folder.lock().await;
-        let cloned = guard.clone();
-        parser::loader::save_class_folder("maven", &cloned).unwrap();
-        return Arc::try_unwrap(class_map)
-            .expect("Classmap should be free to take")
-            .clone();
+        parser::loader::save_class_folder("maven", &guard).unwrap();
+        Some(Arc::try_unwrap(class_map).expect("Classmap should be free to take"))
     }
 }
 
@@ -144,14 +141,14 @@ fn extract_jar(jar: PathBuf, folder_name: &str) -> String {
     source
 }
 
-pub fn pom_sources_jar<'a>(pom: &'a Pom, m2: &Path) -> PathBuf {
+pub fn pom_sources_jar(pom: &Pom, m2: &Path) -> PathBuf {
     get_pom_m2_classifier_path(pom, m2, "sources")
 }
-pub fn pom_javadoc_jar<'a>(pom: &'a Pom, m2: &Path) -> PathBuf {
+pub fn pom_javadoc_jar(pom: &Pom, m2: &Path) -> PathBuf {
     get_pom_m2_classifier_path(pom, m2, "javadoc")
 }
 
-fn get_pom_m2_classifier_path<'a>(pom: &'a Pom, m2: &Path, classifier: &str) -> PathBuf {
+fn get_pom_m2_classifier_path(pom: &Pom, m2: &Path, classifier: &str) -> PathBuf {
     let group_parts = pom.group_id.split(".");
     let mut p = m2.join("repository");
     for gp in group_parts {
@@ -163,7 +160,7 @@ fn get_pom_m2_classifier_path<'a>(pom: &'a Pom, m2: &Path, classifier: &str) -> 
     p
 }
 
-fn pom_get_class_folder<'a>(pom: &'a Pom) -> PathBuf {
+fn pom_get_class_folder(pom: &Pom) -> PathBuf {
     let mut p = PathBuf::from("./target/dependency/");
     let group_parts = pom.group_id.split(".");
     for gp in group_parts {

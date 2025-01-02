@@ -16,12 +16,7 @@ pub fn class(
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<Hover> {
     let tree = &document.tree;
-    let bytes = document
-        .text
-        .slice(..)
-        .as_str()
-        .unwrap_or_default()
-        .as_bytes();
+    let bytes = document.as_bytes();
 
     if let Some((class, range)) = class_action(tree, bytes, point, imports, class_map) {
         return class_to_hover(class, range);

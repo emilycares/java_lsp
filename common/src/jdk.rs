@@ -2,7 +2,7 @@ use std::path::Path;
 
 use dashmap::DashMap;
 
-pub fn load_classes<'a>(class_map: &'a DashMap<std::string::String, parser::dto::Class>) {
+pub fn load_classes(class_map: &DashMap<std::string::String, parser::dto::Class>) {
     let path = Path::new(".jdk.cfc");
     if path.exists() {
         if let Ok(classes) = parser::loader::load_class_folder("jdk") {

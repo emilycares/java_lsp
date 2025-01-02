@@ -121,17 +121,17 @@ fn resolve_jtype(
         | JType::Long
         | JType::Short
         | JType::Boolean => {
-            return Some(Class {
+            Some(Class {
                 class_path: "".to_owned(),
                 source: "".to_owned(),
                 access: vec![],
                 name: "".to_string(),
                 methods: vec![],
                 fields: vec![],
-            });
+            })
         }
         JType::Array(gen) => {
-            return Some(Class {
+            Some(Class {
                 class_path: "".to_owned(),
                 source: "".to_owned(),
                 access: vec![],
@@ -147,7 +147,7 @@ fn resolve_jtype(
                     name: "length".to_string(),
                     jtype: JType::Int,
                 }],
-            });
+            })
         }
         JType::Class(c) => {
             if let Some(class) = resolve(c, imports, class_map) {

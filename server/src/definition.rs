@@ -18,13 +18,8 @@ pub fn class(
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<GotoDefinitionResponse> {
     let tree = &document.tree;
-    let bytes = document
-        .text
-        .slice(..)
-        .as_str()
-        .unwrap_or_default()
-        .as_bytes();
-    let vars = variable::get_vars(document, &point);
+    let bytes = document.as_bytes();
+    let vars = variable::get_vars(document, point);
 
     if let Some((class, _range)) = hover::class_action(tree, bytes, point, imports, class_map) {
         if let Some(sourc_file) = get_source_content(&class) {
@@ -51,12 +46,12 @@ pub fn class(
 fn call_chain_definition(
     document: &Document,
     point: &Point,
-    vars: &Vec<variable::LocalVariable>,
+    vars: &[variable::LocalVariable],
     imports: &[&str],
     class_map: &dashmap::DashMap<String, dto::Class>,
 ) -> Option<Option<GotoDefinitionResponse>> {
     if let Some(call_chain) = get_call_chain(document, point).as_deref() {
-        if let Some(extend_class) = tyres::resolve_call_chain(call_chain, &vars, imports, class_map)
+        if let Some(extend_class) = tyres::resolve_call_chain(call_chain, vars, imports, class_map)
         {
             match call_chain.last() {
                 Some(CallItem::MethodCall(name)) => {
@@ -107,8 +102,8 @@ fn go_to_definition_range(
     range: Range,
 ) -> Option<Option<GotoDefinitionResponse>> {
     let uri = Url::parse(&format!("file:/{}", extend_class.source)).unwrap();
-    return Some(Some(GotoDefinitionResponse::Scalar(Location {
+    Some(Some(GotoDefinitionResponse::Scalar(Location {
         uri,
         range,
-    })));
+    })))
 }
