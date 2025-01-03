@@ -83,7 +83,7 @@ pub fn get_string_node(node: &Node, bytes: &[u8]) -> String {
 }
 
 #[allow(dead_code)]
-pub fn tdbc(cursor: &tree_sitter::TreeCursor, bytes: &[u8]) {
+pub fn tdbc(cursor: &TreeCursor, bytes: &[u8]) {
     eprintln!(
         "{} - kind:{} - text:\"{}\"",
         cursor.node().to_sexp(),

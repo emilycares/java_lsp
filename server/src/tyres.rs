@@ -3,27 +3,85 @@ use std::ops::Deref;
 use dashmap::DashMap;
 use parser::dto::{self, Class, JType};
 
-use crate::{call_chain::CallItem, variable::LocalVariable};
+use crate::{call_chain::CallItem, imports::ImportUnit, variable::LocalVariable};
 
-pub fn is_imported(jtype: &str, imports: &[&str]) -> bool {
-    imports.iter().any(|i| i.ends_with(jtype))
+pub fn is_imported_class_name(
+    jtype: &str,
+    imports: &[ImportUnit],
+    class_map: &DashMap<std::string::String, parser::dto::Class>,
+) -> bool {
+    is_imported(jtype, imports, class_map).is_some()
 }
 
-pub fn resolve<'a>(
+#[derive(Debug)]
+pub enum ImportResult {
+    Class(String),
+    StaticClass(String),
+}
+
+pub fn is_imported<'a>(
+    jtype: &'a str,
+    imports: &'a [ImportUnit],
+    class_map: &DashMap<std::string::String, parser::dto::Class>,
+) -> Option<ImportResult> {
+    imports.iter().find_map(|i| match i {
+        ImportUnit::Class(c) => {
+            if c.ends_with(jtype) {
+                return Some(ImportResult::Class(c.to_string()));
+            }
+            None
+        }
+        ImportUnit::StaticClass(c) => {
+            if c.ends_with(jtype) {
+                return Some(ImportResult::StaticClass(c.to_string()));
+            }
+            None
+        }
+        ImportUnit::Prefix(p) => {
+            let possible_class_path = format!("{}.{}", p, jtype);
+            if class_map.get(&possible_class_path).is_some() {
+                return Some(ImportResult::Class(possible_class_path));
+            }
+            None
+        }
+        ImportUnit::StaticPrefix(p) => {
+            let possible_class_path = format!("{}.{}", p, jtype);
+            if class_map.get(&possible_class_path).is_some() {
+                return Some(ImportResult::StaticClass(possible_class_path));
+            }
+            None
+        }
+    })
+}
+
+pub fn resolve(
     jtype: &str,
-    imports: &[&'a str],
-    class_map: &'a DashMap<std::string::String, parser::dto::Class>,
+    imports: &[ImportUnit],
+    class_map: &DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<Class> {
     let lang_class_key = format!("java.lang.{}", jtype);
     if let Some(lang_class) = class_map.get(lang_class_key.as_str()) {
         return Some(lang_class.deref().to_owned());
     }
-    if let Some(imported_class_path) = imports.iter().find(|i| i.ends_with(jtype)) {
-        if let Some(imported_class) = class_map.get(*imported_class_path) {
-            return Some(imported_class.deref().to_owned());
+
+    let import_result = is_imported(jtype, imports, class_map);
+    match import_result {
+        Some(ImportResult::Class(c)) => {
+            if let Some(imported_class) = class_map.get(&c) {
+                return Some(imported_class.deref().to_owned());
+            }
+            None
         }
+        Some(ImportResult::StaticClass(c)) => {
+            if let Some(imported_class) = class_map.get(&c) {
+                let class = imported_class.deref().to_owned();
+                // TODO: Return static version of class
+                return Some(class);
+            }
+            None
+        }
+        None => None,
     }
-    None
 }
 pub fn resolve_import(
     jtype: &str,
@@ -45,10 +103,10 @@ pub fn resolve_class_key(
         .collect::<Vec<String>>()
 }
 
-pub fn resolve_var<'a>(
+pub fn resolve_var(
     extend: &LocalVariable,
-    imports: &[&'a str],
-    class_map: &'a DashMap<std::string::String, parser::dto::Class>,
+    imports: &[ImportUnit],
+    class_map: &DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<Class> {
     resolve_jtype(&extend.jtype, imports, class_map)
 }
@@ -56,7 +114,7 @@ pub fn resolve_var<'a>(
 pub fn resolve_call_chain(
     call_chain: &[CallItem],
     lo_va: &[LocalVariable],
-    imports: &[&str],
+    imports: &[ImportUnit],
     class_map: &DashMap<String, Class>,
 ) -> Option<Class> {
     let mut ops: Vec<Class> = vec![];
@@ -108,7 +166,7 @@ pub fn resolve_call_chain(
 
 fn resolve_jtype(
     jtype: &JType,
-    imports: &[&str],
+    imports: &[ImportUnit],
     class_map: &DashMap<String, Class>,
 ) -> Option<Class> {
     match jtype {

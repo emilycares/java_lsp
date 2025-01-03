@@ -395,6 +395,7 @@ impl LanguageServer for Backend {
 
         // If there is any extend completion ignore completing vars
         if call_chain.is_empty() {
+            out.extend(completion::static_methods(&imports, &self.class_map));
             out.extend(completion::complete_vars(&vars));
         }
 

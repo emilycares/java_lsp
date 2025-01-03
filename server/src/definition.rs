@@ -6,7 +6,9 @@ use tree_sitter::Point;
 
 use crate::{
     call_chain::{get_call_chain, CallItem},
-    hover, position, tyres,
+    hover,
+    imports::ImportUnit,
+    position, tyres,
     utils::to_lsp_range,
     variable, Document,
 };
@@ -14,7 +16,7 @@ use crate::{
 pub fn class(
     document: &Document,
     point: &Point,
-    imports: &[&str],
+    imports: &[ImportUnit],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<GotoDefinitionResponse> {
     let tree = &document.tree;
@@ -47,7 +49,7 @@ fn call_chain_definition(
     document: &Document,
     point: &Point,
     vars: &[variable::LocalVariable],
-    imports: &[&str],
+    imports: &[ImportUnit],
     class_map: &dashmap::DashMap<String, dto::Class>,
 ) -> Option<Option<GotoDefinitionResponse>> {
     if let Some(call_chain) = get_call_chain(document, point).as_deref() {

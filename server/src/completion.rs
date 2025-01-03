@@ -5,7 +5,14 @@ use tower_lsp::lsp_types::{
 use tree_sitter::Point;
 use tree_sitter_util::{get_node_at_point, get_string_node};
 
-use crate::{call_chain::get_call_chain, codeaction, tyres, variable::LocalVariable, Document};
+use crate::{
+    call_chain::get_call_chain,
+    codeaction,
+    imports::{self, ImportUnit},
+    tyres,
+    variable::LocalVariable,
+    Document,
+};
 
 /// Convert list LocalVariable to CompletionItem
 pub fn complete_vars(vars: &[LocalVariable]) -> Vec<CompletionItem> {
@@ -150,7 +157,7 @@ pub fn complete_call_chain(
     document: &Document,
     point: &Point,
     vars: &[LocalVariable],
-    imports: &[&str],
+    imports: &[ImportUnit],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Vec<CompletionItem> {
     if let Some(call_chain) = get_call_chain(document, point).as_deref() {
@@ -165,7 +172,7 @@ pub fn complete_call_chain(
 pub fn classes(
     document: &Document,
     point: &Point,
-    imports: &[&str],
+    imports: &[ImportUnit],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Vec<CompletionItem> {
     let tree = &document.tree;
@@ -183,7 +190,7 @@ pub fn classes(
             // .filter(|i| i.access.contains(&parser::dto::Access::Public))
             .map(|v| {
                 let class_path = v.value().class_path.as_str();
-                let add_import = !imports.contains(&class_path);
+                let add_import = !imports::is_imported(imports, class_path);
                 class_describe(v.value(), add_import)
             })
             .take(20)
@@ -207,6 +214,23 @@ fn is_class_completion(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Option<Stri
     }
 }
 
+pub fn static_methods(
+    imports: &[ImportUnit],
+    class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
+) -> Vec<CompletionItem> {
+    imports
+        .iter()
+        .filter_map(|c| match c {
+            ImportUnit::Class(_) => None,
+            ImportUnit::StaticClass(_) => None,
+            ImportUnit::Prefix(_) => None,
+            ImportUnit::StaticPrefix(c) => class_map.get(*c),
+        })
+        .flat_map(|c| c.methods.clone())
+        .map(|m| complete_method(&m))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use dashmap::DashMap;
@@ -220,6 +244,7 @@ mod tests {
 
     use crate::{
         completion::{classes, complete_call_chain},
+        imports::ImportUnit,
         variable::LocalVariable,
         Document,
     };
@@ -266,13 +291,13 @@ public class GreetingResource {
             is_fun: false,
         }];
         let imports = vec![
-            "jakarta.inject.Inject",
-            "jakarta.ws.rs.GET",
-            "jakarta.ws.rs.Path",
-            "jakarta.ws.rs.Produces",
-            "jakarta.ws.rs.core.MediaType",
-            "io.quarkus.qute.TemplateInstance",
-            "io.quarkus.qute.Template",
+            ImportUnit::Class("jakarta.inject.Inject"),
+            ImportUnit::Class("jakarta.ws.rs.GET"),
+            ImportUnit::Class("jakarta.ws.rs.Path"),
+            ImportUnit::Class("jakarta.ws.rs.Produces"),
+            ImportUnit::Class("jakarta.ws.rs.core.MediaType"),
+            ImportUnit::Class("io.quarkus.qute.TemplateInstance"),
+            ImportUnit::Class("io.quarkus.qute.Template"),
         ];
         let class_map: DashMap<String, dto::Class> = DashMap::new();
         class_map.insert(
@@ -485,7 +510,7 @@ public class Test {
         let out = classes(
             &doc,
             &Point::new(6, 16),
-            &vec!["java.lang.StringBuilder"],
+            &vec![ImportUnit::Class("java.lang.StringBuilder")],
             &class_map,
         );
         assert_eq!(

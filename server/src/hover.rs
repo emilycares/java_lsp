@@ -4,6 +4,7 @@ use tree_sitter::{Point, Tree};
 
 use crate::{
     call_chain::{class_or_variable, CallItem},
+    imports::ImportUnit,
     tyres,
     utils::to_lsp_range,
     Document,
@@ -12,7 +13,7 @@ use crate::{
 pub fn class(
     document: &Document,
     point: &Point,
-    imports: &[&str],
+    imports: &[ImportUnit],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<Hover> {
     let tree = &document.tree;
@@ -29,7 +30,7 @@ pub fn class_action(
     tree: &Tree,
     bytes: &[u8],
     point: &Point,
-    imports: &[&str],
+    imports: &[ImportUnit],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<(dto::Class, Range)> {
     if let Ok(n) = tree_sitter_util::get_node_at_point(tree, *point) {
@@ -72,7 +73,7 @@ fn class_to_hover(class: dto::Class, range: Range) -> Option<Hover> {
     Some(Hover {
         contents: HoverContents::Markup(MarkupContent {
             kind: MarkupKind::Markdown,
-            value: format!("# {}\n\nmethods: {}", class.name, methods.join("\n")),
+            value: format!("# {}\n\nmethods:\n{}", class.name, methods.join("\n")),
         }),
         range: Some(range),
     })

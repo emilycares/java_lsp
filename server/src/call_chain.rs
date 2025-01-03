@@ -1,5 +1,5 @@
 use tree_sitter::Point;
-use tree_sitter_util::{get_string, CommentSkiper};
+use tree_sitter_util::{get_string, tdbc, CommentSkiper};
 
 use crate::Document;
 
@@ -143,6 +143,7 @@ fn parse_value(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> Vec<CallIt
         }
         "field_access" => parse_field_access(cursor.node(), bytes),
         "method_invocation" => parse_method_invocation(cursor.node(), bytes),
+        "object_creation_expression" => parse_object_creation(cursor.node(), bytes),
         _ => vec![],
     }
 }
@@ -172,6 +173,14 @@ fn parse_method_invocation(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<Cal
         "method_invocation" => {
             out.extend(parse_method_invocation(cursor.node(), bytes));
         }
+        "object_creation_expression" => {
+            tdbc(&cursor, bytes);
+            out.extend(parse_object_creation(node, bytes));
+            cursor.sibling();
+            cursor.sibling();
+            let method_name = get_string(&cursor, bytes);
+            out.extend(vec![CallItem::MethodCall(method_name)]);
+        }
         _ => {}
     };
     cursor.parent();
@@ -182,6 +191,7 @@ fn parse_field_access(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem
     let mut cursor = node.walk();
     let mut out = vec![];
     cursor.first_child();
+    tdbc(&cursor, bytes);
     match cursor.node().kind() {
         "identifier" => {
             let var_name = get_string(&cursor, bytes);
@@ -205,9 +215,27 @@ fn parse_field_access(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem
         "field_access" => {
             out.extend(parse_field_access(cursor.node(), bytes));
         }
+        "object_creation_expression" => {
+            out.extend(parse_object_creation(cursor.node(), bytes));
+            cursor.sibling();
+            cursor.sibling();
+            let field_name = get_string(&cursor, bytes);
+            out.push(CallItem::FieldAccess(field_name));
+        }
         _ => {}
     }
 
+    cursor.parent();
+    out
+}
+fn parse_object_creation(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem> {
+    let mut cursor = node.walk();
+    let mut out = vec![];
+    cursor.first_child();
+    cursor.first_child();
+    cursor.sibling();
+    out.push(CallItem::Class(get_string(&cursor, bytes)));
+    cursor.parent();
     cursor.parent();
     out
 }
@@ -740,6 +768,69 @@ public class Test {
             Some(vec![
                 CallItem::Variable("a".to_string()),
                 CallItem::MethodCall("b".to_string())
+            ])
+        );
+    }
+
+    #[test]
+    fn call_chain_new_instance() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        new String()
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(4, 22));
+        assert_eq!(out, Some(vec![CallItem::Class("String".to_string())]));
+    }
+
+    #[test]
+    fn call_chain_new_instance_field() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        new String().a.
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(4, 22));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::Class("String".to_string()),
+                CallItem::FieldAccess("a".to_string())
+            ])
+        );
+    }
+
+    #[test]
+    fn call_chain_new_instance_method() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        new String().a(). ;
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(4, 25));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::Class("String".to_string()),
+                CallItem::MethodCall("a".to_string())
             ])
         );
     }
