@@ -1,5 +1,5 @@
+use lsp_types::TextDocumentContentChangeEvent;
 use ropey::Rope;
-use tower_lsp::lsp_types::TextDocumentContentChangeEvent;
 use tree_sitter::{Parser, Tree};
 
 pub struct Document {

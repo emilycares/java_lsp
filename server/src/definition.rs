@@ -1,7 +1,7 @@
-use std::{fs::read_to_string, path::PathBuf};
+use std::{fs::read_to_string, path::PathBuf, str::FromStr};
 
+use lsp_types::{GotoDefinitionResponse, Location, Range, Uri};
 use parser::dto;
-use tower_lsp::lsp_types::{GotoDefinitionResponse, Location, Range, Url};
 use tree_sitter::Point;
 
 use crate::{
@@ -103,7 +103,7 @@ fn go_to_definition_range(
     extend_class: dto::Class,
     range: Range,
 ) -> Option<Option<GotoDefinitionResponse>> {
-    let uri = Url::parse(&format!("file:/{}", extend_class.source)).unwrap();
+    let uri = Uri::from_str(&format!("file:/{}", extend_class.source)).unwrap();
     Some(Some(GotoDefinitionResponse::Scalar(Location {
         uri,
         range,

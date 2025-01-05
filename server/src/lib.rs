@@ -12,45 +12,199 @@ mod variable;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use common::compile::CompileError;
 use common::project_kind::ProjectKind;
 use dashmap::{DashMap, DashSet};
 use document::Document;
-use notification::Progress;
+use lsp_types::{
+    notification::{
+        DidChangeTextDocument, DidOpenTextDocument, DidSaveTextDocument, Notification, Progress,
+        PublishDiagnostics,
+    },
+    request::{CodeActionRequest, Completion, Formatting, GotoDefinition, HoverRequest, Request},
+    CodeActionKind, CodeActionOptions, CodeActionParams, CodeActionProviderCapability,
+    CodeActionResponse, CompletionOptions, CompletionParams, CompletionResponse, Diagnostic,
+    DidChangeTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
+    DocumentFormattingParams, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams,
+    HoverProviderCapability, InitializeParams, InitializedParams, OneOf, Position, ProgressParams,
+    ProgressParamsValue, ProgressToken, PublishDiagnosticsParams, Range, ServerCapabilities,
+    TextDocumentContentChangeEvent, TextDocumentItem, TextDocumentSyncCapability,
+    TextDocumentSyncKind, TextEdit, Uri, WorkDoneProgress, WorkDoneProgressBegin,
+    WorkDoneProgressEnd,
+};
 use parser::dto::Class;
-use tower_lsp::jsonrpc::Result;
-use tower_lsp::lsp_types::*;
-use tower_lsp::{Client, LanguageServer, LspService, Server};
 use utils::to_treesitter_point;
 
-pub async fn main() {
-    let stdin = tokio::io::stdin();
-    let stdout = tokio::io::stdout();
+use lsp_server::{Connection, Message, Response};
 
-    let (service, socket) = LspService::new(|client| {
-        let project_kind = common::project_kind::get_project_kind();
-        eprintln!("Start java_lsp with project_kind: {:?}", project_kind);
-        Backend {
-            client,
-            error_files: DashSet::new(),
-            project_kind,
-            document_map: DashMap::new(),
-            class_map: DashMap::new(),
+pub async fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
+    // Note that  we must have our logging only write out to stderr.
+    eprintln!("starting generic LSP server");
+
+    // Create the transport. Includes the stdio (stdin and stdout) versions but this could
+    // also be implemented to use sockets or HTTP.
+    let (connection, io_threads) = Connection::stdio();
+    let project_kind = common::project_kind::get_project_kind();
+    eprintln!("Start java_lsp with project_kind: {:?}", project_kind);
+    let backend = Backend {
+        connection: &connection,
+        error_files: DashSet::new(),
+        project_kind,
+        document_map: DashMap::new(),
+        class_map: DashMap::new(),
+    };
+
+    // Run the server and wait for the two threads to end (typically by trigger LSP Exit event).
+    let server_capabilities = serde_json::to_value(&ServerCapabilities {
+        text_document_sync: Some(TextDocumentSyncCapability::Kind(
+            TextDocumentSyncKind::INCREMENTAL,
+        )),
+        definition_provider: Some(OneOf::Left(true)),
+        code_action_provider: Some(CodeActionProviderCapability::Options(CodeActionOptions {
+            code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
+            ..CodeActionOptions::default()
+        })),
+        completion_provider: Some(CompletionOptions {
+            trigger_characters: Some([' ', '.', '('].iter().map(|i| i.to_string()).collect()),
+            ..CompletionOptions::default()
+        }),
+        document_formatting_provider: Some(OneOf::Left(true)),
+        hover_provider: Some(HoverProviderCapability::Simple(true)),
+        ..ServerCapabilities::default()
+    })
+    .unwrap();
+    let initialization_params = match connection.initialize(server_capabilities) {
+        Ok(it) => it,
+        Err(e) => {
+            if e.channel_is_disconnected() {
+                io_threads.join()?;
+            }
+            return Err(e.into());
         }
-    });
-    Server::new(stdin, stdout, socket).serve(service).await;
+    };
+    main_loop(backend, initialization_params).await?;
+    io_threads.join()?;
+
+    // Shut down gracefully.
+    eprintln!("shutting down server");
+    Ok(())
 }
 
-struct Backend {
-    #[allow(dead_code)]
-    client: Client,
+async fn main_loop(
+    backend: Backend<'_>,
+    params: serde_json::Value,
+) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
+    let _params: InitializeParams = serde_json::from_value(params).unwrap();
+    backend.initialized(InitializedParams {}).await;
+    for msg in &backend.connection.receiver {
+        match msg {
+            Message::Request(req) => {
+                if backend.connection.handle_shutdown(&req)? {
+                    return Ok(());
+                }
+
+                match req.method.as_str() {
+                    HoverRequest::METHOD => {
+                        if let Ok(params) = serde_json::from_value::<HoverParams>(req.params) {
+                            let result = backend.hover(params).await;
+                            let _ = backend.connection.sender.send(Message::Response(Response {
+                                id: req.id,
+                                result: serde_json::to_value(result).ok(),
+                                error: None,
+                            }));
+                        }
+                    }
+                    Formatting::METHOD => {
+                        if let Ok(params) =
+                            serde_json::from_value::<DocumentFormattingParams>(req.params)
+                        {
+                            let result = backend.formatting(params).await;
+                            let _ = backend.connection.sender.send(Message::Response(Response {
+                                id: req.id,
+                                result: serde_json::to_value(result).ok(),
+                                error: None,
+                            }));
+                        }
+                    }
+                    GotoDefinition::METHOD => {
+                        if let Ok(params) =
+                            serde_json::from_value::<GotoDefinitionParams>(req.params)
+                        {
+                            let result = backend.goto_definition(params).await;
+                            let _ = backend.connection.sender.send(Message::Response(Response {
+                                id: req.id,
+                                result: serde_json::to_value(result).ok(),
+                                error: None,
+                            }));
+                        }
+                    }
+                    Completion::METHOD => {
+                        if let Ok(params) = serde_json::from_value::<CompletionParams>(req.params) {
+                            let result = backend.completion(params).await;
+                            let _ = backend.connection.sender.send(Message::Response(Response {
+                                id: req.id,
+                                result: serde_json::to_value(result).ok(),
+                                error: None,
+                            }));
+                        }
+                    }
+                    CodeActionRequest::METHOD => {
+                        if let Ok(params) = serde_json::from_value::<CodeActionParams>(req.params) {
+                            let result = backend.code_action(params).await;
+                            let _ = backend.connection.sender.send(Message::Response(Response {
+                                id: req.id,
+                                result: serde_json::to_value(result).ok(),
+                                error: None,
+                            }));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            Message::Response(resp) => {
+                eprintln!("got response: {resp:?}");
+            }
+            Message::Notification(not) => {
+                match not.method.as_str() {
+                    DidOpenTextDocument::METHOD => {
+                        if let Ok(params) =
+                            serde_json::from_value::<DidOpenTextDocumentParams>(not.params)
+                        {
+                            backend.did_open(params).await;
+                        }
+                    }
+                    DidChangeTextDocument::METHOD => {
+                        if let Ok(params) =
+                            serde_json::from_value::<DidChangeTextDocumentParams>(not.params)
+                        {
+                            backend.did_change(params).await;
+                        }
+                    }
+                    DidSaveTextDocument::METHOD => {
+                        if let Ok(params) =
+                            serde_json::from_value::<DidSaveTextDocumentParams>(not.params)
+                        {
+                            backend.did_save(params).await;
+                        }
+                    }
+                    _ => {}
+                };
+            }
+        }
+    }
+    Ok(())
+}
+
+struct Backend<'a> {
     error_files: DashSet<String>,
     project_kind: ProjectKind,
     document_map: DashMap<String, Document>,
     class_map: DashMap<String, Class>,
+    connection: &'a Connection,
 }
-impl Backend {
+impl Backend<'_> {
     async fn on_change(&self, uri: String, changes: Vec<TextDocumentContentChangeEvent>) {
         let Some(mut document) = self.document_map.get_mut(&uri) else {
             return;
@@ -82,14 +236,14 @@ impl Backend {
 
     async fn get_document(
         &self,
-        uri: Url,
+        uri: Uri,
     ) -> Option<dashmap::mapref::one::Ref<'_, std::string::String, Document>> {
         // when file is open
         if let Some(document) = self._get_opened_document(uri.as_str()) {
             return Some(document);
         };
 
-        let Ok(text) = std::fs::read_to_string(uri.path()) else {
+        let Ok(text) = std::fs::read_to_string(uri.path().as_str()) else {
             eprintln!("Unable to open file and it is also not available on the client");
             return None;
         };
@@ -108,6 +262,61 @@ impl Backend {
             return Some(document);
         };
         None
+    }
+
+    fn send_dianostic(&self, uri: Uri, diagnostics: Vec<Diagnostic>) {
+        if let Ok(params) = serde_json::to_value(PublishDiagnosticsParams {
+            uri,
+            diagnostics,
+            version: None,
+        }) {
+            let _ = self
+                .connection
+                .sender
+                .send(Message::Notification(lsp_server::Notification {
+                    method: PublishDiagnostics::METHOD.to_string(),
+                    params,
+                }));
+        }
+    }
+
+    fn progress_start(&self, task: &str) {
+        eprintln!("Start progress on: {}", task);
+        if let Ok(params) = serde_json::to_value(ProgressParams {
+            token: ProgressToken::String(task.to_string()),
+            value: ProgressParamsValue::WorkDone(WorkDoneProgress::Begin(WorkDoneProgressBegin {
+                title: task.to_string(),
+                cancellable: None,
+                message: None,
+                percentage: None,
+            })),
+        }) {
+            let _ = self
+                .connection
+                .sender
+                .send(Message::Notification(lsp_server::Notification {
+                    method: Progress::METHOD.to_string(),
+                    params,
+                }));
+        }
+    }
+
+    fn progress_end(&self, task: &str) {
+        eprintln!("End progress on: {}", task);
+        if let Ok(params) = serde_json::to_value(ProgressParams {
+            token: ProgressToken::String(task.to_string()),
+            value: ProgressParamsValue::WorkDone(WorkDoneProgress::End(WorkDoneProgressEnd {
+                message: None,
+            })),
+        }) {
+            let _ = self
+                .connection
+                .sender
+                .send(Message::Notification(lsp_server::Notification {
+                    method: Progress::METHOD.to_string(),
+                    params,
+                }));
+        }
     }
 
     fn compile(&self, path: &str) -> Vec<CompileError> {
@@ -143,7 +352,7 @@ impl Backend {
             let Some(path) = path.get(..) else {
                 continue;
             };
-            if let Ok(uri) = Url::parse(&format!("file:/{}", path)) {
+            if let Ok(uri) = Uri::from_str(&format!("file:/{}", path)) {
                 if let Some(errs) = emap.get(path) {
                     let errs: Vec<Diagnostic> = errs
                         .iter()
@@ -152,89 +361,24 @@ impl Backend {
                             Diagnostic::new_simple(Range::new(p, p), e.message.clone())
                         })
                         .collect();
-                    self.client.publish_diagnostics(uri, errs, None).await
+                    self.send_dianostic(uri, errs);
                 } else {
-                    self.client.publish_diagnostics(uri, vec![], None).await
+                    self.send_dianostic(uri, vec![]);
                 }
             }
         }
-    }
-}
-
-#[tower_lsp::async_trait]
-impl LanguageServer for Backend {
-    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
-        Ok(InitializeResult {
-            capabilities: ServerCapabilities {
-                text_document_sync: Some(TextDocumentSyncCapability::Kind(
-                    TextDocumentSyncKind::INCREMENTAL,
-                )),
-                definition_provider: Some(OneOf::Left(true)),
-                code_action_provider: Some(CodeActionProviderCapability::Options(
-                    CodeActionOptions {
-                        code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
-                        ..CodeActionOptions::default()
-                    },
-                )),
-                completion_provider: Some(CompletionOptions {
-                    trigger_characters: Some(
-                        [' ', '.', '('].iter().map(|i| i.to_string()).collect(),
-                    ),
-                    ..CompletionOptions::default()
-                }),
-                document_formatting_provider: Some(OneOf::Left(true)),
-                hover_provider: Some(HoverProviderCapability::Simple(true)),
-                ..ServerCapabilities::default()
-            },
-            server_info: None,
-        })
     }
 
     async fn initialized(&self, _: InitializedParams) {
         eprintln!("Init");
 
-        self.client
-            .send_notification::<Progress>(ProgressParams {
-                token: ProgressToken::String("Load jdk".to_string()),
-                value: ProgressParamsValue::WorkDone(WorkDoneProgress::Begin(
-                    WorkDoneProgressBegin {
-                        title: "Loading jdk".to_string(),
-                        cancellable: None,
-                        message: None,
-                        percentage: None,
-                    },
-                )),
-            })
-            .await;
-
+        self.progress_start("Load jdk");
         common::jdk::load_classes(&self.class_map);
-
-        self.client
-            .send_notification::<Progress>(ProgressParams {
-                token: ProgressToken::String("Load jdk".to_string()),
-                value: ProgressParamsValue::WorkDone(WorkDoneProgress::End(WorkDoneProgressEnd {
-                    message: None,
-                })),
-            })
-            .await;
+        self.progress_end("Load jdk");
 
         if self.project_kind != ProjectKind::Unknown {
-            self.client
-                .send_notification::<Progress>(ProgressParams {
-                    token: ProgressToken::String(format!(
-                        "Load {} dependencies",
-                        self.project_kind
-                    )),
-                    value: ProgressParamsValue::WorkDone(WorkDoneProgress::Begin(
-                        WorkDoneProgressBegin {
-                            title: format!("Load {} dependencies", self.project_kind),
-                            cancellable: None,
-                            message: None,
-                            percentage: None,
-                        },
-                    )),
-                })
-                .await;
+            let prog_lable = format!("Load {} dependencies", self.project_kind);
+            self.progress_start(&prog_lable);
             let cm = match self.project_kind {
                 ProjectKind::Maven => maven::fetch::fetch_deps(&self.class_map).await,
                 ProjectKind::Gradle => gradle::fetch::fetch_deps(&self.class_map).await,
@@ -246,33 +390,10 @@ impl LanguageServer for Backend {
                 }
             }
 
-            self.client
-                .send_notification::<Progress>(ProgressParams {
-                    token: ProgressToken::String(format!(
-                        "Load {} dependencies",
-                        self.project_kind
-                    )),
-                    value: ProgressParamsValue::WorkDone(WorkDoneProgress::End(
-                        WorkDoneProgressEnd { message: None },
-                    )),
-                })
-                .await;
+            self.progress_end(&prog_lable);
         }
 
-        self.client
-            .send_notification::<Progress>(ProgressParams {
-                token: ProgressToken::String("Load project files".to_string()),
-                value: ProgressParamsValue::WorkDone(WorkDoneProgress::Begin(
-                    WorkDoneProgressBegin {
-                        title: "Load project files".to_string(),
-                        cancellable: None,
-                        message: None,
-                        percentage: None,
-                    },
-                )),
-            })
-            .await;
-
+        self.progress_start("Load project files");
         let project_classes = match self.project_kind {
             ProjectKind::Maven => maven::project::load_project_folders(),
             ProjectKind::Gradle => vec![],
@@ -281,21 +402,9 @@ impl LanguageServer for Backend {
         for class in project_classes {
             self.class_map.insert(class.class_path.clone(), class);
         }
-
-        self.client
-            .send_notification::<Progress>(ProgressParams {
-                token: ProgressToken::String("Load project files".to_string()),
-                value: ProgressParamsValue::WorkDone(WorkDoneProgress::End(WorkDoneProgressEnd {
-                    message: None,
-                })),
-            })
-            .await;
+        self.progress_end("Load project files");
 
         eprintln!("Init done");
-    }
-
-    async fn shutdown(&self) -> Result<()> {
-        panic!("Stop");
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
@@ -322,62 +431,57 @@ impl LanguageServer for Backend {
             path = &path[1..];
         }
 
-        let errors = self.compile(path);
+        let errors = self.compile(path.as_str());
         self.publish_compile_errors(errors).await;
 
         let Some(document) = self.get_document(params.text_document.uri.clone()).await else {
             eprintln!("no doc found");
             return;
         };
-        dbg!(&path);
         if let Some(class) =
-            parser::update_project_java_file(PathBuf::from(path), document.as_bytes())
+            parser::update_project_java_file(PathBuf::from(path.as_str()), document.as_bytes())
         {
-            eprintln!(
-                "save class: {} {} {}",
-                class.name, class.class_path, class.source
-            );
             self.class_map.insert(class.class_path.clone(), class);
         }
     }
 
-    async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
+    async fn hover(&self, params: HoverParams) -> Option<Hover> {
         let uri = params.text_document_position_params.text_document.uri;
         let Some(document) = self.get_document(uri).await else {
-            return Ok(None);
+            return None;
         };
         let point = to_treesitter_point(params.text_document_position_params.position);
         let imports = imports::imports(document.value());
 
         let class_hover = hover::class(document.value(), &point, &imports, &self.class_map);
-        return Ok(class_hover);
+        return class_hover;
     }
 
-    async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
+    async fn formatting(&self, params: DocumentFormattingParams) -> Option<Vec<TextEdit>> {
         let uri = params.text_document.uri;
         let Some(document) = self.get_document(uri).await else {
             eprintln!("Document is not opened.");
-            return Ok(None);
+            return None;
         };
         let Some(lines) = document.text.lines().len().try_into().ok() else {
-            return Ok(None);
+            return None;
         };
         let Some(text) = format::format(document.text.to_string(), format::Formatter::Topiary)
         else {
-            return Ok(None);
+            return None;
         };
-        Ok(Some(vec![TextEdit::new(
+        Some(vec![TextEdit::new(
             Range::new(Position::new(0, 0), Position::new(lines, 0)),
             text,
-        )]))
+        )])
     }
 
-    async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
+    async fn completion(&self, params: CompletionParams) -> Option<CompletionResponse> {
         let params = params.text_document_position;
         let uri = params.text_document.uri;
         let Some(document) = self.get_document(uri).await else {
             eprintln!("Document is not opened.");
-            return Ok(None);
+            return None;
         };
         let mut out = vec![];
         let point = to_treesitter_point(params.position);
@@ -409,32 +513,32 @@ impl LanguageServer for Backend {
             &self.class_map,
         ));
 
-        Ok(Some(CompletionResponse::Array(out)))
+        Some(CompletionResponse::Array(out))
     }
 
     async fn goto_definition(
         &self,
         params: GotoDefinitionParams,
-    ) -> Result<Option<GotoDefinitionResponse>> {
+    ) -> Option<GotoDefinitionResponse> {
         let params = params.text_document_position_params;
         let uri = params.text_document.uri;
         let Some(document) = self.get_document(uri).await else {
             eprintln!("Document is not opened.");
-            return Ok(None);
+            return None;
         };
 
         let point = to_treesitter_point(params.position);
         let imports = imports::imports(document.value());
 
         if let Some(c) = definition::class(document.value(), &point, &imports, &self.class_map) {
-            return Ok(Some(c));
+            return Some(c);
         }
-        Ok(None)
+        None
     }
-    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
+    async fn code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
         let Some(document) = self.get_document(params.text_document.uri.clone()).await else {
             eprintln!("Document is not opened.");
-            return Ok(None);
+            return None;
         };
         let current_file = params.text_document.uri;
         let point = to_treesitter_point(params.range.start);
@@ -450,9 +554,9 @@ impl LanguageServer for Backend {
             &current_file,
             &self.class_map,
         ) {
-            return Ok(Some(imps));
+            return Some(imps);
         }
 
-        Ok(None)
+        None
     }
 }

@@ -1,5 +1,5 @@
+use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
 use parser::dto;
-use tower_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
 use tree_sitter::{Point, Tree};
 
 use crate::{

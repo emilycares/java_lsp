@@ -1,7 +1,5 @@
+use lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat};
 use parser::dto;
-use tower_lsp::lsp_types::{
-    CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat,
-};
 use tree_sitter::Point;
 use tree_sitter_util::{get_node_at_point, get_string_node};
 
@@ -234,12 +232,12 @@ pub fn static_methods(
 #[cfg(test)]
 mod tests {
     use dashmap::DashMap;
-    use parser::dto;
-    use pretty_assertions::assert_eq;
-    use tower_lsp::lsp_types::{
+    use lsp_types::{
         CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat, Position,
         Range, TextEdit,
     };
+    use parser::dto;
+    use pretty_assertions::assert_eq;
     use tree_sitter::Point;
 
     use crate::{

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use tower_lsp::lsp_types::{
-    CodeAction, CodeActionKind, CodeActionOrCommand, Position, Range, TextEdit, Url, WorkspaceEdit,
+use lsp_types::{
+    CodeAction, CodeActionKind, CodeActionOrCommand, Position, Range, TextEdit, Uri, WorkspaceEdit,
 };
 use tree_sitter::{Point, Tree};
 
@@ -12,7 +12,7 @@ pub fn import_jtype<'a>(
     bytes: &'a [u8],
     point: Point,
     imports: &[ImportUnit],
-    current_file: &Url,
+    current_file: &Uri,
     class_map: &'a dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<Vec<CodeActionOrCommand>> {
     if let Ok(n) = tree_sitter_util::get_node_at_point(tree, point) {
@@ -45,7 +45,7 @@ pub fn import_text_edit(classpath: &str) -> Vec<TextEdit> {
         new_text: format!("import {};\n", classpath),
     }]
 }
-pub fn import_to_code_action(current_file: &Url, classpath: &str) -> CodeActionOrCommand {
+pub fn import_to_code_action(current_file: &Uri, classpath: &str) -> CodeActionOrCommand {
     let mut changes = HashMap::new();
     changes.insert(current_file.to_owned(), import_text_edit(classpath));
     CodeActionOrCommand::CodeAction(CodeAction {
