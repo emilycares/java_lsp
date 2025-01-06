@@ -181,20 +181,41 @@ pub fn classes(
 
     let bytes = document.as_bytes();
 
+    let mut out = vec![];
+
     if let Some(text) = is_class_completion(node, bytes) {
-        return class_map
-            .iter()
-            .filter(|c| c.name.starts_with(&text))
-            // .filter(|i| i.access.contains(&parser::dto::Access::Public))
-            .map(|v| {
-                let class_path = v.value().class_path.as_str();
-                let add_import = !imports::is_imported(imports, class_path);
-                class_describe(v.value(), add_import)
-            })
-            .take(20)
-            .collect();
+        out.extend(
+            imports
+                .iter()
+                .filter_map(|imp| match imp {
+                    ImportUnit::Class(c) => Some(c),
+                    ImportUnit::StaticClass(c) => Some(c),
+                    ImportUnit::Prefix(_) => None,
+                    ImportUnit::StaticPrefix(_) => None,
+                })
+                .filter(|c| {
+                    let Some((_, cname)) = c.rsplit_once(".") else {
+                        return false;
+                    };
+                    cname.starts_with(&text)
+                })
+                .filter_map(|class_path| class_map.get(*class_path))
+                .map(|c| class_describe(&c, false)),
+        );
+        out.extend(
+            class_map
+                .iter()
+                .filter(|c| c.name.starts_with(&text))
+                .filter(|i| !i.name.contains("&"))
+                .filter(|v| {
+                    let class_path = v.value().class_path.as_str();
+                    !imports::is_imported(imports, class_path)
+                })
+                .map(|v| class_describe(v.value(), true))
+                .take(20),
+        );
     }
-    vec![]
+    out
 }
 
 fn is_class_completion(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Option<String> {
