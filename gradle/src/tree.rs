@@ -50,7 +50,6 @@ fn parse_tree<'a>(inp: String) -> Vec<Dependency<'a>> {
             {
             } else {
                 let line = line
-                    .replace("-", "")
                     .replace("\\", "")
                     .replace(" ", "")
                     .replace("+", "")
@@ -64,9 +63,9 @@ fn parse_tree<'a>(inp: String) -> Vec<Dependency<'a>> {
                     if let Some(artivact_id) = spl.next() {
                         if let Some(version) = spl.next() {
                             out.push(Dependency {
-                                group_id,
-                                artivact_id,
-                                version,
+                                group_id: group_id.trim_start_matches("-"),
+                                artivact_id: artivact_id.trim_start_matches("-"),
+                                version: version.trim_start_matches("-"),
                             })
                         }
                     }

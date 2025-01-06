@@ -89,6 +89,7 @@ pub fn load_classes<P: AsRef<Path>>(path: P, source: SourceDestination) -> dto::
     dto::ClassFolder {
         classes: get_files(&path, ".class")
             .into_iter()
+            .filter(|p| !p.ends_with("module-info.class"))
             .filter_map(|p| {
                 let class_path = &p.trim_start_matches(str_path);
                 let class_path = class_path.trim_start_matches("/");

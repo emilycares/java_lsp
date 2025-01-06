@@ -41,11 +41,10 @@ pub async fn fetch_deps(
             let unpack_folder = unpack_folder.clone();
             let maven_class_folder = maven_class_folder.clone();
             handles.push(tokio::spawn(async move {
-                eprintln!("Loading dependency: {}", dep.artivact_id);
                 let folder = PathBuf::from(&unpack_folder)
                     .join(format!("{}-{}", dep.artivact_id, dep.version));
                 if !folder.exists() {
-                    eprintln!("dependency folder does not exist {:?}", folder);
+                    eprintln!("dependency folder does not exist {:?}, {:?}", folder, &dep);
                 } else {
                     let classes = parser::loader::load_classes(
                         folder.as_path().to_str().unwrap_or_default(),
@@ -69,10 +68,31 @@ pub async fn fetch_deps(
     }
 }
 
+// println configurations.getAll()
+// [configuration ':annotationProcessor'
+// configuration ':apiElements'
+// configuration ':archives'
+// configuration ':compileClasspath'
+// configuration ':compileOnly'
+// configuration ':default'
+// configuration ':implementation'
+// configuration ':mainSourceElements'
+// configuration ':runtimeClasspath'
+// configuration ':runtimeElements'
+// configuration ':runtimeOnly'
+// configuration ':testAnnotationProcessor'
+// configuration ':testCompileClasspath'
+// configuration ':testCompileOnly'
+// configuration ':testImplementation'
+// configuration ':testResultsElementsForTest'
+// configuration ':testRuntimeClasspath'
+// configuration ':testRuntimeOnly']
 const UNPACK_DEPENCENCIES_TASK: &str = r#"
 task unpackDependencies(type: Copy) {
     from configurations.runtimeClasspath
     from configurations.compileClasspath
+    from configurations.testRuntimeClasspath
+    from configurations.testCompileClasspath
     into "$buildDir/unpacked-dependencies"
     println "STARTPATH_$buildDir/unpacked-dependencies"
     eachFile { file ->

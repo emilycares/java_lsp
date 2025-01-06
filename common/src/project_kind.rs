@@ -22,7 +22,7 @@ pub fn get_project_kind() -> ProjectKind {
         return ProjectKind::Maven;
     }
 
-    if PathBuf::from("./settings.gradle").exists() {
+    if PathBuf::from("./build.gradle").exists() {
         return ProjectKind::Gradle;
     }
 
