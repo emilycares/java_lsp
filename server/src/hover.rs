@@ -1,38 +1,42 @@
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
 use parser::dto;
-use tree_sitter::{Point, Tree};
+use tree_sitter::Point;
 
 use crate::{
-    call_chain::{class_or_variable, CallItem},
+    call_chain::{self, class_or_variable, CallItem},
     imports::ImportUnit,
     tyres,
     utils::to_lsp_range,
+    variable::LocalVariable,
     Document,
 };
 
-pub fn class(
+pub fn base(
     document: &Document,
     point: &Point,
+    lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<Hover> {
-    let tree = &document.tree;
-    let bytes = document.as_bytes();
+    if let Some((class, range)) = class_action(document, point, imports, class_map) {
+        return Some(class_to_hover(class, range));
+    }
 
-    if let Some((class, range)) = class_action(tree, bytes, point, imports, class_map) {
-        return class_to_hover(class, range);
+    if let Some(hover) = call_chain_hover(document, point, lo_va, imports, class_map) {
+        return Some(hover)
     }
 
     None
 }
 
 pub fn class_action(
-    tree: &Tree,
-    bytes: &[u8],
+    document: &Document,
     point: &Point,
     imports: &[ImportUnit],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<(dto::Class, Range)> {
+    let tree = &document.tree;
+    let bytes = document.as_bytes();
     if let Ok(n) = tree_sitter_util::get_node_at_point(tree, *point) {
         if n.kind() == "type_identifier" {
             if let Ok(jtype) = n.utf8_text(bytes) {
@@ -42,11 +46,9 @@ pub fn class_action(
             }
         }
         if n.kind() == "identifier" {
-            if let Ok(text) = n.utf8_text(bytes) {
-                if let Some(CallItem::Class(class)) = class_or_variable(text.to_string()) {
-                    if let Some(class) = tyres::resolve(&class, imports, class_map) {
-                        return Some((class, to_lsp_range(n.range())));
-                    }
+            if let Some(CallItem::Class { name: class, range }) = class_or_variable(n, bytes) {
+                if let Some(class) = tyres::resolve(&class, imports, class_map) {
+                    return Some((class, to_lsp_range(range)));
                 }
             }
         }
@@ -54,29 +56,86 @@ pub fn class_action(
     None
 }
 
-fn class_to_hover(class: dto::Class, range: Range) -> Option<Hover> {
-    let methods: Vec<_> = class
-        .methods
+pub fn call_chain_hover(
+    document: &Document,
+    point: &Point,
+    lo_va: &[LocalVariable],
+    imports: &[ImportUnit],
+    class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
+) -> Option<Hover> {
+    let Some(call_chain) = call_chain::get_call_chain(document, point) else {
+        return None;
+    };
+
+    let item = call_chain
         .iter()
-        .map(|m| {
-            format!(
-                " - {}({:?})",
-                m.name,
-                m.parameters
-                    .iter()
-                    .map(|p| format!("{}", p.jtype))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )
+        .enumerate()
+        .find(|(_n, ci)| match ci {
+            CallItem::MethodCall { name: _, range } => {
+                tree_sitter_util::is_point_in_range(point, range)
+            }
+            CallItem::FieldAccess { name: _, range } => {
+                tree_sitter_util::is_point_in_range(point, range)
+            }
+            CallItem::Variable { name: _, range } => {
+                tree_sitter_util::is_point_in_range(point, range)
+            }
+            CallItem::Class { name: _, range } => tree_sitter_util::is_point_in_range(point, range),
         })
-        .collect();
-    Some(Hover {
+        .map(|(a, _)| a)
+        .unwrap_or_default();
+
+    let Some(el) = call_chain.get(item) else {
+        return None;
+    };
+
+    let relevat = &call_chain[0..item + 1];
+    let class = tyres::resolve_call_chain(relevat, lo_va, imports, class_map)?;
+    match el {
+        CallItem::MethodCall { name, range } => {
+            let Some(method) = class.methods.iter().find(|m| m.name == *name) else {
+                return None;
+            };
+            Some(method_to_hover(&method, to_lsp_range(*range)))
+        }
+        CallItem::FieldAccess { name: _, range: _ } => None,
+        CallItem::Variable { name: _, range: _ } => None,
+        CallItem::Class { name: _, range } => Some(class_to_hover(class, to_lsp_range(*range))),
+    }
+}
+
+fn format_method(m: &dto::Method) -> String {
+    format!(
+        "{} {}({:?})",
+        m.ret,
+        m.name,
+        m.parameters
+            .iter()
+            .map(|p| format!("{}", p.jtype))
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
+}
+
+fn method_to_hover(m: &dto::Method, range: Range) -> Hover {
+    Hover {
+        contents: HoverContents::Markup(MarkupContent {
+            kind: MarkupKind::Markdown,
+            value: format_method(&m),
+        }),
+        range: Some(range),
+    }
+}
+
+fn class_to_hover(class: dto::Class, range: Range) -> Hover {
+    let methods: Vec<_> = class.methods.iter().map(format_method).collect();
+    Hover {
         contents: HoverContents::Markup(MarkupContent {
             kind: MarkupKind::Markdown,
             value: format!("# {}\n\nmethods:\n{}", class.name, methods.join("\n")),
         }),
         range: Some(range),
-    })
+    }
 }
 
 #[cfg(test)]
@@ -85,7 +144,10 @@ mod tests {
     use parser::dto;
     use tree_sitter::Point;
 
-    use crate::{hover::class_action, Document};
+    use crate::{
+        hover::{call_chain_hover, class_action},
+        variable, Document,
+    };
 
     #[test]
     fn class_action_base() {
@@ -97,20 +159,13 @@ public class Test {
     }
 }
 ";
-        let bytes = content.as_bytes();
         let doc = Document::setup(content).unwrap();
 
-        let out = class_action(
-            &doc.tree,
-            bytes,
-            &Point::new(3, 14),
-            &[],
-            &string_class_map(),
-        );
+        let out = class_action(&doc, &Point::new(3, 14), &[], &string_class_map());
         assert!(out.is_some());
     }
-    #[test]
 
+    #[test]
     fn class_action_marker_annotation() {
         let content = "
 package ch.emilycares;
@@ -121,16 +176,28 @@ public class Test {
     }
 }
 ";
-        let bytes = content.as_bytes();
         let doc = Document::setup(content).unwrap();
 
-        let out = class_action(
-            &doc.tree,
-            bytes,
-            &Point::new(3, 9),
-            &[],
-            &string_class_map(),
-        );
+        let out = class_action(&doc, &Point::new(3, 9), &[], &string_class_map());
+        assert!(out.is_some());
+    }
+
+    #[test]
+    fn method_hover() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+    String other = \"asd\";
+    String local = other.length().toString();
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+        let point = Point::new(5, 29);
+        let vars = variable::get_vars(&doc, &point);
+
+        let out = call_chain_hover(&doc, &point, &vars, &[], &string_class_map());
         assert!(out.is_some());
     }
 

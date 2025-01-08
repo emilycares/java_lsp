@@ -19,11 +19,9 @@ pub fn class(
     imports: &[ImportUnit],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<GotoDefinitionResponse> {
-    let tree = &document.tree;
-    let bytes = document.as_bytes();
     let vars = variable::get_vars(document, point);
 
-    if let Some((class, _range)) = hover::class_action(tree, bytes, point, imports, class_map) {
+    if let Some((class, _range)) = hover::class_action(document, point, imports, class_map) {
         if let Some(sourc_file) = get_source_content(&class) {
             if let Some(range) = position::get_class_position(sourc_file.as_str(), &class.name) {
                 if let Some(value) = go_to_definition_range(class, to_lsp_range(range)) {
@@ -56,7 +54,7 @@ fn call_chain_definition(
         if let Some(extend_class) = tyres::resolve_call_chain(call_chain, vars, imports, class_map)
         {
             match call_chain.last() {
-                Some(CallItem::MethodCall(name)) => {
+                Some(CallItem::MethodCall{ name, range:_ }) => {
                     if let Some(sourc_file) = get_source_content(&extend_class) {
                         if let Some(range) =
                             position::get_method_position(sourc_file.as_str(), name)
@@ -69,7 +67,7 @@ fn call_chain_definition(
                         }
                     }
                 }
-                Some(CallItem::FieldAccess(name)) => {
+                Some(CallItem::FieldAccess{ name, range:_ }) => {
                     if let Some(sourc_file) = get_source_content(&extend_class) {
                         if let Some(range) = position::get_filed_position(sourc_file.as_str(), name)
                         {

@@ -1,14 +1,14 @@
-use tree_sitter::Point;
-use tree_sitter_util::{get_string, tdbc, CommentSkiper};
+use tree_sitter::{Point, Range};
+use tree_sitter_util::{get_string, get_string_node, CommentSkiper};
 
 use crate::Document;
 
 #[derive(Debug, PartialEq)]
 pub enum CallItem {
-    MethodCall(String),
-    FieldAccess(String),
-    Variable(String),
-    Class(String),
+    MethodCall { name: String, range: Range },
+    FieldAccess { name: String, range: Range },
+    Variable { name: String, range: Range },
+    Class { name: String, range: Range },
 }
 
 /// Provides data abuilt the current variable before the cursor
@@ -37,12 +37,9 @@ pub fn get_call_chain(document: &Document, point: &Point) -> Option<Vec<CallItem
                 cursor.parent();
             }
             "scoped_type_identifier" => {
-                let l = get_string(&cursor, bytes);
-                let l = l.split_once("\n").unwrap_or_default().0;
-                let l = l.trim();
-                let l = l.trim_end_matches('.');
+                let node = cursor.node();
 
-                if let Some(c) = class_or_variable(l.to_owned()) {
+                if let Some(c) = class_or_variable(node, bytes) {
                     out.push(c);
                 }
             }
@@ -110,16 +107,16 @@ fn parse_argument_list_argument(
     match cursor.node().kind() {
         "identifier" => 'block: {
             if cursor.node().kind() == "identifier" {
-                let identifier = get_string(&*cursor, bytes);
+                let identifier = cursor.node();
                 cursor.sibling();
                 if cursor.node().kind() == ")" {
-                    if let Some(c) = class_or_variable(identifier) {
+                    if let Some(c) = class_or_variable(identifier, bytes) {
                         out.push(c);
                     }
                     break 'block;
                 }
                 if cursor.node().kind() == "ERROR" {
-                    if let Some(c) = class_or_variable(identifier) {
+                    if let Some(c) = class_or_variable(identifier, bytes) {
                         out.push(c);
                     }
                 }
@@ -136,7 +133,7 @@ fn parse_argument_list_argument(
 fn parse_value(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> Vec<CallItem> {
     match cursor.node().kind() {
         "identifier" => {
-            if let Some(c) = class_or_variable(get_string(cursor, bytes)) {
+            if let Some(c) = class_or_variable(cursor.node(), bytes) {
                 return vec![c];
             }
             vec![]
@@ -158,28 +155,36 @@ fn parse_method_invocation(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<Cal
             cursor.sibling();
             cursor.sibling();
             let method_name = get_string(&cursor, bytes);
-            out.extend(vec![CallItem::MethodCall(method_name)]);
+            out.extend(vec![CallItem::MethodCall {
+                name: method_name,
+                range: cursor.node().range(),
+            }]);
         }
         "identifier" => {
-            let var_name = get_string(&cursor, bytes);
-            if let Some(c) = class_or_variable(var_name) {
+            let var_name = cursor.node();
+            if let Some(c) = class_or_variable(var_name, bytes) {
                 out.push(c);
             }
             cursor.sibling();
             cursor.sibling();
             let method_name = get_string(&cursor, bytes);
-            out.push(CallItem::MethodCall(method_name));
+            out.push(CallItem::MethodCall {
+                name: method_name,
+                range: cursor.node().range(),
+            });
         }
         "method_invocation" => {
             out.extend(parse_method_invocation(cursor.node(), bytes));
         }
         "object_creation_expression" => {
-            tdbc(&cursor, bytes);
             out.extend(parse_object_creation(node, bytes));
             cursor.sibling();
             cursor.sibling();
             let method_name = get_string(&cursor, bytes);
-            out.extend(vec![CallItem::MethodCall(method_name)]);
+            out.push(CallItem::MethodCall {
+                name: method_name,
+                range: cursor.node().range(),
+            });
         }
         _ => {}
     };
@@ -191,18 +196,20 @@ fn parse_field_access(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem
     let mut cursor = node.walk();
     let mut out = vec![];
     cursor.first_child();
-    tdbc(&cursor, bytes);
     match cursor.node().kind() {
         "identifier" => {
-            let var_name = get_string(&cursor, bytes);
+            let var_name = cursor.node();
             cursor.sibling();
             cursor.sibling();
             let field_name = get_string(&cursor, bytes);
-            if let Some(item) = class_or_variable(var_name) {
+            if let Some(item) = class_or_variable(var_name, bytes) {
                 out.push(item);
             }
             if field_name != "return" {
-                out.push(CallItem::FieldAccess(field_name));
+                out.push(CallItem::FieldAccess {
+                    name: field_name,
+                    range: cursor.node().range(),
+                });
             }
         }
         "method_invocation" => {
@@ -210,7 +217,10 @@ fn parse_field_access(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem
             cursor.sibling();
             cursor.sibling();
             let field_name = get_string(&cursor, bytes);
-            out.extend(vec![CallItem::FieldAccess(field_name)]);
+            out.push(CallItem::FieldAccess {
+                name: field_name,
+                range: cursor.node().range(),
+            });
         }
         "field_access" => {
             out.extend(parse_field_access(cursor.node(), bytes));
@@ -220,7 +230,10 @@ fn parse_field_access(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem
             cursor.sibling();
             cursor.sibling();
             let field_name = get_string(&cursor, bytes);
-            out.push(CallItem::FieldAccess(field_name));
+            out.push(CallItem::FieldAccess {
+                name: field_name,
+                range: cursor.node().range(),
+            });
         }
         _ => {}
     }
@@ -234,16 +247,26 @@ fn parse_object_creation(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallI
     cursor.first_child();
     cursor.first_child();
     cursor.sibling();
-    out.push(CallItem::Class(get_string(&cursor, bytes)));
+    out.push(CallItem::Class {
+        name: get_string(&cursor, bytes),
+        range: cursor.node().range(),
+    });
     cursor.parent();
     cursor.parent();
     out
 }
-pub fn class_or_variable(var_name: String) -> Option<CallItem> {
+pub fn class_or_variable(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Option<CallItem> {
+    let var_name = get_string_node(&node, bytes);
     if let Some(c) = var_name.chars().next() {
         return Some(match c.is_uppercase() {
-            true => CallItem::Class(var_name),
-            false => CallItem::Variable(var_name),
+            true => CallItem::Class {
+                name: var_name,
+                range: node.range(),
+            },
+            false => CallItem::Variable {
+                name: var_name,
+                range: node.range(),
+            },
         });
     }
     None
@@ -252,7 +275,7 @@ pub fn class_or_variable(var_name: String) -> Option<CallItem> {
 #[cfg(test)]
 pub mod tests {
     use pretty_assertions::assert_eq;
-    use tree_sitter::Point;
+    use tree_sitter::{Point, Range};
 
     use crate::{
         call_chain::{get_call_chain, CallItem},
@@ -277,7 +300,18 @@ public class Test {
         let doc = Document::setup(content).unwrap();
 
         let out = get_call_chain(&doc, &Point::new(8, 24));
-        assert_eq!(out, Some(vec![CallItem::Variable("local".to_string()),]));
+        assert_eq!(
+            out,
+            Some(vec![CallItem::Variable {
+                name: "local".to_string(),
+                range: Range {
+                    start_byte: 125,
+                    end_byte: 130,
+                    start_point: Point { row: 8, column: 17 },
+                    end_point: Point { row: 8, column: 22 }
+                }
+            }])
+        );
     }
 
     pub const SYMBOL_METHOD: &str = "
@@ -302,9 +336,33 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable("local".to_string()),
-                CallItem::MethodCall("concat".to_string()),
-                CallItem::FieldAccess("return".to_string()),
+                CallItem::Variable {
+                    name: "local".to_string(),
+                    range: Range {
+                        start_byte: 117,
+                        end_byte: 122,
+                        start_point: Point { row: 8, column: 17 },
+                        end_point: Point { row: 8, column: 22 },
+                    }
+                },
+                CallItem::MethodCall {
+                    name: "concat".to_string(),
+                    range: Range {
+                        start_byte: 123,
+                        end_byte: 129,
+                        start_point: Point { row: 8, column: 23 },
+                        end_point: Point { row: 8, column: 29 }
+                    },
+                },
+                CallItem::FieldAccess {
+                    name: "return".to_string(),
+                    range: Range {
+                        start_byte: 148,
+                        end_byte: 154,
+                        start_point: Point { row: 9, column: 8 },
+                        end_point: Point { row: 9, column: 14 },
+                    }
+                }
             ])
         );
     }
@@ -327,8 +385,24 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable("local".to_string()),
-                CallItem::FieldAccess("a".to_string())
+                CallItem::Variable {
+                    name: "local".to_string(),
+                    range: Range {
+                        start_byte: 113,
+                        end_byte: 118,
+                        start_point: Point { row: 5, column: 17 },
+                        end_point: Point { row: 5, column: 22 },
+                    }
+                },
+                CallItem::FieldAccess {
+                    name: "a".to_string(),
+                    range: Range {
+                        start_byte: 119,
+                        end_byte: 120,
+                        start_point: Point { row: 5, column: 23 },
+                        end_point: Point { row: 5, column: 24 },
+                    }
+                }
             ])
         );
     }
@@ -351,8 +425,24 @@ public class GreetingResource {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable("a".to_string()),
-                CallItem::MethodCall("concat".to_string())
+                CallItem::Variable {
+                    name: "a".to_string(),
+                    range: Range {
+                        start_byte: 106,
+                        end_byte: 107,
+                        start_point: Point { row: 5, column: 8 },
+                        end_point: Point { row: 5, column: 9 },
+                    }
+                },
+                CallItem::MethodCall {
+                    name: "concat".to_string(),
+                    range: Range {
+                        start_byte: 108,
+                        end_byte: 114,
+                        start_point: Point { row: 5, column: 10 },
+                        end_point: Point { row: 5, column: 16 }
+                    }
+                }
             ])
         );
     }
@@ -375,8 +465,24 @@ public class GreetingResource {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable("a".to_string()),
-                CallItem::MethodCall("concat".to_string())
+                CallItem::Variable {
+                    name: "a".to_string(),
+                    range: Range {
+                        start_byte: 92,
+                        end_byte: 93,
+                        start_point: Point { row: 4, column: 8 },
+                        end_point: Point { row: 4, column: 9 },
+                    }
+                },
+                CallItem::MethodCall {
+                    name: "concat".to_string(),
+                    range: Range {
+                        start_byte: 94,
+                        end_byte: 100,
+                        start_point: Point { row: 4, column: 10 },
+                        end_point: Point { row: 4, column: 16 }
+                    }
+                }
             ])
         );
     }
@@ -399,9 +505,33 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable("local".to_string()),
-                CallItem::FieldAccess("a".to_string()),
-                CallItem::MethodCall("b".to_string()),
+                CallItem::Variable {
+                    name: "local".to_string(),
+                    range: Range {
+                        start_byte: 113,
+                        end_byte: 118,
+                        start_point: Point { row: 5, column: 17 },
+                        end_point: Point { row: 5, column: 22 }
+                    }
+                },
+                CallItem::FieldAccess {
+                    name: "a".to_string(),
+                    range: Range {
+                        start_byte: 119,
+                        end_byte: 120,
+                        start_point: Point { row: 5, column: 23 },
+                        end_point: Point { row: 5, column: 24 }
+                    },
+                },
+                CallItem::MethodCall {
+                    name: "b".to_string(),
+                    range: Range {
+                        start_byte: 121,
+                        end_byte: 122,
+                        start_point: Point { row: 5, column: 25 },
+                        end_point: Point { row: 5, column: 26 }
+                    }
+                },
             ])
         );
     }
@@ -424,9 +554,33 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable("local".to_string()),
-                CallItem::MethodCall("a".to_string()),
-                CallItem::FieldAccess("b".to_string())
+                CallItem::Variable {
+                    name: "local".to_string(),
+                    range: Range {
+                        start_byte: 113,
+                        end_byte: 118,
+                        start_point: Point { row: 5, column: 17 },
+                        end_point: Point { row: 5, column: 22 },
+                    }
+                },
+                CallItem::MethodCall {
+                    name: "a".to_string(),
+                    range: Range {
+                        start_byte: 119,
+                        end_byte: 120,
+                        start_point: Point { row: 5, column: 23 },
+                        end_point: Point { row: 5, column: 24 },
+                    }
+                },
+                CallItem::FieldAccess {
+                    name: "b".to_string(),
+                    range: Range {
+                        start_byte: 123,
+                        end_byte: 124,
+                        start_point: Point { row: 5, column: 27 },
+                        end_point: Point { row: 5, column: 28 },
+                    }
+                }
             ])
         );
     }
@@ -446,7 +600,18 @@ public class Test {
         let doc = Document::setup(content).unwrap();
 
         let out = get_call_chain(&doc, &Point::new(5, 23));
-        assert_eq!(out, Some(vec![CallItem::Variable("local".to_string())]));
+        assert_eq!(
+            out,
+            Some(vec![CallItem::Variable {
+                name: "local".to_string(),
+                range: Range {
+                    start_byte: 113,
+                    end_byte: 118,
+                    start_point: Point { row: 5, column: 17 },
+                    end_point: Point { row: 5, column: 22 },
+                }
+            }])
+        );
     }
 
     #[test]
@@ -467,9 +632,33 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable("local".to_string()),
-                CallItem::MethodCall("a".to_string()),
-                CallItem::FieldAccess("c".to_string()),
+                CallItem::Variable {
+                    name: "local".to_string(),
+                    range: Range {
+                        start_byte: 112,
+                        end_byte: 117,
+                        start_point: Point { row: 5, column: 16 },
+                        end_point: Point { row: 5, column: 21 },
+                    }
+                },
+                CallItem::MethodCall {
+                    name: "a".to_string(),
+                    range: Range {
+                        start_byte: 118,
+                        end_byte: 119,
+                        start_point: Point { row: 5, column: 22 },
+                        end_point: Point { row: 5, column: 23 },
+                    }
+                },
+                CallItem::FieldAccess {
+                    name: "c".to_string(),
+                    range: Range {
+                        start_byte: 122,
+                        end_byte: 123,
+                        start_point: Point { row: 5, column: 26 },
+                        end_point: Point { row: 5, column: 27 },
+                    }
+                },
             ])
         );
     }
@@ -492,9 +681,33 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable("local".to_string()),
-                CallItem::FieldAccess("a".to_string()),
-                CallItem::MethodCall("c".to_string()),
+                CallItem::Variable {
+                    name: "local".to_string(),
+                    range: Range {
+                        start_byte: 112,
+                        end_byte: 117,
+                        start_point: Point { row: 5, column: 16 },
+                        end_point: Point { row: 5, column: 21 }
+                    }
+                },
+                CallItem::FieldAccess {
+                    name: "a".to_string(),
+                    range: Range {
+                        start_byte: 118,
+                        end_byte: 119,
+                        start_point: Point { row: 5, column: 22 },
+                        end_point: Point { row: 5, column: 23 },
+                    }
+                },
+                CallItem::MethodCall {
+                    name: "c".to_string(),
+                    range: Range {
+                        start_byte: 120,
+                        end_byte: 121,
+                        start_point: Point { row: 5, column: 24 },
+                        end_point: Point { row: 5, column: 25 },
+                    }
+                },
             ])
         );
     }
@@ -517,9 +730,33 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable("local".to_string()),
-                CallItem::FieldAccess("a".to_string()),
-                CallItem::MethodCall("c".to_string()),
+                CallItem::Variable {
+                    name: "local".to_string(),
+                    range: Range {
+                        start_byte: 104,
+                        end_byte: 109,
+                        start_point: Point { row: 5, column: 8 },
+                        end_point: Point { row: 5, column: 13 },
+                    }
+                },
+                CallItem::FieldAccess {
+                    name: "a".to_string(),
+                    range: Range {
+                        start_byte: 110,
+                        end_byte: 111,
+                        start_point: Point { row: 5, column: 14 },
+                        end_point: Point { row: 5, column: 15 },
+                    }
+                },
+                CallItem::MethodCall {
+                    name: "c".to_string(),
+                    range: Range {
+                        start_byte: 112,
+                        end_byte: 113,
+                        start_point: Point { row: 5, column: 16 },
+                        end_point: Point { row: 5, column: 17 },
+                    }
+                },
             ])
         );
     }
@@ -539,7 +776,18 @@ public class Test {
         let doc = Document::setup(content).unwrap();
 
         let out = get_call_chain(&doc, &Point::new(5, 16));
-        assert_eq!(out, Some(vec![CallItem::Class("String".to_string()),]));
+        assert_eq!(
+            out,
+            Some(vec![CallItem::Class {
+                name: "String".to_string(),
+                range: Range {
+                    start_byte: 104,
+                    end_byte: 110,
+                    start_point: Point { row: 5, column: 8 },
+                    end_point: Point { row: 5, column: 14 },
+                }
+            },])
+        );
     }
 
     #[test]
@@ -557,7 +805,18 @@ public class Test {
         let doc = Document::setup(content).unwrap();
 
         let out = get_call_chain(&doc, &Point::new(5, 28));
-        assert_eq!(out, Some(vec![CallItem::Class("String".to_string()),]));
+        assert_eq!(
+            out,
+            Some(vec![CallItem::Class {
+                name: "String".to_string(),
+                range: Range {
+                    start_byte: 116,
+                    end_byte: 122,
+                    start_point: Point { row: 5, column: 20 },
+                    end_point: Point { row: 5, column: 26 },
+                }
+            },])
+        );
     }
 
     #[test]
@@ -593,7 +852,18 @@ public class Test {
         let doc = Document::setup(content).unwrap();
 
         let out = get_call_chain(&doc, &Point::new(5, 27));
-        assert_eq!(out, Some(vec![CallItem::Variable("local".to_string()),]));
+        assert_eq!(
+            out,
+            Some(vec![CallItem::Variable {
+                name: "local".to_string(),
+                range: Range {
+                    start_byte: 117,
+                    end_byte: 122,
+                    start_point: Point { row: 5, column: 21 },
+                    end_point: Point { row: 5, column: 26 }
+                }
+            }])
+        );
     }
 
     #[test]
@@ -611,7 +881,18 @@ public class Test {
         let doc = Document::setup(content).unwrap();
 
         let out = get_call_chain(&doc, &Point::new(5, 27));
-        assert_eq!(out, Some(vec![CallItem::Variable("local".to_string()),]));
+        assert_eq!(
+            out,
+            Some(vec![CallItem::Variable {
+                name: "local".to_string(),
+                range: Range {
+                    start_byte: 117,
+                    end_byte: 122,
+                    start_point: Point { row: 5, column: 21 },
+                    end_point: Point { row: 5, column: 26 }
+                }
+            }])
+        );
     }
 
     #[test]
@@ -629,7 +910,18 @@ public class Test {
         let doc = Document::setup(content).unwrap();
 
         let out = get_call_chain(&doc, &Point::new(5, 23));
-        assert_eq!(out, Some(vec![CallItem::Variable("c".to_string()),]));
+        assert_eq!(
+            out,
+            Some(vec![CallItem::Variable {
+                name: "c".to_string(),
+                range: Range {
+                    start_byte: 116,
+                    end_byte: 117,
+                    start_point: Point { row: 5, column: 20 },
+                    end_point: Point { row: 5, column: 21 },
+                }
+            }])
+        );
     }
 
     #[test]
@@ -647,7 +939,18 @@ public class Test {
         let doc = Document::setup(content).unwrap();
 
         let out = get_call_chain(&doc, &Point::new(5, 22));
-        assert_eq!(out, Some(vec![CallItem::Variable("c".to_string()),]));
+        assert_eq!(
+            out,
+            Some(vec![CallItem::Variable {
+                name: "c".to_string(),
+                range: Range {
+                    start_byte: 116,
+                    end_byte: 117,
+                    start_point: Point { row: 5, column: 20 },
+                    end_point: Point { row: 5, column: 21 },
+                }
+            }])
+        );
     }
 
     #[test]
@@ -668,8 +971,24 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable("b".to_string()),
-                CallItem::FieldAccess("a".to_string()),
+                CallItem::Variable {
+                    name: "b".to_string(),
+                    range: Range {
+                        start_byte: 113,
+                        end_byte: 114,
+                        start_point: Point { row: 5, column: 17 },
+                        end_point: Point { row: 5, column: 18 },
+                    }
+                },
+                CallItem::FieldAccess {
+                    name: "a".to_string(),
+                    range: Range {
+                        start_byte: 115,
+                        end_byte: 116,
+                        start_point: Point { row: 5, column: 19 },
+                        end_point: Point { row: 5, column: 20 }
+                    },
+                },
             ])
         );
     }
@@ -692,8 +1011,24 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable("b".to_string()),
-                CallItem::MethodCall("a".to_string()),
+                CallItem::Variable {
+                    name: "b".to_string(),
+                    range: Range {
+                        start_byte: 113,
+                        end_byte: 114,
+                        start_point: Point { row: 5, column: 17 },
+                        end_point: Point { row: 5, column: 18 }
+                    }
+                },
+                CallItem::MethodCall {
+                    name: "a".to_string(),
+                    range: Range {
+                        start_byte: 115,
+                        end_byte: 116,
+                        start_point: Point { row: 5, column: 19 },
+                        end_point: Point { row: 5, column: 20 },
+                    }
+                },
             ])
         );
     }
@@ -713,7 +1048,18 @@ public class Test {
         let doc = Document::setup(content).unwrap();
 
         let out = get_call_chain(&doc, &Point::new(4, 14));
-        assert_eq!(out, Some(vec![CallItem::Variable("a".to_string()),]));
+        assert_eq!(
+            out,
+            Some(vec![CallItem::Variable {
+                name: "a".to_string(),
+                range: Range {
+                    start_byte: 82,
+                    end_byte: 83,
+                    start_point: Point { row: 4, column: 12 },
+                    end_point: Point { row: 4, column: 13 },
+                }
+            }])
+        );
     }
 
     #[test]
@@ -731,7 +1077,18 @@ public class Test {
         let doc = Document::setup(content).unwrap();
 
         let out = get_call_chain(&doc, &Point::new(4, 19));
-        assert_eq!(out, Some(vec![CallItem::Variable("b".to_string()),]));
+        assert_eq!(
+            out,
+            Some(vec![CallItem::Variable {
+                name: "b".to_string(),
+                range: Range {
+                    start_byte: 87,
+                    end_byte: 88,
+                    start_point: Point { row: 4, column: 17 },
+                    end_point: Point { row: 4, column: 18 },
+                }
+            },])
+        );
     }
 
     #[test]
@@ -747,7 +1104,18 @@ public class Test {
         let doc = Document::setup(content).unwrap();
 
         let out = get_call_chain(&doc, &Point::new(4, 18));
-        assert_eq!(out, Some(vec![CallItem::Variable("a".to_string()),]));
+        assert_eq!(
+            out,
+            Some(vec![CallItem::Variable {
+                name: "a".to_string(),
+                range: Range {
+                    start_byte: 85,
+                    end_byte: 86,
+                    start_point: Point { row: 4, column: 15 },
+                    end_point: Point { row: 4, column: 16 }
+                }
+            },])
+        );
     }
 
     #[test]
@@ -766,8 +1134,24 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable("a".to_string()),
-                CallItem::MethodCall("b".to_string())
+                CallItem::Variable {
+                    name: "a".to_string(),
+                    range: Range {
+                        start_byte: 85,
+                        end_byte: 86,
+                        start_point: Point { row: 4, column: 15 },
+                        end_point: Point { row: 4, column: 16 },
+                    }
+                },
+                CallItem::MethodCall {
+                    name: "b".to_string(),
+                    range: Range {
+                        start_byte: 87,
+                        end_byte: 88,
+                        start_point: Point { row: 4, column: 17 },
+                        end_point: Point { row: 4, column: 18 },
+                    }
+                }
             ])
         );
     }
@@ -786,7 +1170,18 @@ public class Test {
         let doc = Document::setup(content).unwrap();
 
         let out = get_call_chain(&doc, &Point::new(4, 22));
-        assert_eq!(out, Some(vec![CallItem::Class("String".to_string())]));
+        assert_eq!(
+            out,
+            Some(vec![CallItem::Class {
+                name: "String".to_string(),
+                range: Range {
+                    start_byte: 82,
+                    end_byte: 88,
+                    start_point: Point { row: 4, column: 12 },
+                    end_point: Point { row: 4, column: 18 }
+                }
+            }])
+        );
     }
 
     #[test]
@@ -806,8 +1201,24 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Class("String".to_string()),
-                CallItem::FieldAccess("a".to_string())
+                CallItem::Class {
+                    name: "String".to_string(),
+                    range: Range {
+                        start_byte: 82,
+                        end_byte: 88,
+                        start_point: Point { row: 4, column: 12 },
+                        end_point: Point { row: 4, column: 18 },
+                    }
+                },
+                CallItem::FieldAccess {
+                    name: "a".to_string(),
+                    range: Range {
+                        start_byte: 91,
+                        end_byte: 92,
+                        start_point: Point { row: 4, column: 21 },
+                        end_point: Point { row: 4, column: 22 },
+                    }
+                }
             ])
         );
     }
@@ -829,8 +1240,24 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Class("String".to_string()),
-                CallItem::MethodCall("a".to_string())
+                CallItem::Class {
+                    name: "String".to_string(),
+                    range: Range {
+                        start_byte: 82,
+                        end_byte: 88,
+                        start_point: Point { row: 4, column: 12 },
+                        end_point: Point { row: 4, column: 18 },
+                    }
+                },
+                CallItem::MethodCall {
+                    name: "a".to_string(),
+                    range: Range {
+                        start_byte: 91,
+                        end_byte: 92,
+                        start_point: Point { row: 4, column: 21 },
+                        end_point: Point { row: 4, column: 22 },
+                    }
+                }
             ])
         );
     }

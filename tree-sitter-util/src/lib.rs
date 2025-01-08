@@ -1,5 +1,5 @@
 use thiserror::Error;
-use tree_sitter::{Node, Point, Tree, TreeCursor};
+use tree_sitter::{Node, Point, Range, Tree, TreeCursor};
 
 #[derive(Error, Debug, PartialEq)]
 pub enum TreesitterError {
@@ -24,6 +24,19 @@ pub fn get_node_at_point(tree: &Tree, point: Point) -> Result<Node, TreesitterEr
 
     Ok(cursor.node())
 }
+
+pub fn is_point_in_range(point: &Point, range: &Range) -> bool {
+    let start = range.start_point;
+    let end = range.end_point;
+
+    if *point >= start {
+        if *point <= end {
+            return true;
+        }
+    }
+    false
+}
+
 pub trait CommentSkiper {
     fn parent(&mut self) -> bool;
     fn previous_sibling(&mut self) -> bool;

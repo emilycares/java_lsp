@@ -297,7 +297,7 @@ public class GreetingResource {
     @GET
     @Produces(MediaType.TEXT_HTML)
     public TemplateInstance hello() {
-        var lo = other. 
+        var lo = other. ;
         return hello.data(\"name\", \"emilycares\");
     }
 }

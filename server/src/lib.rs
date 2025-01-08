@@ -452,9 +452,9 @@ impl Backend<'_> {
         };
         let point = to_treesitter_point(params.text_document_position_params.position);
         let imports = imports::imports(document.value());
+        let vars = variable::get_vars(document.value(), &point);
 
-        let class_hover = hover::class(document.value(), &point, &imports, &self.class_map);
-        return class_hover;
+        hover::base(document.value(), &point, &vars, &imports, &self.class_map)
     }
 
     async fn formatting(&self, params: DocumentFormattingParams) -> Option<Vec<TextEdit>> {
