@@ -1,6 +1,6 @@
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat};
 use parser::dto;
-use tree_sitter::Point;
+use tree_sitter::{Point, Tree};
 use tree_sitter_util::{get_node_at_point, get_string_node};
 
 use crate::{
@@ -31,7 +31,7 @@ pub fn complete_vars(vars: &[LocalVariable]) -> Vec<CompletionItem> {
 }
 
 /// Preview class with the description of methods
-pub fn class_describe(val: &dto::Class, add_import: bool) -> CompletionItem {
+pub fn class_describe(val: &dto::Class, add_import_tree: Option<&Tree>) -> CompletionItem {
     let methods: Vec<_> = val
         .methods
         .iter()
@@ -49,8 +49,8 @@ pub fn class_describe(val: &dto::Class, add_import: bool) -> CompletionItem {
 
     let mut addi = None;
 
-    if add_import {
-        addi = Some(codeaction::import_text_edit(&val.class_path));
+    if let Some(tree) = add_import_tree {
+        addi = Some(codeaction::import_text_edit(&val.class_path, tree));
     }
 
     CompletionItem {
@@ -200,7 +200,7 @@ pub fn classes(
                     cname.starts_with(&text)
                 })
                 .filter_map(|class_path| class_map.get(*class_path))
-                .map(|c| class_describe(&c, false)),
+                .map(|c| class_describe(&c, None)),
         );
         out.extend(
             class_map
@@ -211,7 +211,7 @@ pub fn classes(
                     let class_path = v.value().class_path.as_str();
                     !imports::is_imported(imports, class_path)
                 })
-                .map(|v| class_describe(v.value(), true))
+                .map(|v| class_describe(v.value(), Some(&document.tree)))
                 .take(20),
         );
     }
@@ -491,7 +491,7 @@ public class Test {
                             character: 0,
                         },
                     },
-                    new_text: "import java.lang.StringBuilder;\n".to_string(),
+                    new_text: "\nimport java.lang.StringBuilder;".to_string(),
                 },],),
                 ..Default::default()
             }]

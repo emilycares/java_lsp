@@ -23,7 +23,7 @@ pub fn base(
     }
 
     if let Some(hover) = call_chain_hover(document, point, lo_va, imports, class_map) {
-        return Some(hover)
+        return Some(hover);
     }
 
     None
@@ -98,8 +98,18 @@ pub fn call_chain_hover(
             };
             Some(method_to_hover(&method, to_lsp_range(*range)))
         }
-        CallItem::FieldAccess { name: _, range: _ } => None,
-        CallItem::Variable { name: _, range: _ } => None,
+        CallItem::FieldAccess { name, range } => {
+            let Some(method) = class.fields.iter().find(|m| m.name == *name) else {
+                return None;
+            };
+            Some(field_to_hover(&method, to_lsp_range(*range)))
+        },
+        CallItem::Variable { name, range } => {
+            let Some(var) = lo_va.iter().find(|v| v.name == *name) else {
+                return None;
+            };
+            Some(variable_to_hover(var, to_lsp_range(*range)))
+        }
         CallItem::Class { name: _, range } => Some(class_to_hover(class, to_lsp_range(*range))),
     }
 }
@@ -115,6 +125,26 @@ fn format_method(m: &dto::Method) -> String {
             .collect::<Vec<_>>()
             .join(", ")
     )
+}
+
+fn variable_to_hover(var: &LocalVariable, range: Range) -> Hover {
+    Hover {
+        contents: HoverContents::Markup(MarkupContent {
+            kind: MarkupKind::Markdown,
+            value: format!("{} {}", var.jtype, var.name),
+        }),
+        range: Some(range),
+    }
+}
+
+fn field_to_hover(f: &dto::Field, range: Range) -> Hover {
+    Hover {
+        contents: HoverContents::Markup(MarkupContent {
+            kind: MarkupKind::Markdown,
+            value: format!("{} {}", f.jtype, f.name),
+        }),
+        range: Some(range),
+    }
 }
 
 fn method_to_hover(m: &dto::Method, range: Range) -> Hover {
