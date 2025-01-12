@@ -74,7 +74,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         ..ServerCapabilities::default()
     })
-    .unwrap();
+    .unwrap_or_default();
     let initialization_params = match connection.initialize(server_capabilities) {
         Ok(it) => it,
         Err(e) => {
@@ -96,7 +96,7 @@ async fn main_loop(
     backend: Backend<'_>,
     params: serde_json::Value,
 ) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
-    let _params: InitializeParams = serde_json::from_value(params).unwrap();
+    let _params: InitializeParams = serde_json::from_value(params).unwrap_or_default();
     backend.initialized(InitializedParams {}).await;
     for msg in &backend.connection.receiver {
         match msg {
@@ -218,8 +218,10 @@ impl Backend<'_> {
         if let Some(mut document) = self.document_map.get_mut(&key) {
             document.replace_text(rope);
         } else {
-            self.document_map
-                .insert(key, Document::setup_rope(&params.text, rope).unwrap());
+            if let Some(doc) = Document::setup_rope(&params.text, rope) {
+                self.document_map
+                .insert(key, doc);
+            }
         }
     }
 
@@ -505,7 +507,6 @@ impl Backend<'_> {
 
         out.extend(call_chain);
 
-        // TODO: Sort classes by name
         out.extend(completion::classes(
             document.value(),
             &point,
@@ -522,7 +523,7 @@ impl Backend<'_> {
     ) -> Option<GotoDefinitionResponse> {
         let params = params.text_document_position_params;
         let uri = params.text_document.uri;
-        let Some(document) = self.get_document(uri).await else {
+        let Some(document) = self.get_document(uri.clone()).await else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -530,7 +531,7 @@ impl Backend<'_> {
         let point = to_treesitter_point(params.position);
         let imports = imports::imports(document.value());
 
-        if let Some(c) = definition::class(document.value(), &point, &imports, &self.class_map) {
+        if let Some(c) = definition::class(document.value(), uri, &point, &imports, &self.class_map) {
             return Some(c);
         }
         None

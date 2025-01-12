@@ -73,7 +73,7 @@ fn get_imported_classpaths<'a>(bytes: &'a [u8], tree: &Tree) -> Vec<ImportUnit<'
 
         // skip import when not correctly formated
         if cursor.node().kind() == "scoped_identifier" {
-            let class_path = cursor.node().utf8_text(bytes).unwrap();
+            let class_path = cursor.node().utf8_text(bytes).unwrap_or_default();
             if cursor.sibling() {
                 if cursor.node().kind() == "." {
                     cursor.sibling();

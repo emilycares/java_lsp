@@ -22,7 +22,7 @@ fn topiary(text: String) -> Option<String> {
     let grammar = java.grammar().ok()?;
     let language: Language = Language {
         name: "java".to_owned(),
-        query: TopiaryQuery::new(&grammar, query).unwrap(),
+        query: TopiaryQuery::new(&grammar, query).ok()?,
         grammar,
         indent: None,
     };
@@ -35,7 +35,7 @@ fn topiary(text: String) -> Option<String> {
             tolerate_parsing_errors: false,
         },
     )
-    .unwrap();
+    .ok()?;
     let formatted = String::from_utf8(output).expect("valid utf-8");
     Some(formatted)
 }

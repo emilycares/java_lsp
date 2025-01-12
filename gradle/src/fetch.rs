@@ -63,7 +63,9 @@ pub async fn fetch_deps(
 
         futures::future::join_all(handles).await;
         let guard = maven_class_folder.lock().await;
-        parser::loader::save_class_folder("gradle", &guard).unwrap();
+        if let Err(e) = parser::loader::save_class_folder("gradle", &guard) {
+            eprintln!("Failed to save .gradle.cfc because: {e}");
+        };
         Some(Arc::try_unwrap(class_map).expect("Classmap should be free to take"))
     }
 }

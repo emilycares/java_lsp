@@ -211,14 +211,14 @@ fn parse_method_descriptor(descriptor: &str) -> (Vec<dto::JType>, dto::JType) {
                 if c == ')' {
                     break;
                 }
-                param_types.push(parse_field_type(c, &mut chars));
+                param_types.push(parse_field_type(Some(c), &mut chars));
             }
 
-            let return_type = parse_field_type(chars.next().unwrap(), &mut chars);
+            let return_type = parse_field_type(chars.next(), &mut chars);
             (param_types, return_type)
         }
         Some(_) => {
-            let return_type = parse_field_type(current.unwrap(), &mut chars);
+            let return_type = parse_field_type(current, &mut chars);
             (param_types, return_type)
         }
         _ => (vec![], dto::JType::Void),
@@ -226,11 +226,14 @@ fn parse_method_descriptor(descriptor: &str) -> (Vec<dto::JType>, dto::JType) {
 }
 fn parse_field_descriptor(descriptor: &str) -> Option<dto::JType> {
     let mut chars = descriptor.chars();
-    let current = chars.next()?;
+    let current = chars.next();
     Some(parse_field_type(current, &mut chars))
 }
 
-fn parse_field_type(c: char, chars: &mut std::str::Chars) -> dto::JType {
+fn parse_field_type(c: Option<char>, chars: &mut std::str::Chars) -> dto::JType {
+    let Some(c) = c else {
+        return dto::JType::Void;
+    };
     match c {
         'B' => dto::JType::Byte,
         'C' => dto::JType::Char,
@@ -251,7 +254,7 @@ fn parse_field_type(c: char, chars: &mut std::str::Chars) -> dto::JType {
             }
             dto::JType::Class(class_name.replace('/', "."))
         }
-        '[' => dto::JType::Array(Box::new(parse_field_type(chars.next().unwrap(), chars))),
+        '[' => dto::JType::Array(Box::new(parse_field_type(chars.next(), chars))),
         _ => {
             //panic!("Unknown type: {}", c);
             dto::JType::Void

@@ -175,13 +175,13 @@ fn parse_formal_parameters(
 }
 
 fn get_string(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> String {
-    cursor.node().utf8_text(bytes).unwrap().to_owned()
+    cursor.node().utf8_text(bytes).unwrap_or_default().to_owned()
 }
 
 fn parse_jtype(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> dto::JType {
     match (
         cursor.node().kind(),
-        cursor.node().utf8_text(bytes).unwrap(),
+        cursor.node().utf8_text(bytes).unwrap_or_default(),
     ) {
         ("integral_type", "int") => dto::JType::Int,
         (_, _) => dto::JType::Void,

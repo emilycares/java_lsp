@@ -55,7 +55,11 @@ pub fn import_text_edit(classpath: &str, tree: &Tree) -> Vec<TextEdit> {
         new_text: format!("\nimport {};", classpath),
     }]
 }
-pub fn import_to_code_action(current_file: &Uri, classpath: &str, tree: &Tree) -> CodeActionOrCommand {
+pub fn import_to_code_action(
+    current_file: &Uri,
+    classpath: &str,
+    tree: &Tree,
+) -> CodeActionOrCommand {
     let mut changes = HashMap::new();
     changes.insert(current_file.to_owned(), import_text_edit(classpath, tree));
     CodeActionOrCommand::CodeAction(CodeAction {

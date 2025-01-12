@@ -67,29 +67,12 @@ pub fn call_chain_hover(
         return None;
     };
 
-    let item = call_chain
-        .iter()
-        .enumerate()
-        .find(|(_n, ci)| match ci {
-            CallItem::MethodCall { name: _, range } => {
-                tree_sitter_util::is_point_in_range(point, range)
-            }
-            CallItem::FieldAccess { name: _, range } => {
-                tree_sitter_util::is_point_in_range(point, range)
-            }
-            CallItem::Variable { name: _, range } => {
-                tree_sitter_util::is_point_in_range(point, range)
-            }
-            CallItem::Class { name: _, range } => tree_sitter_util::is_point_in_range(point, range),
-        })
-        .map(|(a, _)| a)
-        .unwrap_or_default();
-
+    let Some((item, relevat)) = call_chain::validate(&call_chain, point) else {
+        return None;
+    };
     let Some(el) = call_chain.get(item) else {
         return None;
     };
-
-    let relevat = &call_chain[0..item + 1];
     let class = tyres::resolve_call_chain(relevat, lo_va, imports, class_map)?;
     match el {
         CallItem::MethodCall { name, range } => {
@@ -103,7 +86,7 @@ pub fn call_chain_hover(
                 return None;
             };
             Some(field_to_hover(&method, to_lsp_range(*range)))
-        },
+        }
         CallItem::Variable { name, range } => {
             let Some(var) = lo_va.iter().find(|v| v.name == *name) else {
                 return None;

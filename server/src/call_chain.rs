@@ -272,6 +272,31 @@ pub fn class_or_variable(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Option<Ca
     None
 }
 
+pub fn validate<'a>(call_chain: &'a Vec<CallItem>, point: &'a Point) -> Option<(usize, &'a [CallItem])> {
+    let item = call_chain
+        .iter()
+        .enumerate()
+        .find(|(_n, ci)| match ci {
+            CallItem::MethodCall { name: _, range } => {
+                tree_sitter_util::is_point_in_range(point, range)
+            }
+            CallItem::FieldAccess { name: _, range } => {
+                tree_sitter_util::is_point_in_range(point, range)
+            }
+            CallItem::Variable { name: _, range } => {
+                tree_sitter_util::is_point_in_range(point, range)
+            }
+            CallItem::Class { name: _, range } => tree_sitter_util::is_point_in_range(point, range),
+        })
+        .map(|(a, _)| a)
+        .unwrap_or_default();
+
+
+    let relevat = &call_chain[0..item + 1];
+    Some((item, relevat))
+}
+
+
 #[cfg(test)]
 pub mod tests {
     use pretty_assertions::assert_eq;

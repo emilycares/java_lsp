@@ -121,7 +121,9 @@ pub async fn fetch_deps(
         }
         futures::future::join_all(handles).await;
         let guard = maven_class_folder.lock().await;
-        parser::loader::save_class_folder("maven", &guard).unwrap();
+        if let Err(e) = parser::loader::save_class_folder("maven", &guard) {
+            eprintln!("Failed to save .maven.cfc because: {e}");
+        };
         Some(Arc::try_unwrap(class_map).expect("Classmap should be free to take"))
     }
 }

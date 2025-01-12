@@ -45,10 +45,10 @@ impl Document {
                 let ep = range.end;
 
                 // Get the start/end char indices of the line.
-                let start_idx = self.text.line_to_char(sp.line.try_into().unwrap())
-                    + TryInto::<usize>::try_into(sp.character).unwrap();
-                let end_idx = self.text.line_to_char(ep.line.try_into().unwrap())
-                    + TryInto::<usize>::try_into(ep.character).unwrap();
+                let start_idx = self.text.line_to_char(sp.line.try_into().unwrap_or_default())
+                    + TryInto::<usize>::try_into(sp.character).unwrap_or_default();
+                let end_idx = self.text.line_to_char(ep.line.try_into().unwrap_or_default())
+                    + TryInto::<usize>::try_into(ep.character).unwrap_or_default();
 
                 self.text.remove(start_idx..end_idx);
 

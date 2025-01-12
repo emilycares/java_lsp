@@ -54,7 +54,7 @@ fn parse_error(input: &str) -> IResult<&str, CompileError> {
         CompileError {
             path: format!("{}.java", path),
             message: msg.to_string(),
-            row: row.parse().unwrap(),
+            row: row.parse().unwrap_or_default(),
             col,
         },
     ))

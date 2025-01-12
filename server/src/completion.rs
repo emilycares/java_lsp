@@ -308,6 +308,12 @@ public class GreetingResource {
             jtype: dto::JType::Class("String".to_owned()),
             name: "other".to_owned(),
             is_fun: false,
+            range: tree_sitter::Range {
+                start_byte: 0,
+                end_byte: 0,
+                start_point: Point { row: 0, column: 0 },
+                end_point: Point { row: 0, column: 0 },
+            },
         }];
         let imports = vec![
             ImportUnit::Class("jakarta.inject.Inject"),
@@ -361,6 +367,12 @@ public class GreetingResource {
             jtype: dto::JType::Class("String".to_owned()),
             name: "local".to_owned(),
             is_fun: false,
+            range: tree_sitter::Range {
+                start_byte: 0,
+                end_byte: 0,
+                start_point: Point { row: 0, column: 0 },
+                end_point: Point { row: 0, column: 0 },
+            },
         }];
         let imports = vec![];
         let class_map: DashMap<String, dto::Class> = DashMap::new();

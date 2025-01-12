@@ -1,5 +1,5 @@
 use parser::dto;
-use tree_sitter::Point;
+use tree_sitter::{Point, Range};
 use tree_sitter_util::{get_string, CommentSkiper};
 
 use crate::Document;
@@ -11,6 +11,7 @@ pub struct LocalVariable {
     pub jtype: dto::JType,
     pub name: String,
     pub is_fun: bool,
+    pub range: Range,
 }
 
 /// Get Local Variables and Functions of the current Document
@@ -45,7 +46,7 @@ pub fn get_vars(document: &Document, point: &Point) -> Vec<LocalVariable> {
                 let ty = get_string(&cursor, bytes);
                 cursor.sibling();
                 let name = get_string(&cursor, bytes);
-                let var = parse_variable(level, ty, name);
+                let var = parse_variable(level, ty, name, cursor.node().range());
                 out.push(var);
                 cursor.parent();
             }
@@ -78,20 +79,20 @@ fn get_lambda_vars(
     match cursor.node().kind() {
         "identifier" => {
             let name = get_string(&*cursor, bytes);
-            let var = parse_variable(level, "void".to_string(), name);
+            let var = parse_variable(level, "void".to_string(), name, cursor.node().range());
             out.push(var);
         }
         "inferred_parameters" => {
             cursor.first_child();
             cursor.sibling();
             let name = get_string(&*cursor, bytes);
-            let var = parse_variable(level, "void".to_string(), name);
+            let var = parse_variable(level, "void".to_string(), name, cursor.node().range());
             out.push(var);
             cursor.sibling();
             while cursor.node().kind() == "," {
                 cursor.sibling();
                 let name = get_string(&*cursor, bytes);
-                let var = parse_variable(level, "void".to_string(), name);
+                let var = parse_variable(level, "void".to_string(), name, cursor.node().range());
                 out.push(var);
             }
             cursor.parent();
@@ -124,7 +125,7 @@ fn get_class_vars(
                 cursor.sibling();
                 cursor.first_child();
                 let name = get_string(&cursor, bytes);
-                let var = parse_variable(level, ty, name);
+                let var = parse_variable(level, ty, name, cursor.node().range());
                 out.push(var);
 
                 cursor.parent();
@@ -143,6 +144,7 @@ fn get_class_vars(
                     jtype: parse_jtype(ty),
                     name,
                     is_fun: true,
+                    range: cursor.node().range(),
                 });
 
                 cursor.parent();
@@ -156,12 +158,13 @@ fn get_class_vars(
     }
 }
 
-fn parse_variable(level: usize, ty: String, name: String) -> LocalVariable {
+fn parse_variable(level: usize, ty: String, name: String, range: Range) -> LocalVariable {
     LocalVariable {
         level,
         jtype: parse_jtype(ty),
         name,
         is_fun: false,
+        range,
     }
 }
 
@@ -201,7 +204,7 @@ fn get_method_vars(
             let ty = get_string(&cursor, bytes);
             cursor.sibling();
             let name = get_string(&cursor, bytes);
-            out.push(parse_variable(level, ty, name));
+            out.push(parse_variable(level, ty, name, cursor.node().range()));
             cursor.parent();
         }
         cursor.parent();
@@ -234,8 +237,9 @@ fn parse_local_variable_declaration(
     cursor.sibling();
     cursor.first_child();
     let name = get_string(&*cursor, bytes);
+    let range = cursor.node().range();
     cursor.sibling();
-    let var = parse_variable(level, ty, name);
+    let var = parse_variable(level, ty, name, range);
     out.push(var);
     cursor.parent();
     cursor.parent();
@@ -283,42 +287,108 @@ public class Test {
                     jtype: dto::JType::Class("String".to_owned()),
                     name: "hello".to_owned(),
                     is_fun: false,
+                    range: tree_sitter::Range {
+                        start_byte: 57,
+                        end_byte: 62,
+                        start_point: Point { row: 5, column: 11 },
+                        end_point: Point { row: 5, column: 16 },
+                    },
                 },
                 LocalVariable {
                     level: 2,
                     jtype: dto::JType::Class("String".to_owned()),
                     name: "se".to_owned(),
                     is_fun: false,
+                    range: tree_sitter::Range {
+                        start_byte: 75,
+                        end_byte: 77,
+                        start_point: Point { row: 6, column: 11 },
+                        end_point: Point { row: 6, column: 13 },
+                    },
                 },
                 LocalVariable {
                     level: 2,
                     jtype: dto::JType::Class("String".to_owned()),
                     name: "other".to_owned(),
                     is_fun: false,
+                    range: tree_sitter::Range {
+                        start_byte: 99,
+                        end_byte: 104,
+                        start_point: Point { row: 8, column: 19 },
+                        end_point: Point { row: 8, column: 24 },
+                    },
                 },
                 LocalVariable {
                     level: 2,
                     jtype: dto::JType::Void,
                     name: "hello".to_owned(),
                     is_fun: true,
+                    range: tree_sitter::Range {
+                        start_byte: 128,
+                        end_byte: 133,
+                        start_point: Point {
+                            row: 10,
+                            column: 16,
+                        },
+                        end_point: Point {
+                            row: 10,
+                            column: 21,
+                        },
+                    },
                 },
                 LocalVariable {
                     level: 3,
                     jtype: dto::JType::Class("String".to_owned()),
                     name: "a".to_owned(),
                     is_fun: false,
+                    range: tree_sitter::Range {
+                        start_byte: 141,
+                        end_byte: 142,
+                        start_point: Point {
+                            row: 10,
+                            column: 29,
+                        },
+                        end_point: Point {
+                            row: 10,
+                            column: 30,
+                        },
+                    },
                 },
                 LocalVariable {
                     level: 3,
                     jtype: dto::JType::Class("String".to_owned()),
                     name: "local".to_owned(),
                     is_fun: false,
+                    range: tree_sitter::Range {
+                        start_byte: 161,
+                        end_byte: 166,
+                        start_point: Point {
+                            row: 11,
+                            column: 15,
+                        },
+                        end_point: Point {
+                            row: 11,
+                            column: 20,
+                        },
+                    },
                 },
                 LocalVariable {
                     level: 3,
                     jtype: dto::JType::Class("var".to_owned()),
                     name: "lo".to_owned(),
                     is_fun: false,
+                    range: tree_sitter::Range {
+                        start_byte: 186,
+                        end_byte: 188,
+                        start_point: Point {
+                            row: 13,
+                            column: 12,
+                        },
+                        end_point: Point {
+                            row: 13,
+                            column: 14,
+                        },
+                    },
                 },
             ]
         );
@@ -355,42 +425,108 @@ public class Test {
                     jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_owned()))),
                     name: "hello".to_owned(),
                     is_fun: false,
+                    range: tree_sitter::Range {
+                        start_byte: 59,
+                        end_byte: 64,
+                        start_point: Point { row: 5, column: 13 },
+                        end_point: Point { row: 5, column: 18 },
+                    },
                 },
                 LocalVariable {
                     level: 2,
                     jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_owned()))),
                     name: "se".to_owned(),
                     is_fun: false,
+                    range: tree_sitter::Range {
+                        start_byte: 79,
+                        end_byte: 81,
+                        start_point: Point { row: 6, column: 13 },
+                        end_point: Point { row: 6, column: 15 },
+                    },
                 },
                 LocalVariable {
                     level: 2,
                     jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_owned()))),
                     name: "other".to_owned(),
                     is_fun: false,
+                    range: tree_sitter::Range {
+                        start_byte: 105,
+                        end_byte: 110,
+                        start_point: Point { row: 8, column: 21 },
+                        end_point: Point { row: 8, column: 26 },
+                    },
                 },
                 LocalVariable {
                     level: 2,
                     jtype: dto::JType::Void,
                     name: "hello".to_owned(),
                     is_fun: true,
+                    range: tree_sitter::Range {
+                        start_byte: 134,
+                        end_byte: 139,
+                        start_point: Point {
+                            row: 10,
+                            column: 16,
+                        },
+                        end_point: Point {
+                            row: 10,
+                            column: 21,
+                        },
+                    },
                 },
                 LocalVariable {
                     level: 3,
                     jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_owned()))),
                     name: "a".to_owned(),
                     is_fun: false,
+                    range: tree_sitter::Range {
+                        start_byte: 149,
+                        end_byte: 150,
+                        start_point: Point {
+                            row: 10,
+                            column: 31,
+                        },
+                        end_point: Point {
+                            row: 10,
+                            column: 32,
+                        },
+                    },
                 },
                 LocalVariable {
                     level: 3,
                     jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_owned()))),
                     name: "local".to_owned(),
                     is_fun: false,
+                    range: tree_sitter::Range {
+                        start_byte: 171,
+                        end_byte: 176,
+                        start_point: Point {
+                            row: 11,
+                            column: 17,
+                        },
+                        end_point: Point {
+                            row: 11,
+                            column: 22,
+                        },
+                    },
                 },
                 LocalVariable {
                     level: 3,
                     jtype: dto::JType::Class("var".to_owned()),
                     name: "lo".to_owned(),
                     is_fun: false,
+                    range: tree_sitter::Range {
+                        start_byte: 196,
+                        end_byte: 198,
+                        start_point: Point {
+                            row: 13,
+                            column: 12,
+                        },
+                        end_point: Point {
+                            row: 13,
+                            column: 14,
+                        },
+                    },
                 },
             ]
         );
@@ -426,42 +562,84 @@ public class Test {
                     jtype: dto::JType::Void,
                     name: "hello".to_string(),
                     is_fun: true,
+                    range: tree_sitter::Range {
+                        start_byte: 60,
+                        end_byte: 65,
+                        start_point: Point { row: 3, column: 16 },
+                        end_point: Point { row: 3, column: 21 },
+                    },
                 },
                 LocalVariable {
                     level: 3,
                     jtype: dto::JType::Class("List<String>".to_owned(),),
                     name: "names".to_string(),
                     is_fun: false,
+                    range: tree_sitter::Range {
+                        start_byte: 91,
+                        end_byte: 96,
+                        start_point: Point { row: 4, column: 21 },
+                        end_point: Point { row: 4, column: 26 },
+                    },
                 },
                 LocalVariable {
                     level: 5,
                     jtype: dto::JType::Int,
                     name: "i".to_string(),
                     is_fun: false,
+                    range: tree_sitter::Range {
+                        start_byte: 135,
+                        end_byte: 136,
+                        start_point: Point { row: 5, column: 17 },
+                        end_point: Point { row: 5, column: 18 },
+                    },
                 },
                 LocalVariable {
                     level: 7,
                     jtype: dto::JType::Class("String".to_owned(),),
                     name: "name".to_string(),
                     is_fun: false,
+                    range: tree_sitter::Range {
+                        start_byte: 178,
+                        end_byte: 182,
+                        start_point: Point { row: 6, column: 22 },
+                        end_point: Point { row: 6, column: 26 },
+                    },
                 },
                 LocalVariable {
                     level: 12,
                     jtype: dto::JType::Void,
                     name: "n".to_string(),
                     is_fun: false,
+                    range: tree_sitter::Range {
+                        start_byte: 226,
+                        end_byte: 227,
+                        start_point: Point { row: 7, column: 32 },
+                        end_point: Point { row: 7, column: 33 },
+                    },
                 },
                 LocalVariable {
                     level: 12,
                     jtype: dto::JType::Void,
                     name: "m".to_string(),
                     is_fun: false,
+                    range: tree_sitter::Range {
+                        start_byte: 229,
+                        end_byte: 230,
+                        start_point: Point { row: 7, column: 35 },
+                        end_point: Point { row: 7, column: 36 },
+                    },
                 },
                 LocalVariable {
                     level: 17,
                     jtype: dto::JType::Void,
                     name: "c".to_string(),
                     is_fun: false,
+                    range: tree_sitter::Range {
+                        start_byte: 285,
+                        end_byte: 286,
+                        start_point: Point { row: 8, column: 48 },
+                        end_point: Point { row: 8, column: 49 },
+                    },
                 },
             ]
         );

@@ -120,7 +120,7 @@ pub fn resolve_call_chain(
     let mut ops: Vec<Class> = vec![];
     for item in call_chain {
         let op = match item {
-            CallItem::MethodCall{ name, range:_ } => {
+            CallItem::MethodCall { name, range: _ } => {
                 let Some(class) = ops.last() else {
                     eprintln!("There is no class in ops");
                     break;
@@ -132,7 +132,7 @@ pub fn resolve_call_chain(
                 }
                 None
             }
-            CallItem::FieldAccess{ name, range:_ } => {
+            CallItem::FieldAccess { name, range: _ } => {
                 let Some(class) = ops.last() else {
                     eprintln!("There is no class in ops");
                     break;
@@ -144,13 +144,13 @@ pub fn resolve_call_chain(
                 }
                 None
             }
-            CallItem::Variable{ name, range:_ } => {
+            CallItem::Variable { name, range: _ } => {
                 if let Some(lo) = lo_va.iter().find(|va| va.name == *name) {
                     return resolve_var(lo, imports, class_map);
                 }
                 None
             }
-            CallItem::Class{ name, range:_ } => {
+            CallItem::Class { name, range: _ } => {
                 if let Some(c) = resolve(name, imports, class_map) {
                     return Some(c);
                 }

@@ -22,7 +22,9 @@ pub fn load_classes(class_map: &DashMap<std::string::String, parser::dto::Class>
         // mvn dependency:unpack
         // ```
         let classes = parser::loader::load_classes("./jdk/classes/", SourceDestination::None);
-        parser::loader::save_class_folder("jdk", &classes).unwrap();
+        if let Err(e) = parser::loader::save_class_folder("jdk", &classes) {
+            eprintln!("Failed to save .jdk.cfc because: {e}");
+        };
         for class in classes.classes {
             class_map.insert(class.class_path.clone(), class);
         }
