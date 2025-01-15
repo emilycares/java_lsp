@@ -13,8 +13,7 @@ use nom::{
     multi::many0_count,
 };
 
-use serde::{Deserialize, Serialize};
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq)]
 pub struct CompileError {
     pub path: String,
     pub message: String,
@@ -72,7 +71,9 @@ fn parse_message_and_col(input: &str) -> IResult<&str, (&str, usize)> {
 
 #[cfg(test)]
 mod tests {
-    use crate::compile::parse_compile_errors;
+    use pretty_assertions::assert_eq;
+
+    use crate::compile::{parse_compile_errors, CompileError};
 
     #[test]
     fn parse_compile_errors_basic() {
@@ -87,13 +88,36 @@ src/main/java/org/acme/GreetingResource.java:15: error: > or ',' expected
 1 error
           ";
         let out = parse_compile_errors(input).unwrap();
-        insta::assert_yaml_snapshot!(out.1);
+        assert_eq!(
+            out.1,
+            vec![
+                CompileError {
+                    path: "src/main/java/org/acme/GreetingResource.java".to_string(),
+                    message: "> or ',' expected".to_string(),
+                    row: 15,
+                    col: 45,
+                },
+                CompileError {
+                    path: "src/main/java/org/acme/GreetingResource.java".to_string(),
+                    message: "> or ',' expected".to_string(),
+                    row: 15,
+                    col: 45,
+                },
+            ]
+        );
     }
 
     #[test]
     fn parse_compile_errors_real() {
         let input = "/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java:16: error: > or ',' expected\n\tvar hash = new HashMap<String, String();\n\t                                     ^\n1 error\n";
         let out = parse_compile_errors(input).unwrap();
-        insta::assert_yaml_snapshot!(out.1);
+        assert_eq!(out.1, vec![
+            CompileError {
+                path: "/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java".to_string(),
+                message: "> or ',' expected".to_string(),
+                row: 16,
+                col: 38,
+            },
+        ]);
     }
 }

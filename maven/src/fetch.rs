@@ -156,7 +156,10 @@ fn get_pom_m2_classifier_path(pom: &Pom, m2: &Path, classifier: &str) -> PathBuf
     for gp in group_parts {
         p = p.join(gp)
     }
-    p = p.join(pom.artivact_id).join(pom.version).join(pom.version);
+    p = p
+        .join(&pom.artivact_id)
+        .join(&pom.version)
+        .join(&pom.version);
     let file_name = format!("{}-{}-{}.jar", pom.artivact_id, pom.version, classifier);
     p.set_file_name(file_name);
     p
@@ -168,7 +171,7 @@ fn pom_get_class_folder(pom: &Pom) -> PathBuf {
     for gp in group_parts {
         p = p.join(gp)
     }
-    p = p.join(pom.artivact_id).join(pom.version);
+    p = p.join(&pom.artivact_id).join(&pom.version);
     p
 }
 
@@ -183,9 +186,9 @@ mod tests {
     #[test]
     fn sources_path_base() {
         let pom = crate::tree::Pom {
-            group_id: "io.quarkus",
-            artivact_id: "quarkus-resteasy-reactive",
-            version: "3.7.2",
+            group_id: "io.quarkus".to_string(),
+            artivact_id: "quarkus-resteasy-reactive".to_string(),
+            version: "3.7.2".to_string(),
             scope: crate::tree::DependencyScope::Compile,
         };
         let out = pom_sources_jar(&pom, Path::new("~/.m2/"));
@@ -196,9 +199,9 @@ mod tests {
     #[test]
     fn javadoc_path_base() {
         let pom = crate::tree::Pom {
-            group_id: "io.quarkus",
-            artivact_id: "quarkus-resteasy-reactive",
-            version: "3.7.2",
+            group_id: "io.quarkus".to_string(),
+            artivact_id: "quarkus-resteasy-reactive".to_string(),
+            version: "3.7.2".to_string(),
             scope: crate::tree::DependencyScope::Compile,
         };
         let out = pom_javadoc_jar(&pom, Path::new("~/.m2/"));
@@ -209,9 +212,9 @@ mod tests {
     #[test]
     fn pom_classfolder() {
         let pom = crate::tree::Pom {
-            group_id: "io.quarkus",
-            artivact_id: "quarkus-resteasy-reactive",
-            version: "3.7.2",
+            group_id: "io.quarkus".to_string(),
+            artivact_id: "quarkus-resteasy-reactive".to_string(),
+            version: "3.7.2".to_string(),
             scope: crate::tree::DependencyScope::Compile,
         };
         let out = pom_get_class_folder(&pom);

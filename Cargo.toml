@@ -17,7 +17,6 @@ members = [
 [workspace.dependencies]
 classfile-parser = { git = "https://github.com/emilycares/classfile-parser.git" }
 dashmap = "6.0.1"
-insta = { version = "1.39.0", features = ["yaml"] }
 nom = "7.1.3"
 postcard = { version = "1.0.0", features = ["alloc"] }
 pretty_assertions = "1.4"

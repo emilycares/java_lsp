@@ -80,8 +80,8 @@ fn call_chain_definition(
                         range: to_lsp_range(range),
                     })));
                 }
-                Some(_) => {},
-                None => {},
+                Some(_) => {}
+                None => {}
             };
         }
     }

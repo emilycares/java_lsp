@@ -44,14 +44,14 @@ pub fn resolve(pom: Pom, inputs: Vec<Pom>) -> Result<Pom, ParseError> {
     Ok(out)
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct PrePom {
     pub parent: Option<Parent>,
     #[serde(rename = "dependencyManagement")]
     pub dependency_management: Option<DependencyManagement>,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct Pom {
     #[serde(rename = "modelVersion")]
     pub model_version: Option<String>,
@@ -87,7 +87,7 @@ impl Pom {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct Parent {
     #[serde(rename = "artifactId")]
     pub artifact_id: String,
@@ -96,19 +96,19 @@ pub struct Parent {
     pub version: String,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct DependencyManagement {
     #[serde(rename = "dependencies")]
     pub dependencies: Dependencies,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct Dependencies {
     #[serde(rename = "dependency", default)]
     pub dependencies: Vec<Dependency>,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct Dependency {
     #[serde(rename = "artifactId")]
     pub artifact_id: String,
@@ -124,12 +124,12 @@ pub struct Dependency {
     pub version: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct Exclusions {
     #[serde(rename = "exclusion", default)]
     pub exclusions: Vec<Exclusion>,
 }
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct Exclusion {
     #[serde(rename = "artifactId")]
     pub artifact_id: String,

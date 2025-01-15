@@ -219,8 +219,7 @@ impl Backend<'_> {
             document.replace_text(rope);
         } else {
             if let Some(doc) = Document::setup_rope(&params.text, rope) {
-                self.document_map
-                .insert(key, doc);
+                self.document_map.insert(key, doc);
             }
         }
     }
@@ -531,7 +530,8 @@ impl Backend<'_> {
         let point = to_treesitter_point(params.position);
         let imports = imports::imports(document.value());
 
-        if let Some(c) = definition::class(document.value(), uri, &point, &imports, &self.class_map) {
+        if let Some(c) = definition::class(document.value(), uri, &point, &imports, &self.class_map)
+        {
             return Some(c);
         }
         None

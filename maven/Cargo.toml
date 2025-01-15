@@ -18,5 +18,4 @@ futures.workspace = true
 parser = { path = "../parser"}
 
 [dev-dependencies]
-insta.workspace = true
 pretty_assertions.workspace = true
