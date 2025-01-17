@@ -40,11 +40,6 @@ use utils::to_treesitter_point;
 use lsp_server::{Connection, Message, Response};
 
 pub async fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
-    // Note that  we must have our logging only write out to stderr.
-    eprintln!("starting generic LSP server");
-
-    // Create the transport. Includes the stdio (stdin and stdout) versions but this could
-    // also be implemented to use sockets or HTTP.
     let (connection, io_threads) = Connection::stdio();
     let project_kind = common::project_kind::get_project_kind();
     eprintln!("Start java_lsp with project_kind: {:?}", project_kind);

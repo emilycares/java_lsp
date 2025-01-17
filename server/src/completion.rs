@@ -175,6 +175,10 @@ pub fn classes(
 ) -> Vec<CompletionItem> {
     let tree = &document.tree;
 
+    if point.column < 3 {
+        return vec![];
+    }
+
     let Ok(node) = get_node_at_point(tree, Point::new(point.row, point.column - 2)) else {
         return vec![];
     };

@@ -54,9 +54,20 @@ impl Document {
                     .line_to_char(ep.line.try_into().unwrap_or_default())
                     + TryInto::<usize>::try_into(ep.character).unwrap_or_default();
 
-                self.text.remove(start_idx..end_idx);
+                let do_insert = !change.text.is_empty();
 
-                self.text.insert(start_idx, &change.text);
+                if start_idx < end_idx {
+                    self.text.remove(start_idx..end_idx);
+                    if do_insert {
+                        self.text.insert(start_idx, &change.text);
+                    }
+                } else {
+                    self.text.remove(end_idx..start_idx);
+                    if do_insert {
+                        self.text.insert(end_idx, &change.text);
+                    }
+                }
+
                 continue;
             }
 
