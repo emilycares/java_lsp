@@ -348,7 +348,7 @@ impl Backend<'_> {
             let Some(path) = path.get(..) else {
                 continue;
             };
-            if let Ok(uri) = Uri::from_str(&format!("file:/{}", path)) {
+            if let Ok(uri) = Uri::from_str(&format!("file://{}", path)) {
                 if let Some(errs) = emap.get(path) {
                     let errs: Vec<Diagnostic> = errs
                         .iter()

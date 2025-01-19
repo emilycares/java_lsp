@@ -102,7 +102,7 @@ fn go_to_definition_range(
     extend_class: dto::Class,
     ranges: Vec<tree_sitter::Range>,
 ) -> Option<Option<GotoDefinitionResponse>> {
-    let uri = Uri::from_str(&format!("file:/{}", extend_class.source)).ok()?;
+    let uri = Uri::from_str(&format!("file://{}", extend_class.source)).ok()?;
     match ranges.len() {
         0 => Some(Some(GotoDefinitionResponse::Scalar(Location {
             uri,
