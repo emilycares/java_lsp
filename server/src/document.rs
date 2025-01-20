@@ -29,8 +29,12 @@ impl Document {
         })
     }
 
+    pub fn as_str(&self) -> &str {
+        self.text.slice(..).as_str().unwrap_or_default()
+    }
+
     pub fn as_bytes(&self) -> &[u8] {
-        self.text.slice(..).as_str().unwrap_or_default().as_bytes()
+        self.as_str().as_bytes()
     }
 
     pub fn replace_text(&mut self, text: Rope) {

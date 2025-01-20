@@ -23,16 +23,19 @@ use lsp_types::{
         DidChangeTextDocument, DidOpenTextDocument, DidSaveTextDocument, Notification, Progress,
         PublishDiagnostics,
     },
-    request::{CodeActionRequest, Completion, Formatting, GotoDefinition, HoverRequest, Request},
+    request::{
+        CodeActionRequest, Completion, DocumentSymbolRequest, Formatting, GotoDefinition,
+        HoverRequest, Request,
+    },
     CodeActionKind, CodeActionOptions, CodeActionParams, CodeActionProviderCapability,
     CodeActionResponse, CompletionOptions, CompletionParams, CompletionResponse, Diagnostic,
     DidChangeTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
-    DocumentFormattingParams, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams,
-    HoverProviderCapability, InitializeParams, InitializedParams, OneOf, Position, ProgressParams,
-    ProgressParamsValue, ProgressToken, PublishDiagnosticsParams, Range, ServerCapabilities,
-    TextDocumentContentChangeEvent, TextDocumentItem, TextDocumentSyncCapability,
-    TextDocumentSyncKind, TextEdit, Uri, WorkDoneProgress, WorkDoneProgressBegin,
-    WorkDoneProgressEnd,
+    DocumentFormattingParams, DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams,
+    GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, InitializeParams,
+    InitializedParams, OneOf, Position, ProgressParams, ProgressParamsValue, ProgressToken,
+    PublishDiagnosticsParams, Range, ServerCapabilities, TextDocumentContentChangeEvent,
+    TextDocumentItem, TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Uri,
+    WorkDoneProgress, WorkDoneProgressBegin, WorkDoneProgressEnd,
 };
 use parser::dto::Class;
 use utils::to_treesitter_point;
@@ -65,6 +68,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
             trigger_characters: Some([' ', '.', '('].iter().map(|i| i.to_string()).collect()),
             ..CompletionOptions::default()
         }),
+        document_symbol_provider: Some(OneOf::Left(true)),
         document_formatting_provider: Some(OneOf::Left(true)),
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         ..ServerCapabilities::default()
@@ -148,6 +152,18 @@ async fn main_loop(
                     CodeActionRequest::METHOD => {
                         if let Ok(params) = serde_json::from_value::<CodeActionParams>(req.params) {
                             let result = backend.code_action(params).await;
+                            let _ = backend.connection.sender.send(Message::Response(Response {
+                                id: req.id,
+                                result: serde_json::to_value(result).ok(),
+                                error: None,
+                            }));
+                        }
+                    }
+                    DocumentSymbolRequest::METHOD => {
+                        if let Ok(params) =
+                            serde_json::from_value::<DocumentSymbolParams>(req.params)
+                        {
+                            let result = backend.document_symbol(params).await;
                             let _ = backend.connection.sender.send(Message::Response(Response {
                                 id: req.id,
                                 result: serde_json::to_value(result).ok(),
@@ -554,5 +570,19 @@ impl Backend<'_> {
         }
 
         None
+    }
+
+    async fn document_symbol(
+        &self,
+        params: DocumentSymbolParams,
+    ) -> Option<DocumentSymbolResponse> {
+        let Some(document) = self.get_document(params.text_document.uri.clone()).await else {
+            eprintln!("Document is not opened.");
+            return None;
+        };
+        let uri = params.text_document.uri;
+
+        let symbols = position::get_symbols(document.as_str());
+        position::symbols_to_document_symbols(symbols, uri)
     }
 }

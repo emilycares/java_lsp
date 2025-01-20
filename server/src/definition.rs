@@ -8,7 +8,8 @@ use crate::{
     call_chain::{self, CallItem},
     hover,
     imports::ImportUnit,
-    position, tyres,
+    position::{self, PositionSymbol},
+    tyres,
     utils::to_lsp_range,
     variable, Document,
 };
@@ -56,7 +57,7 @@ fn call_chain_definition(
             match call_chain.get(item) {
                 Some(CallItem::MethodCall { name, range: _ }) => {
                     if let Some(sourc_file) = get_source_content(&extend_class) {
-                        let ranges = position::get_method_position(sourc_file.as_str(), name);
+                        let ranges = position::get_method_positions(sourc_file.as_str(), name);
                         if let Some(value) = go_to_definition_range(extend_class, ranges) {
                             return Some(value);
                         }
@@ -64,7 +65,7 @@ fn call_chain_definition(
                 }
                 Some(CallItem::FieldAccess { name, range: _ }) => {
                     if let Some(sourc_file) = get_source_content(&extend_class) {
-                        let ranges = position::get_filed_position(sourc_file.as_str(), name);
+                        let ranges = position::get_filed_positions(sourc_file.as_str(), name);
                         if let Some(value) = go_to_definition_range(extend_class, ranges) {
                             return Some(value);
                         }
@@ -100,7 +101,7 @@ fn get_source_content(extend_class: &dto::Class) -> Option<String> {
 
 fn go_to_definition_range(
     extend_class: dto::Class,
-    ranges: Vec<tree_sitter::Range>,
+    ranges: Vec<PositionSymbol>,
 ) -> Option<Option<GotoDefinitionResponse>> {
     let uri = Uri::from_str(&format!("file://{}", extend_class.source)).ok()?;
     match ranges.len() {
@@ -110,12 +111,12 @@ fn go_to_definition_range(
         }))),
         1 => Some(Some(GotoDefinitionResponse::Scalar(Location {
             uri,
-            range: to_lsp_range(*ranges.first()?),
+            range: to_lsp_range(ranges.first()?.get_range()),
         }))),
         2.. => {
             let locations = ranges
                 .iter()
-                .map(|r| to_lsp_range(*r))
+                .map(|r| to_lsp_range(r.get_range()))
                 .map(|r| Location {
                     uri: uri.clone(),
                     range: r,
