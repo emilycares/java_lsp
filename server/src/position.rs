@@ -1,4 +1,4 @@
-use lsp_types::{DocumentSymbolResponse, Location, SymbolInformation, SymbolKind, Uri};
+use lsp_types::{Location, SymbolInformation, SymbolKind, Uri};
 use streaming_iterator::StreamingIterator;
 use tree_sitter::{Parser, Query, QueryCursor};
 use tree_sitter_util::get_string_node;
@@ -89,8 +89,8 @@ pub fn get_symbols(source: &str) -> Vec<PositionSymbol> {
 pub fn symbols_to_document_symbols(
     symbols: Vec<PositionSymbol>,
     uri: Uri,
-) -> Option<DocumentSymbolResponse> {
-    let symbols = symbols
+) -> Vec<SymbolInformation> {
+    symbols
         .iter()
         .filter_map(|r| match r {
             PositionSymbol::Range(_) => None,
@@ -116,8 +116,7 @@ pub fn symbols_to_document_symbols(
                 })
             }
         })
-        .collect();
-    Some(DocumentSymbolResponse::Flat(symbols))
+        .collect()
 }
 pub fn get_item_ranges<'a>(
     source: &'a str,

@@ -64,9 +64,13 @@ pub fn load_class_folder(prefix: &str) -> Result<dto::ClassFolder, dto::ClassErr
     Ok(out)
 }
 
-pub fn load_java_files<P: AsRef<Path>>(path: P) -> dto::ClassFolder {
+pub fn get_java_files_from_folder<P: AsRef<Path>>(path: P) -> Vec<String> {
+    get_files(&path, ".java")
+}
+
+pub fn load_java_files(paths: Vec<String>) -> dto::ClassFolder {
     dto::ClassFolder {
-        classes: get_files(&path, ".java")
+        classes: paths
             .into_iter()
             .filter_map(|p| {
                 match load_java_fs(p.as_str(), SourceDestination::Here(p.as_str().to_string())) {

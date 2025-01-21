@@ -10,9 +10,9 @@ mod tyres;
 mod utils;
 mod variable;
 
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::{collections::HashMap, fs::read_to_string};
 
 use common::compile::CompileError;
 use common::project_kind::ProjectKind;
@@ -25,18 +25,20 @@ use lsp_types::{
     },
     request::{
         CodeActionRequest, Completion, DocumentSymbolRequest, Formatting, GotoDefinition,
-        HoverRequest, Request,
+        HoverRequest, Request, WorkspaceSymbolRequest,
     },
     CodeActionKind, CodeActionOptions, CodeActionParams, CodeActionProviderCapability,
     CodeActionResponse, CompletionOptions, CompletionParams, CompletionResponse, Diagnostic,
     DidChangeTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
-    DocumentFormattingParams, DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams,
-    GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, InitializeParams,
-    InitializedParams, OneOf, Position, ProgressParams, ProgressParamsValue, ProgressToken,
-    PublishDiagnosticsParams, Range, ServerCapabilities, TextDocumentContentChangeEvent,
-    TextDocumentItem, TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Uri,
-    WorkDoneProgress, WorkDoneProgressBegin, WorkDoneProgressEnd,
+    DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse,
+    Hover, HoverParams, HoverProviderCapability, InitializeParams, InitializedParams, OneOf,
+    Position, ProgressParams, ProgressParamsValue, ProgressToken, PublishDiagnosticsParams, Range,
+    ServerCapabilities, TextDocumentContentChangeEvent, TextDocumentItem,
+    TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Uri, WorkDoneProgress,
+    WorkDoneProgressBegin, WorkDoneProgressEnd, WorkspaceSymbolParams, WorkspaceSymbolResponse,
 };
+use lsp_types::{DocumentFormattingParams, SignatureHelpOptions};
+use lsp_types::{SymbolInformation, WorkDoneProgressOptions};
 use parser::dto::Class;
 use utils::to_treesitter_point;
 
@@ -69,6 +71,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
             ..CompletionOptions::default()
         }),
         document_symbol_provider: Some(OneOf::Left(true)),
+        workspace_symbol_provider: Some(OneOf::Left(true)),
         document_formatting_provider: Some(OneOf::Left(true)),
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         ..ServerCapabilities::default()
@@ -164,6 +167,18 @@ async fn main_loop(
                             serde_json::from_value::<DocumentSymbolParams>(req.params)
                         {
                             let result = backend.document_symbol(params).await;
+                            let _ = backend.connection.sender.send(Message::Response(Response {
+                                id: req.id,
+                                result: serde_json::to_value(result).ok(),
+                                error: None,
+                            }));
+                        }
+                    }
+                    WorkspaceSymbolRequest::METHOD => {
+                        if let Ok(params) =
+                            serde_json::from_value::<WorkspaceSymbolParams>(req.params)
+                        {
+                            let result = backend.workspace_document_symbol(params).await;
                             let _ = backend.connection.sender.send(Message::Response(Response {
                                 id: req.id,
                                 result: serde_json::to_value(result).ok(),
@@ -583,6 +598,30 @@ impl Backend<'_> {
         let uri = params.text_document.uri;
 
         let symbols = position::get_symbols(document.as_str());
-        position::symbols_to_document_symbols(symbols, uri)
+        let symbols = position::symbols_to_document_symbols(symbols, uri);
+        Some(DocumentSymbolResponse::Flat(symbols))
+    }
+
+    async fn workspace_document_symbol(
+        &self,
+        _params: WorkspaceSymbolParams,
+    ) -> Option<WorkspaceSymbolResponse> {
+        let files = match self.project_kind {
+            ProjectKind::Maven => maven::project::get_paths(),
+            ProjectKind::Gradle => vec![],
+            ProjectKind::Unknown => vec![],
+        };
+
+        let symbols: Vec<SymbolInformation> = files
+            .into_iter()
+            .filter_map(|i| Some((i.clone(), read_to_string(i).ok()?)))
+            .map(|(path, src)| (path, position::get_symbols(src.as_str())))
+            .filter_map(|(path, symbols)| {
+                let uri = Uri::from_str(&format!("file://{}", path)).ok()?;
+                Some(position::symbols_to_document_symbols(symbols, uri))
+            })
+            .flat_map(|i| i)
+            .collect();
+        Some(WorkspaceSymbolResponse::Flat(symbols))
     }
 }
