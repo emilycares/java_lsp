@@ -62,26 +62,12 @@ pub fn get_symbols(source: &str) -> Vec<PositionSymbol> {
     get_item_ranges(
         source,
         "
-(field_declaration
-  declarator: (variable_declarator
-    name: (identifier)@varname))
-
-(local_variable_declaration
-  declarator: (variable_declarator
-    name: (identifier)@varname))
-
-(enhanced_for_statement
-  name: (identifier)@varname)
-
-(formal_parameter
-  name: (identifier)@varname)
-
-(method_declaration
-  name: (identifier) @method)
-  
-(class_declaration
-  name: (identifier) @class)
-",
+        (class_declaration name: (identifier)@capture )
+        (interface_declaration name: (identifier)@capture )
+        (enum_declaration name: (identifier)@capture )
+        (annotation_type_declaration name: (identifier)@capture )
+        (record_declaration name: (identifier)@capture )
+        ",
         None,
     )
 }

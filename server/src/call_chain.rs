@@ -3,12 +3,29 @@ use tree_sitter_util::{get_string, get_string_node, CommentSkiper};
 
 use crate::Document;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum CallItem {
-    MethodCall { name: String, range: Range },
-    FieldAccess { name: String, range: Range },
-    Variable { name: String, range: Range },
-    Class { name: String, range: Range },
+    MethodCall {
+        name: String,
+        range: Range,
+    },
+    FieldAccess {
+        name: String,
+        range: Range,
+    },
+    Variable {
+        name: String,
+        range: Range,
+    },
+    Class {
+        name: String,
+        range: Range,
+    },
+    ArgumentList {
+        prev: Vec<CallItem>,
+        active_param: u32,
+        range: Range,
+    },
 }
 
 /// Provides data abuilt the current variable before the cursor
@@ -28,12 +45,24 @@ pub fn get_call_chain(document: &Document, point: &Point) -> Option<Vec<CallItem
     loop {
         match cursor.node().kind() {
             "argument_list" => {
-                out.clear();
+                let mut active_param = 0;
+
+                let arg_prev = out.clone();
+                let arg_range = cursor.node().range();
+                let mut after_args = vec![];
                 cursor.first_child();
-                out.extend(parse_argument_list_argument(&mut cursor, bytes));
+                after_args.extend(parse_argument_list_argument(&mut cursor, bytes));
                 while cursor.node().kind() == "," {
-                    out.extend(parse_argument_list_argument(&mut cursor, bytes));
+                    active_param += 1;
+                    after_args.extend(parse_argument_list_argument(&mut cursor, bytes));
                 }
+                out.clear();
+                out.push(CallItem::ArgumentList {
+                    prev: arg_prev,
+                    active_param,
+                    range: arg_range,
+                });
+                out.extend(after_args);
                 cursor.parent();
             }
             "scoped_type_identifier" => {
@@ -290,6 +319,11 @@ pub fn validate<'a>(
                 tree_sitter_util::is_point_in_range(point, range)
             }
             CallItem::Class { name: _, range } => tree_sitter_util::is_point_in_range(point, range),
+            CallItem::ArgumentList {
+                prev: _,
+                range,
+                active_param: _,
+            } => tree_sitter_util::is_point_in_range(point, range),
         })
         .map(|(a, _)| a)
         .unwrap_or_default();
@@ -860,7 +894,38 @@ public class Test {
         let doc = Document::setup(content).unwrap();
 
         let out = get_call_chain(&doc, &Point::new(5, 22));
-        assert_eq!(out, None);
+        assert_eq!(
+            out,
+            Some(vec![CallItem::ArgumentList {
+                prev: vec![
+                    CallItem::Variable {
+                        name: "local".to_string(),
+                        range: Range {
+                            start_byte: 104,
+                            end_byte: 109,
+                            start_point: Point { row: 5, column: 8 },
+                            end_point: Point { row: 5, column: 13 },
+                        },
+                    },
+                    CallItem::MethodCall {
+                        name: "concat".to_string(),
+                        range: Range {
+                            start_byte: 110,
+                            end_byte: 116,
+                            start_point: Point { row: 5, column: 14 },
+                            end_point: Point { row: 5, column: 20 },
+                        },
+                    },
+                ],
+                range: Range {
+                    start_byte: 116,
+                    end_byte: 119,
+                    start_point: Point { row: 5, column: 20 },
+                    end_point: Point { row: 5, column: 23 },
+                },
+                active_param: 0
+            },],)
+        );
     }
 
     #[test]
@@ -880,15 +945,46 @@ public class Test {
         let out = get_call_chain(&doc, &Point::new(5, 27));
         assert_eq!(
             out,
-            Some(vec![CallItem::Variable {
-                name: "local".to_string(),
-                range: Range {
-                    start_byte: 117,
-                    end_byte: 122,
-                    start_point: Point { row: 5, column: 21 },
-                    end_point: Point { row: 5, column: 26 }
+            Some(vec![
+                CallItem::ArgumentList {
+                    prev: vec![
+                        CallItem::Variable {
+                            name: "local".to_string(),
+                            range: Range {
+                                start_byte: 104,
+                                end_byte: 109,
+                                start_point: Point { row: 5, column: 8 },
+                                end_point: Point { row: 5, column: 13 },
+                            },
+                        },
+                        CallItem::MethodCall {
+                            name: "concat".to_string(),
+                            range: Range {
+                                start_byte: 110,
+                                end_byte: 116,
+                                start_point: Point { row: 5, column: 14 },
+                                end_point: Point { row: 5, column: 20 },
+                            },
+                        },
+                    ],
+                    range: Range {
+                        start_byte: 116,
+                        end_byte: 125,
+                        start_point: Point { row: 5, column: 20 },
+                        end_point: Point { row: 5, column: 29 },
+                    },
+                    active_param: 0
+                },
+                CallItem::Variable {
+                    name: "local".to_string(),
+                    range: Range {
+                        start_byte: 117,
+                        end_byte: 122,
+                        start_point: Point { row: 5, column: 21 },
+                        end_point: Point { row: 5, column: 26 }
+                    }
                 }
-            }])
+            ])
         );
     }
 
@@ -909,15 +1005,46 @@ public class Test {
         let out = get_call_chain(&doc, &Point::new(5, 27));
         assert_eq!(
             out,
-            Some(vec![CallItem::Variable {
-                name: "local".to_string(),
-                range: Range {
-                    start_byte: 117,
-                    end_byte: 122,
-                    start_point: Point { row: 5, column: 21 },
-                    end_point: Point { row: 5, column: 26 }
+            Some(vec![
+                CallItem::ArgumentList {
+                    prev: vec![
+                        CallItem::Variable {
+                            name: "local".to_string(),
+                            range: Range {
+                                start_byte: 104,
+                                end_byte: 109,
+                                start_point: Point { row: 5, column: 8 },
+                                end_point: Point { row: 5, column: 13 },
+                            },
+                        },
+                        CallItem::MethodCall {
+                            name: "concat".to_string(),
+                            range: Range {
+                                start_byte: 110,
+                                end_byte: 116,
+                                start_point: Point { row: 5, column: 14 },
+                                end_point: Point { row: 5, column: 20 },
+                            },
+                        },
+                    ],
+                    range: Range {
+                        start_byte: 116,
+                        end_byte: 124,
+                        start_point: Point { row: 5, column: 20 },
+                        end_point: Point { row: 5, column: 28 },
+                    },
+                    active_param: 0
+                },
+                CallItem::Variable {
+                    name: "local".to_string(),
+                    range: Range {
+                        start_byte: 117,
+                        end_byte: 122,
+                        start_point: Point { row: 5, column: 21 },
+                        end_point: Point { row: 5, column: 26 }
+                    }
                 }
-            }])
+            ])
         );
     }
 
@@ -938,15 +1065,46 @@ public class Test {
         let out = get_call_chain(&doc, &Point::new(5, 23));
         assert_eq!(
             out,
-            Some(vec![CallItem::Variable {
-                name: "c".to_string(),
-                range: Range {
-                    start_byte: 116,
-                    end_byte: 117,
-                    start_point: Point { row: 5, column: 20 },
-                    end_point: Point { row: 5, column: 21 },
+            Some(vec![
+                CallItem::ArgumentList {
+                    prev: vec![
+                        CallItem::Variable {
+                            name: "a".to_string(),
+                            range: Range {
+                                start_byte: 104,
+                                end_byte: 105,
+                                start_point: Point { row: 5, column: 8 },
+                                end_point: Point { row: 5, column: 9 },
+                            },
+                        },
+                        CallItem::MethodCall {
+                            name: "concat".to_string(),
+                            range: Range {
+                                start_byte: 106,
+                                end_byte: 112,
+                                start_point: Point { row: 5, column: 10 },
+                                end_point: Point { row: 5, column: 16 },
+                            },
+                        },
+                    ],
+                    range: Range {
+                        start_byte: 112,
+                        end_byte: 120,
+                        start_point: Point { row: 5, column: 16 },
+                        end_point: Point { row: 5, column: 24 },
+                    },
+                    active_param: 1
+                },
+                CallItem::Variable {
+                    name: "c".to_string(),
+                    range: Range {
+                        start_byte: 116,
+                        end_byte: 117,
+                        start_point: Point { row: 5, column: 20 },
+                        end_point: Point { row: 5, column: 21 },
+                    }
                 }
-            }])
+            ])
         );
     }
 
@@ -967,15 +1125,46 @@ public class Test {
         let out = get_call_chain(&doc, &Point::new(5, 22));
         assert_eq!(
             out,
-            Some(vec![CallItem::Variable {
-                name: "c".to_string(),
-                range: Range {
-                    start_byte: 116,
-                    end_byte: 117,
-                    start_point: Point { row: 5, column: 20 },
-                    end_point: Point { row: 5, column: 21 },
+            Some(vec![
+                CallItem::ArgumentList {
+                    prev: vec![
+                        CallItem::Variable {
+                            name: "a".to_string(),
+                            range: Range {
+                                start_byte: 104,
+                                end_byte: 105,
+                                start_point: Point { row: 5, column: 8 },
+                                end_point: Point { row: 5, column: 9 },
+                            },
+                        },
+                        CallItem::MethodCall {
+                            name: "concat".to_string(),
+                            range: Range {
+                                start_byte: 106,
+                                end_byte: 112,
+                                start_point: Point { row: 5, column: 10 },
+                                end_point: Point { row: 5, column: 16 },
+                            },
+                        },
+                    ],
+                    range: Range {
+                        start_byte: 112,
+                        end_byte: 119,
+                        start_point: Point { row: 5, column: 16 },
+                        end_point: Point { row: 5, column: 23 },
+                    },
+                    active_param: 1
+                },
+                CallItem::Variable {
+                    name: "c".to_string(),
+                    range: Range {
+                        start_byte: 116,
+                        end_byte: 117,
+                        start_point: Point { row: 5, column: 20 },
+                        end_point: Point { row: 5, column: 21 },
+                    }
                 }
-            }])
+            ])
         );
     }
 
@@ -997,6 +1186,35 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
+                CallItem::ArgumentList {
+                    prev: vec![
+                        CallItem::Variable {
+                            name: "a".to_string(),
+                            range: Range {
+                                start_byte: 104,
+                                end_byte: 105,
+                                start_point: Point { row: 5, column: 8 },
+                                end_point: Point { row: 5, column: 9 },
+                            },
+                        },
+                        CallItem::MethodCall {
+                            name: "concat".to_string(),
+                            range: Range {
+                                start_byte: 106,
+                                end_byte: 112,
+                                start_point: Point { row: 5, column: 10 },
+                                end_point: Point { row: 5, column: 16 },
+                            },
+                        },
+                    ],
+                    range: Range {
+                        start_byte: 112,
+                        end_byte: 119,
+                        start_point: Point { row: 5, column: 16 },
+                        end_point: Point { row: 5, column: 23 },
+                    },
+                    active_param: 0
+                },
                 CallItem::Variable {
                     name: "b".to_string(),
                     range: Range {
@@ -1018,6 +1236,53 @@ public class Test {
             ])
         );
     }
+    #[test]
+    fn call_chain_arguments() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        a.concat( );
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(4, 18));
+        assert_eq!(
+            out,
+            Some(vec![CallItem::ArgumentList {
+                prev: vec![
+                    CallItem::Variable {
+                        name: "a".to_string(),
+                        range: Range {
+                            start_byte: 78,
+                            end_byte: 79,
+                            start_point: Point { row: 4, column: 8 },
+                            end_point: Point { row: 4, column: 9 },
+                        },
+                    },
+                    CallItem::MethodCall {
+                        name: "concat".to_string(),
+                        range: Range {
+                            start_byte: 80,
+                            end_byte: 86,
+                            start_point: Point { row: 4, column: 10 },
+                            end_point: Point { row: 4, column: 16 },
+                        },
+                    }
+                ],
+                range: Range {
+                    start_byte: 86,
+                    end_byte: 89,
+                    start_point: Point { row: 4, column: 16 },
+                    end_point: Point { row: 4, column: 19 },
+                },
+                active_param: 0
+            }])
+        );
+    }
 
     #[test]
     fn call_chain_argument_method() {
@@ -1037,6 +1302,35 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
+                CallItem::ArgumentList {
+                    prev: vec![
+                        CallItem::Variable {
+                            name: "a".to_string(),
+                            range: Range {
+                                start_byte: 104,
+                                end_byte: 105,
+                                start_point: Point { row: 5, column: 8 },
+                                end_point: Point { row: 5, column: 9 },
+                            },
+                        },
+                        CallItem::MethodCall {
+                            name: "concat".to_string(),
+                            range: Range {
+                                start_byte: 106,
+                                end_byte: 112,
+                                start_point: Point { row: 5, column: 10 },
+                                end_point: Point { row: 5, column: 16 },
+                            },
+                        },
+                    ],
+                    range: Range {
+                        start_byte: 112,
+                        end_byte: 120,
+                        start_point: Point { row: 5, column: 16 },
+                        end_point: Point { row: 5, column: 24 },
+                    },
+                    active_param: 0
+                },
                 CallItem::Variable {
                     name: "b".to_string(),
                     range: Range {

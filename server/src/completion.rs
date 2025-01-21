@@ -403,7 +403,7 @@ public class GreetingResource {
             vec![CompletionItem {
                 label: "concat".to_string(),
                 label_details: Some(CompletionItemLabelDetails {
-                    detail: Some("java.lang.String ()".to_string()),
+                    detail: Some("String ()".to_string()),
                     description: None,
                 },),
                 kind: Some(CompletionItemKind::FUNCTION),
@@ -459,7 +459,7 @@ public class GreetingResource {
             ret: dto::JType::Int,
         };
         let out = method_snippet(&method);
-        assert_eq!(out, "split(${1:java.lang.String}, ${2:int})");
+        assert_eq!(out, "split(${1:String}, ${2:int})");
     }
 
     #[test]

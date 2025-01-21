@@ -156,6 +156,11 @@ pub fn resolve_call_chain(
                 }
                 None
             }
+            CallItem::ArgumentList {
+                prev: _,
+                range: _,
+                active_param: _,
+            } => None,
         };
         if let Some(op) = op {
             ops.push(op);

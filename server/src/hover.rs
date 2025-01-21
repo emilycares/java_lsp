@@ -76,10 +76,12 @@ pub fn call_chain_hover(
     let class = tyres::resolve_call_chain(relevat, lo_va, imports, class_map)?;
     match el {
         CallItem::MethodCall { name, range } => {
-            let Some(method) = class.methods.iter().find(|m| m.name == *name) else {
-                return None;
-            };
-            Some(method_to_hover(&method, to_lsp_range(*range)))
+            let methods: Vec<dto::Method> = class
+                .methods
+                .into_iter()
+                .filter(|m| m.name == *name)
+                .collect();
+            Some(methods_to_hover(&methods, to_lsp_range(*range)))
         }
         CallItem::FieldAccess { name, range } => {
             let Some(method) = class.fields.iter().find(|m| m.name == *name) else {
@@ -94,6 +96,11 @@ pub fn call_chain_hover(
             Some(variable_to_hover(var, to_lsp_range(*range)))
         }
         CallItem::Class { name: _, range } => Some(class_to_hover(class, to_lsp_range(*range))),
+        CallItem::ArgumentList {
+            prev: _,
+            range: _,
+            active_param: _,
+        } => None,
     }
 }
 
@@ -130,11 +137,15 @@ fn field_to_hover(f: &dto::Field, range: Range) -> Hover {
     }
 }
 
-fn method_to_hover(m: &dto::Method, range: Range) -> Hover {
+fn methods_to_hover(methods: &Vec<dto::Method>, range: Range) -> Hover {
     Hover {
         contents: HoverContents::Markup(MarkupContent {
             kind: MarkupKind::Markdown,
-            value: format_method(&m),
+            value: methods
+                .iter()
+                .map(format_method)
+                .collect::<Vec<_>>()
+                .join("\n"),
         }),
         range: Some(range),
     }

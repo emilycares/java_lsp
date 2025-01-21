@@ -116,7 +116,12 @@ impl Display for JType {
             JType::Long => write!(f, "long"),
             JType::Short => write!(f, "short"),
             JType::Boolean => write!(f, "boolean"),
-            JType::Class(c) => write!(f, "{}", c),
+            JType::Class(c) => {
+                if c.starts_with("java.lang.") {
+                    return write!(f, "{}", c.trim_start_matches("java.lang."));
+                }
+                write!(f, "{}", c)
+            }
             JType::Array(i) => write!(f, "{}[]", i),
         }
     }
