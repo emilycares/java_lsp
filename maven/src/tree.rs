@@ -1,6 +1,7 @@
 use std::{process::Command, str::FromStr};
 
 use nom::branch::alt;
+use nom::Parser;
 use nom::{
     bytes::complete::{tag, take_until},
     multi::separated_list0,
@@ -141,19 +142,20 @@ fn parse_pom_b(input: &str) -> IResult<&str, Pom> {
 fn parse_relation(input: &str) -> IResult<&str, Pom> {
     let (input, _) = take_until(" -> ")(input)?;
     let (input, _) = tag(" -> ")(input)?;
-    let (input, out) = delimited(tag("\""), parse_pom_b, tag("\""))(input)?;
+    let (input, out) = delimited(tag("\""), parse_pom_b, tag("\"")).parse(input)?;
 
     Ok((input, out))
 }
 
 fn parser(input: &str) -> IResult<&str, Dependency> {
     let (input, _) = tag("[INFO] digraph ")(input)?;
-    let (input, base) = delimited(tag("\""), parse_pom, tag("\""))(input)?;
-    let (input, _) = alt((tag(" {\n[INFO]  "), tag(" { \n[INFO] \t")))(input)?;
+    let (input, base) = delimited(tag("\""), parse_pom, tag("\"")).parse(input)?;
+    let (input, _) = alt((tag(" {\n[INFO]  "), tag(" { \n[INFO] \t"))).parse(input)?;
     let (input, deps) = separated_list0(
         alt((tag(" ;\n[INFO]  "), tag(" ; \n[INFO] \t"))),
         parse_relation,
-    )(input)?;
+    )
+    .parse(input)?;
 
     let (input, _) = take_until("[INFO]")(input)?;
     let (input, _) = tag("[INFO]  }")(input)?;

@@ -5,7 +5,7 @@ use nom::{
     character::complete::digit0,
     multi::separated_list0,
     sequence::{pair, separated_pair},
-    IResult,
+    IResult, Parser,
 };
 use nom::{
     bytes::{complete::take_until, streaming::tag},
@@ -38,16 +38,16 @@ pub fn compile_java_file(file_path: &str, classpath: &str) -> Option<Vec<Compile
 }
 
 pub fn parse_compile_errors(input: &str) -> IResult<&str, Vec<CompileError>> {
-    let (input, errors) = separated_list0(tag("\n"), parse_error)(input)?;
+    let (input, errors) = separated_list0(tag("\n"), parse_error).parse(input)?;
     Ok((input, errors))
 }
 
 fn parse_error(input: &str) -> IResult<&str, CompileError> {
-    let (input, _) = opt(tag("\n"))(input)?;
+    let (input, _) = opt(tag("\n")).parse(input)?;
     let (input, path) = take_until(".java:")(input)?;
     let (input, _) = tag(".java:")(input)?;
     let (input, (row, (msg, col))) =
-        separated_pair(digit0, tag(": error: "), parse_message_and_col)(input)?;
+        separated_pair(digit0, tag(": error: "), parse_message_and_col).parse(input)?;
     Ok((
         input,
         CompileError {
@@ -65,7 +65,7 @@ fn parse_message_and_col(input: &str) -> IResult<&str, (&str, usize)> {
     let (input, _) = tag("\n")(input)?;
     let (input, _) = take_until("\n")(input)?;
     let (input, _) = tag("\n")(input)?;
-    let (input, (col, _)) = pair(many0_count(alt((tag(" "), tag("\t")))), tag("^"))(input)?;
+    let (input, (col, _)) = pair(many0_count(alt((tag(" "), tag("\t")))), tag("^")).parse(input)?;
     Ok((input, (message, col)))
 }
 

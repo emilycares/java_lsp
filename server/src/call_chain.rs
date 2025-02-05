@@ -23,9 +23,16 @@ pub enum CallItem {
     },
     ArgumentList {
         prev: Vec<CallItem>,
-        active_param: u32,
+        active_param: usize,
+        filled_params: Vec<Vec<CallItem>>,
         range: Range,
     },
+}
+
+#[derive(Debug, PartialEq, Clone)]
+struct Argument {
+    range: Option<Range>,
+    value: Vec<CallItem>,
 }
 
 /// Provides data abuilt the current variable before the cursor
@@ -45,24 +52,12 @@ pub fn get_call_chain(document: &Document, point: &Point) -> Option<Vec<CallItem
     loop {
         match cursor.node().kind() {
             "argument_list" => {
-                let mut active_param = 0;
-
-                let arg_prev = out.clone();
-                let arg_range = cursor.node().range();
-                let mut after_args = vec![];
-                cursor.first_child();
-                after_args.extend(parse_argument_list_argument(&mut cursor, bytes));
-                while cursor.node().kind() == "," {
-                    active_param += 1;
-                    after_args.extend(parse_argument_list_argument(&mut cursor, bytes));
-                }
+                let (after, value) = parse_argument_list(&out, &mut cursor, bytes, point);
                 out.clear();
-                out.push(CallItem::ArgumentList {
-                    prev: arg_prev,
-                    active_param,
-                    range: arg_range,
-                });
-                out.extend(after_args);
+                out.push(value);
+                if let Some(after) = after {
+                    out.extend(after.clone());
+                }
                 cursor.parent();
             }
             "scoped_type_identifier" => {
@@ -127,32 +122,68 @@ pub fn get_call_chain(document: &Document, point: &Point) -> Option<Vec<CallItem
     None
 }
 
+fn parse_argument_list(
+    out: &Vec<CallItem>,
+    cursor: &mut tree_sitter::TreeCursor<'_>,
+    bytes: &[u8],
+    point: &Point,
+) -> (Option<Vec<CallItem>>, CallItem) {
+    let mut active_param = 0;
+    let mut current_param = 0;
+
+    let arg_prev = out.clone();
+    let arg_range = cursor.node().range();
+    let mut filled_params = vec![];
+    cursor.first_child();
+    let Argument { range, value } = parse_argument_list_argument(cursor, bytes);
+    filled_params.push(value.clone());
+    if tree_sitter_util::is_point_in_range(point, &range.unwrap()) {
+        eprint!("(active)");
+        active_param = current_param;
+    }
+    eprint!("[param_id: {}] its ", &current_param);
+    tree_sitter_util::print_range(bytes, &range);
+    while cursor.node().kind() == "," {
+        current_param += 1;
+        let Argument { range, value } = parse_argument_list_argument(cursor, bytes);
+        dbg!(&value);
+        filled_params.push(value.clone());
+        if tree_sitter_util::is_point_in_range(point, &range.unwrap()) {
+            eprint!("(active)");
+            active_param = current_param;
+        }
+        eprint!("[param_id: {}] its ", &current_param);
+        tree_sitter_util::print_range(bytes, &range);
+    }
+    let value = CallItem::ArgumentList {
+        prev: arg_prev,
+        active_param,
+        filled_params: filled_params.clone(),
+        range: arg_range,
+    };
+    let after = filled_params.get(active_param).cloned();
+    (after, value)
+}
+
 fn parse_argument_list_argument(
     cursor: &mut tree_sitter::TreeCursor<'_>,
     bytes: &[u8],
-) -> Vec<CallItem> {
-    let mut out = vec![];
+) -> Argument {
+    let mut out = Argument {
+        range: None,
+        value: vec![],
+    };
     cursor.sibling();
-    match cursor.node().kind() {
-        "identifier" => 'block: {
-            if cursor.node().kind() == "identifier" {
-                let identifier = cursor.node();
-                cursor.sibling();
-                if cursor.node().kind() == ")" {
-                    if let Some(c) = class_or_variable(identifier, bytes) {
-                        out.push(c);
-                    }
-                    break 'block;
-                }
-                if cursor.node().kind() == "ERROR" {
-                    if let Some(c) = class_or_variable(identifier, bytes) {
-                        out.push(c);
-                    }
-                }
-            }
-        }
-        _ => {
-            out.extend(parse_value(cursor, bytes));
+    eprint!("[parse:arg]");
+    out.range = Some(cursor.node().range());
+    out.value.extend(parse_value(cursor, bytes));
+    if cursor.sibling() {
+        let kind = cursor.node().kind();
+        if kind == "," || kind == ")" {
+            out.range = Some(tree_sitter_util::add_ranges(
+                out.range.unwrap(),
+                cursor.node().range(),
+            ));
         }
     }
 
@@ -170,6 +201,10 @@ fn parse_value(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> Vec<CallIt
         "field_access" => parse_field_access(cursor.node(), bytes),
         "method_invocation" => parse_method_invocation(cursor.node(), bytes),
         "object_creation_expression" => parse_object_creation(cursor.node(), bytes),
+        "string_literal" => vec![CallItem::Class {
+            name: "String".to_string(),
+            range: cursor.node().range(),
+        }],
         _ => vec![],
     }
 }
@@ -228,28 +263,34 @@ fn parse_field_access(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem
     match cursor.node().kind() {
         "identifier" => {
             let var_name = cursor.node();
-            cursor.sibling();
-            cursor.sibling();
-            let field_name = get_string(&cursor, bytes);
             if let Some(item) = class_or_variable(var_name, bytes) {
                 out.push(item);
             }
-            if field_name != "return" {
+            cursor.sibling();
+            if cursor.sibling() {
+                let field_name = get_string(&cursor, bytes);
+                if field_name != "return" {
+                    out.push(CallItem::FieldAccess {
+                        name: field_name,
+                        range: cursor.node().range(),
+                    });
+                }
+            }
+        }
+        "string_literal" => {
+            let val = parse_value(&cursor, bytes);
+            out.extend(val);
+        }
+        "method_invocation" => {
+            out.extend(parse_method_invocation(cursor.node(), bytes));
+            cursor.sibling();
+            if cursor.sibling() {
+                let field_name = get_string(&cursor, bytes);
                 out.push(CallItem::FieldAccess {
                     name: field_name,
                     range: cursor.node().range(),
                 });
             }
-        }
-        "method_invocation" => {
-            out.extend(parse_method_invocation(cursor.node(), bytes));
-            cursor.sibling();
-            cursor.sibling();
-            let field_name = get_string(&cursor, bytes);
-            out.push(CallItem::FieldAccess {
-                name: field_name,
-                range: cursor.node().range(),
-            });
         }
         "field_access" => {
             out.extend(parse_field_access(cursor.node(), bytes));
@@ -322,6 +363,7 @@ pub fn validate<'a>(
             CallItem::ArgumentList {
                 prev: _,
                 range,
+                filled_params: _,
                 active_param: _,
             } => tree_sitter_util::is_point_in_range(point, range),
         })
@@ -424,6 +466,34 @@ public class Test {
                     }
                 }
             ])
+        );
+    }
+
+    #[test]
+    fn call_chain_string() {
+        let content = r#"
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        String a = "";
+        return "".  ;
+    }
+}
+"#;
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(5, 19));
+        assert_eq!(
+            out,
+            Some(vec![CallItem::Class {
+                name: "String".to_string(),
+                range: Range {
+                    start_byte: 108,
+                    end_byte: 110,
+                    start_point: Point { row: 5, column: 15 },
+                    end_point: Point { row: 5, column: 17 },
+                }
+            }])
         );
     }
 
@@ -923,6 +993,7 @@ public class Test {
                     start_point: Point { row: 5, column: 20 },
                     end_point: Point { row: 5, column: 23 },
                 },
+                filled_params: vec![vec![]],
                 active_param: 0
             },],)
         );
@@ -973,6 +1044,15 @@ public class Test {
                         start_point: Point { row: 5, column: 20 },
                         end_point: Point { row: 5, column: 29 },
                     },
+                    filled_params: vec![vec![CallItem::Variable {
+                        name: "local".to_string(),
+                        range: Range {
+                            start_byte: 117,
+                            end_byte: 122,
+                            start_point: Point { row: 5, column: 21 },
+                            end_point: Point { row: 5, column: 26 }
+                        }
+                    }]],
                     active_param: 0
                 },
                 CallItem::Variable {
@@ -1033,6 +1113,15 @@ public class Test {
                         start_point: Point { row: 5, column: 20 },
                         end_point: Point { row: 5, column: 28 },
                     },
+                    filled_params: vec![vec![CallItem::Variable {
+                        name: "local".to_string(),
+                        range: Range {
+                            start_byte: 117,
+                            end_byte: 122,
+                            start_point: Point { row: 5, column: 21 },
+                            end_point: Point { row: 5, column: 26 }
+                        }
+                    }]],
                     active_param: 0
                 },
                 CallItem::Variable {
@@ -1063,6 +1152,15 @@ public class Test {
         let doc = Document::setup(content).unwrap();
 
         let out = get_call_chain(&doc, &Point::new(5, 23));
+        match out.clone().unwrap().first().unwrap() {
+            CallItem::ArgumentList {
+                prev: _,
+                active_param,
+                filled_params: _,
+                range: _,
+            } => assert_eq!(active_param, &1),
+            _ => assert!(false),
+        };
         assert_eq!(
             out,
             Some(vec![
@@ -1093,6 +1191,26 @@ public class Test {
                         start_point: Point { row: 5, column: 16 },
                         end_point: Point { row: 5, column: 24 },
                     },
+                    filled_params: vec![
+                        vec![CallItem::Variable {
+                            name: "b".to_string(),
+                            range: Range {
+                                start_byte: 113,
+                                end_byte: 114,
+                                start_point: Point { row: 5, column: 17 },
+                                end_point: Point { row: 5, column: 18 },
+                            },
+                        }],
+                        vec![CallItem::Variable {
+                            name: "c".to_string(),
+                            range: Range {
+                                start_byte: 116,
+                                end_byte: 117,
+                                start_point: Point { row: 5, column: 20 },
+                                end_point: Point { row: 5, column: 21 },
+                            },
+                        }]
+                    ],
                     active_param: 1
                 },
                 CallItem::Variable {
@@ -1102,6 +1220,86 @@ public class Test {
                         end_byte: 117,
                         start_point: Point { row: 5, column: 20 },
                         end_point: Point { row: 5, column: 21 },
+                    }
+                }
+            ])
+        );
+    }
+
+    #[test]
+    fn call_chain_argument_active_param_not_last() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        Thing local = \"\";
+        a.concat(b , c);
+        return;
+    }
+}
+";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_call_chain(&doc, &Point::new(5, 19));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::ArgumentList {
+                    prev: vec![
+                        CallItem::Variable {
+                            name: "a".to_string(),
+                            range: Range {
+                                start_byte: 104,
+                                end_byte: 105,
+                                start_point: Point { row: 5, column: 8 },
+                                end_point: Point { row: 5, column: 9 },
+                            },
+                        },
+                        CallItem::MethodCall {
+                            name: "concat".to_string(),
+                            range: Range {
+                                start_byte: 106,
+                                end_byte: 112,
+                                start_point: Point { row: 5, column: 10 },
+                                end_point: Point { row: 5, column: 16 },
+                            },
+                        },
+                    ],
+                    range: Range {
+                        start_byte: 112,
+                        end_byte: 119,
+                        start_point: Point { row: 5, column: 16 },
+                        end_point: Point { row: 5, column: 23 },
+                    },
+                    filled_params: vec![
+                        vec![CallItem::Variable {
+                            name: "b".to_string(),
+                            range: Range {
+                                start_byte: 113,
+                                end_byte: 114,
+                                start_point: Point { row: 5, column: 17 },
+                                end_point: Point { row: 5, column: 18 },
+                            }
+                        }],
+                        vec![CallItem::Variable {
+                            name: "c".to_string(),
+                            range: Range {
+                                start_byte: 117,
+                                end_byte: 118,
+                                start_point: Point { row: 5, column: 21 },
+                                end_point: Point { row: 5, column: 22 },
+                            }
+                        }],
+                    ],
+                    active_param: 0
+                },
+                CallItem::Variable {
+                    name: "b".to_string(),
+                    range: Range {
+                        start_byte: 113,
+                        end_byte: 114,
+                        start_point: Point { row: 5, column: 17 },
+                        end_point: Point { row: 5, column: 18 },
                     }
                 }
             ])
@@ -1153,6 +1351,26 @@ public class Test {
                         start_point: Point { row: 5, column: 16 },
                         end_point: Point { row: 5, column: 23 },
                     },
+                    filled_params: vec![
+                        vec![CallItem::Variable {
+                            name: "b".to_string(),
+                            range: Range {
+                                start_byte: 113,
+                                end_byte: 114,
+                                start_point: Point { row: 5, column: 17 },
+                                end_point: Point { row: 5, column: 18 },
+                            }
+                        }],
+                        vec![CallItem::Variable {
+                            name: "c".to_string(),
+                            range: Range {
+                                start_byte: 116,
+                                end_byte: 117,
+                                start_point: Point { row: 5, column: 20 },
+                                end_point: Point { row: 5, column: 21 },
+                            }
+                        }]
+                    ],
                     active_param: 1
                 },
                 CallItem::Variable {
@@ -1213,6 +1431,26 @@ public class Test {
                         start_point: Point { row: 5, column: 16 },
                         end_point: Point { row: 5, column: 23 },
                     },
+                    filled_params: vec![vec![
+                        CallItem::Variable {
+                            name: "b".to_string(),
+                            range: Range {
+                                start_byte: 113,
+                                end_byte: 114,
+                                start_point: Point { row: 5, column: 17 },
+                                end_point: Point { row: 5, column: 18 },
+                            }
+                        },
+                        CallItem::FieldAccess {
+                            name: "a".to_string(),
+                            range: Range {
+                                start_byte: 115,
+                                end_byte: 116,
+                                start_point: Point { row: 5, column: 19 },
+                                end_point: Point { row: 5, column: 20 }
+                            },
+                        },
+                    ]],
                     active_param: 0
                 },
                 CallItem::Variable {
@@ -1279,6 +1517,7 @@ public class Test {
                     start_point: Point { row: 4, column: 16 },
                     end_point: Point { row: 4, column: 19 },
                 },
+                filled_params: vec![vec![]],
                 active_param: 0
             }])
         );
@@ -1329,6 +1568,26 @@ public class Test {
                         start_point: Point { row: 5, column: 16 },
                         end_point: Point { row: 5, column: 24 },
                     },
+                    filled_params: vec![vec![
+                        CallItem::Variable {
+                            name: "b".to_string(),
+                            range: Range {
+                                start_byte: 113,
+                                end_byte: 114,
+                                start_point: Point { row: 5, column: 17 },
+                                end_point: Point { row: 5, column: 18 }
+                            }
+                        },
+                        CallItem::MethodCall {
+                            name: "a".to_string(),
+                            range: Range {
+                                start_byte: 115,
+                                end_byte: 116,
+                                start_point: Point { row: 5, column: 19 },
+                                end_point: Point { row: 5, column: 20 },
+                            }
+                        },
+                    ]],
                     active_param: 0
                 },
                 CallItem::Variable {

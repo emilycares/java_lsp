@@ -111,6 +111,19 @@ pub fn resolve_var(
     resolve_jtype(&extend.jtype, imports, class_map)
 }
 
+#[allow(dead_code)]
+pub fn resolve_params(
+    params: Vec<Vec<CallItem>>,
+    lo_va: &[LocalVariable],
+    imports: &[ImportUnit],
+    class_map: &DashMap<String, Class>,
+) -> Vec<Option<Class>> {
+    params
+        .iter()
+        .map(|c| resolve_call_chain(c, lo_va, imports, class_map))
+        .collect()
+}
+
 pub fn resolve_call_chain(
     call_chain: &[CallItem],
     lo_va: &[LocalVariable],
@@ -160,6 +173,7 @@ pub fn resolve_call_chain(
                 prev: _,
                 range: _,
                 active_param: _,
+                filled_params: _,
             } => None,
         };
         if let Some(op) = op {
@@ -169,7 +183,7 @@ pub fn resolve_call_chain(
     ops.last().cloned()
 }
 
-fn resolve_jtype(
+pub fn resolve_jtype(
     jtype: &JType,
     imports: &[ImportUnit],
     class_map: &DashMap<String, Class>,

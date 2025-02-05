@@ -104,3 +104,21 @@ pub fn tdbc(cursor: &TreeCursor, bytes: &[u8]) {
         get_string(cursor, bytes)
     );
 }
+
+pub fn add_ranges(a: Range, b: Range) -> Range {
+    Range {
+        start_byte: a.start_byte,
+        end_byte: b.end_byte,
+        start_point: a.start_point,
+        end_point: b.end_point,
+    }
+}
+
+pub fn print_range(bytes: &[u8], range: &Option<Range>) {
+    let Some(range) = range else {
+        eprintln!("Range is None");
+        return;
+    };
+    let cow = String::from_utf8_lossy(&bytes[range.start_byte..range.end_byte]);
+    eprintln!("range inclues: '{}'", cow);
+}

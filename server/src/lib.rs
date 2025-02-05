@@ -6,6 +6,7 @@ pub mod document;
 mod hover;
 mod imports;
 mod position;
+pub mod signature;
 mod tyres;
 mod utils;
 mod variable;
@@ -14,7 +15,6 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::{collections::HashMap, fs::read_to_string};
 
-use call_chain::CallItem;
 use common::compile::CompileError;
 use common::project_kind::ProjectKind;
 use dashmap::{DashMap, DashSet};
@@ -32,16 +32,13 @@ use lsp_types::{
     CodeActionKind, CodeActionOptions, CodeActionParams, CodeActionProviderCapability,
     CodeActionResponse, CompletionOptions, CompletionParams, CompletionResponse, Diagnostic,
     DidChangeTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
-    DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse,
-    Hover, HoverParams, HoverProviderCapability, InitializeParams, InitializedParams, OneOf,
-    Position, ProgressParams, ProgressParamsValue, ProgressToken, PublishDiagnosticsParams, Range,
-    ServerCapabilities, TextDocumentContentChangeEvent, TextDocumentItem,
+    DocumentFormattingParams, DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams,
+    GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, InitializeParams,
+    InitializedParams, OneOf, Position, ProgressParams, ProgressParamsValue, ProgressToken,
+    PublishDiagnosticsParams, Range, ServerCapabilities, SignatureHelp, SignatureHelpOptions,
+    SignatureHelpParams, TextDocumentContentChangeEvent, TextDocumentItem,
     TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Uri, WorkDoneProgress,
     WorkDoneProgressBegin, WorkDoneProgressEnd, WorkspaceSymbolParams, WorkspaceSymbolResponse,
-};
-use lsp_types::{
-    DocumentFormattingParams, Documentation, ParameterInformation, ParameterLabel, SignatureHelp,
-    SignatureHelpOptions, SignatureHelpParams, SignatureInformation,
 };
 use lsp_types::{SymbolInformation, WorkDoneProgressOptions};
 use parser::dto::Class;
@@ -650,94 +647,13 @@ impl Backend<'_> {
     }
 
     async fn signature_help(&self, params: SignatureHelpParams) -> Option<SignatureHelp> {
-        let Some(document) = self
-            .get_document(
-                params
-                    .text_document_position_params
-                    .text_document
-                    .uri
-                    .clone(),
-            )
-            .await
-        else {
+        let uri = params.text_document_position_params.text_document.uri;
+        let Some(document) = self.get_document(uri).await else {
             eprintln!("Document is not opened.");
             return None;
         };
         let point = to_treesitter_point(params.text_document_position_params.position);
 
-        if let Some(call_chain) = call_chain::get_call_chain(&document, &point) {
-            // get last of kind argumetn list
-            // resolve prev -> tyres::resolve_call_chain(relevat, vars, imports, class_map)
-            // get methods of that class by name
-            // gues variant by number of commas
-            let args = call_chain.iter().rev().find(|i| match i {
-                CallItem::MethodCall { name: _, range: _ } => false,
-                CallItem::FieldAccess { name: _, range: _ } => false,
-                CallItem::Variable { name: _, range: _ } => false,
-                CallItem::Class { name: _, range: _ } => false,
-                CallItem::ArgumentList {
-                    prev: _,
-                    range: _,
-                    active_param: _,
-                } => true,
-            });
-            if let Some(CallItem::ArgumentList {
-                prev,
-                range: _,
-                active_param,
-            }) = args
-            {
-                let imports = imports::imports(document.value());
-                let vars = variable::get_vars(document.value(), &point);
-                if let Some(CallItem::MethodCall {
-                    name: method_name,
-                    range: _,
-                }) = prev.last()
-                {
-                    if let Some(class) =
-                        tyres::resolve_call_chain(&prev, &vars, &imports, &self.class_map)
-                    {
-                        let signatures: Vec<SignatureInformation> = class
-                            .methods
-                            .iter()
-                            .filter(|i| i.name == *method_name)
-                            .map(|method| {
-                                let parameters: Vec<ParameterInformation> = method
-                                    .parameters
-                                    .iter()
-                                    .map(|p| match &p.name {
-                                        Some(name) => ParameterInformation {
-                                            label: ParameterLabel::Simple(name.clone()),
-                                            documentation: Some(Documentation::String(
-                                                p.jtype.to_string(),
-                                            )),
-                                        },
-                                        None => ParameterInformation {
-                                            label: ParameterLabel::Simple(p.jtype.to_string()),
-                                            documentation: None,
-                                        },
-                                    })
-                                    .collect();
-                                SignatureInformation {
-                                    label: method.name.clone(),
-                                    documentation: Some(Documentation::String(
-                                        method.ret.to_string(),
-                                    )),
-                                    parameters: Some(parameters),
-                                    active_parameter: None,
-                                }
-                            })
-                            .collect();
-                        return Some(SignatureHelp {
-                            signatures,
-                            active_signature: None,
-                            active_parameter: Some(*active_param),
-                        });
-                    }
-                }
-            }
-            dbg!(&params);
-        }
-        None
+        signature::signature_driver(&document, &point, &self.class_map)
     }
 }

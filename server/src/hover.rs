@@ -100,6 +100,7 @@ pub fn call_chain_hover(
             prev: _,
             range: _,
             active_param: _,
+            filled_params: _,
         } => None,
     }
 }
