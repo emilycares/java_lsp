@@ -249,7 +249,7 @@ fn parse_local_variable_declaration(
 pub mod tests {
     use parser::dto;
     use pretty_assertions::assert_eq;
-    use tree_sitter::Point;
+    use tree_sitter::{Point, Range};
 
     use crate::{
         variable::{get_vars, LocalVariable},
@@ -391,6 +391,35 @@ public class Test {
                     },
                 },
             ]
+        );
+    }
+
+    #[test]
+    fn class_static_variables() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    private static Logger logger = LoggerFactory.getLogger(App.class);
+     
+}
+        ";
+        let doc = Document::setup(content).unwrap();
+
+        let out = get_vars(&doc, &Point::new(4, 6));
+        assert_eq!(
+            out,
+            vec![LocalVariable {
+                level: 2,
+                jtype: dto::JType::Class("Logger".to_string()),
+                name: "logger".to_string(),
+                is_fun: false,
+                range: Range {
+                    start_byte: 70,
+                    end_byte: 76,
+                    start_point: Point { row: 3, column: 26 },
+                    end_point: Point { row: 3, column: 32 },
+                },
+            },]
         );
     }
 
