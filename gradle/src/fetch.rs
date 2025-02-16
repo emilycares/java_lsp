@@ -6,6 +6,7 @@ use std::{
 };
 
 use dashmap::DashMap;
+use itertools::Itertools;
 use parser::{dto::ClassFolder, loader::SourceDestination};
 use tokio::sync::Mutex;
 
@@ -35,16 +36,20 @@ pub async fn fetch_deps(
         let class_map = Arc::new(class_map.clone());
         let maven_class_folder = Arc::new(Mutex::new(ClassFolder::default()));
         let mut handles = Vec::new();
+        let folders: Vec<_> = tree
+            .iter()
+            .map(|dep| {
+                PathBuf::from(&unpack_folder).join(format!("{}-{}", dep.artivact_id, dep.version))
+            })
+            .unique()
+            .collect();
 
-        for dep in tree {
+        for folder in folders {
             let class_map = class_map.clone();
-            let unpack_folder = unpack_folder.clone();
             let maven_class_folder = maven_class_folder.clone();
             handles.push(tokio::spawn(async move {
-                let folder = PathBuf::from(&unpack_folder)
-                    .join(format!("{}-{}", dep.artivact_id, dep.version));
                 if !folder.exists() {
-                    eprintln!("dependency folder does not exist {:?}, {:?}", folder, &dep);
+                    eprintln!("dependency folder does not exist {:?}", folder);
                 } else {
                     let classes = parser::loader::load_classes(
                         folder.as_path().to_str().unwrap_or_default(),

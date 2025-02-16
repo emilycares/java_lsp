@@ -853,6 +853,7 @@ dependencies = [
  "common",
  "dashmap",
  "futures",
+ "itertools 0.14.0",
  "nom 8.0.0",
  "parser",
  "pretty_assertions",
