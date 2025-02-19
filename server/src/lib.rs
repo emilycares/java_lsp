@@ -444,7 +444,7 @@ impl Backend<'_> {
         self.progress_start("Load project files");
         let project_classes = match self.project_kind {
             ProjectKind::Maven => maven::project::load_project_folders(),
-            ProjectKind::Gradle => vec![],
+            ProjectKind::Gradle => gradle::project::load_project_folders(),
             ProjectKind::Unknown => vec![],
         };
         for class in project_classes {
@@ -629,7 +629,7 @@ impl Backend<'_> {
     ) -> Option<WorkspaceSymbolResponse> {
         let files = match self.project_kind {
             ProjectKind::Maven => maven::project::get_paths(),
-            ProjectKind::Gradle => vec![],
+            ProjectKind::Gradle => gradle::project::get_paths(),
             ProjectKind::Unknown => vec![],
         };
 

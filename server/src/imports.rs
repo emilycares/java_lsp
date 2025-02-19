@@ -64,8 +64,8 @@ fn get_imported_classpaths<'a>(bytes: &'a [u8], tree: &Tree) -> Vec<ImportUnit<'
     while let "import_declaration" = cursor.node().kind() {
         cursor.first_child();
         cursor.sibling();
-        let mut done = false;
         let mut stat = false;
+        let mut prefix = false;
         if cursor.node().kind() == "static" {
             stat = true;
             cursor.sibling();
@@ -79,22 +79,17 @@ fn get_imported_classpaths<'a>(bytes: &'a [u8], tree: &Tree) -> Vec<ImportUnit<'
                     cursor.sibling();
                 }
                 if cursor.node().kind() == "asterisk" {
-                    if stat {
-                        out.push(ImportUnit::StaticPrefix(class_path));
-                    } else {
-                        out.push(ImportUnit::Prefix(class_path));
-                    }
+                    prefix = true;
+                }
+            }
 
-                    done = true;
-                }
-            }
-            if !done {
-                if stat {
-                    out.push(ImportUnit::StaticClass(class_path));
-                } else {
-                    out.push(ImportUnit::Class(class_path));
-                }
-            }
+            let imp = match (stat, prefix) {
+                (true, true) => ImportUnit::StaticPrefix(class_path),
+                (true, false) => ImportUnit::StaticClass(class_path),
+                (false, true) => ImportUnit::Prefix(class_path),
+                (false, false) => ImportUnit::Class(class_path),
+            };
+            out.push(imp);
         }
         cursor.parent();
         cursor.sibling();
@@ -129,15 +124,19 @@ public class Controller {}";
     }
 
     #[test]
-    fn star() {
+    fn stat() {
         let demo = "package heh.haha;
 
 import java.util.*;
+import static java.util.*;
 
 public class Controller {}";
         assert_eq!(
             get_imported_classpaths(demo.as_bytes(), &get_tree(demo).unwrap()),
-            vec![ImportUnit::Prefix("java.util")]
+            vec![
+                ImportUnit::Prefix("java.util"),
+                ImportUnit::StaticPrefix("java.util")
+            ]
         );
     }
 }
