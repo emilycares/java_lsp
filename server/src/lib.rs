@@ -1,4 +1,3 @@
-mod call_chain;
 mod codeaction;
 pub mod completion;
 mod definition;

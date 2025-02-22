@@ -1,6 +1,6 @@
 use lsp_types::{Location, SymbolInformation, SymbolKind, Uri};
 use streaming_iterator::StreamingIterator;
-use tree_sitter::{Parser, Query, QueryCursor};
+use tree_sitter::{Query, QueryCursor};
 use tree_sitter_util::get_string_node;
 
 use crate::utils::to_lsp_range;
@@ -109,13 +109,7 @@ pub fn get_item_ranges<'a>(
     query: &'a str,
     name: Option<&str>,
 ) -> Vec<PositionSymbol> {
-    let language = tree_sitter_java::LANGUAGE;
-    let mut parser = Parser::new();
-    if parser.set_language(&language.into()).is_err() {
-        eprintln!("----- Not initialized -----");
-        return vec![];
-    }
-    let Some(tree) = parser.parse(source, None) else {
+    let Some((_, tree)) = tree_sitter_util::parse(source) else {
         return vec![];
     };
     let query =

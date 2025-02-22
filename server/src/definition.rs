@@ -1,11 +1,13 @@
 use std::{fs::read_to_string, path::PathBuf, str::FromStr};
 
 use lsp_types::{GotoDefinitionResponse, Location, Uri};
-use parser::dto;
+use parser::{
+    call_chain::{self, CallItem},
+    dto,
+};
 use tree_sitter::Point;
 
 use crate::{
-    call_chain::{self, CallItem},
     hover,
     imports::ImportUnit,
     position::{self, PositionSymbol},
@@ -49,7 +51,8 @@ fn call_chain_definition(
     imports: &[ImportUnit],
     class_map: &dashmap::DashMap<String, dto::Class>,
 ) -> Option<Option<GotoDefinitionResponse>> {
-    if let Some(call_chain) = call_chain::get_call_chain(document, point) {
+    if let Some(call_chain) = call_chain::get_call_chain(&document.tree, document.as_bytes(), point)
+    {
         let Some((item, relevat)) = call_chain::validate(&call_chain, point) else {
             return None;
         };

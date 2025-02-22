@@ -1,4 +1,4 @@
-use tree_sitter::{Parser, Tree};
+use tree_sitter::Tree;
 use tree_sitter_util::CommentSkiper;
 
 use crate::Document;
@@ -39,16 +39,6 @@ pub fn is_imported(imports: &[ImportUnit], class_path: &str) -> bool {
     false
 }
 
-#[allow(dead_code)]
-fn get_tree(content: &str) -> Option<Tree> {
-    let mut parser = Parser::new();
-    let language = tree_sitter_java::LANGUAGE;
-    parser
-        .set_language(&language.into())
-        .expect("Error loading java grammar");
-    let tree = parser.parse(content, None)?;
-    Some(tree)
-}
 pub fn imports(document: &Document) -> Vec<ImportUnit> {
     let tree = &document.tree;
     let bytes = document.as_bytes();
@@ -100,7 +90,7 @@ fn get_imported_classpaths<'a>(bytes: &'a [u8], tree: &Tree) -> Vec<ImportUnit<'
 
 #[cfg(test)]
 mod tests {
-    use crate::imports::{get_tree, ImportUnit};
+    use crate::imports::ImportUnit;
 
     use super::get_imported_classpaths;
 
@@ -113,8 +103,9 @@ import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions;
 
 public class Controller {}";
+        let (_, tree) = tree_sitter_util::parse(demo).unwrap();
         assert_eq!(
-            get_imported_classpaths(demo.as_bytes(), &get_tree(demo).unwrap()),
+            get_imported_classpaths(demo.as_bytes(), &tree),
             vec![
                 ImportUnit::Class("java.util.List"),
                 ImportUnit::Class("java.util.stream.Collectors"),
@@ -131,8 +122,9 @@ import java.util.*;
 import static java.util.*;
 
 public class Controller {}";
+        let (_, tree) = tree_sitter_util::parse(demo).unwrap();
         assert_eq!(
-            get_imported_classpaths(demo.as_bytes(), &get_tree(demo).unwrap()),
+            get_imported_classpaths(demo.as_bytes(), &tree),
             vec![
                 ImportUnit::Prefix("java.util"),
                 ImportUnit::StaticPrefix("java.util")

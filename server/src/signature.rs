@@ -2,10 +2,12 @@ use dashmap::DashMap;
 use lsp_types::{
     Documentation, ParameterInformation, ParameterLabel, SignatureHelp, SignatureInformation,
 };
-use parser::dto::{self};
+use parser::{
+    call_chain::{self, CallItem},
+    dto::{self},
+};
 
 use crate::{
-    call_chain::{self, CallItem},
     document::Document,
     imports::{self},
     tyres, variable,
@@ -16,7 +18,9 @@ pub fn signature_driver(
     point: &tree_sitter::Point,
     class_map: &DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<SignatureHelp> {
-    if let Some(call_chain) = call_chain::get_call_chain(document, &point) {
+    if let Some(call_chain) =
+        call_chain::get_call_chain(&document.tree, document.as_bytes(), &point)
+    {
         let imports = imports::imports(document);
         let vars = variable::get_vars(document, &point);
         return get_signature(call_chain, &imports, &vars, class_map);

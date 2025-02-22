@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 tree-sitter.workspace = true
+tree-sitter-java.workspace = true
 thiserror.workspace = true

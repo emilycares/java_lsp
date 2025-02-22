@@ -1,15 +1,11 @@
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
-use parser::dto;
+use parser::{
+    call_chain::{self, class_or_variable, CallItem},
+    dto,
+};
 use tree_sitter::Point;
 
-use crate::{
-    call_chain::{self, class_or_variable, CallItem},
-    imports::ImportUnit,
-    tyres,
-    utils::to_lsp_range,
-    variable::LocalVariable,
-    Document,
-};
+use crate::{imports::ImportUnit, tyres, utils::to_lsp_range, variable::LocalVariable, Document};
 
 pub fn base(
     document: &Document,
@@ -63,7 +59,8 @@ pub fn call_chain_hover(
     imports: &[ImportUnit],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<Hover> {
-    let Some(call_chain) = call_chain::get_call_chain(document, point) else {
+    let Some(call_chain) = call_chain::get_call_chain(&document.tree, document.as_bytes(), point)
+    else {
         return None;
     };
 

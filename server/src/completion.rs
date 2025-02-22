@@ -1,10 +1,9 @@
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat};
-use parser::dto;
+use parser::{call_chain::get_call_chain, dto};
 use tree_sitter::{Point, Tree};
 use tree_sitter_util::{get_node_at_point, get_string_node};
 
 use crate::{
-    call_chain::get_call_chain,
     codeaction,
     imports::{self, ImportUnit},
     tyres,
@@ -158,7 +157,8 @@ pub fn complete_call_chain(
     imports: &[ImportUnit],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Vec<CompletionItem> {
-    if let Some(call_chain) = get_call_chain(document, point).as_deref() {
+    if let Some(call_chain) = get_call_chain(&document.tree, document.as_bytes(), point).as_deref()
+    {
         if let Some(extend_class) = tyres::resolve_call_chain(call_chain, vars, imports, class_map)
         {
             return class_unpack(&extend_class);
@@ -362,10 +362,23 @@ public class GreetingResource {
             }]
         );
     }
+    pub const SYMBOL_METHOD: &str = "
+package ch.emilycares;
+
+public class Test {
+
+    public void hello() {
+        String local = \"\";
+
+        var lo = local.concat(\"hehe\"). 
+        return;
+    }
+}
+        ";
 
     #[test]
     fn extend_completion_method() {
-        let doc = Document::setup(crate::call_chain::tests::SYMBOL_METHOD).unwrap();
+        let doc = Document::setup(SYMBOL_METHOD).unwrap();
         let lo_va = vec![LocalVariable {
             level: 3,
             jtype: dto::JType::Class("String".to_owned()),

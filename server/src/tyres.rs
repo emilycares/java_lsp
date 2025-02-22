@@ -1,9 +1,12 @@
 use std::ops::Deref;
 
 use dashmap::DashMap;
-use parser::dto::{self, Class, JType};
+use parser::{
+    call_chain::CallItem,
+    dto::{self, Class, JType},
+};
 
-use crate::{call_chain::CallItem, imports::ImportUnit, variable::LocalVariable};
+use crate::{imports::ImportUnit, variable::LocalVariable};
 
 pub fn is_imported_class_name(
     jtype: &str,

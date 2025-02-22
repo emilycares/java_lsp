@@ -1,8 +1,6 @@
 use tree_sitter::{Point, Range};
 use tree_sitter_util::{get_string, get_string_node, CommentSkiper};
 
-use crate::Document;
-
 #[derive(Debug, PartialEq, Clone)]
 pub enum CallItem {
     MethodCall {
@@ -42,10 +40,11 @@ struct Argument {
 ///       ^
 /// ```
 /// Then it would return info about the variable other
-pub fn get_call_chain(document: &Document, point: &Point) -> Option<Vec<CallItem>> {
-    let tree = &document.tree;
-    let bytes = document.as_bytes();
-
+pub fn get_call_chain(
+    tree: &tree_sitter::Tree,
+    bytes: &[u8],
+    point: &Point,
+) -> Option<Vec<CallItem>> {
     let mut cursor = tree.walk();
     let mut level = 0;
     let mut out = vec![];
@@ -122,7 +121,7 @@ pub fn get_call_chain(document: &Document, point: &Point) -> Option<Vec<CallItem
     None
 }
 
-fn parse_argument_list(
+pub fn parse_argument_list(
     out: &Vec<CallItem>,
     cursor: &mut tree_sitter::TreeCursor<'_>,
     bytes: &[u8],
@@ -379,10 +378,7 @@ pub mod tests {
     use pretty_assertions::assert_eq;
     use tree_sitter::{Point, Range};
 
-    use crate::{
-        call_chain::{get_call_chain, CallItem},
-        Document,
-    };
+    use crate::call_chain::{get_call_chain, CallItem};
 
     #[test]
     fn call_chain_base() {
@@ -399,9 +395,9 @@ public class Test {
     }
 }
         ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(8, 24));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(8, 24));
         assert_eq!(
             out,
             Some(vec![CallItem::Variable {
@@ -432,9 +428,9 @@ public class Test {
 
     #[test]
     fn call_chain_method() {
-        let doc = Document::setup(SYMBOL_METHOD).unwrap();
+        let (_, tree) = tree_sitter_util::parse(SYMBOL_METHOD).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(8, 40));
+        let out = get_call_chain(&tree, SYMBOL_METHOD.as_bytes(), &Point::new(8, 40));
         assert_eq!(
             out,
             Some(vec![
@@ -480,9 +476,9 @@ public class Test {
     }
 }
 "#;
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(5, 19));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 19));
         assert_eq!(
             out,
             Some(vec![CallItem::Class {
@@ -509,9 +505,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(5, 26));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 26));
         assert_eq!(
             out,
             Some(vec![
@@ -549,9 +545,9 @@ public class GreetingResource {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(5, 24));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 24));
         assert_eq!(
             out,
             Some(vec![
@@ -588,10 +584,10 @@ public class GreetingResource {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
         // the cursor is on the concat method_call
-        let out = get_call_chain(&doc, &Point::new(4, 14));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 14));
         assert_eq!(
             out,
             Some(vec![
@@ -629,9 +625,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(5, 30));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 30));
         assert_eq!(
             out,
             Some(vec![
@@ -678,9 +674,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(5, 30));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 30));
         assert_eq!(
             out,
             Some(vec![
@@ -727,9 +723,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(5, 23));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 23));
         assert_eq!(
             out,
             Some(vec![CallItem::Variable {
@@ -756,9 +752,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(5, 28));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 28));
         assert_eq!(
             out,
             Some(vec![
@@ -805,9 +801,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(5, 28));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 28));
         assert_eq!(
             out,
             Some(vec![
@@ -854,9 +850,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(5, 20));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 20));
         assert_eq!(
             out,
             Some(vec![
@@ -903,9 +899,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(5, 16));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 16));
         assert_eq!(
             out,
             Some(vec![CallItem::Class {
@@ -932,9 +928,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(5, 28));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 28));
         assert_eq!(
             out,
             Some(vec![CallItem::Class {
@@ -961,9 +957,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(5, 22));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 22));
         assert_eq!(
             out,
             Some(vec![CallItem::ArgumentList {
@@ -1011,9 +1007,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(5, 27));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 27));
         assert_eq!(
             out,
             Some(vec![
@@ -1080,9 +1076,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(5, 27));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 27));
         assert_eq!(
             out,
             Some(vec![
@@ -1149,9 +1145,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(5, 23));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 23));
         match out.clone().unwrap().first().unwrap() {
             CallItem::ArgumentList {
                 prev: _,
@@ -1238,9 +1234,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(5, 19));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 19));
         assert_eq!(
             out,
             Some(vec![
@@ -1318,9 +1314,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(5, 22));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 22));
         assert_eq!(
             out,
             Some(vec![
@@ -1398,9 +1394,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(5, 22));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 22));
         assert_eq!(
             out,
             Some(vec![
@@ -1485,9 +1481,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(4, 18));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 18));
         assert_eq!(
             out,
             Some(vec![CallItem::ArgumentList {
@@ -1535,9 +1531,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(5, 23));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 23));
         assert_eq!(
             out,
             Some(vec![
@@ -1624,9 +1620,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(4, 14));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 14));
         assert_eq!(
             out,
             Some(vec![CallItem::Variable {
@@ -1653,9 +1649,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(4, 19));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 19));
         assert_eq!(
             out,
             Some(vec![CallItem::Variable {
@@ -1680,9 +1676,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(4, 18));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 18));
         assert_eq!(
             out,
             Some(vec![CallItem::Variable {
@@ -1707,9 +1703,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(4, 22));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 22));
         assert_eq!(
             out,
             Some(vec![
@@ -1746,9 +1742,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(4, 22));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 22));
         assert_eq!(
             out,
             Some(vec![CallItem::Class {
@@ -1774,9 +1770,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(4, 22));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 22));
         assert_eq!(
             out,
             Some(vec![
@@ -1813,9 +1809,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
 
-        let out = get_call_chain(&doc, &Point::new(4, 25));
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 25));
         assert_eq!(
             out,
             Some(vec![

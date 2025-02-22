@@ -6,8 +6,8 @@ pub enum Formatter {
     None,
 }
 
-pub fn format(text: String, formater: Formatter) -> Option<String> {
-    match formater {
+pub fn format(text: String, formatter: Formatter) -> Option<String> {
+    match formatter {
         Formatter::Topiary => topiary(text),
         Formatter::None => todo!(),
     }
@@ -29,7 +29,7 @@ fn topiary(text: String) -> Option<String> {
         name: "java".to_owned(),
         query: query.ok()?,
         grammar,
-        indent: None,
+        indent: Some("    ".to_string()),
     };
     let operation = formatter(
         &mut input,

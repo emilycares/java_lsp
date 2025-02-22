@@ -1,4 +1,3 @@
-use tree_sitter::Parser;
 use tree_sitter_util::CommentSkiper;
 
 use crate::{dto, loader::SourceDestination};
@@ -7,14 +6,9 @@ pub fn load_java(
     bytes: &[u8],
     source: SourceDestination,
 ) -> Result<crate::dto::Class, dto::ClassError> {
-    let mut parser = Parser::new();
-    let language = tree_sitter_java::LANGUAGE;
-    parser.set_language(&language.into())?;
-
-    let Some(tree) = parser.parse(bytes, None) else {
+    let Some((_, tree)) = tree_sitter_util::parse(bytes) else {
         return Err(dto::ClassError::ParseError);
     };
-
     let mut methods = vec![];
     let mut fields = vec![];
     let mut class_name = None;
@@ -32,23 +26,61 @@ pub fn load_java(
     while let "import_declaration" = cursor.node().kind() {
         cursor.sibling();
     }
-    if cursor.node().kind() == "class_declaration" {
-        cursor.first_child();
-        cursor.sibling();
-        cursor.sibling();
-        if cursor.node().kind() == "identifier" {
-            class_name = Some(get_string(&cursor, bytes))
-        }
-        cursor.sibling();
-        cursor.first_child();
-        while cursor.sibling() {
-            if cursor.node().kind() == "field_declaration" {
-                fields.push(parse_field(cursor.node(), bytes))
+    match cursor.node().kind() {
+        "class_declaration" => {
+            cursor.first_child();
+            cursor.sibling();
+            cursor.sibling();
+            if cursor.node().kind() == "identifier" {
+                class_name = Some(get_string(&cursor, bytes))
             }
-            if cursor.node().kind() == "method_declaration" {
-                methods.push(parse_method(cursor.node(), bytes))
+            cursor.sibling();
+            cursor.first_child();
+            while cursor.sibling() {
+                match cursor.node().kind() {
+                    "field_declaration" => fields.push(parse_field(cursor.node(), bytes)),
+                    "method_declaration" => methods.push(parse_method(cursor.node(), bytes)),
+                    unknown => eprintln!("Missing implementation for: {}", unknown),
+                }
             }
         }
+        "interface_declaration" => {
+            cursor.first_child();
+            cursor.sibling();
+            cursor.sibling();
+            if cursor.node().kind() == "identifier" {
+                class_name = Some(get_string(&cursor, bytes))
+            }
+            cursor.sibling();
+            cursor.first_child();
+            while cursor.sibling() {
+                match cursor.node().kind() {
+                    "constant_declaration" => {
+                        fields.push(parse_interface_constant(&mut cursor, bytes))
+                    }
+                    "," | "}" => (),
+                    unknown => eprintln!("Missing implementation for: {}", unknown),
+                }
+            }
+        }
+        "enum_declaration" => {
+            cursor.first_child();
+            cursor.sibling();
+            cursor.sibling();
+            if cursor.node().kind() == "identifier" {
+                class_name = Some(get_string(&cursor, bytes))
+            }
+            cursor.sibling();
+            cursor.first_child();
+            while cursor.sibling() {
+                match cursor.node().kind() {
+                    "enum_constant" => fields.push(parse_enum_constant(cursor.node(), bytes)),
+                    "," | "}" => (),
+                    unknown => eprintln!("Missing implementation for: {}", unknown),
+                }
+            }
+        }
+        missing => eprintln!("Missing implementation for : {}", missing),
     }
 
     let Some(name) = class_name else {
@@ -72,6 +104,36 @@ pub fn load_java(
         methods,
         fields,
     })
+}
+
+fn parse_interface_constant(cursor: &mut tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> dto::Field {
+    cursor.first_child();
+    if cursor.node().kind() == "modifiers" {
+        cursor.sibling();
+    }
+    let jtype = parse_jtype(cursor, bytes);
+    cursor.sibling();
+    cursor.first_child();
+    let name = get_string(cursor, bytes);
+
+    cursor.parent();
+    cursor.parent();
+    dto::Field {
+        access: vec![],
+        name,
+        jtype,
+    }
+}
+
+fn parse_enum_constant(node: tree_sitter::Node<'_>, bytes: &[u8]) -> dto::Field {
+    let mut cursor = node.walk();
+    cursor.first_child();
+
+    dto::Field {
+        access: vec![],
+        name: get_string(&cursor, bytes),
+        jtype: dto::JType::Void,
+    }
 }
 
 fn parse_method(node: tree_sitter::Node<'_>, bytes: &[u8]) -> dto::Method {
@@ -188,6 +250,7 @@ fn parse_jtype(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> dto::JType
         cursor.node().utf8_text(bytes).unwrap_or_default(),
     ) {
         ("integral_type", "int") => dto::JType::Int,
+        ("type_identifier", class) => dto::JType::Class(class.to_string()),
         (_, _) => dto::JType::Void,
     }
 }
@@ -195,9 +258,83 @@ fn parse_jtype(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> dto::JType
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use crate::{dto, loader::SourceDestination};
+    use crate::{
+        dto::{self},
+        loader::SourceDestination,
+    };
 
     use super::load_java;
+
+    #[test]
+    fn interface() {
+        let result = load_java(
+            include_bytes!("../test/Interface.java"),
+            SourceDestination::RelativeInFolder("/path/to/source".to_string()),
+        );
+
+        assert_eq!(
+            result.unwrap(),
+            dto::Class {
+                class_path: "ch.emilycares.Constants".to_string(),
+                source: "/path/to/source/ch/emilycares/Constants.java".to_string(),
+                access: vec![],
+                name: "Constants".to_string(),
+                methods: vec![],
+                fields: vec![
+                    dto::Field {
+                        access: vec![],
+                        name: "CONSTANT_A".to_string(),
+                        jtype: dto::JType::Class("String".to_string())
+                    },
+                    dto::Field {
+                        access: vec![],
+                        name: "CONSTANT_B".to_string(),
+                        jtype: dto::JType::Class("String".to_string())
+                    },
+                    dto::Field {
+                        access: vec![],
+                        name: "CONSTANT_C".to_string(),
+                        jtype: dto::JType::Class("String".to_string())
+                    }
+                ]
+            }
+        )
+    }
+
+    #[test]
+    fn jenum() {
+        let result = load_java(
+            include_bytes!("../test/Enum.java"),
+            SourceDestination::RelativeInFolder("/path/to/source".to_string()),
+        );
+        assert_eq!(
+            result.unwrap(),
+            dto::Class {
+                class_path: "ch.emilycares.Variants".to_string(),
+                source: "/path/to/source/ch/emilycares/Variants.java".to_string(),
+                access: vec![],
+                name: "Variants".to_string(),
+                methods: vec![],
+                fields: vec![
+                    dto::Field {
+                        access: vec![],
+                        name: "A".to_string(),
+                        jtype: dto::JType::Void
+                    },
+                    dto::Field {
+                        access: vec![],
+                        name: "B".to_string(),
+                        jtype: dto::JType::Void
+                    },
+                    dto::Field {
+                        access: vec![],
+                        name: "C".to_string(),
+                        jtype: dto::JType::Void
+                    },
+                ]
+            }
+        )
+    }
 
     #[test]
     fn everything() {

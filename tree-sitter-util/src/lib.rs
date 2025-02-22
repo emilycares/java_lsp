@@ -1,5 +1,5 @@
 use thiserror::Error;
-use tree_sitter::{Node, Point, Range, Tree, TreeCursor};
+use tree_sitter::{Node, Parser, Point, Range, Tree, TreeCursor};
 
 #[derive(Error, Debug, PartialEq)]
 pub enum TreesitterError {
@@ -121,4 +121,15 @@ pub fn print_range(bytes: &[u8], range: &Option<Range>) {
     };
     let cow = String::from_utf8_lossy(&bytes[range.start_byte..range.end_byte]);
     eprintln!("range inclues: '{}'", cow);
+}
+
+pub fn parse(text: impl AsRef<[u8]>) -> Option<(Parser, Tree)> {
+    let mut parser = Parser::new();
+    let language = tree_sitter_java::LANGUAGE;
+    if parser.set_language(&language.into()).is_err() {
+        eprintln!("----- Not initialized -----");
+        return None;
+    }
+    let tree = parser.parse(text, None)?;
+    Some((parser, tree))
 }

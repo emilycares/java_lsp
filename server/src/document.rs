@@ -15,13 +15,9 @@ impl Document {
     }
 
     pub fn setup_rope(text: &str, rope: Rope) -> Option<Self> {
-        let mut parser = Parser::new();
-        let language = tree_sitter_java::LANGUAGE;
-        if parser.set_language(&language.into()).is_err() {
-            eprintln!("----- Not initialized -----");
+        let Some((parser, tree)) = tree_sitter_util::parse(text) else {
             return None;
-        }
-        let tree = parser.parse(text, None)?;
+        };
         Some(Self {
             parser,
             text: rope,
