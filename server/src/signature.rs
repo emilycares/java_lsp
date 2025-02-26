@@ -123,6 +123,8 @@ fn method_to_signature_information(method: &dto::Method) -> SignatureInformation
 
 #[cfg(test)]
 pub mod tests {
+    use std::path::PathBuf;
+
     use dashmap::DashMap;
     use lsp_types::{
         Documentation, ParameterInformation, ParameterLabel, SignatureHelp, SignatureInformation,
@@ -166,7 +168,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap();
 
         let out = signature_driver(&doc, &Point::new(5, 29), &class_map);
         assert_eq!(
@@ -235,7 +237,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap();
 
         let out = signature_driver(&doc, &Point::new(5, 29), &class_map);
         assert_eq!(
@@ -321,7 +323,7 @@ public class Test {
     }
 }
 "#;
-        let doc = Document::setup(content).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap();
 
         let out = signature_driver(&doc, &Point::new(5, 39), &class_map);
         assert_eq!(

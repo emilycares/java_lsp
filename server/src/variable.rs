@@ -247,6 +247,8 @@ fn parse_local_variable_declaration(
 
 #[cfg(test)]
 pub mod tests {
+    use std::path::PathBuf;
+
     use parser::dto;
     use pretty_assertions::assert_eq;
     use tree_sitter::{Point, Range};
@@ -276,7 +278,7 @@ public class Test {
     }
 }
         ";
-        let doc = Document::setup(content).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap();
 
         let out = get_vars(&doc, &Point::new(12, 17));
         assert_eq!(
@@ -403,7 +405,7 @@ public class Test {
      
 }
         ";
-        let doc = Document::setup(content).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap();
 
         let out = get_vars(&doc, &Point::new(4, 6));
         assert_eq!(
@@ -443,7 +445,7 @@ public class Test {
     }
 }
         ";
-        let doc = Document::setup(content).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap();
 
         let out = get_vars(&doc, &Point::new(12, 17));
         assert_eq!(
@@ -580,7 +582,7 @@ public class Test {
     }
 }
         ";
-        let doc = Document::setup(content).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap();
 
         let out = get_vars(&doc, &Point::new(8, 54));
         assert_eq!(

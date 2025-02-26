@@ -1,16 +1,33 @@
+use std::{path::PathBuf, process::Command};
+
 use topiary_config::Configuration;
 use topiary_core::{formatter, Language, Operation, TopiaryQuery};
 
 pub enum Formatter {
-    Topiary,
+    Topiary { text: String },
+    Intelij { path: PathBuf },
     None,
 }
 
-pub fn format(text: String, formatter: Formatter) -> Option<String> {
+pub fn format(formatter: Formatter) -> Option<String> {
     match formatter {
-        Formatter::Topiary => topiary(text),
+        Formatter::Topiary { text } => topiary(text),
+        Formatter::Intelij { path } => intelij(path),
         Formatter::None => todo!(),
     }
+}
+
+fn intelij(path: PathBuf) -> Option<String> {
+    match Command::new("idea-community")
+        .arg("format")
+        .arg(path)
+        .output()
+    {
+        Ok(r) => eprintln!("Intelij format ok: {:?}", r),
+        Err(e) => eprintln!("Intelij format error: {:?}", e),
+    }
+
+    None
 }
 
 fn topiary(text: String) -> Option<String> {

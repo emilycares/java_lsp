@@ -54,6 +54,7 @@ pub fn is_imported<'a>(
             }
             None
         }
+        ImportUnit::StaticClassMethod(_, _) => None,
     })
 }
 

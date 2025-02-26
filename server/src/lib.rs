@@ -218,14 +218,14 @@ async fn main_loop(
                         if let Ok(params) =
                             serde_json::from_value::<DidOpenTextDocumentParams>(not.params)
                         {
-                            backend.did_open(params).await;
+                            backend.did_open(params);
                         }
                     }
                     DidChangeTextDocument::METHOD => {
                         if let Ok(params) =
                             serde_json::from_value::<DidChangeTextDocumentParams>(not.params)
                         {
-                            backend.did_change(params).await;
+                            backend.did_change(params);
                         }
                     }
                     DidSaveTextDocument::METHOD => {
@@ -251,20 +251,21 @@ struct Backend<'a> {
     connection: &'a Connection,
 }
 impl Backend<'_> {
-    async fn on_change(&self, uri: String, changes: Vec<TextDocumentContentChangeEvent>) {
+    fn on_change(&self, uri: String, changes: Vec<TextDocumentContentChangeEvent>) {
         let Some(mut document) = self.document_map.get_mut(&uri) else {
             return;
         };
         document.apply_text_changes(&changes);
     }
 
-    async fn on_open(&self, params: TextDocumentItem) {
+    fn on_open(&self, params: TextDocumentItem) {
+        let path = PathBuf::from(params.uri.path().as_str());
         let rope = ropey::Rope::from_str(&params.text);
         let key = params.uri.to_string();
         if let Some(mut document) = self.document_map.get_mut(&key) {
             document.replace_text(rope);
         } else {
-            if let Some(doc) = Document::setup_rope(&params.text, rope) {
+            if let Some(doc) = Document::setup_rope(&params.text, path, rope) {
                 self.document_map.insert(key, doc);
             }
         }
@@ -281,7 +282,7 @@ impl Backend<'_> {
         None
     }
 
-    async fn get_document(
+    fn get_document(
         &self,
         uri: Uri,
     ) -> Option<dashmap::mapref::one::Ref<'_, std::string::String, Document>> {
@@ -301,8 +302,7 @@ impl Backend<'_> {
             text,
             version: 1,
             language_id: "".to_owned(),
-        })
-        .await;
+        });
 
         // The file should now be loaded
         if let Some(document) = self._get_opened_document(uri.as_str()) {
@@ -447,6 +447,7 @@ impl Backend<'_> {
             ProjectKind::Unknown => vec![],
         };
         for class in project_classes {
+            eprintln!("Found local class: {}", class.source);
             self.class_map.insert(class.class_path.clone(), class);
         }
         self.progress_end("Load project files");
@@ -454,34 +455,28 @@ impl Backend<'_> {
         eprintln!("Init done");
     }
 
-    async fn did_open(&self, params: DidOpenTextDocumentParams) {
+    fn did_open(&self, params: DidOpenTextDocumentParams) {
         self.on_open(TextDocumentItem {
             uri: params.text_document.uri,
             text: params.text_document.text,
             version: params.text_document.version,
             language_id: params.text_document.language_id,
-        })
-        .await;
+        });
     }
 
-    async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        self.on_change(params.text_document.uri.to_string(), params.content_changes)
-            .await;
+    fn did_change(&self, params: DidChangeTextDocumentParams) {
+        self.on_change(params.text_document.uri.to_string(), params.content_changes);
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         #[allow(unused_mut)]
         let mut path = params.text_document.uri.path();
         // The path on windows should not look like this: /C:/asdas remove the leading slash
-        #[cfg(target_os = "windows")]
-        {
-            path = &path[1..];
-        }
 
         let errors = self.compile(path.as_str());
         self.publish_compile_errors(errors).await;
 
-        let Some(document) = self.get_document(params.text_document.uri.clone()).await else {
+        let Some(document) = self.get_document(params.text_document.uri.clone()) else {
             eprintln!("no doc found");
             return;
         };
@@ -494,7 +489,7 @@ impl Backend<'_> {
 
     async fn hover(&self, params: HoverParams) -> Option<Hover> {
         let uri = params.text_document_position_params.text_document.uri;
-        let Some(document) = self.get_document(uri).await else {
+        let Some(document) = self.get_document(uri) else {
             return None;
         };
         let point = to_treesitter_point(params.text_document_position_params.position);
@@ -506,17 +501,20 @@ impl Backend<'_> {
 
     async fn formatting(&self, params: DocumentFormattingParams) -> Option<Vec<TextEdit>> {
         let uri = params.text_document.uri;
-        let Some(document) = self.get_document(uri).await else {
+        let Some(document) = self.get_document(uri) else {
             eprintln!("Document is not opened.");
             return None;
         };
         let Some(lines) = document.text.lines().len().try_into().ok() else {
             return None;
         };
-        let Some(text) = format::format(document.text.to_string(), format::Formatter::Topiary)
-        else {
+        let Some(text) = format::format(format::Formatter::Topiary {
+            text: document.text.to_string(),
+        }) else {
             return None;
         };
+
+        // self.connection.
         Some(vec![TextEdit::new(
             Range::new(Position::new(0, 0), Position::new(lines, 0)),
             text,
@@ -526,7 +524,7 @@ impl Backend<'_> {
     async fn completion(&self, params: CompletionParams) -> Option<CompletionResponse> {
         let params = params.text_document_position;
         let uri = params.text_document.uri;
-        let Some(document) = self.get_document(uri).await else {
+        let Some(document) = self.get_document(uri) else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -568,7 +566,7 @@ impl Backend<'_> {
     ) -> Option<GotoDefinitionResponse> {
         let params = params.text_document_position_params;
         let uri = params.text_document.uri;
-        let Some(document) = self.get_document(uri.clone()).await else {
+        let Some(document) = self.get_document(uri.clone()) else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -583,7 +581,7 @@ impl Backend<'_> {
         None
     }
     async fn code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
-        let Some(document) = self.get_document(params.text_document.uri.clone()).await else {
+        let Some(document) = self.get_document(params.text_document.uri.clone()) else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -611,7 +609,7 @@ impl Backend<'_> {
         &self,
         params: DocumentSymbolParams,
     ) -> Option<DocumentSymbolResponse> {
-        let Some(document) = self.get_document(params.text_document.uri.clone()).await else {
+        let Some(document) = self.get_document(params.text_document.uri.clone()) else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -647,7 +645,7 @@ impl Backend<'_> {
 
     async fn signature_help(&self, params: SignatureHelpParams) -> Option<SignatureHelp> {
         let uri = params.text_document_position_params.text_document.uri;
-        let Some(document) = self.get_document(uri).await else {
+        let Some(document) = self.get_document(uri) else {
             eprintln!("Document is not opened.");
             return None;
         };

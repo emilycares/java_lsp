@@ -162,6 +162,8 @@ fn class_to_hover(class: dto::Class, range: Range) -> Hover {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use dashmap::DashMap;
     use parser::dto;
     use tree_sitter::Point;
@@ -181,7 +183,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap();
 
         let out = class_action(&doc, &Point::new(3, 14), &[], &string_class_map());
         assert!(out.is_some());
@@ -198,7 +200,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap();
 
         let out = class_action(&doc, &Point::new(3, 9), &[], &string_class_map());
         assert!(out.is_some());
@@ -215,7 +217,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap();
         let point = Point::new(5, 29);
         let vars = variable::get_vars(&doc, &point);
 

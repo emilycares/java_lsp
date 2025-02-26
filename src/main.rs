@@ -33,7 +33,7 @@ async fn main() {
 
     match args.cmd {
         Some(Commands::Format { path: None }) => match io::read_to_string(io::stdin()) {
-            Ok(input) => match format::format(input, format::Formatter::Topiary) {
+            Ok(input) => match format::format(format::Formatter::Topiary { text: input }) {
                 Some(output) => print!("{}", output),
                 None => process::exit(1),
             },
@@ -43,7 +43,7 @@ async fn main() {
             }
         },
         Some(Commands::Format { path: Some(path) }) => match fs::read_to_string(&path) {
-            Ok(input) => match format::format(input, format::Formatter::Topiary) {
+            Ok(input) => match format::format(format::Formatter::Topiary { text: input }) {
                 Some(output) => match write(&path, output) {
                     Ok(_) => println!("Replaced file"),
                     Err(_) => (),

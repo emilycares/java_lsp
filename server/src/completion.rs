@@ -194,6 +194,7 @@ pub fn classes(
                 .filter_map(|imp| match imp {
                     ImportUnit::Class(c) => Some(c),
                     ImportUnit::StaticClass(c) => Some(c),
+                    ImportUnit::StaticClassMethod(_, _) => None,
                     ImportUnit::Prefix(_) => None,
                     ImportUnit::StaticPrefix(_) => None,
                 })
@@ -243,19 +244,30 @@ pub fn static_methods(
 ) -> Vec<CompletionItem> {
     imports
         .iter()
-        .filter_map(|c| match c {
-            ImportUnit::Class(_) => None,
-            ImportUnit::StaticClass(_) => None,
-            ImportUnit::Prefix(_) => None,
-            ImportUnit::StaticPrefix(c) => class_map.get(*c),
+        .flat_map(|c| match c {
+            ImportUnit::Class(_) => vec![],
+            ImportUnit::StaticClass(_) => vec![],
+            ImportUnit::StaticClassMethod(c, m) => class_map
+                .get(*c)
+                .into_iter()
+                .flat_map(|class| class.methods.clone())
+                .filter(|f| f.name == *m)
+                .collect(),
+            ImportUnit::Prefix(_) => vec![],
+            ImportUnit::StaticPrefix(c) => class_map
+                .get(*c)
+                .into_iter()
+                .flat_map(|class| class.methods.clone())
+                .collect(),
         })
-        .flat_map(|c| c.methods.clone())
         .map(|m| complete_method(&m))
         .collect()
 }
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use dashmap::DashMap;
     use lsp_types::{
         CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat, Position,
@@ -306,7 +318,7 @@ public class GreetingResource {
     }
 }
         ";
-        let doc = Document::setup(content).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap();
         let lo_va = vec![LocalVariable {
             level: 3,
             jtype: dto::JType::Class("String".to_owned()),
@@ -378,7 +390,7 @@ public class Test {
 
     #[test]
     fn extend_completion_method() {
-        let doc = Document::setup(SYMBOL_METHOD).unwrap();
+        let doc = Document::setup(SYMBOL_METHOD, PathBuf::new()).unwrap();
         let lo_va = vec![LocalVariable {
             level: 3,
             jtype: dto::JType::Class("String".to_owned()),
@@ -500,7 +512,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap();
 
         let out = classes(&doc, &Point::new(5, 16), &vec![], &class_map);
         assert_eq!(
@@ -553,7 +565,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap();
 
         let out = classes(
             &doc,

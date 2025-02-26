@@ -1,3 +1,5 @@
+use std::{fs, path::PathBuf};
+
 use lsp_types::TextDocumentContentChangeEvent;
 use ropey::Rope;
 use tree_sitter::{Parser, Tree};
@@ -5,16 +7,22 @@ use tree_sitter::{Parser, Tree};
 pub struct Document {
     pub text: ropey::Rope,
     pub tree: Tree,
+    pub path: PathBuf,
     parser: Parser,
 }
 
 impl Document {
-    pub fn setup(text: &str) -> Option<Self> {
+    pub fn setup_read(path: PathBuf) -> Option<Self> {
+        let text = fs::read_to_string(&path).ok()?;
+        let rope = ropey::Rope::from_str(&text);
+        Self::setup_rope(&text, path, rope)
+    }
+    pub fn setup(text: &str, path: PathBuf) -> Option<Self> {
         let rope = ropey::Rope::from_str(text);
-        Self::setup_rope(text, rope)
+        Self::setup_rope(text, path, rope)
     }
 
-    pub fn setup_rope(text: &str, rope: Rope) -> Option<Self> {
+    pub fn setup_rope(text: &str, path: PathBuf, rope: Rope) -> Option<Self> {
         let Some((parser, tree)) = tree_sitter_util::parse(text) else {
             return None;
         };
@@ -22,6 +30,7 @@ impl Document {
             parser,
             text: rope,
             tree,
+            path,
         })
     }
 

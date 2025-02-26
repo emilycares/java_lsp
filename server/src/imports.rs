@@ -7,6 +7,7 @@ use crate::Document;
 pub enum ImportUnit<'a> {
     Class(&'a str),
     StaticClass(&'a str),
+    StaticClassMethod(&'a str, &'a str),
     Prefix(&'a str),
     StaticPrefix(&'a str),
 }
@@ -20,6 +21,11 @@ pub fn is_imported(imports: &[ImportUnit], class_path: &str) -> bool {
                 }
             }
             ImportUnit::StaticClass(c) => {
+                if *c == class_path {
+                    return true;
+                }
+            }
+            ImportUnit::StaticClassMethod(c, _) => {
                 if *c == class_path {
                     return true;
                 }
@@ -75,7 +81,15 @@ fn get_imported_classpaths<'a>(bytes: &'a [u8], tree: &Tree) -> Vec<ImportUnit<'
 
             let imp = match (stat, prefix) {
                 (true, true) => ImportUnit::StaticPrefix(class_path),
-                (true, false) => ImportUnit::StaticClass(class_path),
+                (true, false) => match class_path.rsplit_once(".") {
+                    Some((class, method)) => {
+                        match method.chars().next().unwrap_or_default().is_lowercase() {
+                            true => ImportUnit::StaticClassMethod(class, method),
+                            false => ImportUnit::StaticClass(class_path),
+                        }
+                    }
+                    None => ImportUnit::StaticClass(class_path),
+                },
                 (false, true) => ImportUnit::Prefix(class_path),
                 (false, false) => ImportUnit::Class(class_path),
             };
@@ -91,6 +105,7 @@ fn get_imported_classpaths<'a>(bytes: &'a [u8], tree: &Tree) -> Vec<ImportUnit<'
 #[cfg(test)]
 mod tests {
     use crate::imports::ImportUnit;
+    use pretty_assertions::assert_eq;
 
     use super::get_imported_classpaths;
 
@@ -101,7 +116,8 @@ mod tests {
 import java.util.List;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions;
-
+import static org.junit.jupiter.api.Assertions.assertEquals;
+ 
 public class Controller {}";
         let (_, tree) = tree_sitter_util::parse(demo).unwrap();
         assert_eq!(
@@ -109,7 +125,8 @@ public class Controller {}";
             vec![
                 ImportUnit::Class("java.util.List"),
                 ImportUnit::Class("java.util.stream.Collectors"),
-                ImportUnit::StaticClass("org.junit.jupiter.api.Assertions")
+                ImportUnit::StaticClass("org.junit.jupiter.api.Assertions"),
+                ImportUnit::StaticClassMethod("org.junit.jupiter.api.Assertions", "assertEquals")
             ]
         );
     }
