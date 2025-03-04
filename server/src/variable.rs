@@ -5,7 +5,7 @@ use tree_sitter_util::{get_string, CommentSkiper};
 use crate::Document;
 
 /// Information about a variable or function in a Document
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct LocalVariable {
     pub level: usize,
     pub jtype: dto::JType,

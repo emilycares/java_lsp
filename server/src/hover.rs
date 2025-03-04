@@ -14,7 +14,9 @@ pub fn base(
     imports: &[ImportUnit],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<Hover> {
-    if let Some((class, range)) = class_action(document, point, imports, class_map) {
+    let tree = &document.tree;
+    let bytes = document.as_bytes();
+    if let Some((class, range)) = class_action(tree, bytes, point, imports, class_map) {
         return Some(class_to_hover(class, range));
     }
 
@@ -26,13 +28,12 @@ pub fn base(
 }
 
 pub fn class_action(
-    document: &Document,
+    tree: &tree_sitter::Tree,
+    bytes: &[u8],
     point: &Point,
     imports: &[ImportUnit],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<(dto::Class, Range)> {
-    let tree = &document.tree;
-    let bytes = document.as_bytes();
     if let Ok(n) = tree_sitter_util::get_node_at_point(tree, *point) {
         if n.kind() == "type_identifier" {
             if let Ok(jtype) = n.utf8_text(bytes) {
@@ -190,8 +191,10 @@ public class Test {
 }
 ";
         let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let tree = &doc.tree;
+        let bytes = doc.as_bytes();
 
-        let out = class_action(&doc, &Point::new(3, 14), &[], &string_class_map());
+        let out = class_action(tree, bytes, &Point::new(3, 14), &[], &string_class_map());
         assert!(out.is_some());
     }
 
@@ -207,8 +210,10 @@ public class Test {
 }
 ";
         let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let tree = &doc.tree;
+        let bytes = doc.as_bytes();
 
-        let out = class_action(&doc, &Point::new(3, 9), &[], &string_class_map());
+        let out = class_action(tree, bytes, &Point::new(3, 9), &[], &string_class_map());
         assert!(out.is_some());
     }
 

@@ -24,8 +24,10 @@ pub fn class(
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<GotoDefinitionResponse> {
     let vars = variable::get_vars(document, point);
+    let tree = &document.tree;
+    let bytes = document.as_bytes();
 
-    if let Some((class, _range)) = hover::class_action(document, point, imports, class_map) {
+    if let Some((class, _range)) = hover::class_action(tree, bytes, point, imports, class_map) {
         if let Some(sourc_file) = get_source_content(&class) {
             let ranges = position::get_class_position(sourc_file.as_str(), &class.name);
             if let Some(value) = go_to_definition_range(class, ranges) {

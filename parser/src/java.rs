@@ -40,6 +40,7 @@ pub fn load_java(
                 match cursor.node().kind() {
                     "field_declaration" => fields.push(parse_field(cursor.node(), bytes)),
                     "method_declaration" => methods.push(parse_method(cursor.node(), bytes)),
+                    "{" | "}" => (),
                     unknown => eprintln!("Missing implementation for: {} in class body", unknown),
                 }
             }
@@ -111,7 +112,7 @@ fn parse_interface_constant(cursor: &mut tree_sitter::TreeCursor<'_>, bytes: &[u
     if cursor.node().kind() == "modifiers" {
         cursor.sibling();
     }
-    let jtype = parse_jtype(cursor, bytes);
+    let jtype = parse_jtype(&cursor.node(), bytes);
     cursor.sibling();
     cursor.first_child();
     let name = get_string(cursor, bytes);
@@ -152,14 +153,14 @@ fn parse_method(node: tree_sitter::Node<'_>, bytes: &[u8]) -> dto::Method {
             "modifiers" => {
                 method.access = parser_modifiers(get_string(&cursor, bytes));
             }
-            "integral_type" => {
-                method.ret = parse_jtype(&cursor, bytes);
-            }
             "identifier" => method.name = get_string(&cursor, bytes),
             "formal_parameters" => {
                 method.parameters = parse_formal_parameters(&mut cursor, bytes);
             }
-            _ => {}
+            "block" => (),
+            _ => {
+                method.ret = parse_jtype(&cursor.node(), bytes);
+            }
         };
         if !cursor.sibling() {
             break;
@@ -184,11 +185,15 @@ fn parse_field(node: tree_sitter::Node<'_>, bytes: &[u8]) -> dto::Field {
             "modifiers" => {
                 field.access = parser_modifiers(get_string(&cursor, bytes));
             }
-            "integral_type" => {
-                field.jtype = parse_jtype(&cursor, bytes);
+            "variable_declarator" => {
+                cursor.first_child();
+                field.name = get_string(&cursor, bytes);
+                cursor.parent();
             }
-            "variable_declarator" => field.name = get_string(&cursor, bytes),
-            _ => {}
+            ";" => (),
+            _ => {
+                field.jtype = parse_jtype(&cursor.node(), bytes);
+            }
         };
         if !cursor.sibling() {
             break;
@@ -223,7 +228,7 @@ fn parse_formal_parameters(
             continue;
         }
         cursor.first_child();
-        let jtype = parse_jtype(&*cursor, bytes);
+        let jtype = parse_jtype(&cursor.node(), bytes);
 
         cursor.sibling();
         out.push(dto::Parameter {
@@ -244,14 +249,28 @@ fn get_string(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> String {
         .to_owned()
 }
 
-fn parse_jtype(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> dto::JType {
-    match (
-        cursor.node().kind(),
-        cursor.node().utf8_text(bytes).unwrap_or_default(),
-    ) {
+fn parse_jtype(node: &tree_sitter::Node<'_>, bytes: &[u8]) -> dto::JType {
+    match (node.kind(), node.utf8_text(bytes).unwrap_or_default()) {
         ("integral_type", "int") => dto::JType::Int,
+        ("integral_type", "long") => dto::JType::Long,
+        ("integral_type", "short") => dto::JType::Short,
+        ("integral_type", "byte") => dto::JType::Byte,
+        ("integral_type", "char") => dto::JType::Char,
+        ("floating_point_type", "double") => dto::JType::Double,
+        ("floating_point_type", "float") => dto::JType::Float,
         ("type_identifier", class) => dto::JType::Class(class.to_string()),
-        (_, _) => dto::JType::Void,
+        ("boolean_type", "boolean") => dto::JType::Boolean,
+        ("void_type", "void") => dto::JType::Void,
+        ("array_type", _) => {
+            let mut cursor = node.walk();
+            cursor.first_child();
+            let out = dto::JType::Array(Box::new(parse_jtype(&cursor.node(), bytes)));
+            out
+        }
+        (kind, text) => {
+            eprintln!("unhandled type: {} {}", kind, text);
+            dto::JType::Void
+        }
     }
 }
 #[cfg(test)]
@@ -259,12 +278,105 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::{
-        dto::{self},
+        dto::{self, Access, Method, Parameter},
         loader::SourceDestination,
     };
 
     use super::load_java;
 
+    #[test]
+    fn jtype_recognition() {
+        let content = r#"
+package a.test;
+public class Test {
+  Logger LOG = Logger.getLogger(Test.class);
+  boolean IS_ACTIVE = true;
+  byte one_byte = 0;
+  int one_int = 0;
+  short one_short = 0;
+  long one_long = 111l;
+  double one_double = 0.0d;
+  float one_float = 1.11f;
+  char one_char = 'a';
+  String one_string = "hihi";
+  public static void main(String[] args) {}
+}
+        "#;
+        let result = load_java(
+            content.as_bytes(),
+            SourceDestination::Here("/path/to/source/Test.java".to_string()),
+        );
+        assert_eq!(
+            result.unwrap(),
+            dto::Class {
+                class_path: "a.test.Test".to_string(),
+                source: "/path/to/source/Test.java".to_string(),
+                access: vec![],
+                name: "Test".to_string(),
+                methods: vec![Method {
+                    access: vec![Access::Static, Access::Public],
+                    name: "main".to_string(),
+                    parameters: vec![Parameter {
+                        name: Some("args".to_string()),
+                        jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_string())))
+                    }],
+                    ret: dto::JType::Void
+                }],
+                fields: vec![
+                    dto::Field {
+                        access: vec![],
+                        name: "LOG".to_string(),
+                        jtype: dto::JType::Class("Logger".to_string())
+                    },
+                    dto::Field {
+                        access: vec![],
+                        name: "IS_ACTIVE".to_string(),
+                        jtype: dto::JType::Boolean
+                    },
+                    dto::Field {
+                        access: vec![],
+                        name: "one_byte".to_string(),
+                        jtype: dto::JType::Byte
+                    },
+                    dto::Field {
+                        access: vec![],
+                        name: "one_int".to_string(),
+                        jtype: dto::JType::Int
+                    },
+                    dto::Field {
+                        access: vec![],
+                        name: "one_short".to_string(),
+                        jtype: dto::JType::Short
+                    },
+                    dto::Field {
+                        access: vec![],
+                        name: "one_long".to_string(),
+                        jtype: dto::JType::Long
+                    },
+                    dto::Field {
+                        access: vec![],
+                        name: "one_double".to_string(),
+                        jtype: dto::JType::Double
+                    },
+                    dto::Field {
+                        access: vec![],
+                        name: "one_float".to_string(),
+                        jtype: dto::JType::Float
+                    },
+                    dto::Field {
+                        access: vec![],
+                        name: "one_char".to_string(),
+                        jtype: dto::JType::Char
+                    },
+                    dto::Field {
+                        access: vec![],
+                        name: "one_string".to_string(),
+                        jtype: dto::JType::Class("String".to_string())
+                    },
+                ]
+            }
+        )
+    }
     #[test]
     fn interface() {
         let result = load_java(
