@@ -11,8 +11,10 @@ members = [
   "maven",
   "server",
   "tree-sitter-util",
-  "format"
-, "gradle", "common"]
+  "format", 
+  "gradle",
+  "common"
+]
 
 [workspace.dependencies]
 clap = { version = "4", features = ["derive"]}
@@ -32,7 +34,7 @@ topiary-core = { git = "https://github.com/emilycares/topiary.git", branch = "ne
 topiary-queries = { git = "https://github.com/emilycares/topiary.git", branch = "new_lang_java", default-features = false, features = ["java"] }
 lsp-server = "0.7.8"
 lsp-types = "0.97.0"
-tree-sitter = "0.24.5"
+tree-sitter = "0.24.7"
 tree-sitter-java = { git = "https://github.com/emilycares/tree-sitter-java.git", branch = "fix_partial"}
 # tree-sitter-java = "0.23.5"
 walkdir = "2.5.0"

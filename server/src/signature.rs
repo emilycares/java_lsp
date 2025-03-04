@@ -73,7 +73,6 @@ pub fn get_signature(
             .map(|m| method_to_signature_information(m))
             .collect();
 
-        dbg!(&active_param, &active_signature_id);
         return Some(SignatureHelp {
             signatures,
             active_signature: TryInto::<u32>::try_into(active_signature_id).ok(),
@@ -89,6 +88,7 @@ fn get_args(call_chain: &Vec<CallItem>) -> Option<&CallItem> {
         CallItem::FieldAccess { name: _, range: _ } => false,
         CallItem::Variable { name: _, range: _ } => false,
         CallItem::Class { name: _, range: _ } => false,
+        CallItem::ClassOrVariable { name: _, range: _ } => false,
         CallItem::ArgumentList {
             prev: _,
             range: _,

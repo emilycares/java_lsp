@@ -40,7 +40,7 @@ pub fn load_java(
                 match cursor.node().kind() {
                     "field_declaration" => fields.push(parse_field(cursor.node(), bytes)),
                     "method_declaration" => methods.push(parse_method(cursor.node(), bytes)),
-                    unknown => eprintln!("Missing implementation for: {}", unknown),
+                    unknown => eprintln!("Missing implementation for: {} in class body", unknown),
                 }
             }
         }
@@ -58,8 +58,8 @@ pub fn load_java(
                     "constant_declaration" => {
                         fields.push(parse_interface_constant(&mut cursor, bytes))
                     }
-                    "," | "}" => (),
-                    unknown => eprintln!("Missing implementation for: {}", unknown),
+                    "," | "{" | "}" => (),
+                    unknown => eprintln!("Missing implementation for: {} in interface", unknown),
                 }
             }
         }
@@ -75,12 +75,12 @@ pub fn load_java(
             while cursor.sibling() {
                 match cursor.node().kind() {
                     "enum_constant" => fields.push(parse_enum_constant(cursor.node(), bytes)),
-                    "," | "}" => (),
+                    "," | "{" | "}" => (),
                     unknown => eprintln!("Missing implementation for: {}", unknown),
                 }
             }
         }
-        missing => eprintln!("Missing implementation for : {}", missing),
+        missing => eprintln!("Missing implementation for : {} in base", missing),
     }
 
     let Some(name) = class_name else {

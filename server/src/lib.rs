@@ -544,18 +544,18 @@ impl Backend<'_> {
 
         // If there is any extend completion ignore completing vars
         if call_chain.is_empty() {
+            eprintln!("Call chain is emtpy");
             out.extend(completion::static_methods(&imports, &self.class_map));
             out.extend(completion::complete_vars(&vars));
+            out.extend(completion::classes(
+                document.value(),
+                &point,
+                &imports,
+                &self.class_map,
+            ));
         }
 
         out.extend(call_chain);
-
-        out.extend(completion::classes(
-            document.value(),
-            &point,
-            &imports,
-            &self.class_map,
-        ));
 
         Some(CompletionResponse::Array(out))
     }

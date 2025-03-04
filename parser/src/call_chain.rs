@@ -19,6 +19,10 @@ pub enum CallItem {
         name: String,
         range: Range,
     },
+    ClassOrVariable {
+        name: String,
+        range: Range,
+    },
     ArgumentList {
         prev: Vec<CallItem>,
         active_param: usize,
@@ -137,22 +141,15 @@ pub fn parse_argument_list(
     let Argument { range, value } = parse_argument_list_argument(cursor, bytes);
     filled_params.push(value.clone());
     if tree_sitter_util::is_point_in_range(point, &range.unwrap()) {
-        eprint!("(active)");
         active_param = current_param;
     }
-    eprint!("[param_id: {}] its ", &current_param);
-    tree_sitter_util::print_range(bytes, &range);
     while cursor.node().kind() == "," {
         current_param += 1;
         let Argument { range, value } = parse_argument_list_argument(cursor, bytes);
-        dbg!(&value);
         filled_params.push(value.clone());
         if tree_sitter_util::is_point_in_range(point, &range.unwrap()) {
-            eprint!("(active)");
             active_param = current_param;
         }
-        eprint!("[param_id: {}] its ", &current_param);
-        tree_sitter_util::print_range(bytes, &range);
     }
     let value = CallItem::ArgumentList {
         prev: arg_prev,
@@ -173,7 +170,6 @@ fn parse_argument_list_argument(
         value: vec![],
     };
     cursor.sibling();
-    eprint!("[parse:arg]");
     out.range = Some(cursor.node().range());
     out.value.extend(parse_value(cursor, bytes));
     if cursor.sibling() {
@@ -326,19 +322,10 @@ fn parse_object_creation(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallI
 }
 pub fn class_or_variable(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Option<CallItem> {
     let var_name = get_string_node(&node, bytes);
-    if let Some(c) = var_name.chars().next() {
-        return Some(match c.is_uppercase() {
-            true => CallItem::Class {
-                name: var_name,
-                range: node.range(),
-            },
-            false => CallItem::Variable {
-                name: var_name,
-                range: node.range(),
-            },
-        });
-    }
-    None
+    return Some(CallItem::ClassOrVariable {
+        name: var_name,
+        range: node.range(),
+    });
 }
 
 pub fn validate<'a>(
@@ -356,6 +343,9 @@ pub fn validate<'a>(
                 tree_sitter_util::is_point_in_range(point, range)
             }
             CallItem::Variable { name: _, range } => {
+                tree_sitter_util::is_point_in_range(point, range)
+            }
+            CallItem::ClassOrVariable { name: _, range } => {
                 tree_sitter_util::is_point_in_range(point, range)
             }
             CallItem::Class { name: _, range } => tree_sitter_util::is_point_in_range(point, range),
@@ -400,7 +390,7 @@ public class Test {
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(8, 24));
         assert_eq!(
             out,
-            Some(vec![CallItem::Variable {
+            Some(vec![CallItem::ClassOrVariable {
                 name: "local".to_string(),
                 range: Range {
                     start_byte: 125,
@@ -434,7 +424,7 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable {
+                CallItem::ClassOrVariable {
                     name: "local".to_string(),
                     range: Range {
                         start_byte: 117,
@@ -511,7 +501,7 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable {
+                CallItem::ClassOrVariable {
                     name: "local".to_string(),
                     range: Range {
                         start_byte: 113,
@@ -551,7 +541,7 @@ public class GreetingResource {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable {
+                CallItem::ClassOrVariable {
                     name: "a".to_string(),
                     range: Range {
                         start_byte: 106,
@@ -591,7 +581,7 @@ public class GreetingResource {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable {
+                CallItem::ClassOrVariable {
                     name: "a".to_string(),
                     range: Range {
                         start_byte: 92,
@@ -631,7 +621,7 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable {
+                CallItem::ClassOrVariable {
                     name: "local".to_string(),
                     range: Range {
                         start_byte: 113,
@@ -680,7 +670,7 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable {
+                CallItem::ClassOrVariable {
                     name: "local".to_string(),
                     range: Range {
                         start_byte: 113,
@@ -728,7 +718,7 @@ public class Test {
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 23));
         assert_eq!(
             out,
-            Some(vec![CallItem::Variable {
+            Some(vec![CallItem::ClassOrVariable {
                 name: "local".to_string(),
                 range: Range {
                     start_byte: 113,
@@ -758,7 +748,7 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable {
+                CallItem::ClassOrVariable {
                     name: "local".to_string(),
                     range: Range {
                         start_byte: 112,
@@ -807,7 +797,7 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable {
+                CallItem::ClassOrVariable {
                     name: "local".to_string(),
                     range: Range {
                         start_byte: 112,
@@ -856,7 +846,7 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable {
+                CallItem::ClassOrVariable {
                     name: "local".to_string(),
                     range: Range {
                         start_byte: 104,
@@ -904,7 +894,7 @@ public class Test {
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 16));
         assert_eq!(
             out,
-            Some(vec![CallItem::Class {
+            Some(vec![CallItem::ClassOrVariable {
                 name: "String".to_string(),
                 range: Range {
                     start_byte: 104,
@@ -933,7 +923,7 @@ public class Test {
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 28));
         assert_eq!(
             out,
-            Some(vec![CallItem::Class {
+            Some(vec![CallItem::ClassOrVariable {
                 name: "String".to_string(),
                 range: Range {
                     start_byte: 116,
@@ -964,7 +954,7 @@ public class Test {
             out,
             Some(vec![CallItem::ArgumentList {
                 prev: vec![
-                    CallItem::Variable {
+                    CallItem::ClassOrVariable {
                         name: "local".to_string(),
                         range: Range {
                             start_byte: 104,
@@ -1015,7 +1005,7 @@ public class Test {
             Some(vec![
                 CallItem::ArgumentList {
                     prev: vec![
-                        CallItem::Variable {
+                        CallItem::ClassOrVariable {
                             name: "local".to_string(),
                             range: Range {
                                 start_byte: 104,
@@ -1040,7 +1030,7 @@ public class Test {
                         start_point: Point { row: 5, column: 20 },
                         end_point: Point { row: 5, column: 29 },
                     },
-                    filled_params: vec![vec![CallItem::Variable {
+                    filled_params: vec![vec![CallItem::ClassOrVariable {
                         name: "local".to_string(),
                         range: Range {
                             start_byte: 117,
@@ -1051,7 +1041,7 @@ public class Test {
                     }]],
                     active_param: 0
                 },
-                CallItem::Variable {
+                CallItem::ClassOrVariable {
                     name: "local".to_string(),
                     range: Range {
                         start_byte: 117,
@@ -1084,7 +1074,7 @@ public class Test {
             Some(vec![
                 CallItem::ArgumentList {
                     prev: vec![
-                        CallItem::Variable {
+                        CallItem::ClassOrVariable {
                             name: "local".to_string(),
                             range: Range {
                                 start_byte: 104,
@@ -1109,7 +1099,7 @@ public class Test {
                         start_point: Point { row: 5, column: 20 },
                         end_point: Point { row: 5, column: 28 },
                     },
-                    filled_params: vec![vec![CallItem::Variable {
+                    filled_params: vec![vec![CallItem::ClassOrVariable {
                         name: "local".to_string(),
                         range: Range {
                             start_byte: 117,
@@ -1120,7 +1110,7 @@ public class Test {
                     }]],
                     active_param: 0
                 },
-                CallItem::Variable {
+                CallItem::ClassOrVariable {
                     name: "local".to_string(),
                     range: Range {
                         start_byte: 117,
@@ -1162,7 +1152,7 @@ public class Test {
             Some(vec![
                 CallItem::ArgumentList {
                     prev: vec![
-                        CallItem::Variable {
+                        CallItem::ClassOrVariable {
                             name: "a".to_string(),
                             range: Range {
                                 start_byte: 104,
@@ -1188,7 +1178,7 @@ public class Test {
                         end_point: Point { row: 5, column: 24 },
                     },
                     filled_params: vec![
-                        vec![CallItem::Variable {
+                        vec![CallItem::ClassOrVariable {
                             name: "b".to_string(),
                             range: Range {
                                 start_byte: 113,
@@ -1197,7 +1187,7 @@ public class Test {
                                 end_point: Point { row: 5, column: 18 },
                             },
                         }],
-                        vec![CallItem::Variable {
+                        vec![CallItem::ClassOrVariable {
                             name: "c".to_string(),
                             range: Range {
                                 start_byte: 116,
@@ -1209,7 +1199,7 @@ public class Test {
                     ],
                     active_param: 1
                 },
-                CallItem::Variable {
+                CallItem::ClassOrVariable {
                     name: "c".to_string(),
                     range: Range {
                         start_byte: 116,
@@ -1242,7 +1232,7 @@ public class Test {
             Some(vec![
                 CallItem::ArgumentList {
                     prev: vec![
-                        CallItem::Variable {
+                        CallItem::ClassOrVariable {
                             name: "a".to_string(),
                             range: Range {
                                 start_byte: 104,
@@ -1268,7 +1258,7 @@ public class Test {
                         end_point: Point { row: 5, column: 23 },
                     },
                     filled_params: vec![
-                        vec![CallItem::Variable {
+                        vec![CallItem::ClassOrVariable {
                             name: "b".to_string(),
                             range: Range {
                                 start_byte: 113,
@@ -1277,7 +1267,7 @@ public class Test {
                                 end_point: Point { row: 5, column: 18 },
                             }
                         }],
-                        vec![CallItem::Variable {
+                        vec![CallItem::ClassOrVariable {
                             name: "c".to_string(),
                             range: Range {
                                 start_byte: 117,
@@ -1289,7 +1279,7 @@ public class Test {
                     ],
                     active_param: 0
                 },
-                CallItem::Variable {
+                CallItem::ClassOrVariable {
                     name: "b".to_string(),
                     range: Range {
                         start_byte: 113,
@@ -1322,7 +1312,7 @@ public class Test {
             Some(vec![
                 CallItem::ArgumentList {
                     prev: vec![
-                        CallItem::Variable {
+                        CallItem::ClassOrVariable {
                             name: "a".to_string(),
                             range: Range {
                                 start_byte: 104,
@@ -1348,7 +1338,7 @@ public class Test {
                         end_point: Point { row: 5, column: 23 },
                     },
                     filled_params: vec![
-                        vec![CallItem::Variable {
+                        vec![CallItem::ClassOrVariable {
                             name: "b".to_string(),
                             range: Range {
                                 start_byte: 113,
@@ -1357,7 +1347,7 @@ public class Test {
                                 end_point: Point { row: 5, column: 18 },
                             }
                         }],
-                        vec![CallItem::Variable {
+                        vec![CallItem::ClassOrVariable {
                             name: "c".to_string(),
                             range: Range {
                                 start_byte: 116,
@@ -1369,7 +1359,7 @@ public class Test {
                     ],
                     active_param: 1
                 },
-                CallItem::Variable {
+                CallItem::ClassOrVariable {
                     name: "c".to_string(),
                     range: Range {
                         start_byte: 116,
@@ -1402,7 +1392,7 @@ public class Test {
             Some(vec![
                 CallItem::ArgumentList {
                     prev: vec![
-                        CallItem::Variable {
+                        CallItem::ClassOrVariable {
                             name: "a".to_string(),
                             range: Range {
                                 start_byte: 104,
@@ -1428,7 +1418,7 @@ public class Test {
                         end_point: Point { row: 5, column: 23 },
                     },
                     filled_params: vec![vec![
-                        CallItem::Variable {
+                        CallItem::ClassOrVariable {
                             name: "b".to_string(),
                             range: Range {
                                 start_byte: 113,
@@ -1449,7 +1439,7 @@ public class Test {
                     ]],
                     active_param: 0
                 },
-                CallItem::Variable {
+                CallItem::ClassOrVariable {
                     name: "b".to_string(),
                     range: Range {
                         start_byte: 113,
@@ -1488,7 +1478,7 @@ public class Test {
             out,
             Some(vec![CallItem::ArgumentList {
                 prev: vec![
-                    CallItem::Variable {
+                    CallItem::ClassOrVariable {
                         name: "a".to_string(),
                         range: Range {
                             start_byte: 78,
@@ -1539,7 +1529,7 @@ public class Test {
             Some(vec![
                 CallItem::ArgumentList {
                     prev: vec![
-                        CallItem::Variable {
+                        CallItem::ClassOrVariable {
                             name: "a".to_string(),
                             range: Range {
                                 start_byte: 104,
@@ -1565,7 +1555,7 @@ public class Test {
                         end_point: Point { row: 5, column: 24 },
                     },
                     filled_params: vec![vec![
-                        CallItem::Variable {
+                        CallItem::ClassOrVariable {
                             name: "b".to_string(),
                             range: Range {
                                 start_byte: 113,
@@ -1586,7 +1576,7 @@ public class Test {
                     ]],
                     active_param: 0
                 },
-                CallItem::Variable {
+                CallItem::ClassOrVariable {
                     name: "b".to_string(),
                     range: Range {
                         start_byte: 113,
@@ -1625,7 +1615,7 @@ public class Test {
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 14));
         assert_eq!(
             out,
-            Some(vec![CallItem::Variable {
+            Some(vec![CallItem::ClassOrVariable {
                 name: "a".to_string(),
                 range: Range {
                     start_byte: 82,
@@ -1654,7 +1644,7 @@ public class Test {
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 19));
         assert_eq!(
             out,
-            Some(vec![CallItem::Variable {
+            Some(vec![CallItem::ClassOrVariable {
                 name: "b".to_string(),
                 range: Range {
                     start_byte: 87,
@@ -1681,7 +1671,7 @@ public class Test {
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 18));
         assert_eq!(
             out,
-            Some(vec![CallItem::Variable {
+            Some(vec![CallItem::ClassOrVariable {
                 name: "a".to_string(),
                 range: Range {
                     start_byte: 85,
@@ -1709,7 +1699,7 @@ public class Test {
         assert_eq!(
             out,
             Some(vec![
-                CallItem::Variable {
+                CallItem::ClassOrVariable {
                     name: "a".to_string(),
                     range: Range {
                         start_byte: 85,

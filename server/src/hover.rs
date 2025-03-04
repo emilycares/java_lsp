@@ -42,7 +42,9 @@ pub fn class_action(
             }
         }
         if n.kind() == "identifier" {
-            if let Some(CallItem::Class { name: class, range }) = class_or_variable(n, bytes) {
+            if let Some(CallItem::ClassOrVariable { name: class, range }) =
+                class_or_variable(n, bytes)
+            {
                 if let Some(class) = tyres::resolve(&class, imports, class_map) {
                     return Some((class, to_lsp_range(range)));
                 }
@@ -93,6 +95,10 @@ pub fn call_chain_hover(
             Some(variable_to_hover(var, to_lsp_range(*range)))
         }
         CallItem::Class { name: _, range } => Some(class_to_hover(class, to_lsp_range(*range))),
+        CallItem::ClassOrVariable { name, range } => match lo_va.iter().find(|v| v.name == *name) {
+            Some(var) => Some(variable_to_hover(var, to_lsp_range(*range))),
+            None => Some(class_to_hover(class, to_lsp_range(*range))),
+        },
         CallItem::ArgumentList {
             prev: _,
             range: _,

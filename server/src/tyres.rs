@@ -173,6 +173,15 @@ pub fn resolve_call_chain(
                 }
                 None
             }
+            CallItem::ClassOrVariable { name, range: _ } => {
+                if let Some(lo) = lo_va.iter().find(|va| va.name == *name) {
+                    return resolve_var(lo, imports, class_map);
+                }
+                if let Some(c) = resolve(name, imports, class_map) {
+                    return Some(c);
+                }
+                None
+            }
             CallItem::ArgumentList {
                 prev: _,
                 range: _,
