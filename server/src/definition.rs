@@ -30,16 +30,15 @@ pub fn class(
     if let Some((class, _range)) = hover::class_action(tree, bytes, point, imports, class_map) {
         if let Some(sourc_file) = get_source_content(&class) {
             let ranges = position::get_class_position(sourc_file.as_str(), &class.name);
-            if let Some(value) = go_to_definition_range(class, ranges) {
-                return value;
-            }
+            let o = go_to_definition_range(class, ranges);
+            return o;
         }
     }
 
     if let Some(value) =
         call_chain_definition(document, document_uri, point, &vars, imports, class_map)
     {
-        return value;
+        return Some(value);
     }
 
     None
@@ -52,7 +51,7 @@ fn call_chain_definition(
     vars: &[variable::LocalVariable],
     imports: &[ImportUnit],
     class_map: &dashmap::DashMap<String, dto::Class>,
-) -> Option<Option<GotoDefinitionResponse>> {
+) -> Option<GotoDefinitionResponse> {
     if let Some(call_chain) = call_chain::get_call_chain(&document.tree, document.as_bytes(), point)
     {
         let Some((item, relevat)) = call_chain::validate(&call_chain, point) else {
@@ -80,11 +79,10 @@ fn call_chain_definition(
                     let Some(range) = vars.iter().find(|n| n.name == *name).map(|v| v.range) else {
                         return None;
                     };
-                    eprint!("var def found {:?}", &document_uri);
-                    return Some(Some(GotoDefinitionResponse::Scalar(Location {
+                    return Some(GotoDefinitionResponse::Scalar(Location {
                         uri: document_uri,
                         range: to_lsp_range(range),
-                    })));
+                    }));
                 }
                 Some(_) => {}
                 None => {}
@@ -107,17 +105,19 @@ fn get_source_content(extend_class: &dto::Class) -> Option<String> {
 fn go_to_definition_range(
     extend_class: dto::Class,
     ranges: Vec<PositionSymbol>,
-) -> Option<Option<GotoDefinitionResponse>> {
-    let uri = Uri::from_str(&format!("file://{}", extend_class.source)).ok()?;
+) -> Option<GotoDefinitionResponse> {
+    let uri = format!("file://{}", extend_class.source);
+    let uri = Uri::from_str(&uri);
+    let uri = uri.ok()?;
     match ranges.len() {
-        0 => Some(Some(GotoDefinitionResponse::Scalar(Location {
+        0 => Some(GotoDefinitionResponse::Scalar(Location {
             uri,
             range: lsp_types::Range::default(),
-        }))),
-        1 => Some(Some(GotoDefinitionResponse::Scalar(Location {
+        })),
+        1 => Some(GotoDefinitionResponse::Scalar(Location {
             uri,
             range: to_lsp_range(ranges.first()?.get_range()),
-        }))),
+        })),
         2.. => {
             let locations = ranges
                 .iter()
@@ -127,7 +127,7 @@ fn go_to_definition_range(
                     range: r,
                 })
                 .collect();
-            Some(Some(GotoDefinitionResponse::Array(locations)))
+            Some(GotoDefinitionResponse::Array(locations))
         }
     }
 }

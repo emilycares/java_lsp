@@ -94,7 +94,7 @@ pub fn load_java(
         SourceDestination::RelativeInFolder(e) => {
             format!("{}/{}/{}.java", e, &class_path_base.replace(".", "/"), name)
         }
-        SourceDestination::Here(e) => e,
+        SourceDestination::Here(e) => e.replace("\\", "/"),
         SourceDestination::None => "".to_string(),
     };
     Ok(dto::Class {

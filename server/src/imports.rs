@@ -5,6 +5,7 @@ use crate::Document;
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum ImportUnit<'a> {
+    Package(&'a str),
     Class(&'a str),
     StaticClass(&'a str),
     StaticClassMethod(&'a str, &'a str),
@@ -40,6 +41,11 @@ pub fn is_imported(imports: &[ImportUnit], class_path: &str) -> bool {
                     return true;
                 }
             }
+            ImportUnit::Package(p) => {
+                if class_path.starts_with(p) {
+                    return true;
+                }
+            }
         }
     }
     false
@@ -48,7 +54,6 @@ pub fn is_imported(imports: &[ImportUnit], class_path: &str) -> bool {
 pub fn imports(document: &Document) -> Vec<ImportUnit> {
     let tree = &document.tree;
     let bytes = document.as_bytes();
-    eprintln!("bytes len : {}", bytes.len());
     return get_imported_classpaths(bytes, tree);
 }
 
@@ -57,6 +62,13 @@ fn get_imported_classpaths<'a>(bytes: &'a [u8], tree: &Tree) -> Vec<ImportUnit<'
     let mut out = vec![];
     let mut cursor = tree.walk();
     cursor.first_child();
+
+    cursor.first_child();
+    cursor.sibling();
+    let package = cursor.node().utf8_text(bytes).unwrap_or_default();
+    out.push(ImportUnit::Package(package));
+    cursor.parent();
+
     cursor.sibling();
     while let "import_declaration" = cursor.node().kind() {
         cursor.first_child();
@@ -124,6 +136,7 @@ public class Controller {}";
         assert_eq!(
             get_imported_classpaths(demo.as_bytes(), &tree),
             vec![
+                ImportUnit::Package("heh.haha"),
                 ImportUnit::Class("java.util.List"),
                 ImportUnit::Class("java.util.stream.Collectors"),
                 ImportUnit::StaticClass("org.junit.jupiter.api.Assertions"),
@@ -144,6 +157,7 @@ public class Controller {}";
         assert_eq!(
             get_imported_classpaths(demo.as_bytes(), &tree),
             vec![
+                ImportUnit::Package("heh.haha"),
                 ImportUnit::Prefix("java.util"),
                 ImportUnit::StaticPrefix("java.util")
             ]

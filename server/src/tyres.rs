@@ -40,16 +40,16 @@ pub fn is_imported<'a>(
             }
             None
         }
-        ImportUnit::Prefix(p) => {
+        ImportUnit::Package(p) | ImportUnit::Prefix(p) => {
             let possible_class_path = format!("{}.{}", p, jtype);
-            if class_map.get(&possible_class_path).is_some() {
+            if class_map.contains_key(&possible_class_path) {
                 return Some(ImportResult::Class(possible_class_path));
             }
             None
         }
         ImportUnit::StaticPrefix(p) => {
             let possible_class_path = format!("{}.{}", p, jtype);
-            if class_map.get(&possible_class_path).is_some() {
+            if class_map.contains_key(&possible_class_path) {
                 return Some(ImportResult::StaticClass(possible_class_path));
             }
             None

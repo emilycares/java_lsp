@@ -12,7 +12,7 @@ use crate::{
 use std::fmt::Debug;
 use walkdir::WalkDir;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum SourceDestination {
     Here(String),
     RelativeInFolder(String),

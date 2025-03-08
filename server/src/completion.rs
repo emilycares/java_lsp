@@ -197,6 +197,7 @@ pub fn classes(
                     ImportUnit::StaticClassMethod(_, _) => None,
                     ImportUnit::Prefix(_) => None,
                     ImportUnit::StaticPrefix(_) => None,
+                    ImportUnit::Package(_) => None,
                 })
                 .filter(|c| {
                     let Some((_, cname)) = c.rsplit_once(".") else {
@@ -259,6 +260,7 @@ pub fn static_methods(
                 .into_iter()
                 .flat_map(|class| class.methods.clone())
                 .collect(),
+            ImportUnit::Package(_) => vec![],
         })
         .map(|m| complete_method(&m))
         .collect()
