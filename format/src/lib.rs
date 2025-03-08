@@ -1,7 +1,16 @@
 use std::{path::PathBuf, process::Command};
 
+use common::config::{FormatterConfig, CONFIG};
 use topiary_config::Configuration;
 use topiary_core::{formatter, Language, Operation, TopiaryQuery};
+
+pub fn format(text: String, path: PathBuf) -> Option<String> {
+    match CONFIG.formatter {
+        FormatterConfig::Topiary => topiary(text),
+        FormatterConfig::Intelij => intelij(path),
+        FormatterConfig::None => None,
+    }
+}
 
 pub enum Formatter {
     Topiary { text: String },
@@ -9,7 +18,7 @@ pub enum Formatter {
     None,
 }
 
-pub fn format(formatter: Formatter) -> Option<String> {
+pub fn format_op(formatter: Formatter) -> Option<String> {
     match formatter {
         Formatter::Topiary { text } => topiary(text),
         Formatter::Intelij { path } => intelij(path),
@@ -18,14 +27,16 @@ pub fn format(formatter: Formatter) -> Option<String> {
 }
 
 fn intelij(path: PathBuf) -> Option<String> {
-    match Command::new("idea-community")
-        .arg("format")
-        .arg(path)
-        .output()
-    {
-        Ok(r) => eprintln!("Intelij format ok: {:?}", r),
-        Err(e) => eprintln!("Intelij format error: {:?}", e),
-    }
+    tokio::spawn(async move {
+        match Command::new("idea-community")
+            .arg("format")
+            .arg(path)
+            .output()
+        {
+            Ok(_r) => eprintln!("Intelij format ok"),
+            Err(e) => eprintln!("Intelij format error: {:?}", e),
+        }
+    });
 
     None
 }

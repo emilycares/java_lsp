@@ -6,6 +6,7 @@ use tree_sitter::{Parser, Tree};
 
 pub struct Document {
     pub text: ropey::Rope,
+    pub str_data: String,
     pub tree: Tree,
     pub path: PathBuf,
     parser: Parser,
@@ -29,13 +30,14 @@ impl Document {
         Some(Self {
             parser,
             text: rope,
+            str_data: text.to_string(),
             tree,
             path,
         })
     }
 
     pub fn as_str(&self) -> &str {
-        self.text.slice(..).as_str().unwrap_or_default()
+        &self.str_data
     }
 
     pub fn as_bytes(&self) -> &[u8] {
@@ -87,7 +89,8 @@ impl Document {
         self.reparse();
     }
     fn reparse(&mut self) {
-        let bytes = self.text.slice(..).as_str().unwrap_or_default().as_bytes();
+        self.str_data = self.text.to_string();
+        let bytes = self.str_data.as_bytes();
         // Reusing the previous tree causes issues
         if let Some(ntree) = self.parser.parse(bytes, None) {
             self.tree = ntree;

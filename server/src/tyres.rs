@@ -228,6 +228,7 @@ pub fn resolve_jtype(
                 name: "clone".to_string(),
                 ret: JType::Array(gen.clone()),
                 parameters: vec![],
+                throws: vec![],
             }],
             fields: vec![dto::Field {
                 access: vec![],
@@ -236,6 +237,12 @@ pub fn resolve_jtype(
             }],
         }),
         JType::Class(c) => {
+            if let Some(class) = resolve(c, imports, class_map) {
+                return Some(class);
+            }
+            None
+        }
+        JType::Generic(c, _vec) => {
             if let Some(class) = resolve(c, imports, class_map) {
                 return Some(class);
             }

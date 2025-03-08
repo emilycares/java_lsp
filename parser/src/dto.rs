@@ -73,6 +73,7 @@ pub struct Method {
     pub access: Vec<Access>,
     pub name: String,
     pub parameters: Vec<Parameter>,
+    pub throws: Vec<JType>,
     pub ret: JType,
 }
 
@@ -102,6 +103,7 @@ pub enum JType {
     Boolean,
     Class(String),
     Array(Box<JType>),
+    Generic(String, Vec<JType>),
 }
 
 impl Display for JType {
@@ -123,6 +125,14 @@ impl Display for JType {
                 write!(f, "{}", c)
             }
             JType::Array(i) => write!(f, "{}[]", i),
+            JType::Generic(class, vec) => {
+                let v = vec
+                    .into_iter()
+                    .map(|i| format!("{}", i))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                write!(f, "{}<{}>", class, v)
+            }
         }
     }
 }

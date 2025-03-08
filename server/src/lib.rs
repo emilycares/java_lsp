@@ -259,7 +259,8 @@ impl Backend<'_> {
     }
 
     fn on_open(&self, params: TextDocumentItem) {
-        let path = PathBuf::from(params.uri.path().as_str());
+        let path = params.uri.path().as_str();
+        let path = PathBuf::from(path);
         let rope = ropey::Rope::from_str(&params.text);
         let key = params.uri.to_string();
         if let Some(mut document) = self.document_map.get_mut(&key) {
@@ -269,46 +270,6 @@ impl Backend<'_> {
                 self.document_map.insert(key, doc);
             }
         }
-    }
-
-    fn _get_opened_document(
-        &self,
-        uri: &str,
-    ) -> Option<dashmap::mapref::one::Ref<'_, std::string::String, Document>> {
-        // when file is open
-        if let Some(document) = self.document_map.get(uri) {
-            return Some(document);
-        };
-        None
-    }
-
-    fn get_document(
-        &self,
-        uri: Uri,
-    ) -> Option<dashmap::mapref::one::Ref<'_, std::string::String, Document>> {
-        // when file is open
-        if let Some(document) = self._get_opened_document(uri.as_str()) {
-            return Some(document);
-        };
-
-        let Ok(text) = std::fs::read_to_string(uri.path().as_str()) else {
-            eprintln!("Unable to open file and it is also not available on the client");
-            return None;
-        };
-
-        // The file was no opened yet on the client so we have to open it.
-        self.on_open(TextDocumentItem {
-            uri: uri.clone(),
-            text,
-            version: 1,
-            language_id: "".to_owned(),
-        });
-
-        // The file should now be loaded
-        if let Some(document) = self._get_opened_document(uri.as_str()) {
-            return Some(document);
-        };
-        None
     }
 
     fn send_dianostic(&self, uri: Uri, diagnostics: Vec<Diagnostic>) {
@@ -476,7 +437,7 @@ impl Backend<'_> {
         let errors = self.compile(path.as_str());
         self.publish_compile_errors(errors).await;
 
-        let Some(document) = self.get_document(params.text_document.uri.clone()) else {
+        let Some(document) = self.document_map.get_mut(params.text_document.uri.as_str()) else {
             eprintln!("no doc found");
             return;
         };
@@ -489,7 +450,7 @@ impl Backend<'_> {
 
     async fn hover(&self, params: HoverParams) -> Option<Hover> {
         let uri = params.text_document_position_params.text_document.uri;
-        let Some(document) = self.get_document(uri) else {
+        let Some(document) = self.document_map.get_mut(uri.as_str()) else {
             return None;
         };
         let point = to_treesitter_point(params.text_document_position_params.position);
@@ -501,16 +462,14 @@ impl Backend<'_> {
 
     async fn formatting(&self, params: DocumentFormattingParams) -> Option<Vec<TextEdit>> {
         let uri = params.text_document.uri;
-        let Some(document) = self.get_document(uri) else {
+        let Some(document) = self.document_map.get_mut(uri.as_str()) else {
             eprintln!("Document is not opened.");
             return None;
         };
         let Some(lines) = document.text.lines().len().try_into().ok() else {
             return None;
         };
-        let Some(text) = format::format(format::Formatter::Topiary {
-            text: document.text.to_string(),
-        }) else {
+        let Some(text) = format::format(document.text.to_string(), document.path.clone()) else {
             return None;
         };
 
@@ -524,7 +483,7 @@ impl Backend<'_> {
     async fn completion(&self, params: CompletionParams) -> Option<CompletionResponse> {
         let params = params.text_document_position;
         let uri = params.text_document.uri;
-        let Some(document) = self.get_document(uri) else {
+        let Some(document) = self.document_map.get_mut(uri.as_str()) else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -566,7 +525,7 @@ impl Backend<'_> {
     ) -> Option<GotoDefinitionResponse> {
         let params = params.text_document_position_params;
         let uri = params.text_document.uri;
-        let Some(document) = self.get_document(uri.clone()) else {
+        let Some(document) = self.document_map.get_mut(uri.as_str()) else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -581,7 +540,7 @@ impl Backend<'_> {
         None
     }
     async fn code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
-        let Some(document) = self.get_document(params.text_document.uri.clone()) else {
+        let Some(document) = self.document_map.get_mut(params.text_document.uri.as_str()) else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -609,7 +568,7 @@ impl Backend<'_> {
         &self,
         params: DocumentSymbolParams,
     ) -> Option<DocumentSymbolResponse> {
-        let Some(document) = self.get_document(params.text_document.uri.clone()) else {
+        let Some(document) = self.document_map.get_mut(params.text_document.uri.as_str()) else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -645,7 +604,7 @@ impl Backend<'_> {
 
     async fn signature_help(&self, params: SignatureHelpParams) -> Option<SignatureHelp> {
         let uri = params.text_document_position_params.text_document.uri;
-        let Some(document) = self.get_document(uri) else {
+        let Some(document) = self.document_map.get_mut(uri.as_str()) else {
             eprintln!("Document is not opened.");
             return None;
         };

@@ -145,6 +145,7 @@ fn parse_method(node: tree_sitter::Node<'_>, bytes: &[u8]) -> dto::Method {
         access: vec![],
         name: "".to_owned(),
         parameters: vec![],
+        throws: vec![],
         ret: dto::JType::Void,
     };
 
@@ -158,6 +159,7 @@ fn parse_method(node: tree_sitter::Node<'_>, bytes: &[u8]) -> dto::Method {
                 method.parameters = parse_formal_parameters(&mut cursor, bytes);
             }
             "block" => (),
+            "type_parameters" => (),
             _ => {
                 method.ret = parse_jtype(&cursor.node(), bytes);
             }
@@ -267,6 +269,27 @@ fn parse_jtype(node: &tree_sitter::Node<'_>, bytes: &[u8]) -> dto::JType {
             let out = dto::JType::Array(Box::new(parse_jtype(&cursor.node(), bytes)));
             out
         }
+        ("generic_type", _) => {
+            let mut cursor = node.walk();
+            cursor.first_child();
+            let class = get_string(&cursor, bytes);
+            cursor.sibling();
+            cursor.first_child();
+            cursor.sibling();
+            let mut type_args = vec![];
+            loop {
+                match cursor.node().kind() {
+                    ">" | "," => (),
+                    _ => {
+                        type_args.push(parse_jtype(&cursor.node(), bytes));
+                    }
+                };
+                if !cursor.sibling() {
+                    break;
+                }
+            }
+            dto::JType::Generic(class, type_args)
+        }
         (kind, text) => {
             eprintln!("unhandled type: {} {}", kind, text);
             dto::JType::Void
@@ -299,6 +322,8 @@ public class Test {
   float one_float = 1.11f;
   char one_char = 'a';
   String one_string = "hihi";
+  List<String> one_list = List.of("haha");
+  Map<int, String> one_map = new HashMap();
   public static void main(String[] args) {}
 }
         "#;
@@ -320,7 +345,8 @@ public class Test {
                         name: Some("args".to_string()),
                         jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_string())))
                     }],
-                    ret: dto::JType::Void
+                    ret: dto::JType::Void,
+                    throws: vec![]
                 }],
                 fields: vec![
                     dto::Field {
@@ -373,7 +399,65 @@ public class Test {
                         name: "one_string".to_string(),
                         jtype: dto::JType::Class("String".to_string())
                     },
+                    dto::Field {
+                        access: vec![],
+                        name: "one_list".to_string(),
+                        jtype: dto::JType::Generic(
+                            "List".to_string(),
+                            vec![dto::JType::Class("String".to_string())]
+                        ),
+                    },
+                    dto::Field {
+                        access: vec![],
+                        name: "one_map".to_string(),
+                        jtype: dto::JType::Generic(
+                            "Map".to_string(),
+                            vec![dto::JType::Int, dto::JType::Class("String".to_string())]
+                        ),
+                    },
                 ]
+            }
+        )
+    }
+    #[test]
+    fn generic_type_declare() {
+        let content = r#"
+package a.test;
+public class Test {
+  public static <T> int add(Collection<T> list, T item){}
+}
+        "#;
+        let result = load_java(
+            content.as_bytes(),
+            SourceDestination::Here("/path/to/source/Test.java".to_string()),
+        );
+        assert_eq!(
+            result.unwrap(),
+            dto::Class {
+                class_path: "a.test.Test".to_string(),
+                source: "/path/to/source/Test.java".to_string(),
+                access: vec![],
+                name: "Test".to_string(),
+                methods: vec![Method {
+                    access: vec![Access::Static, Access::Public],
+                    name: "add".to_string(),
+                    parameters: vec![
+                        Parameter {
+                            name: Some("list".to_string()),
+                            jtype: dto::JType::Generic(
+                                "Collection".to_string(),
+                                vec![dto::JType::Class("T".to_string())]
+                            )
+                        },
+                        Parameter {
+                            name: Some("item".to_string()),
+                            jtype: dto::JType::Class("T".to_string())
+                        }
+                    ],
+                    ret: dto::JType::Int,
+                    throws: vec![]
+                }],
+                fields: vec![]
             }
         )
     }

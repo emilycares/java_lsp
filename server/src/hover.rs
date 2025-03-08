@@ -250,6 +250,7 @@ public class Test {
                     name: "length".to_string(),
                     parameters: vec![],
                     ret: dto::JType::Int,
+                    throws: vec![],
                 }],
                 fields: vec![],
             },

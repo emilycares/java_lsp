@@ -12,6 +12,11 @@ use tokio::sync::Mutex;
 
 use crate::tree;
 
+#[cfg(target_os = "linux")]
+const PATH_GRADLE: &str = "./gradlew";
+#[cfg(target_os = "windows")]
+const PATH_GRADLE: &str = "./gradlew.bat";
+
 pub async fn fetch_deps(
     class_map: &DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<DashMap<std::string::String, parser::dto::Class>> {
@@ -25,7 +30,7 @@ pub async fn fetch_deps(
         }
         None
     } else {
-        let unpack_folder = unpack_dependencies()?;
+        let unpack_folder = unpack_dependencies().unwrap().unwrap();
         let tree = match tree::load() {
             Some(tree) => tree,
             None => {
@@ -115,24 +120,22 @@ task unpackDependencies(type: Copy) {
     }
 }
 "#;
-fn unpack_dependencies() -> Option<String> {
+fn unpack_dependencies() -> Result<Option<String>, std::io::Error> {
     let gradle_file_path = "./build.gradle";
-    let mut gradle_content = fs::read_to_string(gradle_file_path).ok()?;
+    let mut gradle_content = fs::read_to_string(gradle_file_path)?;
     gradle_content.push_str(UNPACK_DEPENCENCIES_TASK);
-    fs::write(gradle_file_path, gradle_content.as_str()).ok()?;
-    let output = Command::new("./gradlew")
+    fs::write(gradle_file_path, gradle_content.as_str())?;
+    let output = Command::new(PATH_GRADLE)
         .arg("unpackDependencies")
-        .output()
-        .ok()?;
-    let stdout = std::str::from_utf8(&output.stdout).ok()?;
+        .output()?;
+    let stdout = std::str::from_utf8(&output.stdout).expect("asd");
 
     let modified_gradle_content = gradle_content.replace(UNPACK_DEPENCENCIES_TASK, "");
-    fs::write(gradle_file_path, modified_gradle_content).ok()?;
+    fs::write(gradle_file_path, modified_gradle_content)?;
     if let Some(path) = get_unpack_folder(stdout) {
-        return Some(path.to_owned());
+        return Ok(Some(path.to_owned()));
     }
-
-    None
+    Ok(None)
 }
 
 fn get_unpack_folder(stdout: &str) -> Option<&str> {

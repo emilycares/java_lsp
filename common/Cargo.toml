@@ -7,6 +7,9 @@ edition = "2021"
 nom.workspace = true
 dashmap.workspace = true
 parser = { path = "../parser"}
+nickel-lang-core.workspace = true
+serde.workspace = true
+once_cell.workspace = true
 
 
 [dev-dependencies]

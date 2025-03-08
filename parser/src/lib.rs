@@ -73,24 +73,28 @@ mod tests {
                     name: "method".to_string(),
                     parameters: vec![],
                     ret: dto::JType::Void,
+                    throws: vec![],
                 },
                 dto::Method {
                     access: vec![dto::Access::Public],
                     name: "public_method".to_string(),
                     parameters: vec![],
                     ret: dto::JType::Void,
+                    throws: vec![],
                 },
                 dto::Method {
                     access: vec![dto::Access::Private],
                     name: "private_method".to_string(),
                     parameters: vec![],
                     ret: dto::JType::Void,
+                    throws: vec![],
                 },
                 dto::Method {
                     access: vec![],
                     name: "out".to_string(),
                     parameters: vec![],
                     ret: dto::JType::Int,
+                    throws: vec![],
                 },
                 dto::Method {
                     access: vec![],
@@ -106,6 +110,7 @@ mod tests {
                         },
                     ],
                     ret: dto::JType::Int,
+                    throws: vec![],
                 },
                 dto::Method {
                     access: vec![dto::Access::Static],
@@ -121,6 +126,7 @@ mod tests {
                         },
                     ],
                     ret: dto::JType::Int,
+                    throws: vec![],
                 },
             ],
             fields: vec![

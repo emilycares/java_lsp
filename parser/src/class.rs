@@ -68,7 +68,7 @@ fn parse_method(
 ) -> Option<dto::Method> {
     let (params, ret) = parse_method_descriptor(&lookup_string(c, method.descriptor_index)?);
     let mut params = params.into_iter();
-    let mut methods: Vec<dto::Parameter> = method
+    let mut parameters: Vec<dto::Parameter> = method
         .attributes
         .iter()
         .filter_map(|attribute_info| {
@@ -104,14 +104,28 @@ fn parse_method(
     // Remaining method descriptor data as params
     {
         for jtype in params {
-            methods.push(dto::Parameter { name: None, jtype });
+            parameters.push(dto::Parameter { name: None, jtype });
         }
     }
+    let throws: Vec<dto::JType> = method
+        .attributes
+        .iter()
+        .filter_map(|attribute_info| {
+            match lookup_string(c, attribute_info.attribute_name_index)?.as_str() {
+                "ThrowsSignature" => {
+                    eprintln!("[parser/src/class.rs] Got throws in class file");
+                    Some(dto::JType::Void)
+                }
+                _ => None,
+            }
+        })
+        .collect();
     Some(dto::Method {
         access: parse_method_access(method),
         name: lookup_string(c, method.name_index)?,
-        parameters: methods,
+        parameters,
         ret,
+        throws,
     })
 }
 

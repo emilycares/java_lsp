@@ -48,6 +48,7 @@ pub fn is_imported(imports: &[ImportUnit], class_path: &str) -> bool {
 pub fn imports(document: &Document) -> Vec<ImportUnit> {
     let tree = &document.tree;
     let bytes = document.as_bytes();
+    eprintln!("bytes len : {}", bytes.len());
     return get_imported_classpaths(bytes, tree);
 }
 

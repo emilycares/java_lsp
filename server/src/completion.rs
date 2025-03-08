@@ -353,6 +353,7 @@ public class GreetingResource {
                     name: "length".to_string(),
                     parameters: vec![],
                     ret: dto::JType::Int,
+                    throws: vec![],
                 }],
                 fields: vec![],
             },
@@ -417,6 +418,7 @@ public class Test {
                     name: "concat".to_string(),
                     parameters: vec![],
                     ret: dto::JType::Class("java.lang.String".to_string()),
+                    throws: vec![],
                 }],
                 fields: vec![],
             },
@@ -446,6 +448,7 @@ public class Test {
             name: "length".to_string(),
             parameters: vec![],
             ret: dto::JType::Int,
+            throws: vec![],
         };
         let out = method_snippet(&method);
         assert_eq!(out, "length()");
@@ -461,6 +464,7 @@ public class Test {
                 jtype: dto::JType::Int,
             }],
             ret: dto::JType::Int,
+            throws: vec![],
         };
         let out = method_snippet(&method);
         assert_eq!(out, "compute(${1:int})");
@@ -482,6 +486,7 @@ public class Test {
                 },
             ],
             ret: dto::JType::Int,
+            throws: vec![],
         };
         let out = method_snippet(&method);
         assert_eq!(out, "split(${1:String}, ${2:int})");
