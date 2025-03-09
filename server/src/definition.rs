@@ -18,12 +18,10 @@ use crate::{
 
 pub fn class(
     document: &Document,
-    document_uri: Uri,
     point: &Point,
     imports: &[ImportUnit],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<GotoDefinitionResponse> {
-    let vars = variable::get_vars(document, point);
     let tree = &document.tree;
     let bytes = document.as_bytes();
 
@@ -35,16 +33,10 @@ pub fn class(
         }
     }
 
-    if let Some(value) =
-        call_chain_definition(document, document_uri, point, &vars, imports, class_map)
-    {
-        return Some(value);
-    }
-
     None
 }
 
-fn call_chain_definition(
+pub fn call_chain_definition(
     document: &Document,
     document_uri: Uri,
     point: &Point,

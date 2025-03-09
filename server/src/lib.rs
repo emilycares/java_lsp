@@ -532,10 +532,20 @@ impl Backend<'_> {
 
         let point = to_treesitter_point(params.position);
         let imports = imports::imports(document.value());
+        let vars = variable::get_vars(document.value(), &point);
 
-        if let Some(c) = definition::class(document.value(), uri, &point, &imports, &self.class_map)
-        {
+        if let Some(c) = definition::class(document.value(), &point, &imports, &self.class_map) {
             return Some(c);
+        }
+        if let Some(value) = definition::call_chain_definition(
+            document.value(),
+            uri,
+            &point,
+            &vars,
+            &imports,
+            &self.class_map,
+        ) {
+            return Some(value);
         }
         None
     }

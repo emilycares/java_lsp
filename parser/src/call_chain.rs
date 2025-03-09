@@ -54,6 +54,17 @@ pub fn get_call_chain(
     let mut out = vec![];
     loop {
         match cursor.node().kind() {
+            "field_declaration" => {
+                cursor.first_child();
+                if cursor.node().kind() == "modifiers" {
+                    cursor.sibling();
+                }
+                cursor.sibling();
+                if cursor.node().kind() == "variable_declarator" {
+                    parse_variable_declarator(&mut cursor, &mut out, bytes);
+                }
+                cursor.parent();
+            }
             "argument_list" => {
                 let (after, value) = parse_argument_list(&out, &mut cursor, bytes, point);
                 out.clear();
@@ -92,11 +103,7 @@ pub fn get_call_chain(
                 cursor.first_child();
                 cursor.sibling();
                 if cursor.node().kind() == "variable_declarator" {
-                    cursor.first_child();
-                    cursor.sibling();
-                    cursor.sibling();
-                    out.extend(parse_value(&cursor, bytes));
-                    cursor.parent();
+                    parse_variable_declarator(&mut cursor, &mut out, bytes);
                 }
                 cursor.parent();
             }
@@ -123,6 +130,18 @@ pub fn get_call_chain(
         return Some(out);
     }
     None
+}
+
+fn parse_variable_declarator(
+    cursor: &mut tree_sitter::TreeCursor<'_>,
+    out: &mut Vec<CallItem>,
+    bytes: &[u8],
+) {
+    cursor.first_child();
+    cursor.sibling();
+    cursor.sibling();
+    out.extend(parse_value(&*cursor, bytes));
+    cursor.parent();
 }
 
 pub fn parse_argument_list(
@@ -1821,6 +1840,41 @@ public class Test {
                         end_byte: 92,
                         start_point: Point { row: 4, column: 21 },
                         end_point: Point { row: 4, column: 22 },
+                    }
+                }
+            ])
+        );
+    }
+    #[test]
+    fn call_chain_field_declartion() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    private static Logger LOG = Logger.getLogger(Test.class);
+}
+";
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(3, 43));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::ClassOrVariable {
+                    name: "Logger".to_string(),
+                    range: Range {
+                        start_byte: 76,
+                        end_byte: 82,
+                        start_point: Point { row: 3, column: 32 },
+                        end_point: Point { row: 3, column: 38 },
+                    }
+                },
+                CallItem::MethodCall {
+                    name: "getLogger".to_string(),
+                    range: Range {
+                        start_byte: 83,
+                        end_byte: 92,
+                        start_point: Point { row: 3, column: 39 },
+                        end_point: Point { row: 3, column: 48 },
                     }
                 }
             ])
