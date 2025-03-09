@@ -151,11 +151,14 @@ fn format_method(m: &dto::Method) -> String {
     let parameters = m
         .parameters
         .iter()
-        .map(|p| format!("{}", p.jtype))
+        .map(|p| match p.name.as_deref() {
+            Some(name) => format!("{} {}", p.jtype, name),
+            None => format!("{}", p.jtype),
+        })
         .collect::<Vec<_>>()
         .join(", ");
     if m.throws.is_empty() {
-        return format!("{} {}({:?})", m.ret, m.name, parameters);
+        return format!("{} {}({})", m.ret, m.name, parameters);
     }
     let throws = m
         .throws
