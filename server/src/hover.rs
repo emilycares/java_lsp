@@ -93,13 +93,47 @@ pub fn call_chain_hover(
             let Some(var) = lo_va.iter().find(|v| v.name == *name) else {
                 return None;
             };
-            Some(variable_to_hover(var, to_lsp_range(*range)))
+            Some(variables_to_hover(vec![var], to_lsp_range(*range)))
         }
         CallItem::Class { name: _, range } => Some(class_to_hover(class, to_lsp_range(*range))),
-        CallItem::ClassOrVariable { name, range } => match lo_va.iter().find(|v| v.name == *name) {
-            Some(var) => Some(variable_to_hover(var, to_lsp_range(*range))),
-            None => Some(class_to_hover(class, to_lsp_range(*range))),
-        },
+        CallItem::ClassOrVariable { name, range } => {
+            let vars: Vec<_> = lo_va.iter().filter(|v| v.name == *name).collect();
+            if vars.is_empty() {
+                return Some(class_to_hover(class, to_lsp_range(*range)));
+            }
+            if let Ok(local_class) =
+                parser::load_java(document.as_bytes(), parser::loader::SourceDestination::None)
+            {
+                let vars = vars
+                    .iter()
+                    .filter(|v| !v.is_fun)
+                    .map(|v| format!("{} {}", v.jtype, v.name))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                let fields = local_class
+                    .fields
+                    .iter()
+                    .filter(|m| m.name == *name)
+                    .map(|f| format_field(f))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                let methods = local_class
+                    .methods
+                    .iter()
+                    .filter(|m| m.name == *name)
+                    .map(|m| format_method(m))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                return Some(Hover {
+                    contents: HoverContents::Markup(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: format!("{}\n{}\n{}", vars, fields, methods),
+                    }),
+                    range: Some(to_lsp_range(*range)),
+                });
+            }
+            None
+        }
         CallItem::ArgumentList {
             prev: _,
             range: _,
@@ -109,27 +143,48 @@ pub fn call_chain_hover(
     }
 }
 
-fn format_method(m: &dto::Method) -> String {
-    format!(
-        "{} {}({:?})",
-        m.ret,
-        m.name,
-        m.parameters
-            .iter()
-            .map(|p| format!("{}", p.jtype))
-            .collect::<Vec<_>>()
-            .join(", ")
-    )
+fn format_field(f: &dto::Field) -> String {
+    format!("{} {}", f.jtype, f.name)
 }
 
-fn variable_to_hover(var: &LocalVariable, range: Range) -> Hover {
+fn format_method(m: &dto::Method) -> String {
+    let parameters = m
+        .parameters
+        .iter()
+        .map(|p| format!("{}", p.jtype))
+        .collect::<Vec<_>>()
+        .join(", ");
+    if m.throws.is_empty() {
+        return format!("{} {}({:?})", m.ret, m.name, parameters);
+    }
+    let throws = m
+        .throws
+        .iter()
+        .map(|p| format!("{}", p))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("{} {}({}) throws {}", m.ret, m.name, parameters, throws)
+}
+
+fn variables_to_hover(vars: Vec<&LocalVariable>, range: Range) -> Hover {
     Hover {
         contents: HoverContents::Markup(MarkupContent {
             kind: MarkupKind::Markdown,
-            value: format!("{} {}", var.jtype, var.name),
+            value: vars
+                .iter()
+                .map(|v| format_varible_hover(v))
+                .collect::<Vec<_>>()
+                .join("\n"),
         }),
         range: Some(range),
     }
+}
+
+fn format_varible_hover(var: &&LocalVariable) -> String {
+    if var.is_fun {
+        return format!("{} {}()", var.jtype, var.name);
+    }
+    format!("{} {}", var.jtype, var.name)
 }
 
 fn field_to_hover(f: &dto::Field, range: Range) -> Hover {
