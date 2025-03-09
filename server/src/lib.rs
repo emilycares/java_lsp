@@ -408,7 +408,6 @@ impl Backend<'_> {
             ProjectKind::Unknown => vec![],
         };
         for class in project_classes {
-            eprintln!("Found local class: {}", class.source);
             self.class_map.insert(class.class_path.clone(), class);
         }
         self.progress_end("Load project files");

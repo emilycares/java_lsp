@@ -112,12 +112,29 @@ fn parse_method(
         .iter()
         .filter_map(|attribute_info| {
             match lookup_string(c, attribute_info.attribute_name_index)?.as_str() {
-                "ThrowsSignature" => {
-                    eprintln!("[parser/src/class.rs] Got throws in class file");
-                    Some(dto::JType::Void)
-                }
+                "Exceptions" => classfile_parser::attribute_info::exceptions_attribute_parser(
+                    &attribute_info.info,
+                )
+                .ok(),
                 _ => None,
             }
+        })
+        .flat_map(|i| {
+            let exception_table = i.1.exception_table;
+            exception_table
+                .into_iter()
+                .filter_map(|ex| c.const_pool.get((ex - 1) as usize))
+                .filter_map(|ex_class| match ex_class {
+                    ConstantInfo::Class(ex_class) => lookup_string(c, ex_class.name_index),
+                    _ => None,
+                })
+                .filter_map(|name| {
+                    if let Some((_, name)) = name.rsplit_once("/") {
+                        return Some(name.to_string());
+                    }
+                    None
+                })
+                .map(|name| dto::JType::Class(name))
         })
         .collect();
     Some(dto::Method {
@@ -290,5 +307,15 @@ mod tests {
         );
 
         assert_eq!(crate::tests::everything_data(), result.unwrap());
+    }
+    #[test]
+    fn thrower() {
+        let result = load_class(
+            include_bytes!("../test/Thrower.class"),
+            "ch.emilycares.Thrower".to_string(),
+            SourceDestination::Here("/path/to/source/Thrower.java".to_string()),
+        );
+
+        assert_eq!(crate::java::tests::thrower_data(), result.unwrap());
     }
 }

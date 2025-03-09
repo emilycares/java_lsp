@@ -160,6 +160,16 @@ fn parse_method(node: tree_sitter::Node<'_>, bytes: &[u8]) -> dto::Method {
             }
             "block" => (),
             "type_parameters" => (),
+            "throws" => {
+                cursor.first_child();
+                while cursor.sibling() {
+                    if cursor.node().kind() == "," {
+                        continue;
+                    }
+                    method.throws.push(parse_jtype(&cursor.node(), bytes));
+                }
+                cursor.parent();
+            }
             _ => {
                 method.ret = parse_jtype(&cursor.node(), bytes);
             }
@@ -297,11 +307,11 @@ fn parse_jtype(node: &tree_sitter::Node<'_>, bytes: &[u8]) -> dto::JType {
     }
 }
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::{
-        dto::{self, Access, Method, Parameter},
+        dto::{self, Access, JType, Method, Parameter},
         loader::SourceDestination,
     };
 
@@ -419,6 +429,7 @@ public class Test {
             }
         )
     }
+
     #[test]
     fn generic_type_declare() {
         let content = r#"
@@ -461,6 +472,48 @@ public class Test {
             }
         )
     }
+
+    pub fn thrower_data() -> dto::Class {
+        dto::Class {
+            class_path: "ch.emilycares.Thrower".to_string(),
+            source: "/path/to/source/Thrower.java".to_string(),
+            access: vec![],
+            name: "Thrower".to_string(),
+            methods: vec![
+                Method {
+                    access: vec![Access::Public],
+                    name: "ioThrower".to_string(),
+                    parameters: vec![],
+                    ret: dto::JType::Void,
+                    throws: vec![JType::Class("IOException".to_string())],
+                },
+                Method {
+                    access: vec![Access::Public],
+                    name: "ioThrower".to_string(),
+                    parameters: vec![Parameter {
+                        name: Some("a".to_string()),
+                        jtype: dto::JType::Int,
+                    }],
+                    ret: dto::JType::Void,
+                    throws: vec![
+                        JType::Class("IOException".to_string()),
+                        JType::Class("IOException".to_string()),
+                    ],
+                },
+            ],
+            fields: vec![],
+        }
+    }
+    #[test]
+    fn thrower() {
+        let content = include_str!("../test/Thrower.java");
+        let result = load_java(
+            content.as_bytes(),
+            SourceDestination::Here("/path/to/source/Thrower.java".to_string()),
+        );
+        assert_eq!(result.unwrap(), thrower_data())
+    }
+
     #[test]
     fn interface() {
         let result = load_java(

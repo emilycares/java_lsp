@@ -122,18 +122,47 @@ task unpackDependencies(type: Copy) {
 "#;
 fn unpack_dependencies() -> Result<Option<String>, std::io::Error> {
     let gradle_file_path = "./build.gradle";
-    let mut gradle_content = fs::read_to_string(gradle_file_path)?;
-    gradle_content.push_str(UNPACK_DEPENCENCIES_TASK);
-    fs::write(gradle_file_path, gradle_content.as_str())?;
-    let output = Command::new(PATH_GRADLE)
-        .arg("unpackDependencies")
-        .output()?;
-    let stdout = std::str::from_utf8(&output.stdout).expect("asd");
+    match fs::read_to_string(gradle_file_path) {
+        Ok(gradle_content) => {
+            let mut gradle_content = gradle_content;
+            gradle_content.push_str(UNPACK_DEPENCENCIES_TASK);
+            match fs::write(gradle_file_path, gradle_content.as_str()) {
+                Ok(_) => match Command::new(PATH_GRADLE).arg("unpackDependencies").output() {
+                    Ok(output) => {
+                        let stdout = std::str::from_utf8(&output.stdout).expect("asd");
 
-    let modified_gradle_content = gradle_content.replace(UNPACK_DEPENCENCIES_TASK, "");
-    fs::write(gradle_file_path, modified_gradle_content)?;
-    if let Some(path) = get_unpack_folder(stdout) {
-        return Ok(Some(path.to_owned()));
+                        let modified_gradle_content =
+                            gradle_content.replace(UNPACK_DEPENCENCIES_TASK, "");
+                        match fs::write(gradle_file_path, modified_gradle_content) {
+                            Ok(_) => {
+                                if let Some(path) = get_unpack_folder(stdout) {
+                                    return Ok(Some(path.to_owned()));
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("[gradle/src/fetch.rs] Failed to write reset {}", e);
+                                return Err(e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("[gradle/src/fetch.rs] Could not exeute gradlew {}", e);
+                        return Err(e);
+                    }
+                },
+                Err(e) => {
+                    eprintln!("[gradle/src/fetch.rs] Failed to modify build.gradle {}", e);
+                    return Err(e);
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!(
+                "[gradle/src/fetch.rs] Could not read {}, {}",
+                gradle_file_path, e
+            );
+            return Err(e);
+        }
     }
     Ok(None)
 }
