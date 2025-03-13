@@ -359,6 +359,7 @@ name = "common"
 version = "0.1.0"
 dependencies = [
  "dashmap",
+ "dirs 6.0.0",
  "nickel-lang-core",
  "nom 8.0.0",
  "once_cell",

@@ -10,6 +10,7 @@ parser = { path = "../parser"}
 nickel-lang-core.workspace = true
 serde.workspace = true
 once_cell.workspace = true
+dirs.workspace = true
 
 
 [dev-dependencies]

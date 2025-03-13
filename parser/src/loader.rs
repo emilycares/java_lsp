@@ -1,7 +1,7 @@
 use std::{
     fs::{self, OpenOptions},
     io::Write,
-    path::Path,
+    path::{Path, MAIN_SEPARATOR},
 };
 
 use crate::{
@@ -96,9 +96,9 @@ pub fn load_classes<P: AsRef<Path>>(path: P, source: SourceDestination) -> dto::
             .filter(|p| !p.ends_with("module-info.class"))
             .filter_map(|p| {
                 let class_path = &p.trim_start_matches(str_path);
-                let class_path = class_path.trim_start_matches("/");
+                let class_path = class_path.trim_start_matches(MAIN_SEPARATOR);
                 let class_path = class_path.trim_end_matches(".class");
-                let class_path = class_path.replace("/", ".");
+                let class_path = class_path.replace(MAIN_SEPARATOR, ".");
                 match load_class_fs(p.as_str(), class_path.to_string(), source.clone()) {
                     Ok(c) => Some(c),
                     Err(e) => {
