@@ -381,7 +381,7 @@ impl Backend<'_> {
         eprintln!("Init");
 
         self.progress_start("Load jdk");
-        common::jdk::load_classes(&self.class_map);
+        common::jdk::load_classes(&self.class_map).await;
         self.progress_end("Load jdk");
 
         if self.project_kind != ProjectKind::Unknown {

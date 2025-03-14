@@ -102,6 +102,7 @@ pub fn call_chain_definition(
 
 fn get_source_content(extend_class: &dto::Class) -> Option<String> {
     let path = PathBuf::from(&extend_class.source);
+    eprintln!("Loading source -> {}", &extend_class.source);
     if path.exists() {
         if let Ok(sourc_file) = read_to_string(path) {
             return Some(sourc_file);
@@ -111,7 +112,7 @@ fn get_source_content(extend_class: &dto::Class) -> Option<String> {
 }
 
 fn class_to_uri(class: &dto::Class) -> Option<Uri> {
-    let uri = format!("file://{}", class.source);
+    let uri = format!("file://{}", class.source.replace("\\", "/"));
     let uri = Uri::from_str(&uri);
     uri.ok()
 }

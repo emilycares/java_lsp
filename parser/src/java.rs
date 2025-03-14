@@ -589,7 +589,7 @@ public class Test {
     fn everything() {
         let result = load_java(
             include_bytes!("../test/Everything.java"),
-            SourceDestination::RelativeInFolder("/path/to/source".to_string()),
+            SourceDestination::None,
         );
 
         assert_eq!(crate::tests::everything_data(), result.unwrap());

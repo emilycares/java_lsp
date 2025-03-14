@@ -1,3 +1,5 @@
+use std::path::MAIN_SEPARATOR;
+
 use crate::dto::{self, ClassError, Parameter};
 use crate::loader::SourceDestination;
 use classfile_parser::constant_info::ConstantInfo;
@@ -28,7 +30,12 @@ pub fn load_class(
                 .collect();
             let source = match source {
                 SourceDestination::RelativeInFolder(e) => {
-                    format!("{}/{}.java", e, &class_path.replace(".", "/"))
+                    format!(
+                        "{}{}{}.java",
+                        e,
+                        MAIN_SEPARATOR,
+                        &class_path.replace(".", &MAIN_SEPARATOR.to_string())
+                    )
                 }
                 SourceDestination::Here(e) => e,
                 SourceDestination::None => "".to_string(),
@@ -303,7 +310,7 @@ mod tests {
         let result = load_class(
             include_bytes!("../test/Everything.class"),
             "ch.emilycares.Everything".to_string(),
-            SourceDestination::RelativeInFolder("/path/to/source".to_string()),
+            SourceDestination::None,
         );
 
         assert_eq!(crate::tests::everything_data(), result.unwrap());

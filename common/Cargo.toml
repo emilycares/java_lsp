@@ -11,7 +11,9 @@ nickel-lang-core.workspace = true
 serde.workspace = true
 once_cell.workspace = true
 dirs.workspace = true
-
+zip-extract.workspace = true
+tokio.workspace = true
+futures.workspace = true
 
 [dev-dependencies]
 pretty_assertions.workspace = true

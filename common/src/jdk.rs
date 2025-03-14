@@ -1,11 +1,14 @@
 use std::{
-    env, fs,
+    env,
+    fs::{self},
+    io::Cursor,
     path::{Path, PathBuf},
-    process::Command,
+    sync::Arc,
 };
 
 use dashmap::DashMap;
-use parser::loader::SourceDestination;
+use parser::{dto::ClassFolder, loader::SourceDestination};
+use tokio::{process::Command, sync::Mutex};
 
 #[cfg(target_os = "linux")]
 const EXECUTABLE_JAVA: &str = "java";
@@ -30,7 +33,7 @@ fn java_executable_location() -> Option<PathBuf> {
 
 /// Extracts java jdk from from the java executabel in path.
 /// returns folder of output
-fn extract_jmod() -> PathBuf {
+async fn load_jdk() -> Option<ClassFolder> {
     let mut path = java_executable_location().expect("There should be a java executabel in path");
     path.pop();
 
@@ -43,28 +46,110 @@ fn extract_jmod() -> PathBuf {
     path.pop();
     let binding = path.clone();
     let jdk_name = binding.file_name();
-    path = path.join("jmods").join("java");
-    path.set_extension("base.jmod");
 
+    let op_dir = opdir(jdk_name);
+
+    let source_dir = op_dir.join("src");
+    let _ = fs::create_dir_all(&source_dir);
+    eprintln!("Unpacking jdk source into: {:?}", &source_dir);
+    let mut src_zip = path.clone();
+    src_zip = src_zip.join("lib").join("src");
+    src_zip.set_extension("zip");
+    if !source_dir.exists() {
+        if let Ok(data) = fs::read(&src_zip) {
+            let res = zip_extract::extract(Cursor::new(data), &source_dir, false);
+            if let Err(e) = res {
+                eprintln!("Unable to unzip: {:?}, {e}", &src_zip);
+            }
+        }
+    }
+
+    let jmods = path.join("jmods").clone();
+
+    let jmods_dir = op_dir.join("jmods");
+    let _ = fs::create_dir_all(&jmods_dir);
+    eprintln!("Unpacking jmod classes into: {:?}", &jmods_dir);
+
+    let mut handles = Vec::new();
+    let class_folder = Arc::new(Mutex::new(ClassFolder::default()));
+    let source_dir = Arc::new(source_dir);
+    let jmod_executable = Arc::new(jmod_executable);
+    let jmods_dir = Arc::new(jmods_dir);
+
+    if let Ok(jmods) = fs::read_dir(jmods) {
+        for jmod in jmods {
+            let class_folder = class_folder.clone();
+            let source_dir = source_dir.clone();
+            let jmod_executable = jmod_executable.clone();
+            let jmods_dir = jmods_dir.clone();
+            if let Ok(jmod) = jmod {
+                if let Ok(ft) = jmod.file_type() {
+                    if !ft.is_file() {
+                        continue;
+                    }
+                }
+                let jmod = jmod.path();
+                if let Some(jmod_name) = jmod
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .map(|n| n.to_string())
+                {
+                    let jmod_display = jmod_name.trim_end_matches(".jmod").to_owned();
+
+                    handles.push(tokio::spawn(async move {
+                        let jmod_dir = &jmods_dir.join(&jmod_display);
+                        let _ = fs::create_dir_all(&jmod_dir);
+                        match Command::new(&*jmod_executable)
+                            .current_dir(&jmod_dir)
+                            .arg("extract")
+                            .arg(&jmod)
+                            .output()
+                            .await
+                        {
+                            Ok(_r) => {
+                                eprintln!("Extracted jdk jmod: {}", &jmod_display);
+                                let classes_folder = jmod_dir.join("classes");
+                                let relative_source = source_dir.join(jmod_display);
+                                let _ = fs::create_dir_all(&relative_source);
+                                let classes = parser::loader::load_classes(
+                                    &classes_folder,
+                                    SourceDestination::RelativeInFolder(
+                                        relative_source
+                                            .to_str()
+                                            .expect("Should be represented as string")
+                                            .to_owned(),
+                                    ),
+                                );
+                                {
+                                    let mut guard = class_folder.lock().await;
+                                    guard.append(classes);
+                                }
+                            }
+                            Err(e) => eprintln!("Error with jmod extraction {:?}", e),
+                        }
+                    }));
+                }
+            }
+        }
+    }
+
+    futures::future::join_all(handles).await;
+    let class_folder = class_folder.clone();
+    let guard = class_folder.lock().await;
+    Some(guard.clone())
+}
+
+fn opdir(jdk_name: Option<&std::ffi::OsStr>) -> PathBuf {
     let mut op_dir = dirs::cache_dir().expect("There should be a cache dir");
     op_dir = op_dir.join("java_lsp").join("java");
     if let Some(java) = jdk_name {
         op_dir = op_dir.join(java);
     }
     let _ = fs::create_dir_all(&op_dir);
-    match Command::new(jmod_executable)
-        .current_dir(&op_dir)
-        .arg("extract")
-        .arg(&path)
-        .output()
-    {
-        Ok(_r) => eprintln!("Extracted {:?} into {:?}", &path, &op_dir),
-        Err(e) => eprintln!("Error with jmod extraction {:?}", e),
-    }
     op_dir
 }
 
-pub fn load_classes(class_map: &DashMap<std::string::String, parser::dto::Class>) {
+pub async fn load_classes(class_map: &DashMap<std::string::String, parser::dto::Class>) {
     let path = Path::new(".jdk.cfc");
     if path.exists() {
         if let Ok(classes) = parser::loader::load_class_folder("jdk") {
@@ -75,29 +160,18 @@ pub fn load_classes(class_map: &DashMap<std::string::String, parser::dto::Class>
     } else {
         // nix run github:nix-community/nix-index#nix-locate -- jmods/java.base.jmod
         // ``` bash
-        // mkdir jdk
-        // cd jdk
         // # jmod is in the jdk bin dir
         // jmod extract openjdk-22.0.2_windows-x64_bin/jdk-22.0.2/jmods/java.base.jmod
         // cd ..
         // mvn dependency:unpack
         // ```
-        let mut extract_folder = extract_jmod();
-        extract_folder = extract_folder.join("classes");
-        let classes = parser::loader::load_classes(
-            &extract_folder,
-            SourceDestination::RelativeInFolder(
-                extract_folder
-                    .to_str()
-                    .expect("Folder should be represented in string")
-                    .to_string(),
-            ),
-        );
-        if let Err(e) = parser::loader::save_class_folder("jdk", &classes) {
-            eprintln!("Failed to save .jdk.cfc because: {e}");
-        };
-        for class in classes.classes {
-            class_map.insert(class.class_path.clone(), class);
+        if let Some(class_folder) = load_jdk().await {
+            if let Err(e) = parser::loader::save_class_folder("jdk", &class_folder) {
+                eprintln!("Failed to save .jdk.cfc because: {e}");
+            };
+            for class in class_folder.classes {
+                class_map.insert(class.class_path.clone(), class);
+            }
         }
     }
 }
