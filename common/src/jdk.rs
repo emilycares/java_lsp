@@ -35,6 +35,13 @@ fn java_executable_location() -> Option<PathBuf> {
 /// returns folder of output
 async fn load_jdk() -> Option<ClassFolder> {
     let mut path = java_executable_location().expect("There should be a java executabel in path");
+    eprintln!("java executable location {:?}", &path);
+    if path.is_symlink() {
+        if let Ok(linked) = fs::read_link(&path) {
+            eprintln!("sym: {:?}", linked);
+            path = linked;
+        }
+    }
     path.pop();
 
     let mut jmod_executable = path.clone();
@@ -42,7 +49,11 @@ async fn load_jdk() -> Option<ClassFolder> {
     if cfg!(windows) {
         jmod_executable.set_extension("exe");
     }
-
+    eprintln!("jmod_executable: {:?}", &jmod_executable);
+    if !jmod_executable.exists() {
+        eprintln!("There is no jmod in your jdk: {:?}", &path);
+        return None;
+    }
     path.pop();
     let binding = path.clone();
     let jdk_name = binding.file_name();
@@ -50,12 +61,17 @@ async fn load_jdk() -> Option<ClassFolder> {
     let op_dir = opdir(jdk_name);
 
     let source_dir = op_dir.join("src");
-    let _ = fs::create_dir_all(&source_dir);
     eprintln!("Unpacking jdk source into: {:?}", &source_dir);
     let mut src_zip = path.clone();
     src_zip = src_zip.join("lib").join("src");
     src_zip.set_extension("zip");
+    eprintln!("src_zip: {:?}", &src_zip);
+    if !src_zip.exists() {
+        eprintln!("There is no lib/source.zip in {:?} ", &src_zip);
+        return None;
+    }
     if !source_dir.exists() {
+        let _ = fs::create_dir_all(&source_dir);
         if let Ok(data) = fs::read(&src_zip) {
             let res = zip_extract::extract(Cursor::new(data), &source_dir, false);
             if let Err(e) = res {
@@ -64,7 +80,14 @@ async fn load_jdk() -> Option<ClassFolder> {
         }
     }
 
-    let jmods = path.join("jmods").clone();
+    let mut jmods = path.join("jmods");
+    if !jmods.exists() {
+        let lib_openjdk_jmods = path.join("lib").join("openjdk").join("jmods");
+        if lib_openjdk_jmods.exists() {
+            jmods = lib_openjdk_jmods;
+        }
+    }
+    eprintln!("jmods folder: {:?}", &src_zip);
 
     let jmods_dir = op_dir.join("jmods");
     let _ = fs::create_dir_all(&jmods_dir);
@@ -76,58 +99,65 @@ async fn load_jdk() -> Option<ClassFolder> {
     let jmod_executable = Arc::new(jmod_executable);
     let jmods_dir = Arc::new(jmods_dir);
 
-    if let Ok(jmods) = fs::read_dir(jmods) {
-        for jmod in jmods {
-            let class_folder = class_folder.clone();
-            let source_dir = source_dir.clone();
-            let jmod_executable = jmod_executable.clone();
-            let jmods_dir = jmods_dir.clone();
-            if let Ok(jmod) = jmod {
-                if let Ok(ft) = jmod.file_type() {
-                    if !ft.is_file() {
-                        continue;
-                    }
-                }
-                let jmod = jmod.path();
-                if let Some(jmod_name) = jmod
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .map(|n| n.to_string())
-                {
-                    let jmod_display = jmod_name.trim_end_matches(".jmod").to_owned();
-
-                    handles.push(tokio::spawn(async move {
-                        let jmod_dir = &jmods_dir.join(&jmod_display);
-                        let _ = fs::create_dir_all(&jmod_dir);
-                        match Command::new(&*jmod_executable)
-                            .current_dir(&jmod_dir)
-                            .arg("extract")
-                            .arg(&jmod)
-                            .output()
-                            .await
-                        {
-                            Ok(_r) => {
-                                eprintln!("Extracted jdk jmod: {}", &jmod_display);
-                                let classes_folder = jmod_dir.join("classes");
-                                let relative_source = source_dir.join(jmod_display);
-                                let _ = fs::create_dir_all(&relative_source);
-                                let classes = parser::loader::load_classes(
-                                    &classes_folder,
-                                    SourceDestination::RelativeInFolder(
-                                        relative_source
-                                            .to_str()
-                                            .expect("Should be represented as string")
-                                            .to_owned(),
-                                    ),
-                                );
-                                {
-                                    let mut guard = class_folder.lock().await;
-                                    guard.append(classes);
-                                }
-                            }
-                            Err(e) => eprintln!("Error with jmod extraction {:?}", e),
+    eprintln!("jmods {:?}", &jmods);
+    match fs::read_dir(jmods) {
+        Err(e) => eprintln!("error reading dir {:?}", e),
+        Ok(jmods) => {
+            for jmod in jmods {
+                let class_folder = class_folder.clone();
+                let source_dir = source_dir.clone();
+                let jmod_executable = jmod_executable.clone();
+                let jmods_dir = jmods_dir.clone();
+                if let Ok(jmod) = jmod {
+                    eprintln!("jmod there");
+                    if let Ok(ft) = jmod.file_type() {
+                        if !ft.is_file() {
+                            continue;
                         }
-                    }));
+                    }
+                    let jmod = jmod.path();
+                    eprintln!("jmod isfile {:?}", &jmod);
+                    if let Some(jmod_name) = jmod
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .map(|n| n.to_string())
+                    {
+                        eprintln!("jmod found jmod_name: {}", &jmod_name);
+                        let jmod_display = jmod_name.trim_end_matches(".jmod").to_owned();
+
+                        handles.push(tokio::spawn(async move {
+                            let jmod_dir = &jmods_dir.join(&jmod_display);
+                            let _ = fs::create_dir_all(&jmod_dir);
+                            match Command::new(&*jmod_executable)
+                                .current_dir(&jmod_dir)
+                                .arg("extract")
+                                .arg(&jmod)
+                                .output()
+                                .await
+                            {
+                                Ok(_r) => {
+                                    eprintln!("Extracted jdk jmod: {}", &jmod_display);
+                                    let classes_folder = jmod_dir.join("classes");
+                                    let relative_source = source_dir.join(jmod_display);
+                                    let _ = fs::create_dir_all(&relative_source);
+                                    let classes = parser::loader::load_classes(
+                                        &classes_folder,
+                                        SourceDestination::RelativeInFolder(
+                                            relative_source
+                                                .to_str()
+                                                .expect("Should be represented as string")
+                                                .to_owned(),
+                                        ),
+                                    );
+                                    {
+                                        let mut guard = class_folder.lock().await;
+                                        guard.append(classes);
+                                    }
+                                }
+                                Err(e) => eprintln!("Error with jmod extraction {:?}", e),
+                            }
+                        }));
+                    }
                 }
             }
         }
