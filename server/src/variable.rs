@@ -210,11 +210,26 @@ fn get_method_vars(
         cursor.parent();
     }
     cursor.sibling();
+    parse_block(bytes, out, level, &mut cursor);
+}
+
+fn parse_block(
+    bytes: &[u8],
+    out: &mut Vec<LocalVariable>,
+    level: usize,
+    cursor: &mut tree_sitter::TreeCursor<'_>,
+) {
     cursor.first_child();
     'method: loop {
         match cursor.node().kind() {
             "local_variable_declaration" => {
-                parse_local_variable_declaration(&mut cursor, bytes, level, out);
+                parse_local_variable_declaration(cursor, bytes, level, out);
+            }
+            "try_statement" => {
+                parse_try_statement(cursor, bytes, level, out);
+            }
+            "try_with_resources_statement" => {
+                parse_try_with_resources_statement(cursor, bytes, level, out);
             }
             "{" | "}" => {}
             _ => {}
@@ -223,6 +238,146 @@ fn get_method_vars(
             break 'method;
         }
     }
+    cursor.parent();
+}
+
+fn parse_try_with_resources_statement(
+    cursor: &mut tree_sitter::TreeCursor<'_>,
+    bytes: &[u8],
+    level: usize,
+    out: &mut Vec<LocalVariable>,
+) {
+    let level = level + 1;
+    cursor.first_child();
+    cursor.sibling();
+    // resource
+    cursor.first_child();
+    cursor.sibling();
+
+    'resource: loop {
+        match cursor.node().kind() {
+            "resource" => {
+                parse_resource(cursor, bytes, out, level);
+            }
+            ";" | ")" => {}
+            _ => {}
+        }
+        if !cursor.sibling() {
+            break 'resource;
+        }
+    }
+
+    cursor.parent();
+    // end resource
+    cursor.sibling();
+    parse_block(bytes, out, level, cursor);
+    cursor.sibling();
+    parse_try_content(cursor, bytes, out, level);
+    cursor.parent();
+}
+
+fn parse_try_content(
+    cursor: &mut tree_sitter::TreeCursor<'_>,
+    bytes: &[u8],
+    out: &mut Vec<LocalVariable>,
+    level: usize,
+) {
+    'try_st: loop {
+        match cursor.node().kind() {
+            "catch_clause" => {
+                parse_catch(cursor, bytes, out, level);
+            }
+            "finally_clause" => {
+                parse_finally(cursor, bytes, out, level);
+            }
+            e => {
+                eprintln!("{e}")
+            }
+        }
+        if !cursor.sibling() {
+            break 'try_st;
+        }
+    }
+}
+
+fn parse_resource(
+    cursor: &mut tree_sitter::TreeCursor<'_>,
+    bytes: &[u8],
+    out: &mut Vec<LocalVariable>,
+    level: usize,
+) {
+    cursor.first_child();
+    let ty = get_string(&cursor, bytes);
+    cursor.sibling();
+    let name = get_string(&cursor, bytes);
+    out.push(LocalVariable {
+        level,
+        jtype: parse_jtype(ty),
+        name,
+        is_fun: false,
+        range: cursor.node().range(),
+    });
+    cursor.goto_parent();
+}
+
+fn parse_try_statement(
+    cursor: &mut tree_sitter::TreeCursor<'_>,
+    bytes: &[u8],
+    level: usize,
+    out: &mut Vec<LocalVariable>,
+) {
+    let level = level + 1;
+    cursor.first_child();
+    cursor.sibling();
+    parse_block(bytes, out, level, cursor);
+    cursor.sibling();
+    parse_try_content(cursor, bytes, out, level);
+    cursor.parent();
+}
+
+fn parse_finally(
+    cursor: &mut tree_sitter::TreeCursor<'_>,
+    bytes: &[u8],
+    out: &mut Vec<LocalVariable>,
+    level: usize,
+) {
+    let level = level + 1;
+    cursor.first_child();
+    cursor.sibling();
+    parse_block(bytes, out, level, cursor);
+    cursor.parent();
+}
+
+fn parse_catch(
+    cursor: &mut tree_sitter::TreeCursor<'_>,
+    bytes: &[u8],
+    out: &mut Vec<LocalVariable>,
+    level: usize,
+) {
+    cursor.first_child();
+    cursor.sibling();
+    cursor.sibling();
+    cursor.first_child();
+    cursor.first_child();
+
+    let ty = get_string(&cursor, bytes);
+
+    cursor.parent();
+    cursor.sibling();
+    let name = get_string(&cursor, bytes);
+    out.push(LocalVariable {
+        level,
+        jtype: parse_jtype(ty),
+        name,
+        is_fun: false,
+        range: cursor.node().range(),
+    });
+    cursor.parent();
+
+    cursor.sibling();
+    cursor.sibling();
+    let level = level + 1;
+    parse_block(bytes, out, level, cursor);
     cursor.parent();
 }
 
@@ -670,6 +825,310 @@ public class Test {
                         end_byte: 286,
                         start_point: Point { row: 8, column: 48 },
                         end_point: Point { row: 8, column: 49 },
+                    },
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn get_try_vars_base() {
+        let content = r#"
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        try (
+            String fast1 = "1";
+            String second1 = "2"
+        ) {
+            String ty1 = "a";
+        } catch (IOException eio1) {
+            String ca1 = "a";
+        } finally {
+            String fin = "a";
+        }
+
+        try {
+            String some2 = "s";
+        } catch (Exception e2) {
+            String other2 = "o";
+        }
+
+        try {
+            String some3 = "s";
+        } catch (Exception | IOException e3) {
+            String other3 = "o";
+        } catch (IOException e3) {
+            String other3 = "o";
+        } finally {
+            String fin3 = "a";
+        }
+        return;
+    }
+}
+        "#;
+        let doc = Document::setup(content, PathBuf::new()).unwrap();
+
+        let out = get_vars(&doc, &Point::new(8, 54));
+        assert_eq!(
+            out,
+            vec![
+                LocalVariable {
+                    level: 2,
+                    jtype: dto::JType::Void,
+                    name: "hello".to_string(),
+                    is_fun: true,
+                    range: tree_sitter::Range {
+                        start_byte: 60,
+                        end_byte: 65,
+                        start_point: Point { row: 3, column: 16 },
+                        end_point: Point { row: 3, column: 21 },
+                    },
+                },
+                LocalVariable {
+                    level: 4,
+                    jtype: dto::JType::Class("String".to_string()),
+                    name: "fast1".to_string(),
+                    is_fun: false,
+                    range: Range {
+                        start_byte: 103,
+                        end_byte: 108,
+                        start_point: Point { row: 5, column: 19 },
+                        end_point: Point { row: 5, column: 24 },
+                    },
+                },
+                LocalVariable {
+                    level: 4,
+                    jtype: dto::JType::Class("String".to_string()),
+                    name: "second1".to_string(),
+                    is_fun: false,
+                    range: Range {
+                        start_byte: 135,
+                        end_byte: 142,
+                        start_point: Point { row: 6, column: 19 },
+                        end_point: Point { row: 6, column: 26 },
+                    },
+                },
+                LocalVariable {
+                    level: 4,
+                    jtype: dto::JType::Class("String".to_string()),
+                    name: "ty1".to_string(),
+                    is_fun: false,
+                    range: Range {
+                        start_byte: 180,
+                        end_byte: 183,
+                        start_point: Point { row: 8, column: 19 },
+                        end_point: Point { row: 8, column: 22 },
+                    },
+                },
+                LocalVariable {
+                    level: 4,
+                    jtype: dto::JType::Class("IOException".to_string()),
+                    name: "eio1".to_string(),
+                    is_fun: false,
+                    range: Range {
+                        start_byte: 220,
+                        end_byte: 224,
+                        start_point: Point { row: 9, column: 29 },
+                        end_point: Point { row: 9, column: 33 },
+                    },
+                },
+                LocalVariable {
+                    level: 5,
+                    jtype: dto::JType::Class("String".to_string()),
+                    name: "ca1".to_string(),
+                    is_fun: false,
+                    range: Range {
+                        start_byte: 247,
+                        end_byte: 250,
+                        start_point: Point {
+                            row: 10,
+                            column: 19
+                        },
+                        end_point: Point {
+                            row: 10,
+                            column: 22
+                        },
+                    },
+                },
+                LocalVariable {
+                    level: 5,
+                    jtype: dto::JType::Class("String".to_string()),
+                    name: "fin".to_string(),
+                    is_fun: false,
+                    range: Range {
+                        start_byte: 297,
+                        end_byte: 300,
+                        start_point: Point {
+                            row: 12,
+                            column: 19
+                        },
+                        end_point: Point {
+                            row: 12,
+                            column: 22
+                        },
+                    },
+                },
+                LocalVariable {
+                    level: 4,
+                    jtype: dto::JType::Class("String".to_string()),
+                    name: "some2".to_string(),
+                    is_fun: false,
+                    range: Range {
+                        start_byte: 352,
+                        end_byte: 357,
+                        start_point: Point {
+                            row: 16,
+                            column: 19,
+                        },
+                        end_point: Point {
+                            row: 16,
+                            column: 24,
+                        },
+                    },
+                },
+                LocalVariable {
+                    level: 4,
+                    jtype: dto::JType::Class("Exception".to_string()),
+                    name: "e2".to_string(),
+                    is_fun: false,
+                    range: Range {
+                        start_byte: 392,
+                        end_byte: 394,
+                        start_point: Point {
+                            row: 17,
+                            column: 27,
+                        },
+                        end_point: Point {
+                            row: 17,
+                            column: 29,
+                        },
+                    },
+                },
+                LocalVariable {
+                    level: 5,
+                    jtype: dto::JType::Class("String".to_string()),
+                    name: "other2".to_string(),
+                    is_fun: false,
+                    range: Range {
+                        start_byte: 417,
+                        end_byte: 423,
+                        start_point: Point {
+                            row: 18,
+                            column: 19,
+                        },
+                        end_point: Point {
+                            row: 18,
+                            column: 25,
+                        },
+                    },
+                },
+                LocalVariable {
+                    level: 4,
+                    jtype: dto::JType::Class("String".to_string()),
+                    name: "some3".to_string(),
+                    is_fun: false,
+                    range: Range {
+                        start_byte: 475,
+                        end_byte: 480,
+                        start_point: Point {
+                            row: 22,
+                            column: 19,
+                        },
+                        end_point: Point {
+                            row: 22,
+                            column: 24,
+                        },
+                    },
+                },
+                LocalVariable {
+                    level: 4,
+                    jtype: dto::JType::Class("Exception".to_string()),
+                    name: "e3".to_string(),
+                    is_fun: false,
+                    range: Range {
+                        start_byte: 529,
+                        end_byte: 531,
+                        start_point: Point {
+                            row: 23,
+                            column: 41,
+                        },
+                        end_point: Point {
+                            row: 23,
+                            column: 43,
+                        },
+                    },
+                },
+                LocalVariable {
+                    level: 5,
+                    jtype: dto::JType::Class("String".to_string()),
+                    name: "other3".to_string(),
+                    is_fun: false,
+                    range: Range {
+                        start_byte: 554,
+                        end_byte: 560,
+                        start_point: Point {
+                            row: 24,
+                            column: 19,
+                        },
+                        end_point: Point {
+                            row: 24,
+                            column: 25,
+                        },
+                    },
+                },
+                LocalVariable {
+                    level: 4,
+                    jtype: dto::JType::Class("IOException".to_string()),
+                    name: "e3".to_string(),
+                    is_fun: false,
+                    range: Range {
+                        start_byte: 597,
+                        end_byte: 599,
+                        start_point: Point {
+                            row: 25,
+                            column: 29,
+                        },
+                        end_point: Point {
+                            row: 25,
+                            column: 31,
+                        },
+                    },
+                },
+                LocalVariable {
+                    level: 5,
+                    jtype: dto::JType::Class("String".to_string()),
+                    name: "other3".to_string(),
+                    is_fun: false,
+                    range: Range {
+                        start_byte: 622,
+                        end_byte: 628,
+                        start_point: Point {
+                            row: 26,
+                            column: 19,
+                        },
+                        end_point: Point {
+                            row: 26,
+                            column: 25,
+                        },
+                    },
+                },
+                LocalVariable {
+                    level: 5,
+                    jtype: dto::JType::Class("String".to_string()),
+                    name: "fin3".to_string(),
+                    is_fun: false,
+                    range: Range {
+                        start_byte: 675,
+                        end_byte: 679,
+                        start_point: Point {
+                            row: 28,
+                            column: 19,
+                        },
+                        end_point: Point {
+                            row: 28,
+                            column: 23,
+                        },
                     },
                 },
             ]
