@@ -1,14 +1,19 @@
-use tree_sitter_util::CommentSkiper;
+use tree_sitter_util::{tdbc, CommentSkiper, TreesitterError};
 
 use crate::{dto, loader::SourceDestination};
+
+#[derive(Debug)]
+pub enum ParseJavaError {
+    Treesitter(TreesitterError),
+    Class(dto::ClassError),
+    Io(std::io::Error),
+}
 
 pub fn load_java(
     bytes: &[u8],
     source: SourceDestination,
-) -> Result<crate::dto::Class, dto::ClassError> {
-    let Some((_, tree)) = tree_sitter_util::parse(bytes) else {
-        return Err(dto::ClassError::ParseError);
-    };
+) -> Result<crate::dto::Class, ParseJavaError> {
+    let (_, tree) = tree_sitter_util::parse(bytes).map_err(|e| ParseJavaError::Treesitter(e))?;
     let mut methods = vec![];
     let mut fields = vec![];
     let mut class_name = None;
@@ -59,6 +64,9 @@ pub fn load_java(
                     "constant_declaration" => {
                         fields.push(parse_interface_constant(&mut cursor, bytes))
                     }
+                    "method_declaration" => {
+                        methods.push(parse_interface_method(&mut cursor, bytes))
+                    }
                     "," | "{" | "}" => (),
                     unknown => eprintln!("Missing implementation for: {} in interface", unknown),
                 }
@@ -85,10 +93,10 @@ pub fn load_java(
     }
 
     let Some(name) = class_name else {
-        return Err(dto::ClassError::UnknownClassName);
+        return Err(ParseJavaError::Class(dto::ClassError::UnknownClassName));
     };
     let Some(class_path_base) = class_path_base else {
-        return Err(dto::ClassError::UnknownClassPath);
+        return Err(ParseJavaError::Class(dto::ClassError::UnknownClassPath));
     };
     let source = match source {
         SourceDestination::RelativeInFolder(e) => {
@@ -105,6 +113,32 @@ pub fn load_java(
         methods,
         fields,
     })
+}
+
+fn parse_interface_method(cursor: &mut tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> dto::Method {
+    cursor.first_child();
+    if cursor.node().kind() == "modifiers" {
+        cursor.sibling();
+    }
+    let jtype = parse_jtype(&cursor.node(), bytes);
+    cursor.sibling();
+    let name = get_string(cursor, bytes);
+    cursor.sibling();
+    let parameters = parse_formal_parameters(cursor, bytes);
+    let mut method = dto::Method {
+        access: vec![],
+        name,
+        parameters,
+        throws: vec![],
+        ret: jtype,
+    };
+    cursor.sibling();
+    tdbc(&cursor, bytes);
+    if cursor.node().kind() == "throws" {
+        method.throws = parse_throws(bytes, cursor);
+    }
+    cursor.parent();
+    method
 }
 
 fn parse_interface_constant(cursor: &mut tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> dto::Field {
@@ -161,14 +195,7 @@ fn parse_method(node: tree_sitter::Node<'_>, bytes: &[u8]) -> dto::Method {
             "block" => (),
             "type_parameters" => (),
             "throws" => {
-                cursor.first_child();
-                while cursor.sibling() {
-                    if cursor.node().kind() == "," {
-                        continue;
-                    }
-                    method.throws.push(parse_jtype(&cursor.node(), bytes));
-                }
-                cursor.parent();
+                method.throws = parse_throws(bytes, &mut cursor);
             }
             _ => {
                 method.ret = parse_jtype(&cursor.node(), bytes);
@@ -180,6 +207,19 @@ fn parse_method(node: tree_sitter::Node<'_>, bytes: &[u8]) -> dto::Method {
     }
 
     method
+}
+
+fn parse_throws(bytes: &[u8], cursor: &mut tree_sitter::TreeCursor<'_>) -> Vec<dto::JType> {
+    let mut out = vec![];
+    cursor.first_child();
+    while cursor.sibling() {
+        if cursor.node().kind() == "," {
+            continue;
+        }
+        out.push(parse_jtype(&cursor.node(), bytes));
+    }
+    cursor.parent();
+    out
 }
 
 fn parse_field(node: tree_sitter::Node<'_>, bytes: &[u8]) -> dto::Field {
@@ -528,7 +568,31 @@ public class Test {
                 source: "/path/to/source/ch/emilycares/Constants.java".to_string(),
                 access: vec![],
                 name: "Constants".to_string(),
-                methods: vec![],
+                methods: vec![
+                    dto::Method {
+                        access: vec![],
+                        name: "display".to_string(),
+                        parameters: vec![],
+                        throws: vec![],
+                        ret: JType::Void
+                    },
+                    dto::Method {
+                        access: vec![],
+                        name: "createSocket".to_string(),
+                        parameters: vec![
+                            dto::Parameter {
+                                name: Some("hostname".to_string()),
+                                jtype: JType::Class("String".to_string())
+                            },
+                            dto::Parameter {
+                                name: Some("port".to_string()),
+                                jtype: JType::Int
+                            }
+                        ],
+                        throws: vec![JType::Class("IOException".to_string())],
+                        ret: JType::Class("Socket".to_string())
+                    }
+                ],
                 fields: vec![
                     dto::Field {
                         access: vec![],

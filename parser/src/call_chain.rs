@@ -347,10 +347,7 @@ pub fn class_or_variable(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Option<Ca
     });
 }
 
-pub fn validate<'a>(
-    call_chain: &'a Vec<CallItem>,
-    point: &'a Point,
-) -> Option<(usize, &'a [CallItem])> {
+pub fn validate<'a>(call_chain: &'a Vec<CallItem>, point: &'a Point) -> (usize, &'a [CallItem]) {
     let item = call_chain
         .iter()
         .enumerate()
@@ -379,7 +376,7 @@ pub fn validate<'a>(
         .unwrap_or_default();
 
     let relevat = &call_chain[0..item + 1];
-    Some((item, relevat))
+    (item, relevat)
 }
 
 #[cfg(test)]

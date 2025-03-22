@@ -13,11 +13,20 @@ use crate::{
     tyres, variable,
 };
 
+#[derive(Debug, PartialEq)]
+pub enum SignatureError {
+    Tyres(tyres::TyresError),
+    NotAnArgumentList,
+    CouldNotGetMethod,
+    CouldNoteGetActiveSignature,
+    NoCallChain,
+}
+
 pub fn signature_driver(
     document: &Document,
     point: &tree_sitter::Point,
     class_map: &DashMap<std::string::String, parser::dto::Class>,
-) -> Option<SignatureHelp> {
+) -> Result<SignatureHelp, SignatureError> {
     if let Some(call_chain) =
         call_chain::get_call_chain(&document.tree, document.as_bytes(), &point)
     {
@@ -25,14 +34,14 @@ pub fn signature_driver(
         let vars = variable::get_vars(document, &point);
         return get_signature(call_chain, &imports, &vars, class_map);
     }
-    None
+    Err(SignatureError::NoCallChain)
 }
 pub fn get_signature(
     call_chain: Vec<CallItem>,
     imports: &Vec<imports::ImportUnit<'_>>,
     vars: &Vec<variable::LocalVariable>,
     class_map: &DashMap<std::string::String, parser::dto::Class>,
-) -> Option<SignatureHelp> {
+) -> Result<SignatureHelp, SignatureError> {
     let args = get_args(&call_chain);
     let Some(CallItem::ArgumentList {
         prev,
@@ -41,45 +50,43 @@ pub fn get_signature(
         filled_params: _,
     }) = args
     else {
-        return None;
+        return Err(SignatureError::NotAnArgumentList);
     };
     let Some(CallItem::MethodCall {
         name: method_name,
         range: _,
     }) = prev.last()
     else {
-        return None;
+        return Err(SignatureError::CouldNotGetMethod);
     };
-    let vars: &Vec<variable::LocalVariable> = &vars;
-    let imports: &Vec<imports::ImportUnit<'_>> = &imports;
-    if let Some(class) = tyres::resolve_call_chain(&prev, &vars, &imports, class_map) {
-        let methods: Vec<&dto::Method> = class
-            .methods
-            .iter()
-            .filter(|m| m.name == *method_name)
-            .collect();
+    let class = match tyres::resolve_call_chain(prev, vars, imports, class_map) {
+        Ok(c) => Ok(c),
+        Err(e) => Err(SignatureError::Tyres(e)),
+    }?;
+    let methods: Vec<&dto::Method> = class
+        .methods
+        .iter()
+        .filter(|m| m.name == *method_name)
+        .collect();
 
-        let Some(active_signature) = methods
-            .iter()
-            .enumerate()
-            .filter(|(_, m)| m.parameters.len() > *active_param)
-            .next()
-        else {
-            return None;
-        };
-        let active_signature_id = active_signature.0;
-        let signatures = methods
-            .iter()
-            .map(|m| method_to_signature_information(m))
-            .collect();
+    let Some(active_signature) = methods
+        .iter()
+        .enumerate()
+        .find(|(_, m)| m.parameters.len() > *active_param)
+    else {
+        return Err(SignatureError::CouldNoteGetActiveSignature);
+    };
+    let active_signature_id = active_signature.0;
+    let signatures = methods
+        .iter()
+        .map(|m| method_to_signature_information(m))
+        .collect();
 
-        return Some(SignatureHelp {
-            signatures,
-            active_signature: TryInto::<u32>::try_into(active_signature_id).ok(),
-            active_parameter: TryInto::<u32>::try_into(*active_param).ok(),
-        });
-    }
-    None
+    return Ok(SignatureHelp {
+        signatures,
+        active_signature: TryInto::<u32>::try_into(active_signature_id).ok(),
+        active_parameter: TryInto::<u32>::try_into(*active_param).ok(),
+    });
 }
 
 fn get_args(call_chain: &Vec<CallItem>) -> Option<&CallItem> {
@@ -174,7 +181,7 @@ public class Test {
         let out = signature_driver(&doc, &Point::new(5, 29), &class_map);
         assert_eq!(
             out,
-            Some(SignatureHelp {
+            Ok(SignatureHelp {
                 signatures: vec![SignatureInformation {
                     label: "concat".to_string(),
                     documentation: Some(Documentation::String("String".to_string())),
@@ -245,7 +252,7 @@ public class Test {
         let out = signature_driver(&doc, &Point::new(5, 29), &class_map);
         assert_eq!(
             out,
-            Some(SignatureHelp {
+            Ok(SignatureHelp {
                 signatures: vec![
                     SignatureInformation {
                         label: "concat".to_string(),
@@ -333,7 +340,7 @@ public class Test {
         let out = signature_driver(&doc, &Point::new(5, 39), &class_map);
         assert_eq!(
             out,
-            Some(SignatureHelp {
+            Ok(SignatureHelp {
                 signatures: vec![
                     SignatureInformation {
                         label: "concat".to_string(),

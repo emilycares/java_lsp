@@ -12,22 +12,27 @@ pub struct Document {
     parser: Parser,
 }
 
+#[derive(Debug)]
+pub enum DocumentError {
+    Treesitter(tree_sitter_util::TreesitterError),
+    Io(std::io::Error),
+}
+
 impl Document {
-    pub fn setup_read(path: PathBuf) -> Option<Self> {
-        let text = fs::read_to_string(&path).ok()?;
+    pub fn setup_read(path: PathBuf) -> Result<Self, DocumentError> {
+        let text = fs::read_to_string(&path).map_err(|e| DocumentError::Io(e))?;
         let rope = ropey::Rope::from_str(&text);
         Self::setup_rope(&text, path, rope)
     }
-    pub fn setup(text: &str, path: PathBuf) -> Option<Self> {
+    pub fn setup(text: &str, path: PathBuf) -> Result<Self, DocumentError> {
         let rope = ropey::Rope::from_str(text);
         Self::setup_rope(text, path, rope)
     }
 
-    pub fn setup_rope(text: &str, path: PathBuf, rope: Rope) -> Option<Self> {
-        let Some((parser, tree)) = tree_sitter_util::parse(text) else {
-            return None;
-        };
-        Some(Self {
+    pub fn setup_rope(text: &str, path: PathBuf, rope: Rope) -> Result<Self, DocumentError> {
+        let (parser, tree) =
+            tree_sitter_util::parse(text).map_err(|e| DocumentError::Treesitter(e))?;
+        Ok(Self {
             parser,
             text: rope,
             str_data: text.to_string(),

@@ -360,11 +360,11 @@ fn parse_catch(
     cursor.first_child();
     cursor.first_child();
 
-    let ty = get_string(&cursor, bytes);
+    let ty = get_string(cursor, bytes);
 
     cursor.parent();
     cursor.sibling();
-    let name = get_string(&cursor, bytes);
+    let name = get_string(cursor, bytes);
     out.push(LocalVariable {
         level,
         jtype: parse_jtype(ty),
