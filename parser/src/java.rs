@@ -1,4 +1,4 @@
-use tree_sitter_util::{tdbc, CommentSkiper, TreesitterError};
+use tree_sitter_util::{CommentSkiper, TreesitterError};
 
 use crate::{dto, loader::SourceDestination};
 
@@ -133,7 +133,6 @@ fn parse_interface_method(cursor: &mut tree_sitter::TreeCursor<'_>, bytes: &[u8]
         ret: jtype,
     };
     cursor.sibling();
-    tdbc(&cursor, bytes);
     if cursor.node().kind() == "throws" {
         method.throws = parse_throws(bytes, cursor);
     }

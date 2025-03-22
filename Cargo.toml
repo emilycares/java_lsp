@@ -15,7 +15,6 @@ members = [
     "gradle",
     "common",
 ]
-exclude = ["editor/zed"]
 
 [workspace.dependencies]
 clap = { version = "4", features = ["derive"] }

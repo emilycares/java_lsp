@@ -394,7 +394,14 @@ impl Backend<'_> {
             self.progress_start(&prog_lable);
             let cm = match self.project_kind {
                 ProjectKind::Maven => maven::fetch::fetch_deps(&self.class_map).await,
-                ProjectKind::Gradle => gradle::fetch::fetch_deps(&self.class_map).await,
+                ProjectKind::Gradle => match gradle::fetch::fetch_deps(&self.class_map).await {
+                    Ok(o) => Some(o),
+                    Err(gradle::fetch::GradleFetchError::NoWorkToDo) => None,
+                    Err(e) => {
+                        eprintln!("Got error while loading gradle project: {e:?}");
+                        None
+                    }
+                },
                 ProjectKind::Unknown => None,
             };
             if let Some(cm) = cm {
