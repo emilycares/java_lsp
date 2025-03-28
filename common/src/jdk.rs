@@ -15,6 +15,12 @@ const EXECUTABLE_JAVA: &str = "java";
 #[cfg(target_os = "windows")]
 const EXECUTABLE_JAVA: &str = "java.exe";
 
+#[derive(Debug)]
+pub enum JdkError {
+    NoSrcZip,
+    Unzip(Option<String>),
+}
+
 fn java_executable_location() -> Option<PathBuf> {
     if let Some(paths) = env::var_os("PATH") {
         return env::split_paths(&paths)
@@ -33,7 +39,7 @@ fn java_executable_location() -> Option<PathBuf> {
 
 /// Extracts java jdk from from the java executabel in path.
 /// returns folder of output
-async fn load_jdk() -> Option<ClassFolder> {
+async fn load_jdk() -> Result<ClassFolder, JdkError> {
     let mut path = java_executable_location().expect("There should be a java executabel in path");
     eprintln!("java executable location {:?}", &path);
     if path.is_symlink() {
@@ -50,10 +56,41 @@ async fn load_jdk() -> Option<ClassFolder> {
         jmod_executable.set_extension("exe");
     }
     eprintln!("jmod_executable: {:?}", &jmod_executable);
-    if !jmod_executable.exists() {
-        eprintln!("There is no jmod in your jdk: {:?}", &path);
-        return None;
+    if jmod_executable.exists() {
+        return load_jmods(path, jmod_executable).await;
     }
+    eprintln!("There is no jmod in your jdk: {:?}", &path);
+    load_old(path)
+}
+
+fn load_old(mut path: PathBuf) -> Result<ClassFolder, JdkError> {
+    path.pop();
+    let jdk_name = path.file_name();
+
+    let op_dir = opdir(jdk_name);
+    let source_dir = op_dir.join("src");
+    let mut src_zip = path.join("src");
+    src_zip.set_extension("zip");
+    unzip_to_dir(&source_dir, &src_zip)?;
+
+    let classes_dir = op_dir.join("classes");
+
+    let mut rt_jar = path.join("jre").join("lib").join("rt");
+    rt_jar.set_extension("jar");
+    unzip_to_dir(&classes_dir, &rt_jar)?;
+    let classes = parser::loader::load_classes(
+        &classes_dir,
+        SourceDestination::RelativeInFolder(
+            source_dir
+                .to_str()
+                .expect("Should be represented as string")
+                .to_owned(),
+        ),
+    );
+    Ok(classes)
+}
+
+async fn load_jmods(mut path: PathBuf, jmod_executable: PathBuf) -> Result<ClassFolder, JdkError> {
     path.pop();
     let binding = path.clone();
     let jdk_name = binding.file_name();
@@ -65,20 +102,8 @@ async fn load_jdk() -> Option<ClassFolder> {
     let mut src_zip = path.clone();
     src_zip = src_zip.join("lib").join("src");
     src_zip.set_extension("zip");
-    eprintln!("src_zip: {:?}", &src_zip);
-    if !src_zip.exists() {
-        eprintln!("There is no lib/source.zip in {:?} ", &src_zip);
-        return None;
-    }
-    if !source_dir.exists() {
-        let _ = fs::create_dir_all(&source_dir);
-        if let Ok(data) = fs::read(&src_zip) {
-            let res = zip_extract::extract(Cursor::new(data), &source_dir, false);
-            if let Err(e) = res {
-                eprintln!("Unable to unzip: {:?}, {e}", &src_zip);
-            }
-        }
-    }
+    unzip_to_dir(&source_dir, &src_zip)?;
+    let source_dir = op_dir.join("classes");
 
     let mut jmods = path.join("jmods");
     if !jmods.exists() {
@@ -166,7 +191,23 @@ async fn load_jdk() -> Option<ClassFolder> {
     futures::future::join_all(handles).await;
     let class_folder = class_folder.clone();
     let guard = class_folder.lock().await;
-    Some(guard.clone())
+    Ok(guard.clone())
+}
+
+fn unzip_to_dir(dir: &PathBuf, zip: &PathBuf) -> Result<(), JdkError> {
+    if !zip.exists() {
+        return Err(JdkError::Unzip(zip.to_str().map(|i| i.to_owned())));
+    }
+    if !dir.exists() {
+        let _ = fs::create_dir_all(dir);
+        if let Ok(data) = fs::read(zip) {
+            let res = zip_extract::extract(Cursor::new(data), dir, false);
+            if let Err(e) = res {
+                eprintln!("Unable to unzip: {:?}, {e}", &zip);
+            }
+        }
+    }
+    Ok(())
 }
 
 fn opdir(jdk_name: Option<&std::ffi::OsStr>) -> PathBuf {
@@ -179,7 +220,9 @@ fn opdir(jdk_name: Option<&std::ffi::OsStr>) -> PathBuf {
     op_dir
 }
 
-pub async fn load_classes(class_map: &DashMap<std::string::String, parser::dto::Class>) {
+pub async fn load_classes(
+    class_map: &DashMap<std::string::String, parser::dto::Class>,
+) -> Result<(), JdkError> {
     let path = Path::new(".jdk.cfc");
     if path.exists() {
         if let Ok(classes) = parser::loader::load_class_folder("jdk") {
@@ -195,13 +238,13 @@ pub async fn load_classes(class_map: &DashMap<std::string::String, parser::dto::
         // cd ..
         // mvn dependency:unpack
         // ```
-        if let Some(class_folder) = load_jdk().await {
-            if let Err(e) = parser::loader::save_class_folder("jdk", &class_folder) {
-                eprintln!("Failed to save .jdk.cfc because: {e}");
-            };
-            for class in class_folder.classes {
-                class_map.insert(class.class_path.clone(), class);
-            }
+        let class_folder = load_jdk().await?;
+        if let Err(e) = parser::loader::save_class_folder("jdk", &class_folder) {
+            eprintln!("Failed to save .jdk.cfc because: {e}");
+        };
+        for class in class_folder.classes {
+            class_map.insert(class.class_path.clone(), class);
         }
     }
+    Ok(())
 }

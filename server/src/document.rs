@@ -9,6 +9,7 @@ pub struct Document {
     pub str_data: String,
     pub tree: Tree,
     pub path: PathBuf,
+    pub class_path: String,
     parser: Parser,
 }
 
@@ -19,17 +20,22 @@ pub enum DocumentError {
 }
 
 impl Document {
-    pub fn setup_read(path: PathBuf) -> Result<Self, DocumentError> {
+    pub fn setup_read(path: PathBuf, class_path: String) -> Result<Self, DocumentError> {
         let text = fs::read_to_string(&path).map_err(|e| DocumentError::Io(e))?;
         let rope = ropey::Rope::from_str(&text);
-        Self::setup_rope(&text, path, rope)
+        Self::setup_rope(&text, path, rope, class_path)
     }
-    pub fn setup(text: &str, path: PathBuf) -> Result<Self, DocumentError> {
+    pub fn setup(text: &str, path: PathBuf, class_path: String) -> Result<Self, DocumentError> {
         let rope = ropey::Rope::from_str(text);
-        Self::setup_rope(text, path, rope)
+        Self::setup_rope(text, path, rope, class_path)
     }
 
-    pub fn setup_rope(text: &str, path: PathBuf, rope: Rope) -> Result<Self, DocumentError> {
+    pub fn setup_rope(
+        text: &str,
+        path: PathBuf,
+        rope: Rope,
+        class_path: String,
+    ) -> Result<Self, DocumentError> {
         let (parser, tree) =
             tree_sitter_util::parse(text).map_err(|e| DocumentError::Treesitter(e))?;
         Ok(Self {
@@ -38,6 +44,7 @@ impl Document {
             str_data: text.to_string(),
             tree,
             path,
+            class_path,
         })
     }
 

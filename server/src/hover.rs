@@ -22,6 +22,8 @@ pub enum HoverError {
     ParseError(parser::java::ParseJavaError),
     ValidatedItemDoesNotExists,
     LocalVariableNotFound { name: String },
+    Unimlemented,
+    NoClass(String),
 }
 
 pub fn base(
@@ -40,8 +42,11 @@ pub fn base(
         Err(ClassActionError::NotFound) => {}
         Err(e) => return Err(HoverError::ClassActon(e)),
     };
+    let Some(class) = class_map.get(&document.class_path) else {
+        return Err(HoverError::NoClass(document.class_path.clone()));
+    };
 
-    call_chain_hover(document, point, lo_va, imports, class_map)
+    call_chain_hover(document, point, lo_va, imports, class.value(), class_map)
 }
 
 #[allow(dead_code)]
@@ -96,6 +101,7 @@ pub fn call_chain_hover(
     point: &Point,
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
+    class: &dto::Class,
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Result<Hover, HoverError> {
     let Some(call_chain) = call_chain::get_call_chain(&document.tree, document.as_bytes(), point)
@@ -107,7 +113,7 @@ pub fn call_chain_hover(
     let Some(el) = call_chain.get(item) else {
         return Err(HoverError::ValidatedItemDoesNotExists);
     };
-    let class = match tyres::resolve_call_chain(relevat, lo_va, imports, class_map) {
+    let class = match tyres::resolve_call_chain(relevat, lo_va, imports, class, class_map) {
         Ok(c) => Ok(c),
         Err(e) => Err(HoverError::Tyres(e)),
     }?;
@@ -184,6 +190,7 @@ pub fn call_chain_hover(
             filled_params: _,
             range: _,
         } => unimplemented!(),
+        CallItem::This { range: _ } => Err(HoverError::Unimlemented),
     };
 }
 
@@ -292,7 +299,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
         let tree = &doc.tree;
         let bytes = doc.as_bytes();
 
@@ -311,7 +318,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
         let tree = &doc.tree;
         let bytes = doc.as_bytes();
 
@@ -321,6 +328,14 @@ public class Test {
 
     #[test]
     fn method_hover() {
+        let class = dto::Class {
+            class_path: "".to_string(),
+            source: "".to_string(),
+            access: vec![dto::Access::Public],
+            name: "Test".to_string(),
+            methods: vec![],
+            fields: vec![],
+        };
         let content = "
 package ch.emilycares;
 public class Test {
@@ -330,11 +345,11 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
         let point = Point::new(5, 29);
         let vars = variable::get_vars(&doc, &point);
 
-        let out = call_chain_hover(&doc, &point, &vars, &[], &string_class_map());
+        let out = call_chain_hover(&doc, &point, &vars, &[], &class, &string_class_map());
         assert!(out.is_ok());
     }
 

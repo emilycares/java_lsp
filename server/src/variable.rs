@@ -433,7 +433,7 @@ public class Test {
     }
 }
         ";
-        let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
         let out = get_vars(&doc, &Point::new(12, 17));
         assert_eq!(
@@ -560,7 +560,7 @@ public class Test {
      
 }
         ";
-        let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
         let out = get_vars(&doc, &Point::new(4, 6));
         assert_eq!(
@@ -600,7 +600,7 @@ public class Test {
     }
 }
         ";
-        let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
         let out = get_vars(&doc, &Point::new(12, 17));
         assert_eq!(
@@ -737,7 +737,7 @@ public class Test {
     }
 }
         ";
-        let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
         let out = get_vars(&doc, &Point::new(8, 54));
         assert_eq!(
@@ -867,7 +867,7 @@ public class Test {
     }
 }
         "#;
-        let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
         let out = get_vars(&doc, &Point::new(8, 54));
         assert_eq!(

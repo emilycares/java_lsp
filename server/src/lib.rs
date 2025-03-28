@@ -266,12 +266,17 @@ impl Backend<'_> {
         if let Some(mut document) = self.document_map.get_mut(&key) {
             document.replace_text(rope);
         } else {
-            match Document::setup_rope(&params.text, path, rope) {
-                Ok(doc) => {
-                    self.document_map.insert(key, doc);
-                }
-                Err(e) => {
-                    eprintln!("Failed to setup document: {:?}", e);
+            if let Ok(class) = parser::java::load_java(
+                &params.text.as_bytes(),
+                parser::loader::SourceDestination::None,
+            ) {
+                match Document::setup_rope(&params.text, path, rope, class.class_path) {
+                    Ok(doc) => {
+                        self.document_map.insert(key, doc);
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to setup document: {:?}", e);
+                    }
                 }
             }
         }
@@ -386,14 +391,21 @@ impl Backend<'_> {
         eprintln!("Init");
 
         self.progress_start("Load jdk");
-        common::jdk::load_classes(&self.class_map).await;
+        let _ = common::jdk::load_classes(&self.class_map).await;
         self.progress_end("Load jdk");
 
         if self.project_kind != ProjectKind::Unknown {
             let prog_lable = format!("Load {} dependencies", self.project_kind);
             self.progress_start(&prog_lable);
             let cm = match self.project_kind {
-                ProjectKind::Maven => maven::fetch::fetch_deps(&self.class_map).await,
+                ProjectKind::Maven => match maven::fetch::fetch_deps(&self.class_map).await {
+                    Ok(o) => Some(o),
+                    Err(maven::fetch::MavenFetchError::NoWorkToDo) => None,
+                    Err(e) => {
+                        eprintln!("Got error while loading maven project: {e:?}");
+                        None
+                    }
+                },
                 ProjectKind::Gradle => match gradle::fetch::fetch_deps(&self.class_map).await {
                     Ok(o) => Some(o),
                     Err(gradle::fetch::GradleFetchError::NoWorkToDo) => None,
@@ -509,6 +521,10 @@ impl Backend<'_> {
         let vars = variable::get_vars(document.value(), &point);
 
         let imports = imports::imports(document.value());
+        let Some(class) = &self.class_map.get(&document.class_path) else {
+            eprintln!("Could not find class {}", document.class_path);
+            return None;
+        };
 
         let mut do_rest = true;
         match completion::complete_call_chain(
@@ -516,6 +532,7 @@ impl Backend<'_> {
             &point,
             &vars,
             &imports,
+            class,
             &self.class_map,
         ) {
             Ok(call_chain) => {
@@ -566,12 +583,17 @@ impl Backend<'_> {
                 eprintln!("Error while class completion: {e:?}");
             }
         }
+        let Some(class) = &self.class_map.get(&document.class_path) else {
+            eprintln!("Could not find class {}", document.class_path);
+            return None;
+        };
         match definition::call_chain_definition(
             document.value(),
             uri,
             &point,
             &vars,
             &imports,
+            class,
             &self.class_map,
         ) {
             Ok(definition) => return Some(definition),
@@ -671,8 +693,12 @@ impl Backend<'_> {
             return None;
         };
         let point = to_treesitter_point(params.text_document_position_params.position);
+        let Some(class) = &self.class_map.get(&document.class_path) else {
+            eprintln!("Could not find class {}", document.class_path);
+            return None;
+        };
 
-        match signature::signature_driver(&document, &point, &self.class_map) {
+        match signature::signature_driver(&document, &point, class, &self.class_map) {
             Ok(hover) => return Some(hover),
             Err(e) => {
                 eprintln!("Error while hover: {e:?}");

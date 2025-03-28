@@ -4,7 +4,7 @@ use lsp_types::{
 };
 use parser::{
     call_chain::{self, CallItem},
-    dto::{self},
+    dto::{self, Class},
 };
 
 use crate::{
@@ -25,6 +25,7 @@ pub enum SignatureError {
 pub fn signature_driver(
     document: &Document,
     point: &tree_sitter::Point,
+    class: &Class,
     class_map: &DashMap<std::string::String, parser::dto::Class>,
 ) -> Result<SignatureHelp, SignatureError> {
     if let Some(call_chain) =
@@ -32,7 +33,7 @@ pub fn signature_driver(
     {
         let imports = imports::imports(document);
         let vars = variable::get_vars(document, &point);
-        return get_signature(call_chain, &imports, &vars, class_map);
+        return get_signature(call_chain, &imports, &vars, class, class_map);
     }
     Err(SignatureError::NoCallChain)
 }
@@ -40,6 +41,7 @@ pub fn get_signature(
     call_chain: Vec<CallItem>,
     imports: &Vec<imports::ImportUnit<'_>>,
     vars: &Vec<variable::LocalVariable>,
+    class: &Class,
     class_map: &DashMap<std::string::String, parser::dto::Class>,
 ) -> Result<SignatureHelp, SignatureError> {
     let args = get_args(&call_chain);
@@ -59,7 +61,7 @@ pub fn get_signature(
     else {
         return Err(SignatureError::CouldNotGetMethod);
     };
-    let class = match tyres::resolve_call_chain(prev, vars, imports, class_map) {
+    let class = match tyres::resolve_call_chain(prev, vars, imports, class, class_map) {
         Ok(c) => Ok(c),
         Err(e) => Err(SignatureError::Tyres(e)),
     }?;
@@ -96,6 +98,7 @@ fn get_args(call_chain: &Vec<CallItem>) -> Option<&CallItem> {
         CallItem::Variable { name: _, range: _ } => false,
         CallItem::Class { name: _, range: _ } => false,
         CallItem::ClassOrVariable { name: _, range: _ } => false,
+        CallItem::This { range: _ } => false,
         CallItem::ArgumentList {
             prev: _,
             range: _,
@@ -167,6 +170,14 @@ pub mod tests {
                 fields: vec![],
             },
         );
+        let class = dto::Class {
+            class_path: "".to_string(),
+            source: "".to_string(),
+            access: vec![dto::Access::Public],
+            name: "Test".to_string(),
+            methods: vec![],
+            fields: vec![],
+        };
         let content = "
 package ch.emilycares;
 public class Test {
@@ -176,9 +187,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
-        let out = signature_driver(&doc, &Point::new(5, 29), &class_map);
+        let out = signature_driver(&doc, &Point::new(5, 29), &class, &class_map);
         assert_eq!(
             out,
             Ok(SignatureHelp {
@@ -238,6 +249,14 @@ public class Test {
                 fields: vec![],
             },
         );
+        let class = dto::Class {
+            class_path: "".to_string(),
+            source: "".to_string(),
+            access: vec![dto::Access::Public],
+            name: "Test".to_string(),
+            methods: vec![],
+            fields: vec![],
+        };
         let content = "
 package ch.emilycares;
 public class Test {
@@ -247,9 +266,9 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
-        let out = signature_driver(&doc, &Point::new(5, 29), &class_map);
+        let out = signature_driver(&doc, &Point::new(5, 29), &class, &class_map);
         assert_eq!(
             out,
             Ok(SignatureHelp {
@@ -326,6 +345,14 @@ public class Test {
                 fields: vec![],
             },
         );
+        let class = dto::Class {
+            class_path: "".to_string(),
+            source: "".to_string(),
+            access: vec![dto::Access::Public],
+            name: "Test".to_string(),
+            methods: vec![],
+            fields: vec![],
+        };
         let content = r#"
 package ch.emilycares;
 public class Test {
@@ -335,9 +362,9 @@ public class Test {
     }
 }
 "#;
-        let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
-        let out = signature_driver(&doc, &Point::new(5, 39), &class_map);
+        let out = signature_driver(&doc, &Point::new(5, 39), &class, &class_map);
         assert_eq!(
             out,
             Ok(SignatureHelp {

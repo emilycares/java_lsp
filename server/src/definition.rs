@@ -56,17 +56,15 @@ pub fn call_chain_definition(
     point: &Point,
     vars: &[variable::LocalVariable],
     imports: &[ImportUnit],
+    class: &dto::Class,
     class_map: &dashmap::DashMap<String, dto::Class>,
 ) -> Result<GotoDefinitionResponse, DefinitionError> {
     if let Some(call_chain) = call_chain::get_call_chain(&document.tree, document.as_bytes(), point)
     {
         let (item, relevat) = call_chain::validate(&call_chain, point);
-        dbg!(&relevat);
 
-        let extend_class = match tyres::resolve_call_chain(relevat, vars, imports, class_map) {
-            Ok(relevant) => Ok(relevant),
-            Err(e) => Err(DefinitionError::Tyres(e)),
-        }?;
+        let extend_class = tyres::resolve_call_chain(relevat, vars, imports, class, class_map)
+            .map_err(|e| DefinitionError::Tyres(e))?;
         return match relevat.get(item) {
             Some(CallItem::MethodCall { name, range: _ }) => {
                 let source_file = get_source_content(&extend_class)?;

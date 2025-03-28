@@ -119,11 +119,12 @@ pub fn resolve_params(
     params: Vec<Vec<CallItem>>,
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
+    class: &Class,
     class_map: &DashMap<String, Class>,
 ) -> Vec<Result<Class, TyresError>> {
     params
         .iter()
-        .map(|c| resolve_call_chain(c, lo_va, imports, class_map))
+        .map(|c| resolve_call_chain(c, lo_va, imports, class, class_map))
         .collect()
 }
 
@@ -131,6 +132,7 @@ pub fn resolve_call_chain(
     call_chain: &[CallItem],
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
+    class: &Class,
     class_map: &DashMap<String, Class>,
 ) -> Result<Class, TyresError> {
     let mut ops: Vec<Class> = vec![];
@@ -162,6 +164,7 @@ pub fn resolve_call_chain(
                 }
                 None
             }
+            CallItem::This { range: _ } => Some(class.clone()),
             CallItem::Class { name, range: _ } => Some(resolve(name, imports, class_map)?),
             CallItem::ClassOrVariable { name, range: _ } => {
                 if let Some(lo) = lo_va.iter().find(|va| va.name == *name) {

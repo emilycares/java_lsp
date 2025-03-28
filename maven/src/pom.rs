@@ -1,19 +1,17 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Debug)]
 pub enum ParseError {
-    #[error("There was a error parsing a pom")]
-    ParseError(#[from] serde_xml_rs::Error),
-    #[error("Requires parrent")]
+    ParseError(serde_xml_rs::Error),
     ParentInformationNeeded(Parent),
+    Xml(serde_xml_rs::Error),
 }
 
 #[allow(dead_code)]
 pub fn parse(file: &str) -> Result<Pom, ParseError> {
-    let pom: Pom = serde_xml_rs::from_str(file)?;
+    let pom: Pom = serde_xml_rs::from_str(file).map_err(|e| ParseError::Xml(e))?;
     Ok(pom)
 }
 

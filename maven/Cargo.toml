@@ -8,14 +8,13 @@ edition = "2021"
 [dependencies]
 serde.workspace = true
 serde-xml-rs.workspace = true
-thiserror.workspace = true
 nom.workspace = true
 dashmap.workspace = true
 zip-extract.workspace = true
 dirs.workspace = true
 tokio.workspace = true
 futures.workspace = true
-parser = { path = "../parser"}
+parser = { path = "../parser" }
 
 [dev-dependencies]
 pretty_assertions.workspace = true

@@ -15,6 +15,9 @@ pub enum CallItem {
         name: String,
         range: Range,
     },
+    This {
+        range: Range,
+    },
     Class {
         name: String,
         range: Range,
@@ -63,6 +66,12 @@ pub fn get_call_chain(
                 if cursor.node().kind() == "variable_declarator" {
                     parse_variable_declarator(&mut cursor, &mut out, bytes);
                 }
+                cursor.parent();
+            }
+            "annotation_argument_list" => {
+                cursor.first_child();
+                cursor.sibling();
+                out.extend(parse_value(&cursor, bytes));
                 cursor.parent();
             }
             "argument_list" => {
@@ -319,6 +328,17 @@ fn parse_field_access(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem
                 range: cursor.node().range(),
             });
         }
+        "this" => {
+            out.push(CallItem::This {
+                range: cursor.node().range(),
+            });
+            cursor.sibling();
+            cursor.sibling();
+            out.push(CallItem::FieldAccess {
+                name: get_string(&cursor, bytes),
+                range: cursor.node().range(),
+            });
+        }
         _ => {}
     }
 
@@ -361,6 +381,7 @@ pub fn validate<'a>(call_chain: &'a Vec<CallItem>, point: &'a Point) -> (usize, 
             CallItem::Variable { name: _, range } => {
                 tree_sitter_util::is_point_in_range(point, range)
             }
+            CallItem::This { range } => tree_sitter_util::is_point_in_range(point, range),
             CallItem::ClassOrVariable { name: _, range } => {
                 tree_sitter_util::is_point_in_range(point, range)
             }
@@ -1842,6 +1863,7 @@ public class Test {
             ])
         );
     }
+
     #[test]
     fn call_chain_field_declartion() {
         let content = "
@@ -1872,6 +1894,92 @@ public class Test {
                         end_byte: 92,
                         start_point: Point { row: 3, column: 39 },
                         end_point: Point { row: 3, column: 48 },
+                    }
+                }
+            ])
+        );
+    }
+
+    #[test]
+    fn call_chain_annotation_parameter() {
+        let content = r#"
+package ch.emilycares;
+import jakarta.ws.rs.Produces;
+public class Test {
+    @Produces(MediaType.TEXT_PLAIN)
+    public String hello() {
+      return "a";
+    }
+}
+"#;
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 27));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::ClassOrVariable {
+                    name: "MediaType".to_string(),
+                    range: Range {
+                        start_byte: 89,
+                        end_byte: 98,
+                        start_point: Point { row: 4, column: 14 },
+                        end_point: Point { row: 4, column: 23 },
+                    }
+                },
+                CallItem::FieldAccess {
+                    name: "TEXT_PLAIN".to_string(),
+                    range: Range {
+                        start_byte: 99,
+                        end_byte: 109,
+                        start_point: Point { row: 4, column: 24 },
+                        end_point: Point { row: 4, column: 34 },
+                    }
+                }
+            ])
+        );
+    }
+
+    #[test]
+    fn call_chain_this() {
+        let content = r#"
+package ch.emilycares;
+public class Test {
+    public String hello() {
+      return this.a.toString();
+    }
+}
+"#;
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 27));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::This {
+                    range: Range {
+                        start_byte: 85,
+                        end_byte: 89,
+                        start_point: Point { row: 4, column: 13 },
+                        end_point: Point { row: 4, column: 17 }
+                    }
+                },
+                CallItem::FieldAccess {
+                    name: "a".to_string(),
+                    range: Range {
+                        start_byte: 90,
+                        end_byte: 91,
+                        start_point: Point { row: 4, column: 18 },
+                        end_point: Point { row: 4, column: 19 }
+                    }
+                },
+                CallItem::MethodCall {
+                    name: "toString".to_string(),
+                    range: Range {
+                        start_byte: 92,
+                        end_byte: 100,
+                        start_point: Point { row: 4, column: 20 },
+                        end_point: Point { row: 4, column: 28 }
                     }
                 }
             ])
