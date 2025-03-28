@@ -7,7 +7,7 @@ use std::{
 use crate::{
     class,
     dto::{self},
-    java,
+    java::{self, ParseJavaError},
 };
 use std::fmt::Debug;
 use walkdir::WalkDir;
@@ -31,11 +31,11 @@ where
     class::load_class(&bytes, class_path, source)
 }
 
-pub fn load_java_fs<T>(path: T, source: SourceDestination) -> Result<dto::Class, dto::ClassError>
+pub fn load_java_fs<T>(path: T, source: SourceDestination) -> Result<dto::Class, ParseJavaError>
 where
     T: AsRef<Path> + Debug,
 {
-    let bytes = std::fs::read(path)?;
+    let bytes = std::fs::read(path).map_err(|e| ParseJavaError::Io(e))?;
     java::load_java(&bytes, source)
 }
 
@@ -76,7 +76,7 @@ pub fn load_java_files(paths: Vec<String>) -> dto::ClassFolder {
                 match load_java_fs(p.as_str(), SourceDestination::Here(p.as_str().to_string())) {
                     Ok(c) => Some(c),
                     Err(e) => {
-                        eprintln!("Unable to load java: {}: {}", p, e);
+                        eprintln!("Unable to load java: {}: {:?}", p, e);
                         None
                     }
                 }

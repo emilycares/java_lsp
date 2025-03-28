@@ -1,10 +1,10 @@
-use thiserror::Error;
 use tree_sitter::{Node, Parser, Point, Range, Tree, TreeCursor};
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum TreesitterError {
-    #[error("No node was found for location")]
     NoNodeFound,
+    CouldNotLoadLanguage,
+    ParseError,
 }
 
 pub fn get_node_at_point(tree: &Tree, point: Point) -> Result<Node, TreesitterError> {
@@ -123,13 +123,15 @@ pub fn print_range(bytes: &[u8], range: &Option<Range>) {
     eprintln!("range inclues: '{}'", cow);
 }
 
-pub fn parse(text: impl AsRef<[u8]>) -> Option<(Parser, Tree)> {
+pub fn parse(text: impl AsRef<[u8]>) -> Result<(Parser, Tree), TreesitterError> {
     let mut parser = Parser::new();
     let language = tree_sitter_java::LANGUAGE;
     if parser.set_language(&language.into()).is_err() {
         eprintln!("----- Not initialized -----");
-        return None;
+        return Err(TreesitterError::CouldNotLoadLanguage);
     }
-    let tree = parser.parse(text, None)?;
-    Some((parser, tree))
+    match parser.parse(text, None) {
+        Some(tree) => Ok((parser, tree)),
+        None => Err(TreesitterError::ParseError),
+    }
 }

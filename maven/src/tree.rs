@@ -10,26 +10,34 @@ use nom::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::MavenError;
+use crate::EXECUTABLE_MAVEN;
 
-pub fn load<'a>() -> Result<Dependency, MavenError> {
+#[derive(Debug)]
+pub enum MavenTreeError {
+    Tree(nom::Err<nom::error::Error<&'static str>>),
+    Cli(std::io::Error),
+    UnknownDependencyScope,
+}
+
+pub fn load<'a>() -> Result<Dependency, MavenTreeError> {
     let log: String = get_cli_output()?;
     let cut: String = cut_output(log);
     let input: &'static str = Box::leak(cut.into_boxed_str());
     let out = parser(input);
     match out {
         Ok(o) => Ok(o.1),
-        Err(e) => Err(MavenError::TreeParseError(e)),
+        Err(e) => Err(MavenTreeError::Tree(e)),
     }
 }
 
-fn get_cli_output() -> Result<String, MavenError> {
+fn get_cli_output() -> Result<String, MavenTreeError> {
     // mvn dependency:tree -DoutputType=dot
-    let output = Command::new("mvn")
+    let output = Command::new(EXECUTABLE_MAVEN)
         .arg("dependency:tree")
         .arg("-DoutputType=dot")
         // .arg("-b")
-        .output()?;
+        .output()
+        .map_err(|e| MavenTreeError::Cli(e))?;
 
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
@@ -86,7 +94,7 @@ pub enum DependencyScope {
 }
 
 impl FromStr for DependencyScope {
-    type Err = MavenError;
+    type Err = MavenTreeError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -96,7 +104,7 @@ impl FromStr for DependencyScope {
             "test" => Ok(Self::Test),
             "system" => Ok(Self::System),
             "import" => Ok(Self::Import),
-            _ => Err(MavenError::UnknownDependencyScope),
+            _ => Err(MavenTreeError::UnknownDependencyScope),
         }
     }
 }

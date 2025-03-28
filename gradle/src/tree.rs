@@ -1,5 +1,12 @@
 use std::process::Command;
 
+use crate::fetch;
+
+#[derive(Debug)]
+pub enum GradleTreeError {
+    CliFailed(std::io::Error),
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub struct Dependency {
     pub group_id: String,
@@ -7,23 +14,24 @@ pub struct Dependency {
     pub version: String,
 }
 
-pub fn load<'a>() -> Option<Vec<Dependency>> {
+pub fn load<'a>() -> Result<Vec<Dependency>, GradleTreeError> {
     let log: String = get_cli_output()?;
     let out = parse_tree(log);
-    Some(out)
+    Ok(out)
 }
 
-fn get_cli_output() -> Option<String> {
-    // ./gradlew dependencies --console --plain
-    let output = Command::new("./gradlew")
+fn get_cli_output() -> Result<String, GradleTreeError> {
+    // ./gradlew dependencies --console plain
+    match Command::new(fetch::PATH_GRADLE)
         .arg("dependencies")
         .arg("--console")
         .arg("plain")
         // .arg("-b")
         .output()
-        .ok()?;
-
-    Some(String::from_utf8_lossy(&output.stdout).to_string())
+    {
+        Ok(output) => Ok(String::from_utf8_lossy(&output.stdout).to_string()),
+        Err(e) => Err(GradleTreeError::CliFailed(e)),
+    }
 }
 
 fn parse_tree<'a>(inp: String) -> Vec<Dependency> {

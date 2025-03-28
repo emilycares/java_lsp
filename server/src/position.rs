@@ -5,7 +5,12 @@ use tree_sitter_util::get_string_node;
 
 use crate::utils::to_lsp_range;
 
-pub fn get_class_position(source: &str, name: &str) -> Vec<PositionSymbol> {
+#[derive(Debug, PartialEq)]
+pub enum PosionError {
+    Treesitter(tree_sitter_util::TreesitterError),
+}
+
+pub fn get_class_position(source: &str, name: &str) -> Result<Vec<PositionSymbol>, PosionError> {
     get_item_ranges(
         source,
         "
@@ -19,7 +24,7 @@ pub fn get_class_position(source: &str, name: &str) -> Vec<PositionSymbol> {
     )
 }
 
-pub fn get_method_positions(source: &str, name: &str) -> Vec<PositionSymbol> {
+pub fn get_method_positions(source: &str, name: &str) -> Result<Vec<PositionSymbol>, PosionError> {
     get_item_ranges(
         source,
         "(method_declaration name: (identifier)@capture )",
@@ -27,7 +32,7 @@ pub fn get_method_positions(source: &str, name: &str) -> Vec<PositionSymbol> {
     )
 }
 
-pub fn get_filed_positions(source: &str, name: &str) -> Vec<PositionSymbol> {
+pub fn get_field_positions(source: &str, name: &str) -> Result<Vec<PositionSymbol>, PosionError> {
     get_item_ranges(
         source,
         "(field_declaration declarator: (variable_declarator name: (identifier)@capture ))",
@@ -58,7 +63,7 @@ impl PositionSymbol {
     }
 }
 
-pub fn get_symbols(source: &str) -> Vec<PositionSymbol> {
+pub fn get_symbols(source: &str) -> Result<Vec<PositionSymbol>, PosionError> {
     get_item_ranges(
         source,
         "
@@ -108,10 +113,8 @@ pub fn get_item_ranges<'a>(
     source: &'a str,
     query: &'a str,
     name: Option<&str>,
-) -> Vec<PositionSymbol> {
-    let Some((_, tree)) = tree_sitter_util::parse(source) else {
-        return vec![];
-    };
+) -> Result<Vec<PositionSymbol>, PosionError> {
+    let (_, tree) = tree_sitter_util::parse(source).map_err(|e| PosionError::Treesitter(e))?;
     let query =
         Query::new(&tree_sitter_java::LANGUAGE.into(), query).expect("Query should be okey");
     let bytes = source.as_bytes();
@@ -140,7 +143,7 @@ pub fn get_item_ranges<'a>(
             }
         }
     }
-    out
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -149,7 +152,7 @@ mod tests {
     use tree_sitter::{Point, Range};
 
     use crate::position::{
-        get_class_position, get_filed_positions, get_method_positions, PositionSymbol,
+        get_class_position, get_field_positions, get_method_positions, PositionSymbol,
     };
 
     #[test]
@@ -167,12 +170,12 @@ public class Test {
         let out = get_method_positions(content, "hello");
         assert_eq!(
             out,
-            vec![PositionSymbol::Range(Range {
+            Ok(vec![PositionSymbol::Range(Range {
                 start_byte: 60,
                 end_byte: 65,
                 start_point: Point { row: 3, column: 16 },
                 end_point: Point { row: 3, column: 21 },
-            }),]
+            }),])
         );
     }
 
@@ -184,15 +187,15 @@ public class Test {
     public String a;
 }
 ";
-        let out = get_filed_positions(content, "a");
+        let out = get_field_positions(content, "a");
         assert_eq!(
             out,
-            vec![PositionSymbol::Range(Range {
+            Ok(vec![PositionSymbol::Range(Range {
                 start_byte: 62,
                 end_byte: 63,
                 start_point: Point { row: 3, column: 18 },
                 end_point: Point { row: 3, column: 19 },
-            }),]
+            }),])
         );
     }
 
@@ -205,12 +208,12 @@ public class Test {}
         let out = get_class_position(content, "Test");
         assert_eq!(
             out,
-            vec![PositionSymbol::Range(Range {
+            Ok(vec![PositionSymbol::Range(Range {
                 start_byte: 37,
                 end_byte: 41,
                 start_point: Point { row: 2, column: 13 },
                 end_point: Point { row: 2, column: 17 },
-            }),]
+            }),])
         );
     }
 }

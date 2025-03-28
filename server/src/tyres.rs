@@ -8,6 +8,13 @@ use parser::{
 
 use crate::{imports::ImportUnit, variable::LocalVariable};
 
+#[derive(Debug, PartialEq, Clone)]
+pub enum TyresError {
+    NotImported,
+    ClassNotFound { class_path: String },
+    CallChainInvalid,
+}
+
 pub fn is_imported_class_name(
     jtype: &str,
     imports: &[ImportUnit],
@@ -62,29 +69,21 @@ pub fn resolve(
     jtype: &str,
     imports: &[ImportUnit],
     class_map: &DashMap<std::string::String, parser::dto::Class>,
-) -> Option<Class> {
+) -> Result<Class, TyresError> {
     let lang_class_key = format!("java.lang.{}", jtype);
     if let Some(lang_class) = class_map.get(lang_class_key.as_str()) {
-        return Some(lang_class.deref().to_owned());
+        return Ok(lang_class.deref().to_owned());
     }
 
     let import_result = is_imported(jtype, imports, class_map);
     match import_result {
-        Some(ImportResult::Class(c)) => {
-            if let Some(imported_class) = class_map.get(&c) {
-                return Some(imported_class.deref().to_owned());
-            }
-            None
+        Some(ImportResult::Class(c)) | Some(ImportResult::StaticClass(c)) => {
+            let Some(imported_class) = class_map.get(&c) else {
+                return Err(TyresError::ClassNotFound { class_path: c });
+            };
+            Ok(imported_class.deref().to_owned())
         }
-        Some(ImportResult::StaticClass(c)) => {
-            if let Some(imported_class) = class_map.get(&c) {
-                let class = imported_class.deref().to_owned();
-                // TODO: Return static version of class
-                return Some(class);
-            }
-            None
-        }
-        None => None,
+        None => Err(TyresError::NotImported),
     }
 }
 pub fn resolve_import(
@@ -111,7 +110,7 @@ pub fn resolve_var(
     extend: &LocalVariable,
     imports: &[ImportUnit],
     class_map: &DashMap<std::string::String, parser::dto::Class>,
-) -> Option<Class> {
+) -> Result<Class, TyresError> {
     resolve_jtype(&extend.jtype, imports, class_map)
 }
 
@@ -120,11 +119,12 @@ pub fn resolve_params(
     params: Vec<Vec<CallItem>>,
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
+    class: &Class,
     class_map: &DashMap<String, Class>,
-) -> Vec<Option<Class>> {
+) -> Vec<Result<Class, TyresError>> {
     params
         .iter()
-        .map(|c| resolve_call_chain(c, lo_va, imports, class_map))
+        .map(|c| resolve_call_chain(c, lo_va, imports, class, class_map))
         .collect()
 }
 
@@ -132,8 +132,9 @@ pub fn resolve_call_chain(
     call_chain: &[CallItem],
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
+    class: &Class,
     class_map: &DashMap<String, Class>,
-) -> Option<Class> {
+) -> Result<Class, TyresError> {
     let mut ops: Vec<Class> = vec![];
     for item in call_chain {
         let op = match item {
@@ -143,9 +144,7 @@ pub fn resolve_call_chain(
                     break;
                 };
                 if let Some(method) = class.methods.iter().find(|m| m.name == *name) {
-                    if let Some(c) = resolve_jtype(&method.ret, imports, class_map) {
-                        return Some(c);
-                    }
+                    return Ok(resolve_jtype(&method.ret, imports, class_map)?);
                 }
                 None
             }
@@ -155,9 +154,7 @@ pub fn resolve_call_chain(
                     break;
                 };
                 if let Some(method) = class.fields.iter().find(|m| m.name == *name) {
-                    if let Some(c) = resolve_jtype(&method.jtype, imports, class_map) {
-                        return Some(c);
-                    }
+                    return Ok(resolve_jtype(&method.jtype, imports, class_map)?);
                 }
                 None
             }
@@ -167,20 +164,13 @@ pub fn resolve_call_chain(
                 }
                 None
             }
-            CallItem::Class { name, range: _ } => {
-                if let Some(c) = resolve(name, imports, class_map) {
-                    return Some(c);
-                }
-                None
-            }
+            CallItem::This { range: _ } => Some(class.clone()),
+            CallItem::Class { name, range: _ } => Some(resolve(name, imports, class_map)?),
             CallItem::ClassOrVariable { name, range: _ } => {
                 if let Some(lo) = lo_va.iter().find(|va| va.name == *name) {
                     return resolve_var(lo, imports, class_map);
                 }
-                if let Some(c) = resolve(name, imports, class_map) {
-                    return Some(c);
-                }
-                None
+                return Ok(resolve(name, imports, class_map)?);
             }
             CallItem::ArgumentList {
                 prev: _,
@@ -193,14 +183,17 @@ pub fn resolve_call_chain(
             ops.push(op);
         }
     }
-    ops.last().cloned()
+    match ops.last() {
+        Some(last) => Ok(last.to_owned()),
+        None => Err(TyresError::CallChainInvalid),
+    }
 }
 
 pub fn resolve_jtype(
     jtype: &JType,
     imports: &[ImportUnit],
     class_map: &DashMap<String, Class>,
-) -> Option<Class> {
+) -> Result<Class, TyresError> {
     match jtype {
         JType::Void
         | JType::Byte
@@ -210,7 +203,7 @@ pub fn resolve_jtype(
         | JType::Int
         | JType::Long
         | JType::Short
-        | JType::Boolean => Some(Class {
+        | JType::Boolean => Ok(Class {
             class_path: "".to_owned(),
             source: "".to_owned(),
             access: vec![],
@@ -218,7 +211,7 @@ pub fn resolve_jtype(
             methods: vec![],
             fields: vec![],
         }),
-        JType::Array(gen) => Some(Class {
+        JType::Array(gen) => Ok(Class {
             class_path: "".to_owned(),
             source: "".to_owned(),
             access: vec![],
@@ -236,17 +229,7 @@ pub fn resolve_jtype(
                 jtype: JType::Int,
             }],
         }),
-        JType::Class(c) => {
-            if let Some(class) = resolve(c, imports, class_map) {
-                return Some(class);
-            }
-            None
-        }
-        JType::Generic(c, _vec) => {
-            if let Some(class) = resolve(c, imports, class_map) {
-                return Some(class);
-            }
-            None
-        }
+        JType::Class(c) => resolve(c, imports, class_map),
+        JType::Generic(c, _vec) => resolve(c, imports, class_map),
     }
 }

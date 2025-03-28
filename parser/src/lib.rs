@@ -1,11 +1,12 @@
 pub mod call_chain;
 mod class;
 pub mod dto;
-mod java;
+pub mod java;
 pub mod loader;
 
 use std::{fmt::Debug, path::Path};
 
+use java::ParseJavaError;
 use loader::SourceDestination;
 
 pub fn update_project_java_file<T: AsRef<Path>>(file: T, bytes: &[u8]) -> Option<dto::Class> {
@@ -44,16 +45,8 @@ where
     class::load_class(&bytes, class_path, source)
 }
 
-pub fn load_java(data: &[u8], source: SourceDestination) -> Result<dto::Class, dto::ClassError> {
+pub fn load_java(data: &[u8], source: SourceDestination) -> Result<dto::Class, ParseJavaError> {
     java::load_java(data, source)
-}
-
-pub fn load_java_fs<T>(path: T, source: SourceDestination) -> Result<dto::Class, dto::ClassError>
-where
-    T: AsRef<Path> + Debug,
-{
-    let bytes = std::fs::read(path)?;
-    java::load_java(&bytes, source)
 }
 
 #[cfg(test)]

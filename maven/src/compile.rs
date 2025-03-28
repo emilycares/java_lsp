@@ -5,6 +5,8 @@ use std::{
     process::Command,
 };
 
+use crate::EXECUTABLE_MAVEN;
+
 pub fn generate_classpath() -> Option<String> {
     let classpath_file = "target/classpath.txt";
 
@@ -14,7 +16,7 @@ pub fn generate_classpath() -> Option<String> {
     }
 
     // mvn dependency:build-classpath -Dmdep.outputFile=target/classpath.txt
-    let output = Command::new("mvn")
+    let output = Command::new(EXECUTABLE_MAVEN)
         .args([
             "dependency:build-classpath",
             "-Dmdep.outputFile=target/classpath.txt",

@@ -2,6 +2,8 @@ use std::process::Command;
 
 use common::compile::{parse_compile_errors, CompileError};
 
+use crate::fetch::PATH_GRADLE;
+
 pub fn compile_java() -> Option<Vec<CompileError>> {
     if let Some(log) = run_compile_java() {
         if let Some(value) = cut_and_parse(log) {
@@ -32,7 +34,7 @@ pub fn cut_log(inp: String) -> String {
 
 fn run_compile_java() -> Option<String> {
     // ./gradlew dependencies --console --plain
-    let output = Command::new("./gradlew")
+    let output = Command::new(PATH_GRADLE)
         .arg("compileJava")
         .arg("-q")
         .output()

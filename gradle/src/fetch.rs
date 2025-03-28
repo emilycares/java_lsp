@@ -10,16 +10,30 @@ use itertools::Itertools;
 use parser::{dto::ClassFolder, loader::SourceDestination};
 use tokio::sync::Mutex;
 
-use crate::tree;
+use crate::tree::{self, GradleTreeError};
+
+#[derive(Debug)]
+pub enum GradleFetchError {
+    Tree(GradleTreeError),
+    NoWorkToDo,
+    CouldNotReadBuildGradle(std::io::Error),
+    CouldNotModifyBuildGradle(std::io::Error),
+    GradlewExecFailed(std::io::Error),
+    CouldNotGetUnpackFolder,
+    StatusCode,
+    StatusCodeErrMessageNotutf8,
+}
 
 #[cfg(target_os = "linux")]
-const PATH_GRADLE: &str = "./gradlew";
+pub(crate) const PATH_GRADLE: &str = "./gradlew";
 #[cfg(target_os = "windows")]
-const PATH_GRADLE: &str = "./gradlew.bat";
+pub(crate) const PATH_GRADLE: &str = "./gradlew.bat";
+
+const GRADLE_FILE_PATH: &str = "./build.gradle";
 
 pub async fn fetch_deps(
     class_map: &DashMap<std::string::String, parser::dto::Class>,
-) -> Option<DashMap<std::string::String, parser::dto::Class>> {
+) -> Result<DashMap<std::string::String, parser::dto::Class>, GradleFetchError> {
     let file_name = ".gradle.cfc";
     let path = Path::new(&file_name);
     if path.exists() {
@@ -28,16 +42,10 @@ pub async fn fetch_deps(
                 class_map.insert(class.class_path.clone(), class);
             }
         }
-        None
+        return Err(GradleFetchError::NoWorkToDo);
     } else {
-        let unpack_folder = unpack_dependencies().unwrap().unwrap();
-        let tree = match tree::load() {
-            Some(tree) => tree,
-            None => {
-                eprintln!("failed to load tree");
-                return None;
-            }
-        };
+        let unpack_folder = unpack_dependencies()?;
+        let tree = tree::load().map_err(|e| GradleFetchError::Tree(e))?;
         let class_map = Arc::new(class_map.clone());
         let maven_class_folder = Arc::new(Mutex::new(ClassFolder::default()));
         let mut handles = Vec::new();
@@ -76,7 +84,7 @@ pub async fn fetch_deps(
         if let Err(e) = parser::loader::save_class_folder("gradle", &guard) {
             eprintln!("Failed to save .gradle.cfc because: {e}");
         };
-        Some(Arc::try_unwrap(class_map).expect("Classmap should be free to take"))
+        Ok(Arc::try_unwrap(class_map).expect("Classmap should be free to take"))
     }
 }
 
@@ -120,51 +128,45 @@ task unpackDependencies(type: Copy) {
     }
 }
 "#;
-fn unpack_dependencies() -> Result<Option<String>, std::io::Error> {
-    let gradle_file_path = "./build.gradle";
-    match fs::read_to_string(gradle_file_path) {
+fn unpack_dependencies() -> Result<String, GradleFetchError> {
+    match fs::read_to_string(GRADLE_FILE_PATH) {
+        Err(e) => Err(GradleFetchError::CouldNotReadBuildGradle(e)),
         Ok(gradle_content) => {
-            let mut gradle_content = gradle_content;
-            gradle_content.push_str(UNPACK_DEPENCENCIES_TASK);
-            match fs::write(gradle_file_path, gradle_content.as_str()) {
-                Ok(_) => match Command::new(PATH_GRADLE).arg("unpackDependencies").output() {
-                    Ok(output) => {
+            if !gradle_content.contains(UNPACK_DEPENCENCIES_TASK) {
+                write_build_gradle(format!("{}\n{}", gradle_content, UNPACK_DEPENCENCIES_TASK))?;
+            }
+            let out = match Command::new(PATH_GRADLE).arg("unpackDependencies").output() {
+                Err(e) => Err(GradleFetchError::GradlewExecFailed(e)),
+                Ok(output) => match output.status.code() {
+                    Some(1) => match std::str::from_utf8(&output.stderr) {
+                        Ok(stderr) => {
+                            eprintln!("Got error from gradle: \n {}", stderr);
+                            Err(GradleFetchError::StatusCode)
+                        }
+                        Err(_) => Err(GradleFetchError::StatusCodeErrMessageNotutf8),
+                    },
+                    Some(_) => {
                         let stdout = std::str::from_utf8(&output.stdout).expect("asd");
-
-                        let modified_gradle_content =
-                            gradle_content.replace(UNPACK_DEPENCENCIES_TASK, "");
-                        match fs::write(gradle_file_path, modified_gradle_content) {
-                            Ok(_) => {
-                                if let Some(path) = get_unpack_folder(stdout) {
-                                    return Ok(Some(path.to_owned()));
-                                }
-                            }
-                            Err(e) => {
-                                eprintln!("[gradle/src/fetch.rs] Failed to write reset {}", e);
-                                return Err(e);
-                            }
+                        match get_unpack_folder(stdout) {
+                            Some(path) => Ok(path.to_owned()),
+                            None => Err(GradleFetchError::CouldNotGetUnpackFolder),
                         }
                     }
-                    Err(e) => {
-                        eprintln!("[gradle/src/fetch.rs] Could not exeute gradlew {}", e);
-                        return Err(e);
-                    }
+                    None => todo!(),
                 },
-                Err(e) => {
-                    eprintln!("[gradle/src/fetch.rs] Failed to modify build.gradle {}", e);
-                    return Err(e);
-                }
-            }
-        }
-        Err(e) => {
-            eprintln!(
-                "[gradle/src/fetch.rs] Could not read {}, {}",
-                gradle_file_path, e
-            );
-            return Err(e);
+            };
+            write_build_gradle(gradle_content)?;
+
+            out
         }
     }
-    Ok(None)
+}
+
+fn write_build_gradle(gradle_content: String) -> Result<(), GradleFetchError> {
+    match fs::write(GRADLE_FILE_PATH, gradle_content) {
+        Err(e) => Err(GradleFetchError::CouldNotModifyBuildGradle(e)),
+        Ok(_) => Ok(()),
+    }
 }
 
 fn get_unpack_folder(stdout: &str) -> Option<&str> {

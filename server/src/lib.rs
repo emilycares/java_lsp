@@ -32,14 +32,14 @@ use lsp_types::{
     CodeActionResponse, CompletionOptions, CompletionParams, CompletionResponse, Diagnostic,
     DidChangeTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
     DocumentFormattingParams, DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams,
-    GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, InitializeParams,
-    InitializedParams, OneOf, Position, ProgressParams, ProgressParamsValue, ProgressToken,
-    PublishDiagnosticsParams, Range, ServerCapabilities, SignatureHelp, SignatureHelpOptions,
-    SignatureHelpParams, TextDocumentContentChangeEvent, TextDocumentItem,
-    TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Uri, WorkDoneProgress,
-    WorkDoneProgressBegin, WorkDoneProgressEnd, WorkspaceSymbolParams, WorkspaceSymbolResponse,
+    GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, InitializeParams, OneOf,
+    Position, ProgressParams, ProgressParamsValue, ProgressToken, PublishDiagnosticsParams, Range,
+    ServerCapabilities, SignatureHelp, SignatureHelpOptions, SignatureHelpParams,
+    TextDocumentContentChangeEvent, TextDocumentItem, TextDocumentSyncCapability,
+    TextDocumentSyncKind, TextEdit, Uri, WorkDoneProgress, WorkDoneProgressBegin,
+    WorkDoneProgressEnd, WorkspaceSymbolParams, WorkspaceSymbolResponse,
 };
-use lsp_types::{SymbolInformation, WorkDoneProgressOptions};
+use lsp_types::{ClientCapabilities, SymbolInformation, WorkDoneProgressOptions};
 use parser::dto::Class;
 use utils::to_treesitter_point;
 
@@ -106,8 +106,8 @@ async fn main_loop(
     backend: Backend<'_>,
     params: serde_json::Value,
 ) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
-    let _params: InitializeParams = serde_json::from_value(params).unwrap_or_default();
-    backend.initialized(InitializedParams {}).await;
+    let params: InitializeParams = serde_json::from_value(params).unwrap_or_default();
+    backend.initialized(params.capabilities).await;
     for msg in &backend.connection.receiver {
         match msg {
             Message::Request(req) => {
@@ -266,8 +266,18 @@ impl Backend<'_> {
         if let Some(mut document) = self.document_map.get_mut(&key) {
             document.replace_text(rope);
         } else {
-            if let Some(doc) = Document::setup_rope(&params.text, path, rope) {
-                self.document_map.insert(key, doc);
+            if let Ok(class) = parser::java::load_java(
+                &params.text.as_bytes(),
+                parser::loader::SourceDestination::None,
+            ) {
+                match Document::setup_rope(&params.text, path, rope, class.class_path) {
+                    Ok(doc) => {
+                        self.document_map.insert(key, doc);
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to setup document: {:?}", e);
+                    }
+                }
             }
         }
     }
@@ -377,19 +387,33 @@ impl Backend<'_> {
         }
     }
 
-    async fn initialized(&self, _: InitializedParams) {
+    async fn initialized(&self, _: ClientCapabilities) {
         eprintln!("Init");
 
         self.progress_start("Load jdk");
-        common::jdk::load_classes(&self.class_map).await;
+        let _ = common::jdk::load_classes(&self.class_map).await;
         self.progress_end("Load jdk");
 
         if self.project_kind != ProjectKind::Unknown {
             let prog_lable = format!("Load {} dependencies", self.project_kind);
             self.progress_start(&prog_lable);
             let cm = match self.project_kind {
-                ProjectKind::Maven => maven::fetch::fetch_deps(&self.class_map).await,
-                ProjectKind::Gradle => gradle::fetch::fetch_deps(&self.class_map).await,
+                ProjectKind::Maven => match maven::fetch::fetch_deps(&self.class_map).await {
+                    Ok(o) => Some(o),
+                    Err(maven::fetch::MavenFetchError::NoWorkToDo) => None,
+                    Err(e) => {
+                        eprintln!("Got error while loading maven project: {e:?}");
+                        None
+                    }
+                },
+                ProjectKind::Gradle => match gradle::fetch::fetch_deps(&self.class_map).await {
+                    Ok(o) => Some(o),
+                    Err(gradle::fetch::GradleFetchError::NoWorkToDo) => None,
+                    Err(e) => {
+                        eprintln!("Got error while loading gradle project: {e:?}");
+                        None
+                    }
+                },
                 ProjectKind::Unknown => None,
             };
             if let Some(cm) = cm {
@@ -456,7 +480,13 @@ impl Backend<'_> {
         let imports = imports::imports(document.value());
         let vars = variable::get_vars(document.value(), &point);
 
-        hover::base(document.value(), &point, &vars, &imports, &self.class_map)
+        match hover::base(document.value(), &point, &vars, &imports, &self.class_map) {
+            Ok(hover) => return Some(hover),
+            Err(e) => {
+                eprintln!("Error while hover: {e:?}");
+                None
+            }
+        }
     }
 
     async fn formatting(&self, params: DocumentFormattingParams) -> Option<Vec<TextEdit>> {
@@ -491,17 +521,33 @@ impl Backend<'_> {
         let vars = variable::get_vars(document.value(), &point);
 
         let imports = imports::imports(document.value());
+        let Some(class) = &self.class_map.get(&document.class_path) else {
+            eprintln!("Could not find class {}", document.class_path);
+            return None;
+        };
 
-        let call_chain = completion::complete_call_chain(
+        let mut do_rest = true;
+        match completion::complete_call_chain(
             document.value(),
             &point,
             &vars,
             &imports,
+            class,
             &self.class_map,
-        );
+        ) {
+            Ok(call_chain) => {
+                if !call_chain.is_empty() {
+                    do_rest = false;
+                }
+                out.extend(call_chain);
+            }
+            Err(e) => {
+                eprintln!("Error while completion: {e:?}");
+            }
+        }
 
         // If there is any extend completion ignore completing vars
-        if call_chain.is_empty() {
+        if do_rest {
             eprintln!("Call chain is emtpy");
             out.extend(completion::static_methods(&imports, &self.class_map));
             out.extend(completion::complete_vars(&vars));
@@ -512,8 +558,6 @@ impl Backend<'_> {
                 &self.class_map,
             ));
         }
-
-        out.extend(call_chain);
 
         Some(CompletionResponse::Array(out))
     }
@@ -533,18 +577,29 @@ impl Backend<'_> {
         let imports = imports::imports(document.value());
         let vars = variable::get_vars(document.value(), &point);
 
-        if let Some(c) = definition::class(document.value(), &point, &imports, &self.class_map) {
-            return Some(c);
+        match definition::class(document.value(), &point, &imports, &self.class_map) {
+            Ok(definition) => return Some(definition),
+            Err(e) => {
+                eprintln!("Error while class completion: {e:?}");
+            }
         }
-        if let Some(value) = definition::call_chain_definition(
+        let Some(class) = &self.class_map.get(&document.class_path) else {
+            eprintln!("Could not find class {}", document.class_path);
+            return None;
+        };
+        match definition::call_chain_definition(
             document.value(),
             uri,
             &point,
             &vars,
             &imports,
+            class,
             &self.class_map,
         ) {
-            return Some(value);
+            Ok(definition) => return Some(definition),
+            Err(e) => {
+                eprintln!("Error while completion: {e:?}");
+            }
         }
         None
     }
@@ -584,8 +639,16 @@ impl Backend<'_> {
         let uri = params.text_document.uri;
 
         let symbols = position::get_symbols(document.as_str());
-        let symbols = position::symbols_to_document_symbols(symbols, uri);
-        Some(DocumentSymbolResponse::Flat(symbols))
+        match symbols {
+            Ok(symbols) => {
+                let symbols = position::symbols_to_document_symbols(symbols, uri);
+                Some(DocumentSymbolResponse::Flat(symbols))
+            }
+            Err(e) => {
+                eprintln!("Error while document symbol: {e:?}");
+                None
+            }
+        }
     }
 
     async fn workspace_document_symbol(
@@ -602,11 +665,23 @@ impl Backend<'_> {
             .into_iter()
             .filter_map(|i| Some((i.clone(), read_to_string(i).ok()?)))
             .map(|(path, src)| (path, position::get_symbols(src.as_str())))
+            .map(|(path, symbols)| {
+                (
+                    path,
+                    match symbols {
+                        Ok(s) => s,
+                        Err(e) => {
+                            eprintln!("Errors with workspace document symbol: {:?}", e);
+                            vec![]
+                        }
+                    },
+                )
+            })
             .filter_map(|(path, symbols)| {
                 let uri = Uri::from_str(&format!("file://{}", path)).ok()?;
                 Some(position::symbols_to_document_symbols(symbols, uri))
             })
-            .flat_map(|i| i)
+            .flatten()
             .collect();
         Some(WorkspaceSymbolResponse::Flat(symbols))
     }
@@ -618,7 +693,17 @@ impl Backend<'_> {
             return None;
         };
         let point = to_treesitter_point(params.text_document_position_params.position);
+        let Some(class) = &self.class_map.get(&document.class_path) else {
+            eprintln!("Could not find class {}", document.class_path);
+            return None;
+        };
 
-        signature::signature_driver(&document, &point, &self.class_map)
+        match signature::signature_driver(&document, &point, class, &self.class_map) {
+            Ok(hover) => return Some(hover),
+            Err(e) => {
+                eprintln!("Error while hover: {e:?}");
+                None
+            }
+        }
     }
 }

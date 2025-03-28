@@ -5,11 +5,18 @@ use tree_sitter_util::{get_node_at_point, get_string_node};
 
 use crate::{
     codeaction,
+    document::DocumentError,
     imports::{self, ImportUnit},
     tyres,
     variable::LocalVariable,
     Document,
 };
+
+#[derive(Debug)]
+pub enum CompletionError {
+    Tyres { tyres_error: tyres::TyresError },
+    Treesitter(DocumentError),
+}
 
 /// Convert list LocalVariable to CompletionItem
 pub fn complete_vars(vars: &[LocalVariable]) -> Vec<CompletionItem> {
@@ -155,16 +162,17 @@ pub fn complete_call_chain(
     point: &Point,
     vars: &[LocalVariable],
     imports: &[ImportUnit],
+    class: &dto::Class,
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
-) -> Vec<CompletionItem> {
+) -> Result<Vec<CompletionItem>, CompletionError> {
     if let Some(call_chain) = get_call_chain(&document.tree, document.as_bytes(), point).as_deref()
     {
-        if let Some(extend_class) = tyres::resolve_call_chain(call_chain, vars, imports, class_map)
-        {
-            return class_unpack(&extend_class);
-        }
+        return match tyres::resolve_call_chain(call_chain, vars, imports, class, class_map) {
+            Ok(class) => Ok(class_unpack(&class)),
+            Err(tyres_error) => Err(CompletionError::Tyres { tyres_error }),
+        };
     }
-    vec![]
+    Ok(vec![])
 }
 
 pub fn classes(
@@ -320,7 +328,15 @@ public class GreetingResource {
     }
 }
         ";
-        let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
+        let class = dto::Class {
+            class_path: "".to_string(),
+            source: "".to_string(),
+            access: vec![dto::Access::Public],
+            name: "Test".to_string(),
+            methods: vec![],
+            fields: vec![],
+        };
         let lo_va = vec![LocalVariable {
             level: 3,
             jtype: dto::JType::Class("String".to_owned()),
@@ -361,9 +377,16 @@ public class GreetingResource {
             },
         );
 
-        let out = complete_call_chain(&doc, &Point::new(25, 24), &lo_va, &imports, &class_map);
+        let out = complete_call_chain(
+            &doc,
+            &Point::new(25, 24),
+            &lo_va,
+            &imports,
+            &class,
+            &class_map,
+        );
         assert_eq!(
-            out,
+            out.unwrap(),
             vec![CompletionItem {
                 label: "length".to_string(),
                 label_details: Some(CompletionItemLabelDetails {
@@ -393,7 +416,7 @@ public class Test {
 
     #[test]
     fn extend_completion_method() {
-        let doc = Document::setup(SYMBOL_METHOD, PathBuf::new()).unwrap();
+        let doc = Document::setup(SYMBOL_METHOD, PathBuf::new(), "".to_string()).unwrap();
         let lo_va = vec![LocalVariable {
             level: 3,
             jtype: dto::JType::Class("String".to_owned()),
@@ -407,6 +430,14 @@ public class Test {
             },
         }];
         let imports = vec![];
+        let class = dto::Class {
+            class_path: "".to_string(),
+            source: "".to_string(),
+            access: vec![dto::Access::Public],
+            name: "Test".to_string(),
+            methods: vec![],
+            fields: vec![],
+        };
         let class_map: DashMap<String, dto::Class> = DashMap::new();
         class_map.insert(
             "java.lang.String".to_string(),
@@ -426,9 +457,16 @@ public class Test {
             },
         );
 
-        let out = complete_call_chain(&doc, &Point::new(8, 40), &lo_va, &imports, &class_map);
+        let out = complete_call_chain(
+            &doc,
+            &Point::new(8, 40),
+            &lo_va,
+            &imports,
+            &class,
+            &class_map,
+        );
         assert_eq!(
-            out,
+            out.unwrap(),
             vec![CompletionItem {
                 label: "concat".to_string(),
                 label_details: Some(CompletionItemLabelDetails {
@@ -519,7 +557,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
         let out = classes(&doc, &Point::new(5, 16), &vec![], &class_map);
         assert_eq!(
@@ -572,7 +610,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
         let out = classes(
             &doc,

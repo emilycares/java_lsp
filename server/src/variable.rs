@@ -360,11 +360,11 @@ fn parse_catch(
     cursor.first_child();
     cursor.first_child();
 
-    let ty = get_string(&cursor, bytes);
+    let ty = get_string(cursor, bytes);
 
     cursor.parent();
     cursor.sibling();
-    let name = get_string(&cursor, bytes);
+    let name = get_string(cursor, bytes);
     out.push(LocalVariable {
         level,
         jtype: parse_jtype(ty),
@@ -433,7 +433,7 @@ public class Test {
     }
 }
         ";
-        let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
         let out = get_vars(&doc, &Point::new(12, 17));
         assert_eq!(
@@ -560,7 +560,7 @@ public class Test {
      
 }
         ";
-        let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
         let out = get_vars(&doc, &Point::new(4, 6));
         assert_eq!(
@@ -600,7 +600,7 @@ public class Test {
     }
 }
         ";
-        let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
         let out = get_vars(&doc, &Point::new(12, 17));
         assert_eq!(
@@ -737,7 +737,7 @@ public class Test {
     }
 }
         ";
-        let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
         let out = get_vars(&doc, &Point::new(8, 54));
         assert_eq!(
@@ -867,7 +867,7 @@ public class Test {
     }
 }
         "#;
-        let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
         let out = get_vars(&doc, &Point::new(8, 54));
         assert_eq!(

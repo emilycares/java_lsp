@@ -9,7 +9,10 @@ use dashmap::DashMap;
 use parser::{dto::ClassFolder, loader::SourceDestination};
 use tokio::{process::Command, sync::Mutex};
 
-use crate::tree::{self, Pom};
+use crate::{
+    tree::{self, Pom},
+    EXECUTABLE_MAVEN,
+};
 
 // New plan for resolving sources from mavnen classes and sources
 // Inside of a class we must konw the dependency identifier. to load the source and docs for the
@@ -43,9 +46,16 @@ use crate::tree::{self, Pom};
 // currently in. (There might be overwrites. Less important) But we should only find test classes
 // from a test. And not from the implementation
 
+#[derive(Debug)]
+pub enum MavenFetchError {
+    NoWorkToDo,
+    NoHomeFound,
+    Tree(tree::MavenTreeError),
+}
+
 pub async fn fetch_deps(
     class_map: &DashMap<std::string::String, parser::dto::Class>,
-) -> Option<DashMap<std::string::String, parser::dto::Class>> {
+) -> Result<DashMap<std::string::String, parser::dto::Class>, MavenFetchError> {
     let file_name = ".maven.cfc";
     let path = Path::new(&file_name);
     if path.exists() {
@@ -54,36 +64,30 @@ pub async fn fetch_deps(
                 class_map.insert(class.class_path.clone(), class);
             }
         }
-        None
+        Err(MavenFetchError::NoWorkToDo)
     } else {
         // mvn dependency:unpack-dependencies -Dmdep.useRepositoryLayout=true
-        let unpack = Command::new("mvn")
+        let unpack = Command::new(EXECUTABLE_MAVEN)
             .args([
                 "dependency:unpack-dependencies",
                 "-Dmdep.useRepositoryLayout=true",
             ])
             .output();
         // mvn dependency:resolve -Dclassifier=sources
-        let res_src = Command::new("mvn")
+        let res_src = Command::new(EXECUTABLE_MAVEN)
             .args(["dependency:resolve", "-Dclassifier=sources"])
             .output();
         // mvn dependency:resolve -Dclassifier=javadoc
-        let res_doc = Command::new("mvn")
+        let res_doc = Command::new(EXECUTABLE_MAVEN)
             .args(["dependency:resolve", "-Dclassifier=javadoc"])
             .output();
 
         let _ = futures::future::join3(unpack, res_src, res_doc).await;
 
-        let tree = match tree::load() {
-            Ok(tree) => tree,
-            Err(e) => {
-                eprintln!("failed to load tree: {:?}", e);
-                return None;
-            }
-        };
+        let tree = tree::load().map_err(|e| MavenFetchError::Tree(e))?;
         let Some(home) = dirs::home_dir() else {
             eprintln!("Could not find home");
-            return None;
+            return Err(MavenFetchError::NoHomeFound);
         };
         let m2 = home.join(".m2");
         let m2 = Arc::new(m2);
@@ -124,7 +128,7 @@ pub async fn fetch_deps(
         if let Err(e) = parser::loader::save_class_folder("maven", &guard) {
             eprintln!("Failed to save .maven.cfc because: {e}");
         };
-        Some(Arc::try_unwrap(class_map).expect("Classmap should be free to take"))
+        Ok(Arc::try_unwrap(class_map).expect("Classmap should be free to take"))
     }
 }
 
