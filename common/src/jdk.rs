@@ -103,7 +103,6 @@ async fn load_jmods(mut path: PathBuf, jmod_executable: PathBuf) -> Result<Class
     src_zip = src_zip.join("lib").join("src");
     src_zip.set_extension("zip");
     unzip_to_dir(&source_dir, &src_zip)?;
-    let source_dir = op_dir.join("classes");
 
     let mut jmods = path.join("jmods");
     if !jmods.exists() {

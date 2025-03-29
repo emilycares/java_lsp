@@ -123,6 +123,11 @@ pub fn get_call_chain(
                 out.extend(parse_value(&cursor, bytes));
                 cursor.parent();
             }
+            "assignment_expression" => {
+                cursor.first_child();
+                out.extend(parse_value(&cursor, bytes));
+                cursor.parent();
+            }
             _ => {}
         }
 
@@ -1982,6 +1987,44 @@ public class Test {
                         end_point: Point { row: 4, column: 28 }
                     }
                 }
+            ])
+        );
+    }
+
+    #[test]
+    fn call_chain_this_set() {
+        let content = r#"
+package ch.emilycares;
+public class Test {
+    public String hello() {
+      this.asd = "a";
+      return "";
+    }
+}
+"#;
+        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 13));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::This {
+                    range: Range {
+                        start_byte: 78,
+                        end_byte: 82,
+                        start_point: Point { row: 4, column: 6 },
+                        end_point: Point { row: 4, column: 10 }
+                    }
+                },
+                CallItem::FieldAccess {
+                    name: "asd".to_string(),
+                    range: Range {
+                        start_byte: 83,
+                        end_byte: 86,
+                        start_point: Point { row: 4, column: 11 },
+                        end_point: Point { row: 4, column: 14 }
+                    }
+                },
             ])
         );
     }
