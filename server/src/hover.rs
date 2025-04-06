@@ -24,6 +24,7 @@ pub enum HoverError {
     LocalVariableNotFound { name: String },
     Unimlemented,
     NoClass(String),
+    ArgumentNotFound,
 }
 
 pub fn base(
@@ -35,18 +36,35 @@ pub fn base(
 ) -> Result<Hover, HoverError> {
     let tree = &document.tree;
     let bytes = document.as_bytes();
-    match class_action(tree, bytes, point, imports, class_map) {
+    match class_action(tree, bytes, point, lo_va, imports, class_map) {
         Ok((class, range)) => {
+            eprintln!(".... class  hover");
             return Ok(class_to_hover(class, range));
         }
         Err(ClassActionError::NotFound) => {}
-        Err(e) => return Err(HoverError::ClassActon(e)),
+        Err(ClassActionError::VariableFound { var, range }) => {
+            return Ok(variables_to_hover(vec![&var], range));
+        }
+        Err(e) => eprintln!("class action hover error: {:?}", e),
     };
     let Some(class) = class_map.get(&document.class_path) else {
         return Err(HoverError::NoClass(document.class_path.clone()));
     };
 
-    call_chain_hover(document, point, lo_va, imports, class.value(), class_map)
+    let Some(call_chain) = call_chain::get_call_chain(&document.tree, document.as_bytes(), point)
+    else {
+        return Err(HoverError::CallChainEmpty);
+    };
+
+    call_chain_hover(
+        document,
+        call_chain,
+        point,
+        lo_va,
+        imports,
+        class.value(),
+        class_map,
+    )
 }
 
 #[allow(dead_code)]
@@ -57,13 +75,20 @@ pub enum ClassActionError {
     /// Under the cursor there was no text
     CouldNotGetNode,
     /// In the type resolution error
-    Tyres { tyres_error: tyres::TyresError },
+    Tyres {
+        tyres_error: tyres::TyresError,
+    },
+    VariableFound {
+        var: LocalVariable,
+        range: Range,
+    },
 }
 
 pub fn class_action(
     tree: &tree_sitter::Tree,
     bytes: &[u8],
     point: &Point,
+    lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Result<(dto::Class, Range), ClassActionError> {
@@ -85,6 +110,12 @@ pub fn class_action(
                 range: _,
             }) = class_or_variable(n, bytes)
             {
+                if let Some(var) = lo_va.iter().find(|v| v.name == class) {
+                    return Err(ClassActionError::VariableFound {
+                        var: var.clone(),
+                        range: to_lsp_range(n.range()),
+                    });
+                }
                 return match tyres::resolve(&class, imports, class_map) {
                     Ok(class) => Ok((class, to_lsp_range(n.range()))),
                     Err(tyres_error) => Err(ClassActionError::Tyres { tyres_error }),
@@ -98,17 +129,13 @@ pub fn class_action(
 
 pub fn call_chain_hover(
     document: &Document,
+    call_chain: Vec<CallItem>,
     point: &Point,
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &dto::Class,
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Result<Hover, HoverError> {
-    let Some(call_chain) = call_chain::get_call_chain(&document.tree, document.as_bytes(), point)
-    else {
-        return Err(HoverError::CallChainEmpty);
-    };
-
     let (item, relevat) = call_chain::validate(&call_chain, point);
     let Some(el) = call_chain.get(item) else {
         return Err(HoverError::ValidatedItemDoesNotExists);
@@ -186,10 +213,23 @@ pub fn call_chain_hover(
         }
         CallItem::ArgumentList {
             prev: _,
-            active_param: _,
-            filled_params: _,
+            active_param,
+            filled_params,
             range: _,
-        } => unimplemented!(),
+        } => {
+            if let Some(current_param) = filled_params.get(*active_param) {
+                return call_chain_hover(
+                    document,
+                    current_param.clone(),
+                    point,
+                    lo_va,
+                    imports,
+                    &class,
+                    class_map,
+                );
+            }
+            Err(HoverError::ArgumentNotFound)
+        }
         CallItem::This { range: _ } => Err(HoverError::Unimlemented),
     };
 }
@@ -281,7 +321,7 @@ mod tests {
     use std::path::PathBuf;
 
     use dashmap::DashMap;
-    use parser::dto;
+    use parser::{call_chain, dto};
     use tree_sitter::Point;
 
     use crate::{
@@ -303,7 +343,14 @@ public class Test {
         let tree = &doc.tree;
         let bytes = doc.as_bytes();
 
-        let out = class_action(tree, bytes, &Point::new(3, 14), &[], &string_class_map());
+        let out = class_action(
+            tree,
+            bytes,
+            &Point::new(3, 14),
+            &[],
+            &[],
+            &string_class_map(),
+        );
         assert!(out.is_ok());
     }
 
@@ -322,7 +369,14 @@ public class Test {
         let tree = &doc.tree;
         let bytes = doc.as_bytes();
 
-        let out = class_action(tree, bytes, &Point::new(3, 9), &[], &string_class_map());
+        let out = class_action(
+            tree,
+            bytes,
+            &Point::new(3, 9),
+            &[],
+            &[],
+            &string_class_map(),
+        );
         assert!(out.is_ok());
     }
 
@@ -349,7 +403,8 @@ public class Test {
         let point = Point::new(5, 29);
         let vars = variable::get_vars(&doc, &point);
 
-        let out = call_chain_hover(&doc, &point, &vars, &[], &class, &string_class_map());
+        let chain = call_chain::get_call_chain(&doc.tree, doc.as_bytes(), &point).unwrap();
+        let out = call_chain_hover(&doc, chain, &point, &vars, &[], &class, &string_class_map());
         assert!(out.is_ok());
     }
 

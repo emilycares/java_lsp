@@ -133,20 +133,18 @@ async fn load_jmods(mut path: PathBuf, jmod_executable: PathBuf) -> Result<Class
                 let jmod_executable = jmod_executable.clone();
                 let jmods_dir = jmods_dir.clone();
                 if let Ok(jmod) = jmod {
-                    eprintln!("jmod there");
                     if let Ok(ft) = jmod.file_type() {
                         if !ft.is_file() {
                             continue;
                         }
                     }
                     let jmod = jmod.path();
-                    eprintln!("jmod isfile {:?}", &jmod);
                     if let Some(jmod_name) = jmod
                         .file_name()
                         .and_then(|n| n.to_str())
                         .map(|n| n.to_string())
                     {
-                        eprintln!("jmod found jmod_name: {}", &jmod_name);
+                        eprintln!("jmod found: {}", &jmod_name);
                         let jmod_display = jmod_name.trim_end_matches(".jmod").to_owned();
 
                         handles.push(tokio::spawn(async move {

@@ -210,6 +210,9 @@ fn get_method_vars(
         cursor.parent();
     }
     cursor.sibling();
+    if cursor.node().kind() == "throws" {
+        cursor.sibling();
+    }
     parse_block(bytes, out, level, &mut cursor);
 }
 
@@ -1129,6 +1132,52 @@ public class Test {
                             row: 28,
                             column: 23,
                         },
+                    },
+                },
+            ]
+        );
+    }
+    #[test]
+    fn get_catch_val_with_throws_method() {
+        let content = r#"
+package ch.emilycares;
+public class Test {
+    protected void ioStuff() throws IOException {
+        try {
+        } catch (IOException eoeoeoeooe) {
+            printResponse(eoeoeoeooe);
+        }
+    }
+}
+        "#;
+        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
+
+        let out = get_vars(&doc, &Point::new(6, 46));
+        assert_eq!(
+            out,
+            vec![
+                LocalVariable {
+                    level: 2,
+                    jtype: dto::JType::Void,
+                    name: "ioStuff".to_string(),
+                    is_fun: true,
+                    range: tree_sitter::Range {
+                        start_byte: 63,
+                        end_byte: 70,
+                        start_point: Point { row: 3, column: 19 },
+                        end_point: Point { row: 3, column: 26 },
+                    },
+                },
+                LocalVariable {
+                    level: 4,
+                    jtype: dto::JType::Class("IOException".to_string()),
+                    name: "eoeoeoeooe".to_string(),
+                    is_fun: false,
+                    range: Range {
+                        start_byte: 137,
+                        end_byte: 147,
+                        start_point: Point { row: 5, column: 29 },
+                        end_point: Point { row: 5, column: 39 },
                     },
                 },
             ]

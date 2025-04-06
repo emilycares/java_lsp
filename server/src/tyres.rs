@@ -28,6 +28,12 @@ pub enum ImportResult {
     Class(String),
     StaticClass(String),
 }
+fn class_path_match_class_name(class_path: &str, name: &str) -> bool {
+    if let Some((_, c)) = class_path.rsplit_once(".") {
+        return c == name;
+    }
+    false
+}
 
 pub fn is_imported<'a>(
     jtype: &'a str,
@@ -36,13 +42,13 @@ pub fn is_imported<'a>(
 ) -> Option<ImportResult> {
     imports.iter().find_map(|i| match i {
         ImportUnit::Class(c) => {
-            if c.ends_with(jtype) {
+            if class_path_match_class_name(c, &jtype) {
                 return Some(ImportResult::Class(c.to_string()));
             }
             None
         }
         ImportUnit::StaticClass(c) => {
-            if c.ends_with(jtype) {
+            if class_path_match_class_name(c, &jtype) {
                 return Some(ImportResult::StaticClass(c.to_string()));
             }
             None
@@ -175,9 +181,14 @@ pub fn resolve_call_chain(
             CallItem::ArgumentList {
                 prev: _,
                 range: _,
-                active_param: _,
-                filled_params: _,
-            } => None,
+                active_param,
+                filled_params,
+            } => {
+                if let Some(current_param) = filled_params.get(*active_param) {
+                    return resolve_call_chain(&current_param, lo_va, imports, class, class_map);
+                }
+                None
+            }
         };
         if let Some(op) = op {
             ops.push(op);

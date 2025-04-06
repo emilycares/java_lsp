@@ -40,6 +40,7 @@ use lsp_types::{
     WorkDoneProgressEnd, WorkspaceSymbolParams, WorkspaceSymbolResponse,
 };
 use lsp_types::{ClientCapabilities, SymbolInformation, WorkDoneProgressOptions};
+use parser::call_chain::get_call_chain;
 use parser::dto::Class;
 use utils::to_treesitter_point;
 
@@ -460,13 +461,15 @@ impl Backend<'_> {
         let errors = self.compile(path.as_str());
         self.publish_compile_errors(errors).await;
 
-        let Some(document) = self.document_map.get_mut(params.text_document.uri.as_str()) else {
+        let Some(mut document) = self.document_map.get_mut(params.text_document.uri.as_str())
+        else {
             eprintln!("no doc found");
             return;
         };
         if let Some(class) =
             parser::update_project_java_file(PathBuf::from(path.as_str()), document.as_bytes())
         {
+            document.class_path = class.class_path.clone();
             self.class_map.insert(class.class_path.clone(), class);
         }
     }
@@ -577,20 +580,31 @@ impl Backend<'_> {
         let imports = imports::imports(document.value());
         let vars = variable::get_vars(document.value(), &point);
 
-        match definition::class(document.value(), &point, &imports, &self.class_map) {
+        match definition::class(
+            document.value(),
+            &uri,
+            &point,
+            &vars,
+            &imports,
+            &self.class_map,
+        ) {
             Ok(definition) => return Some(definition),
             Err(e) => {
-                eprintln!("Error while class completion: {e:?}");
+                eprintln!("Error while class definition: {e:?}");
             }
         }
         let Some(class) = &self.class_map.get(&document.class_path) else {
             eprintln!("Could not find class {}", document.class_path);
             return None;
         };
+        let Some(call_chain) = get_call_chain(&document.tree, document.as_bytes(), &point) else {
+            eprintln!("Defintion could not get callchain");
+            return None;
+        };
         match definition::call_chain_definition(
-            document.value(),
             uri,
             &point,
+            &call_chain,
             &vars,
             &imports,
             class,
