@@ -68,17 +68,17 @@ fn load_old(mut path: PathBuf) -> Result<ClassFolder, JdkError> {
     let jdk_name = path.file_name();
 
     let op_dir = opdir(jdk_name);
+    let jre_lib = path.join("jre").join("lib");
+
     let source_dir = op_dir.join("src");
     let mut src_zip = path.join("src");
     src_zip.set_extension("zip");
     unzip_to_dir(&source_dir, &src_zip)?;
-
     let classes_dir = op_dir.join("classes");
-
-    let mut rt_jar = path.join("jre").join("lib").join("rt");
+    let mut rt_jar = jre_lib.join("rt");
     rt_jar.set_extension("jar");
     unzip_to_dir(&classes_dir, &rt_jar)?;
-    let classes = parser::loader::load_classes(
+    let mut classes = parser::loader::load_classes(
         &classes_dir,
         SourceDestination::RelativeInFolder(
             source_dir
@@ -87,7 +87,40 @@ fn load_old(mut path: PathBuf) -> Result<ClassFolder, JdkError> {
                 .to_owned(),
         ),
     );
+
+    load_javafx(path, op_dir, jre_lib, &mut classes)?;
     Ok(classes)
+}
+
+fn load_javafx(
+    path: PathBuf,
+    op_dir: PathBuf,
+    jre_lib: PathBuf,
+    classes: &mut ClassFolder,
+) -> Result<(), JdkError> {
+    let source_dir_jfx = op_dir.join("src_jfx");
+    let mut src_zip_jfx = path.join("javafx-src");
+    src_zip_jfx.set_extension("zip");
+    if src_zip_jfx.exists() {
+        unzip_to_dir(&source_dir_jfx, &src_zip_jfx)?;
+        let classes_dir_jfx = op_dir.join("classes_jfx");
+        let mut jfxrt = jre_lib.join("ext").join("jfxrt");
+        jfxrt.set_extension("jar");
+        if jfxrt.exists() {
+            unzip_to_dir(&classes_dir_jfx, &jfxrt)?;
+            let classes_jfx = parser::loader::load_classes(
+                &classes_dir_jfx,
+                SourceDestination::RelativeInFolder(
+                    source_dir_jfx
+                        .to_str()
+                        .expect("Should be represented as string")
+                        .to_owned(),
+                ),
+            );
+            classes.append(classes_jfx);
+        }
+    }
+    Ok(())
 }
 
 async fn load_jmods(mut path: PathBuf, jmod_executable: PathBuf) -> Result<ClassFolder, JdkError> {

@@ -1,33 +1,47 @@
 use std::{process::Command, str::FromStr};
 
-use nom::branch::alt;
-use nom::Parser;
-use nom::{
-    bytes::complete::{tag, take_until},
-    multi::separated_list0,
-    sequence::delimited,
-    IResult,
-};
 use serde::{Deserialize, Serialize};
 
 use crate::EXECUTABLE_MAVEN;
 
 #[derive(Debug)]
 pub enum MavenTreeError {
-    Tree(nom::Err<nom::error::Error<&'static str>>),
     Cli(std::io::Error),
     UnknownDependencyScope,
 }
 
-pub fn load<'a>() -> Result<Dependency, MavenTreeError> {
+pub fn load() -> Result<Dependency, MavenTreeError> {
     let log: String = get_cli_output()?;
     let cut: String = cut_output(log);
-    let input: &'static str = Box::leak(cut.into_boxed_str());
-    let out = parser(input);
-    match out {
-        Ok(o) => Ok(o.1),
-        Err(e) => Err(MavenTreeError::Tree(e)),
+
+    parser(cut)
+}
+
+fn parser(cut: String) -> Result<Dependency, MavenTreeError> {
+    let mut out: Vec<Pom> = vec![];
+    for line in cut.lines() {
+        let line = line.trim_start_matches("[INFO]").trim();
+        let Some((_, line)) = line.split_once("-> \"") else {
+            continue;
+        };
+        let mut spl = line.split(":");
+        let group_id = spl.next().unwrap_or_default().to_string();
+        let artivact_id = spl.next().unwrap_or_default().to_string();
+        spl.next();
+        let version = spl.next().unwrap_or_default().to_string();
+        let scope = spl.next().unwrap_or_default();
+        let Some((scope, _)) = scope.split_once("\"") else {
+            continue;
+        };
+        let scope: DependencyScope = scope.parse()?;
+        out.push(Pom {
+            group_id,
+            artivact_id,
+            version,
+            scope,
+        });
     }
+    Ok(Dependency { deps: out })
 }
 
 fn get_cli_output() -> Result<String, MavenTreeError> {
@@ -67,11 +81,10 @@ fn cut_output(inp: String) -> String {
 
 #[derive(PartialEq, Debug, Serialize, Deserialize)]
 pub struct Dependency {
-    pub base: Pom,
     pub deps: Vec<Pom>,
 }
 
-#[derive(PartialEq, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Serialize, Deserialize, Default)]
 pub struct Pom {
     pub group_id: String,
     pub artivact_id: String,
@@ -104,72 +117,12 @@ impl FromStr for DependencyScope {
             "test" => Ok(Self::Test),
             "system" => Ok(Self::System),
             "import" => Ok(Self::Import),
-            _ => Err(MavenTreeError::UnknownDependencyScope),
+            other => {
+                eprintln!("Other dep scope: {}", other);
+                Err(MavenTreeError::UnknownDependencyScope)
+            }
         }
     }
-}
-
-fn parse_pom(input: &str) -> IResult<&str, Pom> {
-    let (input, group_id) = take_until(":")(input)?;
-    let (input, _) = tag(":")(input)?;
-    let (input, artivact_id) = take_until(":")(input)?;
-    let (input, _) = tag(":")(input)?;
-    let (input, _type) = take_until(":")(input)?;
-    let (input, _) = tag(":")(input)?;
-    let (input, version) = take_until("\"")(input)?;
-    Ok((
-        input,
-        Pom {
-            group_id: group_id.to_string(),
-            artivact_id: artivact_id.to_string(),
-            version: version.to_string(),
-            scope: DependencyScope::Test,
-        },
-    ))
-}
-fn parse_pom_b(input: &str) -> IResult<&str, Pom> {
-    let (input, group_id) = take_until(":")(input)?;
-    let (input, _) = tag(":")(input)?;
-    let (input, artivact_id) = take_until(":")(input)?;
-    let (input, _) = tag(":")(input)?;
-    let (input, _type) = take_until(":")(input)?;
-    let (input, _) = tag(":")(input)?;
-    let (input, version) = take_until(":")(input)?;
-    let (input, _) = tag(":")(input)?;
-    let (input, scope) = take_until("\"")(input)?;
-    Ok((
-        input,
-        Pom {
-            group_id: group_id.to_string(),
-            artivact_id: artivact_id.to_string(),
-            version: version.to_string(),
-            scope: scope.parse().expect("UnknownDependencyScope"),
-        },
-    ))
-}
-fn parse_relation(input: &str) -> IResult<&str, Pom> {
-    let (input, _) = take_until(" -> ")(input)?;
-    let (input, _) = tag(" -> ")(input)?;
-    let (input, out) = delimited(tag("\""), parse_pom_b, tag("\"")).parse(input)?;
-
-    Ok((input, out))
-}
-
-fn parser(input: &str) -> IResult<&str, Dependency> {
-    let (input, _) = tag("[INFO] digraph ")(input)?;
-    let (input, base) = delimited(tag("\""), parse_pom, tag("\"")).parse(input)?;
-    let (input, _) = alt((tag(" {\n[INFO]  "), tag(" { \n[INFO] \t"))).parse(input)?;
-    let (input, deps) = separated_list0(
-        alt((tag(" ;\n[INFO]  "), tag(" ; \n[INFO] \t"))),
-        parse_relation,
-    )
-    .parse(input)?;
-
-    let (input, _) = take_until("[INFO]")(input)?;
-    let (input, _) = tag("[INFO]  }")(input)?;
-    let (input, _) = take_until("\n")(input)?;
-    let (input, _) = tag("\n")(input)?;
-    Ok((input, Dependency { base, deps }))
 }
 
 #[cfg(test)]
@@ -192,17 +145,11 @@ mod tests {
     fn parse_diagram() {
         let inp = include_str!("../tests/tverify.bacic.txt");
         let cut = cut_output(inp.to_string());
-        let out = parser(&cut);
+        let out = parser(cut);
         let out = out.unwrap();
         assert_eq!(
-            out.1,
+            out,
             Dependency {
-                base: Pom {
-                    group_id: "org.acme".to_string(),
-                    artivact_id: "getting-started".to_string(),
-                    version: "1.0.0-SNAPSHOT".to_string(),
-                    scope: crate::tree::DependencyScope::Test
-                },
                 deps: vec![
                     Pom {
                         group_id: "io.quarkus".to_string(),
@@ -1430,17 +1377,11 @@ mod tests {
     #[test]
     fn parse_diagram_with_tab() {
         let inp = include_str!("../tests/tverify-tap.bacic.txt");
-        let out = parser(inp);
+        let out = parser(inp.to_string());
         let out = out.unwrap();
         assert_eq!(
-            out.1,
+            out,
             Dependency {
-                base: Pom {
-                    group_id: "ch.emilycares".to_string(),
-                    artivact_id: "quarkus-test".to_string(),
-                    version: "1.0.0-SNAPSHOT".to_string(),
-                    scope: crate::tree::DependencyScope::Test
-                },
                 deps: vec![
                     Pom {
                         group_id: "io.quarkus".to_string(),
