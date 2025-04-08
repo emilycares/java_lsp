@@ -4,7 +4,7 @@ use lsp_types::{
 };
 use parser::{
     call_chain::{self, CallItem},
-    dto::{self, Class},
+    dto::{self, Class, ImportUnit},
 };
 
 use crate::{
@@ -39,7 +39,7 @@ pub fn signature_driver(
 }
 pub fn get_signature(
     call_chain: Vec<CallItem>,
-    imports: &Vec<imports::ImportUnit<'_>>,
+    imports: &Vec<ImportUnit>,
     vars: &Vec<variable::LocalVariable>,
     class: &Class,
     class_map: &DashMap<std::string::String, parser::dto::Class>,
@@ -156,6 +156,7 @@ pub mod tests {
                 class_path: "".to_string(),
                 source: "".to_string(),
                 access: vec![dto::Access::Public],
+                imports: vec![],
                 name: "String".to_string(),
                 methods: vec![dto::Method {
                     access: vec![dto::Access::Public],
@@ -174,6 +175,7 @@ pub mod tests {
             class_path: "".to_string(),
             source: "".to_string(),
             access: vec![dto::Access::Public],
+            imports: vec![],
             name: "Test".to_string(),
             methods: vec![],
             fields: vec![],
@@ -217,6 +219,7 @@ public class Test {
                 class_path: "".to_string(),
                 source: "".to_string(),
                 access: vec![dto::Access::Public],
+                imports: vec![],
                 name: "String".to_string(),
                 methods: vec![
                     dto::Method {
@@ -253,6 +256,7 @@ public class Test {
             class_path: "".to_string(),
             source: "".to_string(),
             access: vec![dto::Access::Public],
+            imports: vec![],
             name: "Test".to_string(),
             methods: vec![],
             fields: vec![],
@@ -313,6 +317,7 @@ public class Test {
                 class_path: "".to_string(),
                 source: "".to_string(),
                 access: vec![dto::Access::Public],
+                imports: vec![],
                 name: "String".to_string(),
                 methods: vec![
                     dto::Method {
@@ -349,6 +354,7 @@ public class Test {
             class_path: "".to_string(),
             source: "".to_string(),
             access: vec![dto::Access::Public],
+            imports: vec![],
             name: "Test".to_string(),
             methods: vec![],
             fields: vec![],

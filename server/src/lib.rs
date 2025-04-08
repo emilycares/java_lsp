@@ -18,7 +18,7 @@ use common::compile::CompileError;
 use common::project_kind::ProjectKind;
 use dashmap::{DashMap, DashSet};
 use document::Document;
-use lsp_types::request::SignatureHelpRequest;
+use lsp_types::request::{References, SignatureHelpRequest};
 use lsp_types::{
     notification::{
         DidChangeTextDocument, DidOpenTextDocument, DidSaveTextDocument, Notification, Progress,
@@ -39,9 +39,11 @@ use lsp_types::{
     TextDocumentSyncKind, TextEdit, Uri, WorkDoneProgress, WorkDoneProgressBegin,
     WorkDoneProgressEnd, WorkspaceSymbolParams, WorkspaceSymbolResponse,
 };
-use lsp_types::{ClientCapabilities, SymbolInformation, WorkDoneProgressOptions};
+use lsp_types::{
+    ClientCapabilities, Location, ReferenceParams, SymbolInformation, WorkDoneProgressOptions,
+};
 use parser::call_chain::get_call_chain;
-use parser::dto::Class;
+use parser::dto::{Class, ImportUnit};
 use utils::to_treesitter_point;
 
 use lsp_server::{Connection, Message, Response};
@@ -56,6 +58,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
         project_kind,
         document_map: DashMap::new(),
         class_map: DashMap::new(),
+        import_map: HashMap::new(),
     };
 
     // Run the server and wait for the two threads to end (typically by trigger LSP Exit event).
@@ -64,6 +67,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
             TextDocumentSyncKind::INCREMENTAL,
         )),
         definition_provider: Some(OneOf::Left(true)),
+        references_provider: Some(OneOf::Left(true)),
         code_action_provider: Some(CodeActionProviderCapability::Options(CodeActionOptions {
             code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
             ..CodeActionOptions::default()
@@ -104,7 +108,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
 }
 
 async fn main_loop(
-    backend: Backend<'_>,
+    mut backend: Backend<'_>,
     params: serde_json::Value,
 ) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
     let params: InitializeParams = serde_json::from_value(params).unwrap_or_default();
@@ -154,6 +158,16 @@ async fn main_loop(
                     Completion::METHOD => {
                         if let Ok(params) = serde_json::from_value::<CompletionParams>(req.params) {
                             let result = backend.completion(params).await;
+                            let _ = backend.connection.sender.send(Message::Response(Response {
+                                id: req.id,
+                                result: serde_json::to_value(result).ok(),
+                                error: None,
+                            }));
+                        }
+                    }
+                    References::METHOD => {
+                        if let Ok(params) = serde_json::from_value::<ReferenceParams>(req.params) {
+                            let result = backend.referneces(params).await;
                             let _ = backend.connection.sender.send(Message::Response(Response {
                                 id: req.id,
                                 result: serde_json::to_value(result).ok(),
@@ -249,6 +263,7 @@ struct Backend<'a> {
     project_kind: ProjectKind,
     document_map: DashMap<String, Document>,
     class_map: DashMap<String, Class>,
+    import_map: HashMap<String, Vec<ImportUnit>>,
     connection: &'a Connection,
 }
 impl Backend<'_> {
@@ -388,7 +403,7 @@ impl Backend<'_> {
         }
     }
 
-    async fn initialized(&self, _: ClientCapabilities) {
+    async fn initialized(&mut self, _: ClientCapabilities) {
         eprintln!("Init");
 
         self.progress_start("Load jdk");
@@ -432,6 +447,7 @@ impl Backend<'_> {
             ProjectKind::Gradle => gradle::project::load_project_folders(),
             ProjectKind::Unknown => vec![],
         };
+        self.import_map = imports::init_import_map(&project_classes);
         for class in project_classes {
             self.class_map.insert(class.class_path.clone(), class);
         }
@@ -617,6 +633,37 @@ impl Backend<'_> {
         }
         None
     }
+
+    async fn referneces(&self, params: ReferenceParams) -> Option<Vec<Location>> {
+        let params = params.text_document_position;
+        let uri = params.text_document.uri;
+        let Some(document) = self.document_map.get_mut(uri.as_str()) else {
+            eprintln!("Document is not opened.");
+            return None;
+        };
+        if let Some(crefs) = self.import_map.get(&document.class_path) {
+            return Some(
+                crefs
+                    .iter()
+                    .filter_map(|i| match i {
+                        ImportUnit::Package(_) => None,
+                        ImportUnit::Class(s) => self.class_map.get(s),
+                        ImportUnit::StaticClass(_) => None,
+                        ImportUnit::StaticClassMethod(_, _) => None,
+                        ImportUnit::Prefix(_) => None,
+                        ImportUnit::StaticPrefix(_) => None,
+                    })
+                    .filter_map(|r| definition::class_to_uri(r.value()).ok())
+                    .map(|i| Location {
+                        uri: i,
+                        range: Range::default(),
+                    })
+                    .collect(),
+            );
+        }
+        None
+    }
+
     async fn code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
         let Some(document) = self.document_map.get_mut(params.text_document.uri.as_str()) else {
             eprintln!("Document is not opened.");

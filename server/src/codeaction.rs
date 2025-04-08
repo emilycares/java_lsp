@@ -3,10 +3,11 @@ use std::collections::HashMap;
 use lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, Position, Range, TextEdit, Uri, WorkspaceEdit,
 };
+use parser::dto::ImportUnit;
 use tree_sitter::{Point, Tree};
 use tree_sitter_util::CommentSkiper;
 
-use crate::{imports::ImportUnit, tyres, utils::to_lsp_position};
+use crate::{tyres, utils::to_lsp_position};
 
 pub fn import_jtype<'a>(
     tree: &Tree,

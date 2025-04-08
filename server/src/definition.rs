@@ -3,13 +3,12 @@ use std::{fs::read_to_string, path::PathBuf, str::FromStr};
 use lsp_types::{GotoDefinitionResponse, Location, Uri};
 use parser::{
     call_chain::{self, CallItem},
-    dto,
+    dto::{self, ImportUnit},
 };
 use tree_sitter::Point;
 
 use crate::{
     hover::{class_action, ClassActionError},
-    imports::ImportUnit,
     position::{self, PositionSymbol},
     tyres::{self, TyresError},
     utils::to_lsp_range,
@@ -145,7 +144,7 @@ fn get_source_content(extend_class: &dto::Class) -> Result<String, DefinitionErr
     })
 }
 
-fn class_to_uri(class: &dto::Class) -> Result<Uri, DefinitionError> {
+pub fn class_to_uri(class: &dto::Class) -> Result<Uri, DefinitionError> {
     let str_uri = format!("file://{}", class.source.replace("\\", "/"));
     let uri = Uri::from_str(&str_uri);
     match uri {

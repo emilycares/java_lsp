@@ -1,12 +1,11 @@
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
 use parser::{
     call_chain::{self, class_or_variable, CallItem},
-    dto::{self},
+    dto::{self, ImportUnit},
 };
 use tree_sitter::Point;
 
 use crate::{
-    imports::ImportUnit,
     tyres::{self, TyresError},
     utils::to_lsp_range,
     variable::LocalVariable,
@@ -386,6 +385,7 @@ public class Test {
             class_path: "".to_string(),
             source: "".to_string(),
             access: vec![dto::Access::Public],
+            imports: vec![],
             name: "Test".to_string(),
             methods: vec![],
             fields: vec![],
@@ -416,6 +416,7 @@ public class Test {
                 class_path: "".to_string(),
                 source: "".to_string(),
                 access: vec![dto::Access::Public],
+                imports: vec![],
                 name: "String".to_string(),
                 methods: vec![dto::Method {
                     access: vec![dto::Access::Public],

@@ -1,17 +1,13 @@
+use std::collections::HashMap;
+
+use parser::{
+    dto::{Class, ImportUnit},
+    java::parse_import_declarations,
+};
 use tree_sitter::Tree;
 use tree_sitter_util::CommentSkiper;
 
 use crate::Document;
-
-#[derive(Debug, PartialEq, Eq, Hash)]
-pub enum ImportUnit<'a> {
-    Package(&'a str),
-    Class(&'a str),
-    StaticClass(&'a str),
-    StaticClassMethod(&'a str, &'a str),
-    Prefix(&'a str),
-    StaticPrefix(&'a str),
-}
 
 pub fn is_imported(imports: &[ImportUnit], class_path: &str) -> bool {
     for inp in imports {
@@ -58,59 +54,23 @@ pub fn imports(document: &Document) -> Vec<ImportUnit> {
 }
 
 #[allow(dead_code)]
-fn get_imported_classpaths<'a>(bytes: &'a [u8], tree: &Tree) -> Vec<ImportUnit<'a>> {
+fn get_imported_classpaths<'a>(bytes: &'a [u8], tree: &Tree) -> Vec<ImportUnit> {
     let mut out = vec![];
     let mut cursor = tree.walk();
     cursor.first_child();
 
     cursor.first_child();
     cursor.sibling();
-    let package = cursor.node().utf8_text(bytes).unwrap_or_default();
+    let package = cursor
+        .node()
+        .utf8_text(bytes)
+        .unwrap_or_default()
+        .to_string();
     out.push(ImportUnit::Package(package));
     cursor.parent();
 
     cursor.sibling();
-    while let "import_declaration" = cursor.node().kind() {
-        cursor.first_child();
-        cursor.sibling();
-        let mut stat = false;
-        let mut prefix = false;
-        if cursor.node().kind() == "static" {
-            stat = true;
-            cursor.sibling();
-        }
-
-        // skip import when not correctly formated
-        if cursor.node().kind() == "scoped_identifier" {
-            let class_path = cursor.node().utf8_text(bytes).unwrap_or_default();
-            if cursor.sibling() {
-                if cursor.node().kind() == "." {
-                    cursor.sibling();
-                }
-                if cursor.node().kind() == "asterisk" {
-                    prefix = true;
-                }
-            }
-
-            let imp = match (stat, prefix) {
-                (true, true) => ImportUnit::StaticPrefix(class_path),
-                (true, false) => match class_path.rsplit_once(".") {
-                    Some((class, method)) => {
-                        match method.chars().next().unwrap_or_default().is_lowercase() {
-                            true => ImportUnit::StaticClassMethod(class, method),
-                            false => ImportUnit::StaticClass(class_path),
-                        }
-                    }
-                    None => ImportUnit::StaticClass(class_path),
-                },
-                (false, true) => ImportUnit::Prefix(class_path),
-                (false, false) => ImportUnit::Class(class_path),
-            };
-            out.push(imp);
-        }
-        cursor.parent();
-        cursor.sibling();
-    }
+    out.extend(parse_import_declarations(bytes, &mut cursor));
 
     out
 }
@@ -136,11 +96,14 @@ public class Controller {}";
         assert_eq!(
             get_imported_classpaths(demo.as_bytes(), &tree),
             vec![
-                ImportUnit::Package("heh.haha"),
-                ImportUnit::Class("java.util.List"),
-                ImportUnit::Class("java.util.stream.Collectors"),
-                ImportUnit::StaticClass("org.junit.jupiter.api.Assertions"),
-                ImportUnit::StaticClassMethod("org.junit.jupiter.api.Assertions", "assertEquals")
+                ImportUnit::Package("heh.haha".to_string()),
+                ImportUnit::Class("java.util.List".to_string()),
+                ImportUnit::Class("java.util.stream.Collectors".to_string()),
+                ImportUnit::StaticClass("org.junit.jupiter.api.Assertions".to_string()),
+                ImportUnit::StaticClassMethod(
+                    "org.junit.jupiter.api.Assertions".to_string(),
+                    "assertEquals".to_string()
+                )
             ]
         );
     }
@@ -157,10 +120,49 @@ public class Controller {}";
         assert_eq!(
             get_imported_classpaths(demo.as_bytes(), &tree),
             vec![
-                ImportUnit::Package("heh.haha"),
-                ImportUnit::Prefix("java.util"),
-                ImportUnit::StaticPrefix("java.util")
+                ImportUnit::Package("heh.haha".to_string()),
+                ImportUnit::Prefix("java.util".to_string()),
+                ImportUnit::StaticPrefix("java.util".to_string())
             ]
         );
     }
+}
+
+pub fn init_import_map(project_classes: &[Class]) -> HashMap<String, Vec<ImportUnit>> {
+    let mut out: HashMap<String, Vec<ImportUnit>> = HashMap::new();
+    for class in project_classes {
+        for import in &class.imports {
+            match import {
+                ImportUnit::Package(_) => (),
+                ImportUnit::Class(s) => match out.contains_key(s) {
+                    true => {
+                        if let Some(a) = out.get_mut(s) {
+                            a.push(ImportUnit::Class(class.class_path.clone()));
+                        }
+                    }
+                    false => {
+                        out.insert(s.clone(), vec![ImportUnit::Class(class.class_path.clone())]);
+                    }
+                },
+                ImportUnit::StaticClass(s) => match out.contains_key(s) {
+                    true => {
+                        if let Some(a) = out.get_mut(s) {
+                            a.push(ImportUnit::StaticClass(class.class_path.clone()));
+                        }
+                    }
+                    false => {
+                        out.insert(
+                            s.clone(),
+                            vec![ImportUnit::StaticClass(class.class_path.clone())],
+                        );
+                    }
+                },
+                ImportUnit::StaticClassMethod(_, _) => (),
+                ImportUnit::Prefix(_) => (),
+                ImportUnit::StaticPrefix(_) => (),
+            }
+        }
+    }
+    eprintln!("{:#?}", out);
+    out
 }

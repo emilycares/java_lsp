@@ -40,9 +40,26 @@ pub struct Class {
     pub class_path: String,
     pub source: String,
     pub access: Vec<Access>,
+    pub imports: Vec<ImportUnit>,
     pub name: String,
     pub methods: Vec<Method>,
     pub fields: Vec<Field>,
+}
+impl Class {
+    pub fn no_imports(mut self) -> Self {
+        self.imports = vec![];
+        self
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum ImportUnit {
+    Package(String),
+    Class(String),
+    StaticClass(String),
+    StaticClassMethod(String, String),
+    Prefix(String),
+    StaticPrefix(String),
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]

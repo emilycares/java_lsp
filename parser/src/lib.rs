@@ -55,11 +55,14 @@ mod tests {
 
     #[cfg(test)]
     pub fn everything_data() -> dto::Class {
+        use crate::dto::ImportUnit;
+
         dto::Class {
             source: "".to_string(),
             class_path: "ch.emilycares.Everything".to_string(),
             name: "Everything".to_string(),
             access: vec![],
+            imports: vec![ImportUnit::Package("ch.emilycares".to_string())],
             methods: vec![
                 dto::Method {
                     access: vec![],

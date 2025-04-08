@@ -43,6 +43,7 @@ pub fn load_class(
             Ok(dto::Class {
                 source,
                 class_path,
+                imports: vec![],
                 access: parse_class_access(c.access_flags),
                 name: match &c.const_pool[(c.this_class - 1) as usize] {
                     ConstantInfo::Class(class) => lookup_string(&c, class.name_index)
@@ -313,7 +314,10 @@ mod tests {
             SourceDestination::None,
         );
 
-        assert_eq!(crate::tests::everything_data(), result.unwrap());
+        assert_eq!(
+            crate::tests::everything_data().no_imports(),
+            result.unwrap()
+        );
     }
     #[test]
     fn thrower() {
@@ -323,6 +327,9 @@ mod tests {
             SourceDestination::Here("/path/to/source/Thrower.java".to_string()),
         );
 
-        assert_eq!(crate::java::tests::thrower_data(), result.unwrap());
+        assert_eq!(
+            crate::java::tests::thrower_data().no_imports(),
+            result.unwrap()
+        );
     }
 }

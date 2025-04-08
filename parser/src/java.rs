@@ -1,6 +1,9 @@
 use tree_sitter_util::{CommentSkiper, TreesitterError};
 
-use crate::{dto, loader::SourceDestination};
+use crate::{
+    dto::{self, ImportUnit},
+    loader::SourceDestination,
+};
 
 #[derive(Debug)]
 pub enum ParseJavaError {
@@ -14,6 +17,7 @@ pub fn load_java(
     source: SourceDestination,
 ) -> Result<crate::dto::Class, ParseJavaError> {
     let (_, tree) = tree_sitter_util::parse(bytes).map_err(|e| ParseJavaError::Treesitter(e))?;
+    let mut imports = vec![];
     let mut methods = vec![];
     let mut fields = vec![];
     let mut class_name = None;
@@ -24,13 +28,13 @@ pub fn load_java(
     if cursor.node().kind() == "package_declaration" {
         cursor.first_child();
         cursor.sibling();
-        class_path_base = Some(get_string(&cursor, bytes));
+        let package = get_string(&cursor, bytes);
+        class_path_base = Some(package.clone());
+        imports.push(ImportUnit::Package(package));
         cursor.parent();
     }
     cursor.sibling();
-    while let "import_declaration" = cursor.node().kind() {
-        cursor.sibling();
-    }
+    imports.extend(parse_import_declarations(bytes, &mut cursor));
     match cursor.node().kind() {
         "class_declaration" => {
             cursor.first_child();
@@ -109,10 +113,66 @@ pub fn load_java(
         source,
         class_path: format!("{}.{}", class_path_base, name),
         access: vec![],
+        imports,
         name,
         methods,
         fields,
     })
+}
+
+pub fn parse_import_declarations(
+    bytes: &[u8],
+    cursor: &mut tree_sitter::TreeCursor,
+) -> Vec<ImportUnit> {
+    let mut out = vec![];
+    while let "import_declaration" = cursor.node().kind() {
+        cursor.first_child();
+        cursor.sibling();
+        let mut stat = false;
+        let mut prefix = false;
+        if cursor.node().kind() == "static" {
+            stat = true;
+            cursor.sibling();
+        }
+
+        // skip import when not correctly formated
+        if cursor.node().kind() == "scoped_identifier" {
+            let class_path = cursor
+                .node()
+                .utf8_text(bytes)
+                .unwrap_or_default()
+                .to_string();
+            if cursor.sibling() {
+                if cursor.node().kind() == "." {
+                    cursor.sibling();
+                }
+                if cursor.node().kind() == "asterisk" {
+                    prefix = true;
+                }
+            }
+
+            let imp = match (stat, prefix) {
+                (true, true) => ImportUnit::StaticPrefix(class_path),
+                (true, false) => match class_path.rsplit_once(".") {
+                    Some((class, method)) => {
+                        match method.chars().next().unwrap_or_default().is_lowercase() {
+                            true => {
+                                ImportUnit::StaticClassMethod(class.to_string(), method.to_string())
+                            }
+                            false => ImportUnit::StaticClass(class_path),
+                        }
+                    }
+                    None => ImportUnit::StaticClass(class_path),
+                },
+                (false, true) => ImportUnit::Prefix(class_path),
+                (false, false) => ImportUnit::Class(class_path),
+            };
+            out.push(imp);
+        }
+        cursor.parent();
+        cursor.sibling();
+    }
+    out
 }
 
 fn parse_interface_method(cursor: &mut tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> dto::Method {
@@ -350,7 +410,7 @@ pub mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::{
-        dto::{self, Access, JType, Method, Parameter},
+        dto::{self, Access, ImportUnit, JType, Method, Parameter},
         loader::SourceDestination,
     };
 
@@ -386,6 +446,7 @@ public class Test {
                 class_path: "a.test.Test".to_string(),
                 source: "/path/to/source/Test.java".to_string(),
                 access: vec![],
+                imports: vec![ImportUnit::Package("a.test".to_string())],
                 name: "Test".to_string(),
                 methods: vec![Method {
                     access: vec![Access::Static, Access::Public],
@@ -487,6 +548,7 @@ public class Test {
                 class_path: "a.test.Test".to_string(),
                 source: "/path/to/source/Test.java".to_string(),
                 access: vec![],
+                imports: vec![ImportUnit::Package("a.test".to_string())],
                 name: "Test".to_string(),
                 methods: vec![Method {
                     access: vec![Access::Static, Access::Public],
@@ -517,6 +579,10 @@ public class Test {
             class_path: "ch.emilycares.Thrower".to_string(),
             source: "/path/to/source/Thrower.java".to_string(),
             access: vec![],
+            imports: vec![
+                ImportUnit::Package("ch.emilycares".to_string()),
+                ImportUnit::Class("java.io.IOException".to_string()),
+            ],
             name: "Thrower".to_string(),
             methods: vec![
                 Method {
@@ -556,7 +622,7 @@ public class Test {
     #[test]
     fn interface() {
         let result = load_java(
-            include_bytes!("../test/Interface.java"),
+            include_bytes!("../test/Constants.java"),
             SourceDestination::RelativeInFolder("/path/to/source".to_string()),
         );
 
@@ -566,6 +632,12 @@ public class Test {
                 class_path: "ch.emilycares.Constants".to_string(),
                 source: "/path/to/source/ch/emilycares/Constants.java".to_string(),
                 access: vec![],
+                imports: vec![
+                    ImportUnit::Package("ch.emilycares".to_string()),
+                    ImportUnit::Class("jdk.net.Sockets".to_string()),
+                    ImportUnit::Class("java.io.IOException".to_string()),
+                    ImportUnit::Class("java.net.Socket".to_string()),
+                ],
                 name: "Constants".to_string(),
                 methods: vec![
                     dto::Method {
@@ -616,7 +688,7 @@ public class Test {
     #[test]
     fn jenum() {
         let result = load_java(
-            include_bytes!("../test/Enum.java"),
+            include_bytes!("../test/Variants.java"),
             SourceDestination::RelativeInFolder("/path/to/source".to_string()),
         );
         assert_eq!(
@@ -625,6 +697,7 @@ public class Test {
                 class_path: "ch.emilycares.Variants".to_string(),
                 source: "/path/to/source/ch/emilycares/Variants.java".to_string(),
                 access: vec![],
+                imports: vec![ImportUnit::Package("ch.emilycares".to_string())],
                 name: "Variants".to_string(),
                 methods: vec![],
                 fields: vec![
@@ -681,6 +754,12 @@ public class Test {
                 class_path: "a.test.Test".to_string(),
                 source: "/path/to/source/a/test/Test.java".to_string(),
                 access: vec![],
+                imports: vec![
+                    ImportUnit::Package("a.test".to_string()),
+                    ImportUnit::Class("jakarta.inject.Inject".to_string()),
+                    ImportUnit::Class("jakarta.ws.rs.GET".to_string()),
+                    ImportUnit::Class("jakarta.ws.rs.Path".to_string())
+                ],
                 name: "Test".to_string(),
                 methods: vec![],
                 fields: vec![]

@@ -1,12 +1,15 @@
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat};
-use parser::{call_chain::get_call_chain, dto};
+use parser::{
+    call_chain::get_call_chain,
+    dto::{self, ImportUnit},
+};
 use tree_sitter::{Point, Tree};
 use tree_sitter_util::{get_node_at_point, get_string_node};
 
 use crate::{
     codeaction,
     document::DocumentError,
-    imports::{self, ImportUnit},
+    imports::{self},
     tyres,
     variable::LocalVariable,
     Document,
@@ -213,7 +216,7 @@ pub fn classes(
                     };
                     cname.starts_with(&text)
                 })
-                .filter_map(|class_path| class_map.get(*class_path))
+                .filter_map(|class_path| class_map.get(class_path))
                 .map(|c| class_describe(&c, None)),
         );
         out.extend(
@@ -257,14 +260,14 @@ pub fn static_methods(
             ImportUnit::Class(_) => vec![],
             ImportUnit::StaticClass(_) => vec![],
             ImportUnit::StaticClassMethod(c, m) => class_map
-                .get(*c)
+                .get(c)
                 .into_iter()
                 .flat_map(|class| class.methods.clone())
                 .filter(|f| f.name == *m)
                 .collect(),
             ImportUnit::Prefix(_) => vec![],
             ImportUnit::StaticPrefix(c) => class_map
-                .get(*c)
+                .get(c)
                 .into_iter()
                 .flat_map(|class| class.methods.clone())
                 .collect(),
@@ -283,13 +286,12 @@ mod tests {
         CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat, Position,
         Range, TextEdit,
     };
-    use parser::dto;
+    use parser::dto::{self, ImportUnit};
     use pretty_assertions::assert_eq;
     use tree_sitter::Point;
 
     use crate::{
         completion::{classes, complete_call_chain},
-        imports::ImportUnit,
         variable::LocalVariable,
         Document,
     };
@@ -333,6 +335,7 @@ public class GreetingResource {
             class_path: "".to_string(),
             source: "".to_string(),
             access: vec![dto::Access::Public],
+            imports: vec![],
             name: "Test".to_string(),
             methods: vec![],
             fields: vec![],
@@ -350,13 +353,13 @@ public class GreetingResource {
             },
         }];
         let imports = vec![
-            ImportUnit::Class("jakarta.inject.Inject"),
-            ImportUnit::Class("jakarta.ws.rs.GET"),
-            ImportUnit::Class("jakarta.ws.rs.Path"),
-            ImportUnit::Class("jakarta.ws.rs.Produces"),
-            ImportUnit::Class("jakarta.ws.rs.core.MediaType"),
-            ImportUnit::Class("io.quarkus.qute.TemplateInstance"),
-            ImportUnit::Class("io.quarkus.qute.Template"),
+            ImportUnit::Class("jakarta.inject.Inject".to_string()),
+            ImportUnit::Class("jakarta.ws.rs.GET".to_string()),
+            ImportUnit::Class("jakarta.ws.rs.Path".to_string()),
+            ImportUnit::Class("jakarta.ws.rs.Produces".to_string()),
+            ImportUnit::Class("jakarta.ws.rs.core.MediaType".to_string()),
+            ImportUnit::Class("io.quarkus.qute.TemplateInstance".to_string()),
+            ImportUnit::Class("io.quarkus.qute.Template".to_string()),
         ];
         let class_map: DashMap<String, dto::Class> = DashMap::new();
         class_map.insert(
@@ -365,6 +368,7 @@ public class GreetingResource {
                 class_path: "".to_string(),
                 source: "".to_string(),
                 access: vec![dto::Access::Public],
+                imports: imports.clone(),
                 name: "String".to_string(),
                 methods: vec![dto::Method {
                     access: vec![dto::Access::Public],
@@ -434,6 +438,7 @@ public class Test {
             class_path: "".to_string(),
             source: "".to_string(),
             access: vec![dto::Access::Public],
+            imports: vec![],
             name: "Test".to_string(),
             methods: vec![],
             fields: vec![],
@@ -445,6 +450,7 @@ public class Test {
                 class_path: "".to_string(),
                 source: "".to_string(),
                 access: vec![dto::Access::Public],
+                imports: vec![],
                 name: "String".to_string(),
                 methods: vec![dto::Method {
                     access: vec![dto::Access::Public],
@@ -541,6 +547,7 @@ public class Test {
                 class_path: "java.lang.StringBuilder".to_string(),
                 source: "".to_string(),
                 access: vec![dto::Access::Public],
+                imports: vec![],
                 name: "StringBuilder".to_string(),
                 methods: vec![],
                 fields: vec![],
@@ -593,6 +600,7 @@ public class Test {
                 class_path: "java.lang.StringBuilder".to_string(),
                 source: "".to_string(),
                 access: vec![dto::Access::Public],
+                imports: vec![],
                 name: "StringBuilder".to_string(),
                 methods: vec![],
                 fields: vec![],
@@ -615,7 +623,7 @@ public class Test {
         let out = classes(
             &doc,
             &Point::new(6, 16),
-            &vec![ImportUnit::Class("java.lang.StringBuilder")],
+            &vec![ImportUnit::Class("java.lang.StringBuilder".to_string())],
             &class_map,
         );
         assert_eq!(

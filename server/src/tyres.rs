@@ -3,10 +3,10 @@ use std::ops::Deref;
 use dashmap::DashMap;
 use parser::{
     call_chain::CallItem,
-    dto::{self, Class, JType},
+    dto::{self, Class, ImportUnit, JType},
 };
 
-use crate::{imports::ImportUnit, variable::LocalVariable};
+use crate::variable::LocalVariable;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TyresError {
@@ -218,6 +218,7 @@ pub fn resolve_jtype(
             class_path: "".to_owned(),
             source: "".to_owned(),
             access: vec![],
+            imports: vec![],
             name: "".to_string(),
             methods: vec![],
             fields: vec![],
@@ -226,6 +227,7 @@ pub fn resolve_jtype(
             class_path: "".to_owned(),
             source: "".to_owned(),
             access: vec![],
+            imports: vec![],
             name: "array".to_string(),
             methods: vec![dto::Method {
                 access: vec![],

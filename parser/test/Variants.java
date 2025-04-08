@@ -4,8 +4,8 @@ public enum Variants {
     B("b"),
     C("c");
 
-    private String tag;
-    ICAPMode(String tag) {
+    private final String tag;
+    private Variants(String tag) {
         this.tag = tag;
     }
 
