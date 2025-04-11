@@ -28,12 +28,6 @@ pub enum ImportResult {
     Class(String),
     StaticClass(String),
 }
-fn class_path_match_class_name(class_path: &str, name: &str) -> bool {
-    if let Some((_, c)) = class_path.rsplit_once(".") {
-        return c == name;
-    }
-    false
-}
 
 pub fn is_imported<'a>(
     jtype: &'a str,
@@ -42,13 +36,13 @@ pub fn is_imported<'a>(
 ) -> Option<ImportResult> {
     imports.iter().find_map(|i| match i {
         ImportUnit::Class(c) => {
-            if class_path_match_class_name(c, &jtype) {
+            if ImportUnit::class_path_match_class_name(c, &jtype) {
                 return Some(ImportResult::Class(c.to_string()));
             }
             None
         }
         ImportUnit::StaticClass(c) => {
-            if class_path_match_class_name(c, &jtype) {
+            if ImportUnit::class_path_match_class_name(c, &jtype) {
                 return Some(ImportResult::StaticClass(c.to_string()));
             }
             None
@@ -214,33 +208,20 @@ pub fn resolve_jtype(
         | JType::Int
         | JType::Long
         | JType::Short
-        | JType::Boolean => Ok(Class {
-            class_path: "".to_owned(),
-            source: "".to_owned(),
-            access: vec![],
-            imports: vec![],
-            name: "".to_string(),
-            methods: vec![],
-            fields: vec![],
-        }),
+        | JType::Boolean => Ok(Class::default()),
         JType::Array(gen) => Ok(Class {
-            class_path: "".to_owned(),
-            source: "".to_owned(),
-            access: vec![],
-            imports: vec![],
             name: "array".to_string(),
             methods: vec![dto::Method {
-                access: vec![],
                 name: "clone".to_string(),
                 ret: JType::Array(gen.clone()),
-                parameters: vec![],
-                throws: vec![],
+                ..Default::default()
             }],
             fields: vec![dto::Field {
                 access: vec![],
                 name: "length".to_string(),
                 jtype: JType::Int,
             }],
+            ..Default::default()
         }),
         JType::Class(c) => resolve(c, imports, class_map),
         JType::Generic(c, _vec) => resolve(c, imports, class_map),

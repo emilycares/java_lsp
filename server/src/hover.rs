@@ -382,13 +382,9 @@ public class Test {
     #[test]
     fn method_hover() {
         let class = dto::Class {
-            class_path: "".to_string(),
-            source: "".to_string(),
             access: vec![dto::Access::Public],
-            imports: vec![],
             name: "Test".to_string(),
-            methods: vec![],
-            fields: vec![],
+            ..Default::default()
         };
         let content = "
 package ch.emilycares;
@@ -413,19 +409,15 @@ public class Test {
         class_map.insert(
             "java.lang.String".to_string(),
             dto::Class {
-                class_path: "".to_string(),
-                source: "".to_string(),
                 access: vec![dto::Access::Public],
-                imports: vec![],
                 name: "String".to_string(),
                 methods: vec![dto::Method {
                     access: vec![dto::Access::Public],
                     name: "length".to_string(),
-                    parameters: vec![],
                     ret: dto::JType::Int,
-                    throws: vec![],
+                    ..Default::default()
                 }],
-                fields: vec![],
+                ..Default::default()
             },
         );
         class_map

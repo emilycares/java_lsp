@@ -332,13 +332,9 @@ public class GreetingResource {
         ";
         let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
         let class = dto::Class {
-            class_path: "".to_string(),
-            source: "".to_string(),
             access: vec![dto::Access::Public],
-            imports: vec![],
             name: "Test".to_string(),
-            methods: vec![],
-            fields: vec![],
+            ..Default::default()
         };
         let lo_va = vec![LocalVariable {
             level: 3,
@@ -365,19 +361,16 @@ public class GreetingResource {
         class_map.insert(
             "java.lang.String".to_string(),
             dto::Class {
-                class_path: "".to_string(),
-                source: "".to_string(),
                 access: vec![dto::Access::Public],
                 imports: imports.clone(),
                 name: "String".to_string(),
                 methods: vec![dto::Method {
                     access: vec![dto::Access::Public],
                     name: "length".to_string(),
-                    parameters: vec![],
                     ret: dto::JType::Int,
-                    throws: vec![],
+                    ..Default::default()
                 }],
-                fields: vec![],
+                ..Default::default()
             },
         );
 
@@ -435,31 +428,23 @@ public class Test {
         }];
         let imports = vec![];
         let class = dto::Class {
-            class_path: "".to_string(),
-            source: "".to_string(),
             access: vec![dto::Access::Public],
-            imports: vec![],
             name: "Test".to_string(),
-            methods: vec![],
-            fields: vec![],
+            ..Default::default()
         };
         let class_map: DashMap<String, dto::Class> = DashMap::new();
         class_map.insert(
             "java.lang.String".to_string(),
             dto::Class {
-                class_path: "".to_string(),
-                source: "".to_string(),
                 access: vec![dto::Access::Public],
-                imports: vec![],
                 name: "String".to_string(),
                 methods: vec![dto::Method {
                     access: vec![dto::Access::Public],
                     name: "concat".to_string(),
-                    parameters: vec![],
                     ret: dto::JType::Class("java.lang.String".to_string()),
-                    throws: vec![],
+                    ..Default::default()
                 }],
-                fields: vec![],
+                ..Default::default()
             },
         );
 
@@ -545,12 +530,9 @@ public class Test {
             "java.lang.StringBuilder".to_string(),
             dto::Class {
                 class_path: "java.lang.StringBuilder".to_string(),
-                source: "".to_string(),
                 access: vec![dto::Access::Public],
-                imports: vec![],
                 name: "StringBuilder".to_string(),
-                methods: vec![],
-                fields: vec![],
+                ..Default::default()
             },
         );
         let content = "
@@ -598,12 +580,9 @@ public class Test {
             "java.lang.StringBuilder".to_string(),
             dto::Class {
                 class_path: "java.lang.StringBuilder".to_string(),
-                source: "".to_string(),
                 access: vec![dto::Access::Public],
-                imports: vec![],
                 name: "StringBuilder".to_string(),
-                methods: vec![],
-                fields: vec![],
+                ..Default::default()
             },
         );
         let content = "

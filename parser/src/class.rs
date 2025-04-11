@@ -43,22 +43,30 @@ pub fn load_class(
             Ok(dto::Class {
                 source,
                 class_path,
+                super_class: match lookup_class_name(&c, c.super_class.into()) {
+                    Some(c) if c == "Object" => dto::SuperClass::None,
+                    Some(c) => dto::SuperClass::Name(c),
+                    None => dto::SuperClass::None,
+                },
                 imports: vec![],
                 access: parse_class_access(c.access_flags),
-                name: match &c.const_pool[(c.this_class - 1) as usize] {
-                    ConstantInfo::Class(class) => lookup_string(&c, class.name_index)
-                        .expect("Class to have name")
-                        .split("/")
-                        .last()
-                        .unwrap()
-                        .to_string(),
-                    _ => "".to_string(),
-                },
+                name: lookup_class_name(&c, c.this_class.into()).expect("Class should have name"),
                 methods,
                 fields,
             })
         }
         _ => Err(ClassError::ParseError),
+    }
+}
+
+fn lookup_class_name(c: &ClassFile, index: usize) -> Option<String> {
+    match c.const_pool.get(index.saturating_sub(1)) {
+        Some(ConstantInfo::Class(class)) => lookup_string(&c, class.name_index)
+            .expect("Class to have name")
+            .split("/")
+            .last()
+            .map(|a| a.to_string()),
+        _ => None,
     }
 }
 
@@ -318,6 +326,16 @@ mod tests {
             crate::tests::everything_data().no_imports(),
             result.unwrap()
         );
+    }
+    #[test]
+    fn super_base() {
+        let result = load_class(
+            include_bytes!("../test/Super.class"),
+            "ch.emilycares.Super".to_string(),
+            SourceDestination::None,
+        );
+
+        assert_eq!(crate::tests::super_data().no_imports(), result.unwrap());
     }
     #[test]
     fn thrower() {

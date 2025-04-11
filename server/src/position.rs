@@ -1,6 +1,6 @@
 use lsp_types::{Location, SymbolInformation, SymbolKind, Uri};
 use streaming_iterator::StreamingIterator;
-use tree_sitter::{Query, QueryCursor};
+use tree_sitter::{Query, QueryCursor, Tree};
 use tree_sitter_util::get_string_node;
 
 use crate::utils::to_lsp_range;
@@ -11,7 +11,9 @@ pub enum PosionError {
 }
 
 pub fn get_class_position(source: &str, name: &str) -> Result<Vec<PositionSymbol>, PosionError> {
+    let (_, tree) = tree_sitter_util::parse(source).map_err(|e| PosionError::Treesitter(e))?;
     get_item_ranges(
+        &tree,
         source,
         "
         (class_declaration name: (identifier)@capture )
@@ -25,7 +27,9 @@ pub fn get_class_position(source: &str, name: &str) -> Result<Vec<PositionSymbol
 }
 
 pub fn get_method_positions(source: &str, name: &str) -> Result<Vec<PositionSymbol>, PosionError> {
+    let (_, tree) = tree_sitter_util::parse(source).map_err(|e| PosionError::Treesitter(e))?;
     get_item_ranges(
+        &tree,
         source,
         "(method_declaration name: (identifier)@capture )",
         Some(name),
@@ -33,7 +37,9 @@ pub fn get_method_positions(source: &str, name: &str) -> Result<Vec<PositionSymb
 }
 
 pub fn get_field_positions(source: &str, name: &str) -> Result<Vec<PositionSymbol>, PosionError> {
+    let (_, tree) = tree_sitter_util::parse(source).map_err(|e| PosionError::Treesitter(e))?;
     get_item_ranges(
+        &tree,
         source,
         "(field_declaration declarator: (variable_declarator name: (identifier)@capture ))",
         Some(name),
@@ -64,7 +70,9 @@ impl PositionSymbol {
 }
 
 pub fn get_symbols(source: &str) -> Result<Vec<PositionSymbol>, PosionError> {
+    let (_, tree) = tree_sitter_util::parse(source).map_err(|e| PosionError::Treesitter(e))?;
     get_item_ranges(
+        &tree,
         source,
         "
         (class_declaration name: (identifier)@capture )
@@ -74,6 +82,20 @@ pub fn get_symbols(source: &str) -> Result<Vec<PositionSymbol>, PosionError> {
         (record_declaration name: (identifier)@capture )
         ",
         None,
+    )
+}
+
+pub fn get_type_usage(source: &str, name: &str) -> Result<Vec<PositionSymbol>, PosionError> {
+    let (_, tree) = tree_sitter_util::parse(source).map_err(|e| PosionError::Treesitter(e))?;
+    get_item_ranges(
+        &tree,
+        source,
+        "
+        (type_identifier)@capture
+        (field_access object: (identifier)@capture )
+        (method_invocation object: (identifier)@capture )
+        ",
+        Some(name),
     )
 }
 
@@ -110,11 +132,11 @@ pub fn symbols_to_document_symbols(
         .collect()
 }
 pub fn get_item_ranges<'a>(
+    tree: &Tree,
     source: &'a str,
     query: &'a str,
     name: Option<&str>,
 ) -> Result<Vec<PositionSymbol>, PosionError> {
-    let (_, tree) = tree_sitter_util::parse(source).map_err(|e| PosionError::Treesitter(e))?;
     let query =
         Query::new(&tree_sitter_java::LANGUAGE.into(), query).expect("Query should be okey");
     let bytes = source.as_bytes();
@@ -152,7 +174,8 @@ mod tests {
     use tree_sitter::{Point, Range};
 
     use crate::position::{
-        get_class_position, get_field_positions, get_method_positions, PositionSymbol,
+        get_class_position, get_field_positions, get_method_positions, get_type_usage,
+        PositionSymbol,
     };
 
     #[test]
@@ -215,5 +238,17 @@ public class Test {}
                 end_point: Point { row: 2, column: 17 },
             }),])
         );
+    }
+    #[test]
+    fn type_usage_base() {
+        let content = r#"
+package ch.emilycares;
+public class Test {
+private StringBuilder sb = new StringBuilder();
+}
+"#;
+        let out = get_type_usage(content, "StringBuilder");
+
+        assert_eq!(out.unwrap().iter().count(), 2);
     }
 }

@@ -35,7 +35,7 @@ impl ClassFolder {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
 pub struct Class {
     pub class_path: String,
     pub source: String,
@@ -44,12 +44,21 @@ pub struct Class {
     pub name: String,
     pub methods: Vec<Method>,
     pub fields: Vec<Field>,
+    pub super_class: SuperClass,
 }
 impl Class {
     pub fn no_imports(mut self) -> Self {
         self.imports = vec![];
         self
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
+pub enum SuperClass {
+    #[default]
+    None,
+    Name(String),
+    ClassPath(String),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
@@ -60,6 +69,25 @@ pub enum ImportUnit {
     StaticClassMethod(String, String),
     Prefix(String),
     StaticPrefix(String),
+}
+impl ImportUnit {
+    pub fn class_path_match_class_name(class_path: &str, name: &str) -> bool {
+        if let Some((_, c)) = class_path.rsplit_once(".") {
+            return c == name;
+        }
+        false
+    }
+    pub fn get_imported_class_package(&self, name: &str) -> Option<String> {
+        match self {
+            ImportUnit::Class(class_path) | ImportUnit::StaticClass(class_path) => {
+                if Self::class_path_match_class_name(class_path, name) {
+                    return Some(class_path.clone());
+                }
+                None
+            }
+            _ => None,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -85,7 +113,7 @@ pub enum Access {
     Abstract,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
 pub struct Method {
     pub access: Vec<Access>,
     pub name: String,
@@ -107,8 +135,9 @@ pub struct Parameter {
     pub jtype: JType,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
 pub enum JType {
+    #[default]
     Void,
     Byte,
     Char,

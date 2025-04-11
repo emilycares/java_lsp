@@ -275,25 +275,28 @@ impl Backend<'_> {
     }
 
     fn on_open(&self, params: TextDocumentItem) {
-        let path = params.uri.path().as_str();
-        let path = PathBuf::from(path);
+        let ipath = params.uri.path().as_str();
+        let path = PathBuf::from(ipath);
         let rope = ropey::Rope::from_str(&params.text);
         let key = params.uri.to_string();
         if let Some(mut document) = self.document_map.get_mut(&key) {
             document.replace_text(rope);
         } else {
-            if let Ok(class) = parser::java::load_java(
+            match parser::java::load_java(
                 &params.text.as_bytes(),
                 parser::loader::SourceDestination::None,
             ) {
-                match Document::setup_rope(&params.text, path, rope, class.class_path) {
-                    Ok(doc) => {
-                        self.document_map.insert(key, doc);
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to setup document: {:?}", e);
+                Ok(class) => {
+                    match Document::setup_rope(&params.text, path, rope, class.class_path) {
+                        Ok(doc) => {
+                            self.document_map.insert(key, doc);
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to setup document: {:?}", e);
+                        }
                     }
                 }
+                Err(e) => eprintln!("Got error parsing document {}, {:?}", ipath, e),
             }
         }
     }
@@ -447,7 +450,7 @@ impl Backend<'_> {
             ProjectKind::Gradle => gradle::project::load_project_folders(),
             ProjectKind::Unknown => vec![],
         };
-        self.import_map = imports::init_import_map(&project_classes);
+        self.import_map = imports::init_import_map(&project_classes, &self.class_map);
         for class in project_classes {
             self.class_map.insert(class.class_path.clone(), class);
         }
@@ -482,11 +485,12 @@ impl Backend<'_> {
             eprintln!("no doc found");
             return;
         };
-        if let Some(class) =
-            parser::update_project_java_file(PathBuf::from(path.as_str()), document.as_bytes())
-        {
-            document.class_path = class.class_path.clone();
-            self.class_map.insert(class.class_path.clone(), class);
+        match parser::update_project_java_file(PathBuf::from(path.as_str()), document.as_bytes()) {
+            Ok(class) => {
+                document.class_path = class.class_path.clone();
+                self.class_map.insert(class.class_path.clone(), class);
+            }
+            Err(e) => eprintln!("Save file parse error {:?}", e),
         }
     }
 

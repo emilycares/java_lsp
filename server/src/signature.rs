@@ -153,10 +153,7 @@ pub mod tests {
         class_map.insert(
             "java.lang.String".to_string(),
             dto::Class {
-                class_path: "".to_string(),
-                source: "".to_string(),
                 access: vec![dto::Access::Public],
-                imports: vec![],
                 name: "String".to_string(),
                 methods: vec![dto::Method {
                     access: vec![dto::Access::Public],
@@ -166,19 +163,15 @@ pub mod tests {
                         jtype: dto::JType::Class("java.lang.String".to_string()),
                     }],
                     ret: dto::JType::Class("java.lang.String".to_string()),
-                    throws: vec![],
+                    ..Default::default()
                 }],
-                fields: vec![],
+                ..Default::default()
             },
         );
         let class = dto::Class {
-            class_path: "".to_string(),
-            source: "".to_string(),
             access: vec![dto::Access::Public],
-            imports: vec![],
             name: "Test".to_string(),
-            methods: vec![],
-            fields: vec![],
+            ..Default::default()
         };
         let content = "
 package ch.emilycares;
@@ -216,10 +209,7 @@ public class Test {
         class_map.insert(
             "java.lang.String".to_string(),
             dto::Class {
-                class_path: "".to_string(),
-                source: "".to_string(),
                 access: vec![dto::Access::Public],
-                imports: vec![],
                 name: "String".to_string(),
                 methods: vec![
                     dto::Method {
@@ -249,17 +239,13 @@ public class Test {
                         throws: vec![],
                     },
                 ],
-                fields: vec![],
+                ..Default::default()
             },
         );
         let class = dto::Class {
-            class_path: "".to_string(),
-            source: "".to_string(),
             access: vec![dto::Access::Public],
-            imports: vec![],
             name: "Test".to_string(),
-            methods: vec![],
-            fields: vec![],
+            ..Default::default()
         };
         let content = "
 package ch.emilycares;
@@ -314,10 +300,7 @@ public class Test {
         class_map.insert(
             "java.lang.String".to_string(),
             dto::Class {
-                class_path: "".to_string(),
-                source: "".to_string(),
                 access: vec![dto::Access::Public],
-                imports: vec![],
                 name: "String".to_string(),
                 methods: vec![
                     dto::Method {
@@ -347,17 +330,13 @@ public class Test {
                         throws: vec![],
                     },
                 ],
-                fields: vec![],
+                ..Default::default()
             },
         );
         let class = dto::Class {
-            class_path: "".to_string(),
-            source: "".to_string(),
             access: vec![dto::Access::Public],
-            imports: vec![],
             name: "Test".to_string(),
-            methods: vec![],
-            fields: vec![],
+            ..Default::default()
         };
         let content = r#"
 package ch.emilycares;

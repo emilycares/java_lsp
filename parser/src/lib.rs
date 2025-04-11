@@ -9,12 +9,14 @@ use std::{fmt::Debug, path::Path};
 use java::ParseJavaError;
 use loader::SourceDestination;
 
-pub fn update_project_java_file<T: AsRef<Path>>(file: T, bytes: &[u8]) -> Option<dto::Class> {
+pub fn update_project_java_file<T: AsRef<Path>>(
+    file: T,
+    bytes: &[u8],
+) -> Result<dto::Class, ParseJavaError> {
     load_java(
         bytes,
         SourceDestination::Here(file.as_ref().to_str().unwrap_or_default().to_string()),
     )
-    .ok()
 }
 
 pub fn src_folder_paths<T: AsRef<Path>>(folder: T) -> Vec<String> {
@@ -58,10 +60,8 @@ mod tests {
         use crate::dto::ImportUnit;
 
         dto::Class {
-            source: "".to_string(),
             class_path: "ch.emilycares.Everything".to_string(),
             name: "Everything".to_string(),
-            access: vec![],
             imports: vec![ImportUnit::Package("ch.emilycares".to_string())],
             methods: vec![
                 dto::Method {
@@ -142,6 +142,19 @@ mod tests {
                     jtype: dto::JType::Int,
                 },
             ],
+            ..Default::default()
+        }
+    }
+    #[cfg(test)]
+    pub fn super_data() -> dto::Class {
+        use crate::dto::ImportUnit;
+
+        dto::Class {
+            class_path: "ch.emilycares.Super".to_string(),
+            name: "Super".to_string(),
+            imports: vec![ImportUnit::Package("ch.emilycares".to_string())],
+            super_class: dto::SuperClass::Name("IOException".to_string()),
+            ..Default::default()
         }
     }
 }
