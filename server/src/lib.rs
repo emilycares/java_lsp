@@ -5,6 +5,7 @@ pub mod document;
 mod hover;
 mod imports;
 mod position;
+pub mod references;
 pub mod signature;
 mod tyres;
 mod utils;
@@ -18,6 +19,7 @@ use common::compile::CompileError;
 use common::project_kind::ProjectKind;
 use dashmap::{DashMap, DashSet};
 use document::Document;
+use hover::{class_action, ClassActionError};
 use lsp_types::request::{References, SignatureHelpRequest};
 use lsp_types::{
     notification::{
@@ -43,7 +45,8 @@ use lsp_types::{
     ClientCapabilities, Location, ReferenceParams, SymbolInformation, WorkDoneProgressOptions,
 };
 use parser::call_chain::get_call_chain;
-use parser::dto::{Class, ImportUnit};
+use parser::dto::Class;
+use references::ReferenceUnit;
 use utils::to_treesitter_point;
 
 use lsp_server::{Connection, Message, Response};
@@ -58,7 +61,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
         project_kind,
         document_map: DashMap::new(),
         class_map: DashMap::new(),
-        import_map: HashMap::new(),
+        reference_map: HashMap::new(),
     };
 
     // Run the server and wait for the two threads to end (typically by trigger LSP Exit event).
@@ -263,7 +266,7 @@ struct Backend<'a> {
     project_kind: ProjectKind,
     document_map: DashMap<String, Document>,
     class_map: DashMap<String, Class>,
-    import_map: HashMap<String, Vec<ImportUnit>>,
+    reference_map: HashMap<String, Vec<ReferenceUnit>>,
     connection: &'a Connection,
 }
 impl Backend<'_> {
@@ -450,7 +453,7 @@ impl Backend<'_> {
             ProjectKind::Gradle => gradle::project::load_project_folders(),
             ProjectKind::Unknown => vec![],
         };
-        self.import_map = imports::init_import_map(&project_classes, &self.class_map);
+        self.reference_map = references::init_refernece_map(&project_classes, &self.class_map);
         for class in project_classes {
             self.class_map.insert(class.class_path.clone(), class);
         }
@@ -645,25 +648,26 @@ impl Backend<'_> {
             eprintln!("Document is not opened.");
             return None;
         };
-        if let Some(crefs) = self.import_map.get(&document.class_path) {
-            return Some(
-                crefs
-                    .iter()
-                    .filter_map(|i| match i {
-                        ImportUnit::Package(_) => None,
-                        ImportUnit::Class(s) => self.class_map.get(s),
-                        ImportUnit::StaticClass(_) => None,
-                        ImportUnit::StaticClassMethod(_, _) => None,
-                        ImportUnit::Prefix(_) => None,
-                        ImportUnit::StaticPrefix(_) => None,
-                    })
-                    .filter_map(|r| definition::class_to_uri(r.value()).ok())
-                    .map(|i| Location {
-                        uri: i,
-                        range: Range::default(),
-                    })
-                    .collect(),
-            );
+        let point = to_treesitter_point(params.position);
+        let imports = imports::imports(document.value());
+        let vars = variable::get_vars(document.value(), &point);
+        match class_action(
+            &document.tree,
+            document.as_bytes(),
+            &point,
+            &vars,
+            &imports,
+            &self.class_map,
+        ) {
+            Ok((class, _range)) => {
+                if let Some(value) =
+                    references::class_path(&class.class_path, &self.reference_map, &self.class_map)
+                {
+                    return value;
+                }
+            }
+            Err(ClassActionError::VariableFound { var: _, range: _ }) => {}
+            Err(e) => eprintln!("Got refrence class error: {:?}", e),
         }
         None
     }

@@ -1,13 +1,8 @@
-use std::{collections::HashMap, fs::read_to_string};
-
-use parser::{
-    dto::{Class, ImportUnit},
-    java::parse_import_declarations,
-};
+use parser::{dto::ImportUnit, java::parse_import_declarations};
 use tree_sitter::Tree;
 use tree_sitter_util::CommentSkiper;
 
-use crate::{position, Document};
+use crate::Document;
 
 pub fn is_imported(imports: &[ImportUnit], class_path: &str) -> bool {
     for inp in imports {
@@ -126,90 +121,4 @@ public class Controller {}";
             ]
         );
     }
-}
-
-pub fn init_import_map(
-    project_classes: &[Class],
-    class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
-) -> HashMap<String, Vec<ImportUnit>> {
-    let mut out: HashMap<String, Vec<ImportUnit>> = HashMap::new();
-    for class in project_classes {
-        for import in &class.imports {
-            match import {
-                ImportUnit::Package(p) | ImportUnit::Prefix(p) => {
-                    let implicit_imports: Vec<String> = class_map
-                        .clone()
-                        .into_read_only()
-                        .keys()
-                        .filter(|c| {
-                            if let Some((c_package, _)) = c.rsplit_once(".") {
-                                return c_package == p;
-                            }
-                            false
-                        })
-                        .inspect(|a| {
-                            dbg!(a);
-                        })
-                        .map(|a| a.to_string())
-                        .map(|k| (k.clone(), class_map.get(&k)))
-                        .filter(|(_, class)| class.is_some())
-                        .map(|(k, class)| (k, class.unwrap()))
-                        .map(|(k, c)| (k, c.source.clone()))
-                        .filter_map(|(k, i)| Some((k, read_to_string(i).ok()?)))
-                        .map(|(k, src)| (k, position::get_type_usage(src.as_str(), &class.name)))
-                        .map(|(k, symbols)| {
-                            (
-                                k,
-                                match symbols {
-                                    Ok(s) => s,
-                                    Err(e) => {
-                                        eprintln!("Errors with workspace document symbol: {:?}", e);
-                                        vec![]
-                                    }
-                                },
-                            )
-                        })
-                        .filter_map(|(k, b)| {
-                            if b.is_empty() {
-                                return None;
-                            }
-                            Some(k)
-                        })
-                        .collect();
-                    for s in implicit_imports {
-                        if let Some(a) = out.get_mut(&s) {
-                            a.push(ImportUnit::Class(class.class_path.clone()));
-                        }
-                    }
-                }
-                ImportUnit::Class(s) => match out.contains_key(s) {
-                    true => {
-                        if let Some(a) = out.get_mut(s) {
-                            a.push(ImportUnit::Class(class.class_path.clone()));
-                        }
-                    }
-                    false => {
-                        out.insert(s.clone(), vec![ImportUnit::Class(class.class_path.clone())]);
-                    }
-                },
-                ImportUnit::StaticClass(s) => match out.contains_key(s) {
-                    true => {
-                        if let Some(a) = out.get_mut(s) {
-                            a.push(ImportUnit::StaticClass(class.class_path.clone()));
-                        }
-                    }
-                    false => {
-                        out.insert(
-                            s.clone(),
-                            vec![ImportUnit::StaticClass(class.class_path.clone())],
-                        );
-                    }
-                },
-                ImportUnit::StaticClassMethod(_, _) => (),
-                ImportUnit::StaticPrefix(_) => (),
-            }
-        }
-    }
-    eprintln!("{:#?}", out);
-    out
 }
