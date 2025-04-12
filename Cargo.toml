@@ -44,6 +44,7 @@ members = [
     "crates/dto",
     "crates/local_variable",
 ]
+exclude = ["editor/zed"]
 resolver = "3"
 
 [profile.dev]
