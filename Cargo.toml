@@ -37,6 +37,7 @@ members = [
     "crates/lsp_extra",
 ]
 resolver = "3"
+exclude = ["editor/zed"]
 
 [profile.dev]
 # Remove for debugging
