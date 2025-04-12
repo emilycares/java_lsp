@@ -40,6 +40,7 @@ members = [
     "crates/my_string",
     "crates/lsp_extra",
 ]
+exclude = ["editor/zed"]
 resolver = "3"
 
 [profile.dev]
