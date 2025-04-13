@@ -10,6 +10,12 @@ use crate::{
 };
 
 #[derive(Debug)]
+pub enum ReferencesError {
+    IoRead(String, std::io::Error),
+    Position(position::PosionError),
+}
+
+#[derive(Debug)]
 pub enum ReferenceUnit {
     Class(String),
     ClassWithPosition(String, PositionSymbol),
@@ -19,7 +25,7 @@ pub enum ReferenceUnit {
 pub fn init_refernece_map(
     project_classes: &[Class],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
-) -> HashMap<String, Vec<ReferenceUnit>> {
+) -> Result<HashMap<String, Vec<ReferenceUnit>>, ReferencesError> {
     let mut out: HashMap<String, Vec<ReferenceUnit>> = HashMap::new();
     for class in project_classes {
         let class_path = class.class_path.clone();
@@ -36,8 +42,13 @@ pub fn init_refernece_map(
                     }
                 }
                 ImportUnit::Class(s) => {
-                    let insert = vec![ReferenceUnit::Class(class.class_path.clone())];
-                    insert_or_extend(&mut out, s, insert);
+                    let refpos = get_position_refrences(class, s)?;
+                    if refpos.is_empty() {
+                        let insert = vec![ReferenceUnit::Class(class.class_path.clone())];
+                        insert_or_extend(&mut out, s, insert);
+                    } else {
+                        insert_or_extend(&mut out, s, refpos);
+                    }
                 }
                 ImportUnit::StaticClass(s) => {
                     let insert = vec![ReferenceUnit::StaticClass(class.class_path.clone())];
@@ -48,7 +59,28 @@ pub fn init_refernece_map(
             }
         }
     }
-    out
+    Ok(out)
+}
+
+fn get_position_refrences(
+    class: &Class,
+    query_class_path: &str,
+) -> Result<Vec<ReferenceUnit>, ReferencesError> {
+    if let Some(name) = ImportUnit::class_path_get_class_name(query_class_path) {
+        match read_to_string(&class.source) {
+            Err(e) => Err(ReferencesError::IoRead(class.source.clone(), e))?,
+            Ok(source) => match position::get_type_usage(&source, name) {
+                Err(e) => Err(ReferencesError::Position(e))?,
+                Ok(usages) => {
+                    return Ok(usages
+                        .into_iter()
+                        .map(|u| ReferenceUnit::ClassWithPosition(class.class_path.clone(), u))
+                        .collect())
+                }
+            },
+        }
+    }
+    Ok(vec![])
 }
 
 fn insert_or_extend<K, V, A>(out: &mut HashMap<K, V>, key: &K, insert: V)

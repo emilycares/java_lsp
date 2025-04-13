@@ -71,11 +71,16 @@ pub enum ImportUnit {
     StaticPrefix(String),
 }
 impl ImportUnit {
-    pub fn class_path_match_class_name(class_path: &str, name: &str) -> bool {
+    pub fn class_path_get_class_name<'a>(class_path: &'a str) -> Option<&'a str> {
         if let Some((_, c)) = class_path.rsplit_once(".") {
-            return c == name;
+            return Some(c);
         }
-        false
+        None
+    }
+    pub fn class_path_match_class_name(class_path: &str, name: &str) -> bool {
+        ImportUnit::class_path_get_class_name(class_path)
+            .iter()
+            .any(|i| *i == name)
     }
     pub fn get_imported_class_package(&self, name: &str) -> Option<String> {
         match self {

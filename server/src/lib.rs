@@ -453,7 +453,10 @@ impl Backend<'_> {
             ProjectKind::Gradle => gradle::project::load_project_folders(),
             ProjectKind::Unknown => vec![],
         };
-        self.reference_map = references::init_refernece_map(&project_classes, &self.class_map);
+        match references::init_refernece_map(&project_classes, &self.class_map) {
+            Ok(refs) => self.reference_map = refs,
+            Err(e) => eprintln!("Got reference error: {:?}", e),
+        }
         for class in project_classes {
             self.class_map.insert(class.class_path.clone(), class);
         }
