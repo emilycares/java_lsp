@@ -46,6 +46,7 @@ use lsp_types::{
 };
 use parser::call_chain::get_call_chain;
 use parser::dto::Class;
+use position::PositionSymbol;
 use references::ReferenceUnit;
 use utils::to_treesitter_point;
 
@@ -61,7 +62,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
         project_kind,
         document_map: DashMap::new(),
         class_map: DashMap::new(),
-        reference_map: HashMap::new(),
+        reference_map: DashMap::new(),
     };
 
     // Run the server and wait for the two threads to end (typically by trigger LSP Exit event).
@@ -266,7 +267,7 @@ struct Backend<'a> {
     project_kind: ProjectKind,
     document_map: DashMap<String, Document>,
     class_map: DashMap<String, Class>,
-    reference_map: HashMap<String, Vec<ReferenceUnit>>,
+    reference_map: DashMap<String, Vec<ReferenceUnit>>,
     connection: &'a Connection,
 }
 impl Backend<'_> {
@@ -453,8 +454,9 @@ impl Backend<'_> {
             ProjectKind::Gradle => gradle::project::load_project_folders(),
             ProjectKind::Unknown => vec![],
         };
-        match references::init_refernece_map(&project_classes, &self.class_map) {
-            Ok(refs) => self.reference_map = refs,
+        match references::init_refernece_map(&project_classes, &self.class_map, &self.reference_map)
+        {
+            Ok(_) => (),
             Err(e) => eprintln!("Got reference error: {:?}", e),
         }
         for class in project_classes {
@@ -494,7 +496,17 @@ impl Backend<'_> {
         match parser::update_project_java_file(PathBuf::from(path.as_str()), document.as_bytes()) {
             Ok(class) => {
                 document.class_path = class.class_path.clone();
-                self.class_map.insert(class.class_path.clone(), class);
+                let class_path = class.class_path.clone();
+                match references::reference_update_class(
+                    &class,
+                    Some((&document.tree, document.as_bytes())),
+                    &self.class_map,
+                    &self.reference_map,
+                ) {
+                    Ok(_) => {}
+                    Err(e) => eprintln!("Got reference error: {:?}", e),
+                };
+                self.class_map.insert(class_path, class);
             }
             Err(e) => eprintln!("Save file parse error {:?}", e),
         }
@@ -666,7 +678,7 @@ impl Backend<'_> {
                 if let Some(value) =
                     references::class_path(&class.class_path, &self.reference_map, &self.class_map)
                 {
-                    return value;
+                    return Some(value);
                 }
             }
             Err(ClassActionError::VariableFound { var: _, range: _ }) => {}
@@ -710,7 +722,7 @@ impl Backend<'_> {
         };
         let uri = params.text_document.uri;
 
-        let symbols = position::get_symbols(document.as_str());
+        let symbols = position::get_symbols(document.as_bytes());
         match symbols {
             Ok(symbols) => {
                 let symbols = position::symbols_to_document_symbols(symbols, uri);
@@ -725,7 +737,7 @@ impl Backend<'_> {
 
     async fn workspace_document_symbol(
         &self,
-        _params: WorkspaceSymbolParams,
+        params: WorkspaceSymbolParams,
     ) -> Option<WorkspaceSymbolResponse> {
         let files = match self.project_kind {
             ProjectKind::Maven => maven::project::get_paths(),
@@ -736,12 +748,22 @@ impl Backend<'_> {
         let symbols: Vec<SymbolInformation> = files
             .into_iter()
             .filter_map(|i| Some((i.clone(), read_to_string(i).ok()?)))
-            .map(|(path, src)| (path, position::get_symbols(src.as_str())))
+            .map(|(path, src)| (path, position::get_symbols(src.as_bytes())))
             .map(|(path, symbols)| {
                 (
                     path,
                     match symbols {
-                        Ok(s) => s,
+                        Ok(s) => s
+                            .into_iter()
+                            .filter(|i| match i {
+                                PositionSymbol::Range(_range) => false,
+                                PositionSymbol::Symbol {
+                                    range: _,
+                                    name,
+                                    kind: _,
+                                } => name.contains(&params.query),
+                            })
+                            .collect(),
                         Err(e) => {
                             eprintln!("Errors with workspace document symbol: {:?}", e);
                             vec![]

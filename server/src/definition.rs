@@ -44,7 +44,7 @@ pub fn class(
     match class_action(tree, bytes, point, lo_va, imports, class_map) {
         Ok((class, _range)) => {
             let source_file = get_source_content(&class)?;
-            let ranges = position::get_class_position(source_file.as_str(), &class.name)
+            let ranges = position::get_class_position(source_file.as_bytes(), &class.name)
                 .map_err(|e| DefinitionError::Position(e))?;
             let uri = class_to_uri(&class)?;
             return Ok(go_to_definition_range(uri, ranges));
@@ -75,14 +75,14 @@ pub fn call_chain_definition(
     return match relevat.get(item) {
         Some(CallItem::MethodCall { name, range: _ }) => {
             let source_file = get_source_content(&extend_class)?;
-            let ranges = position::get_method_positions(source_file.as_str(), name)
+            let ranges = position::get_method_positions(source_file.as_bytes(), name)
                 .map_err(|e| DefinitionError::Position(e))?;
             let uri = class_to_uri(&extend_class)?;
             return Ok(go_to_definition_range(uri, ranges));
         }
         Some(CallItem::FieldAccess { name, range: _ }) => {
             let source_file = get_source_content(&extend_class)?;
-            let ranges = position::get_field_positions(source_file.as_str(), name)
+            let ranges = position::get_field_positions(source_file.as_bytes(), name)
                 .map_err(|e| DefinitionError::Position(e))?;
             let uri = class_to_uri(&extend_class)?;
             return Ok(go_to_definition_range(uri, ranges));

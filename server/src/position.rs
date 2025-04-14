@@ -10,11 +10,11 @@ pub enum PosionError {
     Treesitter(tree_sitter_util::TreesitterError),
 }
 
-pub fn get_class_position(source: &str, name: &str) -> Result<Vec<PositionSymbol>, PosionError> {
-    let (_, tree) = tree_sitter_util::parse(source).map_err(|e| PosionError::Treesitter(e))?;
+pub fn get_class_position(bytes: &[u8], name: &str) -> Result<Vec<PositionSymbol>, PosionError> {
+    let (_, tree) = tree_sitter_util::parse(bytes).map_err(|e| PosionError::Treesitter(e))?;
     get_item_ranges(
         &tree,
-        source,
+        bytes,
         "
         (class_declaration name: (identifier)@capture )
         (interface_declaration name: (identifier)@capture )
@@ -26,21 +26,21 @@ pub fn get_class_position(source: &str, name: &str) -> Result<Vec<PositionSymbol
     )
 }
 
-pub fn get_method_positions(source: &str, name: &str) -> Result<Vec<PositionSymbol>, PosionError> {
-    let (_, tree) = tree_sitter_util::parse(source).map_err(|e| PosionError::Treesitter(e))?;
+pub fn get_method_positions(bytes: &[u8], name: &str) -> Result<Vec<PositionSymbol>, PosionError> {
+    let (_, tree) = tree_sitter_util::parse(bytes).map_err(|e| PosionError::Treesitter(e))?;
     get_item_ranges(
         &tree,
-        source,
+        bytes,
         "(method_declaration name: (identifier)@capture )",
         Some(name),
     )
 }
 
-pub fn get_field_positions(source: &str, name: &str) -> Result<Vec<PositionSymbol>, PosionError> {
-    let (_, tree) = tree_sitter_util::parse(source).map_err(|e| PosionError::Treesitter(e))?;
+pub fn get_field_positions(bytes: &[u8], name: &str) -> Result<Vec<PositionSymbol>, PosionError> {
+    let (_, tree) = tree_sitter_util::parse(bytes).map_err(|e| PosionError::Treesitter(e))?;
     get_item_ranges(
         &tree,
-        source,
+        bytes,
         "(field_declaration declarator: (variable_declarator name: (identifier)@capture ))",
         Some(name),
     )
@@ -69,11 +69,11 @@ impl PositionSymbol {
     }
 }
 
-pub fn get_symbols(source: &str) -> Result<Vec<PositionSymbol>, PosionError> {
-    let (_, tree) = tree_sitter_util::parse(source).map_err(|e| PosionError::Treesitter(e))?;
+pub fn get_symbols(bytes: &[u8]) -> Result<Vec<PositionSymbol>, PosionError> {
+    let (_, tree) = tree_sitter_util::parse(bytes).map_err(|e| PosionError::Treesitter(e))?;
     get_item_ranges(
         &tree,
-        source,
+        bytes,
         "
         (class_declaration name: (identifier)@capture )
         (interface_declaration name: (identifier)@capture )
@@ -85,11 +85,14 @@ pub fn get_symbols(source: &str) -> Result<Vec<PositionSymbol>, PosionError> {
     )
 }
 
-pub fn get_type_usage(source: &str, name: &str) -> Result<Vec<PositionSymbol>, PosionError> {
-    let (_, tree) = tree_sitter_util::parse(source).map_err(|e| PosionError::Treesitter(e))?;
+pub fn get_type_usage(
+    bytes: &[u8],
+    name: &str,
+    tree: &Tree,
+) -> Result<Vec<PositionSymbol>, PosionError> {
     get_item_ranges(
         &tree,
-        source,
+        bytes,
         "
         (type_identifier)@capture
         (field_access object: (identifier)@capture )
@@ -133,13 +136,12 @@ pub fn symbols_to_document_symbols(
 }
 pub fn get_item_ranges<'a>(
     tree: &Tree,
-    source: &'a str,
+    bytes: &[u8],
     query: &'a str,
     name: Option<&str>,
 ) -> Result<Vec<PositionSymbol>, PosionError> {
     let query =
         Query::new(&tree_sitter_java::LANGUAGE.into(), query).expect("Query should be okey");
-    let bytes = source.as_bytes();
     let mut cursor = QueryCursor::new();
     let mut matchtes = cursor.matches(&query, tree.root_node(), bytes);
 
@@ -180,7 +182,7 @@ mod tests {
 
     #[test]
     fn method_pos_base() {
-        let content = "
+        let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -204,7 +206,7 @@ public class Test {
 
     #[test]
     fn field_pos_base() {
-        let content = "
+        let content = b"
 package ch.emilycares;
 public class Test {
     public String a;
@@ -224,7 +226,7 @@ public class Test {
 
     #[test]
     fn class_pos_base() {
-        let content = "
+        let content = b"
 package ch.emilycares;
 public class Test {}
 ";
@@ -241,13 +243,14 @@ public class Test {}
     }
     #[test]
     fn type_usage_base() {
-        let content = r#"
+        let content = br#"
 package ch.emilycares;
 public class Test {
 private StringBuilder sb = new StringBuilder();
 }
 "#;
-        let out = get_type_usage(content, "StringBuilder");
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
+        let out = get_type_usage(content, "StringBuilder", &tree);
 
         assert_eq!(out.unwrap().iter().count(), 2);
     }
