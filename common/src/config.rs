@@ -1,6 +1,6 @@
 use std::{io::Cursor, sync::Arc};
 
-use nickel_lang_core::{eval::cache::CacheImpl, program::Program};
+use nickel_lang_core::{error::NullReporter, eval::cache::CacheImpl, program::Program};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 
@@ -22,9 +22,13 @@ pub enum FormatterConfig {
 impl Default for Configuration {
     fn default() -> Self {
         let def = include_bytes!("../config.ncl");
-        let mut program =
-            Program::<CacheImpl>::new_from_source(Cursor::new(def), "builtin", std::io::empty())
-                .expect("Evaluating the builtin configuration should be safe");
+        let mut program = Program::<CacheImpl>::new_from_source(
+            Cursor::new(def),
+            "builtin",
+            std::io::empty(),
+            NullReporter {},
+        )
+        .expect("Evaluating the builtin configuration should be safe");
         let term = program
             .eval_full_for_export()
             .expect("Evaluating the builtin configuration should be safe");
