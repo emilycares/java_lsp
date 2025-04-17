@@ -1,7 +1,9 @@
 use std::path::MAIN_SEPARATOR;
 
-use crate::dto::{self, ClassError, Parameter};
+use crate::dto::{self, ClassError, ImportUnit, JType, Parameter};
 use crate::loader::SourceDestination;
+use classfile_parser::attribute_info::{AttributeInfo, CodeAttribute};
+use classfile_parser::code_attribute::LocalVariableTableAttribute;
 use classfile_parser::constant_info::ConstantInfo;
 use classfile_parser::field_info::{FieldAccessFlags, FieldInfo};
 use classfile_parser::method_info::MethodAccessFlags;
@@ -15,19 +17,46 @@ pub fn load_class(
     let res = class_parser(bytes);
     match res {
         Result::Ok((_, c)) => {
+            let code_attribute = parse_code_attribute(&c, &c.attributes);
+            let mut used_classes = parse_used_classes(&c, code_attribute);
+
             let methods: Vec<_> = c
                 .methods
                 .iter()
-                .filter_map(|method| parse_method(&c, method))
+                .filter_map(|method| {
+                    let code_attribute = parse_code_attribute(&c, &method.attributes);
+                    used_classes.extend(parse_used_classes(&c, code_attribute));
+
+                    parse_method(&c, method)
+                })
                 .filter(|m| m.name != "<init>")
                 //.filter(|f| !f.access.contains(&dto::Access::Private))
                 .collect();
             let fields: Vec<_> = c
                 .fields
                 .iter()
-                .filter_map(|field| parse_field(&c, field))
+                .filter_map(|field| {
+                    let field = parse_field(&c, field);
+
+                    if let Some(ref f) = field {
+                        used_classes.extend(jtype_class_names(f.jtype.clone()));
+                    }
+
+                    field
+                })
                 //.filter(|f| !f.access.contains(&dto::Access::Private))
                 .collect();
+
+            let name = lookup_class_name(&c, c.this_class.into()).expect("Class should have name");
+            let package = class_path.trim_end_matches(&name).trim_end_matches(".");
+            let mut imports = vec![ImportUnit::Package(package.to_string())];
+            imports.extend(
+                used_classes
+                    .into_iter()
+                    .filter(|i| *i != class_path)
+                    .map(|i| ImportUnit::Class(i)),
+            );
+
             let source = match source {
                 SourceDestination::RelativeInFolder(e) => {
                     format!(
@@ -48,9 +77,9 @@ pub fn load_class(
                     Some(c) => dto::SuperClass::Name(c),
                     None => dto::SuperClass::None,
                 },
-                imports: vec![],
+                imports,
                 access: parse_class_access(c.access_flags),
-                name: lookup_class_name(&c, c.this_class.into()).expect("Class should have name"),
+                name,
                 methods,
                 fields,
             })
@@ -83,6 +112,7 @@ fn parse_method(
     method: &classfile_parser::method_info::MethodInfo,
 ) -> Option<dto::Method> {
     let (params, ret) = parse_method_descriptor(&lookup_string(c, method.descriptor_index)?);
+
     let mut params = params.into_iter();
     let mut parameters: Vec<dto::Parameter> = method
         .attributes
@@ -160,6 +190,71 @@ fn parse_method(
         ret,
         throws,
     })
+}
+
+fn parse_used_classes(c: &ClassFile, code_attribute: Option<CodeAttribute>) -> Vec<String> {
+    if let Some(code_attribute) = code_attribute {
+        let local_variable_table_attributes: Vec<LocalVariableTableAttribute> = code_attribute
+            .attributes
+            .iter()
+            .filter_map(|attribute_info| {
+                match lookup_string(c, attribute_info.attribute_name_index)?.as_str() {
+                    "LocalVariableTable" => {
+                        classfile_parser::code_attribute::local_variable_table_parser(
+                            &attribute_info.info,
+                        )
+                        .ok()
+                    }
+                    _ => None,
+                }
+            })
+            .map(|a| a.1)
+            .collect();
+        let types: Vec<JType> = local_variable_table_attributes
+            .iter()
+            .flat_map(|i| &i.items)
+            .filter_map(|i| lookup_string(c, i.descriptor_index))
+            .filter_map(|i| parse_field_descriptor(&i))
+            .collect();
+        return types
+            .iter()
+            .map(|i| jtype_class_names(i.clone()))
+            .flatten()
+            .collect();
+    }
+    vec![]
+}
+
+fn jtype_class_names(i: JType) -> Vec<String> {
+    match i {
+        JType::Class(class) => vec![class],
+        JType::Array(jtype) => jtype_class_names(*jtype),
+        JType::Generic(class, jtypes) => {
+            let mut out = vec![class];
+            let e: Vec<String> = jtypes
+                .into_iter()
+                .flat_map(|i| jtype_class_names(i))
+                .collect();
+            out.extend(e);
+            out
+        }
+        _ => vec![],
+    }
+}
+
+fn parse_code_attribute(c: &ClassFile, attributes: &[AttributeInfo]) -> Option<CodeAttribute> {
+    attributes
+        .iter()
+        .find_map(|attribute_info| {
+            match lookup_string(c, attribute_info.attribute_name_index)?.as_str() {
+                "Code" => {
+                    classfile_parser::attribute_info::code_attribute_parser(&attribute_info.info)
+                        .ok()
+                }
+                _ => None,
+            }
+        })
+        .map(|i| i.1)
 }
 
 fn parse_class_access(flags: ClassAccessFlags) -> Vec<dto::Access> {
@@ -311,7 +406,11 @@ fn parse_field_type(c: Option<char>, chars: &mut std::str::Chars) -> dto::JType 
 
 #[cfg(test)]
 mod tests {
-    use crate::{class::load_class, loader::SourceDestination};
+    use crate::{
+        class::load_class,
+        dto::{self, ImportUnit},
+        loader::SourceDestination,
+    };
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -322,10 +421,7 @@ mod tests {
             SourceDestination::None,
         );
 
-        assert_eq!(
-            crate::tests::everything_data().no_imports(),
-            result.unwrap()
-        );
+        assert_eq!(crate::tests::everything_data(), result.unwrap());
     }
     #[test]
     fn super_base() {
@@ -335,7 +431,7 @@ mod tests {
             SourceDestination::None,
         );
 
-        assert_eq!(crate::tests::super_data().no_imports(), result.unwrap());
+        assert_eq!(crate::tests::super_data(), result.unwrap());
     }
     #[test]
     fn thrower() {
@@ -345,8 +441,59 @@ mod tests {
             SourceDestination::Here("/path/to/source/Thrower.java".to_string()),
         );
 
+        let mut check = crate::java::tests::thrower_data();
+        check.imports = vec![ImportUnit::Package("ch.emilycares".to_string())];
+        assert_eq!(check, result.unwrap());
+    }
+    #[test]
+    fn variables() {
+        let result = load_class(
+            include_bytes!("../test/LocalVariableTable.class"),
+            "ch.emilycares.LocalVariableTable".to_string(),
+            SourceDestination::None,
+        );
+
         assert_eq!(
-            crate::java::tests::thrower_data().no_imports(),
+            dto::Class {
+                class_path: "ch.emilycares.LocalVariableTable".to_string(),
+                name: "LocalVariableTable".to_string(),
+                imports: vec![
+                    ImportUnit::Package("ch.emilycares".to_string()),
+                    ImportUnit::Class("java.util.HashMap".to_string()),
+                    ImportUnit::Class("java.util.HashSet".to_string())
+                ],
+                methods: vec![
+                    dto::Method {
+                        access: vec![dto::Access::Public],
+                        name: "hereIsCode".to_string(),
+                        parameters: vec![],
+                        ret: dto::JType::Void,
+                        throws: vec![],
+                    },
+                    dto::Method {
+                        access: vec![dto::Access::Public],
+                        name: "hereIsCode".to_string(),
+                        parameters: vec![
+                            dto::Parameter {
+                                name: Some("a".to_string()),
+                                jtype: dto::JType::Int
+                            },
+                            dto::Parameter {
+                                name: Some("b".to_string()),
+                                jtype: dto::JType::Int
+                            }
+                        ],
+                        ret: dto::JType::Int,
+                        throws: vec![],
+                    },
+                ],
+                fields: vec![dto::Field {
+                    access: vec![dto::Access::Private],
+                    name: "a".to_string(),
+                    jtype: dto::JType::Class("java.util.HashSet".to_string()),
+                },],
+                ..Default::default()
+            },
             result.unwrap()
         );
     }
