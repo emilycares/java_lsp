@@ -499,7 +499,6 @@ impl Backend<'_> {
                 let class_path = class.class_path.clone();
                 match references::reference_update_class(
                     &class,
-                    Some((&document.tree, document.as_bytes())),
                     &self.class_map,
                     &self.reference_map,
                 ) {

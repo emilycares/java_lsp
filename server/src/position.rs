@@ -87,7 +87,7 @@ pub fn get_symbols(bytes: &[u8]) -> Result<Vec<PositionSymbol>, PosionError> {
 
 pub fn get_type_usage(
     bytes: &[u8],
-    name: &str,
+    query_class_name: &str,
     tree: &Tree,
 ) -> Result<Vec<PositionSymbol>, PosionError> {
     get_item_ranges(
@@ -98,7 +98,7 @@ pub fn get_type_usage(
         (field_access object: (identifier)@capture )
         (method_invocation object: (identifier)@capture )
         ",
-        Some(name),
+        Some(query_class_name),
     )
 }
 

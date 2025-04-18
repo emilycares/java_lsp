@@ -37,7 +37,6 @@ pub fn base(
     let bytes = document.as_bytes();
     match class_action(tree, bytes, point, lo_va, imports, class_map) {
         Ok((class, range)) => {
-            eprintln!(".... class  hover");
             return Ok(class_to_hover(class, range));
         }
         Err(ClassActionError::NotFound) => {}

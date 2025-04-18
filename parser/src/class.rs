@@ -8,6 +8,7 @@ use classfile_parser::constant_info::ConstantInfo;
 use classfile_parser::field_info::{FieldAccessFlags, FieldInfo};
 use classfile_parser::method_info::MethodAccessFlags;
 use classfile_parser::{class_parser, ClassAccessFlags, ClassFile};
+use itertools::Itertools;
 
 pub fn load_class(
     bytes: &[u8],
@@ -27,7 +28,22 @@ pub fn load_class(
                     let code_attribute = parse_code_attribute(&c, &method.attributes);
                     used_classes.extend(parse_used_classes(&c, code_attribute));
 
-                    parse_method(&c, method)
+                    let method = parse_method(&c, method);
+                    if let Some(ref m) = method {
+                        used_classes.extend(
+                            m.parameters
+                                .iter()
+                                .filter(|i| match i.jtype {
+                                    JType::Class(_) => true,
+                                    JType::Array(_) => true,
+                                    JType::Generic(_, _) => true,
+                                    _ => false,
+                                })
+                                .flat_map(|i| jtype_class_names(i.jtype.clone())),
+                        );
+                        used_classes.extend(jtype_class_names(m.ret.clone()));
+                    }
+                    method
                 })
                 .filter(|m| m.name != "<init>")
                 //.filter(|f| !f.access.contains(&dto::Access::Private))
@@ -54,6 +70,7 @@ pub fn load_class(
                 used_classes
                     .into_iter()
                     .filter(|i| *i != class_path)
+                    .unique()
                     .map(|i| ImportUnit::Class(i)),
             );
 

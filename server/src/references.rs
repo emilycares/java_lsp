@@ -3,7 +3,7 @@ use std::{
     hash::Hash,
 };
 
-use lsp_types::{Location, Range};
+use lsp_types::Location;
 use parser::dto::{Class, ImportUnit};
 
 use crate::{
@@ -17,14 +17,16 @@ pub enum ReferencesError {
     IoRead(String, std::io::Error),
     Position(position::PosionError),
     Treesitter(tree_sitter_util::TreesitterError),
+    FindClassnameInClasspath(String),
 }
 
 #[derive(Debug)]
 pub enum ReferenceUnit {
     Class(String),
-    ClassWithPosition(String, PositionSymbol),
     StaticClass(String),
 }
+#[derive(Debug)]
+pub struct ReferencePosition(PositionSymbol);
 
 pub fn init_refernece_map(
     project_classes: &[Class],
@@ -32,14 +34,13 @@ pub fn init_refernece_map(
     reference_map: &dashmap::DashMap<String, Vec<ReferenceUnit>>,
 ) -> Result<(), ReferencesError> {
     for class in project_classes {
-        reference_update_class(class, None, class_map, &reference_map)?;
+        reference_update_class(class, class_map, &reference_map)?;
     }
     Ok(())
 }
 
 pub fn reference_update_class(
     class: &Class,
-    tree_buff: Option<(&tree_sitter::Tree, &[u8])>,
     class_map: &dashmap::DashMap<String, Class>,
     reference_map: &dashmap::DashMap<String, Vec<ReferenceUnit>>,
 ) -> Result<(), ReferencesError> {
@@ -48,22 +49,15 @@ pub fn reference_update_class(
         match import {
             ImportUnit::Package(p) | ImportUnit::Prefix(p) => {
                 let implicit_imports = get_implicit_imports(class_map, class, p);
-                for (s, refs) in implicit_imports {
+                for s in implicit_imports {
                     if let Some(mut a) = reference_map.get_mut(&s) {
-                        for r in refs {
-                            a.push(ReferenceUnit::ClassWithPosition(class_path.clone(), r));
-                        }
+                        a.push(ReferenceUnit::Class(class_path.clone()));
                     }
                 }
             }
             ImportUnit::Class(s) => {
-                let refpos = get_position_refrences(class, s, tree_buff)?;
-                if refpos.is_empty() {
-                    let insert = vec![ReferenceUnit::Class(class.class_path.clone())];
-                    insert_or_extend(reference_map, s, insert);
-                } else {
-                    insert_or_extend(reference_map, s, refpos);
-                }
+                let insert = vec![ReferenceUnit::Class(class.class_path.clone())];
+                insert_or_extend(reference_map, s, insert);
             }
             ImportUnit::StaticClass(s) => {
                 let insert = vec![ReferenceUnit::StaticClass(class.class_path.clone())];
@@ -80,38 +74,34 @@ fn get_position_refrences(
     class: &Class,
     query_class_path: &str,
     tree_bytes: Option<(&tree_sitter::Tree, &[u8])>,
-) -> Result<Vec<ReferenceUnit>, ReferencesError> {
-    if let Some(name) = ImportUnit::class_path_get_class_name(query_class_path) {
-        if let Some((tree, bytes)) = tree_bytes {
-            return pos_refs_helper(&class.class_path, tree, bytes, name);
-        } else {
-            match fs::read(&class.source) {
-                Err(e) => Err(ReferencesError::IoRead(class.source.clone(), e))?,
-                Ok(bytes) => {
-                    let (_, tree) = tree_sitter_util::parse(&bytes)
-                        .map_err(|e| ReferencesError::Treesitter(e))?;
-                    pos_refs_helper(&class.class_path, &tree, &bytes, name)?;
-                }
+) -> Result<Vec<ReferencePosition>, ReferencesError> {
+    let Some(query_class_name) = ImportUnit::class_path_get_class_name(query_class_path) else {
+        return Err(ReferencesError::FindClassnameInClasspath(
+            query_class_path.to_string(),
+        ));
+    };
+    if let Some((tree, bytes)) = tree_bytes {
+        return pos_refs_helper(tree, bytes, query_class_name);
+    } else {
+        return match fs::read(&class.source) {
+            Err(e) => Err(ReferencesError::IoRead(class.source.clone(), e)),
+            Ok(bytes) => {
+                let (_, tree) =
+                    tree_sitter_util::parse(&bytes).map_err(|e| ReferencesError::Treesitter(e))?;
+                pos_refs_helper(&tree, &bytes, query_class_name)
             }
-        }
+        };
     }
-    Ok(vec![])
 }
 
 fn pos_refs_helper(
-    class_path: &String,
     tree: &tree_sitter::Tree,
     bytes: &[u8],
-    name: &str,
-) -> Result<Vec<ReferenceUnit>, ReferencesError> {
-    match position::get_type_usage(&bytes, name, &tree) {
+    query_class_name: &str,
+) -> Result<Vec<ReferencePosition>, ReferencesError> {
+    match position::get_type_usage(&bytes, query_class_name, &tree) {
         Err(e) => Err(ReferencesError::Position(e))?,
-        Ok(usages) => {
-            return Ok(usages
-                .into_iter()
-                .map(|u| ReferenceUnit::ClassWithPosition(class_path.clone(), u))
-                .collect())
-        }
+        Ok(usages) => return Ok(usages.into_iter().map(|u| ReferencePosition(u)).collect()),
     }
 }
 
@@ -136,7 +126,7 @@ fn get_implicit_imports(
     class_map: &dashmap::DashMap<String, Class>,
     class: &Class,
     package: &String,
-) -> Vec<(String, Vec<PositionSymbol>)> {
+) -> Vec<String> {
     class_map
         .clone()
         .into_read_only()
@@ -147,37 +137,20 @@ fn get_implicit_imports(
             }
             false
         })
-        .inspect(|a| {
-            dbg!(a);
-        })
         .map(|a| a.to_string())
         .map(|k| (k.clone(), class_map.get(&k)))
         .filter(|(_, class)| class.is_some())
         .map(|(k, class)| (k, class.unwrap()))
-        .map(|(k, c)| (k, c.source.clone()))
-        .filter_map(|(k, i)| Some((k, fs::read(i).ok()?)))
-        .filter_map(|(k, src)| {
-            let (_, tree) = tree_sitter_util::parse(&src).ok()?;
-            Some((k, position::get_type_usage(&src, &class.name, &tree)))
+        // Prefilter already parsed data before parsing file with treesitter
+        .filter(|(_k, lclass)| {
+            lclass.imports.iter().any(|i| match i {
+                ImportUnit::Class(lclasspath) => {
+                    ImportUnit::class_path_match_class_name(&lclasspath, &class.name)
+                }
+                _ => false,
+            })
         })
-        .map(|(k, symbols)| {
-            (
-                k,
-                match symbols {
-                    Ok(s) => s,
-                    Err(e) => {
-                        eprintln!("Errors with workspace document symbol: {:?}", e);
-                        vec![]
-                    }
-                },
-            )
-        })
-        .filter_map(|(k, b)| {
-            if b.is_empty() {
-                return None;
-            }
-            Some((k, b))
-        })
+        .map(|i| i.0)
         .collect()
 }
 
@@ -189,15 +162,14 @@ pub fn class_path(
     if let Some(crefs) = reference_map.get(class_path) {
         let refs = crefs
             .iter()
-            .map(|i| match i {
-                ReferenceUnit::Class(s) => (class_map.get(s), None),
-                ReferenceUnit::StaticClass(s) => (class_map.get(s), None),
-                ReferenceUnit::ClassWithPosition(s, position_symbol) => {
-                    (class_map.get(s), Some(position_symbol))
-                }
+            .filter_map(|i| match i {
+                ReferenceUnit::Class(s) => class_map.get(s),
+                ReferenceUnit::StaticClass(s) => class_map.get(s),
             })
-            .filter(|(lookup, _)| lookup.is_some())
-            .map(|(lookup, range)| (lookup.unwrap(), range))
+            .filter_map(|lookup| {
+                let refs = get_position_refrences(&lookup, class_path, None).ok()?;
+                Some((lookup, refs.first().map(|i| i.0.get_range())?))
+            })
             .filter_map(
                 |(lookup, range)| match definition::class_to_uri(lookup.value()) {
                     Ok(u) => Some((u, range)),
@@ -209,9 +181,7 @@ pub fn class_path(
             )
             .map(|(i, range)| Location {
                 uri: i,
-                range: range
-                    .map(|p| to_lsp_range(p.get_range()))
-                    .unwrap_or(Range::default()),
+                range: to_lsp_range(range),
             })
             .collect();
         return Some(refs);

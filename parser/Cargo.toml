@@ -14,6 +14,7 @@ tree-sitter-java.workspace = true
 walkdir.workspace = true
 postcard.workspace = true
 serde.workspace = true
+itertools.workspace = true
 
 [dev-dependencies]
 pretty_assertions.workspace = true
