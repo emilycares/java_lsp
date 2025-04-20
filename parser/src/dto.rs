@@ -30,6 +30,10 @@ pub struct ClassFolder {
 }
 
 impl ClassFolder {
+    pub fn new(classes: Vec<Class>) -> Self {
+        Self { classes }
+    }
+
     pub fn append(&mut self, other: Self) {
         self.classes.extend(other.classes);
     }

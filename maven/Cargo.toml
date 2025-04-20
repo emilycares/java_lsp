@@ -14,6 +14,7 @@ zip-extract.workspace = true
 dirs.workspace = true
 tokio.workspace = true
 futures.workspace = true
+parking_lot.workspace = true
 parser = { path = "../parser" }
 
 [dev-dependencies]

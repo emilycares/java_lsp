@@ -6,12 +6,11 @@ use std::{
 };
 
 use crate::EXECUTABLE_MAVEN;
+const CLASSPATH_FILE: &str = "target/classpath.txt";
 
 pub fn generate_classpath() -> Option<String> {
-    let classpath_file = "target/classpath.txt";
-
-    if Path::new(&classpath_file).exists() {
-        let classpath = read_to_string(classpath_file).ok()?;
+    if Path::new(&CLASSPATH_FILE).exists() {
+        let classpath = read_to_string(CLASSPATH_FILE).ok()?;
         return Some(format!("{}:target/classes", classpath.trim()));
     }
 
@@ -29,10 +28,10 @@ pub fn generate_classpath() -> Option<String> {
         return None;
     }
 
-    let classpath = read_to_string(classpath_file).ok()?;
+    let classpath = read_to_string(CLASSPATH_FILE).ok()?;
     let full_classpath = format!("{}:target/classes", classpath.trim());
 
-    fs::write(classpath_file, &full_classpath).ok()?;
+    fs::write(CLASSPATH_FILE, &full_classpath).ok()?;
 
     Some(full_classpath)
 }

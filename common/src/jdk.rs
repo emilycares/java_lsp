@@ -7,8 +7,9 @@ use std::{
 };
 
 use dashmap::DashMap;
+use parking_lot::Mutex;
 use parser::{dto::ClassFolder, loader::SourceDestination};
-use tokio::{process::Command, sync::Mutex};
+use tokio::process::Command;
 
 #[cfg(target_os = "linux")]
 const EXECUTABLE_JAVA: &str = "java";
@@ -19,6 +20,7 @@ const EXECUTABLE_JAVA: &str = "java.exe";
 pub enum JdkError {
     NoSrcZip,
     Unzip(Option<String>),
+    ParserLoader(parser::loader::ParserLoaderError),
 }
 
 fn java_executable_location() -> Option<PathBuf> {
@@ -60,10 +62,10 @@ async fn load_jdk() -> Result<ClassFolder, JdkError> {
         return load_jmods(path, jmod_executable).await;
     }
     eprintln!("There is no jmod in your jdk: {:?}", &path);
-    load_old(path)
+    load_old(path).await
 }
 
-fn load_old(mut path: PathBuf) -> Result<ClassFolder, JdkError> {
+async fn load_old(mut path: PathBuf) -> Result<ClassFolder, JdkError> {
     path.pop();
     let jdk_name = path.file_name();
 
@@ -74,25 +76,26 @@ fn load_old(mut path: PathBuf) -> Result<ClassFolder, JdkError> {
     let mut src_zip = path.join("src");
     src_zip.set_extension("zip");
     unzip_to_dir(&source_dir, &src_zip)?;
-    let classes_dir = op_dir.join("classes");
     let mut rt_jar = jre_lib.join("rt");
     rt_jar.set_extension("jar");
-    unzip_to_dir(&classes_dir, &rt_jar)?;
-    let mut classes = parser::loader::load_classes(
-        &classes_dir,
+    let mut classes = parser::loader::load_classes_jar(
+        &rt_jar,
         SourceDestination::RelativeInFolder(
             source_dir
                 .to_str()
                 .expect("Should be represented as string")
                 .to_owned(),
         ),
-    );
+        None,
+    )
+    .await
+    .map_err(|i| JdkError::ParserLoader(i))?;
 
-    load_javafx(path, op_dir, jre_lib, &mut classes)?;
+    load_javafx(path, op_dir, jre_lib, &mut classes).await?;
     Ok(classes)
 }
 
-fn load_javafx(
+async fn load_javafx(
     path: PathBuf,
     op_dir: PathBuf,
     jre_lib: PathBuf,
@@ -103,20 +106,21 @@ fn load_javafx(
     src_zip_jfx.set_extension("zip");
     if src_zip_jfx.exists() {
         unzip_to_dir(&source_dir_jfx, &src_zip_jfx)?;
-        let classes_dir_jfx = op_dir.join("classes_jfx");
         let mut jfxrt = jre_lib.join("ext").join("jfxrt");
         jfxrt.set_extension("jar");
         if jfxrt.exists() {
-            unzip_to_dir(&classes_dir_jfx, &jfxrt)?;
-            let classes_jfx = parser::loader::load_classes(
-                &classes_dir_jfx,
+            let classes_jfx = parser::loader::load_classes_jar(
+                jfxrt,
                 SourceDestination::RelativeInFolder(
                     source_dir_jfx
                         .to_str()
                         .expect("Should be represented as string")
                         .to_owned(),
                 ),
-            );
+                None,
+            )
+            .await
+            .map_err(|i| JdkError::ParserLoader(i))?;
             classes.append(classes_jfx);
         }
     }
@@ -182,35 +186,38 @@ async fn load_jmods(mut path: PathBuf, jmod_executable: PathBuf) -> Result<Class
 
                         handles.push(tokio::spawn(async move {
                             let jmod_dir = &jmods_dir.join(&jmod_display);
-                            let _ = fs::create_dir_all(&jmod_dir);
-                            match Command::new(&*jmod_executable)
-                                .current_dir(&jmod_dir)
-                                .arg("extract")
-                                .arg(&jmod)
-                                .output()
-                                .await
-                            {
-                                Ok(_r) => {
-                                    eprintln!("Extracted jdk jmod: {}", &jmod_display);
-                                    let classes_folder = jmod_dir.join("classes");
-                                    let relative_source = source_dir.join(jmod_display);
-                                    let _ = fs::create_dir_all(&relative_source);
-                                    let classes = parser::loader::load_classes(
-                                        &classes_folder,
-                                        SourceDestination::RelativeInFolder(
-                                            relative_source
-                                                .to_str()
-                                                .expect("Should be represented as string")
-                                                .to_owned(),
-                                        ),
-                                    );
-                                    {
-                                        let mut guard = class_folder.lock().await;
-                                        guard.append(classes);
+                            if !jmod_dir.exists() {
+                                let _ = fs::create_dir_all(&jmod_dir);
+                                match Command::new(&*jmod_executable)
+                                    .current_dir(&jmod_dir)
+                                    .arg("extract")
+                                    .arg(&jmod)
+                                    .output()
+                                    .await
+                                {
+                                    Ok(_r) => {
+                                        eprintln!("Extracted jdk jmod: {}", &jmod_display);
                                     }
-                                }
-                                Err(e) => eprintln!("Error with jmod extraction {:?}", e),
+                                    Err(e) => eprintln!("Error with jmod extraction {:?}", e),
+                                };
                             }
+                            let classes_folder = jmod_dir.join("classes");
+                            let relative_source = source_dir.join(&jmod_display);
+                            let _ = fs::create_dir_all(&relative_source);
+                            let classes = parser::loader::load_classes(
+                                &classes_folder,
+                                SourceDestination::RelativeInFolder(
+                                    relative_source
+                                        .to_str()
+                                        .expect("Should be represented as string")
+                                        .to_owned(),
+                                ),
+                            );
+                            {
+                                let mut guard = class_folder.lock();
+                                guard.append(classes);
+                            }
+                            eprintln!("Parsed jdk jmod: {}", &jmod_display);
                         }));
                     }
                 }
@@ -220,7 +227,7 @@ async fn load_jmods(mut path: PathBuf, jmod_executable: PathBuf) -> Result<Class
 
     futures::future::join_all(handles).await;
     let class_folder = class_folder.clone();
-    let guard = class_folder.lock().await;
+    let guard = class_folder.lock();
     Ok(guard.clone())
 }
 

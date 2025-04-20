@@ -9,6 +9,7 @@ dashmap.workspace = true
 tokio.workspace = true
 futures.workspace = true
 itertools.workspace = true
+parking_lot.workspace = true
 common = {path = "../common"}
 parser = {path = "../parser"}
 

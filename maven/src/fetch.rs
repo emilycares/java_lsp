@@ -6,8 +6,9 @@ use std::{
 };
 
 use dashmap::DashMap;
+use parking_lot::Mutex;
 use parser::{dto::ClassFolder, loader::SourceDestination};
-use tokio::{process::Command, sync::Mutex};
+use tokio::process::Command;
 
 use crate::{
     tree::{self, Pom},
@@ -51,6 +52,8 @@ pub enum MavenFetchError {
     NoWorkToDo,
     NoHomeFound,
     Tree(tree::MavenTreeError),
+    NoClassPath,
+    ParserLoader(parser::loader::ParserLoaderError),
 }
 
 pub async fn fetch_deps(
@@ -66,23 +69,11 @@ pub async fn fetch_deps(
         }
         Err(MavenFetchError::NoWorkToDo)
     } else {
-        // mvn dependency:unpack-dependencies -Dmdep.useRepositoryLayout=true
-        let unpack = Command::new(EXECUTABLE_MAVEN)
-            .args([
-                "dependency:unpack-dependencies",
-                "-Dmdep.useRepositoryLayout=true",
-            ])
-            .output();
         // mvn dependency:resolve -Dclassifier=sources
-        let res_src = Command::new(EXECUTABLE_MAVEN)
+        let _ = Command::new(EXECUTABLE_MAVEN)
             .args(["dependency:resolve", "-Dclassifier=sources"])
-            .output();
-        // mvn dependency:resolve -Dclassifier=javadoc
-        let res_doc = Command::new(EXECUTABLE_MAVEN)
-            .args(["dependency:resolve", "-Dclassifier=javadoc"])
-            .output();
-
-        let _ = futures::future::join3(unpack, res_src, res_doc).await;
+            .output()
+            .await;
 
         let tree = tree::load().map_err(|e| MavenFetchError::Tree(e))?;
         let Some(home) = dirs::home_dir() else {
@@ -104,27 +95,32 @@ pub async fn fetch_deps(
                 if !folder.exists() {
                     eprintln!("dependency folder does not exist {:?}", folder);
                 } else {
+                    let classes_jar = pom_classes_jar(&dep, &m2);
                     let source_jar = pom_sources_jar(&dep, &m2);
                     let source = extract_jar(source_jar, "source");
-                    let javadoc_jar = pom_javadoc_jar(&dep, &m2);
-                    let _ = extract_jar(javadoc_jar, "javadoc");
 
-                    let classes = parser::loader::load_classes(
-                        folder.as_path().to_str().unwrap_or_default(),
+                    match parser::loader::load_classes_jar(
+                        classes_jar,
                         SourceDestination::RelativeInFolder(source),
-                    );
+                        None,
+                    )
+                    .await
                     {
-                        let mut guard = maven_class_folder.lock().await;
-                        guard.append(classes.clone());
-                    }
-                    for class in classes.classes {
-                        class_map.insert(class.class_path.clone(), class);
+                        Ok(classes) => {
+                            let mut guard = maven_class_folder.lock();
+                            guard.append(classes.clone());
+
+                            for class in classes.classes {
+                                class_map.insert(class.class_path.clone(), class);
+                            }
+                        }
+                        Err(e) => eprintln!("Parse error in {:?}, {:?}", dep, e),
                     }
                 }
             }));
         }
         futures::future::join_all(handles).await;
-        let guard = maven_class_folder.lock().await;
+        let guard = maven_class_folder.lock();
         if let Err(e) = parser::loader::save_class_folder("maven", &guard) {
             eprintln!("Failed to save .maven.cfc because: {e}");
         };
@@ -147,14 +143,17 @@ fn extract_jar(jar: PathBuf, folder_name: &str) -> String {
     source
 }
 
+pub fn pom_classes_jar(pom: &Pom, m2: &Path) -> PathBuf {
+    get_pom_m2_classifier_path(pom, m2, None)
+}
 pub fn pom_sources_jar(pom: &Pom, m2: &Path) -> PathBuf {
-    get_pom_m2_classifier_path(pom, m2, "sources")
+    get_pom_m2_classifier_path(pom, m2, Some("sources"))
 }
 pub fn pom_javadoc_jar(pom: &Pom, m2: &Path) -> PathBuf {
-    get_pom_m2_classifier_path(pom, m2, "javadoc")
+    get_pom_m2_classifier_path(pom, m2, Some("javadoc"))
 }
 
-fn get_pom_m2_classifier_path(pom: &Pom, m2: &Path, classifier: &str) -> PathBuf {
+fn get_pom_m2_classifier_path(pom: &Pom, m2: &Path, classifier: Option<&str>) -> PathBuf {
     let group_parts = pom.group_id.split(".");
     let mut p = m2.join("repository");
     for gp in group_parts {
@@ -164,8 +163,15 @@ fn get_pom_m2_classifier_path(pom: &Pom, m2: &Path, classifier: &str) -> PathBuf
         .join(&pom.artivact_id)
         .join(&pom.version)
         .join(&pom.version);
-    let file_name = format!("{}-{}-{}.jar", pom.artivact_id, pom.version, classifier);
-    p.set_file_name(file_name);
+
+    if let Some(classifier) = classifier {
+        let file_name = format!("{}-{}-{}.jar", pom.artivact_id, pom.version, classifier);
+        p.set_file_name(file_name);
+    } else {
+        let file_name = format!("{}-{}.jar", pom.artivact_id, pom.version);
+        p.set_file_name(file_name);
+    }
+
     p
 }
 

@@ -7,8 +7,8 @@ use std::{
 
 use dashmap::DashMap;
 use itertools::Itertools;
+use parking_lot::Mutex;
 use parser::{dto::ClassFolder, loader::SourceDestination};
-use tokio::sync::Mutex;
 
 use crate::tree::{self, GradleTreeError};
 
@@ -69,7 +69,7 @@ pub async fn fetch_deps(
                         SourceDestination::None,
                     );
                     {
-                        let mut guard = maven_class_folder.lock().await;
+                        let mut guard = maven_class_folder.lock();
                         guard.append(classes.clone());
                     }
                     for class in classes.classes {
@@ -80,7 +80,7 @@ pub async fn fetch_deps(
         }
 
         futures::future::join_all(handles).await;
-        let guard = maven_class_folder.lock().await;
+        let guard = maven_class_folder.lock();
         if let Err(e) = parser::loader::save_class_folder("gradle", &guard) {
             eprintln!("Failed to save .gradle.cfc because: {e}");
         };

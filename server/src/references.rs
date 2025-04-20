@@ -207,6 +207,7 @@ pub fn call_chain_references(
     imports: &[ImportUnit],
     class: &dashmap::mapref::one::Ref<'_, String, Class>,
     class_map: &dashmap::DashMap<String, Class>,
+    reference_map: &dashmap::DashMap<String, Vec<ReferenceUnit>>,
 ) -> Result<Vec<Location>, ReferencesError> {
     let (item, relevat) = call_chain::validate(&call_chain, point);
 
@@ -232,6 +233,7 @@ pub fn call_chain_references(
                     imports,
                     class,
                     class_map,
+                    reference_map,
                 );
             }
             Err(ReferencesError::ArgumentNotFound)

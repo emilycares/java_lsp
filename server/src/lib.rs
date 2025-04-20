@@ -730,6 +730,7 @@ impl Backend<'_> {
             &imports,
             class,
             &self.class_map,
+            &self.reference_map,
         ) {
             Ok(definition) => return Some(definition),
             Err(e) => {
