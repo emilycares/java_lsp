@@ -131,7 +131,7 @@ pub fn call_chain_definition(
     };
 }
 
-fn get_source_content(extend_class: &dto::Class) -> Result<String, DefinitionError> {
+pub fn get_source_content(extend_class: &dto::Class) -> Result<String, DefinitionError> {
     let path = PathBuf::from(&extend_class.source);
     eprintln!("Loading source -> {}", &extend_class.source);
     if path.exists() {
@@ -145,7 +145,7 @@ fn get_source_content(extend_class: &dto::Class) -> Result<String, DefinitionErr
 }
 
 pub fn class_to_uri(class: &dto::Class) -> Result<Uri, DefinitionError> {
-    let str_uri = format!("file://{}", class.source.replace("\\", "/"));
+    let str_uri = format!("file:///{}", class.source.replace("\\", "/"));
     let uri = Uri::from_str(&str_uri);
     match uri {
         Ok(uri) => Ok(uri),

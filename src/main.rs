@@ -13,6 +13,10 @@ use clap::{Parser, Subcommand};
 pub struct Args {
     #[command(subcommand)]
     cmd: Option<Commands>,
+
+    /// Unused flag required by vscode.
+    #[arg(short, long, default_value_t = true)]
+    stdio: bool,
 }
 #[derive(Subcommand, Debug)]
 enum Commands {

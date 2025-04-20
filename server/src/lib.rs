@@ -12,6 +12,7 @@ mod utils;
 mod variable;
 
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::str::FromStr;
 use std::{collections::HashMap, fs::read_to_string};
 
@@ -43,6 +44,7 @@ use lsp_types::{
 };
 use lsp_types::{
     ClientCapabilities, Location, ReferenceParams, SymbolInformation, WorkDoneProgressOptions,
+    WorkDoneProgressReport,
 };
 use parser::call_chain::get_call_chain;
 use parser::dto::Class;
@@ -63,6 +65,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
         document_map: DashMap::new(),
         class_map: DashMap::new(),
         reference_map: DashMap::new(),
+        client_capabilities: Rc::new(None),
     };
 
     // Run the server and wait for the two threads to end (typically by trigger LSP Exit event).
@@ -268,6 +271,7 @@ struct Backend<'a> {
     document_map: DashMap<String, Document>,
     class_map: DashMap<String, Class>,
     reference_map: DashMap<String, Vec<ReferenceUnit>>,
+    client_capabilities: Rc<Option<ClientCapabilities>>,
     connection: &'a Connection,
 }
 impl Backend<'_> {
@@ -342,6 +346,28 @@ impl Backend<'_> {
         }
     }
 
+    fn progress_update(&self, task: &str, message: &str) {
+        eprintln!("Report progress on: {} status: {}", task, message);
+        if let Ok(params) = serde_json::to_value(ProgressParams {
+            token: ProgressToken::String(task.to_string()),
+            value: ProgressParamsValue::WorkDone(WorkDoneProgress::Report(
+                WorkDoneProgressReport {
+                    cancellable: None,
+                    message: Some(message.to_string()),
+                    percentage: None,
+                },
+            )),
+        }) {
+            let _ = self
+                .connection
+                .sender
+                .send(Message::Notification(lsp_server::Notification {
+                    method: Progress::METHOD.to_string(),
+                    params,
+                }));
+        }
+    }
+
     fn progress_end(&self, task: &str) {
         eprintln!("End progress on: {}", task);
         if let Ok(params) = serde_json::to_value(ProgressParams {
@@ -393,7 +419,7 @@ impl Backend<'_> {
             let Some(path) = path.get(..) else {
                 continue;
             };
-            if let Ok(uri) = Uri::from_str(&format!("file://{}", path)) {
+            if let Ok(uri) = Uri::from_str(&format!("file:///{}", path)) {
                 if let Some(errs) = emap.get(path) {
                     let errs: Vec<Diagnostic> = errs
                         .iter()
@@ -410,12 +436,14 @@ impl Backend<'_> {
         }
     }
 
-    async fn initialized(&mut self, _: ClientCapabilities) {
+    async fn initialized(&mut self, client_capabilities: ClientCapabilities) {
         eprintln!("Init");
+        self.client_capabilities = Rc::new(Some(client_capabilities));
+        let task = "Load jdk";
 
-        self.progress_start("Load jdk");
+        self.progress_start(task);
         let _ = common::jdk::load_classes(&self.class_map).await;
-        self.progress_end("Load jdk");
+        self.progress_end(task);
 
         if self.project_kind != ProjectKind::Unknown {
             let prog_lable = format!("Load {} dependencies", self.project_kind);
@@ -448,21 +476,24 @@ impl Backend<'_> {
             self.progress_end(&prog_lable);
         }
 
-        self.progress_start("Load project files");
+        let task = "Load project files";
+        self.progress_start(task);
         let project_classes = match self.project_kind {
             ProjectKind::Maven => maven::project::load_project_folders(),
             ProjectKind::Gradle => gradle::project::load_project_folders(),
             ProjectKind::Unknown => vec![],
         };
+        self.progress_update(task, "Initializing reference map");
         match references::init_refernece_map(&project_classes, &self.class_map, &self.reference_map)
         {
             Ok(_) => (),
             Err(e) => eprintln!("Got reference error: {:?}", e),
         }
+        self.progress_update(task, "Populating class map");
         for class in project_classes {
             self.class_map.insert(class.class_path.clone(), class);
         }
-        self.progress_end("Load project files");
+        self.progress_end(task);
 
         eprintln!("Init done");
     }
@@ -683,6 +714,28 @@ impl Backend<'_> {
             Err(ClassActionError::VariableFound { var: _, range: _ }) => {}
             Err(e) => eprintln!("Got refrence class error: {:?}", e),
         }
+        let Some(call_chain) = get_call_chain(&document.tree, document.as_bytes(), &point) else {
+            eprintln!("References could not get callchain");
+            return None;
+        };
+        let Some(class) = &self.class_map.get(&document.class_path) else {
+            eprintln!("Could not find class {}", document.class_path);
+            return None;
+        };
+        match references::call_chain_references(
+            uri,
+            &point,
+            &call_chain,
+            &vars,
+            &imports,
+            class,
+            &self.class_map,
+        ) {
+            Ok(definition) => return Some(definition),
+            Err(e) => {
+                eprintln!("Error while completion: {e:?}");
+            }
+        }
         None
     }
 
@@ -771,7 +824,7 @@ impl Backend<'_> {
                 )
             })
             .filter_map(|(path, symbols)| {
-                let uri = Uri::from_str(&format!("file://{}", path)).ok()?;
+                let uri = Uri::from_str(&format!("file:///{}", path)).ok()?;
                 Some(position::symbols_to_document_symbols(symbols, uri))
             })
             .flatten()

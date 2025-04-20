@@ -3,13 +3,19 @@ use std::{
     hash::Hash,
 };
 
-use lsp_types::Location;
-use parser::dto::{Class, ImportUnit};
+use lsp_types::{Location, Uri};
+use parser::{
+    call_chain::{self, CallItem},
+    dto::{Class, ImportUnit},
+};
+use tree_sitter::Point;
 
 use crate::{
-    definition,
+    definition::{self},
     position::{self, PositionSymbol},
+    tyres,
     utils::to_lsp_range,
+    variable::LocalVariable,
 };
 
 #[derive(Debug)]
@@ -18,6 +24,10 @@ pub enum ReferencesError {
     Position(position::PosionError),
     Treesitter(tree_sitter_util::TreesitterError),
     FindClassnameInClasspath(String),
+    Tyres(tyres::TyresError),
+    ValidatedItemDoesNotExists,
+    ArgumentNotFound,
+    Definition(definition::DefinitionError),
 }
 
 #[derive(Debug)]
@@ -187,4 +197,46 @@ pub fn class_path(
         return Some(refs);
     }
     None
+}
+
+pub fn call_chain_references(
+    document_uri: Uri,
+    point: &Point,
+    call_chain: &Vec<CallItem>,
+    vars: &[LocalVariable],
+    imports: &[ImportUnit],
+    class: &dashmap::mapref::one::Ref<'_, String, Class>,
+    class_map: &dashmap::DashMap<String, Class>,
+) -> Result<Vec<Location>, ReferencesError> {
+    let (item, relevat) = call_chain::validate(&call_chain, point);
+
+    // let extend_class = tyres::resolve_call_chain(relevat, vars, imports, class, class_map)
+    //     .map_err(|e| ReferencesError::Tyres(e))?;
+    return match relevat.get(item) {
+        // Some(CallItem::MethodCall { name, range: _ }) => {}
+        // Some(CallItem::FieldAccess { name, range: _ }) => {}
+        // Some(CallItem::Variable { name, range: _ }) => {}
+        // Some(CallItem::ClassOrVariable { name, range: _ }) => {}
+        Some(CallItem::ArgumentList {
+            prev: _,
+            active_param,
+            filled_params,
+            range: _,
+        }) => {
+            if let Some(current_param) = filled_params.get(*active_param) {
+                return call_chain_references(
+                    document_uri,
+                    point,
+                    current_param,
+                    vars,
+                    imports,
+                    class,
+                    class_map,
+                );
+            }
+            Err(ReferencesError::ArgumentNotFound)
+        }
+        Some(a) => unimplemented!("call_chain_revernece {:?}", a),
+        None => Err(ReferencesError::ValidatedItemDoesNotExists),
+    };
 }
