@@ -203,7 +203,6 @@ async fn load_jmods(mut path: PathBuf, jmod_executable: PathBuf) -> Result<Class
                             }
                             let classes_folder = jmod_dir.join("classes");
                             let relative_source = source_dir.join(&jmod_display);
-                            let _ = fs::create_dir_all(&relative_source);
                             let classes = parser::loader::load_classes(
                                 &classes_folder,
                                 SourceDestination::RelativeInFolder(
