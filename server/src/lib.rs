@@ -39,11 +39,11 @@ use lsp_types::{
     Position, ProgressParams, ProgressParamsValue, ProgressToken, PublishDiagnosticsParams, Range,
     ServerCapabilities, SignatureHelp, SignatureHelpOptions, SignatureHelpParams,
     TextDocumentContentChangeEvent, TextDocumentItem, TextDocumentSyncCapability,
-    TextDocumentSyncKind, TextEdit, Uri, WorkDoneProgress, WorkDoneProgressBegin,
-    WorkDoneProgressEnd, WorkspaceSymbolParams, WorkspaceSymbolResponse,
+    TextDocumentSyncKind, TextEdit, Uri, WorkDoneProgressBegin, WorkDoneProgressEnd,
+    WorkspaceSymbolParams, WorkspaceSymbolResponse,
 };
 use lsp_types::{
-    ClientCapabilities, Location, ReferenceParams, SymbolInformation, WorkDoneProgressOptions,
+    ClientCapabilities, Location, ReferenceParams, SymbolInformation, WorkDoneProgress,
     WorkDoneProgressReport,
 };
 use parser::call_chain::get_call_chain;
@@ -89,10 +89,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         signature_help_provider: Some(SignatureHelpOptions {
             trigger_characters: Some(vec!["(".to_owned(), ",".to_owned(), "<".to_owned()]),
-            retrigger_characters: None,
-            work_done_progress_options: WorkDoneProgressOptions {
-                work_done_progress: None,
-            },
+            ..Default::default()
         }),
         ..ServerCapabilities::default()
     })

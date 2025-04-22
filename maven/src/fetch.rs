@@ -55,14 +55,14 @@ pub enum MavenFetchError {
     NoClassPath,
     ParserLoader(parser::loader::ParserLoaderError),
 }
+const MAVEN_CFC: &str = ".maven.cfc";
 
 pub async fn fetch_deps(
     class_map: &DashMap<std::string::String, parser::dto::Class>,
 ) -> Result<DashMap<std::string::String, parser::dto::Class>, MavenFetchError> {
-    let file_name = ".maven.cfc";
-    let path = Path::new(&file_name);
+    let path = Path::new(&MAVEN_CFC);
     if path.exists() {
-        if let Ok(classes) = parser::loader::load_class_folder("maven") {
+        if let Ok(classes) = parser::loader::load_class_folder(path) {
             for class in classes.classes {
                 class_map.insert(class.class_path.clone(), class);
             }
@@ -121,8 +121,8 @@ pub async fn fetch_deps(
         }
         futures::future::join_all(handles).await;
         let guard = maven_class_folder.lock();
-        if let Err(e) = parser::loader::save_class_folder("maven", &guard) {
-            eprintln!("Failed to save .maven.cfc because: {e}");
+        if let Err(e) = parser::loader::save_class_folder(path, &guard) {
+            eprintln!("Failed to save {MAVEN_CFC} because: {e}");
         };
         Ok(Arc::try_unwrap(class_map).expect("Classmap should be free to take"))
     }

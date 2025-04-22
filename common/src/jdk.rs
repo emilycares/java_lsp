@@ -16,6 +16,8 @@ const EXECUTABLE_JAVA: &str = "java";
 #[cfg(target_os = "windows")]
 const EXECUTABLE_JAVA: &str = "java.exe";
 
+const JDK_CFC: &str = ".jdk.cfc";
+
 #[derive(Debug)]
 pub enum JdkError {
     NoSrcZip,
@@ -43,10 +45,8 @@ fn java_executable_location() -> Option<PathBuf> {
 /// returns folder of output
 async fn load_jdk() -> Result<ClassFolder, JdkError> {
     let mut path = java_executable_location().expect("There should be a java executabel in path");
-    eprintln!("java executable location {:?}", &path);
     if path.is_symlink() {
         if let Ok(linked) = fs::read_link(&path) {
-            eprintln!("sym: {:?}", linked);
             path = linked;
         }
     }
@@ -57,7 +57,6 @@ async fn load_jdk() -> Result<ClassFolder, JdkError> {
     if cfg!(windows) {
         jmod_executable.set_extension("exe");
     }
-    eprintln!("jmod_executable: {:?}", &jmod_executable);
     if jmod_executable.exists() {
         return load_jmods(path, jmod_executable).await;
     }
@@ -135,7 +134,6 @@ async fn load_jmods(mut path: PathBuf, jmod_executable: PathBuf) -> Result<Class
     let op_dir = opdir(jdk_name);
 
     let source_dir = op_dir.join("src");
-    eprintln!("Unpacking jdk source into: {:?}", &source_dir);
     let mut src_zip = path.clone();
     src_zip = src_zip.join("lib").join("src");
     src_zip.set_extension("zip");
@@ -148,11 +146,9 @@ async fn load_jmods(mut path: PathBuf, jmod_executable: PathBuf) -> Result<Class
             jmods = lib_openjdk_jmods;
         }
     }
-    eprintln!("jmods folder: {:?}", &src_zip);
 
     let jmods_dir = op_dir.join("jmods");
     let _ = fs::create_dir_all(&jmods_dir);
-    eprintln!("Unpacking jmod classes into: {:?}", &jmods_dir);
 
     let mut handles = Vec::new();
     let class_folder = Arc::new(Mutex::new(ClassFolder::default()));
@@ -160,7 +156,6 @@ async fn load_jmods(mut path: PathBuf, jmod_executable: PathBuf) -> Result<Class
     let jmod_executable = Arc::new(jmod_executable);
     let jmods_dir = Arc::new(jmods_dir);
 
-    eprintln!("jmods {:?}", &jmods);
     match fs::read_dir(jmods) {
         Err(e) => eprintln!("error reading dir {:?}", e),
         Ok(jmods) => {
@@ -181,7 +176,6 @@ async fn load_jmods(mut path: PathBuf, jmod_executable: PathBuf) -> Result<Class
                         .and_then(|n| n.to_str())
                         .map(|n| n.to_string())
                     {
-                        eprintln!("jmod found: {}", &jmod_name);
                         let jmod_display = jmod_name.trim_end_matches(".jmod").to_owned();
 
                         handles.push(tokio::spawn(async move {
@@ -259,9 +253,9 @@ fn opdir(jdk_name: Option<&std::ffi::OsStr>) -> PathBuf {
 pub async fn load_classes(
     class_map: &DashMap<std::string::String, parser::dto::Class>,
 ) -> Result<(), JdkError> {
-    let path = Path::new(".jdk.cfc");
+    let path = Path::new(JDK_CFC);
     if path.exists() {
-        if let Ok(classes) = parser::loader::load_class_folder("jdk") {
+        if let Ok(classes) = parser::loader::load_class_folder(path) {
             for class in classes.classes {
                 class_map.insert(class.class_path.clone(), class);
             }
@@ -275,8 +269,8 @@ pub async fn load_classes(
         // mvn dependency:unpack
         // ```
         let class_folder = load_jdk().await?;
-        if let Err(e) = parser::loader::save_class_folder("jdk", &class_folder) {
-            eprintln!("Failed to save .jdk.cfc because: {e}");
+        if let Err(e) = parser::loader::save_class_folder(path, &class_folder) {
+            eprintln!("Failed to save {JDK_CFC} because: {e}");
         };
         for class in class_folder.classes {
             class_map.insert(class.class_path.clone(), class);

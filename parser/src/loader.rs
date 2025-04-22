@@ -51,8 +51,8 @@ where
     java::load_java(&bytes, source)
 }
 
-pub fn save_class_folder(
-    prefix: &str,
+pub fn save_class_folder<P: AsRef<Path>>(
+    path: P,
     class_folder: &dto::ClassFolder,
 ) -> Result<(), dto::ClassError> {
     if class_folder.classes.is_empty() {
@@ -62,15 +62,15 @@ pub fn save_class_folder(
         .create(true)
         .truncate(true)
         .write(true)
-        .open(format!(".{}.cfc", prefix))?;
+        .open(path)?;
     let data = postcard::to_allocvec(class_folder)?;
 
     let _ = file.write_all(&data);
     Ok(())
 }
 
-pub fn load_class_folder(prefix: &str) -> Result<dto::ClassFolder, dto::ClassError> {
-    let data = fs::read(Path::new(&format!(".{}.cfc", prefix)))?;
+pub fn load_class_folder<P: AsRef<Path>>(path: P) -> Result<dto::ClassFolder, dto::ClassError> {
+    let data = fs::read(path)?;
     let out = postcard::from_bytes(&data)?;
 
     Ok(out)

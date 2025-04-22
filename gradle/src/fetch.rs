@@ -30,14 +30,14 @@ pub(crate) const PATH_GRADLE: &str = "./gradlew";
 pub(crate) const PATH_GRADLE: &str = "./gradlew.bat";
 
 const GRADLE_FILE_PATH: &str = "./build.gradle";
+const GRADLE_CFC: &str = ".gradle.cfc";
 
 pub async fn fetch_deps(
     class_map: &DashMap<std::string::String, parser::dto::Class>,
 ) -> Result<DashMap<std::string::String, parser::dto::Class>, GradleFetchError> {
-    let file_name = ".gradle.cfc";
-    let path = Path::new(&file_name);
+    let path = Path::new(&GRADLE_CFC);
     if path.exists() {
-        if let Ok(classes) = parser::loader::load_class_folder("gradle") {
+        if let Ok(classes) = parser::loader::load_class_folder(path) {
             for class in classes.classes {
                 class_map.insert(class.class_path.clone(), class);
             }
@@ -81,8 +81,8 @@ pub async fn fetch_deps(
 
         futures::future::join_all(handles).await;
         let guard = maven_class_folder.lock();
-        if let Err(e) = parser::loader::save_class_folder("gradle", &guard) {
-            eprintln!("Failed to save .gradle.cfc because: {e}");
+        if let Err(e) = parser::loader::save_class_folder(path, &guard) {
+            eprintln!("Failed to save {GRADLE_CFC} because: {e}");
         };
         Ok(Arc::try_unwrap(class_map).expect("Classmap should be free to take"))
     }
