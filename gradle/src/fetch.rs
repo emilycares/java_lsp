@@ -1,16 +1,19 @@
 use std::{
-    fs,
+    fs::{self},
     path::{Path, PathBuf},
     process::Command,
-    sync::Arc,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
 };
 
+use common::TaskProgress;
 use dashmap::DashMap;
-use itertools::Itertools;
 use parking_lot::Mutex;
 use parser::{dto::ClassFolder, loader::SourceDestination};
 
-use crate::tree::{self, GradleTreeError};
+use crate::tree::GradleTreeError;
 
 #[derive(Debug)]
 pub enum GradleFetchError {
@@ -29,11 +32,12 @@ pub(crate) const PATH_GRADLE: &str = "./gradlew";
 #[cfg(target_os = "windows")]
 pub(crate) const PATH_GRADLE: &str = "./gradlew.bat";
 
-const GRADLE_FILE_PATH: &str = "./build.gradle";
 const GRADLE_CFC: &str = ".gradle.cfc";
 
 pub async fn fetch_deps(
     class_map: &DashMap<std::string::String, parser::dto::Class>,
+    build_gradle: PathBuf,
+    sender: tokio::sync::mpsc::Sender<TaskProgress>,
 ) -> Result<DashMap<std::string::String, parser::dto::Class>, GradleFetchError> {
     let path = Path::new(&GRADLE_CFC);
     if path.exists() {
@@ -44,39 +48,61 @@ pub async fn fetch_deps(
         }
         return Err(GradleFetchError::NoWorkToDo);
     } else {
-        let unpack_folder = unpack_dependencies()?;
-        let tree = tree::load().map_err(|e| GradleFetchError::Tree(e))?;
+        let unpack_folder = copy_classpath(build_gradle)?;
         let class_map = Arc::new(class_map.clone());
         let maven_class_folder = Arc::new(Mutex::new(ClassFolder::default()));
         let mut handles = Vec::new();
-        let folders: Vec<_> = tree
-            .iter()
-            .map(|dep| {
-                PathBuf::from(&unpack_folder).join(format!("{}-{}", dep.artivact_id, dep.version))
-            })
-            .unique()
-            .collect();
+        if let Ok(o) = fs::read_dir(unpack_folder) {
+            let jars: Vec<PathBuf> = o
+                .filter_map(|i| i.ok())
+                .filter(|i| {
+                    if let Ok(ft) = i.file_type() {
+                        if ft.is_file() {
+                            return true;
+                        }
+                    }
+                    return false;
+                })
+                .filter(|i| i.file_name().to_string_lossy().ends_with(".jar"))
+                .map(|i| i.path())
+                .collect();
+            let tasks_number = jars.len();
+            let completed_number = Arc::new(AtomicUsize::new(0));
 
-        for folder in folders {
-            let class_map = class_map.clone();
-            let maven_class_folder = maven_class_folder.clone();
-            handles.push(tokio::spawn(async move {
-                if !folder.exists() {
-                    eprintln!("dependency folder does not exist {:?}", folder);
-                } else {
-                    let classes = parser::loader::load_classes(
-                        folder.as_path().to_str().unwrap_or_default(),
-                        SourceDestination::None,
-                    );
-                    {
-                        let mut guard = maven_class_folder.lock();
-                        guard.append(classes.clone());
-                    }
-                    for class in classes.classes {
-                        class_map.insert(class.class_path.clone(), class);
-                    }
+            for jar in jars {
+                if !jar.exists() {
+                    eprintln!("jar does not exist {:?}", jar);
+                    continue;
                 }
-            }));
+                let class_map = class_map.clone();
+                let gradle_class_folder = maven_class_folder.clone();
+                let completed_number = completed_number.clone();
+                let sender = sender.clone();
+
+                let current_name = jar.display().to_string();
+                handles.push(tokio::spawn(async move {
+                    match parser::loader::load_classes_jar(jar, SourceDestination::None, None).await
+                    {
+                        Ok(classes) => {
+                            let a = completed_number.fetch_add(1, Ordering::Release);
+                            let _ = sender
+                                .send(TaskProgress {
+                                    persentage: (100 * a) / tasks_number,
+                                    message: current_name,
+                                })
+                                .await;
+                            {
+                                let mut guard = gradle_class_folder.lock();
+                                guard.append(classes.clone());
+                            }
+                            for class in classes.classes {
+                                class_map.insert(class.class_path.clone(), class);
+                            }
+                        }
+                        Err(e) => eprintln!("Error loading graddle jar {:?}", e),
+                    }
+                }));
+            }
         }
 
         futures::future::join_all(handles).await;
@@ -107,35 +133,27 @@ pub async fn fetch_deps(
 // configuration ':testResultsElementsForTest'
 // configuration ':testRuntimeClasspath'
 // configuration ':testRuntimeOnly']
-const UNPACK_DEPENCENCIES_TASK: &str = r#"
-task unpackDependencies(type: Copy) {
+const UNPACK_DEPENCENCIES_TASK_GROOVY: &str = r#"
+task classpath(type: Copy) {
     from configurations.runtimeClasspath
     from configurations.compileClasspath
     from configurations.testRuntimeClasspath
     from configurations.testCompileClasspath
-    into "$buildDir/unpacked-dependencies"
-    println "STARTPATH_$buildDir/unpacked-dependencies"
-    eachFile { file ->
-        if (file.name.endsWith('.jar')) {
-            // Unpack the JAR files
-            def jarFile = file.file
-            def destDir = new File("$buildDir/unpacked-dependencies/${file.name.replace('.jar', '')}")
-            copy {
-                from zipTree(jarFile)
-                into destDir
-            }
-        }
-    }
+    into "$buildDir/classpath"
 }
 "#;
-fn unpack_dependencies() -> Result<String, GradleFetchError> {
-    match fs::read_to_string(GRADLE_FILE_PATH) {
+fn copy_classpath(build_gradle: PathBuf) -> Result<PathBuf, GradleFetchError> {
+    let script = match build_gradle.ends_with(".kts") {
+        true => unimplemented!("No support yet for build.gradle.kts"),
+        false => UNPACK_DEPENCENCIES_TASK_GROOVY,
+    };
+    match fs::read_to_string(&build_gradle) {
         Err(e) => Err(GradleFetchError::CouldNotReadBuildGradle(e)),
         Ok(gradle_content) => {
-            if !gradle_content.contains(UNPACK_DEPENCENCIES_TASK) {
-                write_build_gradle(format!("{}\n{}", gradle_content, UNPACK_DEPENCENCIES_TASK))?;
+            if !gradle_content.contains(script) {
+                write_build_gradle(&build_gradle, format!("{}\n{}", gradle_content, script))?;
             }
-            let out = match Command::new(PATH_GRADLE).arg("unpackDependencies").output() {
+            let out = match Command::new(PATH_GRADLE).arg("classpath").output() {
                 Err(e) => Err(GradleFetchError::GradlewExecFailed(e)),
                 Ok(output) => match output.status.code() {
                     Some(1) => match std::str::from_utf8(&output.stderr) {
@@ -145,41 +163,30 @@ fn unpack_dependencies() -> Result<String, GradleFetchError> {
                         }
                         Err(_) => Err(GradleFetchError::StatusCodeErrMessageNotutf8),
                     },
-                    Some(_) => {
-                        let stdout = std::str::from_utf8(&output.stdout).expect("asd");
-                        match get_unpack_folder(stdout) {
-                            Some(path) => Ok(path.to_owned()),
-                            None => Err(GradleFetchError::CouldNotGetUnpackFolder),
-                        }
-                    }
+                    Some(_) => Ok(PathBuf::from("./build/classpath")),
                     None => todo!(),
                 },
             };
-            write_build_gradle(gradle_content)?;
+            write_build_gradle(&build_gradle, gradle_content)?;
 
             out
         }
     }
 }
 
-fn write_build_gradle(gradle_content: String) -> Result<(), GradleFetchError> {
-    match fs::write(GRADLE_FILE_PATH, gradle_content) {
+fn write_build_gradle(
+    build_gradle: &PathBuf,
+    gradle_content: String,
+) -> Result<(), GradleFetchError> {
+    match fs::write(build_gradle, gradle_content) {
         Err(e) => Err(GradleFetchError::CouldNotModifyBuildGradle(e)),
         Ok(_) => Ok(()),
     }
 }
 
-fn get_unpack_folder(stdout: &str) -> Option<&str> {
-    let (_, spl) = stdout.split_once("STARTPATH_")?;
-    let (path, _) = spl.split_once("\n")?;
-    Some(path)
-}
-
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-
-    use super::get_unpack_folder;
 
     #[test]
     fn pa() {

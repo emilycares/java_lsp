@@ -2,9 +2,13 @@ use std::{
     fs,
     io::Cursor,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
 };
 
+use common::TaskProgress;
 use dashmap::DashMap;
 use parking_lot::Mutex;
 use parser::{dto::ClassFolder, loader::SourceDestination};
@@ -59,6 +63,7 @@ const MAVEN_CFC: &str = ".maven.cfc";
 
 pub async fn fetch_deps(
     class_map: &DashMap<std::string::String, parser::dto::Class>,
+    sender: tokio::sync::mpsc::Sender<TaskProgress>,
 ) -> Result<DashMap<std::string::String, parser::dto::Class>, MavenFetchError> {
     let path = Path::new(&MAVEN_CFC);
     if path.exists() {
@@ -85,12 +90,18 @@ pub async fn fetch_deps(
         let class_map = Arc::new(class_map.clone());
         let maven_class_folder = Arc::new(Mutex::new(ClassFolder::default()));
         let mut handles = Vec::new();
+        let tasks_number = tree.deps.len();
+        let completed_number = Arc::new(AtomicUsize::new(0));
+        let sender = Arc::new(sender);
         for dep in tree.deps {
             let m2 = m2.clone();
             let class_map = class_map.clone();
             let maven_class_folder = maven_class_folder.clone();
+            let sender = sender.clone();
+            let completed_number = completed_number.clone();
             handles.push(tokio::spawn(async move {
                 eprintln!("Loading dependency: {}", dep.artivact_id);
+                let sender = sender.clone();
                 let folder = pom_get_class_folder(&dep);
                 if !folder.exists() {
                     eprintln!("dependency folder does not exist {:?}", folder);
@@ -107,6 +118,13 @@ pub async fn fetch_deps(
                     .await
                     {
                         Ok(classes) => {
+                            let a = completed_number.fetch_add(1, Ordering::Release);
+                            let _ = sender
+                                .send(TaskProgress {
+                                    persentage: (100 * a) / tasks_number,
+                                    message: dep.artivact_id,
+                                })
+                                .await;
                             let mut guard = maven_class_folder.lock();
                             guard.append(classes.clone());
 

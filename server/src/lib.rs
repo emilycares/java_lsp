@@ -12,12 +12,13 @@ mod utils;
 mod variable;
 
 use std::path::PathBuf;
-use std::rc::Rc;
 use std::str::FromStr;
+use std::sync::Arc;
 use std::{collections::HashMap, fs::read_to_string};
 
 use common::compile::CompileError;
 use common::project_kind::ProjectKind;
+use common::TaskProgress;
 use dashmap::{DashMap, DashSet};
 use document::Document;
 use hover::{class_action, ClassActionError};
@@ -65,7 +66,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
         document_map: DashMap::new(),
         class_map: DashMap::new(),
         reference_map: DashMap::new(),
-        client_capabilities: Rc::new(None),
+        client_capabilities: Arc::new(None),
     };
 
     // Run the server and wait for the two threads to end (typically by trigger LSP Exit event).
@@ -268,7 +269,7 @@ struct Backend<'a> {
     document_map: DashMap<String, Document>,
     class_map: DashMap<String, Class>,
     reference_map: DashMap<String, Vec<ReferenceUnit>>,
-    client_capabilities: Rc<Option<ClientCapabilities>>,
+    client_capabilities: Arc<Option<ClientCapabilities>>,
     connection: &'a Connection,
 }
 impl Backend<'_> {
@@ -344,19 +345,29 @@ impl Backend<'_> {
     }
 
     fn progress_update(&self, task: &str, message: &str) {
-        eprintln!("Report progress on: {} status: {}", task, message);
+        Backend::progress_update_persentage(self.connection, task, message, None);
+    }
+    fn progress_update_persentage(
+        con: &Connection,
+        task: &str,
+        message: &str,
+        percentage: Option<u32>,
+    ) {
+        eprintln!(
+            "Report progress on: {} {:?} status: {}",
+            task, percentage, message
+        );
         if let Ok(params) = serde_json::to_value(ProgressParams {
             token: ProgressToken::String(task.to_string()),
             value: ProgressParamsValue::WorkDone(WorkDoneProgress::Report(
                 WorkDoneProgressReport {
                     cancellable: None,
                     message: Some(message.to_string()),
-                    percentage: None,
+                    percentage,
                 },
             )),
         }) {
-            let _ = self
-                .connection
+            let _ = con
                 .sender
                 .send(Message::Notification(lsp_server::Notification {
                     method: Progress::METHOD.to_string(),
@@ -392,7 +403,9 @@ impl Backend<'_> {
                     }
                 }
             }
-            ProjectKind::Gradle => {
+            ProjectKind::Gradle {
+                path_build_gradle: _,
+            } => {
                 if let Some(errors) = gradle::compile::compile_java() {
                     return errors;
                 }
@@ -435,7 +448,7 @@ impl Backend<'_> {
 
     async fn initialized(&mut self, client_capabilities: ClientCapabilities) {
         eprintln!("Init");
-        self.client_capabilities = Rc::new(Some(client_capabilities));
+        self.client_capabilities = Arc::new(Some(client_capabilities));
         let task = "Load jdk";
 
         self.progress_start(task);
@@ -443,41 +456,34 @@ impl Backend<'_> {
         self.progress_end(task);
 
         if self.project_kind != ProjectKind::Unknown {
-            let prog_lable = format!("Load {} dependencies", self.project_kind);
-            self.progress_start(&prog_lable);
-            let cm = match self.project_kind {
-                ProjectKind::Maven => match maven::fetch::fetch_deps(&self.class_map).await {
-                    Ok(o) => Some(o),
-                    Err(maven::fetch::MavenFetchError::NoWorkToDo) => None,
-                    Err(e) => {
-                        eprintln!("Got error while loading maven project: {e:?}");
-                        None
+            let task = format!("Load {} dependencies", self.project_kind);
+            self.progress_start(&task);
+            let (sender, mut reciever) = tokio::sync::mpsc::channel::<TaskProgress>(200);
+            let project_kind = self.project_kind.clone();
+            let class_map = self.class_map.clone();
+            let con = Arc::new(self.connection);
+
+            tokio::select! {
+                _ = read_forward(&mut reciever, con, &task)  => {},
+                cm = fetch_deps(sender, project_kind, &class_map) => {
+                    if let Some(cm) = cm {
+                        dbg!(cm.len());
+                        for pair in cm.into_iter() {
+                            self.class_map.insert(pair.0, pair.1);
+                        }
                     }
-                },
-                ProjectKind::Gradle => match gradle::fetch::fetch_deps(&self.class_map).await {
-                    Ok(o) => Some(o),
-                    Err(gradle::fetch::GradleFetchError::NoWorkToDo) => None,
-                    Err(e) => {
-                        eprintln!("Got error while loading gradle project: {e:?}");
-                        None
-                    }
-                },
-                ProjectKind::Unknown => None,
-            };
-            if let Some(cm) = cm {
-                for pair in cm.into_iter() {
-                    self.class_map.insert(pair.0, pair.1);
                 }
             }
-
-            self.progress_end(&prog_lable);
+            self.progress_end(&task);
         }
 
         let task = "Load project files";
         self.progress_start(task);
         let project_classes = match self.project_kind {
             ProjectKind::Maven => maven::project::load_project_folders(),
-            ProjectKind::Gradle => gradle::project::load_project_folders(),
+            ProjectKind::Gradle {
+                path_build_gradle: _,
+            } => gradle::project::load_project_folders(),
             ProjectKind::Unknown => vec![],
         };
         self.progress_update(task, "Initializing reference map");
@@ -791,7 +797,9 @@ impl Backend<'_> {
     ) -> Option<WorkspaceSymbolResponse> {
         let files = match self.project_kind {
             ProjectKind::Maven => maven::project::get_paths(),
-            ProjectKind::Gradle => gradle::project::get_paths(),
+            ProjectKind::Gradle {
+                path_build_gradle: _,
+            } => gradle::project::get_paths(),
             ProjectKind::Unknown => vec![],
         };
 
@@ -849,5 +857,48 @@ impl Backend<'_> {
                 None
             }
         }
+    }
+}
+
+async fn read_forward(
+    rx: &mut tokio::sync::mpsc::Receiver<TaskProgress>,
+    con: Arc<&Connection>,
+    task: &str,
+) {
+    while let Some(i) = rx.recv().await {
+        Backend::progress_update_persentage(
+            &con,
+            task,
+            &i.message,
+            Some(i.persentage.try_into().unwrap()),
+        );
+    }
+}
+
+async fn fetch_deps(
+    sender: tokio::sync::mpsc::Sender<TaskProgress>,
+    project_kind: ProjectKind,
+    class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
+) -> Option<DashMap<String, Class>> {
+    match project_kind {
+        ProjectKind::Maven => match maven::fetch::fetch_deps(&class_map, sender).await {
+            Ok(o) => Some(o),
+            Err(maven::fetch::MavenFetchError::NoWorkToDo) => None,
+            Err(e) => {
+                eprintln!("Got error while loading maven project: {e:?}");
+                None
+            }
+        },
+        ProjectKind::Gradle {
+            path_build_gradle: path,
+        } => match gradle::fetch::fetch_deps(&class_map, path, sender).await {
+            Ok(o) => Some(o),
+            Err(gradle::fetch::GradleFetchError::NoWorkToDo) => None,
+            Err(e) => {
+                eprintln!("Got error while loading gradle project: {e:?}");
+                None
+            }
+        },
+        ProjectKind::Unknown => None,
     }
 }
