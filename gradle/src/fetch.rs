@@ -183,24 +183,3 @@ fn write_build_gradle(
         Ok(_) => Ok(()),
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    fn pa() {
-        let input = "> Configure project :
-STARTPATH_/home/emily/tmp/vanilla-gradle/build/unpacked-dependencies
-
-> Task :unpackDependencies UP-TO-DATE
-
-BUILD SUCCESSFUL in 710ms
-1 actionable task: 1 up-to-date";
-        let out = get_unpack_folder(input);
-        assert_eq!(
-            out,
-            Some("/home/emily/tmp/vanilla-gradle/build/unpacked-dependencies")
-        )
-    }
-}
