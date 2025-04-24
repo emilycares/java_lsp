@@ -102,38 +102,33 @@ pub async fn fetch_deps(
             handles.push(tokio::spawn(async move {
                 eprintln!("Loading dependency: {}", dep.artivact_id);
                 let sender = sender.clone();
-                let folder = pom_get_class_folder(&dep);
-                if !folder.exists() {
-                    eprintln!("dependency folder does not exist {:?}", folder);
-                } else {
-                    let classes_jar = pom_classes_jar(&dep, &m2);
-                    let source_jar = pom_sources_jar(&dep, &m2);
-                    let source = extract_jar(source_jar, "source");
+                let classes_jar = pom_classes_jar(&dep, &m2);
+                let source_jar = pom_sources_jar(&dep, &m2);
+                let source = extract_jar(source_jar, "source");
 
-                    match parser::loader::load_classes_jar(
-                        classes_jar,
-                        SourceDestination::RelativeInFolder(source),
-                        None,
-                    )
-                    .await
-                    {
-                        Ok(classes) => {
-                            let a = completed_number.fetch_add(1, Ordering::Release);
-                            let _ = sender
-                                .send(TaskProgress {
-                                    persentage: (100 * a) / tasks_number,
-                                    message: dep.artivact_id,
-                                })
-                                .await;
-                            let mut guard = maven_class_folder.lock();
-                            guard.append(classes.clone());
+                match parser::loader::load_classes_jar(
+                    classes_jar,
+                    SourceDestination::RelativeInFolder(source),
+                    None,
+                )
+                .await
+                {
+                    Ok(classes) => {
+                        let a = completed_number.fetch_add(1, Ordering::Release);
+                        let _ = sender
+                            .send(TaskProgress {
+                                persentage: (100 * a) / tasks_number,
+                                message: dep.artivact_id,
+                            })
+                            .await;
+                        let mut guard = maven_class_folder.lock();
+                        guard.append(classes.clone());
 
-                            for class in classes.classes {
-                                class_map.insert(class.class_path.clone(), class);
-                            }
+                        for class in classes.classes {
+                            class_map.insert(class.class_path.clone(), class);
                         }
-                        Err(e) => eprintln!("Parse error in {:?}, {:?}", dep, e),
                     }
+                    Err(e) => eprintln!("Parse error in {:?}, {:?}", dep, e),
                 }
             }));
         }
@@ -193,23 +188,13 @@ fn get_pom_m2_classifier_path(pom: &Pom, m2: &Path, classifier: Option<&str>) ->
     p
 }
 
-fn pom_get_class_folder(pom: &Pom) -> PathBuf {
-    let mut p = PathBuf::from("./target/dependency/");
-    let group_parts = pom.group_id.split(".");
-    for gp in group_parts {
-        p = p.join(gp)
-    }
-    p = p.join(&pom.artivact_id).join(&pom.version);
-    p
-}
-
 #[cfg(test)]
 mod tests {
     use std::path::{Path, PathBuf};
 
     use pretty_assertions::assert_eq;
 
-    use crate::fetch::{pom_get_class_folder, pom_javadoc_jar, pom_sources_jar};
+    use crate::fetch::{pom_javadoc_jar, pom_sources_jar};
 
     #[test]
     fn sources_path_base() {
@@ -235,21 +220,5 @@ mod tests {
         let out = pom_javadoc_jar(&pom, Path::new("~/.m2/"));
 
         assert_eq!(out, PathBuf::from("~/.m2/repository/io/quarkus/quarkus-resteasy-reactive/3.7.2/quarkus-resteasy-reactive-3.7.2-javadoc.jar"));
-    }
-
-    #[test]
-    fn pom_classfolder() {
-        let pom = crate::tree::Pom {
-            group_id: "io.quarkus".to_string(),
-            artivact_id: "quarkus-resteasy-reactive".to_string(),
-            version: "3.7.2".to_string(),
-            scope: crate::tree::DependencyScope::Compile,
-        };
-        let out = pom_get_class_folder(&pom);
-
-        assert_eq!(
-            out,
-            PathBuf::from("./target/dependency/io/quarkus/quarkus-resteasy-reactive/3.7.2/")
-        );
     }
 }
