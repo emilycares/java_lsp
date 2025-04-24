@@ -46,7 +46,7 @@ pub async fn fetch_deps(
                 class_map.insert(class.class_path.clone(), class);
             }
         }
-        return Err(GradleFetchError::NoWorkToDo);
+        return Ok(class_map.clone());
     } else {
         let unpack_folder = copy_classpath(build_gradle)?;
         let class_map = Arc::new(class_map.clone());

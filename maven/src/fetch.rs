@@ -53,7 +53,6 @@ use crate::{
 
 #[derive(Debug)]
 pub enum MavenFetchError {
-    NoWorkToDo,
     NoHomeFound,
     Tree(tree::MavenTreeError),
     NoClassPath,
@@ -72,7 +71,7 @@ pub async fn fetch_deps(
                 class_map.insert(class.class_path.clone(), class);
             }
         }
-        Err(MavenFetchError::NoWorkToDo)
+        Ok(class_map.clone())
     } else {
         // mvn dependency:resolve -Dclassifier=sources
         let _ = Command::new(EXECUTABLE_MAVEN)
@@ -121,8 +120,10 @@ pub async fn fetch_deps(
                                 message: dep.artivact_id,
                             })
                             .await;
-                        let mut guard = maven_class_folder.lock();
-                        guard.append(classes.clone());
+                        {
+                            let mut guard = maven_class_folder.lock();
+                            guard.append(classes.clone());
+                        }
 
                         for class in classes.classes {
                             class_map.insert(class.class_path.clone(), class);
@@ -134,7 +135,7 @@ pub async fn fetch_deps(
         }
         futures::future::join_all(handles).await;
         let guard = maven_class_folder.lock();
-        if let Err(e) = parser::loader::save_class_folder(path, &guard) {
+        if let Err(e) = parser::loader::save_class_folder(MAVEN_CFC, &guard) {
             eprintln!("Failed to save {MAVEN_CFC} because: {e}");
         };
         Ok(Arc::try_unwrap(class_map).expect("Classmap should be free to take"))
