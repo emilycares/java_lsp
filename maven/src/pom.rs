@@ -16,7 +16,7 @@ pub fn parse(file: &str) -> Result<Pom, ParseError> {
 }
 
 #[allow(dead_code)]
-/// https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html
+/// <https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html>
 pub fn resolve(pom: Pom, inputs: Vec<Pom>) -> Result<Pom, ParseError> {
     let mut out = pom.clone();
 
@@ -135,7 +135,7 @@ pub struct Exclusion {
     pub group_id: String,
 }
 
-/// https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html#dependency-scope
+/// <https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html#dependency-scope>
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub enum DependencyScope {
     #[default]

@@ -92,7 +92,7 @@ pub struct Pom {
     pub scope: DependencyScope,
 }
 
-/// https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html#dependency-scope
+/// <https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html#dependency-scope>
 #[derive(Default, PartialEq, Debug, Serialize, Deserialize)]
 pub enum DependencyScope {
     #[default]

@@ -18,7 +18,7 @@ pub enum FormatterConfig {
     None,
 }
 
-/// https://github.com/tweag/topiary/blob/f96e12c6b2730e42f7b6b425f07aadd723aee5db/topiary-config/src/lib.rs#L223
+/// <https://github.com/tweag/topiary/blob/f96e12c6b2730e42f7b6b425f07aadd723aee5db/topiary-config/src/lib.rs#L223>
 impl Default for Configuration {
     fn default() -> Self {
         let def = include_bytes!("../config.ncl");
