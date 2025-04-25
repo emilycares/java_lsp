@@ -75,7 +75,7 @@ pub enum ImportUnit {
     StaticPrefix(String),
 }
 impl ImportUnit {
-    pub fn class_path_get_class_name<'a>(class_path: &'a str) -> Option<&'a str> {
+    pub fn class_path_get_class_name(class_path: &str) -> Option<&str> {
         if let Some((_, c)) = class_path.rsplit_once(".") {
             return Some(c);
         }
@@ -182,7 +182,7 @@ impl Display for JType {
             JType::Array(i) => write!(f, "{}[]", i),
             JType::Generic(class, vec) => {
                 let v = vec
-                    .into_iter()
+                    .iter()
                     .map(|i| format!("{}", i))
                     .collect::<Vec<_>>()
                     .join(", ");

@@ -61,6 +61,8 @@ pub fn import_to_code_action(
     classpath: &str,
     tree: &Tree,
 ) -> CodeActionOrCommand {
+    // Required by lsp types
+    #[allow(clippy::mutable_key_type)]
     let mut changes = HashMap::new();
     changes.insert(current_file.to_owned(), import_text_edit(classpath, tree));
     CodeActionOrCommand::CodeAction(CodeAction {

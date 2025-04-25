@@ -48,10 +48,11 @@ async fn main() {
         },
         Some(Commands::Format { path: Some(path) }) => match fs::read_to_string(&path) {
             Ok(input) => match format::format_op(format::Formatter::Topiary { text: input }) {
-                Some(output) => match write(&path, output) {
-                    Ok(_) => println!("Replaced file"),
-                    Err(_) => (),
-                },
+                Some(output) => {
+                    if write(&path, output).is_ok() {
+                        println!("Replaced file");
+                    }
+                }
                 None => process::exit(1),
             },
             Err(e) => {

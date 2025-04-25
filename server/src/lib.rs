@@ -289,7 +289,7 @@ impl Backend<'_> {
             document.replace_text(rope);
         } else {
             match parser::java::load_java(
-                &params.text.as_bytes(),
+                params.text.as_bytes(),
                 parser::loader::SourceDestination::None,
             ) {
                 Ok(class) => {
@@ -464,7 +464,7 @@ impl Backend<'_> {
             let con = Arc::new(self.connection);
 
             tokio::select! {
-                _ = read_forward(&mut reciever, con, &task)  => {},
+                _ = read_forward(&mut reciever, &con, &task)  => {},
                 cm = fetch_deps(sender, project_kind, &class_map) => {
                     if let Some(cm) = cm {
                         dbg!(cm.len());
@@ -547,15 +547,13 @@ impl Backend<'_> {
 
     async fn hover(&self, params: HoverParams) -> Option<Hover> {
         let uri = params.text_document_position_params.text_document.uri;
-        let Some(document) = self.document_map.get_mut(uri.as_str()) else {
-            return None;
-        };
+        let document = self.document_map.get_mut(uri.as_str())?;
         let point = to_treesitter_point(params.text_document_position_params.position);
         let imports = imports::imports(document.value());
         let vars = variable::get_vars(document.value(), &point);
 
         match hover::base(document.value(), &point, &vars, &imports, &self.class_map) {
-            Ok(hover) => return Some(hover),
+            Ok(hover) => Some(hover),
             Err(e) => {
                 eprintln!("Error while hover: {e:?}");
                 None
@@ -569,12 +567,8 @@ impl Backend<'_> {
             eprintln!("Document is not opened.");
             return None;
         };
-        let Some(lines) = document.text.lines().len().try_into().ok() else {
-            return None;
-        };
-        let Some(text) = format::format(document.text.to_string(), document.path.clone()) else {
-            return None;
-        };
+        let lines = document.text.lines().len().try_into().ok()?;
+        let text = format::format(document.text.to_string(), document.path.clone())?;
 
         // self.connection.
         Some(vec![TextEdit::new(
@@ -717,29 +711,6 @@ impl Backend<'_> {
             Err(ClassActionError::VariableFound { var: _, range: _ }) => {}
             Err(e) => eprintln!("Got refrence class error: {:?}", e),
         }
-        let Some(call_chain) = get_call_chain(&document.tree, document.as_bytes(), &point) else {
-            eprintln!("References could not get callchain");
-            return None;
-        };
-        let Some(class) = &self.class_map.get(&document.class_path) else {
-            eprintln!("Could not find class {}", document.class_path);
-            return None;
-        };
-        match references::call_chain_references(
-            uri,
-            &point,
-            &call_chain,
-            &vars,
-            &imports,
-            class,
-            &self.class_map,
-            &self.reference_map,
-        ) {
-            Ok(definition) => return Some(definition),
-            Err(e) => {
-                eprintln!("Error while completion: {e:?}");
-            }
-        }
         None
     }
 
@@ -851,7 +822,7 @@ impl Backend<'_> {
         };
 
         match signature::signature_driver(&document, &point, class, &self.class_map) {
-            Ok(hover) => return Some(hover),
+            Ok(hover) => Some(hover),
             Err(e) => {
                 eprintln!("Error while hover: {e:?}");
                 None
@@ -862,12 +833,12 @@ impl Backend<'_> {
 
 async fn read_forward(
     rx: &mut tokio::sync::mpsc::Receiver<TaskProgress>,
-    con: Arc<&Connection>,
+    con: &Connection,
     task: &str,
 ) {
     while let Some(i) = rx.recv().await {
         Backend::progress_update_persentage(
-            &con,
+            con,
             task,
             &i.message,
             Some(i.persentage.try_into().unwrap()),
@@ -881,7 +852,7 @@ async fn fetch_deps(
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Option<DashMap<String, Class>> {
     match project_kind {
-        ProjectKind::Maven => match maven::fetch::fetch_deps(&class_map, sender).await {
+        ProjectKind::Maven => match maven::fetch::fetch_deps(class_map, sender).await {
             Ok(o) => Some(o),
             Err(e) => {
                 eprintln!("Got error while loading maven project: {e:?}");
@@ -890,8 +861,9 @@ async fn fetch_deps(
         },
         ProjectKind::Gradle {
             path_build_gradle: path,
-        } => match gradle::fetch::fetch_deps(&class_map, path, sender).await {
+        } => match gradle::fetch::fetch_deps(class_map, path, sender).await {
             Ok(o) => Some(o),
+            Err(gradle::fetch::GradleFetchError::NoWorkToDo) => None,
             Err(e) => {
                 eprintln!("Got error while loading gradle project: {e:?}");
                 None

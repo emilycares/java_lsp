@@ -45,11 +45,11 @@ pub fn is_imported(imports: &[ImportUnit], class_path: &str) -> bool {
 pub fn imports(document: &Document) -> Vec<ImportUnit> {
     let tree = &document.tree;
     let bytes = document.as_bytes();
-    return get_imported_classpaths(bytes, tree);
+    get_imported_classpaths(bytes, tree)
 }
 
 #[allow(dead_code)]
-fn get_imported_classpaths<'a>(bytes: &'a [u8], tree: &Tree) -> Vec<ImportUnit> {
+fn get_imported_classpaths(bytes: &[u8], tree: &Tree) -> Vec<ImportUnit> {
     let mut out = vec![];
     let mut cursor = tree.walk();
     cursor.first_child();

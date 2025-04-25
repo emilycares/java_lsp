@@ -142,7 +142,7 @@ pub fn call_chain_hover(
         Ok(c) => Ok(c),
         Err(e) => Err(HoverError::Tyres(e)),
     }?;
-    return match el {
+    match el {
         CallItem::MethodCall { name, range } => {
             let methods: Vec<dto::Method> = class
                 .methods
@@ -157,7 +157,7 @@ pub fn call_chain_hover(
                     name: name.to_owned(),
                 });
             };
-            Ok(field_to_hover(&method, to_lsp_range(*range)))
+            Ok(field_to_hover(method, to_lsp_range(*range)))
         }
         CallItem::Variable { name, range } => {
             let Some(var) = lo_va.iter().find(|v| v.name == *name) else {
@@ -173,10 +173,7 @@ pub fn call_chain_hover(
             if vars.is_empty() {
                 return Ok(class_to_hover(class, to_lsp_range(*range)));
             }
-            return match parser::load_java(
-                document.as_bytes(),
-                parser::loader::SourceDestination::None,
-            ) {
+            match parser::load_java(document.as_bytes(), parser::loader::SourceDestination::None) {
                 Err(e) => Err(HoverError::ParseError(e)),
                 Ok(local_class) => {
                     let vars = vars
@@ -189,25 +186,25 @@ pub fn call_chain_hover(
                         .fields
                         .iter()
                         .filter(|m| m.name == *name)
-                        .map(|f| format_field(f))
+                        .map(format_field)
                         .collect::<Vec<_>>()
                         .join("\n");
                     let methods = local_class
                         .methods
                         .iter()
                         .filter(|m| m.name == *name)
-                        .map(|m| format_method(m))
+                        .map(format_method)
                         .collect::<Vec<_>>()
                         .join("\n");
-                    return Ok(Hover {
+                    Ok(Hover {
                         contents: HoverContents::Markup(MarkupContent {
                             kind: MarkupKind::Markdown,
                             value: format!("{}\n{}\n{}", vars, fields, methods),
                         }),
                         range: Some(to_lsp_range(*range)),
-                    });
+                    })
                 }
-            };
+            }
         }
         CallItem::ArgumentList {
             prev: _,
@@ -229,7 +226,7 @@ pub fn call_chain_hover(
             Err(HoverError::ArgumentNotFound)
         }
         CallItem::This { range: _ } => Err(HoverError::Unimlemented),
-    };
+    }
 }
 
 fn format_field(f: &dto::Field) -> String {
@@ -264,7 +261,7 @@ fn variables_to_hover(vars: Vec<&LocalVariable>, range: Range) -> Hover {
             kind: MarkupKind::Markdown,
             value: vars
                 .iter()
-                .map(|v| format_varible_hover(v))
+                .map(format_varible_hover)
                 .collect::<Vec<_>>()
                 .join("\n"),
         }),
@@ -289,7 +286,7 @@ fn field_to_hover(f: &dto::Field, range: Range) -> Hover {
     }
 }
 
-fn methods_to_hover(methods: &Vec<dto::Method>, range: Range) -> Hover {
+fn methods_to_hover(methods: &[dto::Method], range: Range) -> Hover {
     Hover {
         contents: HoverContents::Markup(MarkupContent {
             kind: MarkupKind::Markdown,

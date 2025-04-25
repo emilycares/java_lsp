@@ -8,7 +8,7 @@ pub mod project;
 #[allow(dead_code)]
 mod tree;
 
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "windows"))]
 const EXECUTABLE_MAVEN: &str = "./mvnw";
 #[cfg(target_os = "windows")]
 const EXECUTABLE_MAVEN: &str = "./mvnw.cmd";

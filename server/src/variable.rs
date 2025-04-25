@@ -310,9 +310,9 @@ fn parse_resource(
     level: usize,
 ) {
     cursor.first_child();
-    let ty = get_string(&cursor, bytes);
+    let ty = get_string(cursor, bytes);
     cursor.sibling();
-    let name = get_string(&cursor, bytes);
+    let name = get_string(cursor, bytes);
     out.push(LocalVariable {
         level,
         jtype: parse_jtype(ty),

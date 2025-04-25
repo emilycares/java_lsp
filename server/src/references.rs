@@ -3,19 +3,14 @@ use std::{
     hash::Hash,
 };
 
-use lsp_types::{Location, Uri};
-use parser::{
-    call_chain::{self, CallItem},
-    dto::{Class, ImportUnit},
-};
-use tree_sitter::Point;
+use lsp_types::Location;
+use parser::dto::{Class, ImportUnit};
 
 use crate::{
     definition::{self},
     position::{self, PositionSymbol},
     tyres,
     utils::to_lsp_range,
-    variable::LocalVariable,
 };
 
 #[derive(Debug)]
@@ -44,7 +39,7 @@ pub fn init_refernece_map(
     reference_map: &dashmap::DashMap<String, Vec<ReferenceUnit>>,
 ) -> Result<(), ReferencesError> {
     for class in project_classes {
-        reference_update_class(class, class_map, &reference_map)?;
+        reference_update_class(class, class_map, reference_map)?;
     }
     Ok(())
 }
@@ -91,16 +86,16 @@ fn get_position_refrences(
         ));
     };
     if let Some((tree, bytes)) = tree_bytes {
-        return pos_refs_helper(tree, bytes, query_class_name);
+        pos_refs_helper(tree, bytes, query_class_name)
     } else {
-        return match fs::read(&class.source) {
+        match fs::read(&class.source) {
             Err(e) => Err(ReferencesError::IoRead(class.source.clone(), e)),
             Ok(bytes) => {
                 let (_, tree) =
-                    tree_sitter_util::parse(&bytes).map_err(|e| ReferencesError::Treesitter(e))?;
+                    tree_sitter_util::parse(&bytes).map_err(ReferencesError::Treesitter)?;
                 pos_refs_helper(&tree, &bytes, query_class_name)
             }
-        };
+        }
     }
 }
 
@@ -109,9 +104,9 @@ fn pos_refs_helper(
     bytes: &[u8],
     query_class_name: &str,
 ) -> Result<Vec<ReferencePosition>, ReferencesError> {
-    match position::get_type_usage(&bytes, query_class_name, &tree) {
+    match position::get_type_usage(bytes, query_class_name, tree) {
         Err(e) => Err(ReferencesError::Position(e))?,
-        Ok(usages) => return Ok(usages.into_iter().map(|u| ReferencePosition(u)).collect()),
+        Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
     }
 }
 
@@ -155,7 +150,7 @@ fn get_implicit_imports(
         .filter(|(_k, lclass)| {
             lclass.imports.iter().any(|i| match i {
                 ImportUnit::Class(lclasspath) => {
-                    ImportUnit::class_path_match_class_name(&lclasspath, &class.name)
+                    ImportUnit::class_path_match_class_name(lclasspath, &class.name)
                 }
                 _ => false,
             })
@@ -197,48 +192,4 @@ pub fn class_path(
         return Some(refs);
     }
     None
-}
-
-pub fn call_chain_references(
-    document_uri: Uri,
-    point: &Point,
-    call_chain: &Vec<CallItem>,
-    vars: &[LocalVariable],
-    imports: &[ImportUnit],
-    class: &dashmap::mapref::one::Ref<'_, String, Class>,
-    class_map: &dashmap::DashMap<String, Class>,
-    reference_map: &dashmap::DashMap<String, Vec<ReferenceUnit>>,
-) -> Result<Vec<Location>, ReferencesError> {
-    let (item, relevat) = call_chain::validate(&call_chain, point);
-
-    // let extend_class = tyres::resolve_call_chain(relevat, vars, imports, class, class_map)
-    //     .map_err(|e| ReferencesError::Tyres(e))?;
-    return match relevat.get(item) {
-        // Some(CallItem::MethodCall { name, range: _ }) => {}
-        // Some(CallItem::FieldAccess { name, range: _ }) => {}
-        // Some(CallItem::Variable { name, range: _ }) => {}
-        // Some(CallItem::ClassOrVariable { name, range: _ }) => {}
-        Some(CallItem::ArgumentList {
-            prev: _,
-            active_param,
-            filled_params,
-            range: _,
-        }) => {
-            if let Some(current_param) = filled_params.get(*active_param) {
-                return call_chain_references(
-                    document_uri,
-                    point,
-                    current_param,
-                    vars,
-                    imports,
-                    class,
-                    class_map,
-                    reference_map,
-                );
-            }
-            Err(ReferencesError::ArgumentNotFound)
-        }
-        Some(a) => unimplemented!("call_chain_revernece {:?}", a),
-        None => Err(ReferencesError::ValidatedItemDoesNotExists),
-    };
 }

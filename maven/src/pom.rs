@@ -4,19 +4,19 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub enum ParseError {
-    ParseError(serde_xml_rs::Error),
+    Parse(serde_xml_rs::Error),
     ParentInformationNeeded(Parent),
     Xml(serde_xml_rs::Error),
 }
 
 #[allow(dead_code)]
 pub fn parse(file: &str) -> Result<Pom, ParseError> {
-    let pom: Pom = serde_xml_rs::from_str(file).map_err(|e| ParseError::Xml(e))?;
+    let pom: Pom = serde_xml_rs::from_str(file).map_err(ParseError::Xml)?;
     Ok(pom)
 }
 
 #[allow(dead_code)]
-/// https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html
+/// <https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html>
 pub fn resolve(pom: Pom, inputs: Vec<Pom>) -> Result<Pom, ParseError> {
     let mut out = pom.clone();
 
@@ -135,7 +135,7 @@ pub struct Exclusion {
     pub group_id: String,
 }
 
-/// https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html#dependency-scope
+/// <https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html#dependency-scope>
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub enum DependencyScope {
     #[default]

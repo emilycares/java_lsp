@@ -1,4 +1,4 @@
-use std::path::MAIN_SEPARATOR;
+use std::path::{MAIN_SEPARATOR, MAIN_SEPARATOR_STR};
 
 use crate::dto::{self, ClassError, ImportUnit, JType, Parameter};
 use crate::loader::SourceDestination;
@@ -33,11 +33,11 @@ pub fn load_class(
                         used_classes.extend(
                             m.parameters
                                 .iter()
-                                .filter(|i| match i.jtype {
-                                    JType::Class(_) => true,
-                                    JType::Array(_) => true,
-                                    JType::Generic(_, _) => true,
-                                    _ => false,
+                                .filter(|i| {
+                                    matches!(
+                                        i.jtype,
+                                        JType::Class(_) | JType::Array(_) | JType::Generic(_, _)
+                                    )
                                 })
                                 .flat_map(|i| jtype_class_names(i.jtype.clone())),
                         );
@@ -71,7 +71,7 @@ pub fn load_class(
                     .into_iter()
                     .filter(|i| *i != class_path)
                     .unique()
-                    .map(|i| ImportUnit::Class(i)),
+                    .map(ImportUnit::Class),
             );
 
             let source = match source {
@@ -80,7 +80,7 @@ pub fn load_class(
                         "{}{}{}.java",
                         e,
                         MAIN_SEPARATOR,
-                        &class_path.replace(".", &MAIN_SEPARATOR.to_string())
+                        &class_path.replace(".", MAIN_SEPARATOR_STR)
                     )
                 }
                 SourceDestination::Here(e) => e,
@@ -107,7 +107,7 @@ pub fn load_class(
 
 fn lookup_class_name(c: &ClassFile, index: usize) -> Option<String> {
     match c.const_pool.get(index.saturating_sub(1)) {
-        Some(ConstantInfo::Class(class)) => lookup_string(&c, class.name_index)
+        Some(ConstantInfo::Class(class)) => lookup_string(c, class.name_index)
             .expect("Class to have name")
             .split("/")
             .last()
@@ -197,7 +197,7 @@ fn parse_method(
                     }
                     None
                 })
-                .map(|name| dto::JType::Class(name))
+                .map(dto::JType::Class)
         })
         .collect();
     Some(dto::Method {
@@ -235,8 +235,7 @@ fn parse_used_classes(c: &ClassFile, code_attribute: Option<CodeAttribute>) -> V
             .collect();
         return types
             .iter()
-            .map(|i| jtype_class_names(i.clone()))
-            .flatten()
+            .flat_map(|i| jtype_class_names(i.clone()))
             .collect();
     }
     vec![]
@@ -248,10 +247,7 @@ fn jtype_class_names(i: JType) -> Vec<String> {
         JType::Array(jtype) => jtype_class_names(*jtype),
         JType::Generic(class, jtypes) => {
             let mut out = vec![class];
-            let e: Vec<String> = jtypes
-                .into_iter()
-                .flat_map(|i| jtype_class_names(i))
-                .collect();
+            let e: Vec<String> = jtypes.into_iter().flat_map(jtype_class_names).collect();
             out.extend(e);
             out
         }

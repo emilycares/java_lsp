@@ -20,7 +20,7 @@ pub fn load_java(
     bytes: &[u8],
     source: SourceDestination,
 ) -> Result<crate::dto::Class, ParseJavaError> {
-    let (_, tree) = tree_sitter_util::parse(bytes).map_err(|e| ParseJavaError::Treesitter(e))?;
+    let (_, tree) = tree_sitter_util::parse(bytes).map_err(ParseJavaError::Treesitter)?;
     let mut imports = vec![];
     let mut methods = vec![];
     let mut fields = vec![];
@@ -33,7 +33,7 @@ pub fn load_java(
     if cursor.node().kind() == "package_declaration" {
         cursor.first_child();
         cursor.sibling();
-        let package = get_string(&cursor, bytes).map_err(|e| ParseJavaError::Utf8(e))?;
+        let package = get_string(&cursor, bytes).map_err(ParseJavaError::Utf8)?;
         class_path_base = Some(package.clone());
         imports.push(ImportUnit::Package(package));
         cursor.parent();
@@ -46,7 +46,7 @@ pub fn load_java(
             cursor.sibling();
             cursor.sibling();
             if cursor.node().kind() == "identifier" {
-                let cn = get_string(&cursor, bytes).map_err(|e| ParseJavaError::Utf8(e))?;
+                let cn = get_string(&cursor, bytes).map_err(ParseJavaError::Utf8)?;
                 class_name = Some(cn);
             }
             cursor.sibling();
@@ -81,7 +81,7 @@ pub fn load_java(
             cursor.sibling();
             cursor.sibling();
             if cursor.node().kind() == "identifier" {
-                let cn = get_string(&cursor, bytes).map_err(|e| ParseJavaError::Utf8(e))?;
+                let cn = get_string(&cursor, bytes).map_err(ParseJavaError::Utf8)?;
                 class_name = Some(cn);
             }
             cursor.sibling();
@@ -104,7 +104,7 @@ pub fn load_java(
             cursor.sibling();
             cursor.sibling();
             if cursor.node().kind() == "identifier" {
-                let cn = get_string(&cursor, bytes).map_err(|e| ParseJavaError::Utf8(e))?;
+                let cn = get_string(&cursor, bytes).map_err(ParseJavaError::Utf8)?;
                 class_name = Some(cn);
             }
             cursor.sibling();
@@ -210,7 +210,7 @@ fn parse_interface_method(
     }
     let jtype = parse_jtype(&cursor.node(), bytes)?;
     cursor.sibling();
-    let name = get_string(&cursor, bytes).map_err(|e| ParseJavaError::Utf8(e))?;
+    let name = get_string(cursor, bytes).map_err(ParseJavaError::Utf8)?;
     cursor.sibling();
     let parameters = parse_formal_parameters(cursor, bytes)?;
     let mut method = dto::Method {
@@ -239,7 +239,7 @@ fn parse_interface_constant(
     let jtype = parse_jtype(&cursor.node(), bytes)?;
     cursor.sibling();
     cursor.first_child();
-    let name = get_string(cursor, bytes).map_err(|e| ParseJavaError::Utf8(e))?;
+    let name = get_string(cursor, bytes).map_err(ParseJavaError::Utf8)?;
 
     cursor.parent();
     cursor.parent();
@@ -259,7 +259,7 @@ fn parse_enum_constant(
 
     Ok(dto::Field {
         access: vec![],
-        name: get_string(&cursor, bytes).map_err(|e| ParseJavaError::Utf8(e))?,
+        name: get_string(&cursor, bytes).map_err(ParseJavaError::Utf8)?,
         jtype: dto::JType::Void,
     })
 }
@@ -279,12 +279,11 @@ fn parse_method(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Result<dto::Method
     loop {
         match cursor.node().kind() {
             "modifiers" => {
-                method.access = parser_modifiers(
-                    get_string(&cursor, bytes).map_err(|e| ParseJavaError::Utf8(e))?,
-                );
+                method.access =
+                    parser_modifiers(get_string(&cursor, bytes).map_err(ParseJavaError::Utf8)?);
             }
             "identifier" => {
-                method.name = get_string(&cursor, bytes).map_err(|e| ParseJavaError::Utf8(e))?
+                method.name = get_string(&cursor, bytes).map_err(ParseJavaError::Utf8)?
             }
             "formal_parameters" => method.parameters = parse_formal_parameters(&mut cursor, bytes)?,
             "block" => (),
@@ -333,13 +332,12 @@ fn parse_field(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Result<dto::Field, 
     loop {
         match cursor.node().kind() {
             "modifiers" => {
-                field.access = parser_modifiers(
-                    get_string(&cursor, bytes).map_err(|e| ParseJavaError::Utf8(e))?,
-                );
+                field.access =
+                    parser_modifiers(get_string(&cursor, bytes).map_err(ParseJavaError::Utf8)?);
             }
             "variable_declarator" => {
                 cursor.first_child();
-                field.name = get_string(&cursor, bytes).map_err(|e| ParseJavaError::Utf8(e))?;
+                field.name = get_string(&cursor, bytes).map_err(ParseJavaError::Utf8)?;
                 cursor.parent();
             }
             ";" => (),
@@ -384,7 +382,7 @@ fn parse_formal_parameters(
 
         cursor.sibling();
         out.push(dto::Parameter {
-            name: Some(get_string(&*cursor, bytes).map_err(|e| ParseJavaError::Utf8(e))?),
+            name: Some(get_string(&*cursor, bytes).map_err(ParseJavaError::Utf8)?),
             jtype,
         });
         cursor.parent();
@@ -398,7 +396,7 @@ fn get_string(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> Result<Stri
 }
 
 fn parse_jtype(node: &tree_sitter::Node<'_>, bytes: &[u8]) -> Result<dto::JType, ParseJavaError> {
-    let text = node.utf8_text(bytes).map_err(|e| ParseJavaError::Utf8(e))?;
+    let text = node.utf8_text(bytes).map_err(ParseJavaError::Utf8)?;
     match (node.kind(), text) {
         ("integral_type", "int") => Ok(dto::JType::Int),
         ("integral_type", "long") => Ok(dto::JType::Long),
@@ -419,7 +417,7 @@ fn parse_jtype(node: &tree_sitter::Node<'_>, bytes: &[u8]) -> Result<dto::JType,
         ("generic_type", _) => {
             let mut cursor = node.walk();
             cursor.first_child();
-            let class = get_string(&cursor, bytes).map_err(|e| ParseJavaError::Utf8(e))?;
+            let class = get_string(&cursor, bytes).map_err(ParseJavaError::Utf8)?;
             cursor.sibling();
             cursor.first_child();
             cursor.sibling();

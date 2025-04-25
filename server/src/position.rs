@@ -11,7 +11,7 @@ pub enum PosionError {
 }
 
 pub fn get_class_position(bytes: &[u8], name: &str) -> Result<Vec<PositionSymbol>, PosionError> {
-    let (_, tree) = tree_sitter_util::parse(bytes).map_err(|e| PosionError::Treesitter(e))?;
+    let (_, tree) = tree_sitter_util::parse(bytes).map_err(PosionError::Treesitter)?;
     get_item_ranges(
         &tree,
         bytes,
@@ -27,7 +27,7 @@ pub fn get_class_position(bytes: &[u8], name: &str) -> Result<Vec<PositionSymbol
 }
 
 pub fn get_method_positions(bytes: &[u8], name: &str) -> Result<Vec<PositionSymbol>, PosionError> {
-    let (_, tree) = tree_sitter_util::parse(bytes).map_err(|e| PosionError::Treesitter(e))?;
+    let (_, tree) = tree_sitter_util::parse(bytes).map_err(PosionError::Treesitter)?;
     get_item_ranges(
         &tree,
         bytes,
@@ -37,7 +37,7 @@ pub fn get_method_positions(bytes: &[u8], name: &str) -> Result<Vec<PositionSymb
 }
 
 pub fn get_field_positions(bytes: &[u8], name: &str) -> Result<Vec<PositionSymbol>, PosionError> {
-    let (_, tree) = tree_sitter_util::parse(bytes).map_err(|e| PosionError::Treesitter(e))?;
+    let (_, tree) = tree_sitter_util::parse(bytes).map_err(PosionError::Treesitter)?;
     get_item_ranges(
         &tree,
         bytes,
@@ -70,7 +70,7 @@ impl PositionSymbol {
 }
 
 pub fn get_symbols(bytes: &[u8]) -> Result<Vec<PositionSymbol>, PosionError> {
-    let (_, tree) = tree_sitter_util::parse(bytes).map_err(|e| PosionError::Treesitter(e))?;
+    let (_, tree) = tree_sitter_util::parse(bytes).map_err(PosionError::Treesitter)?;
     get_item_ranges(
         &tree,
         bytes,
@@ -91,7 +91,7 @@ pub fn get_type_usage(
     tree: &Tree,
 ) -> Result<Vec<PositionSymbol>, PosionError> {
     get_item_ranges(
-        &tree,
+        tree,
         bytes,
         "
         (type_identifier)@capture
@@ -134,10 +134,10 @@ pub fn symbols_to_document_symbols(
         })
         .collect()
 }
-pub fn get_item_ranges<'a>(
+pub fn get_item_ranges(
     tree: &Tree,
     bytes: &[u8],
-    query: &'a str,
+    query: &str,
     name: Option<&str>,
 ) -> Result<Vec<PositionSymbol>, PosionError> {
     let query =
@@ -156,14 +156,12 @@ pub fn get_item_ranges<'a>(
                 if cname == name {
                     out.push(PositionSymbol::Range(node.range()));
                 }
-            } else {
-                if let Some(parent) = node.parent() {
-                    out.push(PositionSymbol::Symbol {
-                        range: node.range(),
-                        name: cname,
-                        kind: parent.kind().to_string(),
-                    });
-                }
+            } else if let Some(parent) = node.parent() {
+                out.push(PositionSymbol::Symbol {
+                    range: node.range(),
+                    name: cname,
+                    kind: parent.kind().to_string(),
+                });
             }
         }
     }
@@ -252,6 +250,6 @@ private StringBuilder sb = new StringBuilder();
         let (_, tree) = tree_sitter_util::parse(content).unwrap();
         let out = get_type_usage(content, "StringBuilder", &tree);
 
-        assert_eq!(out.unwrap().iter().count(), 2);
+        assert_eq!(out.unwrap().len(), 2);
     }
 }
