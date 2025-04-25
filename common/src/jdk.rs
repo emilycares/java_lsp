@@ -11,7 +11,7 @@ use parking_lot::Mutex;
 use parser::{dto::ClassFolder, loader::SourceDestination};
 use tokio::process::Command;
 
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "windows"))]
 const EXECUTABLE_JAVA: &str = "java";
 #[cfg(target_os = "windows")]
 const EXECUTABLE_JAVA: &str = "java.exe";

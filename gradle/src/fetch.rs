@@ -27,7 +27,7 @@ pub enum GradleFetchError {
     StatusCodeErrMessageNotutf8,
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "windows"))]
 pub(crate) const PATH_GRADLE: &str = "./gradlew";
 #[cfg(target_os = "windows")]
 pub(crate) const PATH_GRADLE: &str = "./gradlew.bat";
