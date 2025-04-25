@@ -36,13 +36,13 @@ pub fn is_imported<'a>(
 ) -> Option<ImportResult> {
     imports.iter().find_map(|i| match i {
         ImportUnit::Class(c) => {
-            if ImportUnit::class_path_match_class_name(c, &jtype) {
+            if ImportUnit::class_path_match_class_name(c, jtype) {
                 return Some(ImportResult::Class(c.to_string()));
             }
             None
         }
         ImportUnit::StaticClass(c) => {
-            if ImportUnit::class_path_match_class_name(c, &jtype) {
+            if ImportUnit::class_path_match_class_name(c, jtype) {
                 return Some(ImportResult::StaticClass(c.to_string()));
             }
             None
@@ -144,7 +144,7 @@ pub fn resolve_call_chain(
                     break;
                 };
                 if let Some(method) = class.methods.iter().find(|m| m.name == *name) {
-                    return Ok(resolve_jtype(&method.ret, imports, class_map)?);
+                    return resolve_jtype(&method.ret, imports, class_map);
                 }
                 None
             }
@@ -154,7 +154,7 @@ pub fn resolve_call_chain(
                     break;
                 };
                 if let Some(method) = class.fields.iter().find(|m| m.name == *name) {
-                    return Ok(resolve_jtype(&method.jtype, imports, class_map)?);
+                    return resolve_jtype(&method.jtype, imports, class_map);
                 }
                 None
             }
@@ -170,7 +170,7 @@ pub fn resolve_call_chain(
                 if let Some(lo) = lo_va.iter().find(|va| va.name == *name) {
                     return resolve_var(lo, imports, class_map);
                 }
-                return Ok(resolve(name, imports, class_map)?);
+                return resolve(name, imports, class_map);
             }
             CallItem::ArgumentList {
                 prev: _,
@@ -179,7 +179,7 @@ pub fn resolve_call_chain(
                 filled_params,
             } => {
                 if let Some(current_param) = filled_params.get(*active_param) {
-                    return resolve_call_chain(&current_param, lo_va, imports, class, class_map);
+                    return resolve_call_chain(current_param, lo_va, imports, class, class_map);
                 }
                 None
             }

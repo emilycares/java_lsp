@@ -29,10 +29,8 @@ pub fn is_point_in_range(point: &Point, range: &Range) -> bool {
     let start = range.start_point;
     let end = range.end_point;
 
-    if *point >= start {
-        if *point <= end {
-            return true;
-        }
+    if *point >= start && *point <= end {
+        return true;
     }
     false
 }

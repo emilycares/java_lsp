@@ -28,19 +28,18 @@ pub fn signature_driver(
     class: &Class,
     class_map: &DashMap<std::string::String, parser::dto::Class>,
 ) -> Result<SignatureHelp, SignatureError> {
-    if let Some(call_chain) =
-        call_chain::get_call_chain(&document.tree, document.as_bytes(), &point)
+    if let Some(call_chain) = call_chain::get_call_chain(&document.tree, document.as_bytes(), point)
     {
         let imports = imports::imports(document);
-        let vars = variable::get_vars(document, &point);
+        let vars = variable::get_vars(document, point);
         return get_signature(call_chain, &imports, &vars, class, class_map);
     }
     Err(SignatureError::NoCallChain)
 }
 pub fn get_signature(
     call_chain: Vec<CallItem>,
-    imports: &Vec<ImportUnit>,
-    vars: &Vec<variable::LocalVariable>,
+    imports: &[ImportUnit],
+    vars: &[variable::LocalVariable],
     class: &Class,
     class_map: &DashMap<std::string::String, parser::dto::Class>,
 ) -> Result<SignatureHelp, SignatureError> {
@@ -84,14 +83,14 @@ pub fn get_signature(
         .map(|m| method_to_signature_information(m))
         .collect();
 
-    return Ok(SignatureHelp {
+    Ok(SignatureHelp {
         signatures,
         active_signature: TryInto::<u32>::try_into(active_signature_id).ok(),
         active_parameter: TryInto::<u32>::try_into(*active_param).ok(),
-    });
+    })
 }
 
-fn get_args(call_chain: &Vec<CallItem>) -> Option<&CallItem> {
+fn get_args(call_chain: &[CallItem]) -> Option<&CallItem> {
     call_chain.iter().rev().find(|i| match i {
         CallItem::MethodCall { name: _, range: _ } => false,
         CallItem::FieldAccess { name: _, range: _ } => false,

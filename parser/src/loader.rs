@@ -47,7 +47,7 @@ pub fn load_java_fs<T>(path: T, source: SourceDestination) -> Result<dto::Class,
 where
     T: AsRef<Path> + Debug,
 {
-    let bytes = std::fs::read(path).map_err(|e| ParseJavaError::Io(e))?;
+    let bytes = std::fs::read(path).map_err(ParseJavaError::Io)?;
     java::load_java(&bytes, source)
 }
 
@@ -102,20 +102,18 @@ pub async fn load_classes_jar<P: AsRef<Path>>(
     source: SourceDestination,
     skip_bytes_start: Option<usize>,
 ) -> Result<dto::ClassFolder, ParserLoaderError> {
-    let file = File::open(path)
-        .await
-        .map_err(|i| ParserLoaderError::IO(i))?;
+    let file = File::open(path).await.map_err(ParserLoaderError::IO)?;
     let mut reader = BufReader::new(file);
     if let Some(k) = skip_bytes_start {
         let mut header = vec![0; k];
         reader
             .read_exact(&mut header)
             .await
-            .map_err(|i| ParserLoaderError::SkipBytesStart(i))?;
+            .map_err(ParserLoaderError::SkipBytesStart)?;
     }
     let mut zip = ZipFileReader::with_tokio(&mut reader)
         .await
-        .map_err(|i| ParserLoaderError::Zip(i))?;
+        .map_err(ParserLoaderError::Zip)?;
     let mut classes = vec![];
 
     for index in 0..zip.file().entries().len() {
@@ -123,11 +121,11 @@ pub async fn load_classes_jar<P: AsRef<Path>>(
             Some(f) => f,
             None => continue,
         };
-        if file.dir().map_err(|i| ParserLoaderError::Zip(i))? {
+        if file.dir().map_err(ParserLoaderError::Zip)? {
             continue;
         }
         let file_name = file.filename();
-        let file_name = file_name.as_str().map_err(|i| ParserLoaderError::Zip(i))?;
+        let file_name = file_name.as_str().map_err(ParserLoaderError::Zip)?;
         let file_name = file_name.to_string();
         if !file_name.ends_with(".class") {
             continue;
@@ -145,7 +143,7 @@ pub async fn load_classes_jar<P: AsRef<Path>>(
         let mut entry_reader = zip
             .reader_with_entry(index)
             .await
-            .map_err(|i| ParserLoaderError::Zip(i))?;
+            .map_err(ParserLoaderError::Zip)?;
         let mut buf = vec![];
         if let Err(e) = entry_reader.read_to_end_checked(&mut buf).await {
             eprintln!("Unable to read file in zip: {} {:?}", file_name, e);

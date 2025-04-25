@@ -548,7 +548,7 @@ public class Test {
 ";
         let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
-        let out = classes(&doc, &Point::new(5, 16), &vec![], &class_map);
+        let out = classes(&doc, &Point::new(5, 16), &[], &class_map);
         assert_eq!(
             out,
             vec![CompletionItem {
@@ -602,7 +602,7 @@ public class Test {
         let out = classes(
             &doc,
             &Point::new(6, 16),
-            &vec![ImportUnit::Class("java.lang.StringBuilder".to_string())],
+            &[ImportUnit::Class("java.lang.StringBuilder".to_string())],
             &class_map,
         );
         assert_eq!(

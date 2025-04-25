@@ -46,7 +46,7 @@ pub async fn fetch_deps(
                 class_map.insert(class.class_path.clone(), class);
             }
         }
-        return Ok(class_map.clone());
+        Ok(class_map.clone())
     } else {
         let unpack_folder = copy_classpath(build_gradle)?;
         let class_map = Arc::new(class_map.clone());
@@ -61,7 +61,7 @@ pub async fn fetch_deps(
                             return true;
                         }
                     }
-                    return false;
+                    false
                 })
                 .filter(|i| i.file_name().to_string_lossy().ends_with(".jar"))
                 .map(|i| i.path())

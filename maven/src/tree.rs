@@ -51,7 +51,7 @@ fn get_cli_output() -> Result<String, MavenTreeError> {
         .arg("-DoutputType=dot")
         // .arg("-b")
         .output()
-        .map_err(|e| MavenTreeError::Cli(e))?;
+        .map_err(MavenTreeError::Cli)?;
 
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }

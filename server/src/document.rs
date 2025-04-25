@@ -21,7 +21,7 @@ pub enum DocumentError {
 
 impl Document {
     pub fn setup_read(path: PathBuf, class_path: String) -> Result<Self, DocumentError> {
-        let text = fs::read_to_string(&path).map_err(|e| DocumentError::Io(e))?;
+        let text = fs::read_to_string(&path).map_err(DocumentError::Io)?;
         let rope = ropey::Rope::from_str(&text);
         Self::setup_rope(&text, path, rope, class_path)
     }
@@ -36,8 +36,7 @@ impl Document {
         rope: Rope,
         class_path: String,
     ) -> Result<Self, DocumentError> {
-        let (parser, tree) =
-            tree_sitter_util::parse(text).map_err(|e| DocumentError::Treesitter(e))?;
+        let (parser, tree) = tree_sitter_util::parse(text).map_err(DocumentError::Treesitter)?;
         Ok(Self {
             parser,
             text: rope,

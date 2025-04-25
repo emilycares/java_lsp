@@ -79,7 +79,7 @@ pub async fn fetch_deps(
             .output()
             .await;
 
-        let tree = tree::load().map_err(|e| MavenFetchError::Tree(e))?;
+        let tree = tree::load().map_err(MavenFetchError::Tree)?;
         let Some(home) = dirs::home_dir() else {
             eprintln!("Could not find home");
             return Err(MavenFetchError::NoHomeFound);

@@ -4,14 +4,14 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub enum ParseError {
-    ParseError(serde_xml_rs::Error),
+    Parse(serde_xml_rs::Error),
     ParentInformationNeeded(Parent),
     Xml(serde_xml_rs::Error),
 }
 
 #[allow(dead_code)]
 pub fn parse(file: &str) -> Result<Pom, ParseError> {
-    let pom: Pom = serde_xml_rs::from_str(file).map_err(|e| ParseError::Xml(e))?;
+    let pom: Pom = serde_xml_rs::from_str(file).map_err(ParseError::Xml)?;
     Ok(pom)
 }
 

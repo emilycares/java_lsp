@@ -14,7 +14,7 @@ pub struct Dependency {
     pub version: String,
 }
 
-pub fn load<'a>() -> Result<Vec<Dependency>, GradleTreeError> {
+pub fn load() -> Result<Vec<Dependency>, GradleTreeError> {
     let log: String = get_cli_output()?;
     let out = parse_tree(log);
     Ok(out)
@@ -34,7 +34,7 @@ fn get_cli_output() -> Result<String, GradleTreeError> {
     }
 }
 
-fn parse_tree<'a>(inp: String) -> Vec<Dependency> {
+fn parse_tree(inp: String) -> Vec<Dependency> {
     let mut out = vec![];
 
     let mut capture = false;

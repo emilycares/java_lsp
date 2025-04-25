@@ -35,6 +35,6 @@ impl Default for Configuration {
         let serde_config = Configuration::deserialize(term)
             .expect("Evaluating the builtin configuration should be safe");
 
-        serde_config.into()
+        serde_config
     }
 }

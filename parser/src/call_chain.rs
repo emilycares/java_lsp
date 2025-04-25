@@ -159,7 +159,7 @@ fn parse_variable_declarator(
 }
 
 pub fn parse_argument_list(
-    out: &Vec<CallItem>,
+    out: &[CallItem],
     cursor: &mut tree_sitter::TreeCursor<'_>,
     bytes: &[u8],
     point: &Point,
@@ -167,7 +167,7 @@ pub fn parse_argument_list(
     let mut active_param = 0;
     let mut current_param = 0;
 
-    let arg_prev = out.clone();
+    let arg_prev = out.to_owned();
     let arg_range = cursor.node().range();
     let mut filled_params = vec![];
     cursor.first_child();
@@ -366,13 +366,13 @@ fn parse_object_creation(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallI
 }
 pub fn class_or_variable(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Option<CallItem> {
     let var_name = get_string_node(&node, bytes);
-    return Some(CallItem::ClassOrVariable {
+    Some(CallItem::ClassOrVariable {
         name: var_name,
         range: node.range(),
-    });
+    })
 }
 
-pub fn validate<'a>(call_chain: &'a Vec<CallItem>, point: &'a Point) -> (usize, &'a [CallItem]) {
+pub fn validate<'a>(call_chain: &'a [CallItem], point: &'a Point) -> (usize, &'a [CallItem]) {
     let item = call_chain
         .iter()
         .enumerate()
@@ -427,7 +427,7 @@ public class Test {
     }
 }
         ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(8, 24));
         assert_eq!(
@@ -508,7 +508,7 @@ public class Test {
     }
 }
 "#;
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 19));
         assert_eq!(
@@ -537,7 +537,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 26));
         assert_eq!(
@@ -577,7 +577,7 @@ public class GreetingResource {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 24));
         assert_eq!(
@@ -616,7 +616,7 @@ public class GreetingResource {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         // the cursor is on the concat method_call
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 14));
@@ -657,7 +657,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 30));
         assert_eq!(
@@ -706,7 +706,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 30));
         assert_eq!(
@@ -755,7 +755,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 23));
         assert_eq!(
@@ -784,7 +784,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 28));
         assert_eq!(
@@ -833,7 +833,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 28));
         assert_eq!(
@@ -882,7 +882,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 20));
         assert_eq!(
@@ -931,7 +931,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 16));
         assert_eq!(
@@ -960,7 +960,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 28));
         assert_eq!(
@@ -989,7 +989,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 22));
         assert_eq!(
@@ -1039,7 +1039,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 27));
         assert_eq!(
@@ -1108,7 +1108,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 27));
         assert_eq!(
@@ -1177,7 +1177,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 23));
         match out.clone().unwrap().first().unwrap() {
@@ -1187,7 +1187,7 @@ public class Test {
                 filled_params: _,
                 range: _,
             } => assert_eq!(active_param, &1),
-            _ => assert!(false),
+            _ => unreachable!(),
         };
         assert_eq!(
             out,
@@ -1266,7 +1266,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 19));
         assert_eq!(
@@ -1346,7 +1346,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 22));
         assert_eq!(
@@ -1426,7 +1426,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 22));
         assert_eq!(
@@ -1513,7 +1513,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 18));
         assert_eq!(
@@ -1563,7 +1563,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 23));
         assert_eq!(
@@ -1652,7 +1652,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 14));
         assert_eq!(
@@ -1681,7 +1681,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 19));
         assert_eq!(
@@ -1708,7 +1708,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 18));
         assert_eq!(
@@ -1735,7 +1735,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 22));
         assert_eq!(
@@ -1774,7 +1774,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 22));
         assert_eq!(
@@ -1802,7 +1802,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 22));
         assert_eq!(
@@ -1841,7 +1841,7 @@ public class Test {
     }
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 25));
         assert_eq!(
@@ -1877,7 +1877,7 @@ public class Test {
     private static Logger LOG = Logger.getLogger(Test.class);
 }
 ";
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(3, 43));
         assert_eq!(
@@ -1917,7 +1917,7 @@ public class Test {
     }
 }
 "#;
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 27));
         assert_eq!(
@@ -1955,7 +1955,7 @@ public class Test {
     }
 }
 "#;
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 27));
         assert_eq!(
@@ -2002,7 +2002,7 @@ public class Test {
     }
 }
 "#;
-        let (_, tree) = tree_sitter_util::parse(&content).unwrap();
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
 
         let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 13));
         assert_eq!(

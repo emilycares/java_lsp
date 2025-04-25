@@ -88,7 +88,7 @@ async fn load_old(mut path: PathBuf) -> Result<ClassFolder, JdkError> {
         None,
     )
     .await
-    .map_err(|i| JdkError::ParserLoader(i))?;
+    .map_err(JdkError::ParserLoader)?;
 
     load_javafx(path, op_dir, jre_lib, &mut classes).await?;
     Ok(classes)
@@ -119,7 +119,7 @@ async fn load_javafx(
                 None,
             )
             .await
-            .map_err(|i| JdkError::ParserLoader(i))?;
+            .map_err(JdkError::ParserLoader)?;
             classes.append(classes_jfx);
         }
     }
@@ -181,9 +181,9 @@ async fn load_jmods(mut path: PathBuf, jmod_executable: PathBuf) -> Result<Class
                         handles.push(tokio::spawn(async move {
                             let jmod_dir = &jmods_dir.join(&jmod_display);
                             if !jmod_dir.exists() {
-                                let _ = fs::create_dir_all(&jmod_dir);
+                                let _ = fs::create_dir_all(jmod_dir);
                                 match Command::new(&*jmod_executable)
-                                    .current_dir(&jmod_dir)
+                                    .current_dir(jmod_dir)
                                     .arg("extract")
                                     .arg(&jmod)
                                     .output()

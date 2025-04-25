@@ -45,9 +45,9 @@ pub fn class(
         Ok((class, _range)) => {
             let source_file = get_source_content(&class)?;
             let ranges = position::get_class_position(source_file.as_bytes(), &class.name)
-                .map_err(|e| DefinitionError::Position(e))?;
+                .map_err(DefinitionError::Position)?;
             let uri = class_to_uri(&class)?;
-            return Ok(go_to_definition_range(uri, ranges));
+            Ok(go_to_definition_range(uri, ranges))
         }
         Err(ClassActionError::VariableFound { var, range: _ }) => {
             Ok(GotoDefinitionResponse::Scalar(Location {
@@ -62,30 +62,30 @@ pub fn class(
 pub fn call_chain_definition(
     document_uri: Uri,
     point: &Point,
-    call_chain: &Vec<CallItem>,
+    call_chain: &[CallItem],
     vars: &[variable::LocalVariable],
     imports: &[ImportUnit],
     class: &dto::Class,
     class_map: &dashmap::DashMap<String, dto::Class>,
 ) -> Result<GotoDefinitionResponse, DefinitionError> {
-    let (item, relevat) = call_chain::validate(&call_chain, point);
+    let (item, relevat) = call_chain::validate(call_chain, point);
 
     let extend_class = tyres::resolve_call_chain(relevat, vars, imports, class, class_map)
-        .map_err(|e| DefinitionError::Tyres(e))?;
-    return match relevat.get(item) {
+        .map_err(DefinitionError::Tyres)?;
+    match relevat.get(item) {
         Some(CallItem::MethodCall { name, range: _ }) => {
             let source_file = get_source_content(&extend_class)?;
             let ranges = position::get_method_positions(source_file.as_bytes(), name)
-                .map_err(|e| DefinitionError::Position(e))?;
+                .map_err(DefinitionError::Position)?;
             let uri = class_to_uri(&extend_class)?;
-            return Ok(go_to_definition_range(uri, ranges));
+            Ok(go_to_definition_range(uri, ranges))
         }
         Some(CallItem::FieldAccess { name, range: _ }) => {
             let source_file = get_source_content(&extend_class)?;
             let ranges = position::get_field_positions(source_file.as_bytes(), name)
-                .map_err(|e| DefinitionError::Position(e))?;
+                .map_err(DefinitionError::Position)?;
             let uri = class_to_uri(&extend_class)?;
-            return Ok(go_to_definition_range(uri, ranges));
+            Ok(go_to_definition_range(uri, ranges))
         }
         Some(CallItem::Variable { name, range: _ }) => {
             let Some(range) = vars.iter().find(|n| n.name == *name).map(|v| v.range) else {
@@ -93,14 +93,14 @@ pub fn call_chain_definition(
                     name: name.to_owned(),
                 });
             };
-            return Ok(GotoDefinitionResponse::Scalar(Location {
+            Ok(GotoDefinitionResponse::Scalar(Location {
                 uri: document_uri,
                 range: to_lsp_range(range),
-            }));
+            }))
         }
         Some(CallItem::ClassOrVariable { name, range: _ }) => {
             let ranges: Vec<_> = vars
-                .into_iter()
+                .iter()
                 .filter(|n| n.name == *name)
                 .map(|v| PositionSymbol::Range(v.range))
                 .collect();
@@ -128,7 +128,7 @@ pub fn call_chain_definition(
         }
         Some(a) => unimplemented!("call_chain_definition {:?}", a),
         None => Err(DefinitionError::ValidatedItemDoesNotExists),
-    };
+    }
 }
 
 pub fn get_source_content(extend_class: &dto::Class) -> Result<String, DefinitionError> {
