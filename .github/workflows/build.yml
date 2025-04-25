@@ -7,7 +7,7 @@ on:
   merge_group:
 
 env:
-  MSRV: "1.76"
+  MSRV: "1.86"
 
 jobs:
   check:
