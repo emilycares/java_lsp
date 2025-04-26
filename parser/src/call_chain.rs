@@ -257,7 +257,7 @@ fn parse_value(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8], point: &Point
             name: "String".to_string(),
             range: cursor.node().range(),
         }],
-        "binary_expression" => parse_binary_expression(&cursor, bytes, point),
+        "binary_expression" => parse_binary_expression(cursor, bytes, point),
         _ => vec![],
     }
 }

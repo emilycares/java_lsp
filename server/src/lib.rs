@@ -863,7 +863,6 @@ async fn fetch_deps(
             path_build_gradle: path,
         } => match gradle::fetch::fetch_deps(class_map, path, sender).await {
             Ok(o) => Some(o),
-            Err(gradle::fetch::GradleFetchError::NoWorkToDo) => None,
             Err(e) => {
                 eprintln!("Got error while loading gradle project: {e:?}");
                 None
