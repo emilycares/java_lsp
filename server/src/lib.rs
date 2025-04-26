@@ -677,7 +677,7 @@ impl Backend<'_> {
         ) {
             Ok(definition) => return Some(definition),
             Err(e) => {
-                eprintln!("Error while completion: {e:?}");
+                eprintln!("Error while definition: {e:?}");
             }
         }
         None

@@ -64,14 +64,14 @@ pub fn get_call_chain(
                 }
                 cursor.sibling();
                 if cursor.node().kind() == "variable_declarator" {
-                    parse_variable_declarator(&mut cursor, &mut out, bytes);
+                    parse_variable_declarator(&mut cursor, &mut out, bytes, point);
                 }
                 cursor.parent();
             }
             "annotation_argument_list" => {
                 cursor.first_child();
                 cursor.sibling();
-                out.extend(parse_value(&cursor, bytes));
+                out.extend(parse_value(&cursor, bytes, point));
                 cursor.parent();
             }
             "argument_list" => {
@@ -93,26 +93,26 @@ pub fn get_call_chain(
             "template_expression" => {
                 cursor.first_child();
                 if cursor.node().kind() == "method_invocation" {
-                    out.extend(parse_method_invocation(cursor.node(), bytes));
+                    out.extend(parse_method_invocation(cursor.node(), bytes, point));
                 }
                 cursor.parent();
             }
             "expression_statement" => {
                 cursor.first_child();
-                out.extend(parse_value(&cursor, bytes));
+                out.extend(parse_value(&cursor, bytes, point));
                 cursor.parent();
             }
             "return_statement" => {
                 cursor.first_child();
                 cursor.sibling();
-                out.extend(parse_value(&cursor, bytes));
+                out.extend(parse_value(&cursor, bytes, point));
                 cursor.parent();
             }
             "local_variable_declaration" => {
                 cursor.first_child();
                 cursor.sibling();
                 if cursor.node().kind() == "variable_declarator" {
-                    parse_variable_declarator(&mut cursor, &mut out, bytes);
+                    parse_variable_declarator(&mut cursor, &mut out, bytes, point);
                 }
                 cursor.parent();
             }
@@ -120,12 +120,12 @@ pub fn get_call_chain(
                 cursor.first_child();
                 cursor.sibling();
                 cursor.goto_first_child_for_point(Point::new(point.row, point.column - 3));
-                out.extend(parse_value(&cursor, bytes));
+                out.extend(parse_value(&cursor, bytes, point));
                 cursor.parent();
             }
             "assignment_expression" => {
                 cursor.first_child();
-                out.extend(parse_value(&cursor, bytes));
+                out.extend(parse_value(&cursor, bytes, point));
                 cursor.parent();
             }
             _ => {}
@@ -146,15 +146,38 @@ pub fn get_call_chain(
     None
 }
 
+fn parse_binary_expression(
+    cursor: &tree_sitter::TreeCursor<'_>,
+    bytes: &[u8],
+    point: &Point,
+) -> Vec<CallItem> {
+    let mut cursor = cursor.node().walk();
+    let mut out = vec![];
+    cursor.first_child();
+
+    if tree_sitter_util::is_point_in_range(point, &cursor.node().range()) {
+        out.extend(parse_value(&cursor, bytes, point));
+    }
+    cursor.sibling();
+    cursor.sibling();
+    if tree_sitter_util::is_point_in_range(point, &cursor.node().range()) {
+        out.extend(parse_value(&cursor, bytes, point));
+    }
+
+    cursor.parent();
+    out
+}
+
 fn parse_variable_declarator(
     cursor: &mut tree_sitter::TreeCursor<'_>,
     out: &mut Vec<CallItem>,
     bytes: &[u8],
+    point: &Point,
 ) {
     cursor.first_child();
     cursor.sibling();
     cursor.sibling();
-    out.extend(parse_value(&*cursor, bytes));
+    out.extend(parse_value(&*cursor, bytes, point));
     cursor.parent();
 }
 
@@ -171,14 +194,14 @@ pub fn parse_argument_list(
     let arg_range = cursor.node().range();
     let mut filled_params = vec![];
     cursor.first_child();
-    let Argument { range, value } = parse_argument_list_argument(cursor, bytes);
+    let Argument { range, value } = parse_argument_list_argument(cursor, bytes, point);
     filled_params.push(value.clone());
     if tree_sitter_util::is_point_in_range(point, &range.unwrap()) {
         active_param = current_param;
     }
     while cursor.node().kind() == "," {
         current_param += 1;
-        let Argument { range, value } = parse_argument_list_argument(cursor, bytes);
+        let Argument { range, value } = parse_argument_list_argument(cursor, bytes, point);
         filled_params.push(value.clone());
         if tree_sitter_util::is_point_in_range(point, &range.unwrap()) {
             active_param = current_param;
@@ -197,6 +220,7 @@ pub fn parse_argument_list(
 fn parse_argument_list_argument(
     cursor: &mut tree_sitter::TreeCursor<'_>,
     bytes: &[u8],
+    point: &Point,
 ) -> Argument {
     let mut out = Argument {
         range: None,
@@ -204,7 +228,7 @@ fn parse_argument_list_argument(
     };
     cursor.sibling();
     out.range = Some(cursor.node().range());
-    out.value.extend(parse_value(cursor, bytes));
+    out.value.extend(parse_value(cursor, bytes, point));
     if cursor.sibling() {
         let kind = cursor.node().kind();
         if kind == "," || kind == ")" {
@@ -218,7 +242,7 @@ fn parse_argument_list_argument(
     out
 }
 
-fn parse_value(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> Vec<CallItem> {
+fn parse_value(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8], point: &Point) -> Vec<CallItem> {
     match cursor.node().kind() {
         "identifier" => {
             if let Some(c) = class_or_variable(cursor.node(), bytes) {
@@ -226,24 +250,29 @@ fn parse_value(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> Vec<CallIt
             }
             vec![]
         }
-        "field_access" => parse_field_access(cursor.node(), bytes),
-        "method_invocation" => parse_method_invocation(cursor.node(), bytes),
+        "field_access" => parse_field_access(cursor.node(), bytes, point),
+        "method_invocation" => parse_method_invocation(cursor.node(), bytes, point),
         "object_creation_expression" => parse_object_creation(cursor.node(), bytes),
         "string_literal" => vec![CallItem::Class {
             name: "String".to_string(),
             range: cursor.node().range(),
         }],
+        "binary_expression" => parse_binary_expression(&cursor, bytes, point),
         _ => vec![],
     }
 }
 
-fn parse_method_invocation(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem> {
+fn parse_method_invocation(
+    node: tree_sitter::Node<'_>,
+    bytes: &[u8],
+    point: &Point,
+) -> Vec<CallItem> {
     let mut cursor = node.walk();
     let mut out = vec![];
     cursor.first_child();
     match cursor.node().kind() {
         "field_access" => {
-            out.extend(parse_field_access(node, bytes));
+            out.extend(parse_field_access(node, bytes, point));
             cursor.sibling();
             cursor.sibling();
             let method_name = get_string(&cursor, bytes);
@@ -254,19 +283,30 @@ fn parse_method_invocation(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<Cal
         }
         "identifier" => {
             let var_name = cursor.node();
-            if let Some(c) = class_or_variable(var_name, bytes) {
-                out.push(c);
+            let indent_varibale = class_or_variable(var_name, bytes);
+            cursor.sibling();
+            match cursor.node().kind() {
+                "argument_list" => {
+                    out.push(CallItem::MethodCall {
+                        name: get_string_node(&var_name, bytes),
+                        range: var_name.range(),
+                    });
+                }
+                _ => {
+                    if let Some(i) = indent_varibale {
+                        out.push(i);
+                    }
+                    cursor.sibling();
+                    let method_name = get_string(&cursor, bytes);
+                    out.push(CallItem::MethodCall {
+                        name: method_name,
+                        range: cursor.node().range(),
+                    });
+                }
             }
-            cursor.sibling();
-            cursor.sibling();
-            let method_name = get_string(&cursor, bytes);
-            out.push(CallItem::MethodCall {
-                name: method_name,
-                range: cursor.node().range(),
-            });
         }
         "method_invocation" => {
-            out.extend(parse_method_invocation(cursor.node(), bytes));
+            out.extend(parse_method_invocation(cursor.node(), bytes, point));
         }
         "object_creation_expression" => {
             out.extend(parse_object_creation(node, bytes));
@@ -284,7 +324,7 @@ fn parse_method_invocation(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<Cal
     out
 }
 
-fn parse_field_access(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem> {
+fn parse_field_access(node: tree_sitter::Node<'_>, bytes: &[u8], point: &Point) -> Vec<CallItem> {
     let mut cursor = node.walk();
     let mut out = vec![];
     cursor.first_child();
@@ -306,11 +346,11 @@ fn parse_field_access(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem
             }
         }
         "string_literal" => {
-            let val = parse_value(&cursor, bytes);
+            let val = parse_value(&cursor, bytes, point);
             out.extend(val);
         }
         "method_invocation" => {
-            out.extend(parse_method_invocation(cursor.node(), bytes));
+            out.extend(parse_method_invocation(cursor.node(), bytes, point));
             cursor.sibling();
             if cursor.sibling() {
                 let field_name = get_string(&cursor, bytes);
@@ -321,7 +361,7 @@ fn parse_field_access(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Vec<CallItem
             }
         }
         "field_access" => {
-            out.extend(parse_field_access(cursor.node(), bytes));
+            out.extend(parse_field_access(cursor.node(), bytes, point));
         }
         "object_creation_expression" => {
             out.extend(parse_object_creation(cursor.node(), bytes));
@@ -1502,6 +1542,84 @@ public class Test {
             ])
         );
     }
+
+    #[test]
+    fn call_chain_argument_calc() {
+        let content = r#"
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        concat("a" + a.getThing());
+        return;
+    }
+}
+"#;
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
+
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 28));
+        assert_eq!(
+            out,
+            Some(vec![
+                CallItem::ArgumentList {
+                    prev: vec![CallItem::MethodCall {
+                        name: "concat".to_string(),
+                        range: Range {
+                            start_byte: 78,
+                            end_byte: 84,
+                            start_point: Point { row: 4, column: 8 },
+                            end_point: Point { row: 4, column: 14 }
+                        },
+                    },],
+                    filled_params: vec![vec![
+                        CallItem::ClassOrVariable {
+                            name: "a".to_string(),
+                            range: Range {
+                                start_byte: 91,
+                                end_byte: 92,
+                                start_point: Point { row: 4, column: 21 },
+                                end_point: Point { row: 4, column: 22 },
+                            }
+                        },
+                        CallItem::MethodCall {
+                            name: "getThing".to_string(),
+                            range: Range {
+                                start_byte: 93,
+                                end_byte: 101,
+                                start_point: Point { row: 4, column: 23 },
+                                end_point: Point { row: 4, column: 31 }
+                            },
+                        },
+                    ]],
+                    active_param: 0,
+                    range: Range {
+                        start_byte: 84,
+                        end_byte: 104,
+                        start_point: Point { row: 4, column: 14 },
+                        end_point: Point { row: 4, column: 34 },
+                    },
+                },
+                CallItem::ClassOrVariable {
+                    name: "a".to_string(),
+                    range: Range {
+                        start_byte: 91,
+                        end_byte: 92,
+                        start_point: Point { row: 4, column: 21 },
+                        end_point: Point { row: 4, column: 22 },
+                    }
+                },
+                CallItem::MethodCall {
+                    name: "getThing".to_string(),
+                    range: Range {
+                        start_byte: 93,
+                        end_byte: 101,
+                        start_point: Point { row: 4, column: 23 },
+                        end_point: Point { row: 4, column: 31 }
+                    },
+                },
+            ])
+        );
+    }
+
     #[test]
     fn call_chain_arguments() {
         let content = "

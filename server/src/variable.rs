@@ -191,7 +191,9 @@ fn get_method_vars(
     let mut cursor = tree.walk();
     cursor.reset(start_node);
     cursor.first_child();
-    cursor.sibling();
+    if cursor.node().kind() == "modifiers" {
+        cursor.sibling();
+    }
     cursor.sibling();
     cursor.sibling();
     if cursor.node().kind() == "formal_parameters" {
@@ -201,6 +203,9 @@ fn get_method_vars(
                 continue;
             }
             cursor.first_child();
+            if cursor.node().kind() == "modifiers" {
+                cursor.sibling();
+            }
             let ty = get_string(&cursor, bytes);
             cursor.sibling();
             let name = get_string(&cursor, bytes);
@@ -391,6 +396,9 @@ fn parse_local_variable_declaration(
     out: &mut Vec<LocalVariable>,
 ) {
     cursor.first_child();
+    if cursor.node().kind() == "modifiers" {
+        cursor.sibling();
+    }
     let ty = get_string(&*cursor, bytes);
     cursor.sibling();
     cursor.first_child();
@@ -1178,6 +1186,64 @@ public class Test {
                         end_byte: 147,
                         start_point: Point { row: 5, column: 29 },
                         end_point: Point { row: 5, column: 39 },
+                    },
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn final_argument() {
+        let content = r#"
+package ch.emilycares;
+public class Test {
+    @Override
+    public String options(final String outer) {
+      String inner = "";
+      return inner + outer;
+    }
+}
+        "#;
+        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
+
+        let out = get_vars(&doc, &Point::new(5, 22));
+        assert_eq!(
+            out,
+            vec![
+                LocalVariable {
+                    level: 2,
+                    jtype: dto::JType::Class("String".to_string()),
+                    name: "options".to_string(),
+                    is_fun: true,
+                    range: tree_sitter::Range {
+                        start_byte: 76,
+                        end_byte: 83,
+                        start_point: Point { row: 4, column: 18 },
+                        end_point: Point { row: 4, column: 25 },
+                    },
+                },
+                LocalVariable {
+                    level: 3,
+                    jtype: dto::JType::Class("String".to_string()),
+                    name: "outer".to_string(),
+                    is_fun: false,
+                    range: Range {
+                        start_byte: 97,
+                        end_byte: 102,
+                        start_point: Point { row: 4, column: 39 },
+                        end_point: Point { row: 4, column: 44 },
+                    },
+                },
+                LocalVariable {
+                    level: 3,
+                    jtype: dto::JType::Class("String".to_string()),
+                    name: "inner".to_string(),
+                    is_fun: false,
+                    range: Range {
+                        start_byte: 119,
+                        end_byte: 124,
+                        start_point: Point { row: 5, column: 13 },
+                        end_point: Point { row: 5, column: 18 },
                     },
                 },
             ]

@@ -18,7 +18,6 @@ use crate::tree::GradleTreeError;
 #[derive(Debug)]
 pub enum GradleFetchError {
     Tree(GradleTreeError),
-    NoWorkToDo,
     CouldNotReadBuildGradle(std::io::Error),
     CouldNotModifyBuildGradle(std::io::Error),
     GradlewExecFailed(std::io::Error),
