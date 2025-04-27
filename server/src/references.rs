@@ -5,6 +5,7 @@ use std::{
 
 use lsp_types::Location;
 use parser::dto::{Class, ImportUnit};
+use rayon::iter::{IntoParallelRefIterator, ParallelBridge, ParallelIterator};
 
 use crate::{
     definition::{self},
@@ -33,14 +34,14 @@ pub enum ReferenceUnit {
 #[derive(Debug)]
 pub struct ReferencePosition(PositionSymbol);
 
-pub fn init_refernece_map(
+pub async fn init_refernece_map(
     project_classes: &[Class],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
     reference_map: &dashmap::DashMap<String, Vec<ReferenceUnit>>,
 ) -> Result<(), ReferencesError> {
-    for class in project_classes {
-        reference_update_class(class, class_map, reference_map)?;
-    }
+    project_classes.par_iter().for_each(|class| {
+        let _ = reference_update_class(class, class_map, reference_map);
+    });
     Ok(())
 }
 
@@ -136,6 +137,7 @@ fn get_implicit_imports(
         .clone()
         .into_read_only()
         .keys()
+        .par_bridge()
         .filter(|c| {
             if let Some((c_package, _)) = c.rsplit_once(".") {
                 return c_package == package;

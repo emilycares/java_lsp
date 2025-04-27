@@ -447,7 +447,7 @@ impl Backend<'_> {
     }
 
     async fn initialized(&mut self, client_capabilities: ClientCapabilities) {
-        eprintln!("Init");
+        self.progress_start("Init");
         self.client_capabilities = Arc::new(Some(client_capabilities));
         let task = "Load jdk";
 
@@ -488,6 +488,7 @@ impl Backend<'_> {
         };
         self.progress_update(task, "Initializing reference map");
         match references::init_refernece_map(&project_classes, &self.class_map, &self.reference_map)
+            .await
         {
             Ok(_) => (),
             Err(e) => eprintln!("Got reference error: {:?}", e),
@@ -498,7 +499,7 @@ impl Backend<'_> {
         }
         self.progress_end(task);
 
-        eprintln!("Init done");
+        self.progress_end("Init");
     }
 
     fn did_open(&self, params: DidOpenTextDocumentParams) {
@@ -563,17 +564,24 @@ impl Backend<'_> {
 
     async fn formatting(&self, params: DocumentFormattingParams) -> Option<Vec<TextEdit>> {
         let uri = params.text_document.uri;
-        let Some(document) = self.document_map.get_mut(uri.as_str()) else {
+        let Some(mut document) = self.document_map.get_mut(uri.as_str()) else {
             eprintln!("Document is not opened.");
             return None;
         };
         let lines = document.text.lines().len().try_into().ok()?;
-        let text = format::format(document.text.to_string(), document.path.clone())?;
+        if let Err(e) = format::format(document.path.clone()) {
+            eprintln!("Formatter error: {:?}", e);
+            return None;
+        }
+        if let Err(e) = document.reload_file_from_disk() {
+            eprintln!("Formatter unable to reload from disk: {:?}", e);
+            return None;
+        }
 
         // self.connection.
         Some(vec![TextEdit::new(
             Range::new(Position::new(0, 0), Position::new(lines, 0)),
-            text,
+            document.str_data.clone(),
         )])
     }
 

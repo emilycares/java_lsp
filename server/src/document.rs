@@ -20,6 +20,12 @@ pub enum DocumentError {
 }
 
 impl Document {
+    pub fn reload_file_from_disk(&mut self) -> Result<(), DocumentError> {
+        let text = fs::read_to_string(&self.path).map_err(DocumentError::Io)?;
+        self.text = ropey::Rope::from_str(&text);
+        self.reparse();
+        Ok(())
+    }
     pub fn setup_read(path: PathBuf, class_path: String) -> Result<Self, DocumentError> {
         let text = fs::read_to_string(&path).map_err(DocumentError::Io)?;
         let rope = ropey::Rope::from_str(&text);

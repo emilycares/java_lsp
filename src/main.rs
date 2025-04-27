@@ -1,65 +1,25 @@
-use std::{
-    fs::{self, write},
-    io,
-    path::PathBuf,
-    process::{self},
-};
+use std::process::{self};
 
-use clap::{Parser, Subcommand};
-
-/// A java lsp server
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-pub struct Args {
-    #[command(subcommand)]
-    cmd: Option<Commands>,
-
-    /// Unused flag required by vscode.
-    #[arg(short, long, default_value_t = true)]
-    stdio: bool,
-}
-#[derive(Subcommand, Debug)]
-enum Commands {
-    /// Start the lsp server over stdio
-    Server,
-    /// Format a .java file.
-    /// The default is over stdio
-    Format {
-        /// Path to read the .java file
-        #[clap(short, long)]
-        path: Option<PathBuf>,
-    },
-}
+use clap::Parser;
+use common::cli::{Args, Commands};
 
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
 
     match args.cmd {
-        Some(Commands::Format { path: None }) => match io::read_to_string(io::stdin()) {
-            Ok(input) => match format::format_op(format::Formatter::Topiary { text: input }) {
-                Some(output) => print!("{}", output),
-                None => process::exit(1),
-            },
-            Err(e) => {
-                eprintln!("There was an error with reading stdin: {}", e);
-                process::exit(1);
-            }
-        },
-        Some(Commands::Format { path: Some(path) }) => match fs::read_to_string(&path) {
-            Ok(input) => match format::format_op(format::Formatter::Topiary { text: input }) {
-                Some(output) => {
-                    if write(&path, output).is_ok() {
-                        println!("Replaced file");
-                    }
+        Some(Commands::Format { path: None }) => todo!(),
+        Some(Commands::Format { path: Some(path) }) => {
+            match format::format_op(format::Formatter::Topiary { path }) {
+                Ok(_) => {
+                    println!("Replaced file");
                 }
-                None => process::exit(1),
-            },
-            Err(e) => {
-                eprintln!("There was an error with reading the file: {}", e);
-                process::exit(1);
+                Err(e) => {
+                    eprintln!("There was an error with formatting: {:?}", e);
+                    process::exit(1)
+                }
             }
-        },
+        }
         Some(Commands::Server) | None => {
             std::env::set_var("RUST_BACKTRACE", "1");
             let _ = server::main().await;

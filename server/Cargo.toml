@@ -18,6 +18,7 @@ serde_json.workspace = true
 thiserror.workspace = true
 streaming-iterator.workspace = true
 itertools.workspace = true
+rayon.workspace = true
 format = { path = "../format"}
 parser = { path = "../parser"}
 maven = { path = "../maven"}
