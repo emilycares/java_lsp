@@ -4,14 +4,19 @@ use std::{
 };
 
 use lsp_types::Location;
-use parser::dto::{Class, ImportUnit};
+use parser::{
+    call_chain::{self, CallItem},
+    dto::{self, Class, ImportUnit},
+};
 use rayon::iter::{IntoParallelRefIterator, ParallelBridge, ParallelIterator};
+use tree_sitter::Point;
 
 use crate::{
     definition::{self},
     position::{self, PositionSymbol},
     tyres,
     utils::to_lsp_range,
+    variable,
 };
 
 #[derive(Debug)]
@@ -33,6 +38,121 @@ pub enum ReferenceUnit {
 }
 #[derive(Debug)]
 pub struct ReferencePosition(PositionSymbol);
+
+pub fn class_path(
+    class_path: &str,
+    reference_map: &dashmap::DashMap<String, Vec<ReferenceUnit>>,
+    class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
+) -> Option<Vec<Location>> {
+    if let Some(crefs) = reference_map.get(class_path) {
+        let refs = crefs
+            .iter()
+            .filter_map(|i| match i {
+                ReferenceUnit::Class(s) => class_map.get(s),
+                ReferenceUnit::StaticClass(s) => class_map.get(s),
+            })
+            .filter_map(|lookup| {
+                let refs = get_position_refrences(&lookup, class_path, None).ok()?;
+                Some((lookup, refs.first().map(|i| i.0.get_range())?))
+            })
+            .filter_map(
+                |(lookup, range)| match definition::class_to_uri(lookup.value()) {
+                    Ok(u) => Some((u, range)),
+                    Err(e) => {
+                        eprintln!("Referneces Uri error {:?}", e);
+                        None
+                    }
+                },
+            )
+            .map(|(i, range)| Location {
+                uri: i,
+                range: to_lsp_range(range),
+            })
+            .collect();
+        return Some(refs);
+    }
+    None
+}
+pub fn call_chain_references(
+    point: &Point,
+    call_chain: &[CallItem],
+    vars: &[variable::LocalVariable],
+    imports: &[ImportUnit],
+    class: &dto::Class,
+    class_map: &dashmap::DashMap<String, dto::Class>,
+    reference_map: &dashmap::DashMap<String, Vec<ReferenceUnit>>,
+) -> Result<Vec<Location>, ReferencesError> {
+    let (item, relevat) = call_chain::validate(call_chain, point);
+
+    let extend_class = tyres::resolve_call_chain(relevat, vars, imports, class, class_map)
+        .map_err(ReferencesError::Tyres)?;
+
+    match relevat.get(item) {
+        Some(CallItem::MethodCall { name, range: _ }) => {
+            let mut locations = vec![];
+            if let Some(used_in) = reference_map.get(&extend_class.class_path) {
+                let used_in = used_in.value();
+                for ref_unit in used_in {
+                    let Some(class) = (match ref_unit {
+                        ReferenceUnit::Class(c) => class_map.get(c),
+                        ReferenceUnit::StaticClass(c) => class_map.get(c),
+                    }) else {
+                        continue;
+                    };
+                    let method_refs = method_references(&class, name)?;
+                    let uri = definition::source_to_uri(&class.source)
+                        .map_err(ReferencesError::Definition)?;
+                    locations.extend(
+                        method_refs
+                            .iter()
+                            .map(|i| Location::new(uri.clone(), to_lsp_range(i.0.get_range()))),
+                    );
+                }
+            }
+            Ok(locations)
+        }
+        Some(CallItem::FieldAccess { name: _, range: _ }) => todo!(),
+        Some(CallItem::Variable { name: _, range: _ }) => todo!(),
+        Some(CallItem::ClassOrVariable { name: _, range: _ }) => todo!(),
+        Some(CallItem::ArgumentList {
+            prev: _,
+            active_param,
+            filled_params,
+            range: _,
+        }) => {
+            if let Some(current_param) = filled_params.get(*active_param) {
+                return call_chain_references(
+                    point,
+                    current_param,
+                    vars,
+                    imports,
+                    class,
+                    class_map,
+                    reference_map,
+                );
+            }
+            Err(ReferencesError::ArgumentNotFound)
+        }
+        Some(a) => unimplemented!("call_chain_references {:?}", a),
+        None => Err(ReferencesError::ValidatedItemDoesNotExists),
+    }
+}
+
+fn method_references(
+    class: &Class,
+    query_method_name: &str,
+) -> Result<Vec<ReferencePosition>, ReferencesError> {
+    match fs::read(&class.source) {
+        Err(e) => Err(ReferencesError::IoRead(class.source.clone(), e)),
+        Ok(bytes) => {
+            let (_, tree) = tree_sitter_util::parse(&bytes).map_err(ReferencesError::Treesitter)?;
+            match position::get_method_usage(&bytes, query_method_name, &tree) {
+                Err(e) => Err(ReferencesError::Position(e))?,
+                Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
+            }
+        }
+    }
+}
 
 pub async fn init_refernece_map(
     project_classes: &[Class],
@@ -159,39 +279,4 @@ fn get_implicit_imports(
         })
         .map(|i| i.0)
         .collect()
-}
-
-pub fn class_path(
-    class_path: &str,
-    reference_map: &dashmap::DashMap<String, Vec<ReferenceUnit>>,
-    class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
-) -> Option<Vec<Location>> {
-    if let Some(crefs) = reference_map.get(class_path) {
-        let refs = crefs
-            .iter()
-            .filter_map(|i| match i {
-                ReferenceUnit::Class(s) => class_map.get(s),
-                ReferenceUnit::StaticClass(s) => class_map.get(s),
-            })
-            .filter_map(|lookup| {
-                let refs = get_position_refrences(&lookup, class_path, None).ok()?;
-                Some((lookup, refs.first().map(|i| i.0.get_range())?))
-            })
-            .filter_map(
-                |(lookup, range)| match definition::class_to_uri(lookup.value()) {
-                    Ok(u) => Some((u, range)),
-                    Err(e) => {
-                        eprintln!("Referneces Uri error {:?}", e);
-                        None
-                    }
-                },
-            )
-            .map(|(i, range)| Location {
-                uri: i,
-                range: to_lsp_range(range),
-            })
-            .collect();
-        return Some(refs);
-    }
-    None
 }

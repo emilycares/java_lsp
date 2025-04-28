@@ -189,13 +189,7 @@ pub fn load_classes<P: AsRef<Path>>(path: P, source: SourceDestination) -> dto::
 fn get_files<P: AsRef<Path>>(dir: P, ending: &str) -> Vec<String> {
     WalkDir::new(dir)
         .into_iter()
-        .filter(|a| {
-            if let Err(e) = a {
-                dbg!(e);
-                return false;
-            }
-            true
-        })
+        .filter(|a| a.is_ok())
         .filter_map(Result::ok)
         .filter(|e| !e.file_type().is_dir())
         .filter_map(|e| e.path().to_str().map(|s| s.to_string()))

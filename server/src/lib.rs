@@ -467,7 +467,6 @@ impl Backend<'_> {
                 _ = read_forward(&mut reciever, &con, &task)  => {},
                 cm = fetch_deps(sender, project_kind, &class_map) => {
                     if let Some(cm) = cm {
-                        dbg!(cm.len());
                         for pair in cm.into_iter() {
                             self.class_map.insert(pair.0, pair.1);
                         }
@@ -719,7 +718,30 @@ impl Backend<'_> {
             Err(ClassActionError::VariableFound { var: _, range: _ }) => {}
             Err(e) => eprintln!("Got refrence class error: {:?}", e),
         }
-        None
+        let Some(call_chain) = get_call_chain(&document.tree, document.as_bytes(), &point) else {
+            eprintln!("Defintion could not get callchain");
+            return None;
+        };
+        let Some(class) = &self.class_map.get(&document.class_path) else {
+            eprintln!("Could not find class {}", document.class_path);
+            return None;
+        };
+
+        match references::call_chain_references(
+            &point,
+            &call_chain,
+            &vars,
+            &imports,
+            class,
+            &self.class_map,
+            &self.reference_map,
+        ) {
+            Ok(refs) => Some(refs),
+            Err(e) => {
+                eprintln!("Got refrence call_chain error: {:?}", e);
+                None
+            }
+        }
     }
 
     async fn code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {

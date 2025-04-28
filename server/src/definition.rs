@@ -145,7 +145,10 @@ pub fn get_source_content(extend_class: &dto::Class) -> Result<String, Definitio
 }
 
 pub fn class_to_uri(class: &dto::Class) -> Result<Uri, DefinitionError> {
-    let str_uri = format!("file:///{}", class.source.replace("\\", "/"));
+    source_to_uri(&class.source)
+}
+pub fn source_to_uri(source: &str) -> Result<Uri, DefinitionError> {
+    let str_uri = format!("file:///{}", source.replace("\\", "/"));
     let uri = Uri::from_str(&str_uri);
     match uri {
         Ok(uri) => Ok(uri),

@@ -80,6 +80,7 @@ pub fn get_symbols(bytes: &[u8]) -> Result<Vec<PositionSymbol>, PosionError> {
         (enum_declaration name: (identifier)@capture )
         (annotation_type_declaration name: (identifier)@capture )
         (record_declaration name: (identifier)@capture )
+        (method_declaration name: (identifier)@capture )
         ",
         None,
     )
@@ -99,6 +100,21 @@ pub fn get_type_usage(
         (method_invocation object: (identifier)@capture )
         ",
         Some(query_class_name),
+    )
+}
+
+pub fn get_method_usage(
+    bytes: &[u8],
+    query_method_name: &str,
+    tree: &Tree,
+) -> Result<Vec<PositionSymbol>, PosionError> {
+    get_item_ranges(
+        tree,
+        bytes,
+        "
+        (method_invocation name: (identifier)@cature)
+        ",
+        Some(query_method_name),
     )
 }
 
