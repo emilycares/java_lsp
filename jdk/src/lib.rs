@@ -304,7 +304,7 @@ pub async fn load_classes(
         // ```
         let class_folder = load_jdk(java_path, op_dir).await?;
         if let Err(e) = parser::loader::save_class_folder(cache_path, &class_folder) {
-            eprintln!("Failed to save {JDK_CFC} because: {e}");
+            eprintln!("Failed to save {JDK_CFC} because: {e:?}");
         };
         for class in class_folder.classes {
             class_map.insert(class.class_path.clone(), class);

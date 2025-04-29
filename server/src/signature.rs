@@ -1,17 +1,11 @@
+use call_chain::CallItem;
 use dashmap::DashMap;
+use document::Document;
 use lsp_types::{
     Documentation, ParameterInformation, ParameterLabel, SignatureHelp, SignatureInformation,
 };
-use parser::{
-    call_chain::{self, CallItem},
-    dto::{self, Class, ImportUnit},
-};
-
-use crate::{
-    document::Document,
-    imports::{self},
-    tyres, variable,
-};
+use parser::dto::{self, Class, ImportUnit};
+use variables::LocalVariable;
 
 #[derive(Debug, PartialEq)]
 pub enum SignatureError {
@@ -31,7 +25,7 @@ pub fn signature_driver(
     if let Some(call_chain) = call_chain::get_call_chain(&document.tree, document.as_bytes(), point)
     {
         let imports = imports::imports(document);
-        let vars = variable::get_vars(document, point);
+        let vars = variables::get_vars(document, point);
         return get_signature(call_chain, &imports, &vars, class, class_map);
     }
     Err(SignatureError::NoCallChain)
@@ -39,7 +33,7 @@ pub fn signature_driver(
 pub fn get_signature(
     call_chain: Vec<CallItem>,
     imports: &[ImportUnit],
-    vars: &[variable::LocalVariable],
+    vars: &[LocalVariable],
     class: &Class,
     class_map: &DashMap<std::string::String, parser::dto::Class>,
 ) -> Result<SignatureHelp, SignatureError> {
@@ -135,14 +129,13 @@ pub mod tests {
     use std::path::PathBuf;
 
     use dashmap::DashMap;
+    use document::Document;
     use lsp_types::{
         Documentation, ParameterInformation, ParameterLabel, SignatureHelp, SignatureInformation,
     };
     use parser::dto;
     use pretty_assertions::assert_eq;
     use tree_sitter::Point;
-
-    use crate::document::Document;
 
     use super::signature_driver;
 

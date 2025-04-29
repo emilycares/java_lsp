@@ -1,0 +1,12 @@
+[package]
+name = "call_chain"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tree-sitter.workspace = true
+tree-sitter-java.workspace = true
+tree-sitter-util = { path = "../tree-sitter-util"}
+
+[dev-dependencies]
+pretty_assertions.workspace = true

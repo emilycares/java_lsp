@@ -1,7 +1,7 @@
 use std::process::{self};
 
 use clap::Parser;
-use common::cli::{Args, Commands};
+use cli::{Args, Commands};
 
 #[tokio::main]
 async fn main() {

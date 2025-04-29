@@ -5,7 +5,7 @@ use std::{
     process::Command,
 };
 
-use common::config::{FormatterConfig, CONFIG};
+use config::{FormatterConfig, CONFIG};
 use topiary_config::{
     error::{TopiaryConfigError, TopiaryConfigFetchingError},
     Configuration,

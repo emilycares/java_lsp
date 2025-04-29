@@ -1,9 +1,7 @@
 use lsp_types::{Location, SymbolInformation, SymbolKind, Uri};
 use streaming_iterator::StreamingIterator;
 use tree_sitter::{Query, QueryCursor, Tree};
-use tree_sitter_util::get_string_node;
-
-use crate::utils::to_lsp_range;
+use tree_sitter_util::{get_string_node, lsp::to_lsp_range};
 
 #[derive(Debug, PartialEq)]
 pub enum PosionError {
@@ -189,9 +187,9 @@ mod tests {
     use pretty_assertions::assert_eq;
     use tree_sitter::{Point, Range};
 
-    use crate::position::{
-        get_class_position, get_field_positions, get_method_positions, get_type_usage,
-        PositionSymbol,
+    use crate::{
+        PositionSymbol, get_class_position, get_field_positions, get_method_positions,
+        get_type_usage,
     };
 
     #[test]

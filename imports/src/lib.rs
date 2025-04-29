@@ -1,8 +1,7 @@
+use document::Document;
 use parser::{dto::ImportUnit, java::parse_import_declarations};
 use tree_sitter::Tree;
 use tree_sitter_util::CommentSkiper;
-
-use crate::Document;
 
 pub fn is_imported(imports: &[ImportUnit], class_path: &str) -> bool {
     for inp in imports {
@@ -72,7 +71,7 @@ fn get_imported_classpaths(bytes: &[u8], tree: &Tree) -> Vec<ImportUnit> {
 
 #[cfg(test)]
 mod tests {
-    use crate::imports::ImportUnit;
+    use parser::dto::ImportUnit;
     use pretty_assertions::assert_eq;
 
     use super::get_imported_classpaths;

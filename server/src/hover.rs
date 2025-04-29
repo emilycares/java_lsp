@@ -1,16 +1,11 @@
+use call_chain::{self, class_or_variable, CallItem};
+use document::Document;
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
-use parser::{
-    call_chain::{self, class_or_variable, CallItem},
-    dto::{self, ImportUnit},
-};
+use parser::dto::{self, ImportUnit};
 use tree_sitter::Point;
-
-use crate::{
-    tyres::{self, TyresError},
-    utils::to_lsp_range,
-    variable::LocalVariable,
-    Document,
-};
+use tree_sitter_util::lsp::to_lsp_range;
+use tyres::TyresError;
+use variables::LocalVariable;
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -315,14 +310,13 @@ fn class_to_hover(class: dto::Class, range: Range) -> Hover {
 mod tests {
     use std::path::PathBuf;
 
+    use call_chain;
     use dashmap::DashMap;
-    use parser::{call_chain, dto};
+    use document::Document;
+    use parser::dto;
     use tree_sitter::Point;
 
-    use crate::{
-        hover::{call_chain_hover, class_action},
-        variable, Document,
-    };
+    use crate::hover::{call_chain_hover, class_action};
 
     #[test]
     fn class_action_base() {
@@ -393,7 +387,7 @@ public class Test {
 ";
         let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
         let point = Point::new(5, 29);
-        let vars = variable::get_vars(&doc, &point);
+        let vars = variables::get_vars(&doc, &point);
 
         let chain = call_chain::get_call_chain(&doc.tree, doc.as_bytes(), &point).unwrap();
         let out = call_chain_hover(&doc, chain, &point, &vars, &[], &class, &string_class_map());

@@ -1,0 +1,16 @@
+[package]
+name = "jdk"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+dashmap.workspace = true
+futures.workspace = true
+tokio.workspace = true
+parking_lot.workspace = true
+dirs.workspace = true
+zip-extract.workspace = true
+parser = { path = "../parser" }
+
+[dev-dependencies]
+pretty_assertions.workspace = true

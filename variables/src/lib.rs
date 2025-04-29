@@ -1,10 +1,9 @@
+use document::Document;
 use parser::dto;
 use tree_sitter::{Point, Range};
-use tree_sitter_util::{get_string, CommentSkiper};
+use tree_sitter_util::{CommentSkiper, get_string};
 
-use crate::Document;
-
-/// Information about a variable or function in a Document
+/// document::Documentut a variable or function in a Document
 #[derive(Debug, PartialEq, Clone)]
 pub struct LocalVariable {
     pub level: usize,
@@ -415,14 +414,12 @@ fn parse_local_variable_declaration(
 pub mod tests {
     use std::path::PathBuf;
 
+    use document::Document;
     use parser::dto;
     use pretty_assertions::assert_eq;
     use tree_sitter::{Point, Range};
 
-    use crate::{
-        variable::{get_vars, LocalVariable},
-        Document,
-    };
+    use crate::{LocalVariable, get_vars};
 
     #[test]
     fn this_context() {

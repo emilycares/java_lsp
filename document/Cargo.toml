@@ -1,0 +1,13 @@
+[package]
+name = "document"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+lsp-types.workspace = true
+ropey.workspace = true
+tree-sitter.workspace = true
+tree-sitter-util = { path = "../tree-sitter-util"}
+
+[dev-dependencies]
+pretty_assertions.workspace = true

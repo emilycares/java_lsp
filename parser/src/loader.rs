@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     class::{self, load_class},
-    dto::{self, ClassFolder},
+    dto::{self, ClassError, ClassFolder},
     java::{self, ParseJavaError},
 };
 use async_zip::base::read::seek::ZipFileReader;
@@ -39,7 +39,7 @@ pub fn load_class_fs<T>(
 where
     T: AsRef<Path> + Debug,
 {
-    let bytes = std::fs::read(path)?;
+    let bytes = std::fs::read(path).map_err(ClassError::IO)?;
     class::load_class(&bytes, class_path, source)
 }
 
@@ -62,16 +62,17 @@ pub fn save_class_folder<P: AsRef<Path>>(
         .create(true)
         .truncate(true)
         .write(true)
-        .open(path)?;
-    let data = postcard::to_allocvec(class_folder)?;
+        .open(path)
+        .map_err(ClassError::IO)?;
+    let data = postcard::to_allocvec(class_folder).map_err(ClassError::Postcard)?;
 
     let _ = file.write_all(&data);
     Ok(())
 }
 
 pub fn load_class_folder<P: AsRef<Path>>(path: P) -> Result<dto::ClassFolder, dto::ClassError> {
-    let data = fs::read(path)?;
-    let out = postcard::from_bytes(&data)?;
+    let data = fs::read(path).map_err(ClassError::IO)?;
+    let out = postcard::from_bytes(&data).map_err(ClassError::Postcard)?;
 
     Ok(out)
 }
@@ -177,7 +178,7 @@ pub fn load_classes<P: AsRef<Path>>(path: P, source: SourceDestination) -> dto::
                 match load_class_fs(p.as_str(), class_path.to_string(), source.clone()) {
                     Ok(c) => Some(c),
                     Err(e) => {
-                        eprintln!("Unable to load class: {}: {}", p, e);
+                        eprintln!("Unable to load class: {}: {:?}", p, e);
                         None
                     }
                 }

@@ -1,19 +1,12 @@
+use call_chain::get_call_chain;
+use document::DocumentError;
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat};
-use parser::{
-    call_chain::get_call_chain,
-    dto::{self, ImportUnit},
-};
+use parser::dto::{self, ImportUnit};
 use tree_sitter::{Point, Tree};
 use tree_sitter_util::{get_node_at_point, get_string_node};
+use variables::LocalVariable;
 
-use crate::{
-    codeaction,
-    document::DocumentError,
-    imports::{self},
-    tyres,
-    variable::LocalVariable,
-    Document,
-};
+use crate::{codeaction, Document};
 
 #[derive(Debug)]
 pub enum CompletionError {
@@ -289,10 +282,10 @@ mod tests {
     use parser::dto::{self, ImportUnit};
     use pretty_assertions::assert_eq;
     use tree_sitter::Point;
+    use variables::LocalVariable;
 
     use crate::{
         completion::{classes, complete_call_chain},
-        variable::LocalVariable,
         Document,
     };
 

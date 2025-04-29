@@ -1,11 +1,11 @@
 use std::process::Command;
 
 use nom::{
+    IResult, Parser,
     branch::alt,
     character::complete::digit0,
     multi::separated_list0,
     sequence::{pair, separated_pair},
-    IResult, Parser,
 };
 use nom::{
     bytes::{complete::take_until, streaming::tag},
@@ -73,7 +73,7 @@ fn parse_message_and_col(input: &str) -> IResult<&str, (&str, usize)> {
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use crate::compile::{parse_compile_errors, CompileError};
+    use crate::{CompileError, parse_compile_errors};
 
     #[test]
     fn parse_compile_errors_basic() {

@@ -1,0 +1,14 @@
+[package]
+name = "variables"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tree-sitter.workspace = true
+tree-sitter-java.workspace = true
+document = {path = "../document"}
+parser = {path = "../parser"}
+tree-sitter-util = { path = "../tree-sitter-util"}
+
+[dev-dependencies]
+pretty_assertions.workspace = true

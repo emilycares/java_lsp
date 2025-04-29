@@ -1,24 +1,19 @@
 mod codeaction;
 pub mod completion;
 mod definition;
-pub mod document;
 mod hover;
-mod imports;
-mod position;
 pub mod references;
 pub mod signature;
-mod tyres;
-mod utils;
-mod variable;
 
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::{collections::HashMap, fs::read_to_string};
 
-use common::compile::CompileError;
+use call_chain::get_call_chain;
 use common::project_kind::ProjectKind;
 use common::TaskProgress;
+use compile::CompileError;
 use dashmap::{DashMap, DashSet};
 use document::Document;
 use hover::{class_action, ClassActionError};
@@ -47,13 +42,12 @@ use lsp_types::{
     ClientCapabilities, Location, ReferenceParams, SymbolInformation, WorkDoneProgress,
     WorkDoneProgressReport,
 };
-use parser::call_chain::get_call_chain;
 use parser::dto::Class;
 use position::PositionSymbol;
 use references::ReferenceUnit;
-use utils::to_treesitter_point;
 
 use lsp_server::{Connection, Message, Response};
+use tree_sitter_util::lsp::to_treesitter_point;
 
 pub async fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
     let (connection, io_threads) = Connection::stdio();
@@ -398,7 +392,7 @@ impl Backend<'_> {
         match self.project_kind {
             ProjectKind::Maven => {
                 if let Some(classpath) = maven::compile::generate_classpath() {
-                    if let Some(errors) = common::compile::compile_java_file(path, &classpath) {
+                    if let Some(errors) = compile::compile_java_file(path, &classpath) {
                         return errors;
                     }
                 }
@@ -452,7 +446,7 @@ impl Backend<'_> {
         let task = "Load jdk";
 
         self.progress_start(task);
-        let _ = common::jdk::load_classes(&self.class_map).await;
+        let _ = jdk::load_classes(&self.class_map).await;
         self.progress_end(task);
 
         if self.project_kind != ProjectKind::Unknown {
@@ -550,7 +544,7 @@ impl Backend<'_> {
         let document = self.document_map.get_mut(uri.as_str())?;
         let point = to_treesitter_point(params.text_document_position_params.position);
         let imports = imports::imports(document.value());
-        let vars = variable::get_vars(document.value(), &point);
+        let vars = variables::get_vars(document.value(), &point);
 
         match hover::base(document.value(), &point, &vars, &imports, &self.class_map) {
             Ok(hover) => Some(hover),
@@ -593,7 +587,7 @@ impl Backend<'_> {
         };
         let mut out = vec![];
         let point = to_treesitter_point(params.position);
-        let vars = variable::get_vars(document.value(), &point);
+        let vars = variables::get_vars(document.value(), &point);
 
         let imports = imports::imports(document.value());
         let Some(class) = &self.class_map.get(&document.class_path) else {
@@ -650,7 +644,7 @@ impl Backend<'_> {
 
         let point = to_treesitter_point(params.position);
         let imports = imports::imports(document.value());
-        let vars = variable::get_vars(document.value(), &point);
+        let vars = variables::get_vars(document.value(), &point);
 
         match definition::class(
             document.value(),
@@ -699,7 +693,7 @@ impl Backend<'_> {
         };
         let point = to_treesitter_point(params.position);
         let imports = imports::imports(document.value());
-        let vars = variable::get_vars(document.value(), &point);
+        let vars = variables::get_vars(document.value(), &point);
         match class_action(
             &document.tree,
             document.as_bytes(),

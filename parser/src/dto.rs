@@ -1,26 +1,17 @@
 use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use tree_sitter::LanguageError;
 
-#[derive(Error, Debug)]
+#[derive(Debug)]
 pub enum ClassError {
-    #[error("IO error")]
-    IO(#[from] std::io::Error),
-    #[error("Treesitter language error")]
-    Language(#[from] LanguageError),
-    #[error("java_asm error")]
-    Asm(),
-    #[error("unknown")]
+    IO(std::io::Error),
+    Language(LanguageError),
+    Asm,
     Unknown,
-    #[error("Parse error")]
     ParseError,
-    #[error("Serialize error")]
-    SerializeError(#[from] postcard::Error),
-    #[error("Could not find the class name")]
+    Postcard(postcard::Error),
     UnknownClassName,
-    #[error("Could not find the class path")]
     UnknownClassPath,
 }
 

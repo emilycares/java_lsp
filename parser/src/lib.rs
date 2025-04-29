@@ -1,4 +1,3 @@
-pub mod call_chain;
 mod class;
 pub mod dto;
 pub mod java;
@@ -6,6 +5,7 @@ pub mod loader;
 
 use std::{fmt::Debug, path::Path};
 
+use dto::ClassError;
 use java::ParseJavaError;
 use loader::SourceDestination;
 
@@ -43,7 +43,7 @@ pub fn load_class_fs<T>(
 where
     T: AsRef<Path> + Debug,
 {
-    let bytes = std::fs::read(path)?;
+    let bytes = std::fs::read(path).map_err(ClassError::IO)?;
     class::load_class(&bytes, class_path, source)
 }
 

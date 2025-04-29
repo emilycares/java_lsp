@@ -13,16 +13,20 @@ dashmap.workspace = true
 ropey.workspace = true
 tree-sitter.workspace = true
 tree-sitter-java.workspace = true
-serde.workspace = true
 serde_json.workspace = true
-thiserror.workspace = true
-streaming-iterator.workspace = true
-itertools.workspace = true
 rayon.workspace = true
 format = { path = "../format"}
 parser = { path = "../parser"}
 maven = { path = "../maven"}
 gradle = { path = "../gradle"}
+imports = { path = "../imports"}
+tyres = { path = "../tyres"}
+position = { path = "../position"}
+document = { path = "../document"}
+variables = { path = "../variables"}
+jdk = { path = "../jdk"}
+compile = { path = "../compile"}
+call_chain = { path = "../call_chain" }
 common = { path = "../common"}
 tree-sitter-util = { path = "../tree-sitter-util" }
 

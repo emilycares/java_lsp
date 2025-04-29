@@ -8,4 +8,4 @@ topiary-queries.workspace = true
 topiary-core.workspace = true
 topiary-config.workspace = true
 tokio.workspace = true
-common = { path = "../common" }
+config = { path = "../config" }

@@ -6,6 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+lsp-types.workspace = true
 tree-sitter.workspace = true
 tree-sitter-java.workspace = true
-thiserror.workspace = true

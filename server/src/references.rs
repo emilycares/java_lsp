@@ -4,23 +4,18 @@ use std::{
     path::PathBuf,
 };
 
+use call_chain::CallItem;
 use dashmap::mapref::one::RefMut;
+use document::{Document, DocumentError};
 use lsp_types::Location;
-use parser::{
-    call_chain::{self, CallItem},
-    dto::{self, Class, ImportUnit},
-};
+use parser::dto::{self, Class, ImportUnit};
+use position::PositionSymbol;
 use rayon::iter::{IntoParallelRefIterator, ParallelBridge, ParallelIterator};
 use tree_sitter::Point;
+use tree_sitter_util::lsp::to_lsp_range;
+use variables::LocalVariable;
 
-use crate::{
-    definition::{self},
-    document::{Document, DocumentError},
-    position::{self, PositionSymbol},
-    tyres,
-    utils::to_lsp_range,
-    variable,
-};
+use crate::definition::{self};
 
 #[derive(Debug)]
 pub enum ReferencesError {
@@ -82,7 +77,7 @@ pub fn class_path(
 pub fn call_chain_references(
     point: &Point,
     call_chain: &[CallItem],
-    vars: &[variable::LocalVariable],
+    vars: &[LocalVariable],
     imports: &[ImportUnit],
     class: &dto::Class,
     class_map: &dashmap::DashMap<String, dto::Class>,

@@ -1,0 +1,10 @@
+[package]
+name = "tyres"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+dashmap.workspace = true
+parser = { path = "../parser"}
+call_chain = { path = "../call_chain"}
+variables = { path = "../variables"}

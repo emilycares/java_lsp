@@ -1,18 +1,16 @@
 use std::{fs::read_to_string, path::PathBuf, str::FromStr};
 
+use call_chain::CallItem;
 use lsp_types::{GotoDefinitionResponse, Location, Uri};
-use parser::{
-    call_chain::{self, CallItem},
-    dto::{self, ImportUnit},
-};
+use parser::dto::{self, ImportUnit};
+use position::PositionSymbol;
 use tree_sitter::Point;
+use tree_sitter_util::lsp::to_lsp_range;
+use tyres::TyresError;
+use variables::LocalVariable;
 
 use crate::{
     hover::{class_action, ClassActionError},
-    position::{self, PositionSymbol},
-    tyres::{self, TyresError},
-    utils::to_lsp_range,
-    variable::{self, LocalVariable},
     Document,
 };
 
@@ -63,7 +61,7 @@ pub fn call_chain_definition(
     document_uri: Uri,
     point: &Point,
     call_chain: &[CallItem],
-    vars: &[variable::LocalVariable],
+    vars: &[LocalVariable],
     imports: &[ImportUnit],
     class: &dto::Class,
     class_map: &dashmap::DashMap<String, dto::Class>,

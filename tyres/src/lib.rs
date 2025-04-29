@@ -1,12 +1,9 @@
 use std::ops::Deref;
 
+use call_chain::CallItem;
 use dashmap::DashMap;
-use parser::{
-    call_chain::CallItem,
-    dto::{self, Class, ImportUnit, JType},
-};
-
-use crate::variable::LocalVariable;
+use parser::dto::{self, Class, ImportUnit, JType};
+use variables::LocalVariable;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TyresError {
@@ -209,11 +206,11 @@ pub fn resolve_jtype(
         | JType::Long
         | JType::Short
         | JType::Boolean => Ok(Class::default()),
-        JType::Array(gen) => Ok(Class {
+        JType::Array(i) => Ok(Class {
             name: "array".to_string(),
             methods: vec![dto::Method {
                 name: "clone".to_string(),
-                ret: JType::Array(gen.clone()),
+                ret: JType::Array(i.clone()),
                 ..Default::default()
             }],
             fields: vec![dto::Field {

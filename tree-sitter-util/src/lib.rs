@@ -1,3 +1,5 @@
+pub mod lsp;
+
 use tree_sitter::{Node, Parser, Point, Range, Tree, TreeCursor};
 
 #[derive(Debug, PartialEq)]

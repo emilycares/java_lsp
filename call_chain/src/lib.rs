@@ -1,5 +1,5 @@
 use tree_sitter::{Point, Range};
-use tree_sitter_util::{get_string, get_string_node, CommentSkiper};
+use tree_sitter_util::{CommentSkiper, get_string, get_string_node};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum CallItem {
@@ -450,7 +450,7 @@ pub mod tests {
     use pretty_assertions::assert_eq;
     use tree_sitter::{Point, Range};
 
-    use crate::call_chain::{get_call_chain, CallItem};
+    use crate::{CallItem, get_call_chain};
 
     #[test]
     fn call_chain_base() {
@@ -479,6 +479,34 @@ public class Test {
                     end_byte: 130,
                     start_point: Point { row: 8, column: 17 },
                     end_point: Point { row: 8, column: 22 }
+                }
+            }])
+        );
+    }
+
+    #[test]
+    fn call_chain_variable() {
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello(String a) {
+        a.  
+        return;
+    }
+}
+        ";
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
+
+        let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 11));
+        assert_eq!(
+            out,
+            Some(vec![CallItem::ClassOrVariable {
+                name: "a".to_string(),
+                range: Range {
+                    start_byte: 86,
+                    end_byte: 87,
+                    start_point: Point { row: 4, column: 8 },
+                    end_point: Point { row: 4, column: 9 }
                 }
             }])
         );

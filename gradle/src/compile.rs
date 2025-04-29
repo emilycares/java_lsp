@@ -1,6 +1,6 @@
 use std::process::Command;
 
-use common::compile::{parse_compile_errors, CompileError};
+use compile::{parse_compile_errors, CompileError};
 
 use crate::fetch::PATH_GRADLE;
 
@@ -45,7 +45,7 @@ fn run_compile_java() -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use common::compile::CompileError;
+    use compile::CompileError;
     use pretty_assertions::assert_eq;
 
     use crate::compile::cut_and_parse;

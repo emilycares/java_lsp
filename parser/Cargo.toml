@@ -8,7 +8,6 @@ edition = "2021"
 [dependencies]
 tree-sitter-util = { path = "../tree-sitter-util"}
 classfile-parser.workspace = true
-thiserror.workspace = true
 tree-sitter.workspace = true
 tree-sitter-java.workspace = true
 walkdir.workspace = true

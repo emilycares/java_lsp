@@ -5,9 +5,7 @@ use lsp_types::{
 };
 use parser::dto::ImportUnit;
 use tree_sitter::{Point, Tree};
-use tree_sitter_util::CommentSkiper;
-
-use crate::{tyres, utils::to_lsp_position};
+use tree_sitter_util::{lsp::to_lsp_position, CommentSkiper};
 
 pub fn import_jtype<'a>(
     tree: &Tree,
