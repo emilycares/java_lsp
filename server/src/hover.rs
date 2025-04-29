@@ -310,7 +310,6 @@ fn class_to_hover(class: dto::Class, range: Range) -> Hover {
 mod tests {
     use std::path::PathBuf;
 
-    use call_chain;
     use dashmap::DashMap;
     use document::Document;
     use parser::dto;
