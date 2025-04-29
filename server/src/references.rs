@@ -1,8 +1,10 @@
 use std::{
     fs::{self},
     hash::Hash,
+    path::PathBuf,
 };
 
+use dashmap::mapref::one::RefMut;
 use lsp_types::Location;
 use parser::{
     call_chain::{self, CallItem},
@@ -13,6 +15,7 @@ use tree_sitter::Point;
 
 use crate::{
     definition::{self},
+    document::{Document, DocumentError},
     position::{self, PositionSymbol},
     tyres,
     utils::to_lsp_range,
@@ -29,6 +32,7 @@ pub enum ReferencesError {
     ValidatedItemDoesNotExists,
     ArgumentNotFound,
     Definition(definition::DefinitionError),
+    Document(DocumentError),
 }
 
 #[derive(Debug)]
@@ -73,6 +77,8 @@ pub fn class_path(
     }
     None
 }
+
+#[allow(clippy::too_many_arguments)]
 pub fn call_chain_references(
     point: &Point,
     call_chain: &[CallItem],
@@ -81,6 +87,7 @@ pub fn call_chain_references(
     class: &dto::Class,
     class_map: &dashmap::DashMap<String, dto::Class>,
     reference_map: &dashmap::DashMap<String, Vec<ReferenceUnit>>,
+    document_map: &dashmap::DashMap<String, Document>,
 ) -> Result<Vec<Location>, ReferencesError> {
     let (item, relevat) = call_chain::validate(call_chain, point);
 
@@ -99,7 +106,7 @@ pub fn call_chain_references(
                     }) else {
                         continue;
                     };
-                    let method_refs = method_references(&class, name)?;
+                    let method_refs = method_references(&class, name, document_map)?;
                     let uri = definition::source_to_uri(&class.source)
                         .map_err(ReferencesError::Definition)?;
                     locations.extend(
@@ -129,6 +136,7 @@ pub fn call_chain_references(
                     class,
                     class_map,
                     reference_map,
+                    document_map,
                 );
             }
             Err(ReferencesError::ArgumentNotFound)
@@ -138,19 +146,45 @@ pub fn call_chain_references(
     }
 }
 
+enum Helper<'a, D> {
+    Owned(D),
+    Ref(RefMut<'a, String, Document>),
+    Err(ReferencesError),
+}
+
 fn method_references(
     class: &Class,
     query_method_name: &str,
+    document_map: &dashmap::DashMap<String, Document>,
 ) -> Result<Vec<ReferencePosition>, ReferencesError> {
-    match fs::read(&class.source) {
-        Err(e) => Err(ReferencesError::IoRead(class.source.clone(), e)),
-        Ok(bytes) => {
-            let (_, tree) = tree_sitter_util::parse(&bytes).map_err(ReferencesError::Treesitter)?;
-            match position::get_method_usage(&bytes, query_method_name, &tree) {
+    let uri = definition::class_to_uri(class).map_err(ReferencesError::Definition)?;
+    let uri = uri.to_string();
+    let doc = match document_map.get_mut(&uri) {
+        Some(d) => Helper::Ref(d),
+        None => match Document::setup_read(
+            PathBuf::from(class.source.clone()),
+            class.class_path.clone(),
+        ) {
+            Ok(doc) => Helper::Owned(doc),
+            Err(e) => Helper::Err(ReferencesError::Document(e)),
+        },
+    };
+    match doc {
+        Helper::Owned(doc) => {
+            let o = match position::get_method_usage(doc.as_bytes(), query_method_name, &doc.tree) {
+                Err(e) => Err(ReferencesError::Position(e))?,
+                Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
+            };
+            document_map.insert(uri, doc);
+            o
+        }
+        Helper::Ref(doc) => {
+            match position::get_method_usage(doc.as_bytes(), query_method_name, &doc.tree) {
                 Err(e) => Err(ReferencesError::Position(e))?,
                 Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
             }
         }
+        Helper::Err(e) => Err(e),
     }
 }
 

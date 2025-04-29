@@ -735,6 +735,7 @@ impl Backend<'_> {
             class,
             &self.class_map,
             &self.reference_map,
+            &self.document_map,
         ) {
             Ok(refs) => Some(refs),
             Err(e) => {
