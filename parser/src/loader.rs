@@ -137,9 +137,9 @@ pub async fn load_classes_jar<P: AsRef<Path>>(
             continue;
         }
 
-        let class_path = file_name.trim_start_matches(MAIN_SEPARATOR);
+        let class_path = file_name.trim_start_matches("/");
         let class_path = class_path.trim_end_matches(".class");
-        let class_path = class_path.replace(MAIN_SEPARATOR, ".");
+        let class_path = class_path.replace("/", ".");
         let mut entry_reader = zip
             .reader_with_entry(index)
             .await
