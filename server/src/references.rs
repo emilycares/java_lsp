@@ -38,6 +38,14 @@ pub enum ReferenceUnit {
 #[derive(Debug)]
 pub struct ReferencePosition(PositionSymbol);
 
+pub struct ReferencesContext<'a> {
+    pub point: &'a Point,
+    pub imports: &'a [ImportUnit],
+    pub class_map: &'a dashmap::DashMap<String, parser::dto::Class>,
+    pub class: &'a dto::Class,
+    pub vars: &'a [LocalVariable],
+}
+
 pub fn class_path(
     class_path: &str,
     reference_map: &dashmap::DashMap<String, Vec<ReferenceUnit>>,
@@ -73,21 +81,22 @@ pub fn class_path(
     None
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn call_chain_references(
-    point: &Point,
     call_chain: &[CallItem],
-    vars: &[LocalVariable],
-    imports: &[ImportUnit],
-    class: &dto::Class,
-    class_map: &dashmap::DashMap<String, dto::Class>,
+    context: &ReferencesContext,
     reference_map: &dashmap::DashMap<String, Vec<ReferenceUnit>>,
     document_map: &dashmap::DashMap<String, Document>,
 ) -> Result<Vec<Location>, ReferencesError> {
-    let (item, relevat) = call_chain::validate(call_chain, point);
+    let (item, relevat) = call_chain::validate(call_chain, context.point);
 
-    let extend_class = tyres::resolve_call_chain(relevat, vars, imports, class, class_map)
-        .map_err(ReferencesError::Tyres)?;
+    let extend_class = tyres::resolve_call_chain(
+        relevat,
+        context.vars,
+        context.imports,
+        context.class,
+        context.class_map,
+    )
+    .map_err(ReferencesError::Tyres)?;
 
     match relevat.get(item) {
         Some(CallItem::MethodCall { name, range: _ }) => {
@@ -96,8 +105,8 @@ pub fn call_chain_references(
                 let used_in = used_in.value();
                 for ref_unit in used_in {
                     let Some(class) = (match ref_unit {
-                        ReferenceUnit::Class(c) => class_map.get(c),
-                        ReferenceUnit::StaticClass(c) => class_map.get(c),
+                        ReferenceUnit::Class(c) => context.class_map.get(c),
+                        ReferenceUnit::StaticClass(c) => context.class_map.get(c),
                     }) else {
                         continue;
                     };
@@ -123,16 +132,7 @@ pub fn call_chain_references(
             range: _,
         }) => {
             if let Some(current_param) = filled_params.get(*active_param) {
-                return call_chain_references(
-                    point,
-                    current_param,
-                    vars,
-                    imports,
-                    class,
-                    class_map,
-                    reference_map,
-                    document_map,
-                );
+                return call_chain_references(current_param, context, reference_map, document_map);
             }
             Err(ReferencesError::ArgumentNotFound)
         }

@@ -15,12 +15,19 @@ pub enum ParseJavaError {
     Io(std::io::Error),
     UnknownJType(String, String),
 }
-
 pub fn load_java(
     bytes: &[u8],
     source: SourceDestination,
 ) -> Result<crate::dto::Class, ParseJavaError> {
     let (_, tree) = tree_sitter_util::parse(bytes).map_err(ParseJavaError::Treesitter)?;
+    load_java_tree(bytes, source, tree)
+}
+
+pub fn load_java_tree(
+    bytes: &[u8],
+    source: SourceDestination,
+    tree: tree_sitter::Tree,
+) -> Result<crate::dto::Class, ParseJavaError> {
     let mut imports = vec![];
     let mut methods = vec![];
     let mut fields = vec![];
@@ -395,7 +402,10 @@ fn get_string(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> Result<Stri
     cursor.node().utf8_text(bytes).map(|a| a.to_string())
 }
 
-fn parse_jtype(node: &tree_sitter::Node<'_>, bytes: &[u8]) -> Result<dto::JType, ParseJavaError> {
+pub fn parse_jtype(
+    node: &tree_sitter::Node<'_>,
+    bytes: &[u8],
+) -> Result<dto::JType, ParseJavaError> {
     let text = node.utf8_text(bytes).map_err(ParseJavaError::Utf8)?;
     match (node.kind(), text) {
         ("integral_type", "int") => Ok(dto::JType::Int),

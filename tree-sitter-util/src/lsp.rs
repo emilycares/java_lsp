@@ -1,6 +1,5 @@
 use tree_sitter::{Point, Range};
 
-#[allow(dead_code)]
 pub fn to_lsp_position(point: Point) -> lsp_types::Position {
     lsp_types::Position::new(
         point.row.try_into().unwrap_or_default(),

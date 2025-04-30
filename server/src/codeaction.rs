@@ -3,25 +3,104 @@ use std::collections::HashMap;
 use lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, Position, Range, TextEdit, Uri, WorkspaceEdit,
 };
-use parser::dto::ImportUnit;
+use parser::{
+    dto::{self, ImportUnit},
+    java::parse_jtype,
+};
 use tree_sitter::{Point, Tree};
 use tree_sitter_util::{lsp::to_lsp_position, CommentSkiper};
+use tyres::TyresError;
+use variables::LocalVariable;
 
-pub fn import_jtype<'a>(
+pub struct CodeActionContext<'a> {
+    pub point: &'a Point,
+    pub imports: &'a [ImportUnit],
+    pub class_map: &'a dashmap::DashMap<String, parser::dto::Class>,
+    pub class: &'a dto::Class,
+    pub vars: &'a [LocalVariable],
+    pub current_file: &'a Uri,
+}
+
+#[allow(dead_code)]
+#[derive(Debug)]
+pub enum CodeActionError {
+    NoCallCain,
+    ParseJava(parser::java::ParseJavaError),
+    Tyres(TyresError),
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn replace_with_value_type(
+    tree: &tree_sitter::Tree,
+    bytes: &[u8],
+    context: &CodeActionContext,
+) -> Result<Option<CodeActionOrCommand>, CodeActionError> {
+    let Ok(node) =
+        tree_sitter_util::digg_until_kind(tree, *context.point, "local_variable_declaration")
+    else {
+        return Ok(None);
+    };
+    let mut cursor = node.walk();
+    cursor.first_child();
+    let current_type_range = cursor.node().range();
+    let current_type = parse_jtype(&cursor.node(), bytes).map_err(CodeActionError::ParseJava)?;
+    cursor.sibling();
+    cursor.first_child();
+    cursor.sibling();
+    cursor.sibling();
+    // value here
+    let Some(call_chain) =
+        call_chain::get_call_chain(tree, bytes, &cursor.node().range().end_point)
+    else {
+        return Err(CodeActionError::NoCallCain);
+    };
+    let value_type = tyres::resolve_call_chain(
+        &call_chain,
+        context.vars,
+        context.imports,
+        context.class,
+        context.class_map,
+    )
+    .map_err(CodeActionError::Tyres)?;
+
+    if current_type != dto::JType::Class(value_type.class_path) {
+        // Required by lsp types
+        #[allow(clippy::mutable_key_type)]
+        let mut changes = HashMap::new();
+        changes.insert(
+            context.current_file.to_owned(),
+            vec![TextEdit {
+                range: tree_sitter_util::lsp::to_lsp_range(current_type_range),
+                new_text: value_type.name.clone(),
+            }],
+        );
+        let action = CodeActionOrCommand::CodeAction(CodeAction {
+            kind: Some(CodeActionKind::QUICKFIX),
+            title: format!("Replace variable type with: {}", value_type.name),
+            edit: Some(WorkspaceEdit {
+                changes: Some(changes),
+                ..Default::default()
+            }),
+            ..Default::default()
+        });
+        return Ok(Some(action));
+    }
+
+    Ok(None)
+}
+
+pub fn import_jtype(
     tree: &Tree,
-    bytes: &'a [u8],
-    point: Point,
-    imports: &[ImportUnit],
-    current_file: &Uri,
-    class_map: &'a dashmap::DashMap<std::string::String, parser::dto::Class>,
+    bytes: &[u8],
+    context: &CodeActionContext,
 ) -> Option<Vec<CodeActionOrCommand>> {
-    if let Ok(n) = tree_sitter_util::get_node_at_point(tree, point) {
+    if let Ok(n) = tree_sitter_util::get_node_at_point(tree, *context.point) {
         if n.kind() == "type_identifier" {
             if let Ok(jtype) = n.utf8_text(bytes) {
-                if !tyres::is_imported_class_name(jtype, imports, class_map) {
-                    let i = tyres::resolve_import(jtype, class_map)
+                if !tyres::is_imported_class_name(jtype, context.imports, context.class_map) {
+                    let i = tyres::resolve_import(jtype, context.class_map)
                         .iter()
-                        .map(|a| import_to_code_action(current_file, a, tree))
+                        .map(|a| import_to_code_action(context.current_file, a, tree))
                         .collect();
                     return Some(i);
                 }
@@ -72,4 +151,74 @@ pub fn import_to_code_action(
         }),
         ..Default::default()
     })
+}
+#[cfg(test)]
+pub mod tests {
+    use std::str::FromStr;
+
+    use dashmap::DashMap;
+    use lsp_types::Uri;
+    use parser::dto::{self};
+    use pretty_assertions::assert_eq;
+    use tree_sitter::Point;
+
+    use crate::codeaction::replace_with_value_type;
+
+    use super::CodeActionContext;
+
+    #[test]
+    fn replace_type_base() {
+        let content = r#"
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        int local = "";
+    }
+}
+        "#;
+        let (_, tree) = tree_sitter_util::parse(content).unwrap();
+        let imports = vec![];
+        let class = parser::java::load_java_tree(
+            content.as_bytes(),
+            parser::loader::SourceDestination::None,
+            tree.clone(),
+        )
+        .unwrap();
+        let uri = Uri::from_str("file:///a").unwrap();
+        let context = CodeActionContext {
+            point: &Point::new(4, 10),
+            imports: &imports,
+            class_map: &get_class_map(),
+            class: &class,
+            vars: &[],
+            current_file: &uri,
+        };
+        let out = replace_with_value_type(&tree, content.as_bytes(), &context);
+        let result = out.unwrap().unwrap();
+        match result {
+            lsp_types::CodeActionOrCommand::CodeAction(code_action) => {
+                assert_eq!(code_action.title, "Replace variable type with: String");
+            }
+            _ => assert!(false),
+        }
+    }
+
+    fn get_class_map() -> DashMap<String, dto::Class> {
+        let class_map: DashMap<String, dto::Class> = DashMap::new();
+        class_map.insert(
+            "java.lang.String".to_string(),
+            dto::Class {
+                access: vec![dto::Access::Public],
+                name: "String".to_string(),
+                methods: vec![dto::Method {
+                    access: vec![dto::Access::Public],
+                    name: "length".to_string(),
+                    ret: dto::JType::Int,
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+        );
+        class_map
+    }
 }

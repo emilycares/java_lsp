@@ -27,6 +27,31 @@ pub fn get_node_at_point(tree: &Tree, point: Point) -> Result<Node, TreesitterEr
     Ok(cursor.node())
 }
 
+pub fn digg_until_kind<'a>(
+    tree: &'a Tree,
+    point: Point,
+    kind: &'a str,
+) -> Result<Node<'a>, TreesitterError> {
+    let root = tree.root_node();
+    let mut cursor = root.walk();
+    loop {
+        let Some(_node_index) = cursor.goto_first_child_for_point(point) else {
+            return Err(TreesitterError::NoNodeFound);
+        };
+        let node = cursor.node();
+
+        if node.kind() == kind {
+            return Ok(node);
+        }
+
+        // Do not loop forever
+        if node.child_count() == 0 {
+            break;
+        }
+    }
+    Err(TreesitterError::NoNodeFound)
+}
+
 pub fn is_point_in_range(point: &Point, range: &Range) -> bool {
     let start = range.start_point;
     let end = range.end_point;

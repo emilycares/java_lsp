@@ -11,6 +11,7 @@ use std::sync::Arc;
 use std::{collections::HashMap, fs::read_to_string};
 
 use call_chain::get_call_chain;
+use codeaction::CodeActionContext;
 use common::project_kind::ProjectKind;
 use common::TaskProgress;
 use compile::CompileError;
@@ -44,7 +45,7 @@ use lsp_types::{
 };
 use parser::dto::Class;
 use position::PositionSymbol;
-use references::ReferenceUnit;
+use references::{ReferenceUnit, ReferencesContext};
 
 use lsp_server::{Connection, Message, Response};
 use tree_sitter_util::lsp::to_treesitter_point;
@@ -720,14 +721,17 @@ impl Backend<'_> {
             eprintln!("Could not find class {}", document.class_path);
             return None;
         };
+        let context = ReferencesContext {
+            point: &point,
+            imports: &imports,
+            class_map: &self.class_map,
+            class,
+            vars: &vars,
+        };
 
         match references::call_chain_references(
-            &point,
             &call_chain,
-            &vars,
-            &imports,
-            class,
-            &self.class_map,
+            &context,
             &self.reference_map,
             &self.document_map,
         ) {
@@ -750,15 +754,30 @@ impl Backend<'_> {
 
         let imports = imports::imports(document.value());
 
-        if let Some(imps) = codeaction::import_jtype(
-            &document.tree,
-            bytes,
-            point,
-            &imports,
-            &current_file,
-            &self.class_map,
-        ) {
+        let Some(class) = &self.class_map.get(&document.class_path) else {
+            eprintln!("Could not find class {}", document.class_path);
+            return None;
+        };
+        let vars = variables::get_vars(document.value(), &point);
+
+        let context = CodeActionContext {
+            point: &point,
+            imports: &imports,
+            class_map: &self.class_map,
+            class,
+            vars: &vars,
+            current_file: &current_file,
+        };
+        if let Some(imps) = codeaction::import_jtype(&document.tree, bytes, &context) {
             return Some(imps);
+        }
+
+        match codeaction::replace_with_value_type(&document.tree, bytes, &context) {
+            Ok(None) => (),
+            Ok(Some(e)) => return Some(vec![e]),
+            Err(e) => {
+                eprintln!("Got error code_action replace with value: {:?}", e);
+            }
         }
 
         None
