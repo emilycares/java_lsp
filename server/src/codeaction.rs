@@ -48,13 +48,13 @@ pub fn replace_with_value_type(
     cursor.first_child();
     cursor.sibling();
     cursor.sibling();
+    let mut range = cursor.node().range().end_point;
+    range.column -= 1;
     // value here
-    let Some(call_chain) =
-        call_chain::get_call_chain(tree, bytes, &cursor.node().range().end_point)
-    else {
+    let Some(call_chain) = call_chain::get_call_chain(tree, bytes, &range) else {
         return Err(CodeActionError::NoCallCain);
     };
-    let value_type = tyres::resolve_call_chain(
+    let value_resolve_state = tyres::resolve_call_chain(
         &call_chain,
         context.vars,
         context.imports,
@@ -63,7 +63,7 @@ pub fn replace_with_value_type(
     )
     .map_err(CodeActionError::Tyres)?;
 
-    if current_type != dto::JType::Class(value_type.class_path) {
+    if current_type != value_resolve_state.jtype {
         // Required by lsp types
         #[allow(clippy::mutable_key_type)]
         let mut changes = HashMap::new();
@@ -71,12 +71,12 @@ pub fn replace_with_value_type(
             context.current_file.to_owned(),
             vec![TextEdit {
                 range: tree_sitter_util::lsp::to_lsp_range(current_type_range),
-                new_text: value_type.name.clone(),
+                new_text: value_resolve_state.class.name.clone(),
             }],
         );
         let action = CodeActionOrCommand::CodeAction(CodeAction {
             kind: Some(CodeActionKind::QUICKFIX),
-            title: format!("Replace variable type with: {}", value_type.name),
+            title: format!("Replace variable type with: {}", value_resolve_state.jtype),
             edit: Some(WorkspaceEdit {
                 changes: Some(changes),
                 ..Default::default()
@@ -154,9 +154,10 @@ pub fn import_to_code_action(
 }
 #[cfg(test)]
 pub mod tests {
-    use std::str::FromStr;
+    use std::{path::PathBuf, str::FromStr};
 
     use dashmap::DashMap;
+    use document::Document;
     use lsp_types::Uri;
     use parser::dto::{self};
     use pretty_assertions::assert_eq;
@@ -176,33 +177,82 @@ public class Test {
     }
 }
         "#;
-        let (_, tree) = tree_sitter_util::parse(content).unwrap();
+        let point = Point::new(4, 10);
+        let doc = Document::setup(
+            content,
+            PathBuf::from_str("./").unwrap(),
+            "ch.emilycares.Test".to_string(),
+        )
+        .unwrap();
         let imports = vec![];
         let class = parser::java::load_java_tree(
             content.as_bytes(),
             parser::loader::SourceDestination::None,
-            tree.clone(),
+            &doc.tree,
         )
         .unwrap();
         let uri = Uri::from_str("file:///a").unwrap();
         let context = CodeActionContext {
-            point: &Point::new(4, 10),
+            point: &point,
             imports: &imports,
             class_map: &get_class_map(),
             class: &class,
-            vars: &[],
+            vars: &variables::get_vars(&doc, &point),
             current_file: &uri,
         };
-        let out = replace_with_value_type(&tree, content.as_bytes(), &context);
+        let out = replace_with_value_type(&doc.tree, content.as_bytes(), &context);
         let result = out.unwrap().unwrap();
         match result {
             lsp_types::CodeActionOrCommand::CodeAction(code_action) => {
                 assert_eq!(code_action.title, "Replace variable type with: String");
             }
-            _ => assert!(false),
+            _ => unreachable!(),
         }
     }
 
+    #[test]
+    fn replace_type_method() {
+        let content = r#"
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        String a = "";
+        String local = a.length();
+    }
+}
+        "#;
+        let point = Point::new(5, 10);
+        let doc = Document::setup(
+            content,
+            PathBuf::from_str("./").unwrap(),
+            "ch.emilycares.Test".to_string(),
+        )
+        .unwrap();
+        let imports = vec![];
+        let class = parser::java::load_java_tree(
+            content.as_bytes(),
+            parser::loader::SourceDestination::None,
+            &doc.tree,
+        )
+        .unwrap();
+        let uri = Uri::from_str("file:///a").unwrap();
+        let context = CodeActionContext {
+            point: &point,
+            imports: &imports,
+            class_map: &get_class_map(),
+            class: &class,
+            vars: &variables::get_vars(&doc, &point),
+            current_file: &uri,
+        };
+        let out = replace_with_value_type(&doc.tree, content.as_bytes(), &context);
+        let result = out.unwrap().unwrap();
+        match result {
+            lsp_types::CodeActionOrCommand::CodeAction(code_action) => {
+                assert_eq!(code_action.title, "Replace variable type with: int");
+            }
+            _ => unreachable!(),
+        }
+    }
     fn get_class_map() -> DashMap<String, dto::Class> {
         let class_map: DashMap<String, dto::Class> = DashMap::new();
         class_map.insert(

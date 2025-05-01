@@ -20,13 +20,13 @@ pub fn load_java(
     source: SourceDestination,
 ) -> Result<crate::dto::Class, ParseJavaError> {
     let (_, tree) = tree_sitter_util::parse(bytes).map_err(ParseJavaError::Treesitter)?;
-    load_java_tree(bytes, source, tree)
+    load_java_tree(bytes, source, &tree)
 }
 
 pub fn load_java_tree(
     bytes: &[u8],
     source: SourceDestination,
-    tree: tree_sitter::Tree,
+    tree: &tree_sitter::Tree,
 ) -> Result<crate::dto::Class, ParseJavaError> {
     let mut imports = vec![];
     let mut methods = vec![];

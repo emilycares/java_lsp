@@ -54,11 +54,12 @@ pub fn get_signature(
     else {
         return Err(SignatureError::CouldNotGetMethod);
     };
-    let class = match tyres::resolve_call_chain(prev, vars, imports, class, class_map) {
+    let resolve_state = match tyres::resolve_call_chain(prev, vars, imports, class, class_map) {
         Ok(c) => Ok(c),
         Err(e) => Err(SignatureError::Tyres(e)),
     }?;
-    let methods: Vec<&dto::Method> = class
+    let methods: Vec<&dto::Method> = resolve_state
+        .class
         .methods
         .iter()
         .filter(|m| m.name == *method_name)

@@ -15,7 +15,7 @@ export function activate(context: ExtensionContext) {
   const serverModule = "java_lsp.exe";
 
   //console.log(serverModule);
-  //window.showErrorMessage("dbg: " + serverModule);
+  //window.showErrorMessage("module: " + serverModule);
 
   // If the extension is launched in debug mode then the debug server options are used
   // Otherwise the run options are used

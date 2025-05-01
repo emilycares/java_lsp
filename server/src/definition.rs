@@ -68,21 +68,21 @@ pub fn call_chain_definition(
 ) -> Result<GotoDefinitionResponse, DefinitionError> {
     let (item, relevat) = call_chain::validate(call_chain, point);
 
-    let extend_class = tyres::resolve_call_chain(relevat, vars, imports, class, class_map)
+    let resolve_state = tyres::resolve_call_chain(relevat, vars, imports, class, class_map)
         .map_err(DefinitionError::Tyres)?;
     match relevat.get(item) {
         Some(CallItem::MethodCall { name, range: _ }) => {
-            let source_file = get_source_content(&extend_class)?;
+            let source_file = get_source_content(&resolve_state.class)?;
             let ranges = position::get_method_positions(source_file.as_bytes(), name)
                 .map_err(DefinitionError::Position)?;
-            let uri = class_to_uri(&extend_class)?;
+            let uri = class_to_uri(&resolve_state.class)?;
             Ok(go_to_definition_range(uri, ranges))
         }
         Some(CallItem::FieldAccess { name, range: _ }) => {
-            let source_file = get_source_content(&extend_class)?;
+            let source_file = get_source_content(&resolve_state.class)?;
             let ranges = position::get_field_positions(source_file.as_bytes(), name)
                 .map_err(DefinitionError::Position)?;
-            let uri = class_to_uri(&extend_class)?;
+            let uri = class_to_uri(&resolve_state.class)?;
             Ok(go_to_definition_range(uri, ranges))
         }
         Some(CallItem::Variable { name, range: _ }) => {

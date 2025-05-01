@@ -92,7 +92,7 @@ pub fn class_action(
         "type_identifier" => {
             if let Ok(jtype) = n.utf8_text(bytes) {
                 return match tyres::resolve(jtype, imports, class_map) {
-                    Ok(class) => Ok((class, to_lsp_range(n.range()))),
+                    Ok(resolve_state) => Ok((resolve_state.class, to_lsp_range(n.range()))),
                     Err(tyres_error) => Err(ClassActionError::Tyres { tyres_error }),
                 };
             }
@@ -110,7 +110,7 @@ pub fn class_action(
                     });
                 }
                 return match tyres::resolve(&class, imports, class_map) {
-                    Ok(class) => Ok((class, to_lsp_range(n.range()))),
+                    Ok(resolve_state) => Ok((resolve_state.class, to_lsp_range(n.range()))),
                     Err(tyres_error) => Err(ClassActionError::Tyres { tyres_error }),
                 };
             }
@@ -133,13 +133,14 @@ pub fn call_chain_hover(
     let Some(el) = call_chain.get(item) else {
         return Err(HoverError::ValidatedItemDoesNotExists);
     };
-    let class = match tyres::resolve_call_chain(relevat, lo_va, imports, class, class_map) {
+    let resolve_state = match tyres::resolve_call_chain(relevat, lo_va, imports, class, class_map) {
         Ok(c) => Ok(c),
         Err(e) => Err(HoverError::Tyres(e)),
     }?;
     match el {
         CallItem::MethodCall { name, range } => {
-            let methods: Vec<dto::Method> = class
+            let methods: Vec<dto::Method> = resolve_state
+                .class
                 .methods
                 .into_iter()
                 .filter(|m| m.name == *name)
@@ -147,7 +148,7 @@ pub fn call_chain_hover(
             Ok(methods_to_hover(&methods, to_lsp_range(*range)))
         }
         CallItem::FieldAccess { name, range } => {
-            let Some(method) = class.fields.iter().find(|m| m.name == *name) else {
+            let Some(method) = resolve_state.class.fields.iter().find(|m| m.name == *name) else {
                 return Err(HoverError::LocalVariableNotFound {
                     name: name.to_owned(),
                 });
@@ -162,11 +163,13 @@ pub fn call_chain_hover(
             };
             Ok(variables_to_hover(vec![var], to_lsp_range(*range)))
         }
-        CallItem::Class { name: _, range } => Ok(class_to_hover(class, to_lsp_range(*range))),
+        CallItem::Class { name: _, range } => {
+            Ok(class_to_hover(resolve_state.class, to_lsp_range(*range)))
+        }
         CallItem::ClassOrVariable { name, range } => {
             let vars: Vec<_> = lo_va.iter().filter(|v| v.name == *name).collect();
             if vars.is_empty() {
-                return Ok(class_to_hover(class, to_lsp_range(*range)));
+                return Ok(class_to_hover(resolve_state.class, to_lsp_range(*range)));
             }
             match parser::load_java(document.as_bytes(), parser::loader::SourceDestination::None) {
                 Err(e) => Err(HoverError::ParseError(e)),
@@ -214,7 +217,7 @@ pub fn call_chain_hover(
                     point,
                     lo_va,
                     imports,
-                    &class,
+                    &resolve_state.class,
                     class_map,
                 );
             }

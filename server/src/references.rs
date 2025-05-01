@@ -89,7 +89,7 @@ pub fn call_chain_references(
 ) -> Result<Vec<Location>, ReferencesError> {
     let (item, relevat) = call_chain::validate(call_chain, context.point);
 
-    let extend_class = tyres::resolve_call_chain(
+    let reference_state = tyres::resolve_call_chain(
         relevat,
         context.vars,
         context.imports,
@@ -101,7 +101,7 @@ pub fn call_chain_references(
     match relevat.get(item) {
         Some(CallItem::MethodCall { name, range: _ }) => {
             let mut locations = vec![];
-            if let Some(used_in) = reference_map.get(&extend_class.class_path) {
+            if let Some(used_in) = reference_map.get(&reference_state.class.class_path) {
                 let used_in = used_in.value();
                 for ref_unit in used_in {
                     let Some(class) = (match ref_unit {

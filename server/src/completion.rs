@@ -164,7 +164,7 @@ pub fn complete_call_chain(
     if let Some(call_chain) = get_call_chain(&document.tree, document.as_bytes(), point).as_deref()
     {
         return match tyres::resolve_call_chain(call_chain, vars, imports, class, class_map) {
-            Ok(class) => Ok(class_unpack(&class)),
+            Ok(resolve_state) => Ok(class_unpack(&resolve_state.class)),
             Err(tyres_error) => Err(CompletionError::Tyres { tyres_error }),
         };
     }
