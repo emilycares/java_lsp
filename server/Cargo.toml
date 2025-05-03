@@ -15,6 +15,7 @@ tree-sitter.workspace = true
 tree-sitter-java.workspace = true
 serde_json.workspace = true
 rayon.workspace = true
+parking_lot.workspace = true
 format = { path = "../format"}
 parser = { path = "../parser"}
 maven = { path = "../maven"}

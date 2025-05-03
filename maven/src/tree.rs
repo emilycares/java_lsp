@@ -52,6 +52,7 @@ fn get_cli_output() -> Result<String, MavenTreeError> {
         // .arg("-b")
         .output()
         .map_err(MavenTreeError::Cli)?;
+    dbg!(String::from_utf8_lossy(&output.stderr).to_string());
 
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }

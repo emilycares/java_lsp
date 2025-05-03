@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub enum ParseError {
     Parse(serde_xml_rs::Error),

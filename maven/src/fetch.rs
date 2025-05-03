@@ -62,7 +62,7 @@ const MAVEN_CFC: &str = ".maven.cfc";
 
 pub async fn fetch_deps(
     class_map: &DashMap<std::string::String, parser::dto::Class>,
-    sender: tokio::sync::mpsc::Sender<TaskProgress>,
+    sender: tokio::sync::watch::Sender<TaskProgress>,
 ) -> Result<DashMap<std::string::String, parser::dto::Class>, MavenFetchError> {
     let path = Path::new(&MAVEN_CFC);
     if path.exists() {
@@ -74,10 +74,19 @@ pub async fn fetch_deps(
         Ok(class_map.clone())
     } else {
         // mvn dependency:resolve -Dclassifier=sources
-        let _ = Command::new(EXECUTABLE_MAVEN)
+        let e = Command::new(EXECUTABLE_MAVEN)
             .args(["dependency:resolve", "-Dclassifier=sources"])
             .output()
-            .await;
+            .await
+            .unwrap();
+        let error = String::from_utf8_lossy(&e.stderr).to_string();
+        if !error.is_empty() {
+            let _ = sender.send(TaskProgress {
+                persentage: 0,
+                error: true,
+                message: error,
+            });
+        }
 
         let tree = tree::load().map_err(MavenFetchError::Tree)?;
         let Some(home) = dirs::home_dir() else {
@@ -103,23 +112,31 @@ pub async fn fetch_deps(
                 let sender = sender.clone();
                 let classes_jar = pom_classes_jar(&dep, &m2);
                 let source_jar = pom_sources_jar(&dep, &m2);
-                let source = extract_jar(source_jar, "source");
+                let mut source_dir = source_jar.clone();
+                source_dir.set_file_name("");
+                source_dir = source_dir.join("source");
+                extract_jar(source_jar, &source_dir);
 
                 match parser::loader::load_classes_jar(
                     classes_jar,
-                    SourceDestination::RelativeInFolder(source),
+                    SourceDestination::RelativeInFolder(
+                        source_dir
+                            .as_path()
+                            .to_str()
+                            .unwrap_or_default()
+                            .to_string(),
+                    ),
                     None,
                 )
                 .await
                 {
                     Ok(classes) => {
                         let a = completed_number.fetch_add(1, Ordering::Release);
-                        let _ = sender
-                            .send(TaskProgress {
-                                persentage: (100 * a) / tasks_number,
-                                message: dep.artivact_id,
-                            })
-                            .await;
+                        let _ = sender.send(TaskProgress {
+                            persentage: (100 * a) / tasks_number,
+                            error: false,
+                            message: dep.artivact_id,
+                        });
                         {
                             let mut guard = maven_class_folder.lock();
                             guard.append(classes.clone());
@@ -142,19 +159,16 @@ pub async fn fetch_deps(
     }
 }
 
-fn extract_jar(jar: PathBuf, folder_name: &str) -> String {
-    let mut dir = jar.clone();
-    dir.set_file_name("");
-    dir = dir.join(folder_name);
-
+fn extract_jar(jar: PathBuf, source_dir: &Path) {
+    if source_dir.exists() {
+        return;
+    }
     if let Ok(data) = fs::read(&jar) {
-        let res = zip_extract::extract(Cursor::new(data), &dir, false);
+        let res = zip_extract::extract(Cursor::new(data), source_dir, false);
         if let Err(e) = res {
             eprintln!("Unable to unzip: {:?}, {e}", jar);
         }
     }
-    let source = dir.as_path().to_str().unwrap_or_default().to_string();
-    source
 }
 
 pub fn pom_classes_jar(pom: &Pom, m2: &Path) -> PathBuf {

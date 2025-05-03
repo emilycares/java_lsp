@@ -3771,6 +3771,7 @@ dependencies = [
  "lsp-server",
  "lsp-types",
  "maven",
+ "parking_lot",
  "parser",
  "position",
  "pretty_assertions",

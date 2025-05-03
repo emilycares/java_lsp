@@ -36,7 +36,7 @@ const GRADLE_CFC: &str = ".gradle.cfc";
 pub async fn fetch_deps(
     class_map: &DashMap<std::string::String, parser::dto::Class>,
     build_gradle: PathBuf,
-    sender: tokio::sync::mpsc::Sender<TaskProgress>,
+    sender: tokio::sync::watch::Sender<TaskProgress>,
 ) -> Result<DashMap<std::string::String, parser::dto::Class>, GradleFetchError> {
     let path = Path::new(&GRADLE_CFC);
     if path.exists() {
@@ -84,12 +84,11 @@ pub async fn fetch_deps(
                     {
                         Ok(classes) => {
                             let a = completed_number.fetch_add(1, Ordering::Release);
-                            let _ = sender
-                                .send(TaskProgress {
-                                    persentage: (100 * a) / tasks_number,
-                                    message: current_name,
-                                })
-                                .await;
+                            let _ = sender.send(TaskProgress {
+                                persentage: (100 * a) / tasks_number,
+                                error: false,
+                                message: current_name,
+                            });
                             {
                                 let mut guard = gradle_class_folder.lock();
                                 guard.append(classes.clone());
