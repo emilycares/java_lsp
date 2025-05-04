@@ -57,6 +57,7 @@ pub enum MavenFetchError {
     Tree(tree::MavenTreeError),
     NoClassPath,
     ParserLoader(parser::loader::ParserLoaderError),
+    NoM2Folder,
 }
 const MAVEN_CFC: &str = ".maven.cfc";
 
@@ -73,28 +74,9 @@ pub async fn fetch_deps(
         }
         Ok(class_map.clone())
     } else {
-        // mvn dependency:resolve -Dclassifier=sources
-        let e = Command::new(EXECUTABLE_MAVEN)
-            .args(["dependency:resolve", "-Dclassifier=sources"])
-            .output()
-            .await
-            .unwrap();
-        let error = String::from_utf8_lossy(&e.stderr).to_string();
-        if !error.is_empty() {
-            let _ = sender.send(TaskProgress {
-                persentage: 0,
-                error: true,
-                message: error,
-            });
-        }
-
+        download_sources(&sender).await;
         let tree = tree::load().map_err(MavenFetchError::Tree)?;
-        let Some(home) = dirs::home_dir() else {
-            eprintln!("Could not find home");
-            return Err(MavenFetchError::NoHomeFound);
-        };
-        let m2 = home.join(".m2");
-        let m2 = Arc::new(m2);
+        let m2 = Arc::new(get_maven_m2_folder()?);
         let class_map = Arc::new(class_map.clone());
         let maven_class_folder = Arc::new(Mutex::new(ClassFolder::default()));
         let mut handles = Vec::new();
@@ -157,6 +139,45 @@ pub async fn fetch_deps(
         };
         Ok(Arc::try_unwrap(class_map).expect("Classmap should be free to take"))
     }
+}
+
+async fn download_sources(sender: &tokio::sync::watch::Sender<TaskProgress>) {
+    let _ = sender.send(TaskProgress {
+        persentage: 0,
+        error: false,
+        message: "Downloading sources ...".to_string(),
+    });
+    // mvn dependency:resolve -Dclassifier=sources
+    let e = Command::new(EXECUTABLE_MAVEN)
+        .args(["dependency:resolve", "-Dclassifier=sources"])
+        .output()
+        .await
+        .unwrap();
+    let error = String::from_utf8_lossy(&e.stderr).to_string();
+    if !error.is_empty() {
+        let _ = sender.send(TaskProgress {
+            persentage: 0,
+            error: true,
+            message: error,
+        });
+    }
+    let _ = sender.send(TaskProgress {
+        persentage: 0,
+        error: false,
+        message: "Downloading sources Done".to_string(),
+    });
+}
+
+fn get_maven_m2_folder() -> Result<PathBuf, MavenFetchError> {
+    let Some(home) = dirs::home_dir() else {
+        eprintln!("Could not find home");
+        return Err(MavenFetchError::NoHomeFound);
+    };
+    let m2 = home.join(".m2");
+    if !m2.exists() {
+        return Err(MavenFetchError::NoM2Folder);
+    }
+    Ok(m2)
 }
 
 fn extract_jar(jar: PathBuf, source_dir: &Path) {

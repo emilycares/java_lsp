@@ -905,8 +905,6 @@ async fn read_forward(
     con: Arc<Connection>,
     task: Arc<String>,
 ) {
-    let con = con.clone();
-    let task = task.clone();
     tokio::spawn(async move {
         let ex = &mut rx.lock();
 
