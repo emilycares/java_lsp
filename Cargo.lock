@@ -4473,6 +4473,8 @@ dependencies = [
  "call_chain",
  "dashmap",
  "parser",
+ "tree-sitter",
+ "tree-sitter-util",
  "variables",
 ]
 

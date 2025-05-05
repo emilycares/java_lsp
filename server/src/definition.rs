@@ -14,7 +14,7 @@ use crate::{
     Document,
 };
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[allow(dead_code)]
 pub enum DefinitionError {
     Tyres(TyresError),
@@ -68,8 +68,9 @@ pub fn call_chain_definition(
 ) -> Result<GotoDefinitionResponse, DefinitionError> {
     let (item, relevat) = call_chain::validate(call_chain, point);
 
-    let resolve_state = tyres::resolve_call_chain(relevat, vars, imports, class, class_map)
-        .map_err(DefinitionError::Tyres)?;
+    let resolve_state =
+        tyres::resolve_call_chain_to_point(relevat, vars, imports, class, class_map, point)
+            .map_err(DefinitionError::Tyres)?;
     match relevat.get(item) {
         Some(CallItem::MethodCall { name, range: _ }) => {
             let source_file = get_source_content(&resolve_state.class)?;
@@ -178,5 +179,91 @@ fn go_to_definition_range(uri: Uri, ranges: Vec<PositionSymbol>) -> GotoDefiniti
                 .collect();
             GotoDefinitionResponse::Array(locations)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use dashmap::DashMap;
+    use parser::loader::SourceDestination;
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn definition_base() {
+        let content = r#"
+package ch.emilycares;
+import org.jboss.logging.Logger;
+public class Test {
+    private Logger LOG = Logger.getLogger(GreetingResource.class);
+    public String hello() {
+        LOG.info("doing hello");
+        return "Hello";
+    }
+}
+        "#;
+        let point = Point::new(6, 14);
+        let bytes = content.as_bytes();
+        let document = Document::setup(
+            content,
+            PathBuf::from_str("/Test.java").unwrap(),
+            "ch.emilycares.Test".to_string(),
+        )
+        .unwrap();
+        let document_uri = Uri::from_str("file:///Test.java").unwrap();
+        let class =
+            parser::java::load_java_tree(bytes, SourceDestination::None, &document.tree).unwrap();
+        let vars = variables::get_vars(&document, &point);
+        let imports = imports::imports(&document);
+        let call_chain = call_chain::get_call_chain(&document.tree, bytes, &point).unwrap();
+        let out = call_chain_definition(
+            document_uri,
+            &point,
+            &call_chain,
+            &vars,
+            &imports,
+            &class,
+            &get_class_map(),
+        );
+        assert_eq!(
+            out,
+            Err(DefinitionError::NoSourceFile {
+                file: "/Logger.java".to_string()
+            })
+        );
+    }
+    fn get_class_map() -> DashMap<String, dto::Class> {
+        let class_map: DashMap<String, dto::Class> = DashMap::new();
+        class_map.insert(
+            "org.jboss.logging.Logger".to_string(),
+            dto::Class {
+                source: "/Logger.java".to_string(),
+                access: vec![dto::Access::Public],
+                name: "Logger".to_string(),
+                methods: vec![dto::Method {
+                    access: vec![dto::Access::Public],
+                    name: "info".to_string(),
+                    ret: dto::JType::Void,
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+        );
+        class_map.insert(
+            "java.lang.String".to_string(),
+            dto::Class {
+                access: vec![dto::Access::Public],
+                name: "String".to_string(),
+                methods: vec![dto::Method {
+                    access: vec![dto::Access::Public],
+                    name: "length".to_string(),
+                    ret: dto::JType::Int,
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+        );
+        class_map
     }
 }

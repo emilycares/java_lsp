@@ -61,7 +61,7 @@ pub fn base(
 }
 
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ClassActionError {
     /// No class for actions found
     NotFound,

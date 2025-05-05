@@ -3,6 +3,8 @@ use std::ops::Deref;
 use call_chain::CallItem;
 use dashmap::DashMap;
 use parser::dto::{self, Class, ImportUnit, JType};
+use tree_sitter::Point;
+use tree_sitter_util::is_point_in_range;
 use variables::LocalVariable;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -153,6 +155,31 @@ pub fn resolve_call_chain(
 ) -> Result<ResolveState, TyresError> {
     let mut ops: Vec<ResolveState> = vec![];
     for item in call_chain {
+        let op = call_chain_op(item, &ops, lo_va, imports, class, class_map);
+        if let Ok(op) = op {
+            ops.push(op);
+        }
+    }
+    match ops.last() {
+        Some(last) => Ok(last.clone()),
+        None => Err(TyresError::CallChainInvalid(
+            call_chain.iter().map(Clone::clone).collect(),
+        )),
+    }
+}
+pub fn resolve_call_chain_to_point(
+    call_chain: &[CallItem],
+    lo_va: &[LocalVariable],
+    imports: &[ImportUnit],
+    class: &Class,
+    class_map: &DashMap<String, Class>,
+    point: &Point,
+) -> Result<ResolveState, TyresError> {
+    let mut ops: Vec<ResolveState> = vec![];
+    for item in call_chain {
+        if is_point_in_range(point, item.get_range()) {
+            break;
+        }
         let op = call_chain_op(item, &ops, lo_va, imports, class, class_map);
         if let Ok(op) = op {
             ops.push(op);

@@ -34,6 +34,25 @@ pub enum CallItem {
     },
 }
 
+impl CallItem {
+    pub fn get_range(&self) -> &Range {
+        match self {
+            CallItem::MethodCall { name: _, range } => range,
+            CallItem::FieldAccess { name: _, range } => range,
+            CallItem::Variable { name: _, range } => range,
+            CallItem::This { range } => range,
+            CallItem::Class { name: _, range } => range,
+            CallItem::ClassOrVariable { name: _, range } => range,
+            CallItem::ArgumentList {
+                prev: _,
+                active_param: _,
+                filled_params: _,
+                range,
+            } => range,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 struct Argument {
     range: Option<Range>,
