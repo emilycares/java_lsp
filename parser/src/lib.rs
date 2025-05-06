@@ -70,6 +70,7 @@ mod tests {
                     parameters: vec![],
                     ret: dto::JType::Void,
                     throws: vec![],
+                    source: None,
                 },
                 dto::Method {
                     access: vec![dto::Access::Public],
@@ -77,6 +78,7 @@ mod tests {
                     parameters: vec![],
                     ret: dto::JType::Void,
                     throws: vec![],
+                    source: None,
                 },
                 dto::Method {
                     access: vec![dto::Access::Private],
@@ -84,6 +86,7 @@ mod tests {
                     parameters: vec![],
                     ret: dto::JType::Void,
                     throws: vec![],
+                    source: None,
                 },
                 dto::Method {
                     access: vec![],
@@ -91,6 +94,7 @@ mod tests {
                     parameters: vec![],
                     ret: dto::JType::Int,
                     throws: vec![],
+                    source: None,
                 },
                 dto::Method {
                     access: vec![],
@@ -107,6 +111,7 @@ mod tests {
                     ],
                     ret: dto::JType::Int,
                     throws: vec![],
+                    source: None,
                 },
                 dto::Method {
                     access: vec![dto::Access::Static],
@@ -123,6 +128,7 @@ mod tests {
                     ],
                     ret: dto::JType::Int,
                     throws: vec![],
+                    source: None,
                 },
             ],
             fields: vec![
@@ -130,16 +136,19 @@ mod tests {
                     access: vec![],
                     name: "noprop".to_string(),
                     jtype: dto::JType::Int,
+                    source: None,
                 },
                 dto::Field {
                     access: vec![dto::Access::Public],
                     name: "publicproperty".to_string(),
                     jtype: dto::JType::Int,
+                    source: None,
                 },
                 dto::Field {
                     access: vec![dto::Access::Private],
                     name: "privateproperty".to_string(),
                     jtype: dto::JType::Int,
+                    source: None,
                 },
             ],
             ..Default::default()

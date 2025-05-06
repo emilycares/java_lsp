@@ -1,3 +1,5 @@
+mod parent;
+
 use std::ops::Deref;
 
 use call_chain::CallItem;
@@ -82,11 +84,24 @@ pub fn resolve(
     imports: &[ImportUnit],
     class_map: &DashMap<std::string::String, parser::dto::Class>,
 ) -> Result<ResolveState, TyresError> {
+    eprintln!("resolve: {}", jtype);
     let lang_class_key = format!("java.lang.{}", jtype);
     if let Some(lang_class) = class_map.get(lang_class_key.as_str()) {
         return Ok(ResolveState {
             jtype: JType::Class(lang_class_key),
-            class: lang_class.deref().to_owned(),
+            class: parent::inclued_parent(lang_class.deref().to_owned(), class_map),
+        });
+    }
+
+    if jtype.contains('.') {
+        let Some(imported_class) = class_map.get(jtype) else {
+            return Err(TyresError::ClassNotFound {
+                class_path: jtype.to_string(),
+            });
+        };
+        return Ok(ResolveState {
+            jtype: JType::Class(jtype.to_string()),
+            class: parent::inclued_parent(imported_class.deref().to_owned(), class_map),
         });
     }
 
@@ -98,17 +113,18 @@ pub fn resolve(
             };
             Ok(ResolveState {
                 jtype: JType::Class(c),
-                class: imported_class.deref().to_owned(),
+                class: parent::inclued_parent(imported_class.deref().to_owned(), class_map),
             })
         }
         None => Err(TyresError::NotImported(jtype.to_string())),
     }
 }
+
 pub fn resolve_import(
     jtype: &str,
     class_map: &DashMap<std::string::String, parser::dto::Class>,
 ) -> Vec<String> {
-    resolve_class_key(class_map, |p| p.ends_with(jtype))
+    resolve_class_key(class_map, |p| p.starts_with(jtype))
 }
 
 pub fn resolve_class_key(
@@ -335,6 +351,7 @@ pub fn resolve_jtype(
                     access: vec![],
                     name: "length".to_string(),
                     jtype: JType::Int,
+                    source: None,
                 }],
                 ..Default::default()
             },

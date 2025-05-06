@@ -5,5 +5,6 @@ javac -parameters Thrower.java
 javac -parameters Variants.java
 javac -parameters Constants.java
 javac -parameters Super.java
+javac -parameters SuperInterface.java
 # -g ist with Debug info
 javac -parameters -g LocalVariableTable.java

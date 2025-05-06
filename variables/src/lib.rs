@@ -1,6 +1,9 @@
 use document::Document;
-use parser::dto;
-use tree_sitter::{Point, Range};
+use parser::{
+    dto,
+    java::{ParseJavaError, parse_jtype},
+};
+use tree_sitter::{Node, Point, Range};
 use tree_sitter_util::{CommentSkiper, get_string};
 
 /// document::Documentut a variable or function in a Document
@@ -13,8 +16,13 @@ pub struct LocalVariable {
     pub range: Range,
 }
 
+#[derive(Debug)]
+pub enum VariablesError {
+    Parse(ParseJavaError),
+}
+
 /// Get Local Variables and Functions of the current Document
-pub fn get_vars(document: &Document, point: &Point) -> Vec<LocalVariable> {
+pub fn get_vars(document: &Document, point: &Point) -> Result<Vec<LocalVariable>, VariablesError> {
     let tree = &document.tree;
     let bytes = document.as_bytes();
 
@@ -25,16 +33,16 @@ pub fn get_vars(document: &Document, point: &Point) -> Vec<LocalVariable> {
         match cursor.node().kind() {
             "class_declaration" => {}
             "method_declaration" => {
-                get_method_vars(tree, cursor.node(), bytes, &mut out, level);
+                get_method_vars(tree, cursor.node(), bytes, &mut out, level)?;
             }
             "class_body" => {
-                get_class_vars(tree, cursor.node(), bytes, &mut out, level);
+                get_class_vars(tree, cursor.node(), bytes, &mut out, level)?;
             }
             "for_statement" => {
                 cursor.first_child();
                 cursor.sibling();
                 cursor.sibling();
-                parse_local_variable_declaration(&mut cursor, bytes, level, &mut out);
+                parse_local_variable_declaration(&mut cursor, bytes, level, &mut out)?;
                 cursor.parent();
             }
             // for (String a : list) {
@@ -42,10 +50,10 @@ pub fn get_vars(document: &Document, point: &Point) -> Vec<LocalVariable> {
                 cursor.first_child();
                 cursor.sibling();
                 cursor.sibling();
-                let ty = get_string(&cursor, bytes);
+                let ty = cursor.node();
                 cursor.sibling();
                 let name = get_string(&cursor, bytes);
-                let var = parse_variable(level, ty, name, cursor.node().range());
+                let var = parse_variable(level, &ty, name, cursor.node().range(), bytes)?;
                 out.push(var);
                 cursor.parent();
             }
@@ -65,7 +73,7 @@ pub fn get_vars(document: &Document, point: &Point) -> Vec<LocalVariable> {
         }
     }
 
-    out
+    Ok(out)
 }
 
 fn get_lambda_vars(
@@ -78,21 +86,37 @@ fn get_lambda_vars(
     match cursor.node().kind() {
         "identifier" => {
             let name = get_string(&*cursor, bytes);
-            let var = parse_variable(level, "void".to_string(), name, cursor.node().range());
-            out.push(var);
+            out.push(LocalVariable {
+                level,
+                jtype: dto::JType::Void,
+                name,
+                is_fun: false,
+                range: cursor.node().range(),
+            });
         }
         "inferred_parameters" => {
             cursor.first_child();
             cursor.sibling();
             let name = get_string(&*cursor, bytes);
-            let var = parse_variable(level, "void".to_string(), name, cursor.node().range());
-            out.push(var);
+            out.push(LocalVariable {
+                level,
+                jtype: dto::JType::Void,
+                name,
+                is_fun: false,
+                range: cursor.node().range(),
+            });
             cursor.sibling();
             while cursor.node().kind() == "," {
                 cursor.sibling();
                 let name = get_string(&*cursor, bytes);
-                let var = parse_variable(level, "void".to_string(), name, cursor.node().range());
-                out.push(var);
+
+                out.push(LocalVariable {
+                    level,
+                    jtype: dto::JType::Void,
+                    name,
+                    is_fun: false,
+                    range: cursor.node().range(),
+                });
             }
             cursor.parent();
         }
@@ -108,7 +132,7 @@ fn get_class_vars(
     bytes: &[u8],
     out: &mut Vec<LocalVariable>,
     level: usize,
-) {
+) -> Result<(), VariablesError> {
     let mut cursor = tree.walk();
     cursor.reset(start_node);
     cursor.first_child();
@@ -120,11 +144,11 @@ fn get_class_vars(
                 if cursor.node().kind() == "modifiers" {
                     cursor.sibling();
                 }
-                let ty = get_string(&cursor, bytes);
+                let ty = cursor.node();
                 cursor.sibling();
                 cursor.first_child();
                 let name = get_string(&cursor, bytes);
-                let var = parse_variable(level, ty, name, cursor.node().range());
+                let var = parse_variable(level, &ty, name, cursor.node().range(), bytes)?;
                 out.push(var);
 
                 cursor.parent();
@@ -135,12 +159,12 @@ fn get_class_vars(
                 if cursor.node().kind() == "modifiers" {
                     cursor.sibling();
                 }
-                let ty = get_string(&cursor, bytes);
+                let ty = cursor.node();
                 cursor.sibling();
                 let name = get_string(&cursor, bytes);
                 out.push(LocalVariable {
                     level,
-                    jtype: parse_jtype(ty),
+                    jtype: parse_jtype(&ty, bytes).map_err(VariablesError::Parse)?,
                     name,
                     is_fun: true,
                     range: cursor.node().range(),
@@ -155,28 +179,23 @@ fn get_class_vars(
             break 'class;
         }
     }
+    Ok(())
 }
 
-fn parse_variable(level: usize, ty: String, name: String, range: Range) -> LocalVariable {
-    LocalVariable {
+fn parse_variable(
+    level: usize,
+    ty: &Node,
+    name: String,
+    range: Range,
+    bytes: &[u8],
+) -> Result<LocalVariable, VariablesError> {
+    Ok(LocalVariable {
         level,
-        jtype: parse_jtype(ty),
+        jtype: parse_jtype(ty, bytes).map_err(VariablesError::Parse)?,
         name,
         is_fun: false,
         range,
-    }
-}
-
-fn parse_jtype(ty: String) -> dto::JType {
-    match ty.as_str() {
-        "void" => dto::JType::Void,
-        "int" => dto::JType::Int,
-        ty if ty.ends_with("[]") => {
-            let ty = ty[..ty.len() - 2].to_string();
-            dto::JType::Array(Box::new(parse_jtype(ty)))
-        }
-        ty => dto::JType::Class(ty.to_string()),
-    }
+    })
 }
 
 /// Get all vars of method
@@ -186,7 +205,7 @@ fn get_method_vars(
     bytes: &[u8],
     out: &mut Vec<LocalVariable>,
     level: usize,
-) {
+) -> Result<(), VariablesError> {
     let mut cursor = tree.walk();
     cursor.reset(start_node);
     cursor.first_child();
@@ -205,10 +224,16 @@ fn get_method_vars(
             if cursor.node().kind() == "modifiers" {
                 cursor.sibling();
             }
-            let ty = get_string(&cursor, bytes);
+            let ty = cursor.node();
             cursor.sibling();
             let name = get_string(&cursor, bytes);
-            out.push(parse_variable(level, ty, name, cursor.node().range()));
+            out.push(parse_variable(
+                level,
+                &ty,
+                name,
+                cursor.node().range(),
+                bytes,
+            )?);
             cursor.parent();
         }
         cursor.parent();
@@ -217,7 +242,8 @@ fn get_method_vars(
     if cursor.node().kind() == "throws" {
         cursor.sibling();
     }
-    parse_block(bytes, out, level, &mut cursor);
+    parse_block(bytes, out, level, &mut cursor)?;
+    Ok(())
 }
 
 fn parse_block(
@@ -225,18 +251,18 @@ fn parse_block(
     out: &mut Vec<LocalVariable>,
     level: usize,
     cursor: &mut tree_sitter::TreeCursor<'_>,
-) {
+) -> Result<(), VariablesError> {
     cursor.first_child();
     'method: loop {
         match cursor.node().kind() {
             "local_variable_declaration" => {
-                parse_local_variable_declaration(cursor, bytes, level, out);
+                parse_local_variable_declaration(cursor, bytes, level, out)?;
             }
             "try_statement" => {
-                parse_try_statement(cursor, bytes, level, out);
+                parse_try_statement(cursor, bytes, level, out)?;
             }
             "try_with_resources_statement" => {
-                parse_try_with_resources_statement(cursor, bytes, level, out);
+                parse_try_with_resources_statement(cursor, bytes, level, out)?;
             }
             "{" | "}" => {}
             _ => {}
@@ -246,6 +272,7 @@ fn parse_block(
         }
     }
     cursor.parent();
+    Ok(())
 }
 
 fn parse_try_with_resources_statement(
@@ -253,7 +280,7 @@ fn parse_try_with_resources_statement(
     bytes: &[u8],
     level: usize,
     out: &mut Vec<LocalVariable>,
-) {
+) -> Result<(), VariablesError> {
     let level = level + 1;
     cursor.first_child();
     cursor.sibling();
@@ -264,7 +291,7 @@ fn parse_try_with_resources_statement(
     'resource: loop {
         match cursor.node().kind() {
             "resource" => {
-                parse_resource(cursor, bytes, out, level);
+                parse_resource(cursor, bytes, out, level)?;
             }
             ";" | ")" => {}
             _ => {}
@@ -277,10 +304,11 @@ fn parse_try_with_resources_statement(
     cursor.parent();
     // end resource
     cursor.sibling();
-    parse_block(bytes, out, level, cursor);
+    parse_block(bytes, out, level, cursor)?;
     cursor.sibling();
-    parse_try_content(cursor, bytes, out, level);
+    parse_try_content(cursor, bytes, out, level)?;
     cursor.parent();
+    Ok(())
 }
 
 fn parse_try_content(
@@ -288,14 +316,14 @@ fn parse_try_content(
     bytes: &[u8],
     out: &mut Vec<LocalVariable>,
     level: usize,
-) {
+) -> Result<(), VariablesError> {
     'try_st: loop {
         match cursor.node().kind() {
             "catch_clause" => {
-                parse_catch(cursor, bytes, out, level);
+                parse_catch(cursor, bytes, out, level)?;
             }
             "finally_clause" => {
-                parse_finally(cursor, bytes, out, level);
+                parse_finally(cursor, bytes, out, level)?;
             }
             e => {
                 eprintln!("{e}")
@@ -305,6 +333,7 @@ fn parse_try_content(
             break 'try_st;
         }
     }
+    Ok(())
 }
 
 fn parse_resource(
@@ -312,19 +341,20 @@ fn parse_resource(
     bytes: &[u8],
     out: &mut Vec<LocalVariable>,
     level: usize,
-) {
+) -> Result<(), VariablesError> {
     cursor.first_child();
-    let ty = get_string(cursor, bytes);
+    let ty = cursor.node();
     cursor.sibling();
     let name = get_string(cursor, bytes);
     out.push(LocalVariable {
         level,
-        jtype: parse_jtype(ty),
+        jtype: parse_jtype(&ty, bytes).map_err(VariablesError::Parse)?,
         name,
         is_fun: false,
         range: cursor.node().range(),
     });
     cursor.goto_parent();
+    Ok(())
 }
 
 fn parse_try_statement(
@@ -332,14 +362,15 @@ fn parse_try_statement(
     bytes: &[u8],
     level: usize,
     out: &mut Vec<LocalVariable>,
-) {
+) -> Result<(), VariablesError> {
     let level = level + 1;
     cursor.first_child();
     cursor.sibling();
-    parse_block(bytes, out, level, cursor);
+    parse_block(bytes, out, level, cursor)?;
     cursor.sibling();
-    parse_try_content(cursor, bytes, out, level);
+    parse_try_content(cursor, bytes, out, level)?;
     cursor.parent();
+    Ok(())
 }
 
 fn parse_finally(
@@ -347,12 +378,13 @@ fn parse_finally(
     bytes: &[u8],
     out: &mut Vec<LocalVariable>,
     level: usize,
-) {
+) -> Result<(), VariablesError> {
     let level = level + 1;
     cursor.first_child();
     cursor.sibling();
-    parse_block(bytes, out, level, cursor);
+    parse_block(bytes, out, level, cursor)?;
     cursor.parent();
+    Ok(())
 }
 
 fn parse_catch(
@@ -360,21 +392,21 @@ fn parse_catch(
     bytes: &[u8],
     out: &mut Vec<LocalVariable>,
     level: usize,
-) {
+) -> Result<(), VariablesError> {
     cursor.first_child();
     cursor.sibling();
     cursor.sibling();
     cursor.first_child();
     cursor.first_child();
 
-    let ty = get_string(cursor, bytes);
+    let ty = cursor.node();
 
     cursor.parent();
     cursor.sibling();
     let name = get_string(cursor, bytes);
     out.push(LocalVariable {
         level,
-        jtype: parse_jtype(ty),
+        jtype: parse_jtype(&ty, bytes).map_err(VariablesError::Parse)?,
         name,
         is_fun: false,
         range: cursor.node().range(),
@@ -384,8 +416,9 @@ fn parse_catch(
     cursor.sibling();
     cursor.sibling();
     let level = level + 1;
-    parse_block(bytes, out, level, cursor);
+    parse_block(bytes, out, level, cursor)?;
     cursor.parent();
+    Ok(())
 }
 
 fn parse_local_variable_declaration(
@@ -393,21 +426,22 @@ fn parse_local_variable_declaration(
     bytes: &[u8],
     level: usize,
     out: &mut Vec<LocalVariable>,
-) {
+) -> Result<(), VariablesError> {
     cursor.first_child();
     if cursor.node().kind() == "modifiers" {
         cursor.sibling();
     }
-    let ty = get_string(&*cursor, bytes);
+    let ty = cursor.node();
     cursor.sibling();
     cursor.first_child();
     let name = get_string(&*cursor, bytes);
     let range = cursor.node().range();
     cursor.sibling();
-    let var = parse_variable(level, ty, name, range);
+    let var = parse_variable(level, &ty, name, range, bytes)?;
     out.push(var);
     cursor.parent();
     cursor.parent();
+    Ok(())
 }
 
 #[cfg(test)]
@@ -443,7 +477,7 @@ public class Test {
         ";
         let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
-        let out = get_vars(&doc, &Point::new(12, 17));
+        let out = get_vars(&doc, &Point::new(12, 17)).unwrap();
         assert_eq!(
             out,
             vec![
@@ -570,7 +604,7 @@ public class Test {
         ";
         let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
-        let out = get_vars(&doc, &Point::new(4, 6));
+        let out = get_vars(&doc, &Point::new(4, 6)).unwrap();
         assert_eq!(
             out,
             vec![LocalVariable {
@@ -610,7 +644,7 @@ public class Test {
         ";
         let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
-        let out = get_vars(&doc, &Point::new(12, 17));
+        let out = get_vars(&doc, &Point::new(12, 17)).unwrap();
         assert_eq!(
             out,
             vec![
@@ -747,7 +781,7 @@ public class Test {
         ";
         let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
-        let out = get_vars(&doc, &Point::new(8, 54));
+        let out = get_vars(&doc, &Point::new(8, 54)).unwrap();
         assert_eq!(
             out,
             vec![
@@ -765,7 +799,10 @@ public class Test {
                 },
                 LocalVariable {
                     level: 3,
-                    jtype: dto::JType::Class("List<String>".to_owned(),),
+                    jtype: dto::JType::Generic(
+                        "List".to_owned(),
+                        vec![dto::JType::Class("String".to_string())]
+                    ),
                     name: "names".to_string(),
                     is_fun: false,
                     range: tree_sitter::Range {
@@ -877,7 +914,7 @@ public class Test {
         "#;
         let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
-        let out = get_vars(&doc, &Point::new(8, 54));
+        let out = get_vars(&doc, &Point::new(8, 54)).unwrap();
         assert_eq!(
             out,
             vec![
@@ -1157,7 +1194,7 @@ public class Test {
         "#;
         let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
-        let out = get_vars(&doc, &Point::new(6, 46));
+        let out = get_vars(&doc, &Point::new(6, 46)).unwrap();
         assert_eq!(
             out,
             vec![
@@ -1203,7 +1240,7 @@ public class Test {
         "#;
         let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
-        let out = get_vars(&doc, &Point::new(5, 22));
+        let out = get_vars(&doc, &Point::new(5, 22)).unwrap();
         assert_eq!(
             out,
             vec![

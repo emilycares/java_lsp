@@ -31,6 +31,7 @@ pub fn load_java_tree(
     let mut imports = vec![];
     let mut methods = vec![];
     let mut fields = vec![];
+    let mut super_interfaces = vec![];
     let mut class_name = None;
     let mut super_class = dto::SuperClass::None;
     let mut class_path_base: Option<String> = None;
@@ -60,16 +61,7 @@ pub fn load_java_tree(
             if cursor.node().kind() == "superclass" {
                 cursor.first_child();
                 cursor.sibling();
-                match get_string(&cursor, bytes) {
-                    Ok(c) => match imports
-                        .iter()
-                        .find_map(|a| a.get_imported_class_package(&c))
-                    {
-                        Some(resolved) => super_class = dto::SuperClass::ClassPath(resolved),
-                        None => super_class = dto::SuperClass::Name(c),
-                    },
-                    Err(e) => Err(ParseJavaError::Utf8(e))?,
-                }
+                super_class = parse_superclass(bytes, &imports, &cursor)?;
                 cursor.parent();
                 cursor.first_child();
             }
@@ -92,6 +84,24 @@ pub fn load_java_tree(
                 class_name = Some(cn);
             }
             cursor.sibling();
+            if cursor.node().kind() == "type_parameters" {
+                cursor.sibling();
+            }
+            if cursor.node().kind() == "extends_interfaces" {
+                cursor.first_child();
+                cursor.sibling();
+                cursor.first_child();
+                super_interfaces.push(parse_superclass(bytes, &imports, &cursor)?);
+                while cursor.sibling() {
+                    if cursor.node().kind() == "," {
+                        cursor.sibling();
+                    }
+                    super_interfaces.push(parse_superclass(bytes, &imports, &cursor)?);
+                }
+                cursor.parent();
+                cursor.parent();
+                cursor.sibling();
+            }
             cursor.first_child();
             while cursor.sibling() {
                 match cursor.node().kind() {
@@ -102,7 +112,7 @@ pub fn load_java_tree(
                         methods.push(parse_interface_method(&mut cursor, bytes)?)
                     }
                     "," | "{" | "}" => (),
-                    _ => (),
+                    _ => {}
                 }
             }
         }
@@ -145,10 +155,28 @@ pub fn load_java_tree(
         class_path: format!("{}.{}", class_path_base, name),
         access: vec![],
         super_class,
+        super_interfaces,
         imports,
         name,
         methods,
         fields,
+    })
+}
+
+fn parse_superclass(
+    bytes: &[u8],
+    imports: &[ImportUnit],
+    cursor: &tree_sitter::TreeCursor<'_>,
+) -> Result<dto::SuperClass, ParseJavaError> {
+    Ok(match parse_jtype(&cursor.node(), bytes)? {
+        dto::JType::Class(c) | dto::JType::Generic(c, _) => match imports
+            .iter()
+            .find_map(|a| a.get_imported_class_package(&c))
+        {
+            Some(resolved) => dto::SuperClass::ClassPath(resolved),
+            None => dto::SuperClass::Name(c),
+        },
+        _ => dto::SuperClass::None,
     })
 }
 
@@ -226,6 +254,7 @@ fn parse_interface_method(
         parameters,
         throws: vec![],
         ret: jtype,
+        source: None,
     };
     cursor.sibling();
     if cursor.node().kind() == "throws" {
@@ -254,6 +283,7 @@ fn parse_interface_constant(
         access: vec![],
         name,
         jtype,
+        source: None,
     })
 }
 
@@ -268,6 +298,7 @@ fn parse_enum_constant(
         access: vec![],
         name: get_string(&cursor, bytes).map_err(ParseJavaError::Utf8)?,
         jtype: dto::JType::Void,
+        source: None,
     })
 }
 
@@ -281,6 +312,7 @@ fn parse_method(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Result<dto::Method
         parameters: vec![],
         throws: vec![],
         ret: dto::JType::Void,
+        source: None,
     };
 
     loop {
@@ -334,6 +366,7 @@ fn parse_field(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Result<dto::Field, 
         access: vec![],
         name: "".to_owned(),
         jtype: dto::JType::Void,
+        source: None,
     };
 
     loop {
@@ -459,7 +492,7 @@ pub mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::{
-        dto::{self, Access, ImportUnit, JType, Method, Parameter},
+        dto::{self, Access, ImportUnit, JType, Method, Parameter, SuperClass},
         loader::SourceDestination,
     };
 
@@ -504,58 +537,69 @@ public class Test {
                         jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_string())))
                     }],
                     ret: dto::JType::Void,
-                    throws: vec![]
+                    throws: vec![],
+                    source: None
                 }],
                 fields: vec![
                     dto::Field {
                         access: vec![],
                         name: "LOG".to_string(),
-                        jtype: dto::JType::Class("Logger".to_string())
+                        jtype: dto::JType::Class("Logger".to_string()),
+                        source: None
                     },
                     dto::Field {
                         access: vec![],
                         name: "IS_ACTIVE".to_string(),
-                        jtype: dto::JType::Boolean
+                        jtype: dto::JType::Boolean,
+                        source: None
                     },
                     dto::Field {
                         access: vec![],
                         name: "one_byte".to_string(),
-                        jtype: dto::JType::Byte
+                        jtype: dto::JType::Byte,
+                        source: None
                     },
                     dto::Field {
                         access: vec![],
                         name: "one_int".to_string(),
-                        jtype: dto::JType::Int
+                        jtype: dto::JType::Int,
+                        source: None
                     },
                     dto::Field {
                         access: vec![],
                         name: "one_short".to_string(),
-                        jtype: dto::JType::Short
+                        jtype: dto::JType::Short,
+                        source: None
                     },
                     dto::Field {
                         access: vec![],
                         name: "one_long".to_string(),
-                        jtype: dto::JType::Long
+                        jtype: dto::JType::Long,
+                        source: None
                     },
                     dto::Field {
                         access: vec![],
                         name: "one_double".to_string(),
-                        jtype: dto::JType::Double
+                        jtype: dto::JType::Double,
+                        source: None
                     },
                     dto::Field {
                         access: vec![],
                         name: "one_float".to_string(),
-                        jtype: dto::JType::Float
+                        jtype: dto::JType::Float,
+                        source: None
                     },
                     dto::Field {
                         access: vec![],
                         name: "one_char".to_string(),
-                        jtype: dto::JType::Char
+                        jtype: dto::JType::Char,
+                        source: None
                     },
                     dto::Field {
                         access: vec![],
                         name: "one_string".to_string(),
-                        jtype: dto::JType::Class("String".to_string())
+                        jtype: dto::JType::Class("String".to_string()),
+                        source: None
                     },
                     dto::Field {
                         access: vec![],
@@ -564,6 +608,7 @@ public class Test {
                             "List".to_string(),
                             vec![dto::JType::Class("String".to_string())]
                         ),
+                        source: None
                     },
                     dto::Field {
                         access: vec![],
@@ -572,6 +617,7 @@ public class Test {
                             "Map".to_string(),
                             vec![dto::JType::Int, dto::JType::Class("String".to_string())]
                         ),
+                        source: None
                     },
                 ],
                 ..Default::default()
@@ -638,7 +684,8 @@ public class Test {
                         }
                     ],
                     ret: dto::JType::Int,
-                    throws: vec![]
+                    throws: vec![],
+                    source: None,
                 }],
                 ..Default::default()
             }
@@ -661,6 +708,7 @@ public class Test {
                     parameters: vec![],
                     ret: dto::JType::Void,
                     throws: vec![JType::Class("IOException".to_string())],
+                    source: None,
                 },
                 Method {
                     access: vec![Access::Public],
@@ -674,6 +722,7 @@ public class Test {
                         JType::Class("IOException".to_string()),
                         JType::Class("IOException".to_string()),
                     ],
+                    source: None,
                 },
             ],
             ..Default::default()
@@ -714,7 +763,8 @@ public class Test {
                         name: "display".to_string(),
                         parameters: vec![],
                         throws: vec![],
-                        ret: JType::Void
+                        ret: JType::Void,
+                        source: None
                     },
                     dto::Method {
                         access: vec![],
@@ -730,24 +780,28 @@ public class Test {
                             }
                         ],
                         throws: vec![JType::Class("IOException".to_string())],
-                        ret: JType::Class("Socket".to_string())
+                        ret: JType::Class("Socket".to_string()),
+                        source: None
                     }
                 ],
                 fields: vec![
                     dto::Field {
                         access: vec![],
                         name: "CONSTANT_A".to_string(),
-                        jtype: dto::JType::Class("String".to_string())
+                        jtype: dto::JType::Class("String".to_string()),
+                        source: None
                     },
                     dto::Field {
                         access: vec![],
                         name: "CONSTANT_B".to_string(),
-                        jtype: dto::JType::Class("String".to_string())
+                        jtype: dto::JType::Class("String".to_string()),
+                        source: None
                     },
                     dto::Field {
                         access: vec![],
                         name: "CONSTANT_C".to_string(),
-                        jtype: dto::JType::Class("String".to_string())
+                        jtype: dto::JType::Class("String".to_string()),
+                        source: None
                     }
                 ],
                 ..Default::default()
@@ -772,17 +826,20 @@ public class Test {
                     dto::Field {
                         access: vec![],
                         name: "A".to_string(),
-                        jtype: dto::JType::Void
+                        jtype: dto::JType::Void,
+                        source: None
                     },
                     dto::Field {
                         access: vec![],
                         name: "B".to_string(),
-                        jtype: dto::JType::Void
+                        jtype: dto::JType::Void,
+                        source: None
                     },
                     dto::Field {
                         access: vec![],
                         name: "C".to_string(),
-                        jtype: dto::JType::Void
+                        jtype: dto::JType::Void,
+                        source: None
                     },
                 ],
                 ..Default::default()
@@ -832,5 +889,43 @@ public class Test {
                 ..Default::default()
             }
         );
+    }
+    #[test]
+    fn super_interfaces() {
+        let result = load_java(
+            include_bytes!("../test/SuperInterface.java"),
+            SourceDestination::None,
+        )
+        .unwrap();
+        assert_eq!(
+            result,
+            dto::Class {
+                imports: vec![
+                    ImportUnit::Package("ch.emilycares".to_string()),
+                    ImportUnit::Class("java.util.Collection".to_string()),
+                    ImportUnit::Class("java.util.List".to_string()),
+                    ImportUnit::Class("java.util.stream.Stream".to_string()),
+                    ImportUnit::Class("java.util.stream.StreamSupport".to_string())
+                ],
+                class_path: "ch.emilycares.SuperInterface".to_string(),
+                name: "SuperInterface".to_string(),
+                super_interfaces: vec![
+                    SuperClass::ClassPath("java.util.Collection".to_string()),
+                    SuperClass::ClassPath("java.util.List".to_string()),
+                ],
+                methods: vec![dto::Method {
+                    access: vec![],
+                    name: "stream".to_string(),
+                    parameters: vec![],
+                    ret: dto::JType::Generic(
+                        "Stream".to_string(),
+                        vec![JType::Class("E".to_string())]
+                    ),
+                    throws: vec![],
+                    source: None,
+                },],
+                ..Default::default()
+            }
+        )
     }
 }

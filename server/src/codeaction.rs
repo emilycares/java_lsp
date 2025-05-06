@@ -197,7 +197,7 @@ public class Test {
             imports: &imports,
             class_map: &get_class_map(),
             class: &class,
-            vars: &variables::get_vars(&doc, &point),
+            vars: &variables::get_vars(&doc, &point).unwrap(),
             current_file: &uri,
         };
         let out = replace_with_value_type(&doc.tree, content.as_bytes(), &context);
@@ -241,7 +241,7 @@ public class Test {
             imports: &imports,
             class_map: &get_class_map(),
             class: &class,
-            vars: &variables::get_vars(&doc, &point),
+            vars: &variables::get_vars(&doc, &point).unwrap(),
             current_file: &uri,
         };
         let out = replace_with_value_type(&doc.tree, content.as_bytes(), &context);

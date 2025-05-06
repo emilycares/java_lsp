@@ -5,15 +5,16 @@ use lsp_types::{
     Documentation, ParameterInformation, ParameterLabel, SignatureHelp, SignatureInformation,
 };
 use parser::dto::{self, Class, ImportUnit};
-use variables::LocalVariable;
+use variables::{LocalVariable, VariablesError};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum SignatureError {
     Tyres(tyres::TyresError),
     NotAnArgumentList,
     CouldNotGetMethod,
     CouldNoteGetActiveSignature,
     NoCallChain,
+    Variables(VariablesError),
 }
 
 pub fn signature_driver(
@@ -25,7 +26,7 @@ pub fn signature_driver(
     if let Some(call_chain) = call_chain::get_call_chain(&document.tree, document.as_bytes(), point)
     {
         let imports = imports::imports(document);
-        let vars = variables::get_vars(document, point);
+        let vars = variables::get_vars(document, point).map_err(SignatureError::Variables)?;
         return get_signature(call_chain, &imports, &vars, class, class_map);
     }
     Err(SignatureError::NoCallChain)
@@ -177,10 +178,10 @@ public class Test {
 ";
         let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
-        let out = signature_driver(&doc, &Point::new(5, 29), &class, &class_map);
+        let out = signature_driver(&doc, &Point::new(5, 29), &class, &class_map).unwrap();
         assert_eq!(
             out,
-            Ok(SignatureHelp {
+            SignatureHelp {
                 signatures: vec![SignatureInformation {
                     label: "concat".to_string(),
                     documentation: Some(Documentation::String("String".to_string())),
@@ -192,7 +193,7 @@ public class Test {
                 }],
                 active_signature: Some(0),
                 active_parameter: Some(0),
-            },)
+            },
         );
     }
 
@@ -214,6 +215,7 @@ public class Test {
                         }],
                         ret: dto::JType::Class("java.lang.String".to_string()),
                         throws: vec![],
+                        source: None,
                     },
                     dto::Method {
                         access: vec![dto::Access::Public],
@@ -230,6 +232,7 @@ public class Test {
                         ],
                         ret: dto::JType::Class("java.lang.String".to_string()),
                         throws: vec![],
+                        source: None,
                     },
                 ],
                 ..Default::default()
@@ -251,10 +254,10 @@ public class Test {
 ";
         let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
-        let out = signature_driver(&doc, &Point::new(5, 29), &class, &class_map);
+        let out = signature_driver(&doc, &Point::new(5, 29), &class, &class_map).unwrap();
         assert_eq!(
             out,
-            Ok(SignatureHelp {
+            SignatureHelp {
                 signatures: vec![
                     SignatureInformation {
                         label: "concat".to_string(),
@@ -283,7 +286,7 @@ public class Test {
                 ],
                 active_signature: Some(0),
                 active_parameter: Some(0),
-            },)
+            },
         );
     }
 
@@ -305,6 +308,7 @@ public class Test {
                         }],
                         ret: dto::JType::Class("java.lang.String".to_string()),
                         throws: vec![],
+                        source: None,
                     },
                     dto::Method {
                         access: vec![dto::Access::Public],
@@ -321,6 +325,7 @@ public class Test {
                         ],
                         ret: dto::JType::Class("java.lang.String".to_string()),
                         throws: vec![],
+                        source: None,
                     },
                 ],
                 ..Default::default()
@@ -342,10 +347,10 @@ public class Test {
 "#;
         let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
-        let out = signature_driver(&doc, &Point::new(5, 39), &class, &class_map);
+        let out = signature_driver(&doc, &Point::new(5, 39), &class, &class_map).unwrap();
         assert_eq!(
             out,
-            Ok(SignatureHelp {
+            SignatureHelp {
                 signatures: vec![
                     SignatureInformation {
                         label: "concat".to_string(),
@@ -374,7 +379,7 @@ public class Test {
                 ],
                 active_signature: Some(1),
                 active_parameter: Some(1),
-            },)
+            },
         );
     }
 }

@@ -389,7 +389,7 @@ public class Test {
 ";
         let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
         let point = Point::new(5, 29);
-        let vars = variables::get_vars(&doc, &point);
+        let vars = variables::get_vars(&doc, &point).unwrap();
 
         let chain = call_chain::get_call_chain(&doc.tree, doc.as_bytes(), &point).unwrap();
         let out = call_chain_hover(&doc, chain, &point, &vars, &[], &class, &string_class_map());

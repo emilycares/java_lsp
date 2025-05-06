@@ -473,6 +473,7 @@ public class Test {
             parameters: vec![],
             ret: dto::JType::Int,
             throws: vec![],
+            source: None,
         };
         let out = method_snippet(&method);
         assert_eq!(out, "length()");
@@ -489,6 +490,7 @@ public class Test {
             }],
             ret: dto::JType::Int,
             throws: vec![],
+            source: None,
         };
         let out = method_snippet(&method);
         assert_eq!(out, "compute(${1:int})");
@@ -511,6 +513,7 @@ public class Test {
             ],
             ret: dto::JType::Int,
             throws: vec![],
+            source: None,
         };
         let out = method_snippet(&method);
         assert_eq!(out, "split(${1:String}, ${2:int})");

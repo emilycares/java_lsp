@@ -214,7 +214,7 @@ public class Test {
         let document_uri = Uri::from_str("file:///Test.java").unwrap();
         let class =
             parser::java::load_java_tree(bytes, SourceDestination::None, &document.tree).unwrap();
-        let vars = variables::get_vars(&document, &point);
+        let vars = variables::get_vars(&document, &point).unwrap();
         let imports = imports::imports(&document);
         let call_chain = call_chain::get_call_chain(&document.tree, bytes, &point).unwrap();
         let out = call_chain_definition(

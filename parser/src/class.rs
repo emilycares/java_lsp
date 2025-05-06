@@ -86,9 +86,19 @@ pub fn load_class(
                 SourceDestination::Here(e) => e,
                 SourceDestination::None => "".to_string(),
             };
+            let super_interfaces: Vec<_> = c
+                .interfaces
+                .iter()
+                .map(|index| match lookup_class_name(&c, *index as usize) {
+                    Some(c) => dto::SuperClass::Name(c),
+                    None => dto::SuperClass::None,
+                })
+                .collect();
+
             Ok(dto::Class {
                 source,
                 class_path,
+                super_interfaces,
                 super_class: match lookup_class_name(&c, c.super_class.into()) {
                     Some(c) if c == "Object" => dto::SuperClass::None,
                     Some(c) => dto::SuperClass::Name(c),
@@ -121,6 +131,7 @@ fn parse_field(c: &ClassFile, field: &FieldInfo) -> Option<dto::Field> {
         access: parse_field_access(field),
         name: lookup_string(c, field.name_index)?,
         jtype: parse_field_descriptor(&lookup_string(c, field.descriptor_index)?)?,
+        source: None,
     })
 }
 
@@ -206,6 +217,7 @@ fn parse_method(
         parameters,
         ret,
         throws,
+        source: None,
     })
 }
 
@@ -421,7 +433,7 @@ fn parse_field_type(c: Option<char>, chars: &mut std::str::Chars) -> dto::JType 
 mod tests {
     use crate::{
         class::load_class,
-        dto::{self, ImportUnit},
+        dto::{self, ImportUnit, SuperClass},
         loader::SourceDestination,
     };
     use pretty_assertions::assert_eq;
@@ -459,6 +471,39 @@ mod tests {
         assert_eq!(check, result.unwrap());
     }
     #[test]
+    fn super_interfaces() {
+        let result = load_class(
+            include_bytes!("../test/SuperInterface.class"),
+            "ch.emilycares.SuperInterface".to_string(),
+            SourceDestination::None,
+        )
+        .unwrap();
+        assert_eq!(
+            result,
+            dto::Class {
+                imports: vec![
+                    ImportUnit::Package("ch.emilycares".to_string()),
+                    ImportUnit::Class("java.util.stream.Stream".to_string())
+                ],
+                class_path: "ch.emilycares.SuperInterface".to_string(),
+                name: "SuperInterface".to_string(),
+                super_interfaces: vec![
+                    SuperClass::Name("Collection".to_string()),
+                    SuperClass::Name("List".to_string())
+                ],
+                methods: vec![dto::Method {
+                    access: vec![dto::Access::Public],
+                    name: "stream".to_string(),
+                    parameters: vec![],
+                    ret: dto::JType::Class("java.util.stream.Stream".to_string()),
+                    throws: vec![],
+                    source: None,
+                },],
+                ..Default::default()
+            }
+        )
+    }
+    #[test]
     fn variables() {
         let result = load_class(
             include_bytes!("../test/LocalVariableTable.class"),
@@ -482,6 +527,7 @@ mod tests {
                         parameters: vec![],
                         ret: dto::JType::Void,
                         throws: vec![],
+                        source: None,
                     },
                     dto::Method {
                         access: vec![dto::Access::Public],
@@ -498,12 +544,14 @@ mod tests {
                         ],
                         ret: dto::JType::Int,
                         throws: vec![],
+                        source: None,
                     },
                 ],
                 fields: vec![dto::Field {
                     access: vec![dto::Access::Private],
                     name: "a".to_string(),
                     jtype: dto::JType::Class("java.util.HashSet".to_string()),
+                    source: None,
                 },],
                 ..Default::default()
             },

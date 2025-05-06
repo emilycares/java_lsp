@@ -570,7 +570,13 @@ impl Backend {
         let document = self.document_map.get_mut(uri.as_str())?;
         let point = to_treesitter_point(params.text_document_position_params.position);
         let imports = imports::imports(document.value());
-        let vars = variables::get_vars(document.value(), &point);
+        let vars = match variables::get_vars(document.value(), &point) {
+            Ok(v) => Some(v),
+            Err(e) => {
+                eprintln!("Could not get vars: {:?}", e);
+                None
+            }
+        }?;
 
         match hover::base(document.value(), &point, &vars, &imports, &self.class_map) {
             Ok(hover) => Some(hover),
@@ -613,7 +619,13 @@ impl Backend {
         };
         let mut out = vec![];
         let point = to_treesitter_point(params.position);
-        let vars = variables::get_vars(document.value(), &point);
+        let vars = match variables::get_vars(document.value(), &point) {
+            Ok(v) => Some(v),
+            Err(e) => {
+                eprintln!("Could not get vars: {:?}", e);
+                None
+            }
+        }?;
 
         let imports = imports::imports(document.value());
         let Some(class) = &self.class_map.get(&document.class_path) else {
@@ -670,7 +682,13 @@ impl Backend {
 
         let point = to_treesitter_point(params.position);
         let imports = imports::imports(document.value());
-        let vars = variables::get_vars(document.value(), &point);
+        let vars = match variables::get_vars(document.value(), &point) {
+            Ok(v) => Some(v),
+            Err(e) => {
+                eprintln!("Could not get vars: {:?}", e);
+                None
+            }
+        }?;
 
         match definition::class(
             document.value(),
@@ -719,7 +737,13 @@ impl Backend {
         };
         let point = to_treesitter_point(params.position);
         let imports = imports::imports(document.value());
-        let vars = variables::get_vars(document.value(), &point);
+        let vars = match variables::get_vars(document.value(), &point) {
+            Ok(v) => Some(v),
+            Err(e) => {
+                eprintln!("Could not get vars: {:?}", e);
+                None
+            }
+        }?;
         match class_action(
             &document.tree,
             document.as_bytes(),
@@ -783,7 +807,13 @@ impl Backend {
             eprintln!("Could not find class {}", document.class_path);
             return None;
         };
-        let vars = variables::get_vars(document.value(), &point);
+        let vars = match variables::get_vars(document.value(), &point) {
+            Ok(v) => Some(v),
+            Err(e) => {
+                eprintln!("Could not get vars: {:?}", e);
+                None
+            }
+        }?;
 
         let context = CodeActionContext {
             point: &point,

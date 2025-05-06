@@ -40,6 +40,7 @@ pub struct Class {
     pub methods: Vec<Method>,
     pub fields: Vec<Field>,
     pub super_class: SuperClass,
+    pub super_interfaces: Vec<SuperClass>,
 }
 impl Class {
     pub fn no_imports(mut self) -> Self {
@@ -120,6 +121,8 @@ pub struct Method {
     pub parameters: Vec<Parameter>,
     pub throws: Vec<JType>,
     pub ret: JType,
+    /// When None then it is in the class
+    pub source: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
@@ -127,6 +130,8 @@ pub struct Field {
     pub access: Vec<Access>,
     pub name: String,
     pub jtype: JType,
+    /// When None then it is in the class
+    pub source: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
