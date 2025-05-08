@@ -60,8 +60,8 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
         error_files: DashSet::new(),
         project_kind,
         document_map: DashMap::new(),
-        class_map: DashMap::new(),
-        reference_map: DashMap::new(),
+        class_map: Arc::new(DashMap::new()),
+        reference_map: Arc::new(DashMap::new()),
         client_capabilities: Arc::new(None),
     };
 
@@ -114,7 +114,15 @@ async fn main_loop(
     mut backend: Backend,
     params: InitializeParams,
 ) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
-    backend.initialized(params.capabilities).await;
+    backend.client_capabilities = Arc::new(Some(params.capabilities));
+    let connection = backend.connection.clone();
+    let project_kind = backend.project_kind.clone();
+    let class_map = backend.class_map.clone();
+    let reference_map = backend.reference_map.clone();
+    tokio::spawn(async move {
+        Backend::initialized(connection, project_kind, class_map.clone(), reference_map).await;
+        dbg!(class_map.len());
+    });
     for msg in &backend.connection.receiver {
         match msg {
             Message::Request(req) => {
@@ -264,8 +272,8 @@ struct Backend {
     error_files: DashSet<String>,
     project_kind: ProjectKind,
     document_map: DashMap<String, Document>,
-    class_map: DashMap<String, Class>,
-    reference_map: DashMap<String, Vec<ReferenceUnit>>,
+    class_map: Arc<DashMap<String, Class>>,
+    reference_map: Arc<DashMap<String, Vec<ReferenceUnit>>>,
     client_capabilities: Arc<Option<ClientCapabilities>>,
     connection: Arc<Connection>,
 }
@@ -319,7 +327,7 @@ impl Backend {
         }
     }
 
-    fn progress_start(&self, task: String) {
+    fn progress_start(con: Arc<Connection>, task: String) {
         eprintln!("Start progress on: {}", task);
         if let Ok(params) = serde_json::to_value(ProgressParams {
             token: ProgressToken::String(task.clone()),
@@ -330,8 +338,7 @@ impl Backend {
                 percentage: None,
             })),
         }) {
-            let _ = self
-                .connection
+            let _ = con
                 .sender
                 .send(Message::Notification(lsp_server::Notification {
                     method: Progress::METHOD.to_string(),
@@ -380,7 +387,7 @@ impl Backend {
         }
     }
 
-    fn progress_end(&self, task: String) {
+    fn progress_end(con: Arc<Connection>, task: String) {
         eprintln!("End progress on: {}", task);
         if let Ok(params) = serde_json::to_value(ProgressParams {
             token: ProgressToken::String(task),
@@ -388,8 +395,7 @@ impl Backend {
                 message: None,
             })),
         }) {
-            let _ = self
-                .connection
+            let _ = con
                 .sender
                 .send(Message::Notification(lsp_server::Notification {
                     method: Progress::METHOD.to_string(),
@@ -450,45 +456,46 @@ impl Backend {
         }
     }
 
-    async fn initialized(&mut self, client_capabilities: ClientCapabilities) {
-        self.progress_start("Init".to_string());
-        self.client_capabilities = Arc::new(Some(client_capabilities));
+    async fn initialized(
+        con: Arc<Connection>,
+        project_kind: ProjectKind,
+        class_map: Arc<dashmap::DashMap<std::string::String, parser::dto::Class>>,
+        reference_map: Arc<dashmap::DashMap<String, Vec<ReferenceUnit>>>,
+    ) {
+        Backend::progress_start(con.clone(), "Init".to_string());
         let task = "Load jdk".to_string();
 
-        self.progress_start(task.clone());
-        let _ = jdk::load_classes(&self.class_map).await;
-        self.progress_end(task.clone());
+        Backend::progress_start(con.clone(), task.clone());
+        let _ = jdk::load_classes(&class_map).await;
+        Backend::progress_end(con.clone(), task.clone());
 
-        if self.project_kind != ProjectKind::Unknown {
-            let task = format!("Load {} dependencies", self.project_kind);
-            self.progress_start(task.clone());
+        if project_kind != ProjectKind::Unknown {
+            let task = format!("Load {} dependencies", project_kind);
+            Backend::progress_start(con.clone(), task.clone());
             let (sender, reciever) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
                 persentage: 0,
                 error: false,
                 message: "...".to_string(),
             });
             let reciever = Arc::new(Mutex::new(reciever));
-            let project_kind = self.project_kind.clone();
-            let class_map = Arc::new(self.class_map.clone());
-            let con = self.connection.clone();
             let atask = Arc::new(task.clone());
 
             tokio::select! {
-                _ = read_forward(reciever, con, atask)  => {},
-                cm = fetch_deps(sender, project_kind, class_map) => {
+                _ = read_forward(reciever, con.clone(), atask)  => {},
+                cm = fetch_deps(sender, project_kind.clone(), class_map.clone()) => {
                     if let Some(cm) = cm {
                         for pair in cm.into_iter() {
-                            self.class_map.insert(pair.0, pair.1);
+                            class_map.insert(pair.0, pair.1);
                         }
                     }
                 }
             }
-            self.progress_end(task);
+            Backend::progress_end(con.clone(), task);
         }
 
         let task = "Load project files".to_string();
-        self.progress_start(task.clone());
-        let project_classes = match self.project_kind {
+        Backend::progress_start(con.clone(), task.clone());
+        let project_classes = match project_kind {
             ProjectKind::Maven => maven::project::load_project_folders(),
             ProjectKind::Gradle {
                 path_build_gradle: _,
@@ -496,29 +503,27 @@ impl Backend {
             ProjectKind::Unknown => vec![],
         };
         Backend::progress_update_persentage(
-            self.connection.clone(),
+            con.clone(),
             task.clone(),
             "Initializing reference map".to_string(),
             None,
         );
-        match references::init_refernece_map(&project_classes, &self.class_map, &self.reference_map)
-            .await
-        {
+        match references::init_refernece_map(&project_classes, &class_map, &reference_map).await {
             Ok(_) => (),
             Err(e) => eprintln!("Got reference error: {:?}", e),
         }
         Backend::progress_update_persentage(
-            self.connection.clone(),
+            con.clone(),
             task.clone(),
             "Populating class map".to_string(),
             None,
         );
         for class in project_classes {
-            self.class_map.insert(class.class_path.clone(), class);
+            class_map.insert(class.class_path.clone(), class);
         }
-        self.progress_end(task);
+        Backend::progress_end(con.clone(), task);
 
-        self.progress_end("Init".to_string());
+        Backend::progress_end(con, "Init".to_string());
     }
 
     fn did_open(&self, params: DidOpenTextDocumentParams) {
