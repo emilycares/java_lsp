@@ -133,7 +133,9 @@ pub fn call_chain_hover(
     let Some(el) = call_chain.get(item) else {
         return Err(HoverError::ValidatedItemDoesNotExists);
     };
-    let resolve_state = match tyres::resolve_call_chain(relevat, lo_va, imports, class, class_map) {
+    let resolve_state = match tyres::resolve_call_chain_to_point(
+        relevat, lo_va, imports, class, class_map, point,
+    ) {
         Ok(c) => Ok(c),
         Err(e) => Err(HoverError::Tyres(e)),
     }?;

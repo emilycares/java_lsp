@@ -152,6 +152,7 @@ pub enum JType {
     Long,
     Short,
     Boolean,
+    Wildcard,
     Class(String),
     Array(Box<JType>),
     Generic(String, Vec<JType>),
@@ -160,7 +161,7 @@ pub enum JType {
 impl Display for JType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            JType::Void => write!(f, ""),
+            JType::Void => write!(f, "void"),
             JType::Byte => write!(f, "byte"),
             JType::Char => write!(f, "char"),
             JType::Double => write!(f, "double"),
@@ -169,6 +170,7 @@ impl Display for JType {
             JType::Long => write!(f, "long"),
             JType::Short => write!(f, "short"),
             JType::Boolean => write!(f, "boolean"),
+            JType::Wildcard => write!(f, "?"),
             JType::Class(c) => {
                 if c.starts_with("java.lang.") {
                     return write!(f, "{}", c.trim_start_matches("java.lang."));
@@ -187,6 +189,7 @@ impl Display for JType {
         }
     }
 }
+
 #[cfg(test)]
 mod tests {
     use std::ops::Deref;

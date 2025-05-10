@@ -55,12 +55,16 @@ fn overlay_class(b: Class, c: &Class) -> Class {
 
     for m in c.methods.clone() {
         let mut m = m.clone();
-        m.source = Some(c.class_path.clone());
+        if m.source.is_none() {
+            m.source = Some(c.source.clone());
+        }
         out.methods.push(m);
     }
     for f in c.fields.clone() {
         let mut f = f.clone();
-        f.source = Some(c.class_path.clone());
+        if f.source.is_none() {
+            f.source = Some(c.source.clone());
+        }
         out.fields.push(f);
     }
 

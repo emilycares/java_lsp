@@ -121,7 +121,6 @@ async fn main_loop(
     let reference_map = backend.reference_map.clone();
     tokio::spawn(async move {
         Backend::initialized(connection, project_kind, class_map.clone(), reference_map).await;
-        dbg!(class_map.len());
     });
     for msg in &backend.connection.receiver {
         match msg {
@@ -424,6 +423,7 @@ impl Backend {
         }
         vec![]
     }
+
     async fn publish_compile_errors(&self, errors: Vec<CompileError>) {
         let mut emap = HashMap::<String, Vec<CompileError>>::new();
         for e in errors {
@@ -661,7 +661,11 @@ impl Backend {
         // If there is any extend completion ignore completing vars
         if do_rest {
             eprintln!("Call chain is emtpy");
-            out.extend(completion::static_methods(&imports, &self.class_map));
+            out.extend(completion::static_methods(
+                &imports,
+                &document.tree,
+                &self.class_map,
+            ));
             out.extend(completion::complete_vars(&vars));
             out.extend(completion::classes(
                 document.value(),

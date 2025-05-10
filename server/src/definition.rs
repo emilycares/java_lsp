@@ -41,7 +41,7 @@ pub fn class(
 
     match class_action(tree, bytes, point, lo_va, imports, class_map) {
         Ok((class, _range)) => {
-            let source_file = get_source_content(&class)?;
+            let source_file = get_source_content(&class.source)?;
             let ranges = position::get_class_position(source_file.as_bytes(), &class.name)
                 .map_err(DefinitionError::Position)?;
             let uri = class_to_uri(&class)?;
@@ -73,17 +73,38 @@ pub fn call_chain_definition(
             .map_err(DefinitionError::Tyres)?;
     match relevat.get(item) {
         Some(CallItem::MethodCall { name, range: _ }) => {
-            let source_file = get_source_content(&resolve_state.class)?;
-            let ranges = position::get_method_positions(source_file.as_bytes(), name)
+            let source_file = match resolve_state
+                .class
+                .methods
+                .iter()
+                .filter(|i| i.name == *name)
+                .find_map(|i| i.source.clone())
+            {
+                Some(method_source) => method_source,
+                None => resolve_state.class.source,
+            };
+
+            let content = get_source_content(&source_file)?;
+            let ranges = position::get_method_positions(content.as_bytes(), name)
                 .map_err(DefinitionError::Position)?;
-            let uri = class_to_uri(&resolve_state.class)?;
+            let uri = source_to_uri(&source_file)?;
             Ok(go_to_definition_range(uri, ranges))
         }
         Some(CallItem::FieldAccess { name, range: _ }) => {
-            let source_file = get_source_content(&resolve_state.class)?;
-            let ranges = position::get_field_positions(source_file.as_bytes(), name)
+            let source_file = match resolve_state
+                .class
+                .fields
+                .iter()
+                .filter(|i| i.name == *name)
+                .find_map(|i| i.source.clone())
+            {
+                Some(method_source) => method_source,
+                None => resolve_state.class.source,
+            };
+            let content = get_source_content(&source_file)?;
+            let ranges = position::get_field_positions(content.as_bytes(), name)
                 .map_err(DefinitionError::Position)?;
-            let uri = class_to_uri(&resolve_state.class)?;
+            let uri = source_to_uri(&source_file)?;
             Ok(go_to_definition_range(uri, ranges))
         }
         Some(CallItem::Variable { name, range: _ }) => {
@@ -130,16 +151,16 @@ pub fn call_chain_definition(
     }
 }
 
-pub fn get_source_content(extend_class: &dto::Class) -> Result<String, DefinitionError> {
-    let path = PathBuf::from(&extend_class.source);
-    eprintln!("Loading source -> {}", &extend_class.source);
+pub fn get_source_content(source: &String) -> Result<String, DefinitionError> {
+    let path = PathBuf::from(source);
+    eprintln!("Loading source -> {}", &source);
     if path.exists() {
         if let Ok(sourc_file) = read_to_string(path) {
             return Ok(sourc_file);
         }
     }
     Err(DefinitionError::NoSourceFile {
-        file: extend_class.source.clone(),
+        file: source.clone(),
     })
 }
 

@@ -338,6 +338,13 @@ pub fn resolve_jtype(
                 ..Default::default()
             },
         }),
+        JType::Wildcard => Ok(ResolveState {
+            jtype: jtype.clone(),
+            class: Class {
+                name: "Wildcard".to_string(),
+                ..Default::default()
+            },
+        }),
         JType::Array(i) => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {

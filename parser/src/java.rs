@@ -14,6 +14,7 @@ pub enum ParseJavaError {
     Class(dto::ClassError),
     Io(std::io::Error),
     UnknownJType(String, String),
+    UnknownWildcard(String),
 }
 pub fn load_java(
     bytes: &[u8],
@@ -449,8 +450,18 @@ pub fn parse_jtype(
         ("floating_point_type", "double") => Ok(dto::JType::Double),
         ("floating_point_type", "float") => Ok(dto::JType::Float),
         ("type_identifier", class) => Ok(dto::JType::Class(class.to_string())),
+        ("scoped_type_identifier", class) => {
+            Ok(dto::JType::Class(class.replace('.', "$").to_string()))
+        }
         ("boolean_type", "boolean") => Ok(dto::JType::Boolean),
         ("void_type", "void") => Ok(dto::JType::Void),
+        ("wildcard", "?") => Ok(dto::JType::Wildcard),
+        ("wildcard", w) => {
+            if let Some((_, c)) = w.rsplit_once(' ') {
+                return Ok(dto::JType::Class(c.to_string()));
+            }
+            Err(ParseJavaError::UnknownWildcard(w.to_string()))
+        }
         ("array_type", _) => {
             let mut cursor = node.walk();
             cursor.first_child();

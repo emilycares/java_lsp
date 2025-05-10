@@ -65,7 +65,7 @@ pub fn class_describe(val: &dto::Class, add_import_tree: Option<&Tree>) -> Compl
 }
 
 /// Unpack class as completion items with methods and fields
-pub fn class_unpack(val: &dto::Class) -> Vec<CompletionItem> {
+pub fn class_unpack(val: &dto::Class, imports: &[ImportUnit], tree: &Tree) -> Vec<CompletionItem> {
     let mut out = vec![];
 
     out.extend(
@@ -77,7 +77,7 @@ pub fn class_unpack(val: &dto::Class) -> Vec<CompletionItem> {
                 }
                 i.access.contains(&parser::dto::Access::Public)
             })
-            .map(complete_method),
+            .map(|i| complete_method(i, imports, tree)),
     );
 
     out.extend(
@@ -112,7 +112,7 @@ pub fn class_unpack(val: &dto::Class) -> Vec<CompletionItem> {
     out
 }
 
-fn complete_method(m: &dto::Method) -> CompletionItem {
+fn complete_method(m: &dto::Method, imports: &[ImportUnit], tree: &Tree) -> CompletionItem {
     let params_detail: Vec<String> = m
         .parameters
         .iter()
@@ -122,26 +122,67 @@ fn complete_method(m: &dto::Method) -> CompletionItem {
         })
         .collect();
 
-    let snippet = method_snippet(m);
-    CompletionItem {
-        label: m.name.to_owned(),
-        label_details: Some(CompletionItemLabelDetails {
-            detail: Some(format!("{} ({})", m.ret, params_detail.join(", "))),
+    match method_snippet(m) {
+        Snippet::Simple(snippet) => CompletionItem {
+            label: m.name.to_owned(),
+            label_details: Some(CompletionItemLabelDetails {
+                detail: Some(format!("{} ({})", m.ret, params_detail.join(", "))),
+                ..Default::default()
+            }),
+            kind: Some(CompletionItemKind::FUNCTION),
+            insert_text: Some(snippet),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
             ..Default::default()
-        }),
-        kind: Some(CompletionItemKind::FUNCTION),
-        insert_text: Some(snippet),
-        insert_text_format: Some(InsertTextFormat::SNIPPET),
-        ..Default::default()
+        },
+        Snippet::Import { snippet, import } => {
+            let mut additional_text_edits = None;
+            if !imports.contains(&import) {
+                if let ImportUnit::Class(class_path) = import {
+                    additional_text_edits = Some(codeaction::import_text_edit(&class_path, tree));
+                };
+            }
+
+            CompletionItem {
+                label: m.name.to_owned(),
+                label_details: Some(CompletionItemLabelDetails {
+                    detail: Some(format!("{} ({})", m.ret, params_detail.join(", "))),
+                    ..Default::default()
+                }),
+                kind: Some(CompletionItemKind::FUNCTION),
+                insert_text: Some(snippet),
+                insert_text_format: Some(InsertTextFormat::SNIPPET),
+                additional_text_edits,
+                ..Default::default()
+            }
+        }
     }
 }
 
-fn method_snippet(m: &dto::Method) -> String {
+#[derive(PartialEq, Debug)]
+enum Snippet {
+    Simple(String),
+    Import { snippet: String, import: ImportUnit },
+}
+
+fn method_snippet(m: &dto::Method) -> Snippet {
+    let mut import = None;
     let mut params_snippet = String::new();
     let p_len = m.parameters.len();
     let mut i = 1;
     for p in &m.parameters {
-        params_snippet.push_str(format!("${{{}:{}}}", i, p.jtype).as_str());
+        let type_representation = match &p.jtype {
+            dto::JType::Class(c) => match c.as_str() {
+                "java.util.stream.Collector" => {
+                    import = Some(ImportUnit::Class("java.util.stream.Collectors".to_string()));
+                    "Collectors.toList()".to_string()
+                }
+                _ => {
+                    format!("{}", p.jtype)
+                }
+            },
+            _ => format!("{}", p.jtype),
+        };
+        params_snippet.push_str(format!("${{{}:{}}}", i, type_representation).as_str());
         i += 1;
         if i <= p_len {
             params_snippet.push_str(", ");
@@ -149,7 +190,10 @@ fn method_snippet(m: &dto::Method) -> String {
     }
 
     let snippet = format!("{}({})", m.name, params_snippet);
-    snippet
+    match import {
+        Some(import) => Snippet::Import { snippet, import },
+        None => Snippet::Simple(snippet),
+    }
 }
 
 /// Completion of the previous variable
@@ -164,7 +208,7 @@ pub fn complete_call_chain(
     if let Some(call_chain) = get_call_chain(&document.tree, document.as_bytes(), point).as_deref()
     {
         return match tyres::resolve_call_chain(call_chain, vars, imports, class, class_map) {
-            Ok(resolve_state) => Ok(class_unpack(&resolve_state.class)),
+            Ok(resolve_state) => Ok(class_unpack(&resolve_state.class, imports, &document.tree)),
             Err(tyres_error) => Err(CompletionError::Tyres { tyres_error }),
         };
     }
@@ -245,6 +289,7 @@ fn is_class_completion(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Option<Stri
 
 pub fn static_methods(
     imports: &[ImportUnit],
+    tree: &Tree,
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Vec<CompletionItem> {
     imports
@@ -266,7 +311,7 @@ pub fn static_methods(
                 .collect(),
             ImportUnit::Package(_) => vec![],
         })
-        .map(|m| complete_method(&m))
+        .map(|m| complete_method(&m, imports, tree))
         .collect()
 }
 
@@ -285,7 +330,7 @@ mod tests {
     use variables::LocalVariable;
 
     use crate::{
-        completion::{classes, complete_call_chain},
+        completion::{classes, complete_call_chain, Snippet},
         Document,
     };
 
@@ -476,7 +521,7 @@ public class Test {
             source: None,
         };
         let out = method_snippet(&method);
-        assert_eq!(out, "length()");
+        assert_eq!(out, Snippet::Simple("length()".to_string()));
     }
 
     #[test]
@@ -493,7 +538,7 @@ public class Test {
             source: None,
         };
         let out = method_snippet(&method);
-        assert_eq!(out, "compute(${1:int})");
+        assert_eq!(out, Snippet::Simple("compute(${1:int})".to_string()));
     }
 
     #[test]
@@ -516,7 +561,10 @@ public class Test {
             source: None,
         };
         let out = method_snippet(&method);
-        assert_eq!(out, "split(${1:String}, ${2:int})");
+        assert_eq!(
+            Snippet::Simple("split(${1:String}, ${2:int})".to_string()),
+            out,
+        );
     }
 
     #[test]
