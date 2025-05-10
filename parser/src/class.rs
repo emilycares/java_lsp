@@ -74,15 +74,18 @@ pub fn load_class(
                     .map(ImportUnit::Class),
             );
 
+            let source_file = parse_source_file(&c);
             let source = match source {
-                SourceDestination::RelativeInFolder(e) => {
-                    format!(
+                SourceDestination::RelativeInFolder(e) => match source_file {
+                    Some(file_name) => format!("{}{}{}", e, MAIN_SEPARATOR, file_name),
+                    // Guessing .java extension
+                    None => format!(
                         "{}{}{}.java",
                         e,
                         MAIN_SEPARATOR,
                         &class_path.replace(".", MAIN_SEPARATOR_STR)
-                    )
-                }
+                    ),
+                },
                 SourceDestination::Here(e) => e,
                 SourceDestination::None => "".to_string(),
             };
@@ -113,6 +116,21 @@ pub fn load_class(
         }
         _ => Err(ClassError::ParseError),
     }
+}
+
+fn parse_source_file(c: &ClassFile) -> Option<String> {
+    c.attributes
+        .iter()
+        .filter_map(|attribute_info| {
+            match lookup_string(c, attribute_info.attribute_name_index)?.as_str() {
+                "SourceFile" => classfile_parser::attribute_info::sourcefile_attribute_parser(
+                    &attribute_info.info,
+                )
+                .ok(),
+                _ => None,
+            }
+        })
+        .find_map(|i| lookup_string(c, i.1.sourcefile_index))
 }
 
 fn lookup_class_name(c: &ClassFile, index: usize) -> Option<String> {
@@ -437,6 +455,18 @@ mod tests {
         loader::SourceDestination,
     };
     use pretty_assertions::assert_eq;
+
+    #[test]
+    fn relative_source() {
+        let result = load_class(
+            include_bytes!("../test/Everything.class"),
+            "ch.emilycares.Everything".to_string(),
+            SourceDestination::RelativeInFolder("/source".to_string()),
+        )
+        .unwrap();
+        assert!(result.source.starts_with("/source"));
+        assert!(result.source.ends_with("Everything.java"));
+    }
 
     #[test]
     fn everything() {
