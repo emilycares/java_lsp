@@ -5,10 +5,10 @@ mod hover;
 pub mod references;
 pub mod signature;
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::{collections::HashMap, fs::read_to_string};
 
 use call_chain::get_call_chain;
 use codeaction::CodeActionContext;
@@ -16,7 +16,8 @@ use common::project_kind::ProjectKind;
 use common::TaskProgress;
 use compile::CompileError;
 use dashmap::{DashMap, DashSet};
-use document::Document;
+use definition::{source_to_uri, DefinitionContext};
+use document::{ClassSource, Document};
 use hover::{class_action, ClassActionError};
 use lsp_types::request::{References, SignatureHelpRequest};
 use lsp_types::{
@@ -698,37 +699,32 @@ impl Backend {
                 None
             }
         }?;
+        let Some(class) = &self.class_map.get(&document.class_path) else {
+            eprintln!("Could not find class {}", document.class_path);
+            return None;
+        };
 
-        match definition::class(
-            document.value(),
-            &uri,
-            &point,
-            &vars,
-            &imports,
-            &self.class_map,
-        ) {
+        let context = DefinitionContext {
+            document_uri: uri,
+            point: &point,
+            vars: &vars,
+            imports: &imports,
+            class,
+            class_map: &self.class_map,
+            document_map: &self.document_map,
+        };
+
+        match definition::class(document.value(), &context) {
             Ok(definition) => return Some(definition),
             Err(e) => {
                 eprintln!("Error while class definition: {e:?}");
             }
         }
-        let Some(class) = &self.class_map.get(&document.class_path) else {
-            eprintln!("Could not find class {}", document.class_path);
-            return None;
-        };
         let Some(call_chain) = get_call_chain(&document.tree, document.as_bytes(), &point) else {
             eprintln!("Defintion could not get callchain");
             return None;
         };
-        match definition::call_chain_definition(
-            uri,
-            &point,
-            &call_chain,
-            &vars,
-            &imports,
-            class,
-            &self.class_map,
-        ) {
+        match definition::call_chain_definition(&call_chain, &context) {
             Ok(definition) => return Some(definition),
             Err(e) => {
                 eprintln!("Error while definition: {e:?}");
@@ -857,7 +853,7 @@ impl Backend {
         };
         let uri = params.text_document.uri;
 
-        let symbols = position::get_symbols(document.as_bytes());
+        let symbols = position::get_symbols(document.as_bytes(), &document.tree);
         match symbols {
             Ok(symbols) => {
                 let symbols = position::symbols_to_document_symbols(symbols, uri);
@@ -884,8 +880,25 @@ impl Backend {
 
         let symbols: Vec<SymbolInformation> = files
             .into_iter()
-            .filter_map(|i| Some((i.clone(), read_to_string(i).ok()?)))
-            .map(|(path, src)| (path, position::get_symbols(src.as_bytes())))
+            .filter_map(|i| {
+                let Ok(uri) = source_to_uri(&i) else {
+                    return None;
+                };
+                Some((
+                    i.clone(),
+                    document::read_document_or_open_class(
+                        &i,
+                        "".to_string(),
+                        &self.document_map,
+                        uri.as_str(),
+                    ),
+                ))
+            })
+            .filter_map(|(path, source)| match source {
+                ClassSource::Owned(d) => Some((path, position::get_symbols(d.as_bytes(), &d.tree))),
+                ClassSource::Ref(d) => Some((path, position::get_symbols(d.as_bytes(), &d.tree))),
+                ClassSource::Err(_) => None,
+            })
             .map(|(path, symbols)| {
                 (
                     path,

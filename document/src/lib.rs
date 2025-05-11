@@ -1,5 +1,6 @@
 use std::{fs, path::PathBuf};
 
+use dashmap::mapref::one::RefMut;
 use lsp_types::TextDocumentContentChangeEvent;
 use ropey::Rope;
 use tree_sitter::{Parser, Tree};
@@ -112,5 +113,27 @@ impl Document {
         if let Some(ntree) = self.parser.parse(bytes, None) {
             self.tree = ntree;
         }
+    }
+}
+
+pub enum ClassSource<'a, D> {
+    Owned(D),
+    Ref(RefMut<'a, String, Document>),
+    Err(DocumentError),
+}
+pub fn read_document_or_open_class<'a, 'b>(
+    source: &'b str,
+    class_path: String,
+    document_map: &'a dashmap::DashMap<String, Document>,
+    uri: &'b str,
+) -> ClassSource<'a, Document> {
+    dbg!(source, &uri);
+    dbg!(source == uri);
+    match document_map.get_mut(uri) {
+        Some(d) => ClassSource::Ref(d),
+        None => match Document::setup_read(PathBuf::from(source), class_path) {
+            Ok(doc) => ClassSource::Owned(doc),
+            Err(e) => ClassSource::Err(e),
+        },
     }
 }

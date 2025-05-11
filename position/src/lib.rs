@@ -67,10 +67,9 @@ impl PositionSymbol {
     }
 }
 
-pub fn get_symbols(bytes: &[u8]) -> Result<Vec<PositionSymbol>, PosionError> {
-    let (_, tree) = tree_sitter_util::parse(bytes).map_err(PosionError::Treesitter)?;
+pub fn get_symbols(bytes: &[u8], tree: &Tree) -> Result<Vec<PositionSymbol>, PosionError> {
     get_item_ranges(
-        &tree,
+        tree,
         bytes,
         "
         (class_declaration name: (identifier)@capture )

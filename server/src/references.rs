@@ -1,12 +1,10 @@
 use std::{
     fs::{self},
     hash::Hash,
-    path::PathBuf,
 };
 
 use call_chain::CallItem;
-use dashmap::mapref::one::RefMut;
-use document::{Document, DocumentError};
+use document::{ClassSource, Document, DocumentError};
 use lsp_types::Location;
 use parser::dto::{self, Class, ImportUnit};
 use position::PositionSymbol;
@@ -141,12 +139,6 @@ pub fn call_chain_references(
     }
 }
 
-enum Helper<'a, D> {
-    Owned(D),
-    Ref(RefMut<'a, String, Document>),
-    Err(ReferencesError),
-}
-
 fn method_references(
     class: &Class,
     query_method_name: &str,
@@ -154,18 +146,14 @@ fn method_references(
 ) -> Result<Vec<ReferencePosition>, ReferencesError> {
     let uri = definition::class_to_uri(class).map_err(ReferencesError::Definition)?;
     let uri = uri.to_string();
-    let doc = match document_map.get_mut(&uri) {
-        Some(d) => Helper::Ref(d),
-        None => match Document::setup_read(
-            PathBuf::from(class.source.clone()),
-            class.class_path.clone(),
-        ) {
-            Ok(doc) => Helper::Owned(doc),
-            Err(e) => Helper::Err(ReferencesError::Document(e)),
-        },
-    };
+    let doc = document::read_document_or_open_class(
+        &class.source,
+        class.class_path.clone(),
+        document_map,
+        &uri,
+    );
     match doc {
-        Helper::Owned(doc) => {
+        ClassSource::Owned(doc) => {
             let o = match position::get_method_usage(doc.as_bytes(), query_method_name, &doc.tree) {
                 Err(e) => Err(ReferencesError::Position(e))?,
                 Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
@@ -173,13 +161,13 @@ fn method_references(
             document_map.insert(uri, doc);
             o
         }
-        Helper::Ref(doc) => {
+        ClassSource::Ref(doc) => {
             match position::get_method_usage(doc.as_bytes(), query_method_name, &doc.tree) {
                 Err(e) => Err(ReferencesError::Position(e))?,
                 Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
             }
         }
-        Helper::Err(e) => Err(e),
+        ClassSource::Err(e) => Err(ReferencesError::Document(e)),
     }
 }
 

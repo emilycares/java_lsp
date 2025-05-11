@@ -6,8 +6,10 @@ edition = "2024"
 [dependencies]
 lsp-types.workspace = true
 ropey.workspace = true
+dashmap.workspace = true
 tree-sitter.workspace = true
 tree-sitter-util = { path = "../tree-sitter-util"}
+parser = { path = "../parser"}
 
 [dev-dependencies]
 pretty_assertions.workspace = true

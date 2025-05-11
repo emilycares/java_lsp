@@ -731,7 +731,9 @@ dependencies = [
 name = "document"
 version = "0.1.0"
 dependencies = [
+ "dashmap",
  "lsp-types",
+ "parser",
  "pretty_assertions",
  "ropey",
  "tree-sitter",
