@@ -1,6 +1,6 @@
 use std::str::Utf8Error;
 
-use tree_sitter_util::{CommentSkiper, TreesitterError};
+use tree_sitter_util::{tdbc, CommentSkiper, TreesitterError};
 
 use crate::{
     dto::{self, ImportUnit},
@@ -134,6 +134,28 @@ pub fn load_java_tree(
                     _ => (),
                 }
             }
+        }
+        "annotation_type_declaration" => {
+            cursor.first_child();
+            cursor.sibling();
+            cursor.sibling();
+            if cursor.node().kind() == "identifier" {
+                let cn = get_string(&cursor, bytes).map_err(ParseJavaError::Utf8)?;
+                class_name = Some(cn);
+            }
+            cursor.sibling();
+            cursor.first_child();
+            while cursor.sibling() {
+                match cursor.node().kind() {
+                    "annotation_type_element_declaration" => fields.push(
+                        parse_annotation_type_element_declaration(cursor.node(), bytes)?,
+                    ),
+                    "," | "{" | "}" => (),
+                    _ => {}
+                }
+            }
+
+            cursor.parent();
         }
         _ => (),
     }
@@ -299,6 +321,23 @@ fn parse_enum_constant(
         access: vec![],
         name: get_string(&cursor, bytes).map_err(ParseJavaError::Utf8)?,
         jtype: dto::JType::Void,
+        source: None,
+    })
+}
+
+fn parse_annotation_type_element_declaration(
+    node: tree_sitter::Node<'_>,
+    bytes: &[u8],
+) -> Result<dto::Field, ParseJavaError> {
+    let mut cursor = node.walk();
+    cursor.first_child();
+    let jtype = parse_jtype(&cursor.node(), bytes)?;
+    cursor.sibling();
+    tdbc(&cursor, bytes);
+    Ok(dto::Field {
+        access: vec![],
+        name: get_string(&cursor, bytes).map_err(ParseJavaError::Utf8)?,
+        jtype,
         source: None,
     })
 }
@@ -850,6 +889,38 @@ public class Test {
                         access: vec![],
                         name: "C".to_string(),
                         jtype: dto::JType::Void,
+                        source: None
+                    },
+                ],
+                ..Default::default()
+            }
+        )
+    }
+
+    #[test]
+    fn jannotation() {
+        let result = load_java(
+            include_bytes!("../test/Annotation.java"),
+            SourceDestination::RelativeInFolder("/path/to/source".to_string()),
+        );
+        assert_eq!(
+            result.unwrap(),
+            dto::Class {
+                class_path: "ch.emilycares.Annotation".to_string(),
+                source: "/path/to/source/ch/emilycares/Annotation.java".to_string(),
+                imports: vec![ImportUnit::Package("ch.emilycares".to_string())],
+                name: "Annotation".to_string(),
+                fields: vec![
+                    dto::Field {
+                        access: vec![],
+                        name: "value".to_string(),
+                        jtype: dto::JType::Int,
+                        source: None
+                    },
+                    dto::Field {
+                        access: vec![],
+                        name: "text".to_string(),
+                        jtype: dto::JType::Class("String".to_string()),
                         source: None
                     },
                 ],
