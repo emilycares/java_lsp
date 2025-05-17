@@ -127,8 +127,6 @@ pub fn read_document_or_open_class<'a, 'b>(
     document_map: &'a dashmap::DashMap<String, Document>,
     uri: &'b str,
 ) -> ClassSource<'a, Document> {
-    dbg!(source, &uri);
-    dbg!(source == uri);
     match document_map.get_mut(uri) {
         Some(d) => ClassSource::Ref(d),
         None => match Document::setup_read(PathBuf::from(source), class_path) {

@@ -176,6 +176,10 @@ fn method_snippet(m: &dto::Method) -> Snippet {
                     import = Some(ImportUnit::Class("java.util.stream.Collectors".to_string()));
                     "Collectors.toList()".to_string()
                 }
+                "java.util.function.Function" => "i -> i".to_string(),
+                "java.util.function.Consumer" => "i -> i".to_string(),
+                "java.util.function.BiFunction" => "(a, b) -> i".to_string(),
+                "java.util.function.BiComsumer" => "(i, consumer) -> i".to_string(),
                 _ => {
                     format!("{}", p.jtype)
                 }

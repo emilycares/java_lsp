@@ -599,7 +599,7 @@ impl Backend {
             eprintln!("Document is not opened.");
             return None;
         };
-        let lines = document.text.lines().len().try_into().ok()?;
+        let lines = document.text.lines().len();
         if let Err(e) = format::format(document.path.clone()) {
             eprintln!("Formatter error: {:?}", e);
             return None;
@@ -611,7 +611,7 @@ impl Backend {
 
         // self.connection.
         Some(vec![TextEdit::new(
-            Range::new(Position::new(0, 0), Position::new(lines, 0)),
+            Range::new(Position::new(0, 0), Position::new((lines - 1) as u32, 0)),
             document.str_data.clone(),
         )])
     }

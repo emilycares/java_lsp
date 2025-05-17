@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{BufReader, BufWriter},
+    io::{BufReader, BufWriter, Write},
     path::PathBuf,
     process::Command,
 };
@@ -71,9 +71,10 @@ fn topiary(path: PathBuf) -> Result<(), FormatError> {
         grammar,
         indent: Some("    ".to_string()),
     };
-    let f = File::open(path).map_err(FormatError::IO)?;
-    let mut reader = BufReader::new(&f);
-    let mut writer = BufWriter::new(&f);
+    let f = File::open(&path).map_err(FormatError::IO)?;
+    let mut reader = BufReader::new(f);
+    let f = File::open(&path).map_err(FormatError::IO)?;
+    let mut writer = BufWriter::new(f);
     formatter(
         &mut reader,
         &mut writer,
@@ -83,5 +84,7 @@ fn topiary(path: PathBuf) -> Result<(), FormatError> {
             tolerate_parsing_errors: false,
         },
     )
-    .map_err(FormatError::TopiaryFormatter)
+    .map_err(FormatError::TopiaryFormatter)?;
+    writer.flush().map_err(FormatError::IO)?;
+    Ok(())
 }
