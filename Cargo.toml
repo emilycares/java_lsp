@@ -28,7 +28,7 @@ members = [
 
 [workspace.dependencies]
 clap = { version = "4", features = ["derive"] }
-classfile-parser = { git = "https://github.com/emilycares/classfile-parser.git" , branch = "feature/LocalVariableTable" }
+classfile-parser = { git = "https://github.com/emilycares/classfile-parser.git" , branch = "fix/source_file" }
 # classfile-parser = { path = "../classfile-parser"}
 once_cell = "1.20.3"
 dashmap = "6.0.1"
