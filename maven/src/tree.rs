@@ -1,7 +1,5 @@
 use std::{process::Command, str::FromStr};
 
-use serde::{Deserialize, Serialize};
-
 use crate::EXECUTABLE_MAVEN;
 
 #[derive(Debug)]
@@ -80,12 +78,12 @@ fn cut_output(inp: String) -> String {
     out
 }
 
-#[derive(PartialEq, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Debug)]
 pub struct Dependency {
     pub deps: Vec<Pom>,
 }
 
-#[derive(PartialEq, Debug, Serialize, Deserialize, Default)]
+#[derive(PartialEq, Debug, Default)]
 pub struct Pom {
     pub group_id: String,
     pub artivact_id: String,
@@ -94,7 +92,7 @@ pub struct Pom {
 }
 
 /// <https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html#dependency-scope>
-#[derive(Default, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Default, PartialEq, Debug)]
 pub enum DependencyScope {
     #[default]
     Compile,

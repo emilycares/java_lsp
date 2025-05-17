@@ -1,6 +1,5 @@
 pub mod compile;
 pub mod fetch;
-mod pom;
 pub mod project;
 mod tree;
 
