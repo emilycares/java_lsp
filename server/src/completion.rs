@@ -55,9 +55,10 @@ pub fn class_describe(val: &dto::Class, add_import_tree: Option<&Tree>) -> Compl
         addi = Some(codeaction::import_text_edit(&val.class_path, tree));
     }
 
+    let detail = format!("package {};\n{}", val.class_path, methods.join(", "));
     CompletionItem {
         label: val.name.to_string(),
-        detail: Some(methods.join(", ")),
+        detail: Some(detail),
         kind: Some(CompletionItemKind::CLASS),
         additional_text_edits: addi,
         ..Default::default()
@@ -170,22 +171,7 @@ fn method_snippet(m: &dto::Method) -> Snippet {
     let p_len = m.parameters.len();
     let mut i = 1;
     for p in &m.parameters {
-        let type_representation = match &p.jtype {
-            dto::JType::Class(c) => match c.as_str() {
-                "java.util.stream.Collector" => {
-                    import = Some(ImportUnit::Class("java.util.stream.Collectors".to_string()));
-                    "Collectors.toList()".to_string()
-                }
-                "java.util.function.Function" => "i -> i".to_string(),
-                "java.util.function.Consumer" => "i -> i".to_string(),
-                "java.util.function.BiFunction" => "(a, b) -> i".to_string(),
-                "java.util.function.BiComsumer" => "(i, consumer) -> i".to_string(),
-                _ => {
-                    format!("{}", p.jtype)
-                }
-            },
-            _ => format!("{}", p.jtype),
-        };
+        let type_representation = type_to_snippet(&mut import, p);
         params_snippet.push_str(format!("${{{}:{}}}", i, type_representation).as_str());
         i += 1;
         if i <= p_len {
@@ -197,6 +183,25 @@ fn method_snippet(m: &dto::Method) -> Snippet {
     match import {
         Some(import) => Snippet::Import { snippet, import },
         None => Snippet::Simple(snippet),
+    }
+}
+
+fn type_to_snippet(import: &mut Option<ImportUnit>, p: &dto::Parameter) -> String {
+    match &p.jtype {
+        dto::JType::Class(c) => match c.as_str() {
+            "java.util.stream.Collector" => {
+                *import = Some(ImportUnit::Class("java.util.stream.Collectors".to_string()));
+                "Collectors.toList()".to_string()
+            }
+            "java.util.function.Function" => "i -> i".to_string(),
+            "java.util.function.Consumer" => "i -> i".to_string(),
+            "java.util.function.BiFunction" => "(a, b) -> i".to_string(),
+            "java.util.function.BiComsumer" => "(i, consumer) -> i".to_string(),
+            _ => {
+                format!("{}", p.jtype)
+            }
+        },
+        _ => format!("{}", p.jtype),
     }
 }
 
@@ -601,7 +606,7 @@ public class Test {
             out,
             vec![CompletionItem {
                 label: "StringBuilder".to_string(),
-                detail: Some("".to_string()),
+                detail: Some("package java.lang.StringBuilder;\n".to_string()),
                 kind: Some(CompletionItemKind::CLASS),
                 additional_text_edits: Some(vec![TextEdit {
                     range: Range {
@@ -657,7 +662,7 @@ public class Test {
             out,
             vec![CompletionItem {
                 label: "StringBuilder".to_string(),
-                detail: Some("".to_string()),
+                detail: Some("package java.lang.StringBuilder;\n".to_string()),
                 kind: Some(CompletionItemKind::CLASS),
                 ..Default::default()
             }]
