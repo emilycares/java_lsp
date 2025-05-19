@@ -265,6 +265,48 @@ public class Test {
         let out = call_chain_definition(&call_chain, &context);
         assert!(out.is_err());
     }
+    #[test]
+    fn definition_stream_map() {
+        let content = r#"
+package ch.emilycares;
+import java.util.ArrayList;
+import java.util.List;
+public class Test {
+    public String hello() {
+        List<String> list = new ArrayList();
+
+        list.stream().map(i -> i);
+
+        return "Hello";
+    }
+}
+        "#;
+        let point = Point::new(8, 24);
+        let bytes = content.as_bytes();
+        let document = Document::setup(
+            content,
+            PathBuf::from_str("/Test.java").unwrap(),
+            "ch.emilycares.Test".to_string(),
+        )
+        .unwrap();
+        let document_uri = Uri::from_str("file:///Test.java").unwrap();
+        let class =
+            parser::java::load_java_tree(bytes, SourceDestination::None, &document.tree).unwrap();
+        let vars = variables::get_vars(&document, &point).unwrap();
+        let imports = imports::imports(&document);
+        let call_chain = call_chain::get_call_chain(&document.tree, bytes, &point).unwrap();
+        let context = DefinitionContext {
+            document_uri,
+            point: &point,
+            vars: &vars,
+            imports: &imports,
+            class: &class,
+            class_map: &get_class_map(),
+            document_map: &DashMap::new(),
+        };
+        let out = call_chain_definition(&call_chain, &context);
+        assert!(out.is_err());
+    }
     fn get_class_map() -> DashMap<String, dto::Class> {
         let class_map: DashMap<String, dto::Class> = DashMap::new();
         class_map.insert(
@@ -277,6 +319,36 @@ public class Test {
                     access: vec![dto::Access::Public],
                     name: "info".to_string(),
                     ret: dto::JType::Void,
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+        );
+        class_map.insert(
+            "java.util.List".to_string(),
+            dto::Class {
+                source: "/List.java".to_string(),
+                access: vec![dto::Access::Public],
+                name: "List".to_string(),
+                methods: vec![dto::Method {
+                    access: vec![dto::Access::Public],
+                    name: "stream".to_string(),
+                    ret: dto::JType::Class("java.util.stream.Stream".to_string()),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+        );
+        class_map.insert(
+            "java.util.stream.Stream".to_string(),
+            dto::Class {
+                source: "/Stream.java".to_string(),
+                access: vec![dto::Access::Public],
+                name: "Stream".to_string(),
+                methods: vec![dto::Method {
+                    access: vec![dto::Access::Public],
+                    name: "map".to_string(),
+                    ret: dto::JType::Class("java.util.stream.Stream".to_string()),
                     ..Default::default()
                 }],
                 ..Default::default()

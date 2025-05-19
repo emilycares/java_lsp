@@ -192,9 +192,13 @@ pub fn resolve_call_chain_to_point(
     point: &Point,
 ) -> Result<ResolveState, TyresError> {
     let mut ops: Vec<ResolveState> = vec![];
+    let mut next = true;
     for item in call_chain {
-        if is_point_in_range(point, item.get_range()) {
+        if !next {
             break;
+        }
+        if is_point_in_range(point, item.get_range()) {
+            next = false;
         }
         let op = call_chain_op(item, &ops, lo_va, imports, class, class_map);
         if let Ok(op) = op {
