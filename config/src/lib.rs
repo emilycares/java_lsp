@@ -32,9 +32,7 @@ impl Default for Configuration {
         let term = program
             .eval_full_for_export()
             .expect("Evaluating the builtin configuration should be safe");
-        let serde_config = Configuration::deserialize(term)
-            .expect("Evaluating the builtin configuration should be safe");
-
-        serde_config
+        Configuration::deserialize(term)
+            .expect("Evaluating the builtin configuration should be safe")
     }
 }

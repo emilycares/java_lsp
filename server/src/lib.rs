@@ -18,7 +18,7 @@ use compile::CompileError;
 use dashmap::{DashMap, DashSet};
 use definition::{source_to_uri, DefinitionContext};
 use document::{ClassSource, Document};
-use hover::{class_action, ClassActionError};
+use hover::class_action;
 use lsp_types::request::{References, SignatureHelpRequest};
 use lsp_types::{
     notification::{
@@ -555,7 +555,7 @@ impl Backend {
         };
         match parser::update_project_java_file(PathBuf::from(path.as_str()), document.as_bytes()) {
             Ok(class) => {
-                document.class_path = class.class_path.clone();
+                document.class_path.clone_from(&class.class_path);
                 let class_path = class.class_path.clone();
                 match references::reference_update_class(
                     &class,
@@ -764,7 +764,6 @@ impl Backend {
                     return Some(value);
                 }
             }
-            Err(ClassActionError::VariableFound { var: _, range: _ }) => {}
             Err(e) => eprintln!("Got refrence class error: {:?}", e),
         }
         let Some(call_chain) = get_call_chain(&document.tree, document.as_bytes(), &point) else {

@@ -6,16 +6,13 @@ use std::{
 };
 
 use config::{FormatterConfig, CONFIG};
-use topiary_config::{
-    error::{TopiaryConfigError, TopiaryConfigFetchingError},
-    Configuration,
-};
+use topiary_config::{error::TopiaryConfigFetchingError, Configuration};
 use topiary_core::{formatter, FormatterError, Language, Operation, TopiaryQuery};
 
 #[derive(Debug)]
 pub enum FormatError {
     IO(std::io::Error),
-    TopiaryConfig(TopiaryConfigError),
+    TopiaryConfig,
     TopiaryFormatter(FormatterError),
     Grammar(TopiaryConfigFetchingError),
 }
@@ -59,9 +56,10 @@ fn intelij(path: PathBuf) -> Result<(), FormatError> {
 
 fn topiary(path: PathBuf) -> Result<(), FormatError> {
     let config = Configuration::default();
-    let java = config
-        .get_language("java")
-        .map_err(FormatError::TopiaryConfig)?;
+    let java = config.get_language("java").map_err(|e| {
+        eprintln!("Topiary config error: {e:?}");
+        FormatError::TopiaryConfig
+    })?;
     let query = topiary_queries::java();
     let grammar = java.grammar().map_err(FormatError::Grammar)?;
     let query = TopiaryQuery::new(&grammar, query).map_err(FormatError::TopiaryFormatter)?;

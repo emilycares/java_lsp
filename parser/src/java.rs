@@ -1,6 +1,6 @@
 use std::str::Utf8Error;
 
-use tree_sitter_util::{tdbc, CommentSkiper, TreesitterError};
+use tree_sitter_util::{CommentSkiper, TreesitterError};
 
 use crate::{
     dto::{self, ImportUnit},
@@ -333,7 +333,6 @@ fn parse_annotation_type_element_declaration(
     cursor.first_child();
     let jtype = parse_jtype(&cursor.node(), bytes)?;
     cursor.sibling();
-    tdbc(&cursor, bytes);
     Ok(dto::Field {
         access: vec![],
         name: get_string(&cursor, bytes).map_err(ParseJavaError::Utf8)?,

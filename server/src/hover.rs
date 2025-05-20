@@ -10,7 +10,7 @@ use variables::LocalVariable;
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum HoverError {
-    ClassActon(ClassActionError),
+    ClassAction,
     Tyres(TyresError),
     CallChainEmpty,
     ParseError(parser::java::ParseJavaError),
@@ -35,9 +35,6 @@ pub fn base(
             return Ok(class_to_hover(class, range));
         }
         Err(ClassActionError::NotFound) => {}
-        Err(ClassActionError::VariableFound { var, range }) => {
-            return Ok(variables_to_hover(vec![&var], range));
-        }
         Err(e) => eprintln!("class action hover error: {:?}", e),
     };
     let Some(class) = class_map.get(&document.class_path) else {
@@ -71,10 +68,7 @@ pub enum ClassActionError {
     Tyres {
         tyres_error: tyres::TyresError,
     },
-    VariableFound {
-        var: LocalVariable,
-        range: Range,
-    },
+    VariableFound,
 }
 
 pub fn class_action(
@@ -103,11 +97,8 @@ pub fn class_action(
                 range: _,
             }) = class_or_variable(n, bytes)
             {
-                if let Some(var) = lo_va.iter().find(|v| v.name == class) {
-                    return Err(ClassActionError::VariableFound {
-                        var: var.clone(),
-                        range: to_lsp_range(n.range()),
-                    });
+                if lo_va.iter().any(|v| v.name == class) {
+                    return Err(ClassActionError::VariableFound);
                 }
                 return match tyres::resolve(&class, imports, class_map) {
                     Ok(resolve_state) => Ok((resolve_state.class, to_lsp_range(n.range()))),

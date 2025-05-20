@@ -61,12 +61,6 @@ pub fn class(
             let uri = class_to_uri(&class)?;
             Ok(go_to_definition_range(uri, ranges))
         }
-        Err(ClassActionError::VariableFound { var, range: _ }) => {
-            Ok(GotoDefinitionResponse::Scalar(Location {
-                uri: context.document_uri.clone(),
-                range: to_lsp_range(var.range),
-            }))
-        }
         Err(e) => Err(DefinitionError::ClassActon(e)),
     }
 }

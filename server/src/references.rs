@@ -24,7 +24,7 @@ pub enum ReferencesError {
     Tyres(tyres::TyresError),
     ValidatedItemDoesNotExists,
     ArgumentNotFound,
-    Definition(definition::DefinitionError),
+    Definition,
     Document(DocumentError),
 }
 
@@ -109,8 +109,10 @@ pub fn call_chain_references(
                         continue;
                     };
                     let method_refs = method_references(&class, name, document_map)?;
-                    let uri = definition::source_to_uri(&class.source)
-                        .map_err(ReferencesError::Definition)?;
+                    let uri = definition::source_to_uri(&class.source).map_err(|e| {
+                        eprintln!("Got into defintion error: {e:?}");
+                        ReferencesError::Definition
+                    })?;
                     locations.extend(
                         method_refs
                             .iter()
@@ -144,7 +146,10 @@ fn method_references(
     query_method_name: &str,
     document_map: &dashmap::DashMap<String, Document>,
 ) -> Result<Vec<ReferencePosition>, ReferencesError> {
-    let uri = definition::class_to_uri(class).map_err(ReferencesError::Definition)?;
+    let uri = definition::source_to_uri(&class.source).map_err(|e| {
+        eprintln!("Got into defintion error: {e:?}");
+        ReferencesError::Definition
+    })?;
     let uri = uri.to_string();
     let doc = document::read_document_or_open_class(
         &class.source,
