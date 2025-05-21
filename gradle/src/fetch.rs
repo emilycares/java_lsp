@@ -1,5 +1,5 @@
 use std::{
-    fs::{self},
+    fs::{self, remove_file},
     path::{Path, PathBuf},
     process::Command,
     sync::{
@@ -24,6 +24,7 @@ pub enum GradleFetchError {
     CouldNotGetUnpackFolder,
     StatusCode,
     StatusCodeErrMessageNotutf8,
+    IO(std::io::Error),
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -44,72 +45,73 @@ pub async fn fetch_deps(
             for class in classes.classes {
                 class_map.insert(class.class_path.clone(), class);
             }
+            return Ok(class_map.clone());
+        } else {
+            remove_file(path).map_err(GradleFetchError::IO)?
         }
-        Ok(class_map.clone())
-    } else {
-        let unpack_folder = copy_classpath(build_gradle)?;
-        let class_map = Arc::new(class_map.clone());
-        let maven_class_folder = Arc::new(Mutex::new(ClassFolder::default()));
-        let mut handles = Vec::new();
-        if let Ok(o) = fs::read_dir(unpack_folder) {
-            let jars: Vec<PathBuf> = o
-                .filter_map(|i| i.ok())
-                .filter(|i| {
-                    if let Ok(ft) = i.file_type() {
-                        if ft.is_file() {
-                            return true;
-                        }
-                    }
-                    false
-                })
-                .filter(|i| i.file_name().to_string_lossy().ends_with(".jar"))
-                .map(|i| i.path())
-                .collect();
-            let tasks_number = jars.len();
-            let completed_number = Arc::new(AtomicUsize::new(0));
-
-            for jar in jars {
-                if !jar.exists() {
-                    eprintln!("jar does not exist {:?}", jar);
-                    continue;
-                }
-                let class_map = class_map.clone();
-                let gradle_class_folder = maven_class_folder.clone();
-                let completed_number = completed_number.clone();
-                let sender = sender.clone();
-
-                let current_name = jar.display().to_string();
-                handles.push(tokio::spawn(async move {
-                    match parser::loader::load_classes_jar(jar, SourceDestination::None, None).await
-                    {
-                        Ok(classes) => {
-                            let a = completed_number.fetch_add(1, Ordering::Release);
-                            let _ = sender.send(TaskProgress {
-                                persentage: (100 * a) / tasks_number,
-                                error: false,
-                                message: current_name,
-                            });
-                            {
-                                let mut guard = gradle_class_folder.lock();
-                                guard.append(classes.clone());
-                            }
-                            for class in classes.classes {
-                                class_map.insert(class.class_path.clone(), class);
-                            }
-                        }
-                        Err(e) => eprintln!("Error loading graddle jar {:?}", e),
-                    }
-                }));
-            }
-        }
-
-        futures::future::join_all(handles).await;
-        let guard = maven_class_folder.lock();
-        if let Err(e) = parser::loader::save_class_folder(path, &guard) {
-            eprintln!("Failed to save {GRADLE_CFC} because: {e:?}");
-        };
-        Ok(Arc::try_unwrap(class_map).expect("Classmap should be free to take"))
     }
+
+    let unpack_folder = copy_classpath(build_gradle)?;
+    let class_map = Arc::new(class_map.clone());
+    let maven_class_folder = Arc::new(Mutex::new(ClassFolder::default()));
+    let mut handles = Vec::new();
+    if let Ok(o) = fs::read_dir(unpack_folder) {
+        let jars: Vec<PathBuf> = o
+            .filter_map(|i| i.ok())
+            .filter(|i| {
+                if let Ok(ft) = i.file_type() {
+                    if ft.is_file() {
+                        return true;
+                    }
+                }
+                false
+            })
+            .filter(|i| i.file_name().to_string_lossy().ends_with(".jar"))
+            .map(|i| i.path())
+            .collect();
+        let tasks_number = jars.len();
+        let completed_number = Arc::new(AtomicUsize::new(0));
+
+        for jar in jars {
+            if !jar.exists() {
+                eprintln!("jar does not exist {:?}", jar);
+                continue;
+            }
+            let class_map = class_map.clone();
+            let gradle_class_folder = maven_class_folder.clone();
+            let completed_number = completed_number.clone();
+            let sender = sender.clone();
+
+            let current_name = jar.display().to_string();
+            handles.push(tokio::spawn(async move {
+                match parser::loader::load_classes_jar(jar, SourceDestination::None, None).await {
+                    Ok(classes) => {
+                        let a = completed_number.fetch_add(1, Ordering::Release);
+                        let _ = sender.send(TaskProgress {
+                            persentage: (100 * a) / tasks_number,
+                            error: false,
+                            message: current_name,
+                        });
+                        {
+                            let mut guard = gradle_class_folder.lock();
+                            guard.append(classes.clone());
+                        }
+                        for class in classes.classes {
+                            class_map.insert(class.class_path.clone(), class);
+                        }
+                    }
+                    Err(e) => eprintln!("Error loading graddle jar {:?}", e),
+                }
+            }));
+        }
+    }
+
+    futures::future::join_all(handles).await;
+    let guard = maven_class_folder.lock();
+    if let Err(e) = parser::loader::save_class_folder(path, &guard) {
+        eprintln!("Failed to save {GRADLE_CFC} because: {e:?}");
+    };
+    Ok(Arc::try_unwrap(class_map).expect("Classmap should be free to take"))
 }
 
 // println configurations.getAll()

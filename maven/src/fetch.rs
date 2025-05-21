@@ -1,5 +1,5 @@
 use std::{
-    fs,
+    fs::{self, remove_file},
     io::Cursor,
     path::{Path, PathBuf},
     sync::{
@@ -11,7 +11,10 @@ use std::{
 use common::TaskProgress;
 use dashmap::DashMap;
 use parking_lot::Mutex;
-use parser::{dto::ClassFolder, loader::SourceDestination};
+use parser::{
+    dto::{Class, ClassFolder},
+    loader::SourceDestination,
+};
 use tokio::process::Command;
 
 use crate::{
@@ -58,87 +61,90 @@ pub enum MavenFetchError {
     NoClassPath,
     ParserLoader(parser::loader::ParserLoaderError),
     NoM2Folder,
+    IO(std::io::Error),
 }
 const MAVEN_CFC: &str = ".maven.cfc";
 
 pub async fn fetch_deps(
-    class_map: &DashMap<std::string::String, parser::dto::Class>,
+    class_map: &DashMap<String, Class>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
-) -> Result<DashMap<std::string::String, parser::dto::Class>, MavenFetchError> {
+) -> Result<DashMap<String, Class>, MavenFetchError> {
     let path = Path::new(&MAVEN_CFC);
     if path.exists() {
         if let Ok(classes) = parser::loader::load_class_folder(path) {
             for class in classes.classes {
                 class_map.insert(class.class_path.clone(), class);
             }
+            return Ok(class_map.clone());
+        } else {
+            remove_file(path).map_err(MavenFetchError::IO)?
         }
-        Ok(class_map.clone())
-    } else {
-        download_sources(&sender).await;
-        let tree = tree::load().map_err(MavenFetchError::Tree)?;
-        let m2 = Arc::new(get_maven_m2_folder()?);
-        let class_map = Arc::new(class_map.clone());
-        let maven_class_folder = Arc::new(Mutex::new(ClassFolder::default()));
-        let mut handles = Vec::new();
-        let tasks_number = tree.deps.len();
-        let completed_number = Arc::new(AtomicUsize::new(0));
-        let sender = Arc::new(sender);
-        for dep in tree.deps {
-            let m2 = m2.clone();
-            let class_map = class_map.clone();
-            let maven_class_folder = maven_class_folder.clone();
-            let sender = sender.clone();
-            let completed_number = completed_number.clone();
-            handles.push(tokio::spawn(async move {
-                eprintln!("Loading dependency: {}", dep.artivact_id);
-                let sender = sender.clone();
-                let classes_jar = pom_classes_jar(&dep, &m2);
-                let source_jar = pom_sources_jar(&dep, &m2);
-                let mut source_dir = source_jar.clone();
-                source_dir.set_file_name("");
-                source_dir = source_dir.join("source");
-                extract_jar(source_jar, &source_dir);
-
-                match parser::loader::load_classes_jar(
-                    classes_jar,
-                    SourceDestination::RelativeInFolder(
-                        source_dir
-                            .as_path()
-                            .to_str()
-                            .unwrap_or_default()
-                            .to_string(),
-                    ),
-                    None,
-                )
-                .await
-                {
-                    Ok(classes) => {
-                        let a = completed_number.fetch_add(1, Ordering::Release);
-                        let _ = sender.send(TaskProgress {
-                            persentage: (100 * a) / tasks_number,
-                            error: false,
-                            message: dep.artivact_id,
-                        });
-                        {
-                            let mut guard = maven_class_folder.lock();
-                            guard.append(classes.clone());
-                        }
-
-                        for class in classes.classes {
-                            class_map.insert(class.class_path.clone(), class);
-                        }
-                    }
-                    Err(e) => eprintln!("Parse error in {:?}, {:?}", dep, e),
-                }
-            }));
-        }
-        futures::future::join_all(handles).await;
-        let guard = maven_class_folder.lock();
-        if let Err(e) = parser::loader::save_class_folder(MAVEN_CFC, &guard) {
-            eprintln!("Failed to save {MAVEN_CFC} because: {e:?}");
-        };
-        Ok(Arc::try_unwrap(class_map).expect("Classmap should be free to take"))
     }
+
+    download_sources(&sender).await;
+    let tree = tree::load().map_err(MavenFetchError::Tree)?;
+    let m2 = Arc::new(get_maven_m2_folder()?);
+    let class_map = Arc::new(class_map.clone());
+    let maven_class_folder = Arc::new(Mutex::new(ClassFolder::default()));
+    let mut handles = Vec::new();
+    let tasks_number = tree.deps.len();
+    let completed_number = Arc::new(AtomicUsize::new(0));
+    let sender = Arc::new(sender);
+    for dep in tree.deps {
+        let m2 = m2.clone();
+        let class_map = class_map.clone();
+        let maven_class_folder = maven_class_folder.clone();
+        let sender = sender.clone();
+        let completed_number = completed_number.clone();
+        handles.push(tokio::spawn(async move {
+            eprintln!("Loading dependency: {}", dep.artivact_id);
+            let sender = sender.clone();
+            let classes_jar = pom_classes_jar(&dep, &m2);
+            let source_jar = pom_sources_jar(&dep, &m2);
+            let mut source_dir = source_jar.clone();
+            source_dir.set_file_name("");
+            source_dir = source_dir.join("source");
+            extract_jar(source_jar, &source_dir);
+
+            match parser::loader::load_classes_jar(
+                classes_jar,
+                SourceDestination::RelativeInFolder(
+                    source_dir
+                        .as_path()
+                        .to_str()
+                        .unwrap_or_default()
+                        .to_string(),
+                ),
+                None,
+            )
+            .await
+            {
+                Ok(classes) => {
+                    let a = completed_number.fetch_add(1, Ordering::Release);
+                    let _ = sender.send(TaskProgress {
+                        persentage: (100 * a) / tasks_number,
+                        error: false,
+                        message: dep.artivact_id,
+                    });
+                    {
+                        let mut guard = maven_class_folder.lock();
+                        guard.append(classes.clone());
+                    }
+
+                    for class in classes.classes {
+                        class_map.insert(class.class_path.clone(), class);
+                    }
+                }
+                Err(e) => eprintln!("Parse error in {:?}, {:?}", dep, e),
+            }
+        }));
+    }
+    futures::future::join_all(handles).await;
+    let guard = maven_class_folder.lock();
+    if let Err(e) = parser::loader::save_class_folder(MAVEN_CFC, &guard) {
+        eprintln!("Failed to save {MAVEN_CFC} because: {e:?}");
+    };
+    Ok(Arc::try_unwrap(class_map).expect("Classmap should be free to take"))
 }
 
 async fn download_sources(sender: &tokio::sync::watch::Sender<TaskProgress>) {

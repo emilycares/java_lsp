@@ -1,6 +1,6 @@
 use std::{
     env,
-    fs::{self},
+    fs::{self, remove_file},
     io::Cursor,
     path::PathBuf,
     sync::Arc,
@@ -27,6 +27,40 @@ pub enum JdkError {
     JavaVersionCommand(std::io::Error),
     WorkDir,
     JavaVersionNoLine,
+    IO(std::io::Error),
+}
+
+pub async fn load_classes(
+    class_map: &DashMap<std::string::String, parser::dto::Class>,
+) -> Result<(), JdkError> {
+    let (java_path, op_dir) = get_work_dirs().await?;
+    let cache_path = op_dir.join(JDK_CFC);
+
+    if cache_path.exists() {
+        if let Ok(classes) = parser::loader::load_class_folder(&cache_path) {
+            for class in classes.classes {
+                class_map.insert(class.class_path.clone(), class);
+            }
+            return Ok(());
+        } else {
+            remove_file(&cache_path).map_err(JdkError::IO)?
+        }
+    }
+    // nix run github:nix-community/nix-index#nix-locate -- jmods/java.base.jmod
+    // ``` bash
+    // # jmod is in the jdk bin dir
+    // jmod extract openjdk-22.0.2_windows-x64_bin/jdk-22.0.2/jmods/java.base.jmod
+    // cd ..
+    // mvn dependency:unpack
+    // ```
+    let class_folder = load_jdk(java_path, op_dir).await?;
+    if let Err(e) = parser::loader::save_class_folder(cache_path, &class_folder) {
+        eprintln!("Failed to save {JDK_CFC} because: {e:?}");
+    };
+    for class in class_folder.classes {
+        class_map.insert(class.class_path.clone(), class);
+    }
+    Ok(())
 }
 
 fn java_executable_location() -> Option<PathBuf> {
@@ -280,35 +314,4 @@ fn opdir(jdk_name: String) -> PathBuf {
     op_dir = op_dir.join(jdk_name);
     let _ = fs::create_dir_all(&op_dir);
     op_dir
-}
-
-pub async fn load_classes(
-    class_map: &DashMap<std::string::String, parser::dto::Class>,
-) -> Result<(), JdkError> {
-    let (java_path, op_dir) = get_work_dirs().await?;
-    let cache_path = op_dir.join(JDK_CFC);
-
-    if cache_path.exists() {
-        if let Ok(classes) = parser::loader::load_class_folder(cache_path) {
-            for class in classes.classes {
-                class_map.insert(class.class_path.clone(), class);
-            }
-        }
-    } else {
-        // nix run github:nix-community/nix-index#nix-locate -- jmods/java.base.jmod
-        // ``` bash
-        // # jmod is in the jdk bin dir
-        // jmod extract openjdk-22.0.2_windows-x64_bin/jdk-22.0.2/jmods/java.base.jmod
-        // cd ..
-        // mvn dependency:unpack
-        // ```
-        let class_folder = load_jdk(java_path, op_dir).await?;
-        if let Err(e) = parser::loader::save_class_folder(cache_path, &class_folder) {
-            eprintln!("Failed to save {JDK_CFC} because: {e:?}");
-        };
-        for class in class_folder.classes {
-            class_map.insert(class.class_path.clone(), class);
-        }
-    }
-    Ok(())
 }
