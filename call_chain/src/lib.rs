@@ -1,3 +1,5 @@
+use std::cmp;
+
 use tree_sitter::{Point, Range};
 use tree_sitter_util::{CommentSkiper, get_string, get_string_node};
 
@@ -28,7 +30,7 @@ pub enum CallItem {
     },
     ArgumentList {
         prev: Vec<CallItem>,
-        active_param: usize,
+        active_param: Option<usize>,
         filled_params: Vec<Vec<CallItem>>,
         range: Range,
     },
@@ -206,7 +208,7 @@ pub fn parse_argument_list(
     bytes: &[u8],
     point: &Point,
 ) -> (Option<Vec<CallItem>>, CallItem) {
-    let mut active_param = 0;
+    let mut active_param = None;
     let mut current_param = 0;
 
     let arg_prev = out.to_owned();
@@ -216,14 +218,14 @@ pub fn parse_argument_list(
     let Argument { range, value } = parse_argument_list_argument(cursor, bytes, point);
     filled_params.push(value.clone());
     if tree_sitter_util::is_point_in_range(point, &range.unwrap()) {
-        active_param = current_param;
+        active_param = Some(current_param);
     }
     while cursor.node().kind() == "," {
         current_param += 1;
         let Argument { range, value } = parse_argument_list_argument(cursor, bytes, point);
         filled_params.push(value.clone());
         if tree_sitter_util::is_point_in_range(point, &range.unwrap()) {
-            active_param = current_param;
+            active_param = Some(current_param);
         }
     }
     let value = CallItem::ArgumentList {
@@ -232,8 +234,13 @@ pub fn parse_argument_list(
         filled_params: filled_params.clone(),
         range: arg_range,
     };
-    let after = filled_params.get(active_param).cloned();
-    (after, value)
+    match active_param {
+        Some(a) => {
+            let after = filled_params.get(a).cloned();
+            (after, value)
+        }
+        None => (None, value),
+    }
 }
 
 fn parse_argument_list_argument(
@@ -289,6 +296,7 @@ fn parse_method_invocation(
     let mut cursor = node.walk();
     let mut out = vec![];
     cursor.first_child();
+    // println!("Custom backtrace: {}", std::backtrace::Backtrace::force_capture());
     match cursor.node().kind() {
         "field_access" => {
             out.extend(parse_field_access(node, bytes, point));
@@ -372,8 +380,7 @@ fn parse_field_access(node: tree_sitter::Node<'_>, bytes: &[u8], point: &Point) 
             }
         }
         "string_literal" => {
-            let val = parse_value(&cursor, bytes, point);
-            out.extend(val);
+            out.extend(parse_value(&cursor, bytes, point));
         }
         "method_invocation" => {
             out.extend(parse_method_invocation(cursor.node(), bytes, point));
@@ -438,7 +445,7 @@ pub fn class_or_variable(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Option<Ca
     })
 }
 
-pub fn validate<'a>(call_chain: &'a [CallItem], point: &'a Point) -> (usize, &'a [CallItem]) {
+pub fn validate(call_chain: &[CallItem], point: &Point) -> (usize, Vec<CallItem>) {
     let item = call_chain
         .iter()
         .enumerate()
@@ -458,15 +465,54 @@ pub fn validate<'a>(call_chain: &'a [CallItem], point: &'a Point) -> (usize, &'a
             }
             CallItem::Class { name: _, range } => tree_sitter_util::is_point_in_range(point, range),
             CallItem::ArgumentList {
-                prev: _,
+                prev,
                 range,
                 filled_params: _,
                 active_param: _,
-            } => tree_sitter_util::is_point_in_range(point, range),
+            } => {
+                if tree_sitter_util::is_point_in_range(point, range) {
+                    return true;
+                }
+                let mut prevs = None;
+                for p in prev {
+                    match prevs {
+                        None => {
+                            prevs = Some(*p.get_range());
+                        }
+                        Some(pr) => prevs = Some(tree_sitter_util::add_ranges(pr, *p.get_range())),
+                    }
+                }
+                if let Some(r) = prevs {
+                    if tree_sitter_util::is_point_in_range(point, &r) {
+                        return true;
+                    }
+                }
+                false
+            }
         })
-        .map(|(a, _)| a)
+        .map(|i| i.0)
         .unwrap_or_default();
 
-    let relevat = &call_chain[0..item + 1];
-    (item, relevat)
+    let relevat = &call_chain[0..cmp::min(item + 1, call_chain.len())];
+    (item, relevat.to_vec())
+}
+
+pub fn flatten_argument_lists(call_chain: &[CallItem]) -> Vec<CallItem> {
+    let mut out = vec![];
+    for ci in call_chain {
+        if let CallItem::ArgumentList {
+            prev,
+            active_param,
+            filled_params: _,
+            range: _,
+        } = ci
+        {
+            if active_param.is_none() {
+                out.extend(prev.iter().map(Clone::clone));
+            }
+        } else {
+            out.push(ci.clone());
+        }
+    }
+    out
 }

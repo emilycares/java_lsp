@@ -88,7 +88,7 @@ pub fn call_chain_references(
     let (item, relevat) = call_chain::validate(call_chain, context.point);
 
     let reference_state = tyres::resolve_call_chain(
-        relevat,
+        &relevat,
         context.vars,
         context.imports,
         context.class,
@@ -131,8 +131,15 @@ pub fn call_chain_references(
             filled_params,
             range: _,
         }) => {
-            if let Some(current_param) = filled_params.get(*active_param) {
-                return call_chain_references(current_param, context, reference_map, document_map);
+            if let Some(active_param) = active_param {
+                if let Some(current_param) = filled_params.get(*active_param) {
+                    return call_chain_references(
+                        current_param,
+                        context,
+                        reference_map,
+                        document_map,
+                    );
+                }
             }
             Err(ReferencesError::ArgumentNotFound)
         }

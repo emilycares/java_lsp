@@ -69,10 +69,11 @@ pub fn call_chain_definition(
     call_chain: &[CallItem],
     context: &DefinitionContext,
 ) -> Result<GotoDefinitionResponse, DefinitionError> {
-    let (item, relevat) = call_chain::validate(call_chain, context.point);
+    let call_chain = call_chain::flatten_argument_lists(call_chain);
+    let (item, relevat) = call_chain::validate(&call_chain, context.point);
 
     let resolve_state = tyres::resolve_call_chain_to_point(
-        relevat,
+        &relevat,
         context.vars,
         context.imports,
         context.class,
@@ -148,8 +149,10 @@ pub fn call_chain_definition(
             filled_params,
             range: _,
         }) => {
-            if let Some(current_param) = filled_params.get(*active_param) {
-                return call_chain_definition(current_param, context);
+            if let Some(active_param) = active_param {
+                if let Some(current_param) = filled_params.get(*active_param) {
+                    return call_chain_definition(current_param, context);
+                }
             }
             Err(DefinitionError::ArgumentNotFound)
         }
@@ -233,7 +236,7 @@ public class Test {
     }
 }
         "#;
-        let point = Point::new(6, 14);
+        let point = Point::new(6, 16);
         let bytes = content.as_bytes();
         let document = Document::setup(
             content,

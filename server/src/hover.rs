@@ -124,12 +124,12 @@ pub fn call_chain_hover(
     let Some(el) = call_chain.get(item) else {
         return Err(HoverError::ValidatedItemDoesNotExists);
     };
-    let resolve_state = match tyres::resolve_call_chain_to_point(
-        relevat, lo_va, imports, class, class_map, point,
-    ) {
-        Ok(c) => Ok(c),
-        Err(e) => Err(HoverError::Tyres(e)),
-    }?;
+    let resolve_state =
+        match tyres::resolve_call_chain_to_point(&relevat, lo_va, imports, class, class_map, point)
+        {
+            Ok(c) => Ok(c),
+            Err(e) => Err(HoverError::Tyres(e)),
+        }?;
     match el {
         CallItem::MethodCall { name, range } => {
             let methods: Vec<dto::Method> = resolve_state
@@ -203,16 +203,18 @@ pub fn call_chain_hover(
             filled_params,
             range: _,
         } => {
-            if let Some(current_param) = filled_params.get(*active_param) {
-                return call_chain_hover(
-                    document,
-                    current_param.clone(),
-                    point,
-                    lo_va,
-                    imports,
-                    &resolve_state.class,
-                    class_map,
-                );
+            if let Some(active_param) = active_param {
+                if let Some(current_param) = filled_params.get(*active_param) {
+                    return call_chain_hover(
+                        document,
+                        current_param.clone(),
+                        point,
+                        lo_va,
+                        imports,
+                        &resolve_state.class,
+                        class_map,
+                    );
+                }
             }
             Err(HoverError::ArgumentNotFound)
         }

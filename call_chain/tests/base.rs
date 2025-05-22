@@ -649,7 +649,7 @@ public class Test {
                 end_point: Point { row: 5, column: 23 },
             },
             filled_params: vec![vec![]],
-            active_param: 0
+            active_param: Some(0)
         },],)
     );
 }
@@ -708,7 +708,7 @@ public class Test {
                         end_point: Point { row: 5, column: 26 }
                     }
                 }]],
-                active_param: 0
+                active_param: Some(0),
             },
             CallItem::ClassOrVariable {
                 name: "local".to_string(),
@@ -777,7 +777,7 @@ public class Test {
                         end_point: Point { row: 5, column: 26 }
                     }
                 }]],
-                active_param: 0
+                active_param: Some(0)
             },
             CallItem::ClassOrVariable {
                 name: "local".to_string(),
@@ -813,7 +813,7 @@ public class Test {
             active_param,
             filled_params: _,
             range: _,
-        } => assert_eq!(active_param, &1),
+        } => assert_eq!(active_param, &Some(1)),
         _ => unreachable!(),
     };
     assert_eq!(
@@ -866,7 +866,7 @@ public class Test {
                         },
                     }]
                 ],
-                active_param: 1
+                active_param: Some(1)
             },
             CallItem::ClassOrVariable {
                 name: "c".to_string(),
@@ -946,7 +946,7 @@ public class Test {
                         }
                     }],
                 ],
-                active_param: 0
+                active_param: Some(0)
             },
             CallItem::ClassOrVariable {
                 name: "b".to_string(),
@@ -1026,7 +1026,7 @@ public class Test {
                         }
                     }]
                 ],
-                active_param: 1
+                active_param: Some(1)
             },
             CallItem::ClassOrVariable {
                 name: "c".to_string(),
@@ -1106,7 +1106,7 @@ public class Test {
                         },
                     },
                 ]],
-                active_param: 0
+                active_param: Some(0)
             },
             CallItem::ClassOrVariable {
                 name: "b".to_string(),
@@ -1177,7 +1177,7 @@ public class Test {
                         },
                     },
                 ]],
-                active_param: 0,
+                active_param: Some(0),
                 range: Range {
                     start_byte: 84,
                     end_byte: 104,
@@ -1251,7 +1251,7 @@ public class Test {
                 end_point: Point { row: 4, column: 19 },
             },
             filled_params: vec![vec![]],
-            active_param: 0
+            active_param: Some(0)
         }])
     );
 }
@@ -1321,7 +1321,7 @@ public class Test {
                         }
                     },
                 ]],
-                active_param: 0
+                active_param: Some(0)
             },
             CallItem::ClassOrVariable {
                 name: "b".to_string(),

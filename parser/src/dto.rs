@@ -13,6 +13,7 @@ pub enum ClassError {
     Postcard(postcard::Error),
     UnknownClassName,
     UnknownClassPath,
+    InvalidClassPath,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]

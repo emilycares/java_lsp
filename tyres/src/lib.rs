@@ -18,6 +18,7 @@ pub enum TyresError {
     VariableNotFound(String),
     NotImported(String),
     CallChainInvalid(Vec<CallItem>),
+    CallChainEmtpy,
 }
 
 #[derive(Debug, Clone)]
@@ -169,6 +170,9 @@ pub fn resolve_call_chain(
     class: &Class,
     class_map: &DashMap<String, Class>,
 ) -> Result<ResolveState, TyresError> {
+    if call_chain.is_empty() {
+        return Err(TyresError::CallChainEmtpy);
+    }
     let mut ops: Vec<ResolveState> = vec![];
     for item in call_chain {
         let op = call_chain_op(item, &ops, lo_va, imports, class, class_map);
@@ -191,14 +195,13 @@ pub fn resolve_call_chain_to_point(
     class_map: &DashMap<String, Class>,
     point: &Point,
 ) -> Result<ResolveState, TyresError> {
+    if call_chain.is_empty() {
+        return Err(TyresError::CallChainEmtpy);
+    }
     let mut ops: Vec<ResolveState> = vec![];
-    let mut next = true;
     for item in call_chain {
-        if !next {
-            break;
-        }
         if is_point_in_range(point, item.get_range()) {
-            next = false;
+            break;
         }
         let op = call_chain_op(item, &ops, lo_va, imports, class, class_map);
         if let Ok(op) = op {
@@ -263,9 +266,11 @@ fn call_chain_op(
             active_param,
             filled_params,
         } => {
-            if let Some(current_param) = filled_params.get(*active_param) {
-                if !current_param.is_empty() {
-                    return resolve_call_chain(current_param, lo_va, imports, class, class_map);
+            if let Some(active_param) = active_param {
+                if let Some(current_param) = filled_params.get(*active_param) {
+                    if !current_param.is_empty() {
+                        return resolve_call_chain(current_param, lo_va, imports, class, class_map);
+                    }
                 }
             }
             resolve_call_chain(prev, lo_va, imports, class, class_map)

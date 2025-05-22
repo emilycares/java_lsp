@@ -48,6 +48,9 @@ pub fn get_signature(
     else {
         return Err(SignatureError::NotAnArgumentList);
     };
+    let Some(active_param) = active_param else {
+        return Err(SignatureError::NotAnArgumentList);
+    };
     let Some(CallItem::MethodCall {
         name: method_name,
         range: _,
