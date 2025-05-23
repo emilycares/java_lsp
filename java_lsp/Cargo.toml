@@ -1,0 +1,17 @@
+[package]
+name = "java_lsp"
+version.workspace = true
+edition.workspace = true
+readme.workspace = true
+license.workspace = true
+
+[dependencies]
+clap.workspace = true
+tokio.workspace = true
+document = { path = "../document" }
+variables = { path = "../variables" }
+cli = { path = "../cli" }
+server = { path = "../server" }
+common = { path = "../common" }
+format = { path = "../format" }
+

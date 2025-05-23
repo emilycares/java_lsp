@@ -11,8 +11,8 @@ use tyres::TyresError;
 use variables::LocalVariable;
 
 use crate::{
-    hover::{class_action, ClassActionError},
     Document,
+    hover::{ClassActionError, class_action},
 };
 
 #[derive(Debug)]
@@ -156,7 +156,7 @@ pub fn call_chain_definition(
             }
             Err(DefinitionError::ArgumentNotFound)
         }
-        Some(a) => unimplemented!("call_chain_definition {:?}", a),
+        Some(a) => unimplemented!("call_chain_definition {a:?}"),
         None => Err(DefinitionError::ValidatedItemDoesNotExists),
     }
 }

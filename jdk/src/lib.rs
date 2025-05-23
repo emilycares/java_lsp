@@ -90,7 +90,7 @@ async fn load_jdk(java_path: PathBuf, op_dir: PathBuf) -> Result<ClassFolder, Jd
     if jmod_executable.exists() {
         return load_jmods(java_path, op_dir, jmod_executable).await;
     }
-    eprintln!("There is no jmod in your jdk: {:?}", &java_path);
+    eprintln!("There is no jmod in your jdk: {java_path:?}");
     load_old(java_path, op_dir).await
 }
 
@@ -184,7 +184,7 @@ async fn load_jmods(
     let jmods_dir = Arc::new(jmods_dir);
 
     match fs::read_dir(jmods) {
-        Err(e) => eprintln!("error reading dir {:?}", e),
+        Err(e) => eprintln!("error reading dir {e:?}"),
         Ok(jmods) => {
             for jmod in jmods {
                 let class_folder = class_folder.clone();
@@ -219,7 +219,7 @@ async fn load_jmods(
                                     Ok(_r) => {
                                         eprintln!("Extracted jdk jmod: {}", &jmod_display);
                                     }
-                                    Err(e) => eprintln!("Error with jmod extraction {:?}", e),
+                                    Err(e) => eprintln!("Error with jmod extraction {e:?}"),
                                 };
                             }
                             let classes_folder = jmod_dir.join("classes");
@@ -260,7 +260,7 @@ fn unzip_to_dir(dir: &PathBuf, zip: &PathBuf) -> Result<(), JdkError> {
         if let Ok(data) = fs::read(zip) {
             let res = zip_extract::extract(Cursor::new(data), dir, false);
             if let Err(e) = res {
-                eprintln!("Unable to unzip: {:?}, {e}", &zip);
+                eprintln!("Unable to unzip: {zip:?}, {e}");
             }
         }
     }

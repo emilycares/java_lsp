@@ -11,18 +11,20 @@ async fn main() {
         Some(Commands::Format { path: None }) => todo!(),
         Some(Commands::Format { path: Some(path) }) => {
             match format::format_op(format::Formatter::Topiary { path }) {
-                Ok(_) => {
+                Ok(()) => {
                     println!("Replaced file");
                 }
                 Err(e) => {
-                    eprintln!("There was an error with formatting: {:?}", e);
+                    eprintln!("There was an error with formatting: {e:?}");
                     process::exit(1)
                 }
             }
         }
         Some(Commands::Server) | None => {
-            std::env::set_var("RUST_BACKTRACE", "1");
-            let _ = server::main().await;
+            unsafe {
+                std::env::set_var("RUST_BACKTRACE", "1");
+            };
+            let _ = server::main();
         }
     }
 }

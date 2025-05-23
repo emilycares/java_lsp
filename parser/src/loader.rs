@@ -1,7 +1,7 @@
 use std::{
     fs::{self, OpenOptions},
     io::Write,
-    path::{Path, MAIN_SEPARATOR},
+    path::{MAIN_SEPARATOR, Path},
 };
 
 use crate::{
@@ -89,7 +89,7 @@ pub fn load_java_files(paths: Vec<String>) -> dto::ClassFolder {
                 match load_java_fs(p.as_str(), SourceDestination::Here(p.as_str().to_string())) {
                     Ok(c) => Some(c),
                     Err(e) => {
-                        eprintln!("Unable to load java: {}: {:?}", p, e);
+                        eprintln!("Unable to load java: {p}: {e:?}");
                         None
                     }
                 }
@@ -147,13 +147,13 @@ pub async fn load_classes_jar<P: AsRef<Path>>(
             .map_err(ParserLoaderError::Zip)?;
         let mut buf = vec![];
         if let Err(e) = entry_reader.read_to_end_checked(&mut buf).await {
-            eprintln!("Unable to read file in zip: {} {:?}", file_name, e);
+            eprintln!("Unable to read file in zip: {file_name} {e:?}");
             continue;
         }
         match load_class(buf.as_slice(), class_path.to_string(), source.clone()) {
             Ok(c) => classes.push(c),
             Err(e) => {
-                eprintln!("Unable to load class: {} {:?}", file_name, e);
+                eprintln!("Unable to load class: {file_name} {e:?}");
             }
         }
     }
@@ -178,7 +178,7 @@ pub fn load_classes<P: AsRef<Path>>(path: P, source: SourceDestination) -> dto::
                 match load_class_fs(p.as_str(), class_path.to_string(), source.clone()) {
                     Ok(c) => Some(c),
                     Err(e) => {
-                        eprintln!("Unable to load class: {}: {:?}", p, e);
+                        eprintln!("Unable to load class: {p}: {e:?}");
                         None
                     }
                 }

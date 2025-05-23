@@ -8,7 +8,7 @@ use parser::{
     java::parse_jtype,
 };
 use tree_sitter::{Point, Tree};
-use tree_sitter_util::{lsp::to_lsp_position, CommentSkiper};
+use tree_sitter_util::{CommentSkiper, lsp::to_lsp_position};
 use tyres::TyresError;
 use variables::LocalVariable;
 

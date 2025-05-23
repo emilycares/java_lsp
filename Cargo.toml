@@ -1,7 +1,12 @@
-[package]
-name = "java_lsp"
+[workspace.package]
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
+authors = ["emilycares"]
+homepage = "https://github.com/emilycares/java_lsp"
+repository = "https://github.com/emilycares/java_lsp"
+documentation = "https://github.com/emilycares/java_lsp"
+readme = "README.md"
+license = "GPL 3"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -24,7 +29,9 @@ members = [
     "tyres",
     "position",
     "imports",
+    "java_lsp",
 ]
+resolver = "3"
 
 [workspace.dependencies]
 clap = { version = "4", features = ["derive"] }
@@ -61,13 +68,3 @@ streaming-iterator = "0.1.9"
 itertools = "0.14.0"
 parking_lot = "0.12.3"
 rayon = "1.10"
-
-[dependencies]
-clap.workspace = true
-tokio.workspace = true
-document = { path = "./document" }
-variables = { path = "./variables" }
-cli = { path = "./cli" }
-server = { path = "./server" }
-common = { path = "./common" }
-format = { path = "./format" }

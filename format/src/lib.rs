@@ -5,9 +5,9 @@ use std::{
     process::Command,
 };
 
-use config::{FormatterConfig, CONFIG};
-use topiary_config::{error::TopiaryConfigFetchingError, Configuration};
-use topiary_core::{formatter, FormatterError, Language, Operation, TopiaryQuery};
+use config::{CONFIG, FormatterConfig};
+use topiary_config::{Configuration, error::TopiaryConfigFetchingError};
+use topiary_core::{FormatterError, Language, Operation, TopiaryQuery, formatter};
 
 #[derive(Debug)]
 pub enum FormatError {
@@ -47,7 +47,7 @@ fn intelij(path: PathBuf) -> Result<(), FormatError> {
             .output()
         {
             Ok(_r) => eprintln!("Intelij format ok"),
-            Err(e) => eprintln!("Intelij format error: {:?}", e),
+            Err(e) => eprintln!("Intelij format error: {e:?}"),
         }
     });
 

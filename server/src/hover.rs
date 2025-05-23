@@ -1,4 +1,4 @@
-use call_chain::{self, class_or_variable, CallItem};
+use call_chain::{self, CallItem, class_or_variable};
 use document::Document;
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
 use parser::dto::{self, ImportUnit};
@@ -35,7 +35,7 @@ pub fn base(
             return Ok(class_to_hover(class, range));
         }
         Err(ClassActionError::NotFound) => {}
-        Err(e) => eprintln!("class action hover error: {:?}", e),
+        Err(e) => eprintln!("class action hover error: {e:?}"),
     };
     let Some(class) = class_map.get(&document.class_path) else {
         return Err(HoverError::NoClass(document.class_path.clone()));

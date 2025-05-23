@@ -64,7 +64,7 @@ pub fn class_path(
                 |(lookup, range)| match definition::class_to_uri(lookup.value()) {
                     Ok(u) => Some((u, range)),
                     Err(e) => {
-                        eprintln!("Referneces Uri error {:?}", e);
+                        eprintln!("Referneces Uri error {e:?}");
                         None
                     }
                 },
@@ -143,7 +143,7 @@ pub fn call_chain_references(
             }
             Err(ReferencesError::ArgumentNotFound)
         }
-        Some(a) => unimplemented!("call_chain_references {:?}", a),
+        Some(a) => unimplemented!("call_chain_references {a:?}"),
         None => Err(ReferencesError::ValidatedItemDoesNotExists),
     }
 }
@@ -183,7 +183,7 @@ fn method_references(
     }
 }
 
-pub async fn init_refernece_map(
+pub fn init_refernece_map(
     project_classes: &[Class],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
     reference_map: &dashmap::DashMap<String, Vec<ReferenceUnit>>,

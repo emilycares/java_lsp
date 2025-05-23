@@ -86,7 +86,7 @@ fn parse_tree(inp: String) -> Vec<Dependency> {
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use crate::tree::{parse_tree, Dependency};
+    use crate::tree::{Dependency, parse_tree};
 
     #[test]
     fn parse_diagram() {

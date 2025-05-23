@@ -3,8 +3,8 @@ use std::{
     io::Cursor,
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicUsize, Ordering},
     },
 };
 
@@ -18,8 +18,8 @@ use parser::{
 use tokio::process::Command;
 
 use crate::{
-    tree::{self, Pom},
     EXECUTABLE_MAVEN,
+    tree::{self, Pom},
 };
 
 // New plan for resolving sources from mavnen classes and sources
@@ -135,7 +135,7 @@ pub async fn fetch_deps(
                         class_map.insert(class.class_path.clone(), class);
                     }
                 }
-                Err(e) => eprintln!("Parse error in {:?}, {:?}", dep, e),
+                Err(e) => eprintln!("Parse error in {dep:?}, {e:?}"),
             }
         }));
     }
@@ -193,7 +193,7 @@ fn extract_jar(jar: PathBuf, source_dir: &Path) {
     if let Ok(data) = fs::read(&jar) {
         let res = zip_extract::extract(Cursor::new(data), source_dir, false);
         if let Err(e) = res {
-            eprintln!("Unable to unzip: {:?}, {e}", jar);
+            eprintln!("Unable to unzip: {jar:?}, {e}");
         }
     }
 }
@@ -248,7 +248,12 @@ mod tests {
         };
         let out = pom_sources_jar(&pom, Path::new("~/.m2/"));
 
-        assert_eq!(out, PathBuf::from("~/.m2/repository/io/quarkus/quarkus-resteasy-reactive/3.7.2/quarkus-resteasy-reactive-3.7.2-sources.jar"));
+        assert_eq!(
+            out,
+            PathBuf::from(
+                "~/.m2/repository/io/quarkus/quarkus-resteasy-reactive/3.7.2/quarkus-resteasy-reactive-3.7.2-sources.jar"
+            )
+        );
     }
 
     #[test]
@@ -261,6 +266,11 @@ mod tests {
         };
         let out = pom_javadoc_jar(&pom, Path::new("~/.m2/"));
 
-        assert_eq!(out, PathBuf::from("~/.m2/repository/io/quarkus/quarkus-resteasy-reactive/3.7.2/quarkus-resteasy-reactive-3.7.2-javadoc.jar"));
+        assert_eq!(
+            out,
+            PathBuf::from(
+                "~/.m2/repository/io/quarkus/quarkus-resteasy-reactive/3.7.2/quarkus-resteasy-reactive-3.7.2-javadoc.jar"
+            )
+        );
     }
 }

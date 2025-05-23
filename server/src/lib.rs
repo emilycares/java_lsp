@@ -12,23 +12,19 @@ use std::sync::Arc;
 
 use call_chain::get_call_chain;
 use codeaction::CodeActionContext;
-use common::project_kind::ProjectKind;
 use common::TaskProgress;
+use common::project_kind::ProjectKind;
 use compile::CompileError;
 use dashmap::{DashMap, DashSet};
-use definition::{source_to_uri, DefinitionContext};
+use definition::{DefinitionContext, source_to_uri};
 use document::{ClassSource, Document};
 use hover::class_action;
 use lsp_types::request::{References, SignatureHelpRequest};
 use lsp_types::{
-    notification::{
-        DidChangeTextDocument, DidOpenTextDocument, DidSaveTextDocument, Notification, Progress,
-        PublishDiagnostics,
-    },
-    request::{
-        CodeActionRequest, Completion, DocumentSymbolRequest, Formatting, GotoDefinition,
-        HoverRequest, Request, WorkspaceSymbolRequest,
-    },
+    ClientCapabilities, Location, ReferenceParams, SymbolInformation, WorkDoneProgress,
+    WorkDoneProgressReport,
+};
+use lsp_types::{
     CodeActionKind, CodeActionOptions, CodeActionParams, CodeActionProviderCapability,
     CodeActionResponse, CompletionOptions, CompletionParams, CompletionResponse, Diagnostic,
     DidChangeTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
@@ -39,10 +35,14 @@ use lsp_types::{
     TextDocumentContentChangeEvent, TextDocumentItem, TextDocumentSyncCapability,
     TextDocumentSyncKind, TextEdit, Uri, WorkDoneProgressBegin, WorkDoneProgressEnd,
     WorkspaceSymbolParams, WorkspaceSymbolResponse,
-};
-use lsp_types::{
-    ClientCapabilities, Location, ReferenceParams, SymbolInformation, WorkDoneProgress,
-    WorkDoneProgressReport,
+    notification::{
+        DidChangeTextDocument, DidOpenTextDocument, DidSaveTextDocument, Notification, Progress,
+        PublishDiagnostics,
+    },
+    request::{
+        CodeActionRequest, Completion, DocumentSymbolRequest, Formatting, GotoDefinition,
+        HoverRequest, Request, WorkspaceSymbolRequest,
+    },
 };
 use parking_lot::Mutex;
 use parser::dto::Class;
@@ -52,10 +52,10 @@ use references::{ReferenceUnit, ReferencesContext};
 use lsp_server::{Connection, Message, Response};
 use tree_sitter_util::lsp::to_treesitter_point;
 
-pub async fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
+pub fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
     let (connection, io_threads) = Connection::stdio();
     let project_kind = common::project_kind::get_project_kind();
-    eprintln!("Start java_lsp with project_kind: {:?}", project_kind);
+    eprintln!("Start java_lsp with project_kind: {project_kind:?}");
     let backend = Backend {
         connection: Arc::new(connection),
         error_files: DashSet::new(),
@@ -103,7 +103,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
     };
     let params: InitializeParams =
         serde_json::from_value(initialization_params.clone()).unwrap_or_default();
-    main_loop(backend, params).await?;
+    main_loop(backend, params)?;
     io_threads.join()?;
 
     // Shut down gracefully.
@@ -111,7 +111,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
     Ok(())
 }
 
-async fn main_loop(
+fn main_loop(
     mut backend: Backend,
     params: InitializeParams,
 ) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
@@ -133,7 +133,7 @@ async fn main_loop(
                 match req.method.as_str() {
                     HoverRequest::METHOD => {
                         if let Ok(params) = serde_json::from_value::<HoverParams>(req.params) {
-                            let result = backend.hover(params).await;
+                            let result = backend.hover(params);
                             let _ = backend.connection.sender.send(Message::Response(Response {
                                 id: req.id,
                                 result: serde_json::to_value(result).ok(),
@@ -145,7 +145,7 @@ async fn main_loop(
                         if let Ok(params) =
                             serde_json::from_value::<DocumentFormattingParams>(req.params)
                         {
-                            let result = backend.formatting(params).await;
+                            let result = backend.formatting(params);
                             let _ = backend.connection.sender.send(Message::Response(Response {
                                 id: req.id,
                                 result: serde_json::to_value(result).ok(),
@@ -157,7 +157,7 @@ async fn main_loop(
                         if let Ok(params) =
                             serde_json::from_value::<GotoDefinitionParams>(req.params)
                         {
-                            let result = backend.goto_definition(params).await;
+                            let result = backend.goto_definition(params);
                             let _ = backend.connection.sender.send(Message::Response(Response {
                                 id: req.id,
                                 result: serde_json::to_value(result).ok(),
@@ -167,7 +167,7 @@ async fn main_loop(
                     }
                     Completion::METHOD => {
                         if let Ok(params) = serde_json::from_value::<CompletionParams>(req.params) {
-                            let result = backend.completion(params).await;
+                            let result = backend.completion(params);
                             let _ = backend.connection.sender.send(Message::Response(Response {
                                 id: req.id,
                                 result: serde_json::to_value(result).ok(),
@@ -177,7 +177,7 @@ async fn main_loop(
                     }
                     References::METHOD => {
                         if let Ok(params) = serde_json::from_value::<ReferenceParams>(req.params) {
-                            let result = backend.referneces(params).await;
+                            let result = backend.referneces(params);
                             let _ = backend.connection.sender.send(Message::Response(Response {
                                 id: req.id,
                                 result: serde_json::to_value(result).ok(),
@@ -187,7 +187,7 @@ async fn main_loop(
                     }
                     CodeActionRequest::METHOD => {
                         if let Ok(params) = serde_json::from_value::<CodeActionParams>(req.params) {
-                            let result = backend.code_action(params).await;
+                            let result = backend.code_action(params);
                             let _ = backend.connection.sender.send(Message::Response(Response {
                                 id: req.id,
                                 result: serde_json::to_value(result).ok(),
@@ -199,7 +199,7 @@ async fn main_loop(
                         if let Ok(params) =
                             serde_json::from_value::<DocumentSymbolParams>(req.params)
                         {
-                            let result = backend.document_symbol(params).await;
+                            let result = backend.document_symbol(params);
                             let _ = backend.connection.sender.send(Message::Response(Response {
                                 id: req.id,
                                 result: serde_json::to_value(result).ok(),
@@ -211,7 +211,7 @@ async fn main_loop(
                         if let Ok(params) =
                             serde_json::from_value::<WorkspaceSymbolParams>(req.params)
                         {
-                            let result = backend.workspace_document_symbol(params).await;
+                            let result = backend.workspace_document_symbol(&params);
                             let _ = backend.connection.sender.send(Message::Response(Response {
                                 id: req.id,
                                 result: serde_json::to_value(result).ok(),
@@ -223,7 +223,7 @@ async fn main_loop(
                         if let Ok(params) =
                             serde_json::from_value::<SignatureHelpParams>(req.params)
                         {
-                            let result = backend.signature_help(params).await;
+                            let result = backend.signature_help(params);
                             let _ = backend.connection.sender.send(Message::Response(Response {
                                 id: req.id,
                                 result: serde_json::to_value(result).ok(),
@@ -257,7 +257,7 @@ async fn main_loop(
                         if let Ok(params) =
                             serde_json::from_value::<DidSaveTextDocumentParams>(not.params)
                         {
-                            backend.did_save(params).await;
+                            backend.did_save(params);
                         }
                     }
                     _ => {}
@@ -303,11 +303,11 @@ impl Backend {
                             self.document_map.insert(key, doc);
                         }
                         Err(e) => {
-                            eprintln!("Failed to setup document: {:?}", e);
+                            eprintln!("Failed to setup document: {e:?}");
                         }
                     }
                 }
-                Err(e) => eprintln!("Got error parsing document {}, {:?}", ipath, e),
+                Err(e) => eprintln!("Got error parsing document {ipath}, {e:?}"),
             }
         }
     }
@@ -364,10 +364,7 @@ impl Backend {
         message: String,
         percentage: Option<u32>,
     ) {
-        eprintln!(
-            "Report progress on: {} {:?} status: {}",
-            task, percentage, message
-        );
+        eprintln!("Report progress on: {task} {percentage:?} status: {message}");
         if let Ok(params) = serde_json::to_value(ProgressParams {
             token: ProgressToken::String(task),
             value: ProgressParamsValue::WorkDone(WorkDoneProgress::Report(
@@ -425,7 +422,7 @@ impl Backend {
         vec![]
     }
 
-    async fn publish_compile_errors(&self, errors: Vec<CompileError>) {
+    fn publish_compile_errors(&self, errors: Vec<CompileError>) {
         let mut emap = HashMap::<String, Vec<CompileError>>::new();
         for e in errors {
             self.error_files.insert(e.path.clone());
@@ -509,9 +506,9 @@ impl Backend {
             "Initializing reference map".to_string(),
             None,
         );
-        match references::init_refernece_map(&project_classes, &class_map, &reference_map).await {
+        match references::init_refernece_map(&project_classes, &class_map, &reference_map) {
             Ok(_) => (),
-            Err(e) => eprintln!("Got reference error: {:?}", e),
+            Err(e) => eprintln!("Got reference error: {e:?}"),
         }
         Backend::progress_update_persentage(
             con.clone(),
@@ -540,13 +537,13 @@ impl Backend {
         self.on_change(params.text_document.uri.to_string(), params.content_changes);
     }
 
-    async fn did_save(&self, params: DidSaveTextDocumentParams) {
+    fn did_save(&self, params: DidSaveTextDocumentParams) {
         #[allow(unused_mut)]
         let mut path = params.text_document.uri.path();
         // The path on windows should not look like this: /C:/asdas remove the leading slash
 
         let errors = self.compile(path.as_str());
-        self.publish_compile_errors(errors).await;
+        self.publish_compile_errors(errors);
 
         let Some(mut document) = self.document_map.get_mut(params.text_document.uri.as_str())
         else {
@@ -563,15 +560,15 @@ impl Backend {
                     &self.reference_map,
                 ) {
                     Ok(_) => {}
-                    Err(e) => eprintln!("Got reference error: {:?}", e),
+                    Err(e) => eprintln!("Got reference error: {e:?}"),
                 };
                 self.class_map.insert(class_path, class);
             }
-            Err(e) => eprintln!("Save file parse error {:?}", e),
+            Err(e) => eprintln!("Save file parse error {e:?}"),
         }
     }
 
-    async fn hover(&self, params: HoverParams) -> Option<Hover> {
+    fn hover(&self, params: HoverParams) -> Option<Hover> {
         let uri = params.text_document_position_params.text_document.uri;
         let document = self.document_map.get_mut(uri.as_str())?;
         let point = to_treesitter_point(params.text_document_position_params.position);
@@ -579,7 +576,7 @@ impl Backend {
         let vars = match variables::get_vars(document.value(), &point) {
             Ok(v) => Some(v),
             Err(e) => {
-                eprintln!("Could not get vars: {:?}", e);
+                eprintln!("Could not get vars: {e:?}");
                 None
             }
         }?;
@@ -593,7 +590,7 @@ impl Backend {
         }
     }
 
-    async fn formatting(&self, params: DocumentFormattingParams) -> Option<Vec<TextEdit>> {
+    fn formatting(&self, params: DocumentFormattingParams) -> Option<Vec<TextEdit>> {
         let uri = params.text_document.uri;
         let Some(mut document) = self.document_map.get_mut(uri.as_str()) else {
             eprintln!("Document is not opened.");
@@ -601,11 +598,11 @@ impl Backend {
         };
         let lines = document.text.lines().len();
         if let Err(e) = format::format(document.path.clone()) {
-            eprintln!("Formatter error: {:?}", e);
+            eprintln!("Formatter error: {e:?}");
             return None;
         }
         if let Err(e) = document.reload_file_from_disk() {
-            eprintln!("Formatter unable to reload from disk: {:?}", e);
+            eprintln!("Formatter unable to reload from disk: {e:?}");
             return None;
         }
 
@@ -616,7 +613,7 @@ impl Backend {
         )])
     }
 
-    async fn completion(&self, params: CompletionParams) -> Option<CompletionResponse> {
+    fn completion(&self, params: CompletionParams) -> Option<CompletionResponse> {
         let params = params.text_document_position;
         let uri = params.text_document.uri;
         let Some(document) = self.document_map.get_mut(uri.as_str()) else {
@@ -628,7 +625,7 @@ impl Backend {
         let vars = match variables::get_vars(document.value(), &point) {
             Ok(v) => Some(v),
             Err(e) => {
-                eprintln!("Could not get vars: {:?}", e);
+                eprintln!("Could not get vars: {e:?}");
                 None
             }
         }?;
@@ -679,10 +676,7 @@ impl Backend {
         Some(CompletionResponse::Array(out))
     }
 
-    async fn goto_definition(
-        &self,
-        params: GotoDefinitionParams,
-    ) -> Option<GotoDefinitionResponse> {
+    fn goto_definition(&self, params: GotoDefinitionParams) -> Option<GotoDefinitionResponse> {
         let params = params.text_document_position_params;
         let uri = params.text_document.uri;
         let Some(document) = self.document_map.get_mut(uri.as_str()) else {
@@ -695,7 +689,7 @@ impl Backend {
         let vars = match variables::get_vars(document.value(), &point) {
             Ok(v) => Some(v),
             Err(e) => {
-                eprintln!("Could not get vars: {:?}", e);
+                eprintln!("Could not get vars: {e:?}");
                 None
             }
         }?;
@@ -733,7 +727,7 @@ impl Backend {
         None
     }
 
-    async fn referneces(&self, params: ReferenceParams) -> Option<Vec<Location>> {
+    fn referneces(&self, params: ReferenceParams) -> Option<Vec<Location>> {
         let params = params.text_document_position;
         let uri = params.text_document.uri;
         let Some(document) = self.document_map.get_mut(uri.as_str()) else {
@@ -745,7 +739,7 @@ impl Backend {
         let vars = match variables::get_vars(document.value(), &point) {
             Ok(v) => Some(v),
             Err(e) => {
-                eprintln!("Could not get vars: {:?}", e);
+                eprintln!("Could not get vars: {e:?}");
                 None
             }
         }?;
@@ -764,7 +758,7 @@ impl Backend {
                     return Some(value);
                 }
             }
-            Err(e) => eprintln!("Got refrence class error: {:?}", e),
+            Err(e) => eprintln!("Got refrence class error: {e:?}"),
         }
         let Some(call_chain) = get_call_chain(&document.tree, document.as_bytes(), &point) else {
             eprintln!("Defintion could not get callchain");
@@ -790,13 +784,13 @@ impl Backend {
         ) {
             Ok(refs) => Some(refs),
             Err(e) => {
-                eprintln!("Got refrence call_chain error: {:?}", e);
+                eprintln!("Got refrence call_chain error: {e:?}");
                 None
             }
         }
     }
 
-    async fn code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
+    fn code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
         let Some(document) = self.document_map.get_mut(params.text_document.uri.as_str()) else {
             eprintln!("Document is not opened.");
             return None;
@@ -814,7 +808,7 @@ impl Backend {
         let vars = match variables::get_vars(document.value(), &point) {
             Ok(v) => Some(v),
             Err(e) => {
-                eprintln!("Could not get vars: {:?}", e);
+                eprintln!("Could not get vars: {e:?}");
                 None
             }
         }?;
@@ -835,17 +829,14 @@ impl Backend {
             Ok(None) => (),
             Ok(Some(e)) => return Some(vec![e]),
             Err(e) => {
-                eprintln!("Got error code_action replace with value: {:?}", e);
+                eprintln!("Got error code_action replace with value: {e:?}");
             }
         }
 
         None
     }
 
-    async fn document_symbol(
-        &self,
-        params: DocumentSymbolParams,
-    ) -> Option<DocumentSymbolResponse> {
+    fn document_symbol(&self, params: DocumentSymbolParams) -> Option<DocumentSymbolResponse> {
         let Some(document) = self.document_map.get_mut(params.text_document.uri.as_str()) else {
             eprintln!("Document is not opened.");
             return None;
@@ -865,9 +856,10 @@ impl Backend {
         }
     }
 
-    async fn workspace_document_symbol(
+    #[allow(clippy::unnecessary_wraps)]
+    fn workspace_document_symbol(
         &self,
-        params: WorkspaceSymbolParams,
+        params: &WorkspaceSymbolParams,
     ) -> Option<WorkspaceSymbolResponse> {
         let files = match self.project_kind {
             ProjectKind::Maven => maven::project::get_paths(),
@@ -887,7 +879,7 @@ impl Backend {
                     i.clone(),
                     document::read_document_or_open_class(
                         &i,
-                        "".to_string(),
+                        String::new(),
                         &self.document_map,
                         uri.as_str(),
                     ),
@@ -914,14 +906,14 @@ impl Backend {
                             })
                             .collect(),
                         Err(e) => {
-                            eprintln!("Errors with workspace document symbol: {:?}", e);
+                            eprintln!("Errors with workspace document symbol: {e:?}");
                             vec![]
                         }
                     },
                 )
             })
             .filter_map(|(path, symbols)| {
-                let uri = Uri::from_str(&format!("file:///{}", path)).ok()?;
+                let uri = Uri::from_str(&format!("file:///{path}")).ok()?;
                 Some(position::symbols_to_document_symbols(symbols, uri))
             })
             .flatten()
@@ -929,7 +921,7 @@ impl Backend {
         Some(WorkspaceSymbolResponse::Flat(symbols))
     }
 
-    async fn signature_help(&self, params: SignatureHelpParams) -> Option<SignatureHelp> {
+    fn signature_help(&self, params: SignatureHelpParams) -> Option<SignatureHelp> {
         let uri = params.text_document_position_params.text_document.uri;
         let Some(document) = self.document_map.get_mut(uri.as_str()) else {
             eprintln!("Document is not opened.");
@@ -966,19 +958,20 @@ async fn read_forward(
             }
             let task = task.clone();
             let con = con.clone();
-            match i.error {
-                true => Backend::global_error(con, i.message.clone()),
-                false => Backend::progress_update_persentage_a(
+            if i.error {
+                Backend::global_error(con, i.message.clone());
+            } else {
+                Backend::progress_update_persentage_a(
                     con,
                     task,
                     i.message.clone(),
                     Some(i.persentage.try_into().unwrap()),
-                ),
-            };
+                );
+            }
         }
     })
     .await
-    .expect("asdf")
+    .expect("Forward failed");
 }
 
 async fn fetch_deps(

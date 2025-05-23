@@ -128,7 +128,7 @@ impl FromStr for DependencyScope {
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use crate::tree::{cut_output, parser, Dependency, DependencyScope, Pom};
+    use crate::tree::{Dependency, DependencyScope, Pom, cut_output, parser};
 
     #[test]
     fn cut_basic() {

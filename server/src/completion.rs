@@ -6,7 +6,7 @@ use tree_sitter::{Point, Tree};
 use tree_sitter_util::{get_node_at_point, get_string_node};
 use variables::LocalVariable;
 
-use crate::{codeaction, Document};
+use crate::{Document, codeaction};
 
 #[derive(Debug)]
 pub enum CompletionError {
@@ -340,8 +340,8 @@ mod tests {
     use variables::LocalVariable;
 
     use crate::{
-        completion::{classes, complete_call_chain, Snippet},
         Document,
+        completion::{Snippet, classes, complete_call_chain},
     };
 
     use super::method_snippet;

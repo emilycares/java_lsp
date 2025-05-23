@@ -3,8 +3,8 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
     sync::{
-        atomic::{AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicUsize, Ordering},
     },
 };
 
@@ -74,7 +74,7 @@ pub async fn fetch_deps(
 
         for jar in jars {
             if !jar.exists() {
-                eprintln!("jar does not exist {:?}", jar);
+                eprintln!("jar does not exist {jar:?}");
                 continue;
             }
             let class_map = class_map.clone();
@@ -100,7 +100,7 @@ pub async fn fetch_deps(
                             class_map.insert(class.class_path.clone(), class);
                         }
                     }
-                    Err(e) => eprintln!("Error loading graddle jar {:?}", e),
+                    Err(e) => eprintln!("Error loading graddle jar {e:?}"),
                 }
             }));
         }

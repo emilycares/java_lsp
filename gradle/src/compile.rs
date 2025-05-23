@@ -1,6 +1,6 @@
 use std::process::Command;
 
-use compile::{parse_compile_errors, CompileError};
+use compile::{CompileError, parse_compile_errors};
 
 use crate::fetch::PATH_GRADLE;
 
