@@ -24,7 +24,8 @@ impl Document {
     pub fn reload_file_from_disk(&mut self) -> Result<(), DocumentError> {
         let text = fs::read_to_string(&self.path).map_err(DocumentError::Io)?;
         self.text = ropey::Rope::from_str(&text);
-        self.reparse();
+        self.str_data = text;
+        self.reparse(false);
         Ok(())
     }
     pub fn setup_read(path: PathBuf, class_path: String) -> Result<Self, DocumentError> {
@@ -64,7 +65,7 @@ impl Document {
 
     pub fn replace_text(&mut self, text: Rope) {
         self.text = text;
-        self.reparse();
+        self.reparse(true);
     }
 
     pub fn apply_text_changes(&mut self, changes: &Vec<TextDocumentContentChangeEvent>) {
@@ -104,10 +105,12 @@ impl Document {
                 self.text = Rope::from_str(&change.text);
             }
         }
-        self.reparse();
+        self.reparse(true);
     }
-    fn reparse(&mut self) {
-        self.str_data = self.text.to_string();
+    fn reparse(&mut self, update_str: bool) {
+        if update_str {
+            self.str_data = self.text.to_string();
+        }
         let bytes = self.str_data.as_bytes();
         // Reusing the previous tree causes issues
         if let Some(ntree) = self.parser.parse(bytes, None) {

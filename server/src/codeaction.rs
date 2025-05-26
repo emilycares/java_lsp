@@ -43,7 +43,8 @@ pub fn replace_with_value_type(
     let mut cursor = node.walk();
     cursor.first_child();
     let current_type_range = cursor.node().range();
-    let current_type = parse_jtype(&cursor.node(), bytes).map_err(CodeActionError::ParseJava)?;
+    let current_type =
+        parse_jtype(&cursor.node(), bytes, &vec![]).map_err(CodeActionError::ParseJava)?;
     cursor.sibling();
     cursor.first_child();
     cursor.sibling();

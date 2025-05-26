@@ -164,7 +164,7 @@ fn get_class_vars(
                 let name = get_string(&cursor, bytes);
                 out.push(LocalVariable {
                     level,
-                    jtype: parse_jtype(&ty, bytes).map_err(VariablesError::Parse)?,
+                    jtype: parse_jtype(&ty, bytes, &vec![]).map_err(VariablesError::Parse)?,
                     name,
                     is_fun: true,
                     range: cursor.node().range(),
@@ -191,7 +191,7 @@ fn parse_variable(
 ) -> Result<LocalVariable, VariablesError> {
     Ok(LocalVariable {
         level,
-        jtype: parse_jtype(ty, bytes).map_err(VariablesError::Parse)?,
+        jtype: parse_jtype(ty, bytes, &vec![]).map_err(VariablesError::Parse)?,
         name,
         is_fun: false,
         range,
@@ -348,7 +348,7 @@ fn parse_resource(
     let name = get_string(cursor, bytes);
     out.push(LocalVariable {
         level,
-        jtype: parse_jtype(&ty, bytes).map_err(VariablesError::Parse)?,
+        jtype: parse_jtype(&ty, bytes, &vec![]).map_err(VariablesError::Parse)?,
         name,
         is_fun: false,
         range: cursor.node().range(),
@@ -406,7 +406,7 @@ fn parse_catch(
     let name = get_string(cursor, bytes);
     out.push(LocalVariable {
         level,
-        jtype: parse_jtype(&ty, bytes).map_err(VariablesError::Parse)?,
+        jtype: parse_jtype(&ty, bytes, &vec![]).map_err(VariablesError::Parse)?,
         name,
         is_fun: false,
         range: cursor.node().range(),

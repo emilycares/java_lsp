@@ -191,7 +191,7 @@ fn parse_superclass(
     imports: &[ImportUnit],
     cursor: &tree_sitter::TreeCursor<'_>,
 ) -> Result<dto::SuperClass, ParseJavaError> {
-    Ok(match parse_jtype(&cursor.node(), bytes)? {
+    Ok(match parse_jtype(&cursor.node(), bytes, &vec![])? {
         dto::JType::Class(c) | dto::JType::Generic(c, _) => match imports
             .iter()
             .find_map(|a| a.get_imported_class_package(&c))
@@ -266,11 +266,16 @@ fn parse_interface_method(
     if cursor.node().kind() == "modifiers" {
         cursor.sibling();
     }
-    let jtype = parse_jtype(&cursor.node(), bytes)?;
+    let mut type_parameters = vec![];
+    if cursor.node().kind() == "type_parameters" {
+        parse_type_parameters(cursor, bytes, &mut type_parameters)?;
+        cursor.sibling();
+    }
+    let jtype = parse_jtype(&cursor.node(), bytes, &type_parameters)?;
     cursor.sibling();
     let name = get_string(cursor, bytes).map_err(ParseJavaError::Utf8)?;
     cursor.sibling();
-    let parameters = parse_formal_parameters(cursor, bytes)?;
+    let parameters = parse_formal_parameters(cursor, bytes, &type_parameters)?;
     let mut method = dto::Method {
         access: vec![],
         name,
@@ -287,6 +292,19 @@ fn parse_interface_method(
     Ok(method)
 }
 
+fn parse_type_parameters(
+    cursor: &mut tree_sitter::TreeCursor<'_>,
+    bytes: &[u8],
+    type_parameters: &mut Vec<String>,
+) -> Result<(), ParseJavaError> {
+    cursor.first_child();
+    cursor.sibling();
+    let name = get_string(cursor, bytes).map_err(ParseJavaError::Utf8)?;
+    type_parameters.push(name);
+    cursor.parent();
+    Ok(())
+}
+
 fn parse_interface_constant(
     cursor: &mut tree_sitter::TreeCursor<'_>,
     bytes: &[u8],
@@ -295,7 +313,7 @@ fn parse_interface_constant(
     if cursor.node().kind() == "modifiers" {
         cursor.sibling();
     }
-    let jtype = parse_jtype(&cursor.node(), bytes)?;
+    let jtype = parse_jtype(&cursor.node(), bytes, &vec![])?;
     cursor.sibling();
     cursor.first_child();
     let name = get_string(cursor, bytes).map_err(ParseJavaError::Utf8)?;
@@ -331,7 +349,7 @@ fn parse_annotation_type_element_declaration(
 ) -> Result<dto::Field, ParseJavaError> {
     let mut cursor = node.walk();
     cursor.first_child();
-    let jtype = parse_jtype(&cursor.node(), bytes)?;
+    let jtype = parse_jtype(&cursor.node(), bytes, &vec![])?;
     cursor.sibling();
     Ok(dto::Field {
         access: vec![],
@@ -363,14 +381,16 @@ fn parse_method(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Result<dto::Method
             "identifier" => {
                 method.name = get_string(&cursor, bytes).map_err(ParseJavaError::Utf8)?
             }
-            "formal_parameters" => method.parameters = parse_formal_parameters(&mut cursor, bytes)?,
+            "formal_parameters" => {
+                method.parameters = parse_formal_parameters(&mut cursor, bytes, &vec![])?
+            }
             "block" => (),
             "type_parameters" => (),
             "throws" => {
                 method.throws = parse_throws(bytes, &mut cursor)?;
             }
             _ => {
-                method.ret = parse_jtype(&cursor.node(), bytes)?;
+                method.ret = parse_jtype(&cursor.node(), bytes, &vec![])?;
             }
         };
         if !cursor.sibling() {
@@ -391,7 +411,7 @@ fn parse_throws(
         if cursor.node().kind() == "," {
             continue;
         }
-        out.push(parse_jtype(&cursor.node(), bytes)?);
+        out.push(parse_jtype(&cursor.node(), bytes, &vec![])?);
     }
     cursor.parent();
     Ok(out)
@@ -421,7 +441,7 @@ fn parse_field(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Result<dto::Field, 
             }
             ";" => (),
             _ => {
-                field.jtype = parse_jtype(&cursor.node(), bytes)?;
+                field.jtype = parse_jtype(&cursor.node(), bytes, &vec![])?;
             }
         };
         if !cursor.sibling() {
@@ -449,6 +469,7 @@ fn parser_modifiers(input: String) -> Vec<dto::Access> {
 fn parse_formal_parameters(
     cursor: &mut tree_sitter::TreeCursor<'_>,
     bytes: &[u8],
+    type_parameters: &Vec<String>,
 ) -> Result<Vec<dto::Parameter>, ParseJavaError> {
     let mut out = vec![];
     cursor.first_child();
@@ -457,7 +478,10 @@ fn parse_formal_parameters(
             continue;
         }
         cursor.first_child();
-        let jtype = parse_jtype(&cursor.node(), bytes)?;
+        if cursor.node().kind() == "modifiers" {
+            cursor.sibling();
+        }
+        let jtype = parse_jtype(&cursor.node(), bytes, type_parameters)?;
 
         cursor.sibling();
         out.push(dto::Parameter {
@@ -477,6 +501,7 @@ fn get_string(cursor: &tree_sitter::TreeCursor<'_>, bytes: &[u8]) -> Result<Stri
 pub fn parse_jtype(
     node: &tree_sitter::Node<'_>,
     bytes: &[u8],
+    type_parameters: &Vec<String>,
 ) -> Result<dto::JType, ParseJavaError> {
     let text = node.utf8_text(bytes).map_err(ParseJavaError::Utf8)?;
     match (node.kind(), text) {
@@ -487,7 +512,14 @@ pub fn parse_jtype(
         ("integral_type", "char") => Ok(dto::JType::Char),
         ("floating_point_type", "double") => Ok(dto::JType::Double),
         ("floating_point_type", "float") => Ok(dto::JType::Float),
-        ("type_identifier", class) => Ok(dto::JType::Class(class.to_string())),
+        ("type_identifier", class) => {
+            let class = class.to_string();
+            if type_parameters.contains(&class) {
+                Ok(dto::JType::Parameter(class))
+            } else {
+                Ok(dto::JType::Class(class))
+            }
+        }
         ("scoped_type_identifier", class) => {
             Ok(dto::JType::Class(class.replace('.', "$").to_string()))
         }
@@ -496,14 +528,23 @@ pub fn parse_jtype(
         ("wildcard", "?") => Ok(dto::JType::Wildcard),
         ("wildcard", w) => {
             if let Some((_, c)) = w.rsplit_once(' ') {
-                return Ok(dto::JType::Class(c.to_string()));
+                let class = c.to_string();
+                if type_parameters.contains(&class) {
+                    return Ok(dto::JType::Parameter(class));
+                } else {
+                    return Ok(dto::JType::Class(class));
+                }
             }
             Err(ParseJavaError::UnknownWildcard(w.to_string()))
         }
         ("array_type", _) => {
             let mut cursor = node.walk();
             cursor.first_child();
-            let out = dto::JType::Array(Box::new(parse_jtype(&cursor.node(), bytes)?));
+            let out = dto::JType::Array(Box::new(parse_jtype(
+                &cursor.node(),
+                bytes,
+                type_parameters,
+            )?));
             Ok(out)
         }
         ("generic_type", _) => {
@@ -518,7 +559,7 @@ pub fn parse_jtype(
                 match cursor.node().kind() {
                     ">" | "," => (),
                     _ => {
-                        type_args.push(parse_jtype(&cursor.node(), bytes)?);
+                        type_args.push(parse_jtype(&cursor.node(), bytes, type_parameters)?);
                     }
                 };
                 if !cursor.sibling() {
@@ -788,7 +829,7 @@ public class Test {
     }
 
     #[test]
-    fn interface() {
+    fn interface_constants() {
         let result = load_java(
             include_bytes!("../test/Constants.java"),
             SourceDestination::RelativeInFolder("/path/to/source".to_string()),
@@ -853,6 +894,60 @@ public class Test {
                         source: None
                     }
                 ],
+                ..Default::default()
+            }
+        )
+    }
+
+    #[test]
+    fn interface_base() {
+        let result = load_java(
+            include_bytes!("../test/InterfaceBase.java"),
+            SourceDestination::RelativeInFolder("/path/to/source".to_string()),
+        );
+
+        assert_eq!(
+            result.unwrap(),
+            dto::Class {
+                class_path: "ch.emilycares.InterfaceBase".to_string(),
+                source: "/path/to/source/ch/emilycares/InterfaceBase.java".to_string(),
+                imports: vec![
+                    ImportUnit::Package("ch.emilycares".to_string()),
+                    ImportUnit::Class("java.util.function.IntFunction".to_string()),
+                    ImportUnit::Class("java.util.stream.Stream".to_string()),
+                ],
+                name: "InterfaceBase".to_string(),
+                methods: vec![
+                    dto::Method {
+                        access: vec![],
+                        name: "mapToObj".to_string(),
+                        parameters: vec![Parameter {
+                            name: Some("mapper".to_string()),
+                            jtype: JType::Generic(
+                                "IntFunction".to_string(),
+                                vec![JType::Parameter("U".to_string())]
+                            )
+                        }],
+                        throws: vec![],
+                        ret: JType::Generic(
+                            "Stream".to_string(),
+                            vec![JType::Parameter("U".to_string())]
+                        ),
+                        source: None
+                    },
+                    dto::Method {
+                        access: vec![],
+                        name: "a".to_string(),
+                        parameters: vec![Parameter {
+                            name: Some("arg".to_string()),
+                            jtype: JType::Parameter("A".to_string())
+                        }],
+                        throws: vec![],
+                        ret: JType::Parameter("A".to_string()),
+                        source: None
+                    },
+                ],
+                fields: vec![],
                 ..Default::default()
             }
         )

@@ -1,9 +1,4 @@
-use std::{
-    fs::File,
-    io::{BufReader, BufWriter, Write},
-    path::PathBuf,
-    process::Command,
-};
+use std::{fs::OpenOptions, io::BufReader, path::PathBuf, process::Command};
 
 use config::{CONFIG, FormatterConfig};
 use topiary_config::{Configuration, error::TopiaryConfigFetchingError};
@@ -69,13 +64,20 @@ fn topiary(path: PathBuf) -> Result<(), FormatError> {
         grammar,
         indent: Some("    ".to_string()),
     };
-    let f = File::open(&path).map_err(FormatError::IO)?;
+    let f = OpenOptions::new()
+        .read(true)
+        .open(&path)
+        .map_err(FormatError::IO)?;
     let mut reader = BufReader::new(f);
-    let f = File::open(&path).map_err(FormatError::IO)?;
-    let mut writer = BufWriter::new(f);
+    // let mut f = OpenOptions::new()
+    //     .truncate(true)
+    //     .write(true)
+    //     .open(path)
+    //     .map_err(FormatError::IO)?;
+    let mut out = Vec::new();
     formatter(
         &mut reader,
-        &mut writer,
+        &mut out,
         &language,
         Operation::Format {
             skip_idempotence: true,
@@ -83,6 +85,7 @@ fn topiary(path: PathBuf) -> Result<(), FormatError> {
         },
     )
     .map_err(FormatError::TopiaryFormatter)?;
-    writer.flush().map_err(FormatError::IO)?;
+    // f.write_all(&out).map_err(FormatError::IO)?;
+    // f.flush().map_err(FormatError::IO)?;
     Ok(())
 }

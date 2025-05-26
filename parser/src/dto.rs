@@ -157,6 +157,7 @@ pub enum JType {
     Class(String),
     Array(Box<JType>),
     Generic(String, Vec<JType>),
+    Parameter(String),
 }
 
 impl Display for JType {
@@ -187,6 +188,7 @@ impl Display for JType {
                     .join(", ");
                 write!(f, "{}<{}>", class, v)
             }
+            JType::Parameter(p) => write!(f, "<{}>", p),
         }
     }
 }

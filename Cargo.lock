@@ -352,9 +352,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.23"
+version = "1.2.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f4ac86a9e5bc1e2b3449ab9d7d3a6a405e3d1bb28d7b9be8614f55846ae3766"
+checksum = "16595d3be041c03b09d08d0858631facccee9221e579704070e6e9e4915d3bc7"
 dependencies = [
  "jobserver",
  "libc",
@@ -2124,11 +2124,10 @@ dependencies = [
 
 [[package]]
 name = "hyper-rustls"
-version = "0.27.5"
+version = "0.27.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d191583f3da1305256f22463b9bb0471acad48a4e534a5218b9963e9c1f59b2"
+checksum = "03a01595e11bdcec50946522c32dde3fc6914743000a68b93000965f2f02406d"
 dependencies = [
- "futures-util",
  "http",
  "hyper",
  "hyper-util",
@@ -2137,7 +2136,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tower-service",
- "webpki-roots 0.26.11",
+ "webpki-roots 1.0.0",
 ]
 
 [[package]]
@@ -2502,9 +2501,9 @@ dependencies = [
 
 [[package]]
 name = "lalrpop"
-version = "0.22.1"
+version = "0.22.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7047a26de42016abf8f181b46b398aef0b77ad46711df41847f6ed869a2a1d5b"
+checksum = "ba4ebbd48ce411c1d10fb35185f5a51a7bfa3d8b24b4e330d30c9e3a34129501"
 dependencies = [
  "ascii-canvas",
  "bit-set",
@@ -2524,9 +2523,9 @@ dependencies = [
 
 [[package]]
 name = "lalrpop-util"
-version = "0.22.1"
+version = "0.22.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8d05b3fe34b8bd562c338db725dfa9beb9451a48f65f129ccb9538b48d2c93b"
+checksum = "b5baa5e9ff84f1aefd264e6869907646538a52147a755d494517a8007fb48733"
 dependencies = [
  "regex-automata",
  "rustversion",
@@ -2837,13 +2836,13 @@ dependencies = [
 
 [[package]]
 name = "mio"
-version = "1.0.3"
+version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2886843bf800fba2e3377cff24abf6379b4c4d5c6681eaf9ea5b0d15090450bd"
+checksum = "78bed444cc8a2160f01cbcf811ef18cac863ad68ae8ca62092e8db51d51c761c"
 dependencies = [
  "libc",
  "wasi 0.11.0+wasi-snapshot-preview1",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3560,9 +3559,9 @@ dependencies = [
 
 [[package]]
 name = "rustversion"
-version = "1.0.20"
+version = "1.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eded382c5f5f786b989652c49544c4877d9f015cc22e145a5ea8ea66c2921cd2"
+checksum = "8a0d197bd2c9dc6e53b84da9556a69ba4cdfab8619eb41a8bd1cc2027a0f6b1d"
 
 [[package]]
 name = "ryu"
@@ -3822,9 +3821,9 @@ checksum = "8917285742e9f3e1683f0a9c4e6b57960b7314d0b08d30d1ecd426713ee2eee9"
 
 [[package]]
 name = "socket2"
-version = "0.5.9"
+version = "0.5.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f5fd57c80058a56cf5c777ab8a126398ece8e442983605d280a44ce79d0edef"
+checksum = "e22376abed350d73dd1cd119b57ffccad95b4e585a7cda43e286245ce23c0678"
 dependencies = [
  "libc",
  "windows-sys 0.52.0",
@@ -4066,9 +4065,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.45.0"
+version = "1.45.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2513ca694ef9ede0fb23fe71a4ee4107cb102b9dc1930f6d0fd77aae068ae165"
+checksum = "75ef51a33ef1da925cea3e4eb122833cb377c61439ca401b770f54902b806779"
 dependencies = [
  "backtrace",
  "bytes",
@@ -4161,7 +4160,7 @@ checksum = "bfb942dfe1d8e29a7ee7fcbde5bd2b9a25fb89aa70caea2eba3bee836ff41076"
 [[package]]
 name = "topiary-config"
 version = "0.6.0"
-source = "git+https://github.com/emilycares/topiary.git?branch=new_lang_java#4d5eb69d7a58d87f294f40accebd814f4844f809"
+source = "git+https://github.com/emilycares/topiary.git?branch=new_lang_java#101e26a7c42d9b9cce27def2013a459eb0f2c25b"
 dependencies = [
  "anyhow",
  "clap",
@@ -4185,7 +4184,7 @@ dependencies = [
 [[package]]
 name = "topiary-core"
 version = "0.6.0"
-source = "git+https://github.com/emilycares/topiary.git?branch=new_lang_java#4d5eb69d7a58d87f294f40accebd814f4844f809"
+source = "git+https://github.com/emilycares/topiary.git?branch=new_lang_java#101e26a7c42d9b9cce27def2013a459eb0f2c25b"
 dependencies = [
  "futures",
  "itertools 0.11.0",
@@ -4204,12 +4203,12 @@ dependencies = [
 [[package]]
 name = "topiary-queries"
 version = "0.6.0"
-source = "git+https://github.com/emilycares/topiary.git?branch=new_lang_java#4d5eb69d7a58d87f294f40accebd814f4844f809"
+source = "git+https://github.com/emilycares/topiary.git?branch=new_lang_java#101e26a7c42d9b9cce27def2013a459eb0f2c25b"
 
 [[package]]
 name = "topiary-tree-sitter-facade"
 version = "0.6.0"
-source = "git+https://github.com/emilycares/topiary.git?branch=new_lang_java#4d5eb69d7a58d87f294f40accebd814f4844f809"
+source = "git+https://github.com/emilycares/topiary.git?branch=new_lang_java#101e26a7c42d9b9cce27def2013a459eb0f2c25b"
 dependencies = [
  "js-sys",
  "streaming-iterator",
@@ -4223,7 +4222,7 @@ dependencies = [
 [[package]]
 name = "topiary-web-tree-sitter-sys"
 version = "0.6.0"
-source = "git+https://github.com/emilycares/topiary.git?branch=new_lang_java#4d5eb69d7a58d87f294f40accebd814f4844f809"
+source = "git+https://github.com/emilycares/topiary.git?branch=new_lang_java#101e26a7c42d9b9cce27def2013a459eb0f2c25b"
 dependencies = [
  "js-sys",
  "wasm-bindgen",

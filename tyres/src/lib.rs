@@ -374,5 +374,12 @@ pub fn resolve_jtype(
         }),
         JType::Class(c) => resolve(c, imports, class_map),
         JType::Generic(c, _vec) => resolve(c, imports, class_map),
+        JType::Parameter(p) => Ok(ResolveState {
+            jtype: jtype.clone(),
+            class: Class {
+                name: format!("<{}>", p),
+                ..Default::default()
+            },
+        }),
     }
 }
