@@ -23,7 +23,7 @@ pub fn inclued_parent(class: Class, class_map: &DashMap<String, Class>) -> Class
     }
 
     if let Some(b) = base {
-        return overlay_class(b, &class);
+        return overlay_class(class, &b);
     }
 
     class
@@ -54,18 +54,18 @@ fn overlay_class(b: Class, c: &Class) -> Class {
     let mut out = b;
 
     for m in c.methods.clone() {
-        let mut m = m.clone();
-        if m.source.is_none() {
-            m.source = Some(c.source.clone());
+        let mut method = m.clone();
+        if method.source.is_none() {
+            method.source = Some(c.source.clone());
         }
-        out.methods.push(m);
+        out.methods.push(method);
     }
     for f in c.fields.clone() {
-        let mut f = f.clone();
-        if f.source.is_none() {
-            f.source = Some(c.source.clone());
+        let mut field = f.clone();
+        if field.source.is_none() {
+            field.source = Some(c.source.clone());
         }
-        out.fields.push(f);
+        out.fields.push(field);
     }
 
     out

@@ -10,7 +10,7 @@ pub enum FormatError {
 pub fn format(path: PathBuf) -> Result<(), FormatError> {
     match CONFIG.formatter {
         FormatterConfig::Intelij => intelij(path),
-        FormatterConfig::None => todo!(),
+        FormatterConfig::None => Ok(()),
     }
 }
 
