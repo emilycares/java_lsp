@@ -30,10 +30,15 @@ pub async fn extract_jar(jar: &PathBuf, source_dir: &Path) -> Result<(), ZipUtil
                     std::fs::create_dir_all(
                         path.parent()
                             .expect("all full entry paths should have parent paths"),
-                    )?;
-                    let mut entry_writer = File::create(path)?;
-                    let mut entry_reader = entry.reader();
-                    std::io::copy(&mut entry_reader, &mut entry_writer)?;
+                    )
+                    .map_err(ZipUtilError::IO)?;
+
+                    let mut entry_writer = File::create(path).map_err(ZipUtilError::IO)?;
+                    let buf = entry.bytes().await.map_err(ZipUtilError::IO)?;
+
+                    entry_writer
+                        .write(buf.as_slice())
+                        .map_err(ZipUtilError::IO)?;
                 }
 
                 #[cfg(not(windows))]

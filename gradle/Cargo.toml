@@ -13,9 +13,7 @@ license.workspace = true
 nom.workspace = true
 dashmap.workspace = true
 tokio.workspace = true
-futures.workspace = true
 itertools.workspace = true
-parking_lot.workspace = true
 compile = {path = "../compile"}
 common = {path = "../common"}
 parser = {path = "../parser"}

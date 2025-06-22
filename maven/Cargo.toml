@@ -16,8 +16,6 @@ nom.workspace = true
 dashmap.workspace = true
 dirs.workspace = true
 tokio.workspace = true
-futures.workspace = true
-parking_lot.workspace = true
 common = { path = "../common" }
 parser = { path = "../parser" }
 zip_util = { path = "../zip_util" }
