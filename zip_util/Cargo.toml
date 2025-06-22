@@ -1,5 +1,5 @@
 [package]
-name = "jdk"
+name = "zip_util"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -10,13 +10,5 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
-dashmap.workspace = true
-futures.workspace = true
+rc-zip-tokio.workspace = true
 tokio.workspace = true
-parking_lot.workspace = true
-dirs.workspace = true
-parser = { path = "../parser" }
-zip_util = { path = "../zip_util" }
-
-[dev-dependencies]
-pretty_assertions.workspace = true

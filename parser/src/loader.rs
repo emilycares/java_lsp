@@ -9,18 +9,15 @@ use crate::{
     dto::{self, ClassError, ClassFolder},
     java::{self, ParseJavaError},
 };
-use async_zip::base::read::seek::ZipFileReader;
+use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
 use std::fmt::Debug;
-use tokio::{
-    fs::File,
-    io::{AsyncReadExt, BufReader},
-};
+use tokio::fs::read;
 use walkdir::WalkDir;
 
 #[derive(Debug)]
 pub enum ParserLoaderError {
     IO(std::io::Error),
-    Zip(async_zip::error::ZipError),
+    Zip(rc_zip_tokio::rc_zip::error::Error),
     SkipBytesStart(std::io::Error),
 }
 
@@ -101,55 +98,32 @@ pub fn load_java_files(paths: Vec<String>) -> dto::ClassFolder {
 pub async fn load_classes_jar<P: AsRef<Path>>(
     path: P,
     source: SourceDestination,
-    skip_bytes_start: Option<usize>,
+    _skip_bytes_start: Option<usize>,
 ) -> Result<dto::ClassFolder, ParserLoaderError> {
-    let file = File::open(path).await.map_err(ParserLoaderError::IO)?;
-    let mut reader = BufReader::new(file);
-    if let Some(k) = skip_bytes_start {
-        let mut header = vec![0; k];
-        reader
-            .read_exact(&mut header)
-            .await
-            .map_err(ParserLoaderError::SkipBytesStart)?;
-    }
-    let mut zip = ZipFileReader::with_tokio(&mut reader)
-        .await
-        .map_err(ParserLoaderError::Zip)?;
+    let buf = read(path).await.map_err(ParserLoaderError::IO)?;
+    let zip = buf.read_zip().await.map_err(ParserLoaderError::Zip)?;
     let mut classes = vec![];
 
-    for index in 0..zip.file().entries().len() {
-        let file = match zip.file().entries().get(index) {
-            Some(f) => f,
-            None => continue,
-        };
-        if file.dir().map_err(ParserLoaderError::Zip)? {
+    for entry in zip.entries() {
+        if matches!(entry.kind(), EntryKind::Directory) {
             continue;
         }
-        let file_name = file.filename();
-        let file_name = file_name.as_str().map_err(ParserLoaderError::Zip)?;
-        let file_name = file_name.to_string();
+        let Some(file_name) = entry.sanitized_name().map(|i| i.to_string()) else {
+            continue;
+        };
         if !file_name.ends_with(".class") {
             continue;
         }
         if file_name.starts_with("module-info.class") {
             continue;
         }
-        if file_name.starts_with("META-INF") {
-            continue;
-        }
 
         let class_path = file_name.trim_start_matches("/");
         let class_path = class_path.trim_end_matches(".class");
         let class_path = class_path.replace("/", ".");
-        let mut entry_reader = zip
-            .reader_with_entry(index)
-            .await
-            .map_err(ParserLoaderError::Zip)?;
-        let mut buf = vec![];
-        if let Err(e) = entry_reader.read_to_end_checked(&mut buf).await {
-            eprintln!("Unable to read file in zip: {file_name} {e:?}");
-            continue;
-        }
+
+        let buf = entry.bytes().await.map_err(ParserLoaderError::IO)?;
+
         match load_class(buf.as_slice(), class_path.to_string(), source.clone()) {
             Ok(c) => classes.push(c),
             Err(e) => {

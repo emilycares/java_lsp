@@ -2,3 +2,7 @@
 .logana-report
 .idea
 .jdk.cfc
+flamegraph.svg
+perf.data
+perf.data.old
+bench/target

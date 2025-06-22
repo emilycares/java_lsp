@@ -1,8 +1,7 @@
 use std::{
     env,
     fs::{self, remove_file},
-    io::Cursor,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::Arc,
 };
 
@@ -28,6 +27,7 @@ pub enum JdkError {
     WorkDir,
     JavaVersionNoLine,
     IO(std::io::Error),
+    ZipUtil(zip_util::ZipUtilError),
 }
 
 pub async fn load_classes(
@@ -101,7 +101,7 @@ async fn load_old(mut path: PathBuf, op_dir: PathBuf) -> Result<ClassFolder, Jdk
     let source_dir = op_dir.join("src");
     let mut src_zip = path.join("src");
     src_zip.set_extension("zip");
-    unzip_to_dir(&source_dir, &src_zip)?;
+    unzip_to_dir(&source_dir, &src_zip).await?;
     let mut rt_jar = jre_lib.join("rt");
     rt_jar.set_extension("jar");
     let mut classes = parser::loader::load_classes_jar(
@@ -131,7 +131,7 @@ async fn load_javafx(
     let mut src_zip_jfx = path.join("javafx-src");
     src_zip_jfx.set_extension("zip");
     if src_zip_jfx.exists() {
-        unzip_to_dir(&source_dir_jfx, &src_zip_jfx)?;
+        unzip_to_dir(&source_dir_jfx, &src_zip_jfx).await?;
         let mut jfxrt = jre_lib.join("ext").join("jfxrt");
         jfxrt.set_extension("jar");
         if jfxrt.exists() {
@@ -164,7 +164,7 @@ async fn load_jmods(
     let mut src_zip = path.clone();
     src_zip = src_zip.join("lib").join("src");
     src_zip.set_extension("zip");
-    unzip_to_dir(&source_dir, &src_zip)?;
+    unzip_to_dir(&source_dir, &src_zip).await?;
 
     let mut jmods = path.join("jmods");
     if !jmods.exists() {
@@ -251,18 +251,14 @@ async fn load_jmods(
     Ok(guard.clone())
 }
 
-fn unzip_to_dir(dir: &PathBuf, zip: &PathBuf) -> Result<(), JdkError> {
+async fn unzip_to_dir(dir: &Path, zip: &PathBuf) -> Result<(), JdkError> {
     if !zip.exists() {
         return Err(JdkError::Unzip(zip.to_str().map(|i| i.to_owned())));
     }
     if !dir.exists() {
-        let _ = fs::create_dir_all(dir);
-        if let Ok(data) = fs::read(zip) {
-            let res = zip_extract::extract(Cursor::new(data), dir, false);
-            if let Err(e) = res {
-                eprintln!("Unable to unzip: {zip:?}, {e}");
-            }
-        }
+        zip_util::extract_jar(zip, dir)
+            .await
+            .map_err(JdkError::ZipUtil)?;
     }
     Ok(())
 }

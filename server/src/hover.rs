@@ -10,7 +10,6 @@ use variables::LocalVariable;
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum HoverError {
-    ClassAction,
     Tyres(TyresError),
     CallChainEmpty,
     ParseError(parser::java::ParseJavaError),

@@ -20,7 +20,7 @@ walkdir.workspace = true
 postcard.workspace = true
 serde.workspace = true
 itertools.workspace = true
-async_zip.workspace = true
+rc-zip-tokio.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]

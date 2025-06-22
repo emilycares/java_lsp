@@ -10,8 +10,8 @@ use std::{
 
 use common::TaskProgress;
 use dashmap::DashMap;
-use parking_lot::Mutex;
 use parser::{dto::ClassFolder, loader::SourceDestination};
+use tokio::task::JoinSet;
 
 use crate::tree::GradleTreeError;
 
@@ -38,23 +38,21 @@ pub async fn fetch_deps(
     class_map: &DashMap<std::string::String, parser::dto::Class>,
     build_gradle: PathBuf,
     sender: tokio::sync::watch::Sender<TaskProgress>,
-) -> Result<DashMap<std::string::String, parser::dto::Class>, GradleFetchError> {
+) -> Result<(), GradleFetchError> {
     let path = Path::new(&GRADLE_CFC);
     if path.exists() {
         if let Ok(classes) = parser::loader::load_class_folder(path) {
             for class in classes.classes {
                 class_map.insert(class.class_path.clone(), class);
             }
-            return Ok(class_map.clone());
+            return Ok(());
         } else {
             remove_file(path).map_err(GradleFetchError::IO)?
         }
     }
 
     let unpack_folder = copy_classpath(build_gradle)?;
-    let class_map = Arc::new(class_map.clone());
-    let maven_class_folder = Arc::new(Mutex::new(ClassFolder::default()));
-    let mut handles = Vec::new();
+    let mut handles = JoinSet::<Option<ClassFolder>>::new();
     if let Ok(o) = fs::read_dir(unpack_folder) {
         let jars: Vec<PathBuf> = o
             .filter_map(|i| i.ok())
@@ -77,41 +75,42 @@ pub async fn fetch_deps(
                 eprintln!("jar does not exist {jar:?}");
                 continue;
             }
-            let class_map = class_map.clone();
-            let gradle_class_folder = maven_class_folder.clone();
             let completed_number = completed_number.clone();
             let sender = sender.clone();
 
             let current_name = jar.display().to_string();
-            handles.push(tokio::spawn(async move {
+            handles.spawn(async move {
                 match parser::loader::load_classes_jar(jar, SourceDestination::None, None).await {
                     Ok(classes) => {
-                        let a = completed_number.fetch_add(1, Ordering::Release);
+                        let a = completed_number.fetch_add(1, Ordering::Relaxed);
                         let _ = sender.send(TaskProgress {
                             persentage: (100 * a) / tasks_number,
                             error: false,
                             message: current_name,
                         });
-                        {
-                            let mut guard = gradle_class_folder.lock();
-                            guard.append(classes.clone());
-                        }
-                        for class in classes.classes {
-                            class_map.insert(class.class_path.clone(), class);
-                        }
+                        Some(classes)
                     }
-                    Err(e) => eprintln!("Error loading graddle jar {e:?}"),
+                    Err(e) => {
+                        eprintln!("Error loading graddle jar {e:?}");
+                        None
+                    }
                 }
-            }));
+            });
         }
     }
 
-    futures::future::join_all(handles).await;
-    let guard = maven_class_folder.lock();
-    if let Err(e) = parser::loader::save_class_folder(path, &guard) {
+    let done = handles.join_all().await;
+
+    let gradle_class_folder = ClassFolder {
+        classes: done.into_iter().flatten().flat_map(|i| i.classes).collect(),
+    };
+    if let Err(e) = parser::loader::save_class_folder(GRADLE_CFC, &gradle_class_folder) {
         eprintln!("Failed to save {GRADLE_CFC} because: {e:?}");
     };
-    Ok(Arc::try_unwrap(class_map).expect("Classmap should be free to take"))
+    for class in gradle_class_folder.classes {
+        class_map.insert(class.class_path.clone(), class);
+    }
+    Ok(())
 }
 
 // println configurations.getAll()

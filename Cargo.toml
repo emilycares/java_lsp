@@ -30,13 +30,23 @@ members = [
     "position",
     "imports",
     "java_lsp",
+    "zip_util",
 ]
+exclude = ["bench"]
 resolver = "3"
+
+[profile.dev]
+# Remove for debugging
+debug = "line-tables-only"
+
+[profile.release]
+# debug = true
+# incremental = true
+lto = "fat"
 
 [workspace.dependencies]
 clap = { version = "4", features = ["derive"] }
 classfile-parser = { git = "https://github.com/emilycares/classfile-parser.git" , branch = "fix/source_file" }
-# classfile-parser = { path = "../classfile-parser"}
 once_cell = "1.20.3"
 dashmap = "6.0.1"
 nom = "8.0.0"
@@ -51,8 +61,7 @@ lsp-types = "0.97.0"
 tree-sitter = "0.25.3"
 tree-sitter-java = { git = "https://github.com/emilycares/tree-sitter-java.git", branch = "fix_partial" }
 walkdir = "2.5.0"
-async_zip = { version = "0.0.17", features = ["full"] }
-zip-extract = "0.3.0"
+rc-zip-tokio = "4.2.6"
 dirs = "6.0.0"
 futures = "0.3.31"
 streaming-iterator = "0.1.9"

@@ -29,7 +29,6 @@ pub enum CodeActionError {
     Tyres(TyresError),
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn replace_with_value_type(
     tree: &tree_sitter::Tree,
     bytes: &[u8],

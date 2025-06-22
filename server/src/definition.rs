@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use call_chain::CallItem;
-use document::DocumentError;
+use document::{Document, DocumentError};
 use lsp_types::{GotoDefinitionResponse, Location, Uri};
 use parser::dto::{self, ImportUnit};
 use position::PositionSymbol;
@@ -10,10 +10,7 @@ use tree_sitter_util::lsp::to_lsp_range;
 use tyres::TyresError;
 use variables::LocalVariable;
 
-use crate::{
-    Document,
-    hover::{ClassActionError, class_action},
-};
+use crate::hover::{ClassActionError, class_action};
 
 #[derive(Debug)]
 #[allow(dead_code)]

@@ -1,12 +1,12 @@
 use call_chain::get_call_chain;
-use document::DocumentError;
+use document::{Document, DocumentError};
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat};
 use parser::dto::{self, ImportUnit};
 use tree_sitter::{Point, Tree};
 use tree_sitter_util::{get_node_at_point, get_string_node};
 use variables::LocalVariable;
 
-use crate::{Document, codeaction};
+use crate::codeaction;
 
 #[derive(Debug)]
 pub enum CompletionError {
@@ -330,6 +330,7 @@ mod tests {
     use std::path::PathBuf;
 
     use dashmap::DashMap;
+    use document::Document;
     use lsp_types::{
         CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat, Position,
         Range, TextEdit,
@@ -339,10 +340,7 @@ mod tests {
     use tree_sitter::Point;
     use variables::LocalVariable;
 
-    use crate::{
-        Document,
-        completion::{Snippet, classes, complete_call_chain},
-    };
+    use crate::completion::{Snippet, classes, complete_call_chain};
 
     use super::method_snippet;
 
