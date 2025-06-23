@@ -48,7 +48,7 @@ pub fn replace_with_value_type(
     cursor.first_child();
     cursor.sibling();
     cursor.sibling();
-    let mut range = cursor.node().range().end_point;
+    let mut range = cursor.node().range().start_point;
     range.column -= 1;
     // value here
     let Some(call_chain) = call_chain::get_call_chain(tree, bytes, &range) else {
@@ -159,7 +159,7 @@ pub mod tests {
     use dashmap::DashMap;
     use document::Document;
     use lsp_types::Uri;
-    use parser::dto::{self};
+    use parser::dto::{self, ImportUnit};
     use pretty_assertions::assert_eq;
     use tree_sitter::Point;
 
@@ -205,6 +205,52 @@ public class Test {
         match result {
             lsp_types::CodeActionOrCommand::CodeAction(code_action) => {
                 assert_eq!(code_action.title, "Replace variable type with: String");
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    #[test]
+    fn replace_type_with_argument() {
+        let content = r#"
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        int local = new FileInputStream(new File(""));
+    }
+}
+        "#;
+        let point = Point::new(4, 10);
+        let doc = Document::setup(
+            content,
+            PathBuf::from_str("./").unwrap(),
+            "ch.emilycares.Test".to_string(),
+        )
+        .unwrap();
+        let imports = vec![ImportUnit::Class("java.io.FileInputStream".to_string())];
+        let class = parser::java::load_java_tree(
+            content.as_bytes(),
+            parser::loader::SourceDestination::None,
+            &doc.tree,
+        )
+        .unwrap();
+        let uri = Uri::from_str("file:///a").unwrap();
+        let context = CodeActionContext {
+            point: &point,
+            imports: &imports,
+            class_map: &get_class_map(),
+            class: &class,
+            vars: &variables::get_vars(&doc, &point).unwrap(),
+            current_file: &uri,
+        };
+        let out = replace_with_value_type(&doc.tree, content.as_bytes(), &context);
+        let result = out.unwrap().unwrap();
+        match result {
+            lsp_types::CodeActionOrCommand::CodeAction(code_action) => {
+                assert_eq!(
+                    code_action.title,
+                    "Replace variable type with: java.io.FileInputStream"
+                );
             }
             _ => unreachable!(),
         }
@@ -266,6 +312,15 @@ public class Test {
                     ret: dto::JType::Int,
                     ..Default::default()
                 }],
+                ..Default::default()
+            },
+        );
+        class_map.insert(
+            "java.io.FileInputStream".to_string(),
+            dto::Class {
+                access: vec![dto::Access::Public],
+                name: "FileInputStream".to_string(),
+                methods: vec![],
                 ..Default::default()
             },
         );
