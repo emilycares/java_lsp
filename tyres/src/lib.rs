@@ -175,7 +175,31 @@ pub fn resolve_call_chain(
     }
     let mut ops: Vec<ResolveState> = vec![];
     for item in call_chain {
-        let op = call_chain_op(item, &ops, lo_va, imports, class, class_map);
+        let op = call_chain_op(item, &ops, lo_va, imports, class, class_map, true);
+        if let Ok(op) = op {
+            ops.push(op);
+        }
+    }
+    match ops.last() {
+        Some(last) => Ok(last.clone()),
+        None => Err(TyresError::CallChainInvalid(
+            call_chain.iter().map(Clone::clone).collect(),
+        )),
+    }
+}
+pub fn resolve_call_chain_value(
+    call_chain: &[CallItem],
+    lo_va: &[LocalVariable],
+    imports: &[ImportUnit],
+    class: &Class,
+    class_map: &DashMap<String, Class>,
+) -> Result<ResolveState, TyresError> {
+    if call_chain.is_empty() {
+        return Err(TyresError::CallChainEmtpy);
+    }
+    let mut ops: Vec<ResolveState> = vec![];
+    for item in call_chain {
+        let op = call_chain_op(item, &ops, lo_va, imports, class, class_map, false);
         if let Ok(op) = op {
             ops.push(op);
         }
@@ -203,7 +227,7 @@ pub fn resolve_call_chain_to_point(
         if is_point_in_range(point, item.get_range()) {
             break;
         }
-        let op = call_chain_op(item, &ops, lo_va, imports, class, class_map);
+        let op = call_chain_op(item, &ops, lo_va, imports, class, class_map, true);
         if let Ok(op) = op {
             ops.push(op);
         }
@@ -223,6 +247,7 @@ fn call_chain_op(
     imports: &[ImportUnit],
     class: &Class,
     class_map: &DashMap<String, Class>,
+    resolve_argument: bool,
 ) -> Result<ResolveState, TyresError> {
     match item {
         CallItem::MethodCall { name, range: _ } => {
@@ -266,12 +291,21 @@ fn call_chain_op(
             active_param,
             filled_params,
         } => {
-            if let Some(active_param) = active_param {
-                if let Some(current_param) = filled_params.get(*active_param) {
-                    if !current_param.is_empty() {
-                        return resolve_call_chain(current_param, lo_va, imports, class, class_map);
+            if resolve_argument {
+                if let Some(active_param) = active_param {
+                    if let Some(current_param) = filled_params.get(*active_param) {
+                        if !current_param.is_empty() {
+                            return resolve_call_chain(
+                                current_param,
+                                lo_va,
+                                imports,
+                                class,
+                                class_map,
+                            );
+                        }
                     }
                 }
+                return resolve_call_chain(prev, lo_va, imports, class, class_map);
             }
             resolve_call_chain(prev, lo_va, imports, class, class_map)
         }

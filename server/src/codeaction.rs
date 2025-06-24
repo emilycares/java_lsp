@@ -48,13 +48,13 @@ pub fn replace_with_value_type(
     cursor.first_child();
     cursor.sibling();
     cursor.sibling();
-    let mut range = cursor.node().range().start_point;
-    range.column -= 1;
+    let mut point = cursor.node().range().end_point;
+    point.column -= 1;
     // value here
-    let Some(call_chain) = call_chain::get_call_chain(tree, bytes, &range) else {
+    let Some(call_chain) = call_chain::get_call_chain(tree, bytes, &point) else {
         return Err(CodeActionError::NoCallCain);
     };
-    let value_resolve_state = tyres::resolve_call_chain(
+    let value_resolve_state = tyres::resolve_call_chain_value(
         &call_chain,
         context.vars,
         context.imports,
