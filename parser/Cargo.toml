@@ -16,7 +16,8 @@ tree-sitter-util = { path = "../tree-sitter-util"}
 classfile-parser.workspace = true
 tree-sitter.workspace = true
 tree-sitter-java.workspace = true
-walkdir.workspace = true
+jwalk.workspace = true
+rayon.workspace = true
 postcard.workspace = true
 serde.workspace = true
 itertools.workspace = true

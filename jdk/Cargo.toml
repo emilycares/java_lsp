@@ -13,10 +13,10 @@ license.workspace = true
 dashmap.workspace = true
 futures.workspace = true
 tokio.workspace = true
-parking_lot.workspace = true
 dirs.workspace = true
 parser = { path = "../parser" }
 zip_util = { path = "../zip_util" }
+common = { path = "../common" }
 
 [dev-dependencies]
 pretty_assertions.workspace = true

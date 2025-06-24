@@ -1,18 +1,15 @@
-use std::path::PathBuf;
+use parser::dto::Class;
 
-use parser::{dto::Class, src_folder_paths};
+pub async fn load_project_folders() -> Vec<Class> {
+    let mut out = vec![];
+    let Ok(current_dir) = std::env::current_dir() else {
+        return vec![];
+    };
 
-pub fn load_project_folders() -> Vec<Class> {
-    let paths = get_paths();
+    out.extend(parser::loader::load_java_files(current_dir.join("src/main/java")).await);
+    out.extend(parser::loader::load_java_files(current_dir.join("src/text/java")).await);
 
-    parser::loader::load_java_files(paths).classes
     // list modules
     // mvn help:evaluate -Dexpression=project.modules
-}
-
-pub fn get_paths() -> Vec<String> {
-    let mut paths = vec![];
-    paths.extend(src_folder_paths(PathBuf::from("src/main/java")));
-    paths.extend(src_folder_paths(PathBuf::from("src/test/java")));
-    paths
+    out
 }

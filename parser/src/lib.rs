@@ -19,22 +19,6 @@ pub fn update_project_java_file<T: AsRef<Path>>(
     )
 }
 
-pub fn src_folder_paths<T: AsRef<Path>>(folder: T) -> Vec<String> {
-    let folder = folder.as_ref();
-    if !folder.exists() {
-        return vec![];
-    }
-    let Ok(current_dir) = std::env::current_dir() else {
-        return vec![];
-    };
-    let path = current_dir.join(folder);
-    loader::get_java_files_from_folder(path)
-}
-
-pub fn load_src_folder<T: AsRef<Path>>(folder: T) -> Option<dto::ClassFolder> {
-    Some(loader::load_java_files(src_folder_paths(folder)))
-}
-
 pub fn load_class_fs<T>(
     path: T,
     class_path: String,

@@ -12,14 +12,15 @@ use lsp_types::{
     DocumentFormattingParams, DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams,
     GotoDefinitionResponse, Hover, HoverParams, Location, Position, ProgressParams,
     ProgressParamsValue, ProgressToken, PublishDiagnosticsParams, Range, ReferenceParams,
-    SignatureHelp, SignatureHelpParams, SymbolInformation, TextDocumentContentChangeEvent,
-    TextDocumentItem, TextEdit, Uri, WorkDoneProgress, WorkDoneProgressBegin, WorkDoneProgressEnd,
-    WorkDoneProgressReport, WorkspaceSymbolParams, WorkspaceSymbolResponse,
+    SignatureHelp, SignatureHelpParams, TextDocumentContentChangeEvent, TextDocumentItem, TextEdit,
+    Uri, WorkDoneProgress, WorkDoneProgressBegin, WorkDoneProgressEnd, WorkDoneProgressReport,
+    WorkspaceSymbolParams, WorkspaceSymbolResponse,
     notification::{Notification, Progress, PublishDiagnostics},
 };
 use parking_lot::Mutex;
 use parser::dto::Class;
 use position::PositionSymbol;
+use rayon::iter::{ParallelBridge, ParallelIterator};
 use tree_sitter_util::lsp::to_treesitter_point;
 
 use crate::{
@@ -127,11 +128,11 @@ impl Backend {
     }
     fn progress_update_persentage_a(
         con: Arc<Connection>,
-        task: Arc<String>,
+        task: String,
         message: String,
         percentage: Option<u32>,
     ) {
-        Backend::progress_update_persentage(con, Arc::unwrap_or_clone(task), message, percentage);
+        Backend::progress_update_persentage(con, task, message, percentage);
     }
 
     fn progress_update_persentage(
@@ -237,11 +238,22 @@ impl Backend {
         reference_map: Arc<dashmap::DashMap<String, Vec<ReferenceUnit>>>,
     ) {
         Backend::progress_start(con.clone(), "Init".to_string());
-        let task = "Load jdk".to_string();
+        {
+            let task = "Load jdk".to_string();
+            let (sender, reciever) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
+                persentage: 0,
+                error: false,
+                message: "...".to_string(),
+            });
+            let reciever = Arc::new(Mutex::new(reciever));
 
-        Backend::progress_start(con.clone(), task.clone());
-        let _ = jdk::load_classes(&class_map).await;
-        Backend::progress_end(con.clone(), task.clone());
+            Backend::progress_start(con.clone(), task.clone());
+            tokio::select! {
+                _ = read_forward(reciever, con.clone(), task.clone())  => {},
+                _ = jdk::load_classes(&class_map, sender) => {}
+            }
+            Backend::progress_end(con.clone(), task);
+        }
 
         if project_kind != ProjectKind::Unknown {
             let task = format!("Load {} dependencies", project_kind);
@@ -252,44 +264,51 @@ impl Backend {
                 message: "...".to_string(),
             });
             let reciever = Arc::new(Mutex::new(reciever));
-            let atask = Arc::new(task.clone());
 
             tokio::select! {
-                _ = read_forward(reciever, con.clone(), atask)  => {},
+                _ = read_forward(reciever, con.clone(), task.clone())  => {},
                 _ = fetch_deps(sender, project_kind.clone(), class_map.clone()) => {}
             }
             Backend::progress_end(con.clone(), task);
         }
 
-        let task = "Load project files".to_string();
-        Backend::progress_start(con.clone(), task.clone());
-        let project_classes = match project_kind {
-            ProjectKind::Maven => maven::project::load_project_folders(),
-            ProjectKind::Gradle {
-                path_build_gradle: _,
-            } => gradle::project::load_project_folders(),
-            ProjectKind::Unknown => vec![],
-        };
-        Backend::progress_update_persentage(
-            con.clone(),
-            task.clone(),
-            "Initializing reference map".to_string(),
-            None,
-        );
-        match references::init_refernece_map(&project_classes, &class_map, &reference_map) {
-            Ok(_) => (),
-            Err(e) => eprintln!("Got reference error: {e:?}"),
+        {
+            let task = "Load project files".to_string();
+            Backend::progress_start(con.clone(), task.clone());
+            Backend::progress_update_persentage(
+                con.clone(),
+                task.clone(),
+                "Load project paths".to_string(),
+                None,
+            );
+            let project_classes = match project_kind {
+                ProjectKind::Maven => maven::project::load_project_folders().await,
+                ProjectKind::Gradle {
+                    path_build_gradle: _,
+                } => gradle::project::load_project_folders().await,
+                ProjectKind::Unknown => vec![],
+            };
+            Backend::progress_update_persentage(
+                con.clone(),
+                task.clone(),
+                "Initializing reference map".to_string(),
+                None,
+            );
+            match references::init_refernece_map(&project_classes, &class_map, &reference_map) {
+                Ok(_) => (),
+                Err(e) => eprintln!("Got reference error: {e:?}"),
+            }
+            Backend::progress_update_persentage(
+                con.clone(),
+                task.clone(),
+                "Populating class map".to_string(),
+                None,
+            );
+            for class in project_classes {
+                class_map.insert(class.class_path.clone(), class);
+            }
+            Backend::progress_end(con.clone(), task);
         }
-        Backend::progress_update_persentage(
-            con.clone(),
-            task.clone(),
-            "Populating class map".to_string(),
-            None,
-        );
-        for class in project_classes {
-            class_map.insert(class.class_path.clone(), class);
-        }
-        Backend::progress_end(con.clone(), task);
 
         Backend::progress_end(con, "Init".to_string());
     }
@@ -630,22 +649,20 @@ impl Backend {
         &self,
         params: &WorkspaceSymbolParams,
     ) -> Option<WorkspaceSymbolResponse> {
-        let files = match self.project_kind {
-            ProjectKind::Maven => maven::project::get_paths(),
-            ProjectKind::Gradle {
-                path_build_gradle: _,
-            } => gradle::project::get_paths(),
-            ProjectKind::Unknown => vec![],
-        };
-
-        let symbols: Vec<SymbolInformation> = files
+        let current_dir = std::env::current_dir().ok()?;
+        let symbols = jwalk::WalkDir::new(current_dir.join("src"))
             .into_iter()
+            .par_bridge()
+            .filter_map(|a| a.ok())
+            .filter(|e| !e.file_type().is_dir())
+            .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
+            .filter(|e| e.ends_with(".java"))
             .filter_map(|i| {
                 let Ok(uri) = source_to_uri(&i) else {
                     return None;
                 };
                 Some((
-                    i.clone(),
+                    i.to_string(),
                     document::read_document_or_open_class(
                         &i,
                         String::new(),
@@ -715,7 +732,7 @@ impl Backend {
 pub async fn read_forward(
     rx: Arc<Mutex<tokio::sync::watch::Receiver<TaskProgress>>>,
     con: Arc<Connection>,
-    task: Arc<String>,
+    task: String,
 ) {
     tokio::spawn(async move {
         let ex = &mut rx.lock();

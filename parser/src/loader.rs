@@ -1,18 +1,19 @@
 use std::{
     fs::{self, OpenOptions},
     io::Write,
-    path::{MAIN_SEPARATOR, Path},
+    path::{MAIN_SEPARATOR, Path, PathBuf},
 };
 
 use crate::{
     class::{self, load_class},
-    dto::{self, ClassError, ClassFolder},
+    dto::{self, Class, ClassError, ClassFolder},
     java::{self, ParseJavaError},
 };
+use jwalk::WalkDir;
+use rayon::iter::{ParallelBridge, ParallelIterator};
 use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
 use std::fmt::Debug;
 use tokio::fs::read;
-use walkdir::WalkDir;
 
 #[derive(Debug)]
 pub enum ParserLoaderError {
@@ -78,21 +79,24 @@ pub fn get_java_files_from_folder<P: AsRef<Path>>(path: P) -> Vec<String> {
     get_files(&path, ".java")
 }
 
-pub fn load_java_files(paths: Vec<String>) -> dto::ClassFolder {
-    dto::ClassFolder {
-        classes: paths
-            .into_iter()
-            .filter_map(|p| {
-                match load_java_fs(p.as_str(), SourceDestination::Here(p.as_str().to_string())) {
-                    Ok(c) => Some(c),
-                    Err(e) => {
-                        eprintln!("Unable to load java: {p}: {e:?}");
-                        None
-                    }
+pub async fn load_java_files(folder: PathBuf) -> Vec<Class> {
+    WalkDir::new(folder)
+        .into_iter()
+        .par_bridge()
+        .filter_map(|a| a.ok())
+        .filter(|e| !e.file_type().is_dir())
+        .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
+        .filter(|e| e.ends_with(".java"))
+        .filter_map(|p| {
+            match load_java_fs(p.as_str(), SourceDestination::Here(p.as_str().to_string())) {
+                Ok(c) => Some(c),
+                Err(e) => {
+                    eprintln!("Unable to load java: {p}: {e:?}");
+                    None
                 }
-            })
-            .collect(),
-    }
+            }
+        })
+        .collect::<Vec<_>>()
 }
 
 pub async fn load_classes_jar<P: AsRef<Path>>(
@@ -164,8 +168,8 @@ pub fn load_classes<P: AsRef<Path>>(path: P, source: SourceDestination) -> dto::
 fn get_files<P: AsRef<Path>>(dir: P, ending: &str) -> Vec<String> {
     WalkDir::new(dir)
         .into_iter()
-        .filter(|a| a.is_ok())
-        .filter_map(Result::ok)
+        .par_bridge()
+        .filter_map(|a| a.ok())
         .filter(|e| !e.file_type().is_dir())
         .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
         .filter(|e| e.ends_with(ending))
