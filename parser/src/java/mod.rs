@@ -1,3 +1,7 @@
+pub mod ast;
+pub mod error;
+pub mod lexer;
+
 use std::str::Utf8Error;
 
 use tree_sitter_util::{CommentSkiper, TreesitterError};
@@ -820,7 +824,7 @@ public class Test {
     }
     #[test]
     fn thrower() {
-        let content = include_str!("../test/Thrower.java");
+        let content = include_str!("../../test/Thrower.java");
         let result = load_java(
             content.as_bytes(),
             SourceDestination::Here("/path/to/source/Thrower.java".to_string()),
@@ -831,7 +835,7 @@ public class Test {
     #[test]
     fn interface_constants() {
         let result = load_java(
-            include_bytes!("../test/Constants.java"),
+            include_bytes!("../../test/Constants.java"),
             SourceDestination::RelativeInFolder("/path/to/source".to_string()),
         );
 
@@ -902,7 +906,7 @@ public class Test {
     #[test]
     fn interface_base() {
         let result = load_java(
-            include_bytes!("../test/InterfaceBase.java"),
+            include_bytes!("../../test/InterfaceBase.java"),
             SourceDestination::RelativeInFolder("/path/to/source".to_string()),
         );
 
@@ -956,7 +960,7 @@ public class Test {
     #[test]
     fn jenum() {
         let result = load_java(
-            include_bytes!("../test/Variants.java"),
+            include_bytes!("../../test/Variants.java"),
             SourceDestination::RelativeInFolder("/path/to/source".to_string()),
         );
         assert_eq!(
@@ -994,7 +998,7 @@ public class Test {
     #[test]
     fn jannotation() {
         let result = load_java(
-            include_bytes!("../test/Annotation.java"),
+            include_bytes!("../../test/Annotation.java"),
             SourceDestination::RelativeInFolder("/path/to/source".to_string()),
         );
         assert_eq!(
@@ -1026,7 +1030,7 @@ public class Test {
     #[test]
     fn everything() {
         let result = load_java(
-            include_bytes!("../test/Everything.java"),
+            include_bytes!("../../test/Everything.java"),
             SourceDestination::None,
         );
 
@@ -1069,7 +1073,7 @@ public class Test {
     #[test]
     fn super_interfaces() {
         let result = load_java(
-            include_bytes!("../test/SuperInterface.java"),
+            include_bytes!("../../test/SuperInterface.java"),
             SourceDestination::None,
         )
         .unwrap();

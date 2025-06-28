@@ -67,4 +67,5 @@ futures = "0.3.31"
 streaming-iterator = "0.1.9"
 itertools = "0.14.0"
 parking_lot = "0.12.3"
+phf = { version = "0.12", features = ["macros"] }
 rayon = "1.10"

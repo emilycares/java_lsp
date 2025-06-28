@@ -70,7 +70,6 @@
               hyperfine
               cargo-flamegraph
               cargo-nextest
-              rust-bin.nightly.latest.rust-analyzer
             ]
             ++ (lib.optional (stdenv.isx86_64 && stdenv.isLinux) cargo-tarpaulin)
             ++ (lib.optional stdenv.isLinux lldb)

@@ -23,6 +23,7 @@ serde.workspace = true
 itertools.workspace = true
 rc-zip-tokio.workspace = true
 tokio.workspace = true
+phf.workspace = true
 
 [dev-dependencies]
 pretty_assertions.workspace = true
