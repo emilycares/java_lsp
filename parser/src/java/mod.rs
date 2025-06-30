@@ -1,7 +1,3 @@
-pub mod ast;
-pub mod error;
-pub mod lexer;
-
 use std::str::Utf8Error;
 
 use tree_sitter_util::{CommentSkiper, TreesitterError};

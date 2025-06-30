@@ -1,0 +1,67 @@
+---
+source: ast/src/lib.rs
+expression: parsed
+---
+Ok(
+    AstFile {
+        package: AstIdentifier {
+            range: AstRange {
+                start: AstPoint {
+                    line: 0,
+                    col: 8,
+                },
+                end: AstPoint {
+                    line: 0,
+                    col: 21,
+                },
+            },
+            value: "ch.emilycares",
+        },
+        imports: [
+            AstIdentifier {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 2,
+                        col: 7,
+                    },
+                    end: AstPoint {
+                        line: 2,
+                        col: 22,
+                    },
+                },
+                value: "jdk.net.Sockets",
+            },
+            AstIdentifier {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 3,
+                        col: 7,
+                    },
+                    end: AstPoint {
+                        line: 3,
+                        col: 26,
+                    },
+                },
+                value: "java.io.IOException",
+            },
+            AstIdentifier {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 4,
+                        col: 7,
+                    },
+                    end: AstPoint {
+                        line: 4,
+                        col: 22,
+                    },
+                },
+                value: "java.net.Socket",
+            },
+        ],
+        thing: Interface(
+            AstInterface {
+                avaliability: Public,
+            },
+        ),
+    },
+)

@@ -30,14 +30,18 @@ members = [
     "position",
     "imports",
     "java_lsp",
-    "zip_util",
+    "zip_util", "ast",
 ]
 exclude = ["bench"]
 resolver = "3"
 
 [profile.dev]
 # Remove for debugging
-debug = "line-tables-only"
+# debug = "line-tables-only"
+
+[profile.dev.package]
+insta.opt-level = 3
+similar.opt-level = 3
 
 [profile.release]
 # debug = true
@@ -69,3 +73,4 @@ itertools = "0.14.0"
 parking_lot = "0.12.3"
 phf = { version = "0.12", features = ["macros"] }
 rayon = "1.10"
+insta = { version = "1.43.1", features = ["yaml"] }

@@ -1,0 +1,42 @@
+---
+source: ast/src/lib.rs
+expression: parsed
+---
+Ok(
+    AstFile {
+        package: AstIdentifier {
+            range: AstRange {
+                start: AstPoint {
+                    line: 0,
+                    col: 8,
+                },
+                end: AstPoint {
+                    line: 0,
+                    col: 21,
+                },
+            },
+            value: "ch.emilycares",
+        },
+        imports: [],
+        thing: Class(
+            AstClass {
+                avaliability: Public,
+                name: AstIdentifier {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 2,
+                            col: 13,
+                        },
+                        end: AstPoint {
+                            line: 2,
+                            col: 23,
+                        },
+                    },
+                    value: "Everything",
+                },
+                superclass: None,
+                variables: [],
+            },
+        ),
+    },
+)

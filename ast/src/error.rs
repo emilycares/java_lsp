@@ -1,3 +1,7 @@
+use std::panic::Location;
+
+use crate::skip_helper::skip;
+
 use super::lexer::{PositionToken, Token};
 
 pub trait PrintErr {
@@ -17,9 +21,16 @@ impl<T> PrintErr for Result<T, AstError> {
 pub enum AstError {
     ExpectedToken(ExpectedToken),
     InvalidAvailability(InvalidToken),
-    UnexpectedEOF,
+    InvalidJtype(InvalidToken),
+    UnexpectedEOF(String, u32, u32),
+    IdentifierEmpty(InvalidToken),
 }
 impl AstError {
+    #[track_caller]
+    pub fn eof() -> Self {
+        let loc = Location::caller();
+        Self::UnexpectedEOF(loc.file().to_string(), loc.line(), loc.column())
+    }
     pub fn print_err(&self, content: &str) {
         match self {
             AstError::ExpectedToken(expected_token) => {
@@ -44,36 +55,68 @@ impl AstError {
                     ),
                 );
             }
-            AstError::UnexpectedEOF => eprintln!("Unexpected end of File"),
+            AstError::UnexpectedEOF(file, line, col) => {
+                eprintln!("Unexpected end of File: {file}:{line}:{col}")
+            }
+            AstError::InvalidJtype(invalid_token) => {
+                print_helper(
+                    content,
+                    invalid_token.line,
+                    invalid_token.col,
+                    format!(
+                        "Invalid Type token found: {:?} valid onese ar Int, String",
+                        invalid_token.found
+                    ),
+                );
+            }
+            AstError::IdentifierEmpty(invalid_token) => {
+                print_helper(
+                    content,
+                    invalid_token.line,
+                    invalid_token.col,
+                    format!("Identifier empty found: {:?}", invalid_token.found),
+                );
+            }
         }
     }
 }
 
 fn print_helper(content: &str, line: usize, col: usize, msg: String) {
-    let mut lines = content.lines().enumerate().skip(line - 1);
-    let (number, line) = lines.next().unwrap();
-    println!("{number} {line}");
-    let (number, line) = lines.next().unwrap();
-    println!("{number} \x1b[93m{line}\x1b[0m");
+    let is_zero = line == 0;
+    let mut lines = match is_zero {
+        false => content.lines().enumerate().skip(line - 1),
+        true => content.lines().enumerate().skip(line),
+    };
+    if !is_zero {
+        if let Some((number, line)) = lines.next() {
+            eprintln!("{number} {line}");
+        }
+    }
+    if let Some((number, line)) = lines.next() {
+        eprintln!("{number} \x1b[93m{line}\x1b[0m");
+    }
     let spaces = " ".repeat(col);
-    println!("  {spaces}^");
-    println!("  | {msg}");
-    let (number, line) = lines.next().unwrap();
-    println!("{number}{line}");
+    eprintln!("  {spaces}^");
+    eprintln!("  | {msg}");
+    if let Some((number, line)) = lines.next() {
+        eprintln!("{number}{line}");
+    }
 }
 
-pub fn assert_token<'a>(
-    mut iter: impl Iterator<Item = &'a PositionToken>,
+pub fn assert_token(
+    tokens: &[PositionToken],
+    pos: usize,
     expected: Token,
-) -> Result<(), AstError> {
-    match iter.next() {
+) -> Result<usize, AstError> {
+    let pos = skip(tokens, pos)?;
+    match tokens.get(pos) {
         Some(t) => {
             if t.token != expected {
                 return Err(AstError::ExpectedToken(ExpectedToken::from(t, expected)));
             }
-            return Ok(());
+            return Ok(pos + 1);
         }
-        None => Err(AstError::UnexpectedEOF),
+        None => Err(AstError::eof()),
     }?
 }
 
