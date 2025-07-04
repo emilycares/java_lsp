@@ -64,6 +64,8 @@ Ok(
                     },
                 ),
                 variables: [],
+                methods: [],
+                constructors: [],
             },
         ),
     },

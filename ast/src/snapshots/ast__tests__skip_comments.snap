@@ -43,7 +43,7 @@ Ok(
                                 col: 4,
                             },
                             end: AstPoint {
-                                line: 6,
+                                line: 7,
                                 col: 11,
                             },
                         },
@@ -79,23 +79,23 @@ Ok(
                     AstClassVariable {
                         range: AstRange {
                             start: AstPoint {
-                                line: 6,
-                                col: 12,
+                                line: 7,
+                                col: 4,
                             },
                             end: AstPoint {
-                                line: 8,
-                                col: 6,
+                                line: 11,
+                                col: 8,
                             },
                         },
                         avaliability: Private,
                         name: AstIdentifier {
                             range: AstRange {
                                 start: AstPoint {
-                                    line: 6,
+                                    line: 7,
                                     col: 16,
                                 },
                                 end: AstPoint {
-                                    line: 6,
+                                    line: 7,
                                     col: 31,
                                 },
                             },
@@ -104,11 +104,11 @@ Ok(
                         jtype: AstJType {
                             range: AstRange {
                                 start: AstPoint {
-                                    line: 6,
+                                    line: 7,
                                     col: 12,
                                 },
                                 end: AstPoint {
-                                    line: 6,
+                                    line: 7,
                                     col: 15,
                                 },
                             },
@@ -119,11 +119,11 @@ Ok(
                     AstClassVariable {
                         range: AstRange {
                             start: AstPoint {
-                                line: 11,
+                                line: 12,
                                 col: 4,
                             },
                             end: AstPoint {
-                                line: 12,
+                                line: 13,
                                 col: 1,
                             },
                         },
@@ -131,11 +131,11 @@ Ok(
                         name: AstIdentifier {
                             range: AstRange {
                                 start: AstPoint {
-                                    line: 11,
+                                    line: 12,
                                     col: 16,
                                 },
                                 end: AstPoint {
-                                    line: 11,
+                                    line: 12,
                                     col: 31,
                                 },
                             },
@@ -144,11 +144,11 @@ Ok(
                         jtype: AstJType {
                             range: AstRange {
                                 start: AstPoint {
-                                    line: 11,
+                                    line: 12,
                                     col: 12,
                                 },
                                 end: AstPoint {
-                                    line: 11,
+                                    line: 12,
                                     col: 15,
                                 },
                             },
@@ -157,6 +157,8 @@ Ok(
                         value: None,
                     },
                 ],
+                methods: [],
+                constructors: [],
             },
         ),
     },

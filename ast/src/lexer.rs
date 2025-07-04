@@ -81,6 +81,7 @@ impl Token {
             | Token::Byte
             | Token::Short
             | Token::Long
+            | Token::Static
             | Token::If => KEYWORDS
                 .entries()
                 .find(|i| i.1 == self)
@@ -151,6 +152,7 @@ pub enum Token {
     Byte,
     Short,
     Long,
+    Static,
 }
 
 #[derive(Debug, PartialEq)]
@@ -185,6 +187,7 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
     "byte" => Token::Byte,
     "short" => Token::Short,
     "long" => Token::Long,
+    "static" => Token::Static,
 };
 
 pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {

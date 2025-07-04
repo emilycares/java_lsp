@@ -169,9 +169,7 @@ expression: tokens
     RightParenCurly,
     NewLine,
     NewLine,
-    Identifier(
-        "static",
-    ),
+    Static,
     Int,
     Identifier(
         "sadd",

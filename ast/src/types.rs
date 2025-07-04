@@ -40,6 +40,8 @@ pub struct AstClass {
     pub name: AstIdentifier,
     pub superclass: AstSuperClass,
     pub variables: Vec<AstClassVariable>,
+    pub(crate) methods: Vec<AstClassMethod>,
+    pub(crate) constructors: Vec<AstClassConstructor>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -50,10 +52,75 @@ pub struct AstClassVariable {
     pub jtype: AstJType,
     pub value: Option<AstValue>,
 }
+
 #[derive(Debug, PartialEq)]
+pub struct AstClassMethod {
+    pub range: AstRange,
+    pub avaliability: AstAvailability,
+    pub name: AstIdentifier,
+    pub jtype: AstJType,
+    pub parameters: AstMethodParamerters,
+    pub block: AstBlock,
+    pub stat: bool,
+}
+#[derive(Debug, PartialEq)]
+pub struct AstClassConstructor {
+    pub range: AstRange,
+    pub avaliability: AstAvailability,
+    pub name: AstIdentifier,
+    pub parameters: AstMethodParamerters,
+    pub block: AstBlock,
+}
+#[derive(Debug, PartialEq)]
+pub struct AstMethodParamerters {
+    pub range: AstRange,
+    pub parameters: Vec<AstMethodParamerter>,
+}
+#[derive(Debug, PartialEq)]
+pub struct AstMethodParamerter {
+    pub range: AstRange,
+    pub jtype: AstJType,
+    pub name: AstIdentifier,
+}
+#[derive(Debug, PartialEq)]
+pub enum AstBlockEntry {
+    Return(AstBlockReturn),
+    Variable(AstBlockVariable),
+    Expression(AstBlockExpression),
+}
+#[derive(Debug, PartialEq)]
+pub struct AstBlockExpression {
+    pub range: AstRange,
+}
+#[derive(Debug, PartialEq)]
+pub struct AstBlock {
+    pub range: AstRange,
+    pub entries: Vec<AstBlockEntry>,
+}
+#[derive(Debug, PartialEq)]
+pub struct AstBlockVariable {
+    pub range: AstRange,
+    pub name: AstIdentifier,
+    pub jtype: AstJType,
+    pub value: Option<AstValue>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct AstBlockReturn {
+    pub range: AstRange,
+    pub value: AstValue,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct AstIdentifier {
     pub range: AstRange,
     pub value: String,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct AstNumber {
+    pub range: AstRange,
+    pub value: i64,
 }
 
 #[derive(Debug, PartialEq)]
@@ -101,6 +168,7 @@ pub enum AstJTypeKind {
 #[derive(Debug, PartialEq)]
 pub enum AstValue {
     NewClass(AstValueNewClass),
+    Equasion(AstValueEquasion),
 }
 
 #[derive(Debug, PartialEq)]
@@ -108,4 +176,23 @@ pub struct AstValueNewClass {
     pub range: AstRange,
     pub jtype: AstJType,
     pub parameters: Vec<AstValue>,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum AstValueNuget {
+    Variable(AstIdentifier),
+    Number(AstNumber),
+}
+
+#[derive(Debug, PartialEq)]
+pub struct AstValueEquasion {
+    pub range: AstRange,
+    pub lhs: AstValueNuget,
+    pub operator: AstValueEquasionOperator,
+    pub rhs: AstValueNuget,
+}
+#[derive(Debug, PartialEq)]
+pub enum AstValueEquasionOperator {
+    Plus(AstRange),
+    Minus(AstRange),
 }

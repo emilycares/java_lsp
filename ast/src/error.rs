@@ -24,6 +24,8 @@ pub enum AstError {
     InvalidJtype(InvalidToken),
     UnexpectedEOF(String, u32, u32),
     IdentifierEmpty(InvalidToken),
+    InvalidName(InvalidToken),
+    InvalidNuget(InvalidToken),
 }
 impl AstError {
     #[track_caller]
@@ -75,6 +77,22 @@ impl AstError {
                     invalid_token.line,
                     invalid_token.col,
                     format!("Identifier empty found: {:?}", invalid_token.found),
+                );
+            }
+            AstError::InvalidName(invalid_token) => {
+                print_helper(
+                    content,
+                    invalid_token.line,
+                    invalid_token.col,
+                    format!("Token not allowed in name: {:?}", invalid_token.found),
+                );
+            }
+            AstError::InvalidNuget(invalid_token) => {
+                print_helper(
+                    content,
+                    invalid_token.line,
+                    invalid_token.col,
+                    format!("Token not allowed in nuget: {:?}", invalid_token.found),
                 );
             }
         }

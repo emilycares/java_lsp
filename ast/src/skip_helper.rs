@@ -8,6 +8,7 @@ use crate::{
 pub fn skip(tokens: &[PositionToken], pos: usize) -> Result<usize, AstError> {
     let pos = skip_newline(tokens, pos)?;
     let pos = skip_line_comment(tokens, pos)?;
+    let pos = skip_block_comment(tokens, pos)?;
 
     Ok(pos)
 }
@@ -32,18 +33,19 @@ fn skip_newline(tokens: &[PositionToken], pos: usize) -> Result<usize, AstError>
     Ok(pos)
 }
 fn skip_line_comment(tokens: &[PositionToken], pos: usize) -> Result<usize, AstError> {
+    let initial_pos = pos;
     let Some(token) = tokens.get(pos) else {
         return Err(AstError::eof());
     };
     if token.token != Token::Slash {
-        return Ok(pos);
+        return Ok(initial_pos);
     }
     let pos = pos + 1;
     let Some(token) = tokens.get(pos) else {
         return Err(AstError::eof());
     };
     if token.token != Token::Slash {
-        return Ok(pos);
+        return Ok(initial_pos);
     }
     let mut pos = pos;
     loop {
@@ -56,6 +58,46 @@ fn skip_line_comment(tokens: &[PositionToken], pos: usize) -> Result<usize, AstE
 
         pos += 1;
     }
+    pos += 1;
+
+    Ok(pos)
+}
+
+fn skip_block_comment(tokens: &[PositionToken], pos: usize) -> Result<usize, AstError> {
+    let initial_pos = pos;
+    let Some(token) = tokens.get(pos) else {
+        return Err(AstError::eof());
+    };
+    if token.token != Token::Slash {
+        return Ok(initial_pos);
+    }
+    let pos = pos + 1;
+    let Some(token) = tokens.get(pos) else {
+        return Err(AstError::eof());
+    };
+    if token.token != Token::Star {
+        return Ok(initial_pos);
+    }
+    let mut pos = pos;
+    loop {
+        let Some(token) = tokens.get(pos) else {
+            return Err(AstError::eof());
+        };
+        if token.token != Token::Star {
+            pos += 1;
+            continue;
+        }
+        pos += 1;
+        let Some(token) = tokens.get(pos) else {
+            return Err(AstError::eof());
+        };
+        if token.token == Token::Slash {
+            break;
+        }
+
+        pos += 1;
+    }
+
     pos += 1;
 
     Ok(pos)
