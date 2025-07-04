@@ -208,6 +208,9 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                 char = 0;
             }
             ch if ch.is_whitespace() => {
+                if ch == '\r' {
+                    continue;
+                }
                 char += 1;
                 continue;
             }
