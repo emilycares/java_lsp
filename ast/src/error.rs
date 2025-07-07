@@ -1,14 +1,12 @@
 use std::panic::Location;
 
-use crate::skip_helper::skip;
-
 use super::lexer::{PositionToken, Token};
 
 pub trait PrintErr {
     fn print_err(&self, content: &str);
 }
 
-impl<T> PrintErr for Result<T, AstError> {
+impl<T> PrintErr for Result<T, AstError<'_>> {
     fn print_err(&self, content: &str) {
         match self {
             Ok(_) => (),
@@ -18,20 +16,24 @@ impl<T> PrintErr for Result<T, AstError> {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum AstError {
+pub enum AstError<'a> {
     ExpectedToken(ExpectedToken),
     InvalidAvailability(InvalidToken),
     InvalidJtype(InvalidToken),
-    UnexpectedEOF(String, u32, u32),
+    UnexpectedEOF(&'a str, u32, u32),
     IdentifierEmpty(InvalidToken),
     InvalidName(InvalidToken),
     InvalidNuget(InvalidToken),
+    AllChildrenFailed {
+        parent: &'a str,
+        errors: Vec<(&'a str, AstError<'a>)>,
+    },
 }
-impl AstError {
+impl AstError<'_> {
     #[track_caller]
     pub fn eof() -> Self {
         let loc = Location::caller();
-        Self::UnexpectedEOF(loc.file().to_string(), loc.line(), loc.column())
+        Self::UnexpectedEOF(loc.file(), loc.line(), loc.column())
     }
     pub fn print_err(&self, content: &str) {
         match self {
@@ -95,6 +97,13 @@ impl AstError {
                     format!("Token not allowed in nuget: {:?}", invalid_token.found),
                 );
             }
+            AstError::AllChildrenFailed { parent, errors } => {
+                eprintln!("All chilren failed in {parent}");
+                for (child, e) in errors {
+                    eprintln!(" {child} --------------------------");
+                    e.print_err(content);
+                }
+            }
         }
     }
 }
@@ -113,9 +122,9 @@ fn print_helper(content: &str, line: usize, col: usize, msg: String) {
     if let Some((number, line)) = lines.next() {
         eprintln!("{number} \x1b[93m{line}\x1b[0m");
     }
-    let spaces = " ".repeat(col);
+    let spaces = " ".repeat(col + 1);
     eprintln!("  {spaces}^");
-    eprintln!("  | {msg}");
+    eprintln!("  {spaces}| {msg}");
     if let Some((number, line)) = lines.next() {
         eprintln!("{number}{line}");
     }
@@ -126,7 +135,6 @@ pub fn assert_token(
     pos: usize,
     expected: Token,
 ) -> Result<usize, AstError> {
-    let pos = skip(tokens, pos)?;
     match tokens.get(pos) {
         Some(t) => {
             if t.token != expected {

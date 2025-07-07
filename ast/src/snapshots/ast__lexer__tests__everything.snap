@@ -1,205 +1,496 @@
 ---
 source: ast/src/lexer.rs
 expression: tokens
+snapshot_kind: text
 ---
 [
-    Package,
-    Identifier(
-        "ch",
-    ),
-    Dot,
-    Identifier(
-        "emilycares",
-    ),
-    Semicolon,
-    NewLine,
-    NewLine,
-    Public,
-    Class,
-    Identifier(
-        "Everything",
-    ),
-    LeftParenCurly,
-    NewLine,
-    NewLine,
-    Public,
-    Identifier(
-        "Everything",
-    ),
-    LeftParen,
-    RightParen,
-    LeftParenCurly,
-    NewLine,
-    RightParenCurly,
-    NewLine,
-    Int,
-    Identifier(
-        "noprop",
-    ),
-    Semicolon,
-    NewLine,
-    Public,
-    Int,
-    Identifier(
-        "publicproperty",
-    ),
-    Semicolon,
-    NewLine,
-    Private,
-    Int,
-    Identifier(
-        "privateproperty",
-    ),
-    Semicolon,
-    NewLine,
-    NewLine,
-    Void,
-    Identifier(
-        "method",
-    ),
-    LeftParen,
-    RightParen,
-    LeftParenCurly,
-    NewLine,
-    RightParenCurly,
-    NewLine,
-    NewLine,
-    Public,
-    Void,
-    Identifier(
-        "public_method",
-    ),
-    LeftParen,
-    RightParen,
-    LeftParenCurly,
-    NewLine,
-    RightParenCurly,
-    NewLine,
-    NewLine,
-    Private,
-    Void,
-    Identifier(
-        "private_method",
-    ),
-    LeftParen,
-    RightParen,
-    LeftParenCurly,
-    NewLine,
-    RightParenCurly,
-    NewLine,
-    NewLine,
-    Int,
-    Identifier(
-        "out",
-    ),
-    LeftParen,
-    RightParen,
-    LeftParenCurly,
-    NewLine,
-    Return,
-    Number(
-        0,
-    ),
-    Semicolon,
-    NewLine,
-    RightParenCurly,
-    NewLine,
-    NewLine,
-    Slash,
-    Star,
-    Star,
-    NewLine,
-    Star,
-    Identifier(
-        "Documentation",
-    ),
-    NewLine,
-    Star,
-    At,
-    Identifier(
-        "param",
-    ),
-    Identifier(
-        "a",
-    ),
-    NewLine,
-    Star,
-    At,
-    Identifier(
-        "param",
-    ),
-    Identifier(
-        "b",
-    ),
-    NewLine,
-    Star,
-    At,
-    Return,
-    NewLine,
-    Star,
-    Slash,
-    NewLine,
-    Int,
-    Identifier(
-        "add",
-    ),
-    LeftParen,
-    Int,
-    Identifier(
-        "a",
-    ),
-    Comma,
-    Int,
-    Identifier(
-        "b",
-    ),
-    RightParen,
-    LeftParenCurly,
-    NewLine,
-    Return,
-    Identifier(
-        "a",
-    ),
-    Plus,
-    Identifier(
-        "b",
-    ),
-    Semicolon,
-    NewLine,
-    RightParenCurly,
-    NewLine,
-    NewLine,
-    Static,
-    Int,
-    Identifier(
-        "sadd",
-    ),
-    LeftParen,
-    Int,
-    Identifier(
-        "a",
-    ),
-    Comma,
-    Int,
-    Identifier(
-        "b",
-    ),
-    RightParen,
-    LeftParenCurly,
-    NewLine,
-    Return,
-    Identifier(
-        "a",
-    ),
-    Plus,
-    Identifier(
-        "b",
-    ),
-    Semicolon,
-    NewLine,
-    RightParenCurly,
-    NewLine,
-    RightParenCurly,
-    NewLine,
-    EOF,
+    PositionToken {
+        token: Package,
+        line: 0,
+        col: 0,
+    },
+    PositionToken {
+        token: Identifier(
+            "ch",
+        ),
+        line: 0,
+        col: 8,
+    },
+    PositionToken {
+        token: Dot,
+        line: 0,
+        col: 10,
+    },
+    PositionToken {
+        token: Identifier(
+            "emilycares",
+        ),
+        line: 0,
+        col: 11,
+    },
+    PositionToken {
+        token: Semicolon,
+        line: 0,
+        col: 21,
+    },
+    PositionToken {
+        token: Public,
+        line: 2,
+        col: 0,
+    },
+    PositionToken {
+        token: Class,
+        line: 2,
+        col: 7,
+    },
+    PositionToken {
+        token: Identifier(
+            "Everything",
+        ),
+        line: 2,
+        col: 13,
+    },
+    PositionToken {
+        token: LeftParenCurly,
+        line: 2,
+        col: 24,
+    },
+    PositionToken {
+        token: Int,
+        line: 3,
+        col: 4,
+    },
+    PositionToken {
+        token: Identifier(
+            "noprop",
+        ),
+        line: 3,
+        col: 8,
+    },
+    PositionToken {
+        token: Semicolon,
+        line: 3,
+        col: 14,
+    },
+    PositionToken {
+        token: Public,
+        line: 5,
+        col: 4,
+    },
+    PositionToken {
+        token: Identifier(
+            "Everything",
+        ),
+        line: 5,
+        col: 11,
+    },
+    PositionToken {
+        token: LeftParen,
+        line: 5,
+        col: 21,
+    },
+    PositionToken {
+        token: RightParen,
+        line: 5,
+        col: 22,
+    },
+    PositionToken {
+        token: LeftParenCurly,
+        line: 5,
+        col: 24,
+    },
+    PositionToken {
+        token: RightParenCurly,
+        line: 6,
+        col: 4,
+    },
+    PositionToken {
+        token: Public,
+        line: 7,
+        col: 4,
+    },
+    PositionToken {
+        token: Int,
+        line: 7,
+        col: 11,
+    },
+    PositionToken {
+        token: Identifier(
+            "publicproperty",
+        ),
+        line: 7,
+        col: 15,
+    },
+    PositionToken {
+        token: Semicolon,
+        line: 7,
+        col: 29,
+    },
+    PositionToken {
+        token: Private,
+        line: 8,
+        col: 4,
+    },
+    PositionToken {
+        token: Int,
+        line: 8,
+        col: 12,
+    },
+    PositionToken {
+        token: Identifier(
+            "privateproperty",
+        ),
+        line: 8,
+        col: 16,
+    },
+    PositionToken {
+        token: Semicolon,
+        line: 8,
+        col: 31,
+    },
+    PositionToken {
+        token: Void,
+        line: 10,
+        col: 4,
+    },
+    PositionToken {
+        token: Identifier(
+            "method",
+        ),
+        line: 10,
+        col: 9,
+    },
+    PositionToken {
+        token: LeftParen,
+        line: 10,
+        col: 15,
+    },
+    PositionToken {
+        token: RightParen,
+        line: 10,
+        col: 16,
+    },
+    PositionToken {
+        token: LeftParenCurly,
+        line: 10,
+        col: 18,
+    },
+    PositionToken {
+        token: RightParenCurly,
+        line: 11,
+        col: 4,
+    },
+    PositionToken {
+        token: Public,
+        line: 13,
+        col: 4,
+    },
+    PositionToken {
+        token: Void,
+        line: 13,
+        col: 11,
+    },
+    PositionToken {
+        token: Identifier(
+            "public_method",
+        ),
+        line: 13,
+        col: 16,
+    },
+    PositionToken {
+        token: LeftParen,
+        line: 13,
+        col: 29,
+    },
+    PositionToken {
+        token: RightParen,
+        line: 13,
+        col: 30,
+    },
+    PositionToken {
+        token: LeftParenCurly,
+        line: 13,
+        col: 32,
+    },
+    PositionToken {
+        token: RightParenCurly,
+        line: 14,
+        col: 4,
+    },
+    PositionToken {
+        token: Private,
+        line: 16,
+        col: 4,
+    },
+    PositionToken {
+        token: Void,
+        line: 16,
+        col: 12,
+    },
+    PositionToken {
+        token: Identifier(
+            "private_method",
+        ),
+        line: 16,
+        col: 17,
+    },
+    PositionToken {
+        token: LeftParen,
+        line: 16,
+        col: 31,
+    },
+    PositionToken {
+        token: RightParen,
+        line: 16,
+        col: 32,
+    },
+    PositionToken {
+        token: LeftParenCurly,
+        line: 16,
+        col: 34,
+    },
+    PositionToken {
+        token: RightParenCurly,
+        line: 17,
+        col: 4,
+    },
+    PositionToken {
+        token: Int,
+        line: 19,
+        col: 4,
+    },
+    PositionToken {
+        token: Identifier(
+            "out",
+        ),
+        line: 19,
+        col: 8,
+    },
+    PositionToken {
+        token: LeftParen,
+        line: 19,
+        col: 11,
+    },
+    PositionToken {
+        token: RightParen,
+        line: 19,
+        col: 12,
+    },
+    PositionToken {
+        token: LeftParenCurly,
+        line: 19,
+        col: 14,
+    },
+    PositionToken {
+        token: Return,
+        line: 20,
+        col: 8,
+    },
+    PositionToken {
+        token: Number(
+            0,
+        ),
+        line: 20,
+        col: 15,
+    },
+    PositionToken {
+        token: Semicolon,
+        line: 20,
+        col: 16,
+    },
+    PositionToken {
+        token: RightParenCurly,
+        line: 21,
+        col: 4,
+    },
+    PositionToken {
+        token: Int,
+        line: 29,
+        col: 4,
+    },
+    PositionToken {
+        token: Identifier(
+            "add",
+        ),
+        line: 29,
+        col: 8,
+    },
+    PositionToken {
+        token: LeftParen,
+        line: 29,
+        col: 11,
+    },
+    PositionToken {
+        token: Int,
+        line: 29,
+        col: 12,
+    },
+    PositionToken {
+        token: Identifier(
+            "a",
+        ),
+        line: 29,
+        col: 16,
+    },
+    PositionToken {
+        token: Comma,
+        line: 29,
+        col: 17,
+    },
+    PositionToken {
+        token: Int,
+        line: 29,
+        col: 19,
+    },
+    PositionToken {
+        token: Identifier(
+            "b",
+        ),
+        line: 29,
+        col: 23,
+    },
+    PositionToken {
+        token: RightParen,
+        line: 29,
+        col: 24,
+    },
+    PositionToken {
+        token: LeftParenCurly,
+        line: 29,
+        col: 26,
+    },
+    PositionToken {
+        token: Return,
+        line: 30,
+        col: 8,
+    },
+    PositionToken {
+        token: Identifier(
+            "a",
+        ),
+        line: 30,
+        col: 15,
+    },
+    PositionToken {
+        token: Plus,
+        line: 30,
+        col: 17,
+    },
+    PositionToken {
+        token: Identifier(
+            "b",
+        ),
+        line: 30,
+        col: 19,
+    },
+    PositionToken {
+        token: Semicolon,
+        line: 30,
+        col: 20,
+    },
+    PositionToken {
+        token: RightParenCurly,
+        line: 31,
+        col: 4,
+    },
+    PositionToken {
+        token: Static,
+        line: 33,
+        col: 4,
+    },
+    PositionToken {
+        token: Int,
+        line: 33,
+        col: 11,
+    },
+    PositionToken {
+        token: Identifier(
+            "sadd",
+        ),
+        line: 33,
+        col: 15,
+    },
+    PositionToken {
+        token: LeftParen,
+        line: 33,
+        col: 19,
+    },
+    PositionToken {
+        token: Int,
+        line: 33,
+        col: 20,
+    },
+    PositionToken {
+        token: Identifier(
+            "a",
+        ),
+        line: 33,
+        col: 24,
+    },
+    PositionToken {
+        token: Comma,
+        line: 33,
+        col: 25,
+    },
+    PositionToken {
+        token: Int,
+        line: 33,
+        col: 27,
+    },
+    PositionToken {
+        token: Identifier(
+            "b",
+        ),
+        line: 33,
+        col: 31,
+    },
+    PositionToken {
+        token: RightParen,
+        line: 33,
+        col: 32,
+    },
+    PositionToken {
+        token: LeftParenCurly,
+        line: 33,
+        col: 34,
+    },
+    PositionToken {
+        token: Return,
+        line: 34,
+        col: 6,
+    },
+    PositionToken {
+        token: Identifier(
+            "a",
+        ),
+        line: 34,
+        col: 13,
+    },
+    PositionToken {
+        token: Plus,
+        line: 34,
+        col: 15,
+    },
+    PositionToken {
+        token: Identifier(
+            "b",
+        ),
+        line: 34,
+        col: 17,
+    },
+    PositionToken {
+        token: Semicolon,
+        line: 34,
+        col: 18,
+    },
+    PositionToken {
+        token: RightParenCurly,
+        line: 35,
+        col: 4,
+    },
+    PositionToken {
+        token: RightParenCurly,
+        line: 36,
+        col: 0,
+    },
 ]

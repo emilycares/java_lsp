@@ -1,6 +1,5 @@
 use error::{AstError, ExpectedToken, InvalidToken, assert_token};
 use lexer::{PositionToken, Token};
-use skip_helper::skip;
 use types::{
     AstAvailability, AstBlock, AstBlockEntry, AstBlockReturn, AstBlockVariable, AstClass,
     AstClassConstructor, AstClassMethod, AstClassVariable, AstFile, AstIdentifier, AstInterface,
@@ -10,7 +9,6 @@ use types::{
 
 pub mod error;
 pub mod lexer;
-pub mod skip_helper;
 pub mod types;
 
 pub fn parse_file(tokens: &[PositionToken], pos: usize) -> Result<AstFile, AstError> {
@@ -61,7 +59,6 @@ fn parse_import(tokens: &[PositionToken], pos: usize) -> Result<(AstIdentifier, 
 ///  public interface Constants { ...
 fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, usize), AstError> {
     let (avaliability, pos) = parse_avaliability(tokens, pos)?;
-    let pos = skip(tokens, pos)?;
     match tokens.get(pos) {
         Some(t) => match t {
             PositionToken {
@@ -95,11 +92,9 @@ fn parse_class(
     let mut methods = vec![];
     let mut constructors = vec![];
     let mut pos = pos;
+    let mut errors = vec![];
     loop {
-        let Ok(npos) = skip(tokens, pos) else {
-            break;
-        };
-        pos = npos;
+        errors.clear();
         if tokens.get(pos).is_none() {
             break;
         }
@@ -113,8 +108,8 @@ fn parse_class(
                 variables.push(variable);
                 continue;
             }
-            Err(_e) => {
-                // return Err(e);
+            Err(e) => {
+                errors.push(("class variable", e));
             }
         }
         match parse_class_constructor(tokens, pos) {
@@ -123,8 +118,8 @@ fn parse_class(
                 constructors.push(constructor);
                 continue;
             }
-            Err(_e) => {
-                // return Err(e);
+            Err(e) => {
+                errors.push(("class constructor", e));
             }
         }
         match parse_class_method(tokens, pos) {
@@ -134,9 +129,13 @@ fn parse_class(
                 continue;
             }
             Err(e) => {
-                return Err(e);
+                errors.push(("class method", e));
             }
         }
+        return Err(AstError::AllChildrenFailed {
+            parent: "class",
+            errors,
+        });
     }
 
     let class = AstClass {
@@ -151,16 +150,28 @@ fn parse_class(
 }
 
 fn parse_value(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, usize), AstError> {
-    if let Ok((value, pos)) = parse_value_new_class(tokens, pos) {
-        return Ok((value, pos));
+    let mut errors = vec![];
+    match parse_value_new_class(tokens, pos) {
+        Ok(v) => return Ok(v),
+        Err(e) => errors.push(("value new class", e)),
+    };
+    match parse_value_equasion(tokens, pos) {
+        Ok(v) => return Ok(v),
+        Err(e) => errors.push(("value expression", e)),
     }
-    parse_value_equasion(tokens, pos)
+    match parse_value_nuget(tokens, pos) {
+        Ok((nuget, pos)) => return Ok((AstValue::Nuget(nuget), pos)),
+        Err(e) => errors.push(("value nuget", e)),
+    }
+    Err(AstError::AllChildrenFailed {
+        parent: "value",
+        errors,
+    })
 }
 fn parse_value_equasion(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstValue, usize), AstError> {
-    let pos = skip(tokens, pos)?;
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let (lhs, pos) = parse_value_nuget(tokens, pos)?;
     let (operator, pos) = parse_value_operator(tokens, pos)?;
@@ -181,7 +192,6 @@ fn parse_value_nuget(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstValueNuget, usize), AstError> {
-    let pos = skip(tokens, pos)?;
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     match &start.token {
         Token::Identifier(name) => Ok((
@@ -209,7 +219,6 @@ fn parse_value_operator(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstValueEquasionOperator, usize), AstError> {
-    let pos = skip(tokens, pos)?;
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     match &start.token {
         Token::Plus => Ok((
@@ -269,7 +278,6 @@ fn parse_block_variable(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstBlockVariable, usize), AstError> {
-    let pos = skip(tokens, pos)?;
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let (jtype, pos) = parse_jtype(tokens, pos)?;
     let (name, pos) = parse_name(tokens, pos)?;
@@ -281,7 +289,6 @@ fn parse_block_variable(
         value = Some(avalue);
     }
     let pos = assert_token(tokens, pos, Token::Semicolon)?;
-    let pos = skip(tokens, pos)?;
     let end = tokens.get(pos).ok_or(AstError::eof())?;
 
     Ok((
@@ -299,7 +306,6 @@ fn parse_block_return(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstBlockReturn, usize), AstError> {
-    let pos = skip(tokens, pos)?;
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let pos = assert_token(tokens, pos, Token::Return)?;
     let (value, pos) = parse_value(tokens, pos)?;
@@ -318,7 +324,6 @@ fn parse_class_variable(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstClassVariable, usize), AstError> {
-    let pos = skip(tokens, pos)?;
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let (avaliability, pos) = parse_avaliability(tokens, pos)?;
     let (jtype, pos) = parse_jtype(tokens, pos)?;
@@ -331,7 +336,6 @@ fn parse_class_variable(
         value = Some(avalue);
     }
     let pos = assert_token(tokens, pos, Token::Semicolon)?;
-    let pos = skip(tokens, pos)?;
     let end = tokens.get(pos).ok_or(AstError::eof())?;
 
     Ok((
@@ -388,15 +392,15 @@ fn parse_class_constructor(
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let (avaliability, pos) = parse_avaliability(tokens, pos)?;
     let (name, pos) = parse_name(tokens, pos)?;
-    let (paramerters, pos) = parse_method_paramerters(tokens, pos)?;
+    let (parameters, pos) = parse_method_paramerters(tokens, pos)?;
     let (block, pos) = parse_block(tokens, pos)?;
 
     let end = tokens.get(pos).ok_or(AstError::eof())?;
     Ok((
         AstClassConstructor {
             avaliability,
-            name: name.clone(),
-            parameters: paramerters,
+            name,
+            parameters,
             block,
             range: AstRange::from_position_token(start, end),
         },
@@ -409,39 +413,44 @@ fn parse_block(tokens: &[PositionToken], pos: usize) -> Result<(AstBlock, usize)
     let pos = assert_token(tokens, pos, Token::LeftParenCurly)?;
     let mut pos = pos;
     let mut entries = vec![];
+    let mut errors = vec![];
     loop {
-        let Ok(npos) = skip(tokens, pos) else {
-            break;
-        };
-        pos = npos;
+        errors.clear();
         if tokens.get(pos).is_none() {
             break;
         }
-        if assert_token(tokens, pos, Token::RightParenCurly).is_ok() {
+        if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
+            pos = npos;
             break;
         };
         match parse_block_variable(tokens, pos) {
             Ok((variable, npos)) => {
                 pos = npos;
                 entries.push(AstBlockEntry::Variable(variable));
+                continue;
             }
-            Err(_e) => {
-                // dbg!(e);
+            Err(e) => {
+                errors.push(("block variable", e));
             }
         }
         match parse_block_return(tokens, pos) {
             Ok((nret, npos)) => {
                 pos = npos;
                 entries.push(AstBlockEntry::Return(nret));
+                continue;
             }
-            Err(_e) => {
-                // return Err(e);
+            Err(e) => {
+                errors.push(("block return", e));
             }
         }
         pos += 1;
+        // return Err(AstError::AllChildrenFailed {
+        //     parent: "block",
+        //     errors,
+        // });
     }
-    let pos = assert_token(tokens, pos, Token::RightParenCurly)?;
-    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    // let pos = assert_token(tokens, pos, Token::RightParenCurly)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof()).unwrap();
     Ok((
         AstBlock {
             range: AstRange::from_position_token(start, end),
@@ -512,11 +521,9 @@ fn parse_method_paramerter(
 
 // Only one Token::Identifier content
 fn parse_name(tokens: &[PositionToken], pos: usize) -> Result<(AstIdentifier, usize), AstError> {
-    let pos = skip(tokens, pos)?;
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let mut pos = pos;
     let ident;
-    pos = skip(tokens, pos)?;
     let t = tokens.get(pos).ok_or(AstError::eof())?;
     match &t.token {
         Token::Identifier(id) => {
@@ -532,7 +539,6 @@ fn parse_name(tokens: &[PositionToken], pos: usize) -> Result<(AstIdentifier, us
         let t = tokens.get(pos).ok_or(AstError::eof())?;
         return Err(AstError::IdentifierEmpty(InvalidToken::from(t)));
     }
-    let pos = skip(tokens, pos)?;
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstIdentifier {
@@ -548,12 +554,10 @@ fn parse_identifier(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstIdentifier, usize), AstError> {
-    let pos = skip(tokens, pos)?;
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let mut pos = pos;
     let mut ident = String::new();
     loop {
-        pos = skip(tokens, pos)?;
         let t = tokens.get(pos).ok_or(AstError::eof())?;
         match &t.token {
             Token::Identifier(id) => {
@@ -575,7 +579,6 @@ fn parse_identifier(
         let t = tokens.get(pos).ok_or(AstError::eof())?;
         return Err(AstError::IdentifierEmpty(InvalidToken::from(t)));
     }
-    let pos = skip(tokens, pos)?;
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstIdentifier {
@@ -590,7 +593,6 @@ fn parse_superclass(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstSuperClass, usize), AstError> {
-    let pos = skip(tokens, pos)?;
     let Ok(pos) = assert_token(tokens, pos, Token::Extends) else {
         return Ok((AstSuperClass::None, pos));
     };
@@ -605,7 +607,6 @@ fn parse_superclass(
 
 fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, usize), AstError> {
     let out_pos = pos + 1;
-    let pos = skip(tokens, pos)?;
     let current = tokens.get(pos).ok_or(AstError::eof())?;
     match &current.token {
         Token::Int => Ok((
@@ -679,8 +680,7 @@ fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, usize)
             out_pos,
         )),
         Token::Identifier(ident) => {
-            let pos = skip(tokens, pos + 1)?;
-            let peek = tokens.get(pos);
+            let peek = tokens.get(pos + 1);
             let range = AstRange::from_position_token(current, current);
             let ident = AstIdentifier {
                 value: ident.to_string(),
@@ -695,7 +695,7 @@ fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, usize)
                     Token::Lt => {
                         let out_pos;
                         let mut args = vec![];
-                        let mut pos = pos + 1;
+                        let mut pos = pos + 2;
                         loop {
                             // If there are no type arguments
                             if let Ok(npos) = assert_token(tokens, pos, Token::Gt) {
@@ -750,7 +750,6 @@ fn parse_avaliability(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstAvailability, usize), AstError> {
-    let pos = skip(tokens, pos)?;
     let Some(token) = tokens.get(pos) else {
         return Err(AstError::eof());
     };
@@ -784,7 +783,7 @@ pub mod tests {
         let tokens = lexer::lex(content).unwrap();
         let parsed = parse_file(&tokens, 0);
         parsed.print_err(content);
-        insta::assert_debug_snapshot!(parsed);
+        insta::assert_debug_snapshot!(parsed.unwrap());
     }
 
     #[test]
@@ -793,7 +792,7 @@ pub mod tests {
         let tokens = lexer::lex(content).unwrap();
         let parsed = parse_file(&tokens, 0);
         parsed.print_err(content);
-        insta::assert_debug_snapshot!(parsed);
+        insta::assert_debug_snapshot!(parsed.unwrap());
     }
 
     #[test]
@@ -802,7 +801,7 @@ pub mod tests {
         let tokens = lexer::lex(content).unwrap();
         let parsed = parse_file(&tokens, 0);
         parsed.print_err(content);
-        insta::assert_debug_snapshot!(parsed);
+        insta::assert_debug_snapshot!(parsed.unwrap());
     }
 
     #[test]
@@ -811,7 +810,7 @@ pub mod tests {
         let tokens = lexer::lex(content).unwrap();
         let parsed = parse_file(&tokens, 0);
         parsed.print_err(content);
-        insta::assert_debug_snapshot!(parsed);
+        insta::assert_debug_snapshot!(parsed.unwrap());
     }
 
     #[test]
@@ -820,6 +819,6 @@ pub mod tests {
         let tokens = lexer::lex(content).unwrap();
         let parsed = parse_file(&tokens, 0);
         parsed.print_err(content);
-        insta::assert_debug_snapshot!(parsed);
+        insta::assert_debug_snapshot!(parsed.unwrap());
     }
 }

@@ -3,76 +3,223 @@ source: ast/src/lexer.rs
 expression: tokens
 ---
 [
-    Package,
-    Identifier(
-        "ch",
-    ),
-    Dot,
-    Identifier(
-        "emilycares",
-    ),
-    Semicolon,
-    NewLine,
-    NewLine,
-    Import,
-    Identifier(
-        "java",
-    ),
-    Dot,
-    Identifier(
-        "io",
-    ),
-    Dot,
-    Identifier(
-        "IOException",
-    ),
-    Semicolon,
-    NewLine,
-    NewLine,
-    Public,
-    Class,
-    Identifier(
-        "Thrower",
-    ),
-    LeftParenCurly,
-    NewLine,
-    Public,
-    Void,
-    Identifier(
-        "ioThrower",
-    ),
-    LeftParen,
-    RightParen,
-    Throws,
-    Identifier(
-        "IOException",
-    ),
-    LeftParenCurly,
-    RightParenCurly,
-    NewLine,
-    Public,
-    Void,
-    Identifier(
-        "ioThrower",
-    ),
-    LeftParen,
-    Int,
-    Identifier(
-        "a",
-    ),
-    RightParen,
-    Throws,
-    Identifier(
-        "IOException",
-    ),
-    Comma,
-    Identifier(
-        "IOException",
-    ),
-    LeftParenCurly,
-    RightParenCurly,
-    NewLine,
-    RightParenCurly,
-    NewLine,
-    EOF,
+    PositionToken {
+        token: Package,
+        line: 0,
+        col: 0,
+    },
+    PositionToken {
+        token: Identifier(
+            "ch",
+        ),
+        line: 0,
+        col: 8,
+    },
+    PositionToken {
+        token: Dot,
+        line: 0,
+        col: 10,
+    },
+    PositionToken {
+        token: Identifier(
+            "emilycares",
+        ),
+        line: 0,
+        col: 11,
+    },
+    PositionToken {
+        token: Semicolon,
+        line: 0,
+        col: 21,
+    },
+    PositionToken {
+        token: Import,
+        line: 2,
+        col: 0,
+    },
+    PositionToken {
+        token: Identifier(
+            "java",
+        ),
+        line: 2,
+        col: 7,
+    },
+    PositionToken {
+        token: Dot,
+        line: 2,
+        col: 11,
+    },
+    PositionToken {
+        token: Identifier(
+            "io",
+        ),
+        line: 2,
+        col: 12,
+    },
+    PositionToken {
+        token: Dot,
+        line: 2,
+        col: 14,
+    },
+    PositionToken {
+        token: Identifier(
+            "IOException",
+        ),
+        line: 2,
+        col: 15,
+    },
+    PositionToken {
+        token: Semicolon,
+        line: 2,
+        col: 26,
+    },
+    PositionToken {
+        token: Public,
+        line: 4,
+        col: 0,
+    },
+    PositionToken {
+        token: Class,
+        line: 4,
+        col: 7,
+    },
+    PositionToken {
+        token: Identifier(
+            "Thrower",
+        ),
+        line: 4,
+        col: 13,
+    },
+    PositionToken {
+        token: LeftParenCurly,
+        line: 4,
+        col: 21,
+    },
+    PositionToken {
+        token: Public,
+        line: 5,
+        col: 2,
+    },
+    PositionToken {
+        token: Void,
+        line: 5,
+        col: 9,
+    },
+    PositionToken {
+        token: Identifier(
+            "ioThrower",
+        ),
+        line: 5,
+        col: 14,
+    },
+    PositionToken {
+        token: LeftParen,
+        line: 5,
+        col: 23,
+    },
+    PositionToken {
+        token: RightParen,
+        line: 5,
+        col: 24,
+    },
+    PositionToken {
+        token: Throws,
+        line: 5,
+        col: 26,
+    },
+    PositionToken {
+        token: Identifier(
+            "IOException",
+        ),
+        line: 5,
+        col: 33,
+    },
+    PositionToken {
+        token: LeftParenCurly,
+        line: 5,
+        col: 45,
+    },
+    PositionToken {
+        token: RightParenCurly,
+        line: 5,
+        col: 46,
+    },
+    PositionToken {
+        token: Public,
+        line: 6,
+        col: 2,
+    },
+    PositionToken {
+        token: Void,
+        line: 6,
+        col: 9,
+    },
+    PositionToken {
+        token: Identifier(
+            "ioThrower",
+        ),
+        line: 6,
+        col: 14,
+    },
+    PositionToken {
+        token: LeftParen,
+        line: 6,
+        col: 23,
+    },
+    PositionToken {
+        token: Int,
+        line: 6,
+        col: 24,
+    },
+    PositionToken {
+        token: Identifier(
+            "a",
+        ),
+        line: 6,
+        col: 28,
+    },
+    PositionToken {
+        token: RightParen,
+        line: 6,
+        col: 29,
+    },
+    PositionToken {
+        token: Throws,
+        line: 6,
+        col: 31,
+    },
+    PositionToken {
+        token: Identifier(
+            "IOException",
+        ),
+        line: 6,
+        col: 38,
+    },
+    PositionToken {
+        token: Comma,
+        line: 6,
+        col: 49,
+    },
+    PositionToken {
+        token: Identifier(
+            "IOException",
+        ),
+        line: 6,
+        col: 51,
+    },
+    PositionToken {
+        token: LeftParenCurly,
+        line: 6,
+        col: 63,
+    },
+    PositionToken {
+        token: RightParenCurly,
+        line: 6,
+        col: 64,
+    },
+    PositionToken {
+        token: RightParenCurly,
+        line: 7,
+        col: 0,
+    },
 ]

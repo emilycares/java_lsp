@@ -1,165 +1,163 @@
 ---
 source: ast/src/lib.rs
-expression: parsed
+expression: parsed.unwrap()
 ---
-Ok(
-    AstFile {
-        package: AstIdentifier {
-            range: AstRange {
-                start: AstPoint {
-                    line: 1,
-                    col: 8,
-                },
-                end: AstPoint {
-                    line: 1,
-                    col: 21,
-                },
+AstFile {
+    package: AstIdentifier {
+        range: AstRange {
+            start: AstPoint {
+                line: 1,
+                col: 8,
             },
-            value: "ch.emilycares",
+            end: AstPoint {
+                line: 1,
+                col: 21,
+            },
         },
-        imports: [],
-        thing: Class(
-            AstClass {
-                avaliability: Public,
-                name: AstIdentifier {
+        value: "ch.emilycares",
+    },
+    imports: [],
+    thing: Class(
+        AstClass {
+            avaliability: Public,
+            name: AstIdentifier {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 3,
+                        col: 13,
+                    },
+                    end: AstPoint {
+                        line: 3,
+                        col: 23,
+                    },
+                },
+                value: "Everything",
+            },
+            superclass: None,
+            variables: [
+                AstClassVariable {
                     range: AstRange {
                         start: AstPoint {
-                            line: 3,
-                            col: 13,
+                            line: 5,
+                            col: 4,
                         },
                         end: AstPoint {
-                            line: 3,
-                            col: 23,
+                            line: 7,
+                            col: 11,
                         },
                     },
-                    value: "Everything",
-                },
-                superclass: None,
-                variables: [
-                    AstClassVariable {
+                    avaliability: Public,
+                    name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {
                                 line: 5,
-                                col: 4,
+                                col: 15,
                             },
                             end: AstPoint {
-                                line: 7,
+                                line: 5,
+                                col: 29,
+                            },
+                        },
+                        value: "publicproperty",
+                    },
+                    jtype: AstJType {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 5,
                                 col: 11,
                             },
-                        },
-                        avaliability: Public,
-                        name: AstIdentifier {
-                            range: AstRange {
-                                start: AstPoint {
-                                    line: 5,
-                                    col: 15,
-                                },
-                                end: AstPoint {
-                                    line: 5,
-                                    col: 29,
-                                },
+                            end: AstPoint {
+                                line: 5,
+                                col: 14,
                             },
-                            value: "publicproperty",
                         },
-                        jtype: AstJType {
-                            range: AstRange {
-                                start: AstPoint {
-                                    line: 5,
-                                    col: 11,
-                                },
-                                end: AstPoint {
-                                    line: 5,
-                                    col: 14,
-                                },
-                            },
-                            value: Int,
-                        },
-                        value: None,
+                        value: Int,
                     },
-                    AstClassVariable {
+                    value: None,
+                },
+                AstClassVariable {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 7,
+                            col: 4,
+                        },
+                        end: AstPoint {
+                            line: 12,
+                            col: 11,
+                        },
+                    },
+                    avaliability: Private,
+                    name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {
                                 line: 7,
-                                col: 4,
+                                col: 16,
                             },
                             end: AstPoint {
-                                line: 11,
-                                col: 8,
+                                line: 7,
+                                col: 31,
                             },
                         },
-                        avaliability: Private,
-                        name: AstIdentifier {
-                            range: AstRange {
-                                start: AstPoint {
-                                    line: 7,
-                                    col: 16,
-                                },
-                                end: AstPoint {
-                                    line: 7,
-                                    col: 31,
-                                },
-                            },
-                            value: "privateproperty",
-                        },
-                        jtype: AstJType {
-                            range: AstRange {
-                                start: AstPoint {
-                                    line: 7,
-                                    col: 12,
-                                },
-                                end: AstPoint {
-                                    line: 7,
-                                    col: 15,
-                                },
-                            },
-                            value: Int,
-                        },
-                        value: None,
+                        value: "privateproperty",
                     },
-                    AstClassVariable {
+                    jtype: AstJType {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 7,
+                                col: 12,
+                            },
+                            end: AstPoint {
+                                line: 7,
+                                col: 15,
+                            },
+                        },
+                        value: Int,
+                    },
+                    value: None,
+                },
+                AstClassVariable {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 12,
+                            col: 4,
+                        },
+                        end: AstPoint {
+                            line: 13,
+                            col: 1,
+                        },
+                    },
+                    avaliability: Private,
+                    name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {
                                 line: 12,
-                                col: 4,
+                                col: 16,
                             },
                             end: AstPoint {
-                                line: 13,
-                                col: 1,
+                                line: 12,
+                                col: 31,
                             },
                         },
-                        avaliability: Private,
-                        name: AstIdentifier {
-                            range: AstRange {
-                                start: AstPoint {
-                                    line: 12,
-                                    col: 16,
-                                },
-                                end: AstPoint {
-                                    line: 12,
-                                    col: 31,
-                                },
-                            },
-                            value: "privateproperty",
-                        },
-                        jtype: AstJType {
-                            range: AstRange {
-                                start: AstPoint {
-                                    line: 12,
-                                    col: 12,
-                                },
-                                end: AstPoint {
-                                    line: 12,
-                                    col: 15,
-                                },
-                            },
-                            value: Int,
-                        },
-                        value: None,
+                        value: "privateproperty",
                     },
-                ],
-                methods: [],
-                constructors: [],
-            },
-        ),
-    },
-)
+                    jtype: AstJType {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 12,
+                                col: 12,
+                            },
+                            end: AstPoint {
+                                line: 12,
+                                col: 15,
+                            },
+                        },
+                        value: Int,
+                    },
+                    value: None,
+                },
+            ],
+            methods: [],
+            constructors: [],
+        },
+    ),
+}

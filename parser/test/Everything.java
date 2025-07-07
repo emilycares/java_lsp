@@ -1,10 +1,10 @@
 package ch.emilycares;
 
 public class Everything {
+    int noprop;
 
     public Everything() {
     }
-    int noprop;
     public int publicproperty;
     private int privateproperty;
 

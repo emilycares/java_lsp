@@ -3,143 +3,413 @@ source: ast/src/lexer.rs
 expression: tokens
 ---
 [
-    Package,
-    Identifier(
-        "ch",
-    ),
-    Dot,
-    Identifier(
-        "emilycares",
-    ),
-    Semicolon,
-    NewLine,
-    NewLine,
-    Import,
-    Identifier(
-        "java",
-    ),
-    Dot,
-    Identifier(
-        "util",
-    ),
-    Dot,
-    Identifier(
-        "Collection",
-    ),
-    Semicolon,
-    NewLine,
-    Import,
-    Identifier(
-        "java",
-    ),
-    Dot,
-    Identifier(
-        "util",
-    ),
-    Dot,
-    Identifier(
-        "List",
-    ),
-    Semicolon,
-    NewLine,
-    NewLine,
-    Import,
-    Identifier(
-        "java",
-    ),
-    Dot,
-    Identifier(
-        "util",
-    ),
-    Dot,
-    Identifier(
-        "stream",
-    ),
-    Dot,
-    Identifier(
-        "Stream",
-    ),
-    Semicolon,
-    NewLine,
-    Import,
-    Identifier(
-        "java",
-    ),
-    Dot,
-    Identifier(
-        "util",
-    ),
-    Dot,
-    Identifier(
-        "stream",
-    ),
-    Dot,
-    Identifier(
-        "StreamSupport",
-    ),
-    Semicolon,
-    NewLine,
-    NewLine,
-    Public,
-    Interface,
-    Identifier(
-        "SuperInterface",
-    ),
-    Lt,
-    Identifier(
-        "E",
-    ),
-    Gt,
-    Extends,
-    Identifier(
-        "Collection",
-    ),
-    Comma,
-    Identifier(
-        "List",
-    ),
-    LeftParenCurly,
-    NewLine,
-    Identifier(
-        "default",
-    ),
-    Identifier(
-        "Stream",
-    ),
-    Lt,
-    Identifier(
-        "E",
-    ),
-    Gt,
-    Identifier(
-        "stream",
-    ),
-    LeftParen,
-    RightParen,
-    LeftParenCurly,
-    NewLine,
-    Return,
-    Identifier(
-        "StreamSupport",
-    ),
-    Dot,
-    Identifier(
-        "stream",
-    ),
-    LeftParen,
-    Identifier(
-        "spliterator",
-    ),
-    LeftParen,
-    RightParen,
-    Comma,
-    False,
-    RightParen,
-    Semicolon,
-    NewLine,
-    RightParenCurly,
-    NewLine,
-    RightParenCurly,
-    NewLine,
-    EOF,
+    PositionToken {
+        token: Package,
+        line: 0,
+        col: 0,
+    },
+    PositionToken {
+        token: Identifier(
+            "ch",
+        ),
+        line: 0,
+        col: 8,
+    },
+    PositionToken {
+        token: Dot,
+        line: 0,
+        col: 10,
+    },
+    PositionToken {
+        token: Identifier(
+            "emilycares",
+        ),
+        line: 0,
+        col: 11,
+    },
+    PositionToken {
+        token: Semicolon,
+        line: 0,
+        col: 21,
+    },
+    PositionToken {
+        token: Import,
+        line: 2,
+        col: 0,
+    },
+    PositionToken {
+        token: Identifier(
+            "java",
+        ),
+        line: 2,
+        col: 7,
+    },
+    PositionToken {
+        token: Dot,
+        line: 2,
+        col: 11,
+    },
+    PositionToken {
+        token: Identifier(
+            "util",
+        ),
+        line: 2,
+        col: 12,
+    },
+    PositionToken {
+        token: Dot,
+        line: 2,
+        col: 16,
+    },
+    PositionToken {
+        token: Identifier(
+            "Collection",
+        ),
+        line: 2,
+        col: 17,
+    },
+    PositionToken {
+        token: Semicolon,
+        line: 2,
+        col: 27,
+    },
+    PositionToken {
+        token: Import,
+        line: 3,
+        col: 0,
+    },
+    PositionToken {
+        token: Identifier(
+            "java",
+        ),
+        line: 3,
+        col: 7,
+    },
+    PositionToken {
+        token: Dot,
+        line: 3,
+        col: 11,
+    },
+    PositionToken {
+        token: Identifier(
+            "util",
+        ),
+        line: 3,
+        col: 12,
+    },
+    PositionToken {
+        token: Dot,
+        line: 3,
+        col: 16,
+    },
+    PositionToken {
+        token: Identifier(
+            "List",
+        ),
+        line: 3,
+        col: 17,
+    },
+    PositionToken {
+        token: Semicolon,
+        line: 3,
+        col: 21,
+    },
+    PositionToken {
+        token: Import,
+        line: 5,
+        col: 0,
+    },
+    PositionToken {
+        token: Identifier(
+            "java",
+        ),
+        line: 5,
+        col: 7,
+    },
+    PositionToken {
+        token: Dot,
+        line: 5,
+        col: 11,
+    },
+    PositionToken {
+        token: Identifier(
+            "util",
+        ),
+        line: 5,
+        col: 12,
+    },
+    PositionToken {
+        token: Dot,
+        line: 5,
+        col: 16,
+    },
+    PositionToken {
+        token: Identifier(
+            "stream",
+        ),
+        line: 5,
+        col: 17,
+    },
+    PositionToken {
+        token: Dot,
+        line: 5,
+        col: 23,
+    },
+    PositionToken {
+        token: Identifier(
+            "Stream",
+        ),
+        line: 5,
+        col: 24,
+    },
+    PositionToken {
+        token: Semicolon,
+        line: 5,
+        col: 30,
+    },
+    PositionToken {
+        token: Import,
+        line: 6,
+        col: 0,
+    },
+    PositionToken {
+        token: Identifier(
+            "java",
+        ),
+        line: 6,
+        col: 7,
+    },
+    PositionToken {
+        token: Dot,
+        line: 6,
+        col: 11,
+    },
+    PositionToken {
+        token: Identifier(
+            "util",
+        ),
+        line: 6,
+        col: 12,
+    },
+    PositionToken {
+        token: Dot,
+        line: 6,
+        col: 16,
+    },
+    PositionToken {
+        token: Identifier(
+            "stream",
+        ),
+        line: 6,
+        col: 17,
+    },
+    PositionToken {
+        token: Dot,
+        line: 6,
+        col: 23,
+    },
+    PositionToken {
+        token: Identifier(
+            "StreamSupport",
+        ),
+        line: 6,
+        col: 24,
+    },
+    PositionToken {
+        token: Semicolon,
+        line: 6,
+        col: 37,
+    },
+    PositionToken {
+        token: Public,
+        line: 8,
+        col: 0,
+    },
+    PositionToken {
+        token: Interface,
+        line: 8,
+        col: 7,
+    },
+    PositionToken {
+        token: Identifier(
+            "SuperInterface",
+        ),
+        line: 8,
+        col: 17,
+    },
+    PositionToken {
+        token: Lt,
+        line: 8,
+        col: 31,
+    },
+    PositionToken {
+        token: Identifier(
+            "E",
+        ),
+        line: 8,
+        col: 32,
+    },
+    PositionToken {
+        token: Gt,
+        line: 8,
+        col: 33,
+    },
+    PositionToken {
+        token: Extends,
+        line: 8,
+        col: 35,
+    },
+    PositionToken {
+        token: Identifier(
+            "Collection",
+        ),
+        line: 8,
+        col: 43,
+    },
+    PositionToken {
+        token: Comma,
+        line: 8,
+        col: 53,
+    },
+    PositionToken {
+        token: Identifier(
+            "List",
+        ),
+        line: 8,
+        col: 55,
+    },
+    PositionToken {
+        token: LeftParenCurly,
+        line: 8,
+        col: 60,
+    },
+    PositionToken {
+        token: Identifier(
+            "default",
+        ),
+        line: 9,
+        col: 4,
+    },
+    PositionToken {
+        token: Identifier(
+            "Stream",
+        ),
+        line: 9,
+        col: 12,
+    },
+    PositionToken {
+        token: Lt,
+        line: 9,
+        col: 18,
+    },
+    PositionToken {
+        token: Identifier(
+            "E",
+        ),
+        line: 9,
+        col: 19,
+    },
+    PositionToken {
+        token: Gt,
+        line: 9,
+        col: 20,
+    },
+    PositionToken {
+        token: Identifier(
+            "stream",
+        ),
+        line: 9,
+        col: 22,
+    },
+    PositionToken {
+        token: LeftParen,
+        line: 9,
+        col: 28,
+    },
+    PositionToken {
+        token: RightParen,
+        line: 9,
+        col: 29,
+    },
+    PositionToken {
+        token: LeftParenCurly,
+        line: 9,
+        col: 31,
+    },
+    PositionToken {
+        token: Return,
+        line: 10,
+        col: 8,
+    },
+    PositionToken {
+        token: Identifier(
+            "StreamSupport",
+        ),
+        line: 10,
+        col: 15,
+    },
+    PositionToken {
+        token: Dot,
+        line: 10,
+        col: 28,
+    },
+    PositionToken {
+        token: Identifier(
+            "stream",
+        ),
+        line: 10,
+        col: 29,
+    },
+    PositionToken {
+        token: LeftParen,
+        line: 10,
+        col: 35,
+    },
+    PositionToken {
+        token: Identifier(
+            "spliterator",
+        ),
+        line: 10,
+        col: 36,
+    },
+    PositionToken {
+        token: LeftParen,
+        line: 10,
+        col: 47,
+    },
+    PositionToken {
+        token: RightParen,
+        line: 10,
+        col: 48,
+    },
+    PositionToken {
+        token: Comma,
+        line: 10,
+        col: 49,
+    },
+    PositionToken {
+        token: False,
+        line: 10,
+        col: 51,
+    },
+    PositionToken {
+        token: RightParen,
+        line: 10,
+        col: 56,
+    },
+    PositionToken {
+        token: Semicolon,
+        line: 10,
+        col: 57,
+    },
+    PositionToken {
+        token: RightParenCurly,
+        line: 11,
+        col: 4,
+    },
+    PositionToken {
+        token: RightParenCurly,
+        line: 12,
+        col: 0,
+    },
 ]

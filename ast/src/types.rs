@@ -40,8 +40,8 @@ pub struct AstClass {
     pub name: AstIdentifier,
     pub superclass: AstSuperClass,
     pub variables: Vec<AstClassVariable>,
-    pub(crate) methods: Vec<AstClassMethod>,
-    pub(crate) constructors: Vec<AstClassConstructor>,
+    pub methods: Vec<AstClassMethod>,
+    pub constructors: Vec<AstClassConstructor>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -169,6 +169,7 @@ pub enum AstJTypeKind {
 pub enum AstValue {
     NewClass(AstValueNewClass),
     Equasion(AstValueEquasion),
+    Nuget(AstValueNuget),
 }
 
 #[derive(Debug, PartialEq)]
