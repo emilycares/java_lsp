@@ -1,0 +1,192 @@
+---
+source: ast/src/lib.rs
+expression: parsed.unwrap()
+---
+AstFile {
+    package: AstIdentifier {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 8,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 21,
+            },
+        },
+        value: "ch.emilycares",
+    },
+    imports: [
+        AstIdentifier {
+            range: AstRange {
+                start: AstPoint {
+                    line: 2,
+                    col: 7,
+                },
+                end: AstPoint {
+                    line: 2,
+                    col: 27,
+                },
+            },
+            value: "java.util.Collection",
+        },
+        AstIdentifier {
+            range: AstRange {
+                start: AstPoint {
+                    line: 3,
+                    col: 7,
+                },
+                end: AstPoint {
+                    line: 3,
+                    col: 21,
+                },
+            },
+            value: "java.util.List",
+        },
+        AstIdentifier {
+            range: AstRange {
+                start: AstPoint {
+                    line: 5,
+                    col: 7,
+                },
+                end: AstPoint {
+                    line: 5,
+                    col: 30,
+                },
+            },
+            value: "java.util.stream.Stream",
+        },
+        AstIdentifier {
+            range: AstRange {
+                start: AstPoint {
+                    line: 6,
+                    col: 7,
+                },
+                end: AstPoint {
+                    line: 6,
+                    col: 37,
+                },
+            },
+            value: "java.util.stream.StreamSupport",
+        },
+    ],
+    thing: Interface(
+        AstInterface {
+            avaliability: Public,
+            name: AstIdentifier {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 8,
+                        col: 17,
+                    },
+                    end: AstPoint {
+                        line: 8,
+                        col: 31,
+                    },
+                },
+                value: "SuperInterface",
+            },
+            type_parameters: Some(
+                AstTypeParameters {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 8,
+                            col: 31,
+                        },
+                        end: AstPoint {
+                            line: 8,
+                            col: 42,
+                        },
+                    },
+                    parameters: [
+                        AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 8,
+                                    col: 32,
+                                },
+                                end: AstPoint {
+                                    line: 8,
+                                    col: 33,
+                                },
+                            },
+                            value: "E",
+                        },
+                    ],
+                },
+            ),
+            extends: Some(
+                AstExtends {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 8,
+                            col: 35,
+                        },
+                        end: AstPoint {
+                            line: 8,
+                            col: 61,
+                        },
+                    },
+                    parameters: [
+                        AstJType {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 8,
+                                    col: 43,
+                                },
+                                end: AstPoint {
+                                    line: 8,
+                                    col: 53,
+                                },
+                            },
+                            value: Class(
+                                AstIdentifier {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 8,
+                                            col: 43,
+                                        },
+                                        end: AstPoint {
+                                            line: 8,
+                                            col: 53,
+                                        },
+                                    },
+                                    value: "Collection",
+                                },
+                            ),
+                        },
+                        AstJType {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 8,
+                                    col: 55,
+                                },
+                                end: AstPoint {
+                                    line: 8,
+                                    col: 59,
+                                },
+                            },
+                            value: Class(
+                                AstIdentifier {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 8,
+                                            col: 55,
+                                        },
+                                        end: AstPoint {
+                                            line: 8,
+                                            col: 59,
+                                        },
+                                    },
+                                    value: "List",
+                                },
+                            ),
+                        },
+                    ],
+                },
+            ),
+            constants: [],
+            methods: [],
+        },
+    ),
+}

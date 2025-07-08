@@ -1,18 +1,23 @@
+use class::parse_class;
 use error::{AstError, ExpectedToken, InvalidToken, assert_token};
+use interface::parse_interface;
 use lexer::{PositionToken, Token};
+use smol_str::SmolStrBuilder;
 use types::{
-    AstAvailability, AstBlock, AstBlockEntry, AstBlockReturn, AstBlockVariable, AstClass,
-    AstClassConstructor, AstClassMethod, AstClassVariable, AstFile, AstIdentifier, AstInterface,
-    AstJType, AstJTypeKind, AstMethodParamerter, AstMethodParamerters, AstNumber, AstRange,
-    AstSuperClass, AstThing, AstValue, AstValueEquasion, AstValueEquasionOperator, AstValueNuget,
+    AstAvailability, AstBlock, AstBlockEntry, AstBlockReturn, AstBlockVariable, AstExtends,
+    AstFile, AstIdentifier, AstJType, AstJTypeKind, AstMethodHeader, AstMethodParamerter,
+    AstMethodParamerters, AstNumber, AstRange, AstSuperClass, AstThing, AstThrowsDeclaration,
+    AstTypeParameters, AstValue, AstValueEquasion, AstValueEquasionOperator, AstValueNuget,
 };
 
+pub mod class;
 pub mod error;
+pub mod interface;
 pub mod lexer;
 pub mod types;
 
-pub fn parse_file(tokens: &[PositionToken], pos: usize) -> Result<AstFile, AstError> {
-    let (package_name, pos) = parse_package(tokens, pos)?;
+pub fn parse_file(tokens: &[PositionToken]) -> Result<AstFile, AstError> {
+    let (package_name, pos) = parse_package(tokens, 0)?;
     let (imports, pos) = parse_imports(tokens, pos)?;
     let (thing, _pos) = parse_thing(tokens, pos)?;
 
@@ -70,7 +75,7 @@ fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, usize)
                 token: Token::Interface,
                 line: _,
                 col: _,
-            } => Ok((AstThing::Interface(AstInterface { avaliability }), pos)),
+            } => parse_interface(tokens, pos + 1, avaliability),
             found => Err(AstError::ExpectedToken(ExpectedToken::from(
                 found,
                 Token::Class,
@@ -78,75 +83,6 @@ fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, usize)
         },
         None => Err(AstError::eof()),
     }
-}
-
-fn parse_class(
-    tokens: &[PositionToken],
-    pos: usize,
-    avaliability: AstAvailability,
-) -> Result<(AstThing, usize), AstError> {
-    let (name, pos) = parse_identifier(tokens, pos)?;
-    let (superclass, pos) = parse_superclass(tokens, pos)?;
-    let pos = assert_token(tokens, pos, Token::LeftParenCurly)?;
-    let mut variables = vec![];
-    let mut methods = vec![];
-    let mut constructors = vec![];
-    let mut pos = pos;
-    let mut errors = vec![];
-    loop {
-        errors.clear();
-        if tokens.get(pos).is_none() {
-            break;
-        }
-        if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
-            pos = npos;
-            break;
-        };
-        match parse_class_variable(tokens, pos) {
-            Ok((variable, npos)) => {
-                pos = npos;
-                variables.push(variable);
-                continue;
-            }
-            Err(e) => {
-                errors.push(("class variable", e));
-            }
-        }
-        match parse_class_constructor(tokens, pos) {
-            Ok((constructor, npos)) => {
-                pos = npos;
-                constructors.push(constructor);
-                continue;
-            }
-            Err(e) => {
-                errors.push(("class constructor", e));
-            }
-        }
-        match parse_class_method(tokens, pos) {
-            Ok((method, npos)) => {
-                pos = npos;
-                methods.push(method);
-                continue;
-            }
-            Err(e) => {
-                errors.push(("class method", e));
-            }
-        }
-        return Err(AstError::AllChildrenFailed {
-            parent: "class",
-            errors,
-        });
-    }
-
-    let class = AstClass {
-        avaliability,
-        name,
-        superclass,
-        variables,
-        methods,
-        constructors,
-    };
-    Ok((AstThing::Class(class), pos))
 }
 
 fn parse_value(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, usize), AstError> {
@@ -200,7 +136,7 @@ fn parse_value_nuget(
                     start: start.start_point(),
                     end: start.end_point(),
                 },
-                value: name.to_string(),
+                value: name.clone(),
             }),
             pos + 1,
         )),
@@ -211,8 +147,44 @@ fn parse_value_nuget(
             }),
             pos + 1,
         )),
+        Token::DoubleQuote => parse_string_literal(tokens, pos),
         _ => Err(AstError::InvalidNuget(InvalidToken::from(start))),
     }
+}
+fn parse_string_literal(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstValueNuget, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::DoubleQuote)?;
+    let mut value = SmolStrBuilder::new();
+    let mut pos = pos;
+    loop {
+        let token = tokens.get(pos).ok_or(AstError::eof())?;
+        match &token.token {
+            Token::DoubleQuote => {
+                let peek = tokens.get(pos - 1).ok_or(AstError::eof())?;
+                if peek.token == Token::BackSlash {
+                    value.push_str("\\\"");
+                } else {
+                    break;
+                }
+            }
+            cot => {
+                value.push_str(&cot.to_string());
+            }
+        }
+        pos += 1;
+    }
+    let pos = assert_token(tokens, pos, Token::DoubleQuote)?;
+    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    Ok((
+        AstValueNuget::StringLiteral(AstIdentifier {
+            range: AstRange::from_position_token(start, end),
+            value: value.finish(),
+        }),
+        pos,
+    ))
 }
 
 fn parse_value_operator(
@@ -320,44 +292,15 @@ fn parse_block_return(
         pos,
     ))
 }
-fn parse_class_variable(
+
+fn parse_method_header(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(AstClassVariable, usize), AstError> {
-    let start = tokens.get(pos).ok_or(AstError::eof())?;
-    let (avaliability, pos) = parse_avaliability(tokens, pos)?;
-    let (jtype, pos) = parse_jtype(tokens, pos)?;
-    let (name, pos) = parse_name(tokens, pos)?;
-    let mut value = None;
-    let mut pos = pos;
-    if let Ok(npos) = assert_token(tokens, pos, Token::Equal) {
-        let (avalue, npos) = parse_value(tokens, npos)?;
-        pos = npos;
-        value = Some(avalue);
-    }
-    let pos = assert_token(tokens, pos, Token::Semicolon)?;
-    let end = tokens.get(pos).ok_or(AstError::eof())?;
-
-    Ok((
-        AstClassVariable {
-            avaliability,
-            name,
-            jtype,
-            value,
-            range: AstRange::from_position_token(start, end),
-        },
-        pos,
-    ))
-}
-
-fn parse_class_method(
-    tokens: &[PositionToken],
-    pos: usize,
-) -> Result<(AstClassMethod, usize), AstError> {
-    let start = tokens.get(pos).ok_or(AstError::eof())?;
+) -> Result<(AstMethodHeader, usize), AstError> {
     let mut pos = pos;
     let mut avaliability = AstAvailability::Protected;
     let mut stat = false;
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
     if let Ok((avav, npos)) = parse_avaliability(tokens, pos) {
         avaliability = avav;
         pos = npos;
@@ -368,44 +311,109 @@ fn parse_class_method(
     }
     let (jtype, pos) = parse_jtype(tokens, pos)?;
     let (name, pos) = parse_name(tokens, pos)?;
-    let (paramerters, pos) = parse_method_paramerters(tokens, pos)?;
-    let (block, pos) = parse_block(tokens, pos)?;
-
+    let (parameters, pos) = parse_method_paramerters(tokens, pos)?;
+    let mut pos = pos;
+    let mut throws = None;
+    if let Ok((nthrows, npos)) = parse_throws_declaration(tokens, pos) {
+        throws = Some(nthrows);
+        pos = npos;
+    }
     let end = tokens.get(pos).ok_or(AstError::eof())?;
     Ok((
-        AstClassMethod {
+        AstMethodHeader {
+            range: AstRange::from_position_token(start, end),
             avaliability,
-            stat,
             name,
             jtype,
-            parameters: paramerters,
-            block,
-            range: AstRange::from_position_token(start, end),
+            parameters,
+            stat,
+            throws,
         },
         pos,
     ))
 }
-fn parse_class_constructor(
+fn parse_throws_declaration(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(AstClassConstructor, usize), AstError> {
+) -> Result<(AstThrowsDeclaration, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
-    let (avaliability, pos) = parse_avaliability(tokens, pos)?;
-    let (name, pos) = parse_name(tokens, pos)?;
-    let (parameters, pos) = parse_method_paramerters(tokens, pos)?;
-    let (block, pos) = parse_block(tokens, pos)?;
-
+    let pos = assert_token(tokens, pos, Token::Throws)?;
+    let (parameters, pos) = parse_type_list(tokens, pos)?;
     let end = tokens.get(pos).ok_or(AstError::eof())?;
     Ok((
-        AstClassConstructor {
-            avaliability,
-            name,
-            parameters,
-            block,
+        AstThrowsDeclaration {
             range: AstRange::from_position_token(start, end),
+            parameters,
         },
         pos,
     ))
+}
+
+pub fn parse_type_parameters(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstTypeParameters, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::Lt)?;
+    let mut pos = pos;
+    let mut parameters = vec![];
+    loop {
+        if let Ok(npos) = assert_token(tokens, pos, Token::Gt) {
+            pos = npos;
+            break;
+        }
+        let (name, npos) = parse_name(tokens, pos)?;
+        pos = npos;
+        parameters.push(name);
+        if let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
+            pos = npos;
+            continue;
+        }
+        if let Ok(npos) = assert_token(tokens, pos, Token::Gt) {
+            pos = npos;
+            break;
+        }
+    }
+    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    Ok((
+        AstTypeParameters {
+            range: AstRange::from_position_token(start, end),
+            parameters,
+        },
+        pos,
+    ))
+}
+
+fn parse_extends(tokens: &[PositionToken], pos: usize) -> Result<(AstExtends, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::Extends)?;
+    let (parameters, pos) = parse_type_list(tokens, pos)?;
+    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    Ok((
+        AstExtends {
+            range: AstRange::from_position_token(start, end),
+            parameters,
+        },
+        pos,
+    ))
+}
+
+fn parse_type_list(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(Vec<AstJType>, usize), AstError> {
+    let mut pos = pos;
+    let mut parameters = vec![];
+    while let Ok((name, npos)) = parse_jtype(tokens, pos) {
+        pos = npos;
+        parameters.push(name);
+
+        if let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
+            pos = npos;
+            continue;
+        }
+    }
+    Ok((parameters, pos))
 }
 
 fn parse_block(tokens: &[PositionToken], pos: usize) -> Result<(AstBlock, usize), AstError> {
@@ -543,7 +551,7 @@ fn parse_name(tokens: &[PositionToken], pos: usize) -> Result<(AstIdentifier, us
     Ok((
         AstIdentifier {
             range: AstRange::from_position_token(start, end),
-            value: ident.to_string(),
+            value: ident.clone(),
         },
         pos,
     ))
@@ -556,26 +564,30 @@ fn parse_identifier(
 ) -> Result<(AstIdentifier, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let mut pos = pos;
-    let mut ident = String::new();
+    let mut ident = SmolStrBuilder::new();
+    let mut modded = false;
     loop {
         let t = tokens.get(pos).ok_or(AstError::eof())?;
         match &t.token {
             Token::Identifier(id) => {
+                modded = true;
                 ident.push_str(id);
                 pos += 1;
             }
             Token::Dot => {
+                modded = true;
                 ident.push('.');
                 pos += 1;
             }
             Token::Star => {
+                modded = true;
                 ident.push('*');
                 pos += 1;
             }
             _ => break,
         }
     }
-    if ident.is_empty() {
+    if !modded {
         let t = tokens.get(pos).ok_or(AstError::eof())?;
         return Err(AstError::IdentifierEmpty(InvalidToken::from(t)));
     }
@@ -583,7 +595,7 @@ fn parse_identifier(
     Ok((
         AstIdentifier {
             range: AstRange::from_position_token(start, end),
-            value: ident.to_string(),
+            value: ident.finish(),
         },
         pos,
     ))
@@ -680,59 +692,52 @@ fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, usize)
             out_pos,
         )),
         Token::Identifier(ident) => {
-            let peek = tokens.get(pos + 1);
+            let token = tokens.get(pos + 1).ok_or(AstError::eof())?;
             let range = AstRange::from_position_token(current, current);
             let ident = AstIdentifier {
-                value: ident.to_string(),
+                value: ident.clone(),
                 range: range.clone(),
             };
-            match peek {
-                Some(PositionToken {
-                    token,
-                    line: _,
-                    col: _,
-                }) => match token {
-                    Token::Lt => {
-                        let out_pos;
-                        let mut args = vec![];
-                        let mut pos = pos + 2;
-                        loop {
-                            // If there are no type arguments
-                            if let Ok(npos) = assert_token(tokens, pos, Token::Gt) {
-                                out_pos = npos;
-                                break;
-                            }
-                            let (jtype, npos) = parse_jtype(tokens, pos)?;
-                            pos = npos;
-                            args.push(jtype);
-                            if let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
-                                pos = npos;
-                                continue;
-                            }
-                            if let Ok(npos) = assert_token(tokens, pos, Token::Gt) {
-                                out_pos = npos;
-                                break;
-                            }
-                            pos += 1;
+            match token.token {
+                Token::Lt => {
+                    let out_pos;
+                    let mut args = vec![];
+                    let mut pos = pos + 2;
+                    loop {
+                        // If there are no type arguments
+                        if let Ok(npos) = assert_token(tokens, pos, Token::Gt) {
+                            out_pos = npos;
+                            break;
                         }
-                        let end = tokens.get(pos).ok_or(AstError::eof())?;
-                        Ok((
-                            AstJType {
-                                value: AstJTypeKind::Generic(ident, args),
-                                range: AstRange::from_position_token(current, end),
-                            },
-                            out_pos,
-                        ))
+                        let (jtype, npos) = parse_jtype(tokens, pos)?;
+                        pos = npos;
+                        args.push(jtype);
+                        if let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
+                            pos = npos;
+                            continue;
+                        }
+                        if let Ok(npos) = assert_token(tokens, pos, Token::Gt) {
+                            out_pos = npos;
+                            break;
+                        }
+                        pos += 1;
                     }
-                    _ => Ok((
+                    let end = tokens.get(pos).ok_or(AstError::eof())?;
+                    Ok((
                         AstJType {
-                            value: AstJTypeKind::Class(ident),
-                            range,
+                            value: AstJTypeKind::Generic(ident, args),
+                            range: AstRange::from_position_token(current, end),
                         },
                         out_pos,
-                    )),
-                },
-                None => Err(AstError::eof()),
+                    ))
+                }
+                _ => Ok((
+                    AstJType {
+                        value: AstJTypeKind::Class(ident),
+                        range,
+                    },
+                    out_pos,
+                )),
             }
         }
         found => {
@@ -781,7 +786,7 @@ pub mod tests {
     fn everything() {
         let content = include_str!("../../parser/test/Everything.java");
         let tokens = lexer::lex(content).unwrap();
-        let parsed = parse_file(&tokens, 0);
+        let parsed = parse_file(&tokens);
         parsed.print_err(content);
         insta::assert_debug_snapshot!(parsed.unwrap());
     }
@@ -790,7 +795,7 @@ pub mod tests {
     fn skip_comments() {
         let content = include_str!("../test/FullOffComments.java");
         let tokens = lexer::lex(content).unwrap();
-        let parsed = parse_file(&tokens, 0);
+        let parsed = parse_file(&tokens);
         parsed.print_err(content);
         insta::assert_debug_snapshot!(parsed.unwrap());
     }
@@ -799,7 +804,7 @@ pub mod tests {
     fn locale_variable_table() {
         let content = include_str!("../../parser/test/LocalVariableTable.java");
         let tokens = lexer::lex(content).unwrap();
-        let parsed = parse_file(&tokens, 0);
+        let parsed = parse_file(&tokens);
         parsed.print_err(content);
         insta::assert_debug_snapshot!(parsed.unwrap());
     }
@@ -808,7 +813,7 @@ pub mod tests {
     fn superee() {
         let content = include_str!("../../parser/test/Super.java");
         let tokens = lexer::lex(content).unwrap();
-        let parsed = parse_file(&tokens, 0);
+        let parsed = parse_file(&tokens);
         parsed.print_err(content);
         insta::assert_debug_snapshot!(parsed.unwrap());
     }
@@ -817,7 +822,16 @@ pub mod tests {
     fn constants() {
         let content = include_str!("../../parser/test/Constants.java");
         let tokens = lexer::lex(content).unwrap();
-        let parsed = parse_file(&tokens, 0);
+        let parsed = parse_file(&tokens);
+        parsed.print_err(content);
+        insta::assert_debug_snapshot!(parsed.unwrap());
+    }
+
+    #[test]
+    fn super_interface() {
+        let content = include_str!("../../parser/test/SuperInterface.java");
+        let tokens = lexer::lex(content).unwrap();
+        let parsed = parse_file(&tokens);
         parsed.print_err(content);
         insta::assert_debug_snapshot!(parsed.unwrap());
     }

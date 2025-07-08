@@ -1,4 +1,5 @@
 use phf::phf_map;
+use smol_str::SmolStr;
 
 use crate::types::AstPoint;
 
@@ -83,6 +84,64 @@ impl Token {
         }
     }
 
+    pub fn to_string(&self) -> SmolStr {
+        match self {
+            Token::Identifier(smol_str) => smol_str.clone(),
+            Token::Number(num) => num.to_string().into(),
+            Token::LeftParen => SmolStr::new_inline("("),
+            Token::RightParen => SmolStr::new_inline(")"),
+            Token::Plus => SmolStr::new_inline("+"),
+            Token::Dash => SmolStr::new_inline("-"),
+            Token::Star => SmolStr::new_inline("*"),
+            Token::Dot => SmolStr::new_inline("."),
+            Token::Semicolon => SmolStr::new_inline(";"),
+            Token::LeftParenCurly => SmolStr::new_inline("{"),
+            Token::RightParenCurly => SmolStr::new_inline("}"),
+            Token::Comma => SmolStr::new_inline(","),
+            Token::If => SmolStr::new_inline("if"),
+            Token::While => SmolStr::new_inline("while"),
+            Token::Package => SmolStr::new_inline("package"),
+            Token::Import => SmolStr::new_inline("import"),
+            Token::Public => SmolStr::new_inline("public"),
+            Token::Private => SmolStr::new_inline("private"),
+            Token::Protected => SmolStr::new_inline("protedted"),
+            Token::Class => SmolStr::new_inline("class"),
+            Token::Interface => SmolStr::new_inline("interface"),
+            Token::Enum => SmolStr::new_inline("enum"),
+            Token::Void => SmolStr::new_inline("void"),
+            Token::Throws => SmolStr::new_inline("throws"),
+            Token::Int => SmolStr::new_inline("int"),
+            Token::Double => SmolStr::new_inline("double"),
+            Token::Float => SmolStr::new_inline("float"),
+            Token::Slash => SmolStr::new_inline("/"),
+            Token::BackSlash => SmolStr::new_inline("\\"),
+            Token::At => SmolStr::new_inline("@"),
+            Token::Le => SmolStr::new_inline("<="),
+            Token::Lt => SmolStr::new_inline("<"),
+            Token::Ge => SmolStr::new_inline(">="),
+            Token::Gt => SmolStr::new_inline(">"),
+            Token::Extends => SmolStr::new_inline("extends"),
+            Token::Implements => SmolStr::new_inline("implements"),
+            Token::True => SmolStr::new_inline("true"),
+            Token::False => SmolStr::new_inline("false"),
+            Token::EqualDouble => SmolStr::new_inline("=="),
+            Token::Equal => SmolStr::new_inline("="),
+            Token::Ne => SmolStr::new_inline("!="),
+            Token::ExclamationMark => SmolStr::new_inline("!"),
+            Token::DoubleQuote => SmolStr::new_inline("\""),
+            Token::SingleQuote => SmolStr::new_inline("'"),
+            Token::New => SmolStr::new_inline("new"),
+            Token::Return => SmolStr::new_inline("return"),
+            Token::QuestionMark => SmolStr::new_inline("?"),
+            Token::Char => SmolStr::new_inline("char"),
+            Token::Boolean => SmolStr::new_inline("boolean"),
+            Token::Byte => SmolStr::new_inline("byte"),
+            Token::Short => SmolStr::new_inline("short"),
+            Token::Long => SmolStr::new_inline("long"),
+            Token::Static => SmolStr::new_inline("static"),
+        }
+    }
+
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
@@ -91,7 +150,7 @@ impl Token {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
-    Identifier(String),
+    Identifier(SmolStr),
     Number(i64),
     LeftParen,
     RightParen,
@@ -486,7 +545,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                         col,
                     }),
                     None => tokens.push(PositionToken {
-                        token: Token::Identifier(ident),
+                        token: Token::Identifier(ident.into()),
                         line,
                         col,
                     }),

@@ -2,7 +2,9 @@ package ch.emilycares;
 
 import jdk.net.Sockets;
 import java.io.IOException;
-import java.net.Socket;public interface Constants {
+import java.net.Socket;
+
+public interface Constants {
 
     public String CONSTANT_A = "A";
     String CONSTANT_B = "B";

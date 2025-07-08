@@ -60,6 +60,514 @@ AstFile {
     thing: Interface(
         AstInterface {
             avaliability: Public,
+            name: AstIdentifier {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 6,
+                        col: 17,
+                    },
+                    end: AstPoint {
+                        line: 6,
+                        col: 26,
+                    },
+                },
+                value: "Constants",
+            },
+            type_parameters: None,
+            extends: None,
+            constants: [
+                AstInterfaceConstant {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 8,
+                            col: 4,
+                        },
+                        end: AstPoint {
+                            line: 9,
+                            col: 10,
+                        },
+                    },
+                    avaliability: Public,
+                    name: AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 8,
+                                col: 18,
+                            },
+                            end: AstPoint {
+                                line: 8,
+                                col: 28,
+                            },
+                        },
+                        value: "CONSTANT_A",
+                    },
+                    jtype: AstJType {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 8,
+                                col: 11,
+                            },
+                            end: AstPoint {
+                                line: 8,
+                                col: 17,
+                            },
+                        },
+                        value: Class(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 8,
+                                        col: 11,
+                                    },
+                                    end: AstPoint {
+                                        line: 8,
+                                        col: 17,
+                                    },
+                                },
+                                value: "String",
+                            },
+                        ),
+                    },
+                    value: Nuget(
+                        StringLiteral(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 8,
+                                        col: 31,
+                                    },
+                                    end: AstPoint {
+                                        line: 8,
+                                        col: 35,
+                                    },
+                                },
+                                value: "A",
+                            },
+                        ),
+                    ),
+                },
+                AstInterfaceConstant {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 9,
+                            col: 4,
+                        },
+                        end: AstPoint {
+                            line: 11,
+                            col: 10,
+                        },
+                    },
+                    avaliability: Private,
+                    name: AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 9,
+                                col: 11,
+                            },
+                            end: AstPoint {
+                                line: 9,
+                                col: 21,
+                            },
+                        },
+                        value: "CONSTANT_B",
+                    },
+                    jtype: AstJType {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 9,
+                                col: 4,
+                            },
+                            end: AstPoint {
+                                line: 9,
+                                col: 10,
+                            },
+                        },
+                        value: Class(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 9,
+                                        col: 4,
+                                    },
+                                    end: AstPoint {
+                                        line: 9,
+                                        col: 10,
+                                    },
+                                },
+                                value: "String",
+                            },
+                        ),
+                    },
+                    value: Nuget(
+                        StringLiteral(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 9,
+                                        col: 24,
+                                    },
+                                    end: AstPoint {
+                                        line: 9,
+                                        col: 28,
+                                    },
+                                },
+                                value: "B",
+                            },
+                        ),
+                    ),
+                },
+                AstInterfaceConstant {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 11,
+                            col: 4,
+                        },
+                        end: AstPoint {
+                            line: 13,
+                            col: 8,
+                        },
+                    },
+                    avaliability: Private,
+                    name: AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 11,
+                                col: 11,
+                            },
+                            end: AstPoint {
+                                line: 11,
+                                col: 21,
+                            },
+                        },
+                        value: "CONSTANT_C",
+                    },
+                    jtype: AstJType {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 11,
+                                col: 4,
+                            },
+                            end: AstPoint {
+                                line: 11,
+                                col: 10,
+                            },
+                        },
+                        value: Class(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 11,
+                                        col: 4,
+                                    },
+                                    end: AstPoint {
+                                        line: 11,
+                                        col: 10,
+                                    },
+                                },
+                                value: "String",
+                            },
+                        ),
+                    },
+                    value: Nuget(
+                        StringLiteral(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 11,
+                                        col: 24,
+                                    },
+                                    end: AstPoint {
+                                        line: 11,
+                                        col: 28,
+                                    },
+                                },
+                                value: "C",
+                            },
+                        ),
+                    ),
+                },
+            ],
+            methods: [
+                AstInterfaceMethod {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 13,
+                            col: 4,
+                        },
+                        end: AstPoint {
+                            line: 15,
+                            col: 10,
+                        },
+                    },
+                    header: AstMethodHeader {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 13,
+                                col: 4,
+                            },
+                            end: AstPoint {
+                                line: 13,
+                                col: 19,
+                            },
+                        },
+                        avaliability: Private,
+                        name: AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 13,
+                                    col: 9,
+                                },
+                                end: AstPoint {
+                                    line: 13,
+                                    col: 16,
+                                },
+                            },
+                            value: "display",
+                        },
+                        jtype: AstJType {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 13,
+                                    col: 4,
+                                },
+                                end: AstPoint {
+                                    line: 13,
+                                    col: 8,
+                                },
+                            },
+                            value: Void,
+                        },
+                        parameters: AstMethodParamerters {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 13,
+                                    col: 16,
+                                },
+                                end: AstPoint {
+                                    line: 13,
+                                    col: 19,
+                                },
+                            },
+                            parameters: [],
+                        },
+                        stat: false,
+                        throws: None,
+                    },
+                },
+                AstInterfaceMethod {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 15,
+                            col: 4,
+                        },
+                        end: AstPoint {
+                            line: 16,
+                            col: 1,
+                        },
+                    },
+                    header: AstMethodHeader {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 15,
+                                col: 4,
+                            },
+                            end: AstPoint {
+                                line: 15,
+                                col: 70,
+                            },
+                        },
+                        avaliability: Private,
+                        name: AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 15,
+                                    col: 11,
+                                },
+                                end: AstPoint {
+                                    line: 15,
+                                    col: 23,
+                                },
+                            },
+                            value: "createSocket",
+                        },
+                        jtype: AstJType {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 15,
+                                    col: 4,
+                                },
+                                end: AstPoint {
+                                    line: 15,
+                                    col: 10,
+                                },
+                            },
+                            value: Class(
+                                AstIdentifier {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 15,
+                                            col: 4,
+                                        },
+                                        end: AstPoint {
+                                            line: 15,
+                                            col: 10,
+                                        },
+                                    },
+                                    value: "Socket",
+                                },
+                            ),
+                        },
+                        parameters: AstMethodParamerters {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 15,
+                                    col: 23,
+                                },
+                                end: AstPoint {
+                                    line: 15,
+                                    col: 57,
+                                },
+                            },
+                            parameters: [
+                                AstMethodParamerter {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 15,
+                                            col: 24,
+                                        },
+                                        end: AstPoint {
+                                            line: 15,
+                                            col: 40,
+                                        },
+                                    },
+                                    jtype: AstJType {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 15,
+                                                col: 24,
+                                            },
+                                            end: AstPoint {
+                                                line: 15,
+                                                col: 30,
+                                            },
+                                        },
+                                        value: Class(
+                                            AstIdentifier {
+                                                range: AstRange {
+                                                    start: AstPoint {
+                                                        line: 15,
+                                                        col: 24,
+                                                    },
+                                                    end: AstPoint {
+                                                        line: 15,
+                                                        col: 30,
+                                                    },
+                                                },
+                                                value: "String",
+                                            },
+                                        ),
+                                    },
+                                    name: AstIdentifier {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 15,
+                                                col: 31,
+                                            },
+                                            end: AstPoint {
+                                                line: 15,
+                                                col: 39,
+                                            },
+                                        },
+                                        value: "hostname",
+                                    },
+                                },
+                                AstMethodParamerter {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 15,
+                                            col: 41,
+                                        },
+                                        end: AstPoint {
+                                            line: 15,
+                                            col: 50,
+                                        },
+                                    },
+                                    jtype: AstJType {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 15,
+                                                col: 41,
+                                            },
+                                            end: AstPoint {
+                                                line: 15,
+                                                col: 44,
+                                            },
+                                        },
+                                        value: Int,
+                                    },
+                                    name: AstIdentifier {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 15,
+                                                col: 45,
+                                            },
+                                            end: AstPoint {
+                                                line: 15,
+                                                col: 49,
+                                            },
+                                        },
+                                        value: "port",
+                                    },
+                                },
+                            ],
+                        },
+                        stat: false,
+                        throws: Some(
+                            AstThrowsDeclaration {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 15,
+                                        col: 51,
+                                    },
+                                    end: AstPoint {
+                                        line: 15,
+                                        col: 70,
+                                    },
+                                },
+                                parameters: [
+                                    AstJType {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 15,
+                                                col: 58,
+                                            },
+                                            end: AstPoint {
+                                                line: 15,
+                                                col: 69,
+                                            },
+                                        },
+                                        value: Class(
+                                            AstIdentifier {
+                                                range: AstRange {
+                                                    start: AstPoint {
+                                                        line: 15,
+                                                        col: 58,
+                                                    },
+                                                    end: AstPoint {
+                                                        line: 15,
+                                                        col: 69,
+                                                    },
+                                                },
+                                                value: "IOException",
+                                            },
+                                        ),
+                                    },
+                                ],
+                            },
+                        ),
+                    },
+                },
+            ],
         },
     ),
 }

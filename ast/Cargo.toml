@@ -11,6 +11,13 @@ license.workspace = true
 
 [dependencies]
 phf.workspace = true
+smol_str.workspace = true
+
 
 [dev-dependencies]
 insta.workspace = true
+criterion.workspace = true
+
+[[bench]]
+name = "base"
+harness = false

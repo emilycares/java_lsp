@@ -1,3 +1,5 @@
+use smol_str::SmolStr;
+
 use crate::lexer::PositionToken;
 
 #[derive(Debug, PartialEq, Default, Clone)]
@@ -56,12 +58,23 @@ pub struct AstClassVariable {
 #[derive(Debug, PartialEq)]
 pub struct AstClassMethod {
     pub range: AstRange,
+    pub header: AstMethodHeader,
+    pub block: AstBlock,
+}
+#[derive(Debug, PartialEq)]
+pub struct AstMethodHeader {
+    pub range: AstRange,
     pub avaliability: AstAvailability,
     pub name: AstIdentifier,
     pub jtype: AstJType,
     pub parameters: AstMethodParamerters,
-    pub block: AstBlock,
     pub stat: bool,
+    pub throws: Option<AstThrowsDeclaration>,
+}
+#[derive(Debug, PartialEq)]
+pub struct AstThrowsDeclaration {
+    pub range: AstRange,
+    pub parameters: Vec<AstJType>,
 }
 #[derive(Debug, PartialEq)]
 pub struct AstClassConstructor {
@@ -114,7 +127,7 @@ pub struct AstBlockReturn {
 #[derive(Debug, PartialEq, Clone)]
 pub struct AstIdentifier {
     pub range: AstRange,
-    pub value: String,
+    pub value: SmolStr,
 }
 
 #[derive(Debug, PartialEq)]
@@ -133,6 +146,11 @@ pub enum AstSuperClass {
 #[derive(Debug, PartialEq)]
 pub struct AstInterface {
     pub avaliability: AstAvailability,
+    pub name: AstIdentifier,
+    pub type_parameters: Option<AstTypeParameters>,
+    pub extends: Option<AstExtends>,
+    pub constants: Vec<AstInterfaceConstant>,
+    pub(crate) methods: Vec<AstInterfaceMethod>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -183,6 +201,7 @@ pub struct AstValueNewClass {
 pub enum AstValueNuget {
     Variable(AstIdentifier),
     Number(AstNumber),
+    StringLiteral(AstIdentifier),
 }
 
 #[derive(Debug, PartialEq)]
@@ -196,4 +215,28 @@ pub struct AstValueEquasion {
 pub enum AstValueEquasionOperator {
     Plus(AstRange),
     Minus(AstRange),
+}
+
+#[derive(Debug, PartialEq)]
+pub struct AstTypeParameters {
+    pub range: AstRange,
+    pub parameters: Vec<AstIdentifier>,
+}
+#[derive(Debug, PartialEq)]
+pub struct AstExtends {
+    pub range: AstRange,
+    pub parameters: Vec<AstJType>,
+}
+#[derive(Debug, PartialEq)]
+pub struct AstInterfaceConstant {
+    pub range: AstRange,
+    pub avaliability: AstAvailability,
+    pub name: AstIdentifier,
+    pub jtype: AstJType,
+    pub value: AstValue,
+}
+#[derive(Debug, PartialEq)]
+pub struct AstInterfaceMethod {
+    pub range: AstRange,
+    pub header: AstMethodHeader,
 }
