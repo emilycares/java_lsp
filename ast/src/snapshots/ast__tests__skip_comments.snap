@@ -16,7 +16,19 @@ AstFile {
         },
         value: "ch.emilycares",
     },
-    imports: [],
+    imports: AstImports {
+        range: AstRange {
+            start: AstPoint {
+                line: 3,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 3,
+                col: 6,
+            },
+        },
+        imports: [],
+    },
     thing: Class(
         AstClass {
             avaliability: Public,
@@ -74,6 +86,7 @@ AstFile {
                         value: Int,
                     },
                     value: None,
+                    fin: false,
                 },
                 AstClassVariable {
                     range: AstRange {
@@ -114,6 +127,7 @@ AstFile {
                         value: Int,
                     },
                     value: None,
+                    fin: false,
                 },
                 AstClassVariable {
                     range: AstRange {
@@ -154,6 +168,7 @@ AstFile {
                         value: Int,
                     },
                     value: None,
+                    fin: false,
                 },
             ],
             methods: [],

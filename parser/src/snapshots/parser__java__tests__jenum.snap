@@ -1,0 +1,43 @@
+---
+source: parser/src/java.rs
+expression: result.unwrap()
+---
+Class {
+    class_path: "ch.emilycares.Variants",
+    source: "/path/to/source/ch/emilycares/Variants.java",
+    access: [],
+    imports: [
+        Package(
+            "ch.emilycares",
+        ),
+    ],
+    name: "Variants",
+    methods: [
+        Method {
+            access: [
+                Public,
+            ],
+            name: "getTag",
+            parameters: [],
+            throws: [],
+            ret: Class(
+                "String",
+            ),
+            source: None,
+        },
+    ],
+    fields: [
+        Field {
+            access: [
+                Private,
+            ],
+            name: "tag",
+            jtype: Class(
+                "String",
+            ),
+            source: None,
+        },
+    ],
+    super_class: None,
+    super_interfaces: [],
+}

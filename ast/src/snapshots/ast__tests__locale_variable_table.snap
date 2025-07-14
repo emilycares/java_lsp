@@ -16,21 +16,47 @@ AstFile {
         },
         value: "ch.emilycares",
     },
-    imports: [
-        AstIdentifier {
-            range: AstRange {
-                start: AstPoint {
-                    line: 1,
-                    col: 7,
-                },
-                end: AstPoint {
-                    line: 1,
-                    col: 18,
-                },
+    imports: AstImports {
+        range: AstRange {
+            start: AstPoint {
+                line: 1,
+                col: 0,
             },
-            value: "java.util.*",
+            end: AstPoint {
+                line: 2,
+                col: 6,
+            },
         },
-    ],
+        imports: [
+            AstImport {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 1,
+                        col: 0,
+                    },
+                    end: AstPoint {
+                        line: 2,
+                        col: 6,
+                    },
+                },
+                unit: Prefix(
+                    AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 1,
+                                col: 7,
+                            },
+                            end: AstPoint {
+                                line: 1,
+                                col: 17,
+                            },
+                        },
+                        value: "java.util.",
+                    },
+                ),
+            },
+        ],
+    },
     thing: Class(
         AstClass {
             avaliability: Public,
@@ -175,6 +201,7 @@ AstFile {
                             },
                         ),
                     ),
+                    fin: false,
                 },
             ],
             methods: [
@@ -242,6 +269,7 @@ AstFile {
                         },
                         stat: false,
                         throws: None,
+                        type_parameters: None,
                     },
                     block: AstBlock {
                         range: AstRange {
@@ -410,6 +438,144 @@ AstFile {
                                     ),
                                 },
                             ),
+                            Expression(
+                                AstBlockExpression {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 8,
+                                            col: 4,
+                                        },
+                                        end: AstPoint {
+                                            line: 9,
+                                            col: 3,
+                                        },
+                                    },
+                                    value: AstExpression {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 8,
+                                                col: 4,
+                                            },
+                                            end: AstPoint {
+                                                line: 8,
+                                                col: 16,
+                                            },
+                                        },
+                                        ident: Some(
+                                            AstIdentifier {
+                                                range: AstRange {
+                                                    start: AstPoint {
+                                                        line: 8,
+                                                        col: 4,
+                                                    },
+                                                    end: AstPoint {
+                                                        line: 8,
+                                                        col: 5,
+                                                    },
+                                                },
+                                                value: "a",
+                                            },
+                                        ),
+                                        values: None,
+                                        next: Some(
+                                            AstExpression {
+                                                range: AstRange {
+                                                    start: AstPoint {
+                                                        line: 8,
+                                                        col: 5,
+                                                    },
+                                                    end: AstPoint {
+                                                        line: 8,
+                                                        col: 16,
+                                                    },
+                                                },
+                                                ident: None,
+                                                values: None,
+                                                next: Some(
+                                                    AstExpression {
+                                                        range: AstRange {
+                                                            start: AstPoint {
+                                                                line: 8,
+                                                                col: 6,
+                                                            },
+                                                            end: AstPoint {
+                                                                line: 8,
+                                                                col: 16,
+                                                            },
+                                                        },
+                                                        ident: Some(
+                                                            AstIdentifier {
+                                                                range: AstRange {
+                                                                    start: AstPoint {
+                                                                        line: 8,
+                                                                        col: 6,
+                                                                    },
+                                                                    end: AstPoint {
+                                                                        line: 8,
+                                                                        col: 9,
+                                                                    },
+                                                                },
+                                                                value: "put",
+                                                            },
+                                                        ),
+                                                        values: None,
+                                                        next: Some(
+                                                            AstExpression {
+                                                                range: AstRange {
+                                                                    start: AstPoint {
+                                                                        line: 8,
+                                                                        col: 9,
+                                                                    },
+                                                                    end: AstPoint {
+                                                                        line: 8,
+                                                                        col: 16,
+                                                                    },
+                                                                },
+                                                                ident: None,
+                                                                values: Some(
+                                                                    [
+                                                                        Number(
+                                                                            AstNumber {
+                                                                                range: AstRange {
+                                                                                    start: AstPoint {
+                                                                                        line: 8,
+                                                                                        col: 10,
+                                                                                    },
+                                                                                    end: AstPoint {
+                                                                                        line: 8,
+                                                                                        col: 11,
+                                                                                    },
+                                                                                },
+                                                                                value: 1,
+                                                                            },
+                                                                        ),
+                                                                        StringLiteral(
+                                                                            AstIdentifier {
+                                                                                range: AstRange {
+                                                                                    start: AstPoint {
+                                                                                        line: 8,
+                                                                                        col: 13,
+                                                                                    },
+                                                                                    end: AstPoint {
+                                                                                        line: 8,
+                                                                                        col: 16,
+                                                                                    },
+                                                                                },
+                                                                                value: "",
+                                                                            },
+                                                                        ),
+                                                                    ],
+                                                                ),
+                                                                next: None,
+                                                            },
+                                                        ),
+                                                    },
+                                                ),
+                                            },
+                                        ),
+                                    },
+                                },
+                            ),
                         ],
                     },
                 },
@@ -511,6 +677,7 @@ AstFile {
                                         },
                                         value: "a",
                                     },
+                                    fin: false,
                                 },
                                 AstMethodParamerter {
                                     range: AstRange {
@@ -549,11 +716,13 @@ AstFile {
                                         },
                                         value: "b",
                                     },
+                                    fin: false,
                                 },
                             ],
                         },
                         stat: false,
                         throws: None,
+                        type_parameters: None,
                     },
                     block: AstBlock {
                         range: AstRange {

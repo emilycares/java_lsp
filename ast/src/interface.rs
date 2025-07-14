@@ -1,10 +1,11 @@
 use crate::{
     error::{AstError, assert_token},
     lexer::{PositionToken, Token},
-    parse_avaliability, parse_extends, parse_identifier, parse_jtype, parse_method_header,
-    parse_name, parse_type_parameters, parse_value,
+    parse_avaliability, parse_block, parse_extends, parse_identifier, parse_jtype,
+    parse_method_header, parse_name, parse_type_parameters, parse_value,
     types::{
-        AstAvailability, AstInterface, AstInterfaceConstant, AstInterfaceMethod, AstRange, AstThing,
+        AstAvailability, AstInterface, AstInterfaceConstant, AstInterfaceMethod,
+        AstInterfaceMethodDefault, AstRange, AstThing,
     },
 };
 
@@ -29,6 +30,7 @@ pub fn parse_interface(
     let mut errors = vec![];
     let mut constants = vec![];
     let mut methods = vec![];
+    let mut default_methods = vec![];
     let mut pos = pos;
     loop {
         errors.clear();
@@ -46,7 +48,7 @@ pub fn parse_interface(
                 continue;
             }
             Err(e) => {
-                errors.push(e);
+                errors.push(("interface_constant".to_string(), e));
             }
         }
         match parse_interface_method(tokens, pos) {
@@ -56,9 +58,23 @@ pub fn parse_interface(
                 continue;
             }
             Err(e) => {
-                errors.push(e);
+                errors.push(("interface_method".to_string(), e));
             }
         }
+        match parse_interface_method_impl(tokens, pos) {
+            Ok((method, npos)) => {
+                default_methods.push(method);
+                pos = npos;
+                continue;
+            }
+            Err(e) => {
+                errors.push(("interface_method_impl".to_string(), e));
+            }
+        }
+        // return Err(AstError::AllChildrenFailed {
+        //     parent: "interface".to_string(),
+        //     errors,
+        // });
         pos += 1;
     }
 
@@ -70,6 +86,7 @@ pub fn parse_interface(
             extends,
             constants,
             methods,
+            default_methods,
         }),
         pos,
     ))
@@ -104,13 +121,31 @@ pub fn parse_interface_method(
     pos: usize,
 ) -> Result<(AstInterfaceMethod, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
-    let (header, pos) = parse_method_header(tokens, pos)?;
-    let pos = assert_token(tokens, pos, Token::Semicolon)?;
+    let (header, pos) = parse_method_header(tokens, pos, AstAvailability::Public)?;
     let end = tokens.get(pos).ok_or(AstError::eof())?;
     Ok((
         AstInterfaceMethod {
             range: AstRange::from_position_token(start, end),
             header,
+        },
+        pos,
+    ))
+}
+
+pub fn parse_interface_method_impl(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstInterfaceMethodDefault, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::Default)?;
+    let (header, pos) = parse_method_header(tokens, pos, AstAvailability::Public)?;
+    let (block, pos) = parse_block(tokens, pos)?;
+    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    Ok((
+        AstInterfaceMethodDefault {
+            range: AstRange::from_position_token(start, end),
+            header,
+            block,
         },
         pos,
     ))

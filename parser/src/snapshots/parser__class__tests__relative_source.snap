@@ -1,0 +1,123 @@
+---
+source: parser/src/class.rs
+expression: result.unwrap()
+---
+Class {
+    class_path: "ch.emilycares.Everything",
+    source: "/source/ch/emilycares/Everything.java",
+    access: [],
+    imports: [
+        Package(
+            "ch.emilycares",
+        ),
+    ],
+    name: "Everything",
+    methods: [
+        Method {
+            access: [],
+            name: "method",
+            parameters: [],
+            throws: [],
+            ret: Void,
+            source: None,
+        },
+        Method {
+            access: [
+                Public,
+            ],
+            name: "public_method",
+            parameters: [],
+            throws: [],
+            ret: Void,
+            source: None,
+        },
+        Method {
+            access: [
+                Private,
+            ],
+            name: "private_method",
+            parameters: [],
+            throws: [],
+            ret: Void,
+            source: None,
+        },
+        Method {
+            access: [],
+            name: "out",
+            parameters: [],
+            throws: [],
+            ret: Int,
+            source: None,
+        },
+        Method {
+            access: [],
+            name: "add",
+            parameters: [
+                Parameter {
+                    name: Some(
+                        "a",
+                    ),
+                    jtype: Int,
+                },
+                Parameter {
+                    name: Some(
+                        "b",
+                    ),
+                    jtype: Int,
+                },
+            ],
+            throws: [],
+            ret: Int,
+            source: None,
+        },
+        Method {
+            access: [
+                Static,
+            ],
+            name: "sadd",
+            parameters: [
+                Parameter {
+                    name: Some(
+                        "a",
+                    ),
+                    jtype: Int,
+                },
+                Parameter {
+                    name: Some(
+                        "b",
+                    ),
+                    jtype: Int,
+                },
+            ],
+            throws: [],
+            ret: Int,
+            source: None,
+        },
+    ],
+    fields: [
+        Field {
+            access: [],
+            name: "noprop",
+            jtype: Int,
+            source: None,
+        },
+        Field {
+            access: [
+                Public,
+            ],
+            name: "publicproperty",
+            jtype: Int,
+            source: None,
+        },
+        Field {
+            access: [
+                Private,
+            ],
+            name: "privateproperty",
+            jtype: Int,
+            source: None,
+        },
+    ],
+    super_class: None,
+    super_interfaces: [],
+}

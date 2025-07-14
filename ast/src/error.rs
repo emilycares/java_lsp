@@ -6,7 +6,7 @@ pub trait PrintErr {
     fn print_err(&self, content: &str);
 }
 
-impl<T> PrintErr for Result<T, AstError<'_>> {
+impl<T> PrintErr for Result<T, AstError> {
     fn print_err(&self, content: &str) {
         match self {
             Ok(_) => (),
@@ -16,24 +16,26 @@ impl<T> PrintErr for Result<T, AstError<'_>> {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum AstError<'a> {
+pub enum AstError {
     ExpectedToken(ExpectedToken),
     InvalidAvailability(InvalidToken),
     InvalidJtype(InvalidToken),
-    UnexpectedEOF(&'a str, u32, u32),
+    UnexpectedEOF(String, u32, u32),
     IdentifierEmpty(InvalidToken),
     InvalidName(InvalidToken),
     InvalidNuget(InvalidToken),
     AllChildrenFailed {
-        parent: &'a str,
-        errors: Vec<(&'a str, AstError<'a>)>,
+        parent: String,
+        errors: Vec<(String, AstError)>,
     },
+    InvalidExpression(InvalidToken),
+    InvalidDouble(i64, i64),
 }
-impl AstError<'_> {
+impl AstError {
     #[track_caller]
     pub fn eof() -> Self {
         let loc = Location::caller();
-        Self::UnexpectedEOF(loc.file(), loc.line(), loc.column())
+        Self::UnexpectedEOF(loc.file().to_string(), loc.line(), loc.column())
     }
     pub fn print_err(&self, content: &str) {
         match self {
@@ -103,6 +105,17 @@ impl AstError<'_> {
                     eprintln!(" {child} --------------------------");
                     e.print_err(content);
                 }
+            }
+            AstError::InvalidExpression(invalid_token) => {
+                print_helper(
+                    content,
+                    invalid_token.line,
+                    invalid_token.col,
+                    format!("Token not allowed in expression: {:?}", invalid_token.found),
+                );
+            }
+            AstError::InvalidDouble(a, b) => {
+                eprintln!("Invalid double {a}.{b}");
             }
         }
     }

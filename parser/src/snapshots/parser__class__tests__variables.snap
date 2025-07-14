@@ -1,0 +1,70 @@
+---
+source: parser/src/class.rs
+expression: result.unwrap()
+---
+Class {
+    class_path: "ch.emilycares.LocalVariableTable",
+    source: "",
+    access: [],
+    imports: [
+        Package(
+            "ch.emilycares",
+        ),
+        Class(
+            "java.util.HashMap",
+        ),
+        Class(
+            "java.util.HashSet",
+        ),
+    ],
+    name: "LocalVariableTable",
+    methods: [
+        Method {
+            access: [
+                Public,
+            ],
+            name: "hereIsCode",
+            parameters: [],
+            throws: [],
+            ret: Void,
+            source: None,
+        },
+        Method {
+            access: [
+                Public,
+            ],
+            name: "hereIsCode",
+            parameters: [
+                Parameter {
+                    name: Some(
+                        "a",
+                    ),
+                    jtype: Int,
+                },
+                Parameter {
+                    name: Some(
+                        "b",
+                    ),
+                    jtype: Int,
+                },
+            ],
+            throws: [],
+            ret: Int,
+            source: None,
+        },
+    ],
+    fields: [
+        Field {
+            access: [
+                Private,
+            ],
+            name: "a",
+            jtype: Class(
+                "java.util.HashSet",
+            ),
+            source: None,
+        },
+    ],
+    super_class: None,
+    super_interfaces: [],
+}
