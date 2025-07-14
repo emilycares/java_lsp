@@ -12,7 +12,7 @@ let client: LanguageClient;
 
 export function activate(context: ExtensionContext) {
   // The server is implemented in node
-  const serverModule = "java_lsp.exe";
+  const serverModule = "/mnt/data/rust/java_lsp/target/release/java_lsp";
 
   //console.log(serverModule);
   //window.showErrorMessage("module: " + serverModule);

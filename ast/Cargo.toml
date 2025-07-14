@@ -12,7 +12,7 @@ license.workspace = true
 [dependencies]
 phf.workspace = true
 smol_str.workspace = true
-
+bitflags.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

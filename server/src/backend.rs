@@ -18,10 +18,10 @@ use lsp_types::{
     notification::{Notification, Progress, PublishDiagnostics},
 };
 use parking_lot::Mutex;
-use parser::dto::Class;
+use parser::{SourceDestination, dto::Class};
 use position::PositionSymbol;
 use rayon::iter::{ParallelBridge, ParallelIterator};
-use tree_sitter_util::lsp::to_treesitter_point;
+use smol_str::{SmolStr, ToSmolStr};
 
 use crate::{
     codeaction::{self, CodeActionContext},
@@ -29,15 +29,15 @@ use crate::{
     definition::{self, DefinitionContext, source_to_uri},
     hover::{self, class_action},
     references::{self, ReferenceUnit, ReferencesContext},
-    signature,
+    signature, to_ast_point,
 };
 
 pub struct Backend {
     pub error_files: DashSet<String>,
     pub project_kind: ProjectKind,
-    pub document_map: DashMap<String, Document>,
-    pub class_map: Arc<DashMap<String, Class>>,
-    pub reference_map: Arc<DashMap<String, Vec<ReferenceUnit>>>,
+    pub document_map: DashMap<SmolStr, Document>,
+    pub class_map: Arc<DashMap<SmolStr, Class>>,
+    pub reference_map: Arc<DashMap<SmolStr, Vec<ReferenceUnit>>>,
     pub client_capabilities: Arc<Option<ClientCapabilities>>,
     pub connection: Arc<Connection>,
 }
@@ -55,7 +55,7 @@ impl Backend {
         }
     }
 
-    fn on_change(&self, uri: String, changes: Vec<TextDocumentContentChangeEvent>) {
+    fn on_change(&self, uri: SmolStr, changes: Vec<TextDocumentContentChangeEvent>) {
         let Some(mut document) = self.document_map.get_mut(&uri) else {
             return;
         };
@@ -66,14 +66,11 @@ impl Backend {
         let ipath = params.uri.path().as_str();
         let path = PathBuf::from(ipath);
         let rope = ropey::Rope::from_str(&params.text);
-        let key = params.uri.to_string();
+        let key: SmolStr = params.uri.to_smolstr();
         if let Some(mut document) = self.document_map.get_mut(&key) {
             document.replace_text(rope);
         } else {
-            match parser::java::load_java(
-                params.text.as_bytes(),
-                parser::loader::SourceDestination::None,
-            ) {
+            match parser::java::load_java(params.text.as_bytes(), SourceDestination::None) {
                 Ok(class) => {
                     match Document::setup_rope(&params.text, path, rope, class.class_path) {
                         Ok(doc) => {
@@ -181,10 +178,10 @@ impl Backend {
     fn compile(&self, path: &str) -> Vec<CompileError> {
         match self.project_kind {
             ProjectKind::Maven => {
-                if let Some(classpath) = maven::compile::generate_classpath() {
-                    if let Some(errors) = compile::compile_java_file(path, &classpath) {
-                        return errors;
-                    }
+                if let Some(classpath) = maven::compile::generate_classpath()
+                    && let Some(errors) = compile::compile_java_file(path, &classpath)
+                {
+                    return errors;
                 }
             }
             ProjectKind::Gradle {
@@ -234,8 +231,8 @@ impl Backend {
     pub async fn initialized(
         con: Arc<Connection>,
         project_kind: ProjectKind,
-        class_map: Arc<dashmap::DashMap<std::string::String, parser::dto::Class>>,
-        reference_map: Arc<dashmap::DashMap<String, Vec<ReferenceUnit>>>,
+        class_map: Arc<dashmap::DashMap<SmolStr, parser::dto::Class>>,
+        reference_map: Arc<dashmap::DashMap<SmolStr, Vec<ReferenceUnit>>>,
     ) {
         Backend::progress_start(con.clone(), "Init".to_string());
         {
@@ -323,7 +320,10 @@ impl Backend {
     }
 
     pub fn did_change(&self, params: DidChangeTextDocumentParams) {
-        self.on_change(params.text_document.uri.to_string(), params.content_changes);
+        self.on_change(
+            params.text_document.uri.to_smolstr(),
+            params.content_changes,
+        );
     }
 
     pub fn did_save(&self, params: DidSaveTextDocumentParams) {
@@ -359,9 +359,9 @@ impl Backend {
     pub fn hover(&self, params: HoverParams) -> Option<Hover> {
         let uri = params.text_document_position_params.text_document.uri;
         let document = self.document_map.get_mut(uri.as_str())?;
-        let point = to_treesitter_point(params.text_document_position_params.position);
+        let point = to_ast_point(params.text_document_position_params.position);
         let imports = imports::imports(document.value());
-        let vars = match variables::get_vars(document.value(), &point) {
+        let vars = match variables::get_vars(&document.ast, &point) {
             Ok(v) => Some(v),
             Err(e) => {
                 eprintln!("Could not get vars: {e:?}");
@@ -409,8 +409,8 @@ impl Backend {
             return None;
         };
         let mut out = vec![];
-        let point = to_treesitter_point(params.position);
-        let vars = match variables::get_vars(document.value(), &point) {
+        let point = to_ast_point(params.position);
+        let vars = match variables::get_vars(&document.ast, &point) {
             Ok(v) => Some(v),
             Err(e) => {
                 eprintln!("Could not get vars: {e:?}");
@@ -448,8 +448,8 @@ impl Backend {
         if do_rest {
             eprintln!("Call chain is emtpy");
             out.extend(completion::static_methods(
+                &document.ast,
                 &imports,
-                &document.tree,
                 &self.class_map,
             ));
             out.extend(completion::complete_vars(&vars));
@@ -472,9 +472,9 @@ impl Backend {
             return None;
         };
 
-        let point = to_treesitter_point(params.position);
+        let point = to_ast_point(params.position);
         let imports = imports::imports(document.value());
-        let vars = match variables::get_vars(document.value(), &point) {
+        let vars = match variables::get_vars(&document.ast, &point) {
             Ok(v) => Some(v),
             Err(e) => {
                 eprintln!("Could not get vars: {e:?}");
@@ -502,10 +502,7 @@ impl Backend {
                 eprintln!("Error while class definition: {e:?}");
             }
         }
-        let Some(call_chain) = get_call_chain(&document.tree, document.as_bytes(), &point) else {
-            eprintln!("Defintion could not get callchain");
-            return None;
-        };
+        let call_chain = get_call_chain(&document.ast, &point);
         match definition::call_chain_definition(&call_chain, &context) {
             Ok(definition) => return Some(definition),
             Err(e) => {
@@ -522,23 +519,16 @@ impl Backend {
             eprintln!("Document is not opened.");
             return None;
         };
-        let point = to_treesitter_point(params.position);
+        let point = to_ast_point(params.position);
         let imports = imports::imports(document.value());
-        let vars = match variables::get_vars(document.value(), &point) {
+        let vars = match variables::get_vars(&document.ast, &point) {
             Ok(v) => Some(v),
             Err(e) => {
                 eprintln!("Could not get vars: {e:?}");
                 None
             }
         }?;
-        match class_action(
-            &document.tree,
-            document.as_bytes(),
-            &point,
-            &vars,
-            &imports,
-            &self.class_map,
-        ) {
+        match class_action(&document.ast, &point, &vars, &imports, &self.class_map) {
             Ok((class, _range)) => {
                 if let Some(value) =
                     references::class_path(&class.class_path, &self.reference_map, &self.class_map)
@@ -548,10 +538,7 @@ impl Backend {
             }
             Err(e) => eprintln!("Got refrence class error: {e:?}"),
         }
-        let Some(call_chain) = get_call_chain(&document.tree, document.as_bytes(), &point) else {
-            eprintln!("Defintion could not get callchain");
-            return None;
-        };
+        let call_chain = get_call_chain(&document.ast, &point);
         let Some(class) = &self.class_map.get(&document.class_path) else {
             eprintln!("Could not find class {}", document.class_path);
             return None;
@@ -584,8 +571,7 @@ impl Backend {
             return None;
         };
         let current_file = params.text_document.uri;
-        let point = to_treesitter_point(params.range.start);
-        let bytes = document.as_bytes();
+        let point = to_ast_point(params.range.start);
 
         let imports = imports::imports(document.value());
 
@@ -593,7 +579,7 @@ impl Backend {
             eprintln!("Could not find class {}", document.class_path);
             return None;
         };
-        let vars = match variables::get_vars(document.value(), &point) {
+        let vars = match variables::get_vars(&document.ast, &point) {
             Ok(v) => Some(v),
             Err(e) => {
                 eprintln!("Could not get vars: {e:?}");
@@ -609,11 +595,11 @@ impl Backend {
             vars: &vars,
             current_file: &current_file,
         };
-        if let Some(imps) = codeaction::import_jtype(&document.tree, bytes, &context) {
+        if let Some(imps) = codeaction::import_jtype(&document.ast, &context) {
             return Some(imps);
         }
 
-        match codeaction::replace_with_value_type(&document.tree, bytes, &context) {
+        match codeaction::replace_with_value_type(&document.ast, &context) {
             Ok(None) => (),
             Ok(Some(e)) => return Some(vec![e]),
             Err(e) => {
@@ -631,7 +617,7 @@ impl Backend {
         };
         let uri = params.text_document.uri;
 
-        let symbols = position::get_symbols(document.as_bytes(), &document.tree);
+        let symbols = position::get_class_position_ast(&document.ast, None);
         match symbols {
             Ok(symbols) => {
                 let symbols = position::symbols_to_document_symbols(symbols, uri);
@@ -665,15 +651,17 @@ impl Backend {
                     i.to_string(),
                     document::read_document_or_open_class(
                         &i,
-                        String::new(),
+                        SmolStr::new(""),
                         &self.document_map,
                         uri.as_str(),
                     ),
                 ))
             })
             .filter_map(|(path, source)| match source {
-                ClassSource::Owned(d) => Some((path, position::get_symbols(d.as_bytes(), &d.tree))),
-                ClassSource::Ref(d) => Some((path, position::get_symbols(d.as_bytes(), &d.tree))),
+                ClassSource::Owned(d) => {
+                    Some((path, position::get_class_position_ast(&d.ast, None)))
+                }
+                ClassSource::Ref(d) => Some((path, position::get_class_position_ast(&d.ast, None))),
                 ClassSource::Err(_) => None,
             })
             .map(|(path, symbols)| {
@@ -713,7 +701,7 @@ impl Backend {
             eprintln!("Document is not opened.");
             return None;
         };
-        let point = to_treesitter_point(params.text_document_position_params.position);
+        let point = to_ast_point(params.text_document_position_params.position);
         let Some(class) = &self.class_map.get(&document.class_path) else {
             eprintln!("Could not find class {}", document.class_path);
             return None;
@@ -763,7 +751,7 @@ pub async fn read_forward(
 pub async fn fetch_deps(
     sender: tokio::sync::watch::Sender<TaskProgress>,
     project_kind: ProjectKind,
-    class_map: Arc<dashmap::DashMap<std::string::String, parser::dto::Class>>,
+    class_map: Arc<dashmap::DashMap<SmolStr, parser::dto::Class>>,
 ) {
     tokio::spawn(async move {
         match project_kind {

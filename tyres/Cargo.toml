@@ -10,9 +10,9 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
+smol_str.workspace = true
 dashmap.workspace = true
-tree-sitter.workspace = true
 parser = { path = "../parser"}
 call_chain = { path = "../call_chain"}
 variables = { path = "../variables"}
-tree-sitter-util = { path = "../tree-sitter-util"}
+ast = { path = "../ast"}

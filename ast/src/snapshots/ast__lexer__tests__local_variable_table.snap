@@ -1,7 +1,6 @@
 ---
 source: ast/src/lexer.rs
 expression: tokens
-snapshot_kind: text
 ---
 [
     PositionToken {
@@ -326,12 +325,9 @@ snapshot_kind: text
         col: 11,
     },
     PositionToken {
-        token: DoubleQuote,
-        line: 8,
-        col: 13,
-    },
-    PositionToken {
-        token: DoubleQuote,
+        token: StringLiteral(
+            "",
+        ),
         line: 8,
         col: 14,
     },

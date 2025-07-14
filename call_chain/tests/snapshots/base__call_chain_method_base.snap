@@ -1,0 +1,33 @@
+---
+source: call_chain/tests/base.rs
+expression: out
+snapshot_kind: text
+---
+[
+    ClassOrVariable {
+        name: "a",
+        range: AstRange {
+            start: AstPoint {
+                line: 5,
+                col: 8,
+            },
+            end: AstPoint {
+                line: 5,
+                col: 9,
+            },
+        },
+    },
+    MethodCall {
+        name: "concat",
+        range: AstRange {
+            start: AstPoint {
+                line: 5,
+                col: 10,
+            },
+            end: AstPoint {
+                line: 5,
+                col: 16,
+            },
+        },
+    },
+]

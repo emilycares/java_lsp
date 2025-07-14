@@ -1,21 +1,45 @@
+#![deny(missing_docs)]
+//! A java ast
+use annotation::parse_annotation;
 use class::parse_class;
-use error::{AstError, ExpectedToken, InvalidToken, assert_token};
+use enumeration::parse_enumeration;
+use error::{AstError, ExpectedToken, InvalidToken, assert_semicolon, assert_token};
 use interface::parse_interface;
 use lexer::{PositionToken, Token};
 use smol_str::SmolStrBuilder;
 use types::{
-    AstAvailability, AstBlock, AstBlockEntry, AstBlockReturn, AstBlockVariable, AstExtends,
-    AstFile, AstIdentifier, AstJType, AstJTypeKind, AstMethodHeader, AstMethodParamerter,
-    AstMethodParamerters, AstNumber, AstRange, AstSuperClass, AstThing, AstThrowsDeclaration,
-    AstTypeParameters, AstValue, AstValueEquasion, AstValueEquasionOperator, AstValueNuget,
+    AstAnnotated, AstAvailability, AstBlock, AstBlockAssign, AstBlockBreak, AstBlockContinue,
+    AstBlockEntry, AstBlockExpression, AstBlockReturn, AstBlockVariable, AstBlockVariableMutliType,
+    AstBoolean, AstCastedExpression, AstDouble, AstExpression, AstExpressionIdentifier,
+    AstExpressionOperator, AstExtends, AstFile, AstFor, AstForEnhanced, AstIdentifier, AstIf,
+    AstIfContent, AstImport, AstImportUnit, AstImports, AstInt, AstJType, AstJTypeKind, AstLambda,
+    AstLambdaParameters, AstMethodHeader, AstMethodParamerter, AstMethodParamerters, AstNewClass,
+    AstPoint, AstRange, AstRecursiveExpression, AstSuperClass, AstSwitch, AstSwitchCase,
+    AstSwitchDefault, AstThing, AstThrow, AstThrowsDeclaration, AstTryCatch, AstTryCatchCase,
+    AstTypeParameters, AstValue, AstValueNuget, AstValues, AstWhile,
 };
 
+use crate::{
+    class::parse_class_block,
+    record::parse_record,
+    types::{
+        AstAnnotatedParameter, AstBlockYield, AstClassAccess, AstConstructorHeader,
+        AstExpressionOrValue, AstForContent, AstGenerics, AstLambdaRhs, AstNewRhs,
+        AstSwitchCaseArrow, AstSynchronizedBlock, AstTypeParameter, AstWhileContent,
+    },
+};
+
+pub mod annotation;
 pub mod class;
+pub mod enumeration;
 pub mod error;
 pub mod interface;
 pub mod lexer;
+pub mod range;
+pub mod record;
 pub mod types;
 
+///` package ch.emilycares; import .... public class ...`
 pub fn parse_file(tokens: &[PositionToken]) -> Result<AstFile, AstError> {
     let (package_name, pos) = parse_package(tokens, 0)?;
     let (imports, pos) = parse_imports(tokens, pos)?;
@@ -28,110 +52,298 @@ pub fn parse_file(tokens: &[PositionToken]) -> Result<AstFile, AstError> {
     })
 }
 
-/// package ch.emilycares;
+///` package ch.emilycares;`
 fn parse_package(tokens: &[PositionToken], pos: usize) -> Result<(AstIdentifier, usize), AstError> {
     let pos = assert_token(tokens, pos, Token::Package)?;
-    let (package_name, pos) = parse_identifier(tokens, pos)?;
-    let pos = assert_token(tokens, pos, Token::Semicolon)?;
+    let (package_name, pos) = parse_name_dot_logical(tokens, pos)?;
+    let pos = assert_semicolon(tokens, pos)?;
     Ok((package_name, pos))
 }
-///  import java.io.IOException;
-///  import java.net.Socket;
-fn parse_imports(
-    tokens: &[PositionToken],
-    pos: usize,
-) -> Result<(Vec<AstIdentifier>, usize), AstError> {
+///`  import java.io.IOException;`
+///`  import java.net.Socket;`
+fn parse_imports(tokens: &[PositionToken], pos: usize) -> Result<(AstImports, usize), AstError> {
     let mut pos = pos;
     let mut imports = vec![];
 
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
     while let Ok((import, new_pos)) = parse_import(tokens, pos) {
         pos = new_pos;
         imports.push(import);
     }
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
 
-    Ok((imports, pos))
-}
-
-///  import java.io.IOException;
-fn parse_import(tokens: &[PositionToken], pos: usize) -> Result<(AstIdentifier, usize), AstError> {
-    let pos = assert_token(tokens, pos, Token::Import)?;
-    let (ident, pos) = parse_identifier(tokens, pos)?;
-    let pos = assert_token(tokens, pos, Token::Semicolon)?;
-    Ok((ident, pos))
-}
-
-///  public class Everything { ...
-///  public interface Constants { ...
-fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, usize), AstError> {
-    let (avaliability, pos) = parse_avaliability(tokens, pos)?;
-    match tokens.get(pos) {
-        Some(t) => match t {
-            PositionToken {
-                token: Token::Class,
-                line: _,
-                col: _,
-            } => parse_class(tokens, pos + 1, avaliability),
-            PositionToken {
-                token: Token::Interface,
-                line: _,
-                col: _,
-            } => parse_interface(tokens, pos + 1, avaliability),
-            found => Err(AstError::ExpectedToken(ExpectedToken::from(
-                found,
-                Token::Class,
-            ))),
+    Ok((
+        AstImports {
+            range: AstRange {
+                start: start.start_point(),
+                end: end.end_point(),
+            },
+            imports,
         },
+        pos,
+    ))
+}
+
+///`  import java.io.IOException;`
+fn parse_import(tokens: &[PositionToken], pos: usize) -> Result<(AstImport, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::Import)?;
+    let mut pos = pos;
+    let mut stat = false;
+    let mut prefix = false;
+    if let Ok(npos) = assert_token(tokens, pos, Token::Static) {
+        pos = npos;
+        stat = true;
+    }
+    let (ident, pos) = parse_name_dot(tokens, pos)?;
+    let mut pos = pos;
+    if let Ok(npos) = assert_token(tokens, pos, Token::Star) {
+        pos = npos;
+        prefix = true;
+    }
+    let pos = assert_semicolon(tokens, pos)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstImport {
+            range: AstRange::from_position_token(start, end),
+            unit: match (stat, prefix) {
+                (true, true) => AstImportUnit::StaticPrefix(ident),
+                (true, false) => match ident.value.rsplit_once(".") {
+                    Some((class, method)) => {
+                        match method.chars().next().unwrap_or_default().is_lowercase() {
+                            true => AstImportUnit::StaticClassMethod(
+                                AstIdentifier {
+                                    range: AstRange {
+                                        start: ident.range.start,
+                                        end: AstPoint {
+                                            line: ident.range.start.line,
+                                            col: ident.range.end.col - method.len(),
+                                        },
+                                    },
+                                    value: class.into(),
+                                },
+                                AstIdentifier {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: ident.range.start.line,
+                                            col: ident.range.start.col + class.len(),
+                                        },
+                                        end: ident.range.end,
+                                    },
+                                    value: method.into(),
+                                },
+                            ),
+                            false => AstImportUnit::StaticClass(ident),
+                        }
+                    }
+                    None => AstImportUnit::StaticPrefix(ident),
+                },
+                (false, true) => AstImportUnit::Prefix(ident),
+                (false, false) => AstImportUnit::Class(ident),
+            },
+        },
+        pos,
+    ))
+}
+
+///`  public class Everything { ...`
+///`  public interface Constants { ...`
+pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, usize), AstError> {
+    let (annotated, pos) = parse_annotated_list(tokens, pos)?;
+    let (mut avaliability, mut pos) = parse_avaliability(tokens, pos)?;
+    loop {
+        let t = tokens.get(pos).ok_or(AstError::eof())?;
+        match t.token {
+            Token::Static => avaliability |= AstAvailability::Static,
+            Token::Final => avaliability |= AstAvailability::Final,
+            Token::Abstract => avaliability |= AstAvailability::Abstract,
+            _ => break,
+        }
+        pos += 1;
+    }
+    match tokens.get(pos) {
+        Some(t) => {
+            let pos = pos + 1;
+            match t.token {
+                Token::Class => parse_class(tokens, pos, avaliability, annotated),
+                Token::Record => parse_record(tokens, pos, avaliability, annotated),
+                Token::Interface => parse_interface(tokens, pos, avaliability, annotated),
+                Token::Enum => parse_enumeration(tokens, pos, avaliability, annotated),
+                Token::At => parse_annotation(tokens, pos, avaliability, annotated),
+                _ => Err(AstError::ExpectedToken(ExpectedToken::from(
+                    t,
+                    pos,
+                    Token::Class,
+                ))),
+            }
+        }
         None => Err(AstError::eof()),
     }
 }
 
 fn parse_value(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, usize), AstError> {
     let mut errors = vec![];
-    match parse_value_new_class(tokens, pos) {
-        Ok(v) => return Ok(v),
-        Err(e) => errors.push(("value new class", e)),
-    };
-    match parse_value_equasion(tokens, pos) {
-        Ok(v) => return Ok(v),
-        Err(e) => errors.push(("value expression", e)),
+    match parse_boolean_literal(tokens, pos) {
+        Ok((nuget, pos)) => return Ok((nuget, pos)),
+        Err(e) => errors.push(("value boolean".into(), e)),
     }
+    match parse_array(tokens, pos) {
+        Ok((v, pos)) => return Ok((AstValue::Array(v), pos)),
+        Err(e) => errors.push(("value array".into(), e)),
+    };
     match parse_value_nuget(tokens, pos) {
-        Ok((nuget, pos)) => return Ok((AstValue::Nuget(nuget), pos)),
-        Err(e) => errors.push(("value nuget", e)),
+        Ok((nuget, pos)) => return Ok((nuget, pos)),
+        Err(e) => errors.push(("value nuget".into(), e)),
     }
     Err(AstError::AllChildrenFailed {
-        parent: "value",
+        parent: "value".into(),
         errors,
     })
 }
-fn parse_value_equasion(
+fn parse_annotated_list(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(AstValue, usize), AstError> {
+) -> Result<(Vec<AstAnnotated>, usize), AstError> {
+    let mut out = vec![];
+    let mut pos = pos;
+    while let Ok((a, npos)) = parse_annotated(tokens, pos) {
+        out.push(a);
+        pos = npos;
+    }
+    Ok((out, pos))
+}
+fn parse_annotated(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstAnnotated, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
-    let (lhs, pos) = parse_value_nuget(tokens, pos)?;
-    let (operator, pos) = parse_value_operator(tokens, pos)?;
-    let (rhs, pos) = parse_value_nuget(tokens, pos)?;
-    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::At)?;
+    let (name, pos) = parse_name_dot_logical(tokens, pos)?;
+    let mut parameters = vec![];
+    let mut pos = pos;
+    if let Ok((params, npos)) = parse_annotated_parameters(tokens, pos) {
+        parameters = params;
+        pos = npos;
+    }
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
-        AstValue::Equasion(AstValueEquasion {
+        AstAnnotated {
             range: AstRange::from_position_token(start, end),
-            lhs,
-            operator,
+            name,
+            parameters,
+        },
+        pos,
+    ))
+}
+///` (a) -> a.doThing()`
+///` a -> a.doThing()`
+///` a -> {a.doThing();}`
+pub fn parse_lambda(tokens: &[PositionToken], pos: usize) -> Result<(AstLambda, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let mut pos = pos;
+    let parameters;
+    if let Ok((lparams, npos)) = parse_lambda_parameters(tokens, pos) {
+        parameters = lparams;
+        pos = npos;
+    } else {
+        let (n, npos) = parse_name(tokens, pos)?;
+        parameters = AstLambdaParameters {
+            range: n.range,
+            values: vec![n],
+        };
+        pos = npos;
+    }
+    let pos = assert_token(tokens, pos, Token::Dash)?;
+    let mut pos = assert_token(tokens, pos, Token::Gt)?;
+    let mut rhs = AstLambdaRhs::None;
+    if let Ok((block, npos)) = parse_block(tokens, pos) {
+        pos = npos;
+        rhs = AstLambdaRhs::Block(block);
+    } else if let Ok((expr, npos)) = parse_expression(tokens, pos) {
+        pos = npos;
+        rhs = AstLambdaRhs::Expr(Box::new(expr));
+    }
+
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstLambda {
+            range: AstRange::from_position_token(start, end),
+            parameters,
             rhs,
-        }),
+        },
+        pos,
+    ))
+}
+/// `(a) -> a.length`
+///  ^^^
+pub fn parse_lambda_parameters(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstLambdaParameters, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::LeftParen)?;
+    let mut pos = pos;
+    let mut values = vec![];
+
+    while let Ok((n, npos)) = parse_name(tokens, pos) {
+        values.push(n);
+
+        pos = npos;
+        if let Ok(npos) = assert_token(tokens, npos, Token::Comma) {
+            pos = npos;
+        } else {
+            break;
+        }
+    }
+
+    let pos = assert_token(tokens, pos, Token::RightParen)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstLambdaParameters {
+            range: AstRange::from_position_token(start, end),
+            values,
+        },
         pos,
     ))
 }
 
-fn parse_value_nuget(
-    tokens: &[PositionToken],
-    pos: usize,
-) -> Result<(AstValueNuget, usize), AstError> {
+/// `{ "", "" }`
+fn parse_array(tokens: &[PositionToken], pos: usize) -> Result<(AstValues, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let mut pos = assert_token(tokens, pos, Token::LeftParenCurly)?;
+    let mut values = vec![];
+    loop {
+        if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
+            pos = npos;
+            break;
+        }
+        if let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
+            pos = npos;
+            continue;
+        }
+        let (value, npos) = parse_expression(tokens, pos)?;
+        pos = npos;
+        values.push(value);
+        if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
+            pos = npos;
+            break;
+        }
+    }
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstValues {
+            range: AstRange::from_position_token(start, end),
+            values,
+        },
+        pos,
+    ))
+}
+
+fn parse_value_nuget(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     match &start.token {
         Token::Identifier(name) => Ok((
-            AstValueNuget::Variable(AstIdentifier {
+            AstValue::Variable(AstIdentifier {
                 range: AstRange {
                     start: start.start_point(),
                     end: start.end_point(),
@@ -140,75 +352,281 @@ fn parse_value_nuget(
             }),
             pos + 1,
         )),
-        Token::Number(num) => Ok((
-            AstValueNuget::Number(AstNumber {
-                range: AstRange::from_position_token(start, start),
-                value: *num,
-            }),
-            pos + 1,
-        )),
-        Token::DoubleQuote => parse_string_literal(tokens, pos),
-        _ => Err(AstError::InvalidNuget(InvalidToken::from(start))),
+        Token::Number(num) => {
+            if let Ok(pos) = assert_token(tokens, pos + 1, Token::Dot) {
+                let current = tokens.get(pos).ok_or(AstError::eof())?;
+                if let Token::Number(n) = current.token {
+                    let value: f64 = format!("{num}.{n}")
+                        .parse()
+                        .map_err(|_| AstError::InvalidDouble(*num, n))?;
+                    let pos = pos + 1;
+                    let current = tokens.get(pos).ok_or(AstError::eof())?;
+                    let pos = pos + 1;
+                    match &current.token {
+                        Token::Identifier(val) if val == "d" => {
+                            return Ok((
+                                AstValue::Nuget(AstValueNuget::Double(AstDouble {
+                                    range: AstRange::from_position_token(start, start),
+                                    value,
+                                })),
+                                pos,
+                            ));
+                        }
+                        Token::Identifier(val) if val == "f" => {
+                            return Ok((
+                                AstValue::Nuget(AstValueNuget::Float(AstDouble {
+                                    range: AstRange::from_position_token(start, start),
+                                    value,
+                                })),
+                                pos,
+                            ));
+                        }
+                        _ => {
+                            return Err(AstError::InvalidNuget(InvalidToken::from(
+                                current,
+                                pos - 1,
+                            )));
+                        }
+                    }
+                }
+            }
+            if let Ok(npos) = assert_token(tokens, pos + 1, Token::Identifier("l".into())) {
+                return Ok((
+                    AstValue::Nuget(AstValueNuget::Int(AstInt {
+                        range: AstRange::from_position_token(start, start),
+                        value: *num,
+                    })),
+                    npos,
+                ));
+            }
+            Ok((
+                AstValue::Nuget(AstValueNuget::Int(AstInt {
+                    range: AstRange::from_position_token(start, start),
+                    value: *num,
+                })),
+                pos + 1,
+            ))
+        }
+        Token::StringLiteral(_) => {
+            parse_string_literal(tokens, pos).map(|i| (AstValue::Nuget(i.0), i.1))
+        }
+        Token::CharLiteral(_) => {
+            parse_char_literal(tokens, pos).map(|i| (AstValue::Nuget(i.0), i.1))
+        }
+        Token::True => parse_boolean_literal_input(tokens, pos, true),
+        Token::False => parse_boolean_literal_input(tokens, pos, false),
+        _ => Err(AstError::InvalidNuget(InvalidToken::from(start, pos))),
     }
 }
-fn parse_string_literal(
+
+fn parse_boolean_literal_input(
+    tokens: &[PositionToken],
+    pos: usize,
+    value: bool,
+) -> Result<(AstValue, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    Ok((
+        AstValue::Nuget(AstValueNuget::BooleanLiteral(AstBoolean {
+            range: AstRange::from_position_token(start, start),
+            value,
+        })),
+        pos + 1,
+    ))
+}
+
+fn parse_boolean_literal(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstValue, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let value = match start.token {
+        Token::True => true,
+        Token::False => false,
+        _ => return Err(AstError::InvalidBoolean(InvalidToken::from(start, pos))),
+    };
+    Ok((
+        AstValue::Nuget(AstValueNuget::BooleanLiteral(AstBoolean {
+            range: AstRange::from_position_token(start, start),
+            value,
+        })),
+        pos + 1,
+    ))
+}
+/// `"some string"`
+pub fn parse_string_literal(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstValueNuget, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
-    let pos = assert_token(tokens, pos, Token::DoubleQuote)?;
-    let mut value = SmolStrBuilder::new();
-    let mut pos = pos;
-    loop {
-        let token = tokens.get(pos).ok_or(AstError::eof())?;
-        match &token.token {
-            Token::DoubleQuote => {
-                let peek = tokens.get(pos - 1).ok_or(AstError::eof())?;
-                if peek.token == Token::BackSlash {
-                    value.push_str("\\\"");
-                } else {
-                    break;
-                }
-            }
-            cot => {
-                value.push_str(&cot.to_string());
-            }
+    match &start.token {
+        Token::StringLiteral(str) => {
+            let end = tokens.get(pos.saturating_sub(1)).ok_or(AstError::eof())?;
+            Ok((
+                AstValueNuget::StringLiteral(AstIdentifier {
+                    range: AstRange::from_position_token(start, end),
+                    value: str.clone(),
+                }),
+                pos + 1,
+            ))
         }
-        pos += 1;
+        _ => Err(AstError::InvalidString(InvalidToken::from(start, pos))),
     }
-    let pos = assert_token(tokens, pos, Token::DoubleQuote)?;
-    let end = tokens.get(pos).ok_or(AstError::eof())?;
-    Ok((
-        AstValueNuget::StringLiteral(AstIdentifier {
-            range: AstRange::from_position_token(start, end),
-            value: value.finish(),
-        }),
-        pos,
-    ))
+}
+/// `'\r`
+pub fn parse_char_literal(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstValueNuget, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    match &start.token {
+        Token::CharLiteral(str) => {
+            let end = tokens.get(pos.saturating_sub(1)).ok_or(AstError::eof())?;
+            Ok((
+                AstValueNuget::CharLiteral(AstIdentifier {
+                    range: AstRange::from_position_token(start, end),
+                    value: str.clone(),
+                }),
+                pos + 1,
+            ))
+        }
+        _ => Err(AstError::InvalidString(InvalidToken::from(start, pos))),
+    }
 }
 
 fn parse_value_operator(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(AstValueEquasionOperator, usize), AstError> {
+) -> Result<(AstExpressionOperator, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     match &start.token {
-        Token::Plus => Ok((
-            AstValueEquasionOperator::Plus(AstRange::from_position_token(start, start)),
+        Token::Plus => {
+            if let Ok(npos) = assert_token(tokens, pos + 1, Token::Plus) {
+                let end = tokens.get(npos).ok_or(AstError::eof())?;
+                Ok((
+                    AstExpressionOperator::PlusPlus(AstRange::from_position_token(start, end)),
+                    npos,
+                ))
+            } else {
+                Ok((
+                    AstExpressionOperator::Plus(AstRange::from_position_token(start, start)),
+                    pos + 1,
+                ))
+            }
+        }
+        Token::Dash => {
+            if let Ok(npos) = assert_token(tokens, pos + 1, Token::Dash) {
+                let end = tokens.get(npos).ok_or(AstError::eof())?;
+                Ok((
+                    AstExpressionOperator::MinusMinus(AstRange::from_position_token(start, end)),
+                    npos,
+                ))
+            } else {
+                Ok((
+                    AstExpressionOperator::Minus(AstRange::from_position_token(start, start)),
+                    pos + 1,
+                ))
+            }
+        }
+        Token::Ampersand => {
+            if let Ok(npos) = assert_token(tokens, pos + 1, Token::Ampersand) {
+                let end = tokens.get(npos).ok_or(AstError::eof())?;
+                Ok((
+                    AstExpressionOperator::AmpersandAmpersand(AstRange::from_position_token(
+                        start, end,
+                    )),
+                    npos,
+                ))
+            } else {
+                Ok((
+                    AstExpressionOperator::Ampersand(AstRange::from_position_token(start, start)),
+                    pos + 1,
+                ))
+            }
+        }
+        Token::VerticalBar => {
+            if let Ok(npos) = assert_token(tokens, pos + 1, Token::VerticalBar) {
+                let end = tokens.get(npos).ok_or(AstError::eof())?;
+                Ok((
+                    AstExpressionOperator::VerticalBarVerticalBar(AstRange::from_position_token(
+                        start, end,
+                    )),
+                    npos,
+                ))
+            } else {
+                Ok((
+                    AstExpressionOperator::VerticalBar(AstRange::from_position_token(start, start)),
+                    pos + 1,
+                ))
+            }
+        }
+        Token::QuestionMark => Ok((
+            AstExpressionOperator::QuestionMark(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
-        Token::Dash => Ok((
-            AstValueEquasionOperator::Minus(AstRange::from_position_token(start, start)),
+        Token::Colon => Ok((
+            AstExpressionOperator::Colon(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
-        _ => Err(AstError::InvalidNuget(InvalidToken::from(start))),
+        Token::Dot => Ok((
+            AstExpressionOperator::Dot(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::ExclamationMark => Ok((
+            AstExpressionOperator::ExclemationMark(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::Star => Ok((
+            AstExpressionOperator::Multiply(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::Slash => Ok((
+            AstExpressionOperator::Devide(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::Percent => Ok((
+            AstExpressionOperator::Modulo(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::EqualDouble => Ok((
+            AstExpressionOperator::Equal(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::Equal => Ok((
+            AstExpressionOperator::Assign(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::Ne => Ok((
+            AstExpressionOperator::NotEqual(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::Gt => Ok((
+            AstExpressionOperator::Gt(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::Ge => Ok((
+            AstExpressionOperator::Ge(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::Lt => Ok((
+            AstExpressionOperator::Lt(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::Le => Ok((
+            AstExpressionOperator::Le(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::Tilde => Ok((
+            AstExpressionOperator::Tilde(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        _ => Err(AstError::InvalidNuget(InvalidToken::from(start, pos))),
     }
 }
 
-fn parse_value_parameters(
+fn parse_annotated_parameters(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(Vec<AstValue>, usize), AstError> {
+) -> Result<(Vec<AstAnnotatedParameter>, usize), AstError> {
     let mut pos = assert_token(tokens, pos, Token::LeftParen)?;
     let mut out = vec![];
     loop {
@@ -220,74 +638,648 @@ fn parse_value_parameters(
             pos = npos;
             continue;
         }
-        let (value, npos) = parse_value(tokens, pos)?;
+
+        let start_named = tokens.get(pos).ok_or(AstError::eof())?;
+        if let Ok((name, npos)) = parse_name(tokens, pos)
+            && let Ok(npos) = assert_token(tokens, npos, Token::Equal)
+        {
+            let (expression, npos) = parse_expression(tokens, npos)?;
+            pos = npos;
+            let end_named = tokens.get(pos).ok_or(AstError::eof())?;
+            out.push(AstAnnotatedParameter::NamedExpression {
+                range: AstRange::from_position_token(start_named, end_named),
+                name,
+                expression,
+            });
+            continue;
+        }
+        let (expression, npos) = parse_expression(tokens, pos)?;
         pos = npos;
-        out.push(value);
+        out.push(AstAnnotatedParameter::Expression(expression));
+    }
+    Ok((out, pos))
+}
+fn parse_expression_parameters(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(Vec<AstExpression>, usize), AstError> {
+    let mut pos = assert_token(tokens, pos, Token::LeftParen)?;
+    let mut out = vec![];
+    loop {
+        if let Ok(npos) = assert_token(tokens, pos, Token::RightParen) {
+            pos = npos;
+            break;
+        }
+        if let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
+            pos = npos;
+            continue;
+        }
+        let (expression, npos) = parse_expression(tokens, pos)?;
+        pos = npos;
+        out.push(expression);
+    }
+    Ok((out, pos))
+}
+fn parse_array_parameters(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(Vec<Vec<AstExpression>>, usize), AstError> {
+    let mut out = vec![];
+    let mut current = vec![];
+    let mut pos = pos;
+    while let Ok(npos) = assert_token(tokens, pos, Token::LeftParenSquare) {
+        pos = npos;
+
+        if let Ok((expression, npos)) = parse_expression(tokens, pos) {
+            pos = npos;
+            current.push(expression);
+        }
+        while let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
+            pos = npos;
+            let (expression, npos) = parse_expression(tokens, pos)?;
+            pos = npos;
+            current.push(expression);
+        }
+        if let Ok(npos) = assert_token(tokens, pos, Token::RightParenSquare) {
+            pos = npos;
+            out.push(current);
+            current = vec![];
+            continue;
+        }
     }
     Ok((out, pos))
 }
 
-fn parse_value_new_class(
+/// `new String()`
+pub fn parse_new_class(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(AstValue, usize), AstError> {
+) -> Result<(AstNewClass, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let pos = assert_token(tokens, pos, Token::New)?;
     let (jtype, pos) = parse_jtype(tokens, pos)?;
-    let (parameters, pos) = parse_value_parameters(tokens, pos)?;
+    let mut pos = pos;
+    let mut rhs = AstNewRhs::None;
+    let mut set = false;
+    let mut errors = vec![];
+    match parse_array_parameters(tokens, pos) {
+        Ok((array_parameters, npos)) => {
+            pos = npos;
+            rhs = AstNewRhs::ArrayParameters(array_parameters);
+            set = true;
+        }
+        Err(e) => errors.push(("array_parameters".into(), e)),
+    }
+    match parse_expression_parameters(tokens, pos) {
+        Ok((nrhs, npos)) => {
+            pos = npos;
+            rhs = AstNewRhs::Parameters(nrhs);
+            set = true;
+        }
+        Err(e) => errors.push(("expression_parameters".into(), e)),
+    }
+    if let AstJTypeKind::Array(_) = jtype.value {
+        match parse_array(tokens, pos) {
+            Ok((nrhs, npos)) => {
+                pos = npos;
+                rhs = AstNewRhs::Array(nrhs);
+                set = true;
+            }
+            Err(e) => errors.push(("array".into(), e)),
+        }
+    } else {
+        match parse_class_block(tokens, pos) {
+            Ok((b, npos)) => {
+                pos = npos;
+                if set {
+                    if let AstNewRhs::Parameters(p) = rhs {
+                        rhs = AstNewRhs::ParametersAndBlock(p, b);
+                    } else {
+                        rhs = AstNewRhs::Block(b);
+                    }
+                }
+                set = true;
+            }
+            Err(e) => errors.push(("array".into(), e)),
+        }
+    }
+    if !set {
+        return Err(AstError::AllChildrenFailed {
+            parent: "new_class".into(),
+            errors,
+        });
+    }
+    let mut next = None;
+    if let Ok((e, npos)) = parse_expression(tokens, pos) {
+        next = Some(Box::new(e));
+        pos = npos;
+    }
+
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
-        AstValue::NewClass(types::AstValueNewClass {
+        AstNewClass {
             range: AstRange::from_position_token(start, end),
             jtype,
-            parameters,
-        }),
+            rhs: Box::new(rhs),
+            next,
+        },
+        pos,
+    ))
+}
+/// `byte.class`
+/// `String.class`
+pub fn parse_class_access(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstClassAccess, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let (jtype, pos) = parse_jtype(tokens, pos)?;
+    let pos = assert_token(tokens, pos, Token::Dot)?;
+    let mut pos = assert_token(tokens, pos, Token::Class)?;
+    let mut next = None;
+    if let Ok((e, npos)) = parse_expression(tokens, pos) {
+        next = Some(Box::new(e));
+        pos = npos;
+    }
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstClassAccess {
+            range: AstRange::from_position_token(start, end),
+            jtype,
+            next,
+        },
+        pos,
+    ))
+}
+/// `<int>`
+pub fn parse_generics(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstGenerics, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::Lt)?;
+    let (jtype, pos) = parse_jtype(tokens, pos)?;
+    let mut pos = assert_token(tokens, pos, Token::Gt)?;
+    let mut next = None;
+    if let Ok((e, npos)) = parse_expression(tokens, pos) {
+        next = Some(Box::new(e));
+        pos = npos;
+    }
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstGenerics {
+            range: AstRange::from_position_token(start, end),
+            jtype,
+            next,
+        },
+        pos,
+    ))
+}
+/// `a.a()`
+/// `(byte)'\r'
+pub fn parse_expression(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstExpression, usize), AstError> {
+    let mut errors = vec![];
+    match parse_lambda(tokens, pos) {
+        Ok((lambda, pos)) => {
+            return Ok((AstExpression::Lambda(lambda), pos));
+        }
+        Err(e) => errors.push(("lambda".into(), e)),
+    }
+    match parse_switch(tokens, pos) {
+        Ok((casted, pos)) => {
+            return Ok((AstExpression::InlineSwitch(casted), pos));
+        }
+        Err(e) => errors.push(("inline switch".into(), e)),
+    }
+    match parse_casted_expression(tokens, pos) {
+        Ok((casted, pos)) => {
+            return Ok((AstExpression::Casted(casted), pos));
+        }
+        Err(e) => errors.push(("casted".into(), e)),
+    }
+    match parse_new_class(tokens, pos) {
+        Ok((new, pos)) => return Ok((AstExpression::NewClass(new), pos)),
+        Err(e) => errors.push(("new class".into(), e)),
+    };
+    match parse_class_access(tokens, pos) {
+        Ok((a, pos)) => return Ok((AstExpression::ClassAccess(a), pos)),
+        Err(e) => errors.push(("new class".into(), e)),
+    };
+    match parse_generics(tokens, pos) {
+        Ok((a, pos)) => return Ok((AstExpression::Generics(a), pos)),
+        Err(e) => errors.push(("new class".into(), e)),
+    };
+    match parse_recursive_expression(tokens, pos) {
+        Ok((recursive, pos)) => {
+            return Ok((AstExpression::Recursive(recursive), pos));
+        }
+        Err(e) => errors.push(("recursive".into(), e)),
+    }
+    Err(AstError::AllChildrenFailed {
+        parent: "expression".into(),
+        errors,
+    })
+}
+fn parse_casted_expression(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstCastedExpression, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::LeftParen)?;
+    let (cast, pos) = parse_jtype(tokens, pos)?;
+    let pos = assert_token(tokens, pos, Token::RightParen)?;
+    let (expression, pos) = parse_expression(tokens, pos)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstCastedExpression {
+            range: AstRange::from_position_token(start, end),
+            cast,
+            expression: Box::new(expression),
+        },
+        pos,
+    ))
+}
+/// `a.b.c("a".length)`
+pub fn parse_recursive_expression(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstRecursiveExpression, usize), AstError> {
+    let mut ident = None;
+    let mut values = None;
+    let mut next = None;
+    let mut instance_of = None;
+    let mut operator = AstExpressionOperator::None;
+
+    let mut pos = pos;
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    match start.token {
+        Token::Semicolon => {
+            return Err(AstError::InvalidExpression(InvalidToken::from(start, pos)));
+        }
+        Token::Identifier(_) | Token::Class | Token::This => {
+            let (id, npos) = parse_expression_lhs(tokens, pos)?;
+            pos = npos;
+            ident = Some(AstExpressionIdentifier::Identifier(id));
+            if let Ok((exp, npos)) = parse_expression(tokens, pos) {
+                pos = npos;
+                if exp.has_content() {
+                    next = Some(Box::new(exp));
+                }
+            }
+        }
+        Token::LeftParenSquare => {
+            pos += 1;
+            let (array_access_expr, npos) = parse_recursive_expression(tokens, pos)?;
+            let npos = assert_token(tokens, npos, Token::RightParenSquare)?;
+            ident = Some(AstExpressionIdentifier::ArrayAccess(Box::new(
+                array_access_expr,
+            )));
+            pos = npos;
+            if let Ok((exp, npos)) = parse_expression(tokens, pos) {
+                pos = npos;
+                if exp.has_content() {
+                    next = Some(Box::new(exp));
+                }
+            }
+        }
+        Token::LeftParen => {
+            let values_start = tokens.get(pos).ok_or(AstError::eof())?;
+            if let Ok((vals, npos)) = parse_expression_parameters(tokens, pos) {
+                pos = npos;
+                let values_end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+                values = Some(types::AstValues {
+                    range: AstRange::from_position_token(values_start, values_end),
+                    values: vals,
+                });
+                if let Ok((exp, npos)) = parse_expression(tokens, pos) {
+                    pos = npos;
+                    if exp.has_content() {
+                        next = Some(Box::new(exp));
+                    }
+                }
+            }
+        }
+        Token::InstanceOf => {
+            pos += 1;
+            let (jtype, npos) = parse_jtype(tokens, pos)?;
+            instance_of = Some(jtype);
+            pos = npos;
+            if let Ok((exp, npos)) = parse_expression(tokens, pos) {
+                pos = npos;
+                if exp.has_content() {
+                    next = Some(Box::new(exp));
+                }
+            }
+        }
+        _ => {
+            let mut errors = vec![];
+            'others: {
+                match parse_value_operator(tokens, pos) {
+                    Ok((op, npos)) => {
+                        pos = npos;
+                        operator = op;
+                        if let Ok((exp, npos)) = parse_expression(tokens, pos) {
+                            pos = npos;
+                            if exp.has_content() {
+                                next = Some(Box::new(exp));
+                            }
+                        }
+                        break 'others;
+                    }
+                    Err(e) => errors.push(("operator".into(), e)),
+                }
+                match parse_value(tokens, pos) {
+                    Ok((value, npos)) => {
+                        pos = npos;
+                        ident = Some(AstExpressionIdentifier::Value(value));
+                        if let Ok((exp, npos)) = parse_expression(tokens, pos) {
+                            pos = npos;
+                            if exp.has_content() {
+                                next = Some(Box::new(exp));
+                            }
+                        }
+                        break 'others;
+                    }
+                    Err(e) => errors.push(("value".into(), e)),
+                }
+            }
+            if errors.len() >= 2 {
+                return Err(AstError::AllChildrenFailed {
+                    parent: "expression".into(),
+                    errors,
+                });
+            }
+        }
+    }
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstRecursiveExpression {
+            range: AstRange::from_position_token(start, end),
+            ident,
+            next,
+            values,
+            operator,
+            instance_of,
+        },
         pos,
     ))
 }
 
-fn parse_block_variable(
+fn parse_expression_lhs(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstIdentifier, usize), AstError> {
+    match parse_name(tokens, pos) {
+        Ok((ident, npos)) => Ok((ident, npos)),
+        Err(AstError::InvalidName(e)) => match e.found {
+            Token::Class => {
+                let start = tokens.get(pos).ok_or(AstError::eof())?;
+                Ok((
+                    AstIdentifier {
+                        range: AstRange::from_position_token(start, start),
+                        value: "class".into(),
+                    },
+                    pos + 1,
+                ))
+            }
+            Token::This => {
+                let start = tokens.get(pos).ok_or(AstError::eof())?;
+                Ok((
+                    AstIdentifier {
+                        range: AstRange::from_position_token(start, start),
+                        value: "this".into(),
+                    },
+                    pos + 1,
+                ))
+            }
+            _ => Err(AstError::InvalidName(e)),
+        },
+        Err(e) => Err(e),
+    }
+}
+
+/// `String value = "a";`
+pub fn parse_block_variable(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstBlockVariable, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
-    let (jtype, pos) = parse_jtype(tokens, pos)?;
-    let (name, pos) = parse_name(tokens, pos)?;
-    let mut value = None;
+    let (block_variable, pos) = parse_block_variable_no_semicolon(tokens, pos)?;
+    let mut block_variable = block_variable;
+    let pos = assert_semicolon(tokens, pos)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+
+    block_variable.range = AstRange::from_position_token(start, end);
+    Ok((block_variable, pos))
+}
+fn parse_block_variable_no_semicolon(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstBlockVariable, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let (annotated, pos) = parse_annotated_list(tokens, pos)?;
     let mut pos = pos;
-    if let Ok(npos) = assert_token(tokens, pos, Token::Equal) {
-        let (avalue, npos) = parse_value(tokens, npos)?;
+    let mut fin = false;
+    if let Ok(npos) = assert_token(tokens, pos, Token::Final) {
         pos = npos;
-        value = Some(avalue);
+        fin = true;
     }
-    let pos = assert_token(tokens, pos, Token::Semicolon)?;
-    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    let (jtype, pos) = parse_jtype(tokens, pos)?;
+    let mut names = vec![];
+    let (name, pos) = parse_name(tokens, pos)?;
+    names.push(name);
+    let mut pos = pos;
+    while let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
+        let (name, npos) = parse_name(tokens, npos)?;
+        names.push(name);
+        pos = npos;
+    }
+    let mut expression = None;
+    if let Ok(npos) = assert_token(tokens, pos, Token::Equal) {
+        pos = npos;
+        if let Ok((aexpression, npos)) = parse_expression(tokens, pos) {
+            pos = npos;
+            expression = Some(aexpression);
+        }
+    }
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
 
     Ok((
         AstBlockVariable {
-            name,
+            range: AstRange::from_position_token(start, end),
+            annotated,
+            fin,
+            names,
             jtype,
-            value,
+            expression,
+        },
+        pos,
+    ))
+}
+fn parse_block_variable_multi_type_no_semicolon(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstBlockVariableMutliType, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let mut pos = pos;
+    let mut fin = false;
+    if let Ok(npos) = assert_token(tokens, pos, Token::Final) {
+        fin = true;
+        pos = npos;
+    }
+    let mut jtypes = vec![];
+    loop {
+        let (jtype, npos) = parse_jtype(tokens, pos)?;
+        jtypes.push(jtype);
+        pos = npos;
+        if let Ok(npos) = assert_token(tokens, pos, Token::VerticalBar) {
+            pos = npos;
+            continue;
+        } else {
+            break;
+        }
+    }
+    let (name, pos) = parse_name(tokens, pos)?;
+    let mut expression = None;
+    let mut pos = pos;
+    if let Ok(npos) = assert_token(tokens, pos, Token::Equal) {
+        let (aexpression, npos) = parse_expression(tokens, npos)?;
+        pos = npos;
+        expression = Some(aexpression);
+    }
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+
+    Ok((
+        AstBlockVariableMutliType {
+            name,
+            fin,
+            jtypes,
+            expression,
             range: AstRange::from_position_token(start, end),
         },
         pos,
     ))
 }
 
-fn parse_block_return(
+/// `return 1;`
+pub fn parse_block_return(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstBlockReturn, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let pos = assert_token(tokens, pos, Token::Return)?;
-    let (value, pos) = parse_value(tokens, pos)?;
-    let pos = assert_token(tokens, pos, Token::Semicolon)?;
-    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    let mut pos = pos;
+    let mut expression = AstExpressionOrValue::None;
+    if let Ok(npos) = assert_token(tokens, pos, Token::Semicolon) {
+        pos = npos;
+    } else {
+        let (nexpression, npos) = parse_expression(tokens, pos)?;
+        pos = npos;
+        expression = AstExpressionOrValue::Expression(Box::new(nexpression));
+    }
+    let pos = assert_semicolon(tokens, pos)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
 
     Ok((
         AstBlockReturn {
             range: AstRange::from_position_token(start, end),
+            expression,
+        },
+        pos,
+    ))
+}
+fn parse_block_yield(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstBlockYield, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::Yield)?;
+    let mut pos = pos;
+    let mut expression = AstExpressionOrValue::None;
+    if let Ok((nexpression, npos)) = parse_expression(tokens, pos) {
+        pos = npos;
+        expression = AstExpressionOrValue::Expression(Box::new(nexpression));
+    }
+    let pos = assert_token(tokens, pos, Token::Semicolon)?;
+    let end = tokens.get(pos).ok_or(AstError::eof())?;
+
+    Ok((
+        AstBlockYield {
+            range: AstRange::from_position_token(start, end),
+            expression,
+        },
+        pos,
+    ))
+}
+fn parse_block_break(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstBlockBreak, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::Break)?;
+    let pos = assert_token(tokens, pos, Token::Semicolon)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+
+    Ok((
+        AstBlockBreak {
+            range: AstRange::from_position_token(start, end),
+        },
+        pos,
+    ))
+}
+fn parse_block_continue(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstBlockContinue, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::Continue)?;
+    let pos = assert_token(tokens, pos, Token::Semicolon)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+
+    Ok((
+        AstBlockContinue {
+            range: AstRange::from_position_token(start, end),
+        },
+        pos,
+    ))
+}
+fn parse_block_expression(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstBlockExpression, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let (value, pos) = parse_expression(tokens, pos)?;
+    let pos = assert_semicolon(tokens, pos)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+
+    Ok((
+        AstBlockExpression {
+            range: AstRange::from_position_token(start, end),
             value,
+        },
+        pos,
+    ))
+}
+
+fn parse_block_assign(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstBlockAssign, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let (key, pos) = parse_recursive_expression(tokens, pos)?;
+    let pos = assert_token(tokens, pos, Token::Equal)?;
+    let (expression, pos) = parse_expression(tokens, pos)?;
+    let pos = assert_semicolon(tokens, pos)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+
+    Ok((
+        AstBlockAssign {
+            range: AstRange::from_position_token(start, end),
+            key,
+            expression,
         },
         pos,
     ))
@@ -296,19 +1288,35 @@ fn parse_block_return(
 fn parse_method_header(
     tokens: &[PositionToken],
     pos: usize,
+    default_availability: AstAvailability,
 ) -> Result<(AstMethodHeader, usize), AstError> {
-    let mut pos = pos;
-    let mut avaliability = AstAvailability::Protected;
-    let mut stat = false;
+    let mut avaliability = default_availability;
+    let mut type_parameters = None;
     let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let (annotated, pos) = parse_annotated_list(tokens, pos)?;
+    let mut pos = pos;
     if let Ok((avav, npos)) = parse_avaliability(tokens, pos) {
         avaliability = avav;
         pos = npos;
     };
-    if let Ok(npos) = assert_token(tokens, pos, Token::Static) {
-        stat = true;
-        pos = npos;
+    loop {
+        let t = tokens.get(pos).ok_or(AstError::eof())?;
+        match t.token {
+            Token::Synchronized => avaliability |= AstAvailability::Synchronized,
+            Token::Static => avaliability |= AstAvailability::Static,
+            Token::Final => avaliability |= AstAvailability::Final,
+            Token::Abstract => avaliability |= AstAvailability::Abstract,
+            Token::Native => avaliability |= AstAvailability::Native,
+            _ => break,
+        }
+        pos += 1;
     }
+
+    if let Ok((type_params, npos)) = parse_type_parameters(tokens, pos) {
+        type_parameters = Some(type_params);
+        pos = npos;
+    };
+
     let (jtype, pos) = parse_jtype(tokens, pos)?;
     let (name, pos) = parse_name(tokens, pos)?;
     let (parameters, pos) = parse_method_paramerters(tokens, pos)?;
@@ -318,16 +1326,69 @@ fn parse_method_header(
         throws = Some(nthrows);
         pos = npos;
     }
-    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstMethodHeader {
             range: AstRange::from_position_token(start, end),
             avaliability,
+            type_parameters,
             name,
+            annotated,
             jtype,
             parameters,
-            stat,
             throws,
+        },
+        pos,
+    ))
+}
+fn parse_constructor_header(
+    tokens: &[PositionToken],
+    pos: usize,
+    default_availability: AstAvailability,
+) -> Result<(AstConstructorHeader, usize), AstError> {
+    let mut avaliability = default_availability;
+    let mut type_parameters = None;
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let (annotated, pos) = parse_annotated_list(tokens, pos)?;
+    let mut pos = pos;
+    if let Ok((avav, npos)) = parse_avaliability(tokens, pos) {
+        avaliability = avav;
+        pos = npos;
+    };
+    loop {
+        let t = tokens.get(pos).ok_or(AstError::eof())?;
+        match t.token {
+            Token::Synchronized => avaliability |= AstAvailability::Synchronized,
+            Token::Static => avaliability |= AstAvailability::Static,
+            Token::Final => avaliability |= AstAvailability::Final,
+            _ => break,
+        }
+        pos += 1;
+    }
+
+    if let Ok((type_params, npos)) = parse_type_parameters(tokens, pos) {
+        type_parameters = Some(type_params);
+        pos = npos;
+    };
+
+    let (name, pos) = parse_name(tokens, pos)?;
+    let (parameters, pos) = parse_method_paramerters(tokens, pos)?;
+    let mut pos = pos;
+    let mut throws = None;
+    if let Ok((nthrows, npos)) = parse_throws_declaration(tokens, pos) {
+        throws = Some(nthrows);
+        pos = npos;
+    }
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstConstructorHeader {
+            range: AstRange::from_position_token(start, end),
+            avaliability,
+            type_parameters,
+            name,
+            parameters,
+            throws,
+            annotated,
         },
         pos,
     ))
@@ -339,7 +1400,7 @@ fn parse_throws_declaration(
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let pos = assert_token(tokens, pos, Token::Throws)?;
     let (parameters, pos) = parse_type_list(tokens, pos)?;
-    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstThrowsDeclaration {
             range: AstRange::from_position_token(start, end),
@@ -349,6 +1410,8 @@ fn parse_throws_declaration(
     ))
 }
 
+/// `public void <T> do() { ... }`
+///              ^^^
 pub fn parse_type_parameters(
     tokens: &[PositionToken],
     pos: usize,
@@ -362,9 +1425,21 @@ pub fn parse_type_parameters(
             pos = npos;
             break;
         }
+
+        let start_p = tokens.get(pos).ok_or(AstError::eof())?;
         let (name, npos) = parse_name(tokens, pos)?;
         pos = npos;
-        parameters.push(name);
+        let mut supperclass = None;
+        if let Ok((s, npos)) = parse_superclass(tokens, pos) {
+            supperclass = Some(s);
+            pos = npos;
+        }
+        let end_p = tokens.get(pos).ok_or(AstError::eof())?;
+        parameters.push(AstTypeParameter {
+            range: AstRange::from_position_token(start_p, end_p),
+            name,
+            supperclass,
+        });
         if let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
             pos = npos;
             continue;
@@ -374,7 +1449,7 @@ pub fn parse_type_parameters(
             break;
         }
     }
-    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstTypeParameters {
             range: AstRange::from_position_token(start, end),
@@ -388,7 +1463,7 @@ fn parse_extends(tokens: &[PositionToken], pos: usize) -> Result<(AstExtends, us
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let pos = assert_token(tokens, pos, Token::Extends)?;
     let (parameters, pos) = parse_type_list(tokens, pos)?;
-    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstExtends {
             range: AstRange::from_position_token(start, end),
@@ -407,7 +1482,6 @@ fn parse_type_list(
     while let Ok((name, npos)) = parse_jtype(tokens, pos) {
         pos = npos;
         parameters.push(name);
-
         if let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
             pos = npos;
             continue;
@@ -416,48 +1490,35 @@ fn parse_type_list(
     Ok((parameters, pos))
 }
 
-fn parse_block(tokens: &[PositionToken], pos: usize) -> Result<(AstBlock, usize), AstError> {
+/// { statements; }
+pub fn parse_block(tokens: &[PositionToken], pos: usize) -> Result<(AstBlock, usize), AstError> {
+    parse_block_brackets(tokens, pos, Token::LeftParenCurly, Token::RightParenCurly)
+}
+fn parse_block_brackets(
+    tokens: &[PositionToken],
+    pos: usize,
+    left: Token,
+    right: Token,
+) -> Result<(AstBlock, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
-    let pos = assert_token(tokens, pos, Token::LeftParenCurly)?;
+    let pos = assert_token(tokens, pos, left)?;
     let mut pos = pos;
     let mut entries = vec![];
-    let mut errors = vec![];
     loop {
-        errors.clear();
-        if tokens.get(pos).is_none() {
-            break;
-        }
-        if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
+        if let Ok(npos) = assert_token(tokens, pos, right.clone()) {
             pos = npos;
             break;
         };
-        match parse_block_variable(tokens, pos) {
-            Ok((variable, npos)) => {
+        match parse_block_entry(tokens, pos) {
+            Ok((entry, npos)) => {
+                entries.push(entry);
                 pos = npos;
-                entries.push(AstBlockEntry::Variable(variable));
-                continue;
             }
             Err(e) => {
-                errors.push(("block variable", e));
+                return Err(e);
             }
         }
-        match parse_block_return(tokens, pos) {
-            Ok((nret, npos)) => {
-                pos = npos;
-                entries.push(AstBlockEntry::Return(nret));
-                continue;
-            }
-            Err(e) => {
-                errors.push(("block return", e));
-            }
-        }
-        pos += 1;
-        // return Err(AstError::AllChildrenFailed {
-        //     parent: "block",
-        //     errors,
-        // });
     }
-    // let pos = assert_token(tokens, pos, Token::RightParenCurly)?;
     let end = tokens.get(pos - 1).ok_or(AstError::eof()).unwrap();
     Ok((
         AstBlock {
@@ -468,6 +1529,619 @@ fn parse_block(tokens: &[PositionToken], pos: usize) -> Result<(AstBlock, usize)
     ))
 }
 
+fn parse_block_entry(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstBlockEntry, usize), AstError> {
+    let mut errors = vec![];
+    match parse_block_variable(tokens, pos) {
+        Ok((variable, pos)) => {
+            return Ok((AstBlockEntry::Variable(variable), pos));
+        }
+        Err(e) => {
+            errors.push(("block variable".into(), e));
+        }
+    }
+    match parse_block_return(tokens, pos) {
+        Ok((nret, pos)) => {
+            return Ok((AstBlockEntry::Return(nret), pos));
+        }
+        Err(e) => {
+            errors.push(("block return".into(), e));
+        }
+    }
+    match parse_block_yield(tokens, pos) {
+        Ok((nret, pos)) => {
+            return Ok((AstBlockEntry::Yield(nret), pos));
+        }
+        Err(e) => {
+            errors.push(("block yield".into(), e));
+        }
+    }
+    match parse_block_break(tokens, pos) {
+        Ok((nret, pos)) => {
+            return Ok((AstBlockEntry::Break(nret), pos));
+        }
+        Err(e) => {
+            errors.push(("block break".into(), e));
+        }
+    }
+    match parse_block_continue(tokens, pos) {
+        Ok((nret, pos)) => {
+            return Ok((AstBlockEntry::Continue(nret), pos));
+        }
+        Err(e) => {
+            errors.push(("block continue".into(), e));
+        }
+    }
+    match parse_if(tokens, pos) {
+        Ok((nret, pos)) => {
+            return Ok((AstBlockEntry::If(nret), pos));
+        }
+        Err(e) => {
+            errors.push(("block if".into(), e));
+        }
+    }
+    match parse_while(tokens, pos) {
+        Ok((nret, pos)) => {
+            return Ok((AstBlockEntry::While(nret), pos));
+        }
+        Err(e) => {
+            errors.push(("block while".into(), e));
+        }
+    }
+    match parse_do_while(tokens, pos) {
+        Ok((nret, pos)) => {
+            return Ok((AstBlockEntry::While(nret), pos));
+        }
+        Err(e) => {
+            errors.push(("block do while".into(), e));
+        }
+    }
+    match parse_for(tokens, pos) {
+        Ok((nret, pos)) => {
+            return Ok((AstBlockEntry::For(Box::new(nret)), pos));
+        }
+        Err(e) => {
+            errors.push(("block for".into(), e));
+        }
+    }
+    match parse_for_enhanced(tokens, pos) {
+        Ok((nret, pos)) => {
+            return Ok((AstBlockEntry::ForEnhanced(Box::new(nret)), pos));
+        }
+        Err(e) => {
+            errors.push(("block for enhanced".into(), e));
+        }
+    }
+    match parse_switch(tokens, pos) {
+        Ok((nret, pos)) => {
+            return Ok((AstBlockEntry::Switch(nret), pos));
+        }
+        Err(e) => {
+            errors.push(("block switch".into(), e));
+        }
+    }
+    match parse_switch_case(tokens, pos) {
+        Ok((nret, pos)) => {
+            return Ok((AstBlockEntry::SwitchCase(nret), pos));
+        }
+        Err(e) => {
+            errors.push(("block switch case".into(), e));
+        }
+    }
+    match parse_switch_case_arrow(tokens, pos) {
+        Ok((nret, pos)) => {
+            return Ok((AstBlockEntry::SwitchCaseArrow(nret), pos));
+        }
+        Err(e) => {
+            errors.push(("block switch case arrow".into(), e));
+        }
+    }
+    match parse_switch_default(tokens, pos) {
+        Ok((nret, pos)) => {
+            return Ok((AstBlockEntry::SwitchDefault(nret), pos));
+        }
+        Err(e) => {
+            errors.push(("block switch default".into(), e));
+        }
+    }
+    match parse_try_catch(tokens, pos) {
+        Ok((nret, pos)) => {
+            return Ok((AstBlockEntry::TryCatch(nret), pos));
+        }
+        Err(e) => {
+            errors.push(("block try catch".into(), e));
+        }
+    }
+    match parse_throw(tokens, pos) {
+        Ok((nret, pos)) => {
+            return Ok((AstBlockEntry::Throw(nret), pos));
+        }
+        Err(e) => {
+            errors.push(("block throw".into(), e));
+        }
+    }
+    match parse_synchronised_block(tokens, pos) {
+        Ok((synchronized_block, pos)) => {
+            return Ok((AstBlockEntry::SynchronizedBlock(synchronized_block), pos));
+        }
+        Err(e) => {
+            errors.push(("static block".into(), e));
+        }
+    }
+    match parse_block_assign(tokens, pos) {
+        Ok((nret, pos)) => {
+            return Ok((AstBlockEntry::Assign(nret), pos));
+        }
+        Err(e) => {
+            errors.push(("block assign".into(), e));
+        }
+    }
+    match parse_block_expression(tokens, pos) {
+        Ok((nret, pos)) => {
+            return Ok((AstBlockEntry::Expression(nret), pos));
+        }
+        Err(e) => {
+            errors.push(("block expression".into(), e));
+        }
+    }
+    Err(AstError::AllChildrenFailed {
+        parent: "block".into(),
+        errors,
+    })
+}
+
+fn parse_while(tokens: &[PositionToken], pos: usize) -> Result<(AstWhile, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let mut pos = pos;
+    let mut lable = None;
+    if let Ok((lab, npos)) = parse_name(tokens, pos) {
+        let npos = assert_token(tokens, npos, Token::Colon)?;
+
+        lable = Some(lab);
+        pos = npos;
+    }
+    let pos = assert_token(tokens, pos, Token::While)?;
+    let pos = assert_token(tokens, pos, Token::LeftParen)?;
+    let (control, pos) = parse_recursive_expression(tokens, pos)?;
+    let mut pos = assert_token(tokens, pos, Token::RightParen)?;
+    let mut content = AstWhileContent::None;
+    let mut errors = vec![];
+    'while_content: {
+        match parse_block(tokens, pos) {
+            Ok((block, npos)) => {
+                content = AstWhileContent::Block(block);
+                pos = npos;
+                break 'while_content;
+            }
+            Err(e) => errors.push(("block".into(), e)),
+        }
+        match parse_block_entry(tokens, pos) {
+            Ok((entry, npos)) => {
+                content = AstWhileContent::BlockEntry(Box::new(entry));
+                pos = npos;
+                break 'while_content;
+            }
+            Err(e) => errors.push(("recursive expression".into(), e)),
+        }
+    }
+    if errors.len() >= 2 {
+        return Err(AstError::AllChildrenFailed {
+            parent: "while".into(),
+            errors,
+        });
+    }
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstWhile {
+            range: AstRange::from_position_token(start, end),
+            control,
+            content,
+            lable,
+        },
+        pos,
+    ))
+}
+fn parse_do_while(tokens: &[PositionToken], pos: usize) -> Result<(AstWhile, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let mut pos = pos;
+    let mut lable = None;
+    if let Ok((lab, npos)) = parse_name(tokens, pos) {
+        let npos = assert_token(tokens, npos, Token::Colon)?;
+
+        lable = Some(lab);
+        pos = npos;
+    }
+    let pos = assert_token(tokens, pos, Token::Do)?;
+    let (block, pos) = parse_block(tokens, pos)?;
+
+    let pos = assert_token(tokens, pos, Token::While)?;
+    let pos = assert_token(tokens, pos, Token::LeftParen)?;
+    let (control, pos) = parse_recursive_expression(tokens, pos)?;
+    let pos = assert_token(tokens, pos, Token::RightParen)?;
+    let pos = assert_token(tokens, pos, Token::Semicolon)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstWhile {
+            range: AstRange::from_position_token(start, end),
+            control,
+            content: AstWhileContent::Block(block),
+            lable,
+        },
+        pos,
+    ))
+}
+fn parse_for(tokens: &[PositionToken], pos: usize) -> Result<(AstFor, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let mut pos = pos;
+    let mut lable = None;
+    if let Ok((lab, npos)) = parse_name(tokens, pos) {
+        let npos = assert_token(tokens, npos, Token::Colon)?;
+
+        lable = Some(lab);
+        pos = npos;
+    }
+    let pos = assert_token(tokens, pos, Token::For)?;
+    let pos = assert_token(tokens, pos, Token::LeftParen)?;
+    let (var, pos) = parse_block_variable(tokens, pos)?;
+    let (check, pos) = parse_expression(tokens, pos)?;
+    let mut pos = assert_token(tokens, pos, Token::Semicolon)?;
+    let mut change = None;
+    if let Ok((nchange, npos)) = parse_block_entry(tokens, pos) {
+        pos = npos;
+        change = Some(nchange);
+    }
+    let pos = assert_token(tokens, pos, Token::RightParen)?;
+    let mut content = AstForContent::None;
+    let mut errors = vec![];
+    let mut pos = pos;
+    'for_content: {
+        match parse_block(tokens, pos) {
+            Ok((block, npos)) => {
+                content = AstForContent::Block(block);
+                pos = npos;
+                break 'for_content;
+            }
+            Err(e) => errors.push(("block".into(), e)),
+        }
+        match parse_block_entry(tokens, pos) {
+            Ok((entry, npos)) => {
+                content = AstForContent::BlockEntry(Box::new(entry));
+                pos = npos;
+                break 'for_content;
+            }
+            Err(e) => errors.push(("recursive expression".into(), e)),
+        }
+    }
+    if errors.len() >= 2 {
+        return Err(AstError::AllChildrenFailed {
+            parent: "for".into(),
+            errors,
+        });
+    }
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstFor {
+            range: AstRange::from_position_token(start, end),
+            content,
+            lable,
+            var,
+            check,
+            change,
+        },
+        pos,
+    ))
+}
+
+fn parse_switch(tokens: &[PositionToken], pos: usize) -> Result<(AstSwitch, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::Switch)?;
+    let pos = assert_token(tokens, pos, Token::LeftParen)?;
+    let (check, pos) = parse_recursive_expression(tokens, pos)?;
+    let pos = assert_token(tokens, pos, Token::RightParen)?;
+    let (block, pos) = parse_block(tokens, pos)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstSwitch {
+            range: AstRange::from_position_token(start, end),
+            block,
+            check,
+        },
+        pos,
+    ))
+}
+fn parse_switch_case(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstSwitchCase, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::Case)?;
+    let (value, pos) = parse_value(tokens, pos)?;
+    let pos = assert_token(tokens, pos, Token::Colon)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstSwitchCase {
+            range: AstRange::from_position_token(start, end),
+            value,
+        },
+        pos,
+    ))
+}
+fn parse_switch_case_arrow(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstSwitchCaseArrow, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let mut pos = assert_token(tokens, pos, Token::Case)?;
+    let mut values = vec![];
+    loop {
+        let (value, npos) = parse_value(tokens, pos)?;
+        values.push(value);
+        pos = npos;
+
+        match assert_token(tokens, pos, Token::Comma) {
+            Ok(npos) => {
+                pos = npos;
+            }
+            Err(_) => break,
+        }
+    }
+    let pos = assert_token(tokens, pos, Token::Dash)?;
+    let pos = assert_token(tokens, pos, Token::Gt)?;
+    let (block, pos) = parse_block(tokens, pos)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstSwitchCaseArrow {
+            range: AstRange::from_position_token(start, end),
+            values,
+            block,
+        },
+        pos,
+    ))
+}
+fn parse_switch_default(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstSwitchDefault, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::Default)?;
+    let pos = assert_token(tokens, pos, Token::Colon)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstSwitchDefault {
+            range: AstRange::from_position_token(start, end),
+        },
+        pos,
+    ))
+}
+
+fn parse_for_enhanced(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstForEnhanced, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let mut pos = pos;
+    let mut lable = None;
+    if let Ok((lab, npos)) = parse_name(tokens, pos) {
+        let npos = assert_token(tokens, npos, Token::Colon)?;
+
+        lable = Some(lab);
+        pos = npos;
+    }
+    let pos = assert_token(tokens, pos, Token::For)?;
+    let pos = assert_token(tokens, pos, Token::LeftParen)?;
+    let (var, pos) = parse_block_variable_no_semicolon(tokens, pos)?;
+    let pos = assert_token(tokens, pos, Token::Colon)?;
+    let (rhs, pos) = parse_expression(tokens, pos)?;
+    let pos = assert_token(tokens, pos, Token::RightParen)?;
+    let mut content = AstForContent::None;
+    let mut errors = vec![];
+    let mut pos = pos;
+    'for_content: {
+        match parse_block(tokens, pos) {
+            Ok((block, npos)) => {
+                content = AstForContent::Block(block);
+                pos = npos;
+                break 'for_content;
+            }
+            Err(e) => errors.push(("block".into(), e)),
+        }
+        match parse_block_entry(tokens, pos) {
+            Ok((entry, npos)) => {
+                content = AstForContent::BlockEntry(Box::new(entry));
+                pos = npos;
+                break 'for_content;
+            }
+            Err(e) => errors.push(("recursive expression".into(), e)),
+        }
+    }
+    if errors.len() >= 2 {
+        return Err(AstError::AllChildrenFailed {
+            parent: "for".into(),
+            errors,
+        });
+    }
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstForEnhanced {
+            range: AstRange::from_position_token(start, end),
+            content,
+            lable,
+            var,
+            rhs,
+        },
+        pos,
+    ))
+}
+
+fn parse_if(tokens: &[PositionToken], pos: usize) -> Result<(AstIf, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::If)?;
+    let start_control = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::LeftParen)?;
+    let (control, pos) = parse_expression(tokens, pos)?;
+    let end_control = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::RightParen)?;
+    let mut pos = pos;
+    let mut content = AstIfContent::None;
+    let mut errors = vec![];
+    'if_content: {
+        match parse_block(tokens, pos) {
+            Ok((block, npos)) => {
+                content = AstIfContent::Block(block);
+                pos = npos;
+                break 'if_content;
+            }
+            Err(e) => errors.push(("block".into(), e)),
+        }
+        match parse_block_entry(tokens, pos) {
+            Ok((entry, npos)) => {
+                content = AstIfContent::BlockEntry(Box::new(entry));
+                pos = npos;
+                break 'if_content;
+            }
+            Err(e) => errors.push(("recursive expression".into(), e)),
+        }
+    }
+    if errors.len() >= 2 {
+        return Err(AstError::AllChildrenFailed {
+            parent: "if".into(),
+            errors,
+        });
+    }
+    let mut el = None;
+    if let Ok(npos) = assert_token(tokens, pos, Token::Else) {
+        pos = npos;
+        let mut errors = vec![];
+
+        match parse_if(tokens, pos) {
+            Ok((new_class, npos)) => {
+                el = Some(Box::new(new_class));
+                pos = npos;
+            }
+            Err(e) => errors.push(("if nested".into(), e)),
+        }
+        match parse_block(tokens, pos) {
+            Ok((block, npos)) => {
+                el = Some(Box::new(AstIf::Else {
+                    range: block.range,
+                    content: AstIfContent::Block(block),
+                }));
+                pos = npos;
+            }
+            Err(e) => errors.push(("block".into(), e)),
+        }
+        match parse_block_entry(tokens, pos) {
+            Ok((entry, npos)) => {
+                el = Some(Box::new(AstIf::Else {
+                    range: entry.get_range(),
+                    content: AstIfContent::BlockEntry(Box::new(entry)),
+                }));
+                pos = npos;
+            }
+            Err(e) => errors.push(("recursive expression".into(), e)),
+        }
+        if el.is_none() {
+            return Err(AstError::AllChildrenFailed {
+                parent: "ifelse".into(),
+                errors,
+            });
+        }
+    }
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstIf::If {
+            range: AstRange::from_position_token(start, end),
+            control: Box::new(control),
+            control_range: AstRange::from_position_token(start_control, end_control),
+            content,
+            el,
+        },
+        pos,
+    ))
+}
+fn parse_throw(tokens: &[PositionToken], pos: usize) -> Result<(AstThrow, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::Throw)?;
+    let (expression, pos) = parse_expression(tokens, pos)?;
+    let pos = assert_semicolon(tokens, pos)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstThrow {
+            range: AstRange::from_position_token(start, end),
+            expression,
+        },
+        pos,
+    ))
+}
+fn parse_synchronised_block(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstSynchronizedBlock, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::Synchronized)?;
+    let pos = assert_token(tokens, pos, Token::LeftParen)?;
+    let (expression, pos) = parse_expression(tokens, pos)?;
+    let pos = assert_token(tokens, pos, Token::RightParen)?;
+    let (block, pos) = parse_block(tokens, pos)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstSynchronizedBlock {
+            range: AstRange::from_position_token(start, end),
+            expression,
+            block,
+        },
+        pos,
+    ))
+}
+
+fn parse_try_catch(tokens: &[PositionToken], pos: usize) -> Result<(AstTryCatch, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::Try)?;
+    let mut resources_block = None;
+    let mut pos = pos;
+    if let Ok((res, npos)) = parse_block_brackets(tokens, pos, Token::LeftParen, Token::RightParen)
+    {
+        resources_block = Some(res);
+        pos = npos;
+    }
+    let (block, pos) = parse_block(tokens, pos)?;
+    let mut pos = pos;
+    let mut finally_block = None;
+    let mut cases = vec![];
+    while assert_token(tokens, pos, Token::Catch).is_ok() {
+        pos += 1;
+        let start = tokens.get(pos).ok_or(AstError::eof())?;
+        let npos = assert_token(tokens, pos, Token::LeftParen)?;
+        let (variable, npos) = parse_block_variable_multi_type_no_semicolon(tokens, npos)?;
+        let npos = assert_token(tokens, npos, Token::RightParen)?;
+        let (block, npos) = parse_block(tokens, npos)?;
+        pos = npos;
+        let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+        cases.push(AstTryCatchCase {
+            range: AstRange::from_position_token(start, end),
+            variable,
+            block,
+        });
+    }
+    if let Ok(npos) = assert_token(tokens, pos, Token::Finally) {
+        let (f_block, npos) = parse_block(tokens, npos)?;
+        finally_block = Some(f_block);
+        pos = npos;
+    }
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstTryCatch {
+            range: AstRange::from_position_token(start, end),
+            resources_block,
+            block,
+            cases,
+            finally_block,
+        },
+        pos,
+    ))
+}
 fn parse_method_paramerters(
     tokens: &[PositionToken],
     pos: usize,
@@ -500,7 +2174,7 @@ fn parse_method_paramerters(
         let npos = assert_token(tokens, pos, Token::RightParen)?;
         pos = npos;
     }
-    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstMethodParamerters {
             range: AstRange::from_position_token(start, end),
@@ -514,38 +2188,98 @@ fn parse_method_paramerter(
     pos: usize,
 ) -> Result<(AstMethodParamerter, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let mut fin = false;
+    let mut variatic = false;
+    let (annotated, pos) = parse_annotated_list(tokens, pos)?;
+    let mut pos = pos;
+    if let Ok(npos) = assert_token(tokens, pos, Token::Final) {
+        fin = true;
+        pos = npos;
+    }
     let (jtype, pos) = parse_jtype(tokens, pos)?;
+    let mut pos = pos;
+    if let Ok(npos) = assert_token(tokens, pos, Token::Dot)
+        && let Ok(npos) = assert_token(tokens, npos, Token::Dot)
+        && let Ok(npos) = assert_token(tokens, npos, Token::Dot)
+    {
+        pos = npos;
+        variatic = true;
+    }
     let (name, pos) = parse_name(tokens, pos)?;
-    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstMethodParamerter {
             range: AstRange::from_position_token(start, end),
+            annotated,
             jtype,
             name,
+            fin,
+            variatic,
         },
         pos,
     ))
 }
 
-// Only one Token::Identifier content
-fn parse_name(tokens: &[PositionToken], pos: usize) -> Result<(AstIdentifier, usize), AstError> {
+/// `thing1_`
+pub fn parse_name(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstIdentifier, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let value;
     let mut pos = pos;
-    let ident;
-    let t = tokens.get(pos).ok_or(AstError::eof())?;
-    match &t.token {
-        Token::Identifier(id) => {
-            ident = id;
-            pos += 1;
-        }
-        _ => {
-            let t = tokens.get(pos).ok_or(AstError::eof())?;
-            return Err(AstError::InvalidName(InvalidToken::from(t)));
+    if let Token::Identifier(i) = &start.token {
+        value = i.clone();
+        pos += 1;
+    } else {
+        return Err(AstError::InvalidName(InvalidToken::from(start, pos)));
+    }
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstIdentifier {
+            range: AstRange::from_position_token(start, end),
+            value,
+        },
+        pos,
+    ))
+}
+
+/// `thing.1`
+pub fn parse_name_dot(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstIdentifier, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let init_pos = pos;
+    let mut pos = pos;
+    let mut ident = SmolStrBuilder::new();
+    loop {
+        let Ok(t) = tokens.get(pos).ok_or(AstError::eof()) else {
+            break;
+        };
+        match &t.token {
+            Token::Identifier(id) => {
+                ident.push_str(id);
+                pos += 1;
+            }
+            Token::Dot => {
+                ident.push('.');
+                pos += 1;
+            }
+            _ => {
+                if pos == init_pos
+                    && let Ok(t) = tokens.get(pos).ok_or(AstError::eof())
+                {
+                    return Err(AstError::InvalidName(InvalidToken::from(t, pos)));
+                }
+                break;
+            }
         }
     }
+    let ident = ident.finish();
     if ident.is_empty() {
         let t = tokens.get(pos).ok_or(AstError::eof())?;
-        return Err(AstError::IdentifierEmpty(InvalidToken::from(t)));
+        return Err(AstError::IdentifierEmpty(InvalidToken::from(t, pos)));
     }
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
@@ -556,8 +2290,110 @@ fn parse_name(tokens: &[PositionToken], pos: usize) -> Result<(AstIdentifier, us
         pos,
     ))
 }
+/// `thing.1`
+pub fn parse_name_dot_logical(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstIdentifier, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let init_pos = pos;
+    let mut pos = pos;
+    let mut ident = SmolStrBuilder::new();
+    let mut first = true;
+    loop {
+        let Ok(t) = tokens.get(pos).ok_or(AstError::eof()) else {
+            break;
+        };
+        match &t.token {
+            Token::Identifier(id) => {
+                if first {
+                    first = false;
+                    ident.push_str(id);
+                    pos += 1;
+                } else {
+                    if tokens.get(pos + 1).ok_or(AstError::eof()).map(|i| &i.token)
+                        == Ok(&Token::Dot)
+                        || tokens.get(pos - 1).ok_or(AstError::eof()).map(|i| &i.token)
+                            == Ok(&Token::Dot)
+                    {
+                        ident.push_str(id);
+                        pos += 1;
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
+            }
+            Token::Dot => {
+                if let Ok(Token::Identifier(_)) =
+                    tokens.get(pos + 1).ok_or(AstError::eof()).map(|i| &i.token)
+                {
+                    ident.push('.');
+                    pos += 1;
+                    continue;
+                } else {
+                    break;
+                }
+            }
+            _ => {
+                if pos == init_pos
+                    && let Ok(t) = tokens.get(pos).ok_or(AstError::eof())
+                {
+                    return Err(AstError::InvalidName(InvalidToken::from(t, pos)));
+                }
+                break;
+            }
+        }
+    }
+    let ident = ident.finish();
+    if ident.is_empty() {
+        let t = tokens.get(pos).ok_or(AstError::eof())?;
+        return Err(AstError::IdentifierEmpty(InvalidToken::from(t, pos)));
+    }
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstIdentifier {
+            range: AstRange::from_position_token(start, end),
+            value: ident.clone(),
+        },
+        pos,
+    ))
+}
+/// `thing`
+pub fn parse_name_single(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstIdentifier, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let mut pos = pos;
+    let mut ident = None;
+    let t = tokens.get(pos).ok_or(AstError::eof())?;
+    match &t.token {
+        Token::Identifier(id) => {
+            ident = Some(id);
+            pos += 1;
+        }
+        _ => {
+            if let Ok(t) = tokens.get(pos).ok_or(AstError::eof()) {
+                return Err(AstError::InvalidName(InvalidToken::from(t, pos)));
+            }
+        }
+    }
+    let Some(ident) = ident else {
+        let t = tokens.get(pos).ok_or(AstError::eof())?;
+        return Err(AstError::IdentifierEmpty(InvalidToken::from(t, pos)));
+    };
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstIdentifier {
+            range: AstRange::from_position_token(start, end),
+            value: ident.clone(),
+        },
+        pos,
+    ))
+}
 
-// Conatins Token::Identifier, Token::Dot, Token::Star
+// Conatins Token::Identifier, Token::Dot
 fn parse_identifier(
     tokens: &[PositionToken],
     pos: usize,
@@ -579,17 +2415,12 @@ fn parse_identifier(
                 ident.push('.');
                 pos += 1;
             }
-            Token::Star => {
-                modded = true;
-                ident.push('*');
-                pos += 1;
-            }
             _ => break,
         }
     }
     if !modded {
         let t = tokens.get(pos).ok_or(AstError::eof())?;
-        return Err(AstError::IdentifierEmpty(InvalidToken::from(t)));
+        return Err(AstError::IdentifierEmpty(InvalidToken::from(t, pos)));
     }
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
@@ -617,10 +2448,32 @@ fn parse_superclass(
     Ok((sp, pos))
 }
 
-fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, usize), AstError> {
+fn parse_implements(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(Vec<AstJType>, usize), AstError> {
+    let Ok(pos) = assert_token(tokens, pos, Token::Implements) else {
+        return Ok((vec![], pos));
+    };
+    let mut out = vec![];
+    let (jtype, pos) = parse_jtype(tokens, pos)?;
+    out.push(jtype);
+    let mut pos = pos;
+    while let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
+        let (jtype, npos) = parse_jtype(tokens, npos)?;
+        out.push(jtype);
+        pos = npos;
+    }
+
+    Ok((out, pos))
+}
+
+/// String
+/// int
+pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, usize), AstError> {
     let out_pos = pos + 1;
     let current = tokens.get(pos).ok_or(AstError::eof())?;
-    match &current.token {
+    let base = match &current.token {
         Token::Int => Ok((
             AstJType {
                 value: AstJTypeKind::Int,
@@ -691,14 +2544,45 @@ fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, usize)
             },
             out_pos,
         )),
+        Token::Var => Ok((
+            AstJType {
+                range: AstRange::from_position_token(current, current),
+                value: AstJTypeKind::Var,
+            },
+            out_pos,
+        )),
         Token::Identifier(ident) => {
             let token = tokens.get(pos + 1).ok_or(AstError::eof())?;
             let range = AstRange::from_position_token(current, current);
             let ident = AstIdentifier {
                 value: ident.clone(),
-                range: range.clone(),
+                range,
             };
             match token.token {
+                Token::Dot => {
+                    if let Ok((inner, npos)) = parse_jtype(tokens, pos + 2) {
+                        return Ok((
+                            AstJType {
+                                range: AstRange {
+                                    start: range.start,
+                                    end: inner.range.end,
+                                },
+                                value: AstJTypeKind::Access {
+                                    ident,
+                                    inner: Box::new(inner),
+                                },
+                            },
+                            npos,
+                        ));
+                    }
+                    Ok((
+                        AstJType {
+                            range,
+                            value: AstJTypeKind::Class(ident),
+                        },
+                        pos + 1,
+                    ))
+                }
                 Token::Lt => {
                     let out_pos;
                     let mut args = vec![];
@@ -708,6 +2592,26 @@ fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, usize)
                         if let Ok(npos) = assert_token(tokens, pos, Token::Gt) {
                             out_pos = npos;
                             break;
+                        }
+                        if let Ok(npos) = assert_token(tokens, pos, Token::QuestionMark) {
+                            let wstart = tokens.get(pos).ok_or(AstError::eof())?;
+
+                            if let Ok(npos) = assert_token(tokens, npos, Token::Implements) {
+                                pos = npos;
+                                let wend = tokens.get(pos).ok_or(AstError::eof())?;
+                                args.push(AstJType {
+                                    range: AstRange::from_position_token(wstart, wend),
+                                    value: AstJTypeKind::Wildcard,
+                                });
+                            }
+                            if let Ok(npos) = assert_token(tokens, npos, Token::Extends) {
+                                pos = npos;
+                                let wend = tokens.get(pos).ok_or(AstError::eof())?;
+                                args.push(AstJType {
+                                    range: AstRange::from_position_token(wstart, wend),
+                                    value: AstJTypeKind::Wildcard,
+                                });
+                            }
                         }
                         let (jtype, npos) = parse_jtype(tokens, pos)?;
                         pos = npos;
@@ -722,7 +2626,7 @@ fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, usize)
                         }
                         pos += 1;
                     }
-                    let end = tokens.get(pos).ok_or(AstError::eof())?;
+                    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
                     Ok((
                         AstJType {
                             value: AstJTypeKind::Generic(ident, args),
@@ -740,15 +2644,25 @@ fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, usize)
                 )),
             }
         }
-        found => {
-            let point = current.start_point();
-            Err(AstError::InvalidJtype(InvalidToken::from(&PositionToken {
-                token: found.to_owned(),
-                line: point.line,
-                col: point.col,
-            })))
+        _ => Err(AstError::InvalidJtype(InvalidToken::from(current, pos))),
+    };
+    let (base, pos) = base?;
+
+    let mut pos = pos;
+    let mut base = base;
+
+    while let Ok(npos) = assert_token(tokens, pos, Token::LeftParenSquare) {
+        if let Ok(npos) = assert_token(tokens, npos, Token::RightParenSquare) {
+            pos = npos;
+            base = AstJType {
+                range: AstRange::from_position_token(current, current),
+                value: AstJTypeKind::Array(Box::new(base)),
+            };
+        } else {
+            break;
         }
     }
+    Ok((base, pos))
 }
 
 fn parse_avaliability(
@@ -758,81 +2672,22 @@ fn parse_avaliability(
     let Some(token) = tokens.get(pos) else {
         return Err(AstError::eof());
     };
-    match token {
-        PositionToken {
-            token: Token::Public,
-            line: _,
-            col: _,
-        } => Ok((AstAvailability::Public, pos + 1)),
-        PositionToken {
-            token: Token::Private,
-            line: _,
-            col: _,
-        } => Ok((AstAvailability::Private, pos + 1)),
-        PositionToken {
-            token: Token::Protected,
-            line: _,
-            col: _,
-        } => Ok((AstAvailability::Protected, pos + 1)),
-        _ => Ok((AstAvailability::Private, pos)),
+    let mut pos = pos;
+    let mut out = AstAvailability::empty();
+    match token.token {
+        Token::Public => {
+            out = AstAvailability::Public;
+            pos += 1;
+        }
+        Token::Protected => {
+            out = AstAvailability::Protected;
+            pos += 1;
+        }
+        Token::Private => {
+            out = AstAvailability::Private;
+            pos += 1;
+        }
+        _ => (),
     }
-}
-
-#[cfg(test)]
-pub mod tests {
-    use crate::{error::PrintErr, lexer, parse_file};
-
-    #[test]
-    fn everything() {
-        let content = include_str!("../../parser/test/Everything.java");
-        let tokens = lexer::lex(content).unwrap();
-        let parsed = parse_file(&tokens);
-        parsed.print_err(content);
-        insta::assert_debug_snapshot!(parsed.unwrap());
-    }
-
-    #[test]
-    fn skip_comments() {
-        let content = include_str!("../test/FullOffComments.java");
-        let tokens = lexer::lex(content).unwrap();
-        let parsed = parse_file(&tokens);
-        parsed.print_err(content);
-        insta::assert_debug_snapshot!(parsed.unwrap());
-    }
-
-    #[test]
-    fn locale_variable_table() {
-        let content = include_str!("../../parser/test/LocalVariableTable.java");
-        let tokens = lexer::lex(content).unwrap();
-        let parsed = parse_file(&tokens);
-        parsed.print_err(content);
-        insta::assert_debug_snapshot!(parsed.unwrap());
-    }
-
-    #[test]
-    fn superee() {
-        let content = include_str!("../../parser/test/Super.java");
-        let tokens = lexer::lex(content).unwrap();
-        let parsed = parse_file(&tokens);
-        parsed.print_err(content);
-        insta::assert_debug_snapshot!(parsed.unwrap());
-    }
-
-    #[test]
-    fn constants() {
-        let content = include_str!("../../parser/test/Constants.java");
-        let tokens = lexer::lex(content).unwrap();
-        let parsed = parse_file(&tokens);
-        parsed.print_err(content);
-        insta::assert_debug_snapshot!(parsed.unwrap());
-    }
-
-    #[test]
-    fn super_interface() {
-        let content = include_str!("../../parser/test/SuperInterface.java");
-        let tokens = lexer::lex(content).unwrap();
-        let parsed = parse_file(&tokens);
-        parsed.print_err(content);
-        insta::assert_debug_snapshot!(parsed.unwrap());
-    }
+    Ok((out, pos))
 }

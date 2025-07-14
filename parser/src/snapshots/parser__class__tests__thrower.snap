@@ -1,0 +1,60 @@
+---
+source: parser/src/class.rs
+expression: result.unwrap()
+---
+Class {
+    class_path: "ch.emilycares.Thrower",
+    source: "/path/to/source/Thrower.java",
+    access: Access(
+        0x0,
+    ),
+    imports: [
+        Package(
+            "ch.emilycares",
+        ),
+    ],
+    name: "Thrower",
+    methods: [
+        Method {
+            access: Access(
+                Public,
+            ),
+            name: "ioThrower",
+            parameters: [],
+            throws: [
+                Class(
+                    "IOException",
+                ),
+            ],
+            ret: Void,
+            source: None,
+        },
+        Method {
+            access: Access(
+                Public,
+            ),
+            name: "ioThrower",
+            parameters: [
+                Parameter {
+                    name: Some(
+                        "a",
+                    ),
+                    jtype: Int,
+                },
+            ],
+            throws: [
+                Class(
+                    "IOException",
+                ),
+                Class(
+                    "IOException",
+                ),
+            ],
+            ret: Void,
+            source: None,
+        },
+    ],
+    fields: [],
+    super_class: None,
+    super_interfaces: [],
+}

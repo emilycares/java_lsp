@@ -10,11 +10,9 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
-tree-sitter.workspace = true
-tree-sitter-java.workspace = true
-document = {path = "../document"}
+smol_str.workspace = true
 parser = {path = "../parser"}
-tree-sitter-util = { path = "../tree-sitter-util"}
+ast = {path = "../ast"}
 
 [dev-dependencies]
-pretty_assertions.workspace = true
+insta.workspace = true

@@ -5,7 +5,7 @@ use std::{
     process::Command,
 };
 
-use crate::EXECUTABLE_MAVEN;
+use crate::{EXECUTABLE_MAVEN, config::overwrite_settings_xml};
 const CLASSPATH_FILE: &str = "target/classpath.txt";
 
 pub fn generate_classpath() -> Option<String> {
@@ -15,13 +15,13 @@ pub fn generate_classpath() -> Option<String> {
     }
 
     // mvn dependency:build-classpath -Dmdep.outputFile=target/classpath.txt
-    let output = Command::new(EXECUTABLE_MAVEN)
-        .args([
-            "dependency:build-classpath",
-            "-Dmdep.outputFile=target/classpath.txt",
-        ])
-        .output()
-        .ok()?;
+    let mut output = Command::new(EXECUTABLE_MAVEN);
+    let output = output.args([
+        "dependency:build-classpath",
+        "-Dmdep.outputFile=target/classpath.txt",
+    ]);
+    let output = overwrite_settings_xml(output);
+    let output = output.output().ok()?;
 
     if !output.status.success() {
         io::stderr().write_all(&output.stderr).ok()?;

@@ -7,7 +7,7 @@ on:
   merge_group:
 
 env:
-  MSRV: "1.87"
+  MSRV: "1.88"
 
 jobs:
   check:
@@ -16,10 +16,10 @@ jobs:
     if: github.repository == 'emilycares/java_lsp'
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install MSRV toolchain
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.MSRV }}
 
@@ -38,10 +38,10 @@ jobs:
       RUST_BACKTRACE: 1
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install MSRV toolchain
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.MSRV }}
 
@@ -62,10 +62,10 @@ jobs:
     if: github.repository == 'emilycares/java_lsp'
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install MSRV toolchain
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.MSRV }}
           components: rustfmt, clippy

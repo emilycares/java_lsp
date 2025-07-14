@@ -1,0 +1,13 @@
+---
+source: ast/src/lexer.rs
+expression: tokens
+---
+[
+    PositionToken {
+        token: StringLiteral(
+            "\\\\",
+        ),
+        line: 0,
+        col: 4,
+    },
+]

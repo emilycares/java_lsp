@@ -1,21 +1,28 @@
+//! Transform document into a token vector
 use phf::phf_map;
-use smol_str::SmolStr;
+use smol_str::{SmolStr, SmolStrBuilder};
 
 use crate::types::AstPoint;
 
+/// Position in document
 #[derive(Debug, PartialEq, Clone)]
 pub struct PositionToken {
+    /// Data
     pub token: Token,
+    /// line in file
     pub line: usize,
+    /// column in file
     pub col: usize,
 }
 impl PositionToken {
+    /// Start point of Token
     pub fn start_point(&self) -> AstPoint {
         AstPoint {
             line: self.line,
             col: self.col,
         }
     }
+    /// End point of Token
     pub fn end_point(&self) -> AstPoint {
         AstPoint {
             line: self.line,
@@ -25,9 +32,12 @@ impl PositionToken {
 }
 
 impl Token {
+    /// Length of token
     pub fn len(&self) -> usize {
         match self {
             Token::Identifier(i) => i.len(),
+            Token::StringLiteral(i) => i.len(),
+            Token::CharLiteral(i) => i.len(),
             Token::Number(n) => n.to_string().len(),
             Token::LeftParen
             | Token::RightParen
@@ -35,9 +45,15 @@ impl Token {
             | Token::Dash
             | Token::Star
             | Token::Dot
+            | Token::Colon
             | Token::Semicolon
+            | Token::Percent
+            | Token::Ampersand
+            | Token::VerticalBar
             | Token::LeftParenCurly
             | Token::RightParenCurly
+            | Self::LeftParenSquare
+            | Self::RightParenSquare
             | Token::Comma
             | Token::Slash
             | Token::BackSlash
@@ -46,7 +62,9 @@ impl Token {
             | Token::Gt
             | Token::Equal
             | Token::ExclamationMark
-            | Token::DoubleQuote
+            | Token::Underscore
+            | Token::Caret
+            | Token::Tilde
             | Token::SingleQuote => 1,
             Token::EqualDouble | Token::Le | Token::Ge | Token::Ne => 2,
             Token::While
@@ -76,6 +94,29 @@ impl Token {
             | Token::Short
             | Token::Long
             | Token::Static
+            | Token::Final
+            | Token::Default
+            | Token::Else
+            | Token::For
+            | Token::Break
+            | Token::Continue
+            | Token::Switch
+            | Token::Case
+            | Token::Do
+            | Token::Try
+            | Token::Catch
+            | Token::Finally
+            | Token::Throw
+            | Token::Yield
+            | Token::Var
+            | Token::This
+            | Token::Abstract
+            | Token::Record
+            | Token::Synchronized
+            | Token::InstanceOf
+            | Token::Volatile
+            | Token::Transient
+            | Token::Native
             | Token::If => KEYWORDS
                 .entries()
                 .find(|i| i.1 == self)
@@ -84,9 +125,12 @@ impl Token {
         }
     }
 
+    /// string version of token
     pub fn to_string(&self) -> SmolStr {
         match self {
             Token::Identifier(smol_str) => smol_str.clone(),
+            Token::StringLiteral(smol_str) => smol_str.clone(),
+            Token::CharLiteral(smol_str) => smol_str.clone(),
             Token::Number(num) => num.to_string().into(),
             Token::LeftParen => SmolStr::new_inline("("),
             Token::RightParen => SmolStr::new_inline(")"),
@@ -95,8 +139,14 @@ impl Token {
             Token::Star => SmolStr::new_inline("*"),
             Token::Dot => SmolStr::new_inline("."),
             Token::Semicolon => SmolStr::new_inline(";"),
+            Token::Colon => SmolStr::new_inline(":"),
+            Token::Percent => SmolStr::new_inline("%"),
+            Token::Ampersand => SmolStr::new_inline("&"),
+            Token::VerticalBar => SmolStr::new_inline("|"),
             Token::LeftParenCurly => SmolStr::new_inline("{"),
             Token::RightParenCurly => SmolStr::new_inline("}"),
+            Token::LeftParenSquare => SmolStr::new_inline("["),
+            Token::RightParenSquare => SmolStr::new_inline("]"),
             Token::Comma => SmolStr::new_inline(","),
             Token::If => SmolStr::new_inline("if"),
             Token::While => SmolStr::new_inline("while"),
@@ -128,7 +178,6 @@ impl Token {
             Token::Equal => SmolStr::new_inline("="),
             Token::Ne => SmolStr::new_inline("!="),
             Token::ExclamationMark => SmolStr::new_inline("!"),
-            Token::DoubleQuote => SmolStr::new_inline("\""),
             Token::SingleQuote => SmolStr::new_inline("'"),
             Token::New => SmolStr::new_inline("new"),
             Token::Return => SmolStr::new_inline("return"),
@@ -139,74 +188,223 @@ impl Token {
             Token::Short => SmolStr::new_inline("short"),
             Token::Long => SmolStr::new_inline("long"),
             Token::Static => SmolStr::new_inline("static"),
+            Token::Final => SmolStr::new_inline("final"),
+            Token::Default => SmolStr::new_inline("default"),
+            Token::Else => SmolStr::new_inline("else"),
+            Token::For => SmolStr::new_inline("for"),
+            Token::Break => SmolStr::new_inline("break"),
+            Token::Continue => SmolStr::new_inline("continue"),
+            Token::Switch => SmolStr::new_inline("swtich"),
+            Token::Case => SmolStr::new_inline("case"),
+            Token::Do => SmolStr::new_inline("do"),
+            Token::Try => SmolStr::new_inline("try"),
+            Token::Catch => SmolStr::new_inline("catch"),
+            Token::Finally => SmolStr::new_inline("finally"),
+            Token::Throw => SmolStr::new_inline("throw"),
+            Token::Yield => SmolStr::new_inline("yield"),
+            Token::Var => SmolStr::new_inline("var"),
+            Token::This => SmolStr::new_inline("this"),
+            Token::Underscore => SmolStr::new_inline("_"),
+            Token::Abstract => SmolStr::new_inline("abstract"),
+            Token::Record => SmolStr::new_inline("record"),
+            Token::Synchronized => SmolStr::new_inline("synchronized"),
+            Token::InstanceOf => SmolStr::new_inline("instanceof"),
+            Token::Volatile => SmolStr::new_inline("volatile"),
+            Token::Transient => SmolStr::new_inline("transient"),
+            Token::Native => SmolStr::new_inline("native"),
+            Token::Caret => SmolStr::new_inline("^"),
+            Token::Tilde => SmolStr::new_inline("~"),
         }
     }
 
     #[must_use]
+    /// if empty
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 }
 
+/// Tokens of document
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
+    /// Data
     Identifier(SmolStr),
+    /// Data
+    StringLiteral(SmolStr),
+    /// \r
+    CharLiteral(SmolStr),
+    /// 123
     Number(i64),
+    /// (
     LeftParen,
+    /// )
     RightParen,
+    /// +
     Plus,
+    /// -
     Dash,
+    /// *
     Star,
+    /// .
     Dot,
+    /// ;
     Semicolon,
+    /// :
+    Colon,
+    /// %
+    Percent,
+    /// &
+    Ampersand,
+    /// |
+    VerticalBar,
+    /// {
     LeftParenCurly,
+    /// }
     RightParenCurly,
+    /// ,
     Comma,
+    /// if
     If,
+    /// while
     While,
+    /// for
+    For,
+    /// package
     Package,
+    /// import
     Import,
+    /// public
     Public,
+    /// private
     Private,
+    /// protected
     Protected,
+    /// class
     Class,
+    /// interface
     Interface,
+    /// enum
     Enum,
+    /// void
     Void,
+    /// throws
     Throws,
+    /// int
     Int,
+    /// double
     Double,
+    /// float
     Float,
+    /// /
     Slash,
+    /// \
     BackSlash,
+    /// @
     At,
+    /// <=
     Le,
+    /// <
     Lt,
+    /// >=
     Ge,
+    /// >
     Gt,
+    /// extends
     Extends,
+    /// implements
     Implements,
+    /// true
     True,
+    /// false
     False,
+    /// ==
     EqualDouble,
+    /// =
     Equal,
+    /// !=
     Ne,
+    /// !
     ExclamationMark,
-    DoubleQuote,
+    /// '
     SingleQuote,
+    /// new
     New,
+    /// return
     Return,
+    /// ?
     QuestionMark,
+    /// char
     Char,
+    /// boolean
     Boolean,
+    /// byte
     Byte,
+    /// short
     Short,
+    /// long
     Long,
+    /// static
     Static,
+    /// final
+    Final,
+    /// defautl
+    Default,
+    /// [
+    LeftParenSquare,
+    /// ]
+    RightParenSquare,
+    /// else
+    Else,
+    /// break
+    Break,
+    /// continue
+    Continue,
+    /// switch
+    Switch,
+    /// case
+    Case,
+    /// do
+    Do,
+    /// try
+    Try,
+    /// catch
+    Catch,
+    /// finally
+    Finally,
+    /// throw
+    Throw,
+    /// yield
+    Yield,
+    /// var
+    Var,
+    /// this
+    This,
+    /// _
+    Underscore,
+    /// abstract
+    Abstract,
+    /// record
+    Record,
+    /// synchronized
+    Synchronized,
+    /// instanceof
+    InstanceOf,
+    /// volatile
+    Volatile,
+    /// transient
+    Transient,
+    /// native
+    Native,
+    /// `^`
+    Caret,
+    /// `~`
+    Tilde,
 }
 
+/// Error during lex function
 #[derive(Debug, PartialEq)]
 pub enum LexerError {
+    /// Not implmented
     UnknwonChar(char),
 }
 
@@ -215,6 +413,7 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
     "true" => Token::True,
     "false" => Token::False,
     "while" => Token::While,
+    "for" => Token::For,
     "package" => Token::Package,
     "import" => Token::Import,
     "public" => Token::Public,
@@ -238,8 +437,31 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
     "short" => Token::Short,
     "long" => Token::Long,
     "static" => Token::Static,
+    "final" => Token::Final,
+    "default" => Token::Default,
+    "else" => Token::Else,
+    "break" => Token::Break,
+    "continue" => Token::Continue,
+    "switch" => Token::Switch,
+    "case" => Token::Case,
+    "do" => Token::Do,
+    "try" => Token::Try,
+    "catch" => Token::Catch,
+    "finally" => Token::Finally,
+    "throw" => Token::Throw,
+    "yield" => Token::Yield,
+    "var" => Token::Var,
+    "this" => Token::This,
+    "abstract" => Token::Abstract,
+    "record" => Token::Record,
+    "synchronized" => Token::Synchronized,
+    "instanceof" => Token::InstanceOf,
+    "volatile" => Token::Volatile,
+    "transient" => Token::Transient,
+    "native" => Token::Native,
 };
 
+/// Output token vec for document
 pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
     let mut tokens = Vec::new();
     let chars: Vec<char> = input.chars().collect();
@@ -296,6 +518,22 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                 });
                 col += 1;
             }
+            '[' => {
+                tokens.push(PositionToken {
+                    token: Token::LeftParenSquare,
+                    line,
+                    col,
+                });
+                col += 1;
+            }
+            ']' => {
+                tokens.push(PositionToken {
+                    token: Token::RightParenSquare,
+                    line,
+                    col,
+                });
+                col += 1;
+            }
             '+' => {
                 tokens.push(PositionToken {
                     token: Token::Plus,
@@ -315,6 +553,22 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
             '*' => {
                 tokens.push(PositionToken {
                     token: Token::Star,
+                    line,
+                    col,
+                });
+                col += 1;
+            }
+            '^' => {
+                tokens.push(PositionToken {
+                    token: Token::Caret,
+                    line,
+                    col,
+                });
+                col += 1;
+            }
+            '~' => {
+                tokens.push(PositionToken {
+                    token: Token::Tilde,
                     line,
                     col,
                 });
@@ -352,9 +606,49 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                 });
                 col += 1;
             }
+            ':' => {
+                tokens.push(PositionToken {
+                    token: Token::Colon,
+                    line,
+                    col,
+                });
+                col += 1;
+            }
+            '%' => {
+                tokens.push(PositionToken {
+                    token: Token::Percent,
+                    line,
+                    col,
+                });
+                col += 1;
+            }
+            '&' => {
+                tokens.push(PositionToken {
+                    token: Token::Ampersand,
+                    line,
+                    col,
+                });
+                col += 1;
+            }
+            '|' => {
+                tokens.push(PositionToken {
+                    token: Token::VerticalBar,
+                    line,
+                    col,
+                });
+                col += 1;
+            }
             '?' => {
                 tokens.push(PositionToken {
                     token: Token::QuestionMark,
+                    line,
+                    col,
+                });
+                col += 1;
+            }
+            '_' => {
+                tokens.push(PositionToken {
+                    token: Token::Underscore,
                     line,
                     col,
                 });
@@ -418,16 +712,88 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                 col += 1;
             }
             '"' => {
+                index += 1;
+                let mut str = SmolStrBuilder::new();
+                let mut multi_line = false;
+                if let Some('"') = chars.get(index)
+                    && let Some('"') = chars.get(index + 1)
+                {
+                    multi_line = true;
+                    index += 2;
+                }
+                'string_literal: loop {
+                    let Some(ch) = chars.get(index) else {
+                        break;
+                    };
+                    if *ch == '\\' {
+                        let Some(peek) = chars.get(index + 1) else {
+                            break;
+                        };
+                        if *peek == '\\' {
+                            str.push('\\');
+                            str.push('\\');
+                            col += 2;
+                            index += 2;
+                            continue;
+                        } else if *peek == '"' {
+                            str.push('\\');
+                            str.push('\"');
+                            col += 2;
+                            index += 2;
+                            continue;
+                        }
+                    }
+                    if *ch == '"' {
+                        if !multi_line {
+                            col += 1;
+                            break 'string_literal;
+                        } else if let Some('"') = chars.get(index + 1)
+                            && let Some('"') = chars.get(index + 2)
+                        {
+                            index += 3;
+                            col += 3;
+                            break 'string_literal;
+                        }
+                    }
+                    str.push(*ch);
+                    index += 1;
+                    col += 1;
+                }
                 tokens.push(PositionToken {
-                    token: Token::DoubleQuote,
+                    token: Token::StringLiteral(str.finish()),
                     line,
                     col,
                 });
                 col += 1;
             }
             '\'' => {
+                index += 1;
+                let mut char = SmolStrBuilder::new();
+                'char_literal: loop {
+                    let Some(ch) = chars.get(index) else {
+                        break;
+                    };
+                    if *ch == '\\' {
+                        let Some(peek) = chars.get(index + 1) else {
+                            break;
+                        };
+                        if *peek == '\'' {
+                            char.push('\\');
+                            char.push('\'');
+                            col += 2;
+                            index += 2;
+                            continue;
+                        }
+                    }
+                    if *ch == '\'' {
+                        break 'char_literal;
+                    }
+                    char.push(*ch);
+                    index += 1;
+                    col += 1;
+                }
                 tokens.push(PositionToken {
-                    token: Token::SingleQuote,
+                    token: Token::CharLiteral(char.finish()),
                     line,
                     col,
                 });
@@ -441,6 +807,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                         col,
                     });
                     col += 2;
+                    index += 1;
                 } else {
                     col += 1;
                     tokens.push(PositionToken {
@@ -458,6 +825,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                         col,
                     });
                     col += 2;
+                    index += 1;
                 } else {
                     tokens.push(PositionToken {
                         token: Token::ExclamationMark,
@@ -475,6 +843,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                         col,
                     });
                     col += 2;
+                    index += 1;
                 } else {
                     tokens.push(PositionToken {
                         token: Token::Lt,
@@ -526,17 +895,18 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                 continue;
             }
             'A'..='Z' | 'a'..='z' => {
-                let mut ident = String::new();
+                let mut ident = SmolStrBuilder::new();
                 loop {
                     let Some(ch) = chars.get(index) else {
                         break;
                     };
-                    if !ch.is_ascii_alphabetic() && ch != &'_' {
+                    if !ch.is_ascii_alphanumeric() && ch != &'_' {
                         break;
                     }
                     ident.push(*ch);
                     index += 1;
                 }
+                let ident = ident.finish();
                 let len = ident.len();
                 match KEYWORDS.get(&ident) {
                     Some(t) => tokens.push(PositionToken {
@@ -545,7 +915,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                         col,
                     }),
                     None => tokens.push(PositionToken {
-                        token: Token::Identifier(ident.into()),
+                        token: Token::Identifier(ident),
                         line,
                         col,
                     }),
@@ -561,6 +931,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
     Ok(tokens)
 }
 
+/// tests
 #[cfg(test)]
 pub mod tests {
     use crate::lexer::{self};
@@ -596,6 +967,18 @@ pub mod tests {
     #[test]
     fn thrower() {
         let content = include_str!("../../parser/test/Thrower.java");
+        let tokens = lexer::lex(content).unwrap();
+        insta::assert_debug_snapshot!(tokens);
+    }
+    #[test]
+    fn escaped_double_quetes() {
+        let content = r#"return "\"" + s + "\"";"#;
+        let tokens = lexer::lex(content).unwrap();
+        insta::assert_debug_snapshot!(tokens);
+    }
+    #[test]
+    fn escaped_backslash() {
+        let content = r#" "\\" "#;
         let tokens = lexer::lex(content).unwrap();
         insta::assert_debug_snapshot!(tokens);
     }

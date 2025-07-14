@@ -1,0 +1,218 @@
+---
+source: ast/tests/ast.rs
+expression: parsed.unwrap()
+---
+AstFile {
+    package: AstIdentifier {
+        range: AstRange {
+            start: AstPoint {
+                line: 1,
+                col: 8,
+            },
+            end: AstPoint {
+                line: 1,
+                col: 21,
+            },
+        },
+        value: "ch.emilycares",
+    },
+    imports: AstImports {
+        range: AstRange {
+            start: AstPoint {
+                line: 3,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 1,
+                col: 22,
+            },
+        },
+        imports: [],
+    },
+    thing: Class(
+        AstClass {
+            range: AstRange {
+                start: AstPoint {
+                    line: 3,
+                    col: 13,
+                },
+                end: AstPoint {
+                    line: 13,
+                    col: 1,
+                },
+            },
+            avaliability: AstAvailability(
+                Public,
+            ),
+            annotated: [],
+            name: AstIdentifier {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 3,
+                        col: 13,
+                    },
+                    end: AstPoint {
+                        line: 3,
+                        col: 23,
+                    },
+                },
+                value: "Everything",
+            },
+            type_parameters: None,
+            superclass: None,
+            implements: [],
+            block: AstClassBlock {
+                variables: [
+                    AstClassVariable {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 5,
+                                col: 4,
+                            },
+                            end: AstPoint {
+                                line: 5,
+                                col: 30,
+                            },
+                        },
+                        avaliability: AstAvailability(
+                            Public,
+                        ),
+                        annotated: [],
+                        names: [
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 5,
+                                        col: 15,
+                                    },
+                                    end: AstPoint {
+                                        line: 5,
+                                        col: 29,
+                                    },
+                                },
+                                value: "publicproperty",
+                            },
+                        ],
+                        jtype: AstJType {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 5,
+                                    col: 11,
+                                },
+                                end: AstPoint {
+                                    line: 5,
+                                    col: 14,
+                                },
+                            },
+                            value: Int,
+                        },
+                        expression: None,
+                        static_final: AstStaticFinal(
+                            None,
+                        ),
+                    },
+                    AstClassVariable {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 7,
+                                col: 4,
+                            },
+                            end: AstPoint {
+                                line: 7,
+                                col: 32,
+                            },
+                        },
+                        avaliability: AstAvailability(
+                            Private,
+                        ),
+                        annotated: [],
+                        names: [
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 7,
+                                        col: 16,
+                                    },
+                                    end: AstPoint {
+                                        line: 7,
+                                        col: 31,
+                                    },
+                                },
+                                value: "privateproperty",
+                            },
+                        ],
+                        jtype: AstJType {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 7,
+                                    col: 12,
+                                },
+                                end: AstPoint {
+                                    line: 7,
+                                    col: 15,
+                                },
+                            },
+                            value: Int,
+                        },
+                        expression: None,
+                        static_final: AstStaticFinal(
+                            None,
+                        ),
+                    },
+                    AstClassVariable {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 12,
+                                col: 4,
+                            },
+                            end: AstPoint {
+                                line: 12,
+                                col: 32,
+                            },
+                        },
+                        avaliability: AstAvailability(
+                            Private,
+                        ),
+                        annotated: [],
+                        names: [
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 12,
+                                        col: 16,
+                                    },
+                                    end: AstPoint {
+                                        line: 12,
+                                        col: 31,
+                                    },
+                                },
+                                value: "privateproperty",
+                            },
+                        ],
+                        jtype: AstJType {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 12,
+                                    col: 12,
+                                },
+                                end: AstPoint {
+                                    line: 12,
+                                    col: 15,
+                                },
+                            },
+                            value: Int,
+                        },
+                        expression: None,
+                        static_final: AstStaticFinal(
+                            None,
+                        ),
+                    },
+                ],
+                methods: [],
+                constructors: [],
+                static_blocks: [],
+                inner: [],
+            },
+        },
+    ),
+}

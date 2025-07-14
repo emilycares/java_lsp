@@ -1,0 +1,40 @@
+---
+source: parser/src/java.rs
+expression: result.unwrap()
+---
+Class {
+    class_path: "ch.emilycares.Annotation",
+    source: "/path/to/source/ch/emilycares/Annotation.java",
+    access: Access(
+        0x0,
+    ),
+    imports: [
+        Package(
+            "ch.emilycares",
+        ),
+    ],
+    name: "Annotation",
+    methods: [],
+    fields: [
+        Field {
+            access: Access(
+                0x0,
+            ),
+            name: "value",
+            jtype: Int,
+            source: None,
+        },
+        Field {
+            access: Access(
+                0x0,
+            ),
+            name: "text",
+            jtype: Class(
+                "String",
+            ),
+            source: None,
+        },
+    ],
+    super_class: None,
+    super_interfaces: [],
+}

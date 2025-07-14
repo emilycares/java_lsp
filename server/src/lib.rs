@@ -9,6 +9,7 @@ pub mod signature;
 
 use std::sync::Arc;
 
+use ast::types::AstPoint;
 use lsp_types::{
     CodeActionKind, CodeActionOptions, CodeActionProviderCapability, CompletionOptions,
     HoverProviderCapability, InitializeParams, OneOf, ServerCapabilities, SignatureHelpOptions,
@@ -42,7 +43,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
         }),
         document_symbol_provider: Some(OneOf::Left(true)),
         workspace_symbol_provider: Some(OneOf::Left(true)),
-        document_formatting_provider: Some(OneOf::Left(true)),
+        // Not ready
+        // document_formatting_provider: Some(OneOf::Left(true)),
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         signature_help_provider: Some(SignatureHelpOptions {
             trigger_characters: Some(vec!["(".to_owned(), ",".to_owned(), "<".to_owned()]),
@@ -84,4 +86,11 @@ fn main_loop(
     });
     router::route(backend)?;
     Ok(())
+}
+
+fn to_ast_point(position: lsp_types::Position) -> AstPoint {
+    AstPoint::new(
+        position.line.try_into().unwrap_or_default(),
+        position.character.try_into().unwrap_or_default(),
+    )
 }

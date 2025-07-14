@@ -1,0 +1,81 @@
+---
+source: parser/src/java.rs
+expression: result.unwrap()
+---
+Class {
+    class_path: "ch.emilycares.InterfaceBase",
+    source: "/path/to/source/ch/emilycares/InterfaceBase.java",
+    access: Access(
+        0x0,
+    ),
+    imports: [
+        Package(
+            "ch.emilycares",
+        ),
+        Class(
+            "java.util.function.IntFunction",
+        ),
+        Class(
+            "java.util.stream.Stream",
+        ),
+    ],
+    name: "InterfaceBase",
+    methods: [
+        Method {
+            access: Access(
+                Public,
+            ),
+            name: "mapToObj",
+            parameters: [
+                Parameter {
+                    name: Some(
+                        "mapper",
+                    ),
+                    jtype: Generic(
+                        "IntFunction",
+                        [
+                            Wildcard,
+                            Parameter(
+                                "U",
+                            ),
+                        ],
+                    ),
+                },
+            ],
+            throws: [],
+            ret: Generic(
+                "Stream",
+                [
+                    Parameter(
+                        "U",
+                    ),
+                ],
+            ),
+            source: None,
+        },
+        Method {
+            access: Access(
+                Public | Static,
+            ),
+            name: "a",
+            parameters: [
+                Parameter {
+                    name: Some(
+                        "arg",
+                    ),
+                    jtype: Parameter(
+                        "A",
+                    ),
+                },
+            ],
+            throws: [],
+            ret: Parameter(
+                "A",
+            ),
+            source: None,
+        },
+    ],
+    fields: [],
+    super_class: None,
+    super_interfaces: [],
+}

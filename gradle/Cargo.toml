@@ -10,6 +10,7 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
+smol_str.workspace = true
 nom.workspace = true
 dashmap.workspace = true
 tokio.workspace = true
@@ -17,6 +18,7 @@ itertools.workspace = true
 compile = {path = "../compile"}
 common = {path = "../common"}
 parser = {path = "../parser"}
+loader = {path = "../loader"}
 
 [dev-dependencies]
 pretty_assertions.workspace = true

@@ -1,7 +1,6 @@
 ---
 source: ast/src/lexer.rs
 expression: tokens
-snapshot_kind: text
 ---
 [
     PositionToken {

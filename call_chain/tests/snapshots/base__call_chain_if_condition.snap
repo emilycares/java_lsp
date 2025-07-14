@@ -1,0 +1,19 @@
+---
+source: call_chain/tests/base.rs
+expression: out
+---
+[
+    ClassOrVariable {
+        name: "b",
+        range: AstRange {
+            start: AstPoint {
+                line: 4,
+                col: 17,
+            },
+            end: AstPoint {
+                line: 4,
+                col: 18,
+            },
+        },
+    },
+]

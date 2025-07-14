@@ -1,0 +1,44 @@
+---
+source: parser/src/class.rs
+expression: result.unwrap()
+---
+Class {
+    class_path: "ch.emilycares.SuperInterface",
+    source: "",
+    access: Access(
+        0x0,
+    ),
+    imports: [
+        Package(
+            "ch.emilycares",
+        ),
+        Class(
+            "java.util.stream.Stream",
+        ),
+    ],
+    name: "SuperInterface",
+    methods: [
+        Method {
+            access: Access(
+                Public,
+            ),
+            name: "stream",
+            parameters: [],
+            throws: [],
+            ret: Class(
+                "java.util.stream.Stream",
+            ),
+            source: None,
+        },
+    ],
+    fields: [],
+    super_class: None,
+    super_interfaces: [
+        Name(
+            "Collection",
+        ),
+        Name(
+            "List",
+        ),
+    ],
+}

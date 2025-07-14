@@ -1,0 +1,87 @@
+---
+source: ast/tests/ast.rs
+expression: parsed.unwrap()
+---
+(
+    AstLambda {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 9,
+            },
+        },
+        parameters: AstLambdaParameters {
+            range: AstRange {
+                start: AstPoint {
+                    line: 0,
+                    col: 0,
+                },
+                end: AstPoint {
+                    line: 0,
+                    col: 1,
+                },
+            },
+            values: [
+                AstIdentifier {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 0,
+                            col: 0,
+                        },
+                        end: AstPoint {
+                            line: 0,
+                            col: 1,
+                        },
+                    },
+                    value: "n",
+                },
+            ],
+        },
+        rhs: Expr(
+            Recursive(
+                AstRecursiveExpression {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 0,
+                            col: 5,
+                        },
+                        end: AstPoint {
+                            line: 0,
+                            col: 9,
+                        },
+                    },
+                    ident: Some(
+                        Value(
+                            Nuget(
+                                BooleanLiteral(
+                                    AstBoolean {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 0,
+                                                col: 5,
+                                            },
+                                            end: AstPoint {
+                                                line: 0,
+                                                col: 9,
+                                            },
+                                        },
+                                        value: true,
+                                    },
+                                ),
+                            ),
+                        ),
+                    ),
+                    values: None,
+                    operator: None,
+                    instance_of: None,
+                    next: None,
+                },
+            ),
+        ),
+    },
+    4,
+)

@@ -10,11 +10,13 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
+smol_str.workspace = true
 dashmap.workspace = true
 futures.workspace = true
 tokio.workspace = true
 dirs.workspace = true
 parser = { path = "../parser" }
+loader = {path = "../loader"}
 zip_util = { path = "../zip_util" }
 common = { path = "../common" }
 

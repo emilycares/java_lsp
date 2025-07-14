@@ -51,10 +51,10 @@ pub async fn extract_jar(jar: &PathBuf, source_dir: &Path) -> Result<(), ZipUtil
                             .expect("all full entry paths should have parent paths"),
                     )
                     .map_err(ZipUtilError::IO)?;
-                    if let Ok(metadata) = std::fs::symlink_metadata(&path) {
-                        if metadata.is_file() {
-                            std::fs::remove_file(&path).map_err(ZipUtilError::IO)?;
-                        }
+                    if let Ok(metadata) = std::fs::symlink_metadata(&path)
+                        && metadata.is_file()
+                    {
+                        std::fs::remove_file(&path).map_err(ZipUtilError::IO)?;
                     }
 
                     let mut src = String::new();

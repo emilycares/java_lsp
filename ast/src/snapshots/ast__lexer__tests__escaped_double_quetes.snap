@@ -1,0 +1,47 @@
+---
+source: ast/src/lexer.rs
+expression: tokens
+---
+[
+    PositionToken {
+        token: Return,
+        line: 0,
+        col: 0,
+    },
+    PositionToken {
+        token: StringLiteral(
+            "\\\"",
+        ),
+        line: 0,
+        col: 10,
+    },
+    PositionToken {
+        token: Plus,
+        line: 0,
+        col: 12,
+    },
+    PositionToken {
+        token: Identifier(
+            "s",
+        ),
+        line: 0,
+        col: 14,
+    },
+    PositionToken {
+        token: Plus,
+        line: 0,
+        col: 16,
+    },
+    PositionToken {
+        token: StringLiteral(
+            "\\\"",
+        ),
+        line: 0,
+        col: 21,
+    },
+    PositionToken {
+        token: Semicolon,
+        line: 0,
+        col: 22,
+    },
+]

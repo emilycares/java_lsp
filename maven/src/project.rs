@@ -6,8 +6,8 @@ pub async fn load_project_folders() -> Vec<Class> {
         return vec![];
     };
 
-    out.extend(parser::loader::load_java_files(current_dir.join("src/main/java")).await);
-    out.extend(parser::loader::load_java_files(current_dir.join("src/text/java")).await);
+    out.extend(loader::load_java_files(current_dir.join("src/main/java")).await);
+    out.extend(loader::load_java_files(current_dir.join("src/text/java")).await);
 
     // list modules
     // mvn help:evaluate -Dexpression=project.modules

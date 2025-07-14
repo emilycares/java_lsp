@@ -1,23 +1,24 @@
 use std::{fs, path::PathBuf};
 
-use dashmap::mapref::one::RefMut;
+use ast::{error::PrintErr, types::AstFile};
+use dashmap::{DashMap, mapref::one::RefMut};
 use lsp_types::TextDocumentContentChangeEvent;
 use ropey::Rope;
-use tree_sitter::{Parser, Tree};
+use smol_str::SmolStr;
 
 pub struct Document {
     pub text: ropey::Rope,
     pub str_data: String,
-    pub tree: Tree,
+    pub ast: AstFile,
     pub path: PathBuf,
-    pub class_path: String,
-    parser: Parser,
+    pub class_path: SmolStr,
 }
 
 #[derive(Debug)]
 pub enum DocumentError {
-    Treesitter(tree_sitter_util::TreesitterError),
     Io(std::io::Error),
+    Lexer(ast::lexer::LexerError),
+    Ast(ast::error::AstError),
 }
 
 impl Document {
@@ -28,12 +29,12 @@ impl Document {
         self.reparse(false);
         Ok(())
     }
-    pub fn setup_read(path: PathBuf, class_path: String) -> Result<Self, DocumentError> {
+    pub fn setup_read(path: PathBuf, class_path: SmolStr) -> Result<Self, DocumentError> {
         let text = fs::read_to_string(&path).map_err(DocumentError::Io)?;
         let rope = ropey::Rope::from_str(&text);
         Self::setup_rope(&text, path, rope, class_path)
     }
-    pub fn setup(text: &str, path: PathBuf, class_path: String) -> Result<Self, DocumentError> {
+    pub fn setup(text: &str, path: PathBuf, class_path: SmolStr) -> Result<Self, DocumentError> {
         let rope = ropey::Rope::from_str(text);
         Self::setup_rope(text, path, rope, class_path)
     }
@@ -42,14 +43,16 @@ impl Document {
         text: &str,
         path: PathBuf,
         rope: Rope,
-        class_path: String,
+        class_path: SmolStr,
     ) -> Result<Self, DocumentError> {
-        let (parser, tree) = tree_sitter_util::parse(text).map_err(DocumentError::Treesitter)?;
+        let tokens = ast::lexer::lex(text).map_err(DocumentError::Lexer)?;
+        let ast = ast::parse_file(&tokens);
+        ast.print_err(text);
+        let ast = ast.map_err(DocumentError::Ast)?;
         Ok(Self {
-            parser,
             text: rope,
             str_data: text.to_string(),
-            tree,
+            ast,
             path,
             class_path,
         })
@@ -111,23 +114,23 @@ impl Document {
         if update_str {
             self.str_data = self.text.to_string();
         }
-        let bytes = self.str_data.as_bytes();
-        // Reusing the previous tree causes issues
-        if let Some(ntree) = self.parser.parse(bytes, None) {
-            self.tree = ntree;
-        }
+        let tokens = ast::lexer::lex(&self.str_data).unwrap();
+        let ast = ast::parse_file(&tokens);
+        ast.print_err(&self.str_data);
+        let ast = ast.unwrap();
+        self.ast = ast;
     }
 }
 
 pub enum ClassSource<'a, D> {
     Owned(D),
-    Ref(RefMut<'a, String, Document>),
+    Ref(RefMut<'a, SmolStr, Document>),
     Err(DocumentError),
 }
 pub fn read_document_or_open_class<'a, 'b>(
     source: &'b str,
-    class_path: String,
-    document_map: &'a dashmap::DashMap<String, Document>,
+    class_path: SmolStr,
+    document_map: &'a DashMap<SmolStr, Document>,
     uri: &'b str,
 ) -> ClassSource<'a, Document> {
     match document_map.get_mut(uri) {

@@ -1,0 +1,351 @@
+use ast::class::{parse_class_method, parse_class_variable};
+use ast::error::PrintErr;
+use ast::{
+    lexer, parse_block, parse_block_return, parse_block_variable, parse_file, parse_jtype,
+    parse_lambda, parse_name, parse_name_dot_logical, parse_new_class, parse_recursive_expression,
+    parse_string_literal,
+};
+
+#[test]
+fn everything() {
+    let content = include_str!("../../parser/test/Everything.java");
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_file(&tokens);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+
+#[test]
+fn skip_comments() {
+    let content = include_str!("../test/FullOffComments.java");
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_file(&tokens);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+
+#[test]
+fn locale_variable_table() {
+    let content = include_str!("../../parser/test/LocalVariableTable.java");
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_file(&tokens);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+
+#[test]
+fn superee() {
+    let content = include_str!("../../parser/test/Super.java");
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_file(&tokens);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+
+#[test]
+fn constants() {
+    let content = include_str!("../../parser/test/Constants.java");
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_file(&tokens);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+
+#[test]
+fn super_interface() {
+    let content = include_str!("../../parser/test/SuperInterface.java");
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_file(&tokens);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+
+#[test]
+fn interface_base() {
+    let content = include_str!("../../parser/test/InterfaceBase.java");
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_file(&tokens);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+
+#[test]
+fn variants() {
+    let content = include_str!("../../parser/test/Variants.java");
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_file(&tokens);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+
+#[test]
+fn types() {
+    let content = include_str!("../../parser/test/Types.java");
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_file(&tokens);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+#[test]
+fn annotated() {
+    let content = include_str!("../../parser/test/Annotated.java");
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_file(&tokens);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+#[test]
+fn expression_base() {
+    let content = "Logger.getLogger(Test.class)";
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_recursive_expression(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+#[test]
+fn expression_array_access() {
+    let content = "numbers[0]";
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_recursive_expression(&tokens, 0);
+    parsed.print_err(content);
+    let ast = parsed.unwrap();
+    insta::assert_debug_snapshot!(ast);
+    assert_eq!(ast.1, tokens.len());
+}
+#[test]
+fn expression_multi_array_access() {
+    let content = "numbers[0][0][0]";
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_recursive_expression(&tokens, 0);
+    parsed.print_err(content);
+    let ast = parsed.unwrap();
+    insta::assert_debug_snapshot!(ast);
+    assert_eq!(ast.1, tokens.len());
+}
+
+#[test]
+fn equasion_method_call() {
+    let content = r#""z" + a.getThing()"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_recursive_expression(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+#[test]
+fn annotation() {
+    let content = include_str!("../../parser/test/Annotation.java");
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_file(&tokens);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+#[test]
+fn more_syntax() {
+    let content = include_str!("../../parser/test/Syntax.java");
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_file(&tokens);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+
+#[test]
+fn variable_array() {
+    let content = r#"String[] cars = {"Volvo", "BMW", "Ford", "Mazda"};"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_block_variable(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+#[test]
+fn variable_var_no_value() {
+    let content = r#"{var a = }"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_block(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+
+#[test]
+fn multi_line_string() {
+    let content = r#"
+        """
+        Here is a muilti
+        line
+        string""
+        "#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_string_literal(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+
+#[test]
+fn name() {
+    let content = "Logger3m3m3m3";
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_name(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+#[test]
+fn lambda() {
+    let content = "(n) -> { System.out.println(n); }";
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_lambda(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+#[test]
+fn lambda_1() {
+    let content = "n -> { }";
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_lambda(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+#[test]
+fn lambda_2() {
+    let content = "(a, b, c) -> { }";
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_lambda(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+#[test]
+fn lambda_value() {
+    let content = "n -> true";
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_lambda(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+#[test]
+fn lambda_expr() {
+    let content = "n -> v.toString()";
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_lambda(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+#[test]
+fn lambda_in_expression() {
+    let content = "numbers.forEach( (n) -> { System.out.println(n); } )";
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_recursive_expression(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+
+#[test]
+fn equal_expr() {
+    let content = "a == b ";
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_recursive_expression(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+
+// new String()
+#[test]
+fn new_string() {
+    let content = r#"
+     return new String();   
+    "#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_block_return(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+
+#[test]
+fn new_array() {
+    let content = r#"
+     return new Object[][] {
+            { "NumberPatterns",
+                new String[] {
+                   "",
+                   ""
+                }
+            },
+        };   
+    "#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_block_return(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+#[test]
+fn long_expr() {
+    let content = r#"IAFactory.getInstance().getIA("localhost", 1344, SERVICE).support(true)"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_recursive_expression(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+#[test]
+fn cast() {
+    let content = r#"new byte[] {(byte)'a'}"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_new_class(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+#[test]
+fn double_plus() {
+    let content = r#"values[i++]"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_recursive_expression(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+#[test]
+fn method_no_body() {
+    let content = r#"protected abstract T create(Object key);"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_class_method(&tokens, 0);
+    parsed.print_err(content);
+    let parsed = parsed.unwrap();
+    assert_eq!(tokens.len(), parsed.1);
+    insta::assert_debug_snapshot!(parsed);
+}
+#[test]
+fn return_casted_newclass() {
+    let content = r#"return (Entry<T>[]) new Entry<?>[length];"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_block_return(&tokens, 0);
+    parsed.print_err(content);
+    let parsed = parsed.unwrap();
+    insta::assert_debug_snapshot!(parsed);
+    assert_eq!(tokens.len(), parsed.1);
+}
+
+#[test]
+fn jtype_geneic_array() {
+    let content = r#"Entry<T>[]"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_jtype(&tokens, 0);
+    parsed.print_err(content);
+    let parsed = parsed.unwrap();
+    assert_eq!(tokens.len(), parsed.1);
+    insta::assert_debug_snapshot!(parsed);
+}
+#[test]
+fn class_var_hashmap_genirics() {
+    let content = r#"private HashMap<String, List<PropertyDescriptor>> pdStore = new HashMap<>();"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_class_variable(&tokens, 0);
+    parsed.print_err(content);
+    let parsed = parsed.unwrap();
+    assert_eq!(tokens.len(), parsed.1);
+    insta::assert_debug_snapshot!(parsed);
+}
+#[test]
+fn name_dot() {
+    let content = r#"Thing1.other."#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_name_dot_logical(&tokens, 0);
+    parsed.print_err(content);
+    let parsed = parsed.unwrap();
+    assert_eq!(tokens.len() - 1, parsed.1);
+    insta::assert_debug_snapshot!(parsed);
+}

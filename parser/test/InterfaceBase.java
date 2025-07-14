@@ -7,6 +7,6 @@ public interface InterfaceBase {
     <U> Stream<U> mapToObj(IntFunction<? extends U> mapper);
 
     public static<A> A a(final A arg) {
-        return argument;
+        return arg;
     }
 }

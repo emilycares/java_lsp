@@ -5,10 +5,10 @@ use compile::{CompileError, parse_compile_errors};
 use crate::fetch::PATH_GRADLE;
 
 pub fn compile_java() -> Option<Vec<CompileError>> {
-    if let Some(log) = run_compile_java() {
-        if let Some(value) = cut_and_parse(log) {
-            return Some(value);
-        }
+    if let Some(log) = run_compile_java()
+        && let Some(value) = cut_and_parse(log)
+    {
+        return Some(value);
     }
 
     None

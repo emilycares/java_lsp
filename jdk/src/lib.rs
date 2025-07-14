@@ -10,8 +10,9 @@ use std::{
 
 use common::TaskProgress;
 use dashmap::DashMap;
-use futures::{AsyncBufReadExt, StreamExt};
-use parser::{dto::ClassFolder, loader::SourceDestination};
+use futures::{AsyncBufReadExt, StreamExt, TryFutureExt};
+use parser::{SourceDestination, dto::ClassFolder};
+use smol_str::SmolStr;
 use tokio::{process::Command, task::JoinSet};
 
 #[cfg(not(target_os = "windows"))]
@@ -25,23 +26,24 @@ const JDK_CFC: &str = ".jdk.cfc";
 pub enum JdkError {
     NoSrcZip,
     Unzip(Option<String>),
-    ParserLoader(parser::loader::ParserLoaderError),
+    ParserLoader(loader::LoaderError),
     JavaVersionCommand(std::io::Error),
     WorkDir,
     JavaVersionNoLine,
     IO(std::io::Error),
     ZipUtil(zip_util::ZipUtilError),
+    JavaNotInPath,
 }
 
 pub async fn load_classes(
-    class_map: &DashMap<std::string::String, parser::dto::Class>,
+    class_map: &DashMap<SmolStr, parser::dto::Class>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
 ) -> Result<(), JdkError> {
     let (java_path, op_dir) = get_work_dirs().await?;
     let cache_path = op_dir.join(JDK_CFC);
 
     if cache_path.exists() {
-        if let Ok(classes) = parser::loader::load_class_folder(&cache_path) {
+        if let Ok(classes) = loader::load_class_folder(&cache_path) {
             for class in classes.classes {
                 class_map.insert(class.class_path.clone(), class);
             }
@@ -50,15 +52,8 @@ pub async fn load_classes(
             remove_file(&cache_path).map_err(JdkError::IO)?
         }
     }
-    // nix run github:nix-community/nix-index#nix-locate -- jmods/java.base.jmod
-    // ``` bash
-    // # jmod is in the jdk bin dir
-    // jmod extract openjdk-22.0.2_windows-x64_bin/jdk-22.0.2/jmods/java.base.jmod
-    // cd ..
-    // mvn dependency:unpack
-    // ```
-    let class_folder = load_jdk(java_path, op_dir, sender).await?;
-    if let Err(e) = parser::loader::save_class_folder(cache_path, &class_folder) {
+    let class_folder = load_jdk(java_path, &op_dir, sender).await?;
+    if let Err(e) = loader::save_class_folder(cache_path, &class_folder) {
         eprintln!("Failed to save {JDK_CFC} because: {e:?}");
     };
     for class in class_folder.classes {
@@ -85,9 +80,9 @@ fn java_executable_location() -> Option<PathBuf> {
 
 /// Extracts java jdk from from the java executabel in path.
 /// returns folder of output
-async fn load_jdk(
+pub async fn load_jdk(
     java_path: PathBuf,
-    op_dir: PathBuf,
+    op_dir: &Path,
     sender: tokio::sync::watch::Sender<TaskProgress>,
 ) -> Result<ClassFolder, JdkError> {
     let mut jmod_executable = java_path.clone();
@@ -96,13 +91,13 @@ async fn load_jdk(
         jmod_executable.set_extension("exe");
     }
     if jmod_executable.exists() {
-        return load_jmods(java_path, op_dir, jmod_executable, sender).await;
+        return load_jmods(java_path, op_dir, sender).await;
     }
     eprintln!("There is no jmod in your jdk: {java_path:?}");
     load_old(java_path, op_dir).await
 }
 
-async fn load_old(mut path: PathBuf, op_dir: PathBuf) -> Result<ClassFolder, JdkError> {
+async fn load_old(mut path: PathBuf, op_dir: &Path) -> Result<ClassFolder, JdkError> {
     path.pop();
     let jre_lib = path.join("jre").join("lib");
 
@@ -112,15 +107,14 @@ async fn load_old(mut path: PathBuf, op_dir: PathBuf) -> Result<ClassFolder, Jdk
     unzip_to_dir(&source_dir, &src_zip).await?;
     let mut rt_jar = jre_lib.join("rt");
     rt_jar.set_extension("jar");
-    let mut classes = parser::loader::load_classes_jar(
+    let mut classes = loader::load_classes_jar(
         &rt_jar,
         SourceDestination::RelativeInFolder(
             source_dir
                 .to_str()
                 .expect("Should be represented as string")
-                .to_owned(),
+                .into(),
         ),
-        None,
     )
     .await
     .map_err(JdkError::ParserLoader)?;
@@ -131,7 +125,7 @@ async fn load_old(mut path: PathBuf, op_dir: PathBuf) -> Result<ClassFolder, Jdk
 
 async fn load_javafx(
     path: PathBuf,
-    op_dir: PathBuf,
+    op_dir: &Path,
     jre_lib: PathBuf,
     classes: &mut ClassFolder,
 ) -> Result<(), JdkError> {
@@ -143,15 +137,14 @@ async fn load_javafx(
         let mut jfxrt = jre_lib.join("ext").join("jfxrt");
         jfxrt.set_extension("jar");
         if jfxrt.exists() {
-            let classes_jfx = parser::loader::load_classes_jar(
+            let classes_jfx = loader::load_classes_jar(
                 jfxrt,
                 SourceDestination::RelativeInFolder(
                     source_dir_jfx
                         .to_str()
                         .expect("Should be represented as string")
-                        .to_owned(),
+                        .into(),
                 ),
-                None,
             )
             .await
             .map_err(JdkError::ParserLoader)?;
@@ -163,19 +156,18 @@ async fn load_javafx(
 
 async fn load_jmods(
     mut path: PathBuf,
-    op_dir: PathBuf,
-    jmod_executable: PathBuf,
+    op_dir: &Path,
     sender: tokio::sync::watch::Sender<TaskProgress>,
 ) -> Result<ClassFolder, JdkError> {
+    let source_dir = op_dir.join("src");
+    let mut jmods = path.join("jmods");
     path.pop();
 
-    let source_dir = op_dir.join("src");
     let mut src_zip = path.clone();
     src_zip = src_zip.join("lib").join("src");
     src_zip.set_extension("zip");
     unzip_to_dir(&source_dir, &src_zip).await?;
 
-    let mut jmods = path.join("jmods");
     if !jmods.exists() {
         let lib_openjdk_jmods = path.join("lib").join("openjdk").join("jmods");
         if lib_openjdk_jmods.exists() {
@@ -183,13 +175,8 @@ async fn load_jmods(
         }
     }
 
-    let jmods_dir = op_dir.join("jmods");
-    let _ = fs::create_dir_all(&jmods_dir);
-
     let mut handles = JoinSet::<Option<ClassFolder>>::new();
     let source_dir = Arc::new(source_dir);
-    let jmod_executable = Arc::new(jmod_executable);
-    let jmods_dir = Arc::new(jmods_dir);
     let completed_number = Arc::new(AtomicUsize::new(0));
     let sender = Arc::new(sender);
 
@@ -200,13 +187,11 @@ async fn load_jmods(
                 let sender = sender.clone();
                 let completed_number = completed_number.clone();
                 let source_dir = source_dir.clone();
-                let jmod_executable = jmod_executable.clone();
-                let jmods_dir = jmods_dir.clone();
                 if let Ok(jmod) = jmod {
-                    if let Ok(ft) = jmod.file_type() {
-                        if !ft.is_file() {
-                            continue;
-                        }
+                    if let Ok(ft) = jmod.file_type()
+                        && !ft.is_file()
+                    {
+                        continue;
                     }
                     let jmod = jmod.path();
                     if let Some(jmod_name) = jmod
@@ -217,54 +202,26 @@ async fn load_jmods(
                         let jmod_display = jmod_name.trim_end_matches(".jmod").to_owned();
 
                         handles.spawn(async move {
-                            let jmod_dir = &jmods_dir.join(&jmod_display);
-                            if !jmod_dir.exists() {
-                                let _ = sender.send(TaskProgress {
-                                    persentage: (100 * completed_number.load(Ordering::Relaxed))
-                                        / tasks_number,
-                                    error: false,
-                                    message: format!("Extract classes of jmod: {}", jmod_display),
-                                });
-                                let _ = fs::create_dir_all(jmod_dir);
-                                match Command::new(&*jmod_executable)
-                                    .current_dir(jmod_dir)
-                                    .arg("extract")
-                                    .arg(&jmod)
-                                    .output()
-                                    .await
-                                {
-                                    Ok(_r) => {
-                                        let _ = sender.send(TaskProgress {
-                                            persentage: (100
-                                                * completed_number.load(Ordering::Relaxed))
-                                                / tasks_number,
-                                            error: false,
-                                            message: format!(
-                                                "Extracted classes of jmod: {}",
-                                                jmod_display
-                                            ),
-                                        });
-                                    }
-                                    Err(e) => eprintln!("Error with jmod extraction {e:?}"),
-                                };
-                            }
-                            let classes_folder = jmod_dir.join("classes");
                             let relative_source = source_dir.join(&jmod_display);
-                            let classes = parser::loader::load_classes(
-                                &classes_folder,
+                            let classes = loader::load_classes_jmod(
+                                jmod,
                                 SourceDestination::RelativeInFolder(
                                     relative_source
                                         .to_str()
                                         .expect("Should be represented as string")
-                                        .to_owned(),
+                                        .into(),
                                 ),
-                            );
+                            )
+                            .map_err(JdkError::ParserLoader)
+                            .await
+                            .unwrap();
                             let a = completed_number.fetch_add(1, Ordering::Relaxed);
                             let _ = sender.send(TaskProgress {
-                                persentage: (100 * a) / tasks_number,
+                                persentage: (100 * a) / (tasks_number + 1),
                                 error: false,
                                 message: format!("Loaded classes of jmod: {}", jmod_display),
                             });
+
                             Some(classes)
                         });
                     }
@@ -295,25 +252,24 @@ async fn unzip_to_dir(dir: &Path, zip: &PathBuf) -> Result<(), JdkError> {
 }
 
 /// Returns java path and opdir
-async fn get_work_dirs() -> Result<(PathBuf, PathBuf), JdkError> {
-    let mut java_path =
-        java_executable_location().expect("There should be a java executabel in path");
-    if java_path.is_symlink() {
-        if let Ok(linked) = fs::read_link(&java_path) {
-            java_path = linked;
-        }
+pub async fn get_work_dirs() -> Result<(PathBuf, PathBuf), JdkError> {
+    let mut java_path = java_executable_location().ok_or(JdkError::JavaNotInPath)?;
+    if java_path.is_symlink()
+        && let Ok(linked) = fs::read_link(&java_path)
+    {
+        java_path = linked;
     }
     let version = get_java_version(&java_path).await?;
     java_path.pop();
     let mut java_folder = java_path.clone();
     java_folder.pop();
-    if let Some(java_folder_name) = java_folder.file_name() {
-        if let Some(java_folder_name) = java_folder_name.to_str() {
-            let jdk_name = format!("{}_{}", java_folder_name, version);
-            let op_dir = opdir(jdk_name);
+    if let Some(java_folder_name) = java_folder.file_name()
+        && let Some(java_folder_name) = java_folder_name.to_str()
+    {
+        let jdk_name = format!("{}_{}", java_folder_name, version);
+        let op_dir = opdir(jdk_name);
 
-            return Ok((java_path, op_dir));
-        }
+        return Ok((java_path, op_dir));
     }
     Err(JdkError::WorkDir)
 }

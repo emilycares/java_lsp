@@ -1,0 +1,20 @@
+---
+source: call_chain/tests/base.rs
+expression: out
+snapshot_kind: text
+---
+[
+    ClassOrVariable {
+        name: "String",
+        range: AstRange {
+            start: AstPoint {
+                line: 5,
+                col: 20,
+            },
+            end: AstPoint {
+                line: 5,
+                col: 26,
+            },
+        },
+    },
+]

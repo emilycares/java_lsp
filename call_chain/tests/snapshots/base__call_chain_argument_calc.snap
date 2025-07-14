@@ -1,0 +1,92 @@
+---
+source: call_chain/tests/base.rs
+expression: out
+---
+[
+    ArgumentList {
+        prev: [
+            MethodCall {
+                name: "concat",
+                range: AstRange {
+                    start: AstPoint {
+                        line: 4,
+                        col: 8,
+                    },
+                    end: AstPoint {
+                        line: 4,
+                        col: 14,
+                    },
+                },
+            },
+        ],
+        active_param: Some(
+            0,
+        ),
+        filled_params: [
+            [
+                ClassOrVariable {
+                    name: "a",
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 4,
+                            col: 21,
+                        },
+                        end: AstPoint {
+                            line: 4,
+                            col: 22,
+                        },
+                    },
+                },
+                MethodCall {
+                    name: "getThing",
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 4,
+                            col: 23,
+                        },
+                        end: AstPoint {
+                            line: 4,
+                            col: 31,
+                        },
+                    },
+                },
+            ],
+        ],
+        range: AstRange {
+            start: AstPoint {
+                line: 4,
+                col: 14,
+            },
+            end: AstPoint {
+                line: 4,
+                col: 34,
+            },
+        },
+    },
+    ClassOrVariable {
+        name: "a",
+        range: AstRange {
+            start: AstPoint {
+                line: 4,
+                col: 21,
+            },
+            end: AstPoint {
+                line: 4,
+                col: 22,
+            },
+        },
+    },
+    MethodCall {
+        name: "getThing",
+        range: AstRange {
+            start: AstPoint {
+                line: 4,
+                col: 23,
+            },
+            end: AstPoint {
+                line: 4,
+                col: 31,
+            },
+        },
+    },
+]

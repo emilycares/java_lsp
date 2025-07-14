@@ -1,0 +1,58 @@
+name: ast-check-jdk
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - ast_migration
+  merge_group:
+
+env:
+  MSRV: "1.88"
+
+jobs:
+  build:
+    name: Build debug executable
+    runs-on: ubuntu-latest
+    if: github.repository == 'emilycares/java_lsp'
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v5
+
+      - name: Install MSRV toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.MSRV }}
+          targets: x86_64-unknown-linux-musl
+
+      - name: Manually install target
+        run: rustup target add x86_64-unknown-linux-musl
+
+      - name: Run cargo build
+        run: cargo build --target x86_64-unknown-linux-musl
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: d
+          overwrite: true
+          path: target/x86_64-unknown-linux-musl/debug/java_lsp
+
+  check:
+    name: Run ast-check-jdk
+    runs-on: ubuntu-latest
+    if: github.repository == 'emilycares/java_lsp'
+    needs: build
+    container: 
+      image: openjdk:25-jdk
+
+    steps:
+      - name: Download executable
+        uses: actions/download-artifact@v4
+        with:
+          name: d
+          path: /app
+      - name: Make executable
+        run: chmod +x /app/java_lsp
+      - name: Run the Application
+        run: /app/java_lsp ast-check-jdk
