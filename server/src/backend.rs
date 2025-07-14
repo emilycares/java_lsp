@@ -1,5 +1,6 @@
 use std::{collections::HashMap, path::PathBuf, str::FromStr, sync::Arc};
 
+use ast::types::AstPoint;
 use call_chain::get_call_chain;
 use common::{TaskProgress, project_kind::ProjectKind};
 use compile::CompileError;
@@ -21,7 +22,6 @@ use parking_lot::Mutex;
 use parser::dto::Class;
 use position::PositionSymbol;
 use rayon::iter::{ParallelBridge, ParallelIterator};
-use tree_sitter_util::lsp::to_treesitter_point;
 
 use crate::{
     codeaction::{self, CodeActionContext},
@@ -29,7 +29,7 @@ use crate::{
     definition::{self, DefinitionContext, source_to_uri},
     hover::{self, class_action},
     references::{self, ReferenceUnit, ReferencesContext},
-    signature,
+    signature, to_ast_point,
 };
 
 pub struct Backend {
@@ -359,7 +359,7 @@ impl Backend {
     pub fn hover(&self, params: HoverParams) -> Option<Hover> {
         let uri = params.text_document_position_params.text_document.uri;
         let document = self.document_map.get_mut(uri.as_str())?;
-        let point = to_treesitter_point(params.text_document_position_params.position);
+        let point = to_ast_point(params.text_document_position_params.position);
         let imports = imports::imports(document.value());
         let vars = match variables::get_vars(document.value(), &point) {
             Ok(v) => Some(v),
@@ -409,7 +409,7 @@ impl Backend {
             return None;
         };
         let mut out = vec![];
-        let point = to_treesitter_point(params.position);
+        let point = to_ast_point(params.position);
         let vars = match variables::get_vars(document.value(), &point) {
             Ok(v) => Some(v),
             Err(e) => {
@@ -449,7 +449,7 @@ impl Backend {
             eprintln!("Call chain is emtpy");
             out.extend(completion::static_methods(
                 &imports,
-                &document.tree,
+                &document.ast,
                 &self.class_map,
             ));
             out.extend(completion::complete_vars(&vars));
@@ -472,7 +472,7 @@ impl Backend {
             return None;
         };
 
-        let point = to_treesitter_point(params.position);
+        let point = to_ast_point(params.position);
         let imports = imports::imports(document.value());
         let vars = match variables::get_vars(document.value(), &point) {
             Ok(v) => Some(v),
@@ -522,7 +522,7 @@ impl Backend {
             eprintln!("Document is not opened.");
             return None;
         };
-        let point = to_treesitter_point(params.position);
+        let point = to_ast_point(params.position);
         let imports = imports::imports(document.value());
         let vars = match variables::get_vars(document.value(), &point) {
             Ok(v) => Some(v),
@@ -584,7 +584,7 @@ impl Backend {
             return None;
         };
         let current_file = params.text_document.uri;
-        let point = to_treesitter_point(params.range.start);
+        let point = to_ast_point(params.range.start);
         let bytes = document.as_bytes();
 
         let imports = imports::imports(document.value());
@@ -713,7 +713,7 @@ impl Backend {
             eprintln!("Document is not opened.");
             return None;
         };
-        let point = to_treesitter_point(params.text_document_position_params.position);
+        let point = to_ast_point(params.text_document_position_params.position);
         let Some(class) = &self.class_map.get(&document.class_path) else {
             eprintln!("Could not find class {}", document.class_path);
             return None;

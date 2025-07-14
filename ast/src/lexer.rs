@@ -38,6 +38,8 @@ impl Token {
             | Token::Semicolon
             | Token::LeftParenCurly
             | Token::RightParenCurly
+            | Self::LeftParenSquare
+            | Self::RightParenSquare
             | Token::Comma
             | Token::Slash
             | Token::BackSlash
@@ -76,6 +78,8 @@ impl Token {
             | Token::Short
             | Token::Long
             | Token::Static
+            | Token::Final
+            | Token::Default
             | Token::If => KEYWORDS
                 .entries()
                 .find(|i| i.1 == self)
@@ -97,6 +101,8 @@ impl Token {
             Token::Semicolon => SmolStr::new_inline(";"),
             Token::LeftParenCurly => SmolStr::new_inline("{"),
             Token::RightParenCurly => SmolStr::new_inline("}"),
+            Token::LeftParenSquare => SmolStr::new_inline("["),
+            Token::RightParenSquare => SmolStr::new_inline("]"),
             Token::Comma => SmolStr::new_inline(","),
             Token::If => SmolStr::new_inline("if"),
             Token::While => SmolStr::new_inline("while"),
@@ -139,6 +145,8 @@ impl Token {
             Token::Short => SmolStr::new_inline("short"),
             Token::Long => SmolStr::new_inline("long"),
             Token::Static => SmolStr::new_inline("static"),
+            Token::Final => SmolStr::new_inline("final"),
+            Token::Default => SmolStr::new_inline("default"),
         }
     }
 
@@ -203,6 +211,10 @@ pub enum Token {
     Short,
     Long,
     Static,
+    Final,
+    Default,
+    LeftParenSquare,
+    RightParenSquare,
 }
 
 #[derive(Debug, PartialEq)]
@@ -238,6 +250,8 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
     "short" => Token::Short,
     "long" => Token::Long,
     "static" => Token::Static,
+    "final" => Token::Final,
+    "default" => Token::Default,
 };
 
 pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
@@ -291,6 +305,22 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
             '}' => {
                 tokens.push(PositionToken {
                     token: Token::RightParenCurly,
+                    line,
+                    col,
+                });
+                col += 1;
+            }
+            '[' => {
+                tokens.push(PositionToken {
+                    token: Token::LeftParenSquare,
+                    line,
+                    col,
+                });
+                col += 1;
+            }
+            ']' => {
+                tokens.push(PositionToken {
+                    token: Token::RightParenSquare,
                     line,
                     col,
                 });

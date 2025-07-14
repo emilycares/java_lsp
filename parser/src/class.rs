@@ -429,12 +429,7 @@ fn parse_field_type(c: Option<char>, chars: &mut std::str::Chars) -> dto::JType 
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        class::load_class,
-        dto::{self, ImportUnit, SuperClass},
-        loader::SourceDestination,
-    };
-    use pretty_assertions::assert_eq;
+    use crate::{class::load_class, loader::SourceDestination};
 
     #[test]
     fn relative_source() {
@@ -442,10 +437,8 @@ mod tests {
             include_bytes!("../test/Everything.class"),
             "ch.emilycares.Everything".to_string(),
             SourceDestination::RelativeInFolder("/source".to_string()),
-        )
-        .unwrap();
-        assert!(result.source.starts_with("/source"));
-        assert!(result.source.ends_with("Everything.java"));
+        );
+        insta::assert_debug_snapshot!(result.unwrap());
     }
 
     #[test]
@@ -456,7 +449,7 @@ mod tests {
             SourceDestination::None,
         );
 
-        assert_eq!(crate::tests::everything_data(), result.unwrap());
+        insta::assert_debug_snapshot!(result.unwrap());
     }
     #[test]
     fn super_base() {
@@ -466,7 +459,7 @@ mod tests {
             SourceDestination::None,
         );
 
-        assert_eq!(crate::tests::super_data(), result.unwrap());
+        insta::assert_debug_snapshot!(result.unwrap());
     }
     #[test]
     fn thrower() {
@@ -475,10 +468,7 @@ mod tests {
             "ch.emilycares.Thrower".to_string(),
             SourceDestination::Here("/path/to/source/Thrower.java".to_string()),
         );
-
-        let mut check = crate::java::tests::thrower_data();
-        check.imports = vec![ImportUnit::Package("ch.emilycares".to_string())];
-        assert_eq!(check, result.unwrap());
+        insta::assert_debug_snapshot!(result.unwrap());
     }
     #[test]
     fn super_interfaces() {
@@ -486,32 +476,9 @@ mod tests {
             include_bytes!("../test/SuperInterface.class"),
             "ch.emilycares.SuperInterface".to_string(),
             SourceDestination::None,
-        )
-        .unwrap();
-        assert_eq!(
-            result,
-            dto::Class {
-                imports: vec![
-                    ImportUnit::Package("ch.emilycares".to_string()),
-                    ImportUnit::Class("java.util.stream.Stream".to_string())
-                ],
-                class_path: "ch.emilycares.SuperInterface".to_string(),
-                name: "SuperInterface".to_string(),
-                super_interfaces: vec![
-                    SuperClass::Name("Collection".to_string()),
-                    SuperClass::Name("List".to_string())
-                ],
-                methods: vec![dto::Method {
-                    access: vec![dto::Access::Public],
-                    name: "stream".to_string(),
-                    parameters: vec![],
-                    ret: dto::JType::Class("java.util.stream.Stream".to_string()),
-                    throws: vec![],
-                    source: None,
-                },],
-                ..Default::default()
-            }
-        )
+        );
+
+        insta::assert_debug_snapshot!(result.unwrap());
     }
     #[test]
     fn variables() {
@@ -521,51 +488,6 @@ mod tests {
             SourceDestination::None,
         );
 
-        assert_eq!(
-            dto::Class {
-                class_path: "ch.emilycares.LocalVariableTable".to_string(),
-                name: "LocalVariableTable".to_string(),
-                imports: vec![
-                    ImportUnit::Package("ch.emilycares".to_string()),
-                    ImportUnit::Class("java.util.HashMap".to_string()),
-                    ImportUnit::Class("java.util.HashSet".to_string())
-                ],
-                methods: vec![
-                    dto::Method {
-                        access: vec![dto::Access::Public],
-                        name: "hereIsCode".to_string(),
-                        parameters: vec![],
-                        ret: dto::JType::Void,
-                        throws: vec![],
-                        source: None,
-                    },
-                    dto::Method {
-                        access: vec![dto::Access::Public],
-                        name: "hereIsCode".to_string(),
-                        parameters: vec![
-                            dto::Parameter {
-                                name: Some("a".to_string()),
-                                jtype: dto::JType::Int
-                            },
-                            dto::Parameter {
-                                name: Some("b".to_string()),
-                                jtype: dto::JType::Int
-                            }
-                        ],
-                        ret: dto::JType::Int,
-                        throws: vec![],
-                        source: None,
-                    },
-                ],
-                fields: vec![dto::Field {
-                    access: vec![dto::Access::Private],
-                    name: "a".to_string(),
-                    jtype: dto::JType::Class("java.util.HashSet".to_string()),
-                    source: None,
-                },],
-                ..Default::default()
-            },
-            result.unwrap()
-        );
+        insta::assert_debug_snapshot!(result.unwrap());
     }
 }

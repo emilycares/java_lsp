@@ -1,23 +1,23 @@
 use std::{fs, path::PathBuf};
 
+use ast::types::AstFile;
 use dashmap::mapref::one::RefMut;
 use lsp_types::TextDocumentContentChangeEvent;
 use ropey::Rope;
-use tree_sitter::{Parser, Tree};
 
 pub struct Document {
     pub text: ropey::Rope,
     pub str_data: String,
-    pub tree: Tree,
+    pub ast: AstFile,
     pub path: PathBuf,
     pub class_path: String,
-    parser: Parser,
 }
 
 #[derive(Debug)]
 pub enum DocumentError {
-    Treesitter(tree_sitter_util::TreesitterError),
     Io(std::io::Error),
+    Lexer(ast::lexer::LexerError),
+    Ast(ast::error::AstError),
 }
 
 impl Document {
@@ -44,12 +44,12 @@ impl Document {
         rope: Rope,
         class_path: String,
     ) -> Result<Self, DocumentError> {
-        let (parser, tree) = tree_sitter_util::parse(text).map_err(DocumentError::Treesitter)?;
+        let tokens = ast::lexer::lex(text).map_err(DocumentError::Lexer)?;
+        let ast = ast::parse_file(&tokens).map_err(DocumentError::Ast)?;
         Ok(Self {
-            parser,
             text: rope,
             str_data: text.to_string(),
-            tree,
+            ast,
             path,
             class_path,
         })
@@ -111,10 +111,10 @@ impl Document {
         if update_str {
             self.str_data = self.text.to_string();
         }
-        let bytes = self.str_data.as_bytes();
-        // Reusing the previous tree causes issues
-        if let Some(ntree) = self.parser.parse(bytes, None) {
-            self.tree = ntree;
+        if let Ok(tokens) = ast::lexer::lex(&self.str_data).map_err(DocumentError::Lexer) {
+            if let Ok(ast) = ast::parse_file(&tokens).map_err(DocumentError::Ast) {
+                self.ast = ast;
+            }
         }
     }
 }

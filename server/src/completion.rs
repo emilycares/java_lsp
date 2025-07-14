@@ -1,3 +1,4 @@
+use ast::types::AstFile;
 use call_chain::get_call_chain;
 use document::{Document, DocumentError};
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat};
@@ -113,7 +114,7 @@ pub fn class_unpack(val: &dto::Class, imports: &[ImportUnit], tree: &Tree) -> Ve
     out
 }
 
-fn complete_method(m: &dto::Method, imports: &[ImportUnit], tree: &Tree) -> CompletionItem {
+fn complete_method(m: &dto::Method, imports: &[ImportUnit], ast: &AstFile) -> CompletionItem {
     let params_detail: Vec<String> = m
         .parameters
         .iter()
@@ -299,7 +300,6 @@ fn is_class_completion(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Option<Stri
 
 pub fn static_methods(
     imports: &[ImportUnit],
-    tree: &Tree,
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Vec<CompletionItem> {
     imports

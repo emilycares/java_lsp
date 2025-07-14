@@ -16,47 +16,101 @@ AstFile {
         },
         value: "ch.emilycares",
     },
-    imports: [
-        AstIdentifier {
-            range: AstRange {
-                start: AstPoint {
-                    line: 2,
-                    col: 7,
-                },
-                end: AstPoint {
-                    line: 2,
-                    col: 22,
-                },
+    imports: AstImports {
+        range: AstRange {
+            start: AstPoint {
+                line: 2,
+                col: 0,
             },
-            value: "jdk.net.Sockets",
-        },
-        AstIdentifier {
-            range: AstRange {
-                start: AstPoint {
-                    line: 3,
-                    col: 7,
-                },
-                end: AstPoint {
-                    line: 3,
-                    col: 26,
-                },
+            end: AstPoint {
+                line: 6,
+                col: 6,
             },
-            value: "java.io.IOException",
         },
-        AstIdentifier {
-            range: AstRange {
-                start: AstPoint {
-                    line: 4,
-                    col: 7,
+        imports: [
+            AstImport {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 2,
+                        col: 0,
+                    },
+                    end: AstPoint {
+                        line: 3,
+                        col: 6,
+                    },
                 },
-                end: AstPoint {
-                    line: 4,
-                    col: 22,
-                },
+                unit: Class(
+                    AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 2,
+                                col: 7,
+                            },
+                            end: AstPoint {
+                                line: 2,
+                                col: 22,
+                            },
+                        },
+                        value: "jdk.net.Sockets",
+                    },
+                ),
             },
-            value: "java.net.Socket",
-        },
-    ],
+            AstImport {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 3,
+                        col: 0,
+                    },
+                    end: AstPoint {
+                        line: 4,
+                        col: 6,
+                    },
+                },
+                unit: Class(
+                    AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 3,
+                                col: 7,
+                            },
+                            end: AstPoint {
+                                line: 3,
+                                col: 26,
+                            },
+                        },
+                        value: "java.io.IOException",
+                    },
+                ),
+            },
+            AstImport {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 4,
+                        col: 0,
+                    },
+                    end: AstPoint {
+                        line: 6,
+                        col: 6,
+                    },
+                },
+                unit: Class(
+                    AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 4,
+                                col: 7,
+                            },
+                            end: AstPoint {
+                                line: 4,
+                                col: 22,
+                            },
+                        },
+                        value: "java.net.Socket",
+                    },
+                ),
+            },
+        ],
+    },
     thing: Interface(
         AstInterface {
             avaliability: Public,
@@ -128,22 +182,20 @@ AstFile {
                             },
                         ),
                     },
-                    value: Nuget(
-                        StringLiteral(
-                            AstIdentifier {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 8,
-                                        col: 31,
-                                    },
-                                    end: AstPoint {
-                                        line: 8,
-                                        col: 35,
-                                    },
+                    value: StringLiteral(
+                        AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 8,
+                                    col: 31,
                                 },
-                                value: "A",
+                                end: AstPoint {
+                                    line: 8,
+                                    col: 35,
+                                },
                             },
-                        ),
+                            value: "A",
+                        },
                     ),
                 },
                 AstInterfaceConstant {
@@ -157,7 +209,7 @@ AstFile {
                             col: 10,
                         },
                     },
-                    avaliability: Private,
+                    avaliability: Undefined,
                     name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {
@@ -198,22 +250,20 @@ AstFile {
                             },
                         ),
                     },
-                    value: Nuget(
-                        StringLiteral(
-                            AstIdentifier {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 9,
-                                        col: 24,
-                                    },
-                                    end: AstPoint {
-                                        line: 9,
-                                        col: 28,
-                                    },
+                    value: StringLiteral(
+                        AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 9,
+                                    col: 24,
                                 },
-                                value: "B",
+                                end: AstPoint {
+                                    line: 9,
+                                    col: 28,
+                                },
                             },
-                        ),
+                            value: "B",
+                        },
                     ),
                 },
                 AstInterfaceConstant {
@@ -227,7 +277,7 @@ AstFile {
                             col: 8,
                         },
                     },
-                    avaliability: Private,
+                    avaliability: Undefined,
                     name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {
@@ -268,22 +318,20 @@ AstFile {
                             },
                         ),
                     },
-                    value: Nuget(
-                        StringLiteral(
-                            AstIdentifier {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 11,
-                                        col: 24,
-                                    },
-                                    end: AstPoint {
-                                        line: 11,
-                                        col: 28,
-                                    },
+                    value: StringLiteral(
+                        AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 11,
+                                    col: 24,
                                 },
-                                value: "C",
+                                end: AstPoint {
+                                    line: 11,
+                                    col: 28,
+                                },
                             },
-                        ),
+                            value: "C",
+                        },
                     ),
                 },
             ],
@@ -295,8 +343,8 @@ AstFile {
                             col: 4,
                         },
                         end: AstPoint {
-                            line: 15,
-                            col: 10,
+                            line: 13,
+                            col: 19,
                         },
                     },
                     header: AstMethodHeader {
@@ -310,7 +358,7 @@ AstFile {
                                 col: 19,
                             },
                         },
-                        avaliability: Private,
+                        avaliability: Undefined,
                         name: AstIdentifier {
                             range: AstRange {
                                 start: AstPoint {
@@ -352,6 +400,7 @@ AstFile {
                         },
                         stat: false,
                         throws: None,
+                        type_parameters: None,
                     },
                 },
                 AstInterfaceMethod {
@@ -361,8 +410,8 @@ AstFile {
                             col: 4,
                         },
                         end: AstPoint {
-                            line: 16,
-                            col: 1,
+                            line: 15,
+                            col: 70,
                         },
                     },
                     header: AstMethodHeader {
@@ -376,7 +425,7 @@ AstFile {
                                 col: 70,
                             },
                         },
-                        avaliability: Private,
+                        avaliability: Undefined,
                         name: AstIdentifier {
                             range: AstRange {
                                 start: AstPoint {
@@ -480,6 +529,7 @@ AstFile {
                                         },
                                         value: "hostname",
                                     },
+                                    fin: false,
                                 },
                                 AstMethodParamerter {
                                     range: AstRange {
@@ -518,6 +568,7 @@ AstFile {
                                         },
                                         value: "port",
                                     },
+                                    fin: false,
                                 },
                             ],
                         },
@@ -565,9 +616,11 @@ AstFile {
                                 ],
                             },
                         ),
+                        type_parameters: None,
                     },
                 },
             ],
+            default_methods: [],
         },
     ),
 }

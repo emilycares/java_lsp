@@ -1,12 +1,11 @@
 use std::fmt::Display;
 
+use ast::types::{AstAvailability, AstImport, AstImportUnit, AstJType, AstJTypeKind};
 use serde::{Deserialize, Serialize};
-use tree_sitter::LanguageError;
 
 #[derive(Debug)]
 pub enum ClassError {
     IO(std::io::Error),
-    Language(LanguageError),
     Asm,
     Unknown,
     ParseError,
@@ -92,6 +91,38 @@ impl ImportUnit {
     }
 }
 
+impl From<AstImport> for ImportUnit {
+    fn from(value: AstImport) -> Self {
+        match value.unit {
+            AstImportUnit::Class(ast_identifier) => ImportUnit::Class(ast_identifier.into()),
+            AstImportUnit::StaticClass(ast_identifier) => Self::StaticClass(ast_identifier.into()),
+            AstImportUnit::StaticClassMethod(ast_identifier, ast_identifier1) => {
+                Self::StaticClassMethod(ast_identifier.into(), ast_identifier1.into())
+            }
+            AstImportUnit::Prefix(ast_identifier) => ImportUnit::Prefix(ast_identifier.into()),
+            AstImportUnit::StaticPrefix(ast_identifier) => {
+                Self::StaticPrefix(ast_identifier.into())
+            }
+        }
+    }
+}
+
+impl From<&AstImport> for ImportUnit {
+    fn from(value: &AstImport) -> Self {
+        match &value.unit {
+            AstImportUnit::Class(ast_identifier) => ImportUnit::Class(ast_identifier.into()),
+            AstImportUnit::StaticClass(ast_identifier) => Self::StaticClass(ast_identifier.into()),
+            AstImportUnit::StaticClassMethod(ast_identifier, ast_identifier1) => {
+                Self::StaticClassMethod(ast_identifier.into(), ast_identifier1.into())
+            }
+            AstImportUnit::Prefix(ast_identifier) => ImportUnit::Prefix(ast_identifier.into()),
+            AstImportUnit::StaticPrefix(ast_identifier) => {
+                Self::StaticPrefix(ast_identifier.into())
+            }
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum SourceKind {
     Jdk(String),
@@ -113,6 +144,17 @@ pub enum Access {
     Enum,
     Interface,
     Abstract,
+}
+
+impl Access {
+    pub fn from(value: &AstAvailability, def: Access) -> Self {
+        match value {
+            AstAvailability::Public => Access::Public,
+            AstAvailability::Private => Access::Private,
+            AstAvailability::Protected => Access::Protected,
+            AstAvailability::Undefined => def,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
@@ -159,6 +201,52 @@ pub enum JType {
     Generic(String, Vec<JType>),
     Parameter(String),
 }
+impl From<&AstJType> for JType {
+    fn from(value: &AstJType) -> Self {
+        match &value.value {
+            AstJTypeKind::Void => JType::Void,
+            AstJTypeKind::Byte => JType::Byte,
+            AstJTypeKind::Char => JType::Char,
+            AstJTypeKind::Double => JType::Double,
+            AstJTypeKind::Float => JType::Float,
+            AstJTypeKind::Int => JType::Int,
+            AstJTypeKind::Long => JType::Long,
+            AstJTypeKind::Short => JType::Short,
+            AstJTypeKind::Boolean => JType::Boolean,
+            AstJTypeKind::Wildcard => JType::Wildcard,
+            AstJTypeKind::Class(ast_identifier) => JType::Class(ast_identifier.into()),
+            AstJTypeKind::Array(ast_jtype) => JType::Array(Box::new(ast_jtype.as_ref().into())),
+            AstJTypeKind::Generic(ast_identifier, ast_jtypes) => JType::Generic(
+                ast_identifier.into(),
+                ast_jtypes.iter().map(|i| i.into()).collect(),
+            ),
+            AstJTypeKind::Parameter(ast_identifier) => JType::Parameter(ast_identifier.into()),
+        }
+    }
+}
+impl From<AstJType> for JType {
+    fn from(value: AstJType) -> Self {
+        match value.value {
+            AstJTypeKind::Void => JType::Void,
+            AstJTypeKind::Byte => JType::Byte,
+            AstJTypeKind::Char => JType::Char,
+            AstJTypeKind::Double => JType::Double,
+            AstJTypeKind::Float => JType::Float,
+            AstJTypeKind::Int => JType::Int,
+            AstJTypeKind::Long => JType::Long,
+            AstJTypeKind::Short => JType::Short,
+            AstJTypeKind::Boolean => JType::Boolean,
+            AstJTypeKind::Wildcard => JType::Wildcard,
+            AstJTypeKind::Class(ast_identifier) => JType::Class(ast_identifier.into()),
+            AstJTypeKind::Array(ast_jtype) => JType::Array(Box::new(ast_jtype.as_ref().into())),
+            AstJTypeKind::Generic(ast_identifier, ast_jtypes) => JType::Generic(
+                ast_identifier.into(),
+                ast_jtypes.iter().map(|i| i.into()).collect(),
+            ),
+            AstJTypeKind::Parameter(ast_identifier) => JType::Parameter(ast_identifier.into()),
+        }
+    }
+}
 
 impl Display for JType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -197,6 +285,8 @@ impl Display for JType {
 mod tests {
     use std::ops::Deref;
 
+    use ast::types::{AstIdentifier, AstJType, AstJTypeKind, AstPoint, AstRange};
+
     use super::JType;
 
     #[test]
@@ -206,5 +296,51 @@ mod tests {
         let out: JType = postcard::from_bytes(ser.deref()).unwrap();
 
         assert_eq!(inp, out);
+    }
+
+    #[test]
+    fn jtype_map() {
+        let inp = AstJType {
+            range: AstRange::default(),
+            value: AstJTypeKind::Generic(
+                AstIdentifier {
+                    range: AstRange {
+                        start: AstPoint { line: 6, col: 27 },
+                        end: AstPoint { line: 6, col: 38 },
+                    },
+                    value: "IntFunction".into(),
+                },
+                vec![
+                    AstJType {
+                        range: AstRange {
+                            start: AstPoint { line: 6, col: 39 },
+                            end: AstPoint { line: 6, col: 50 },
+                        },
+                        value: AstJTypeKind::Wildcard,
+                    },
+                    AstJType {
+                        range: AstRange {
+                            start: AstPoint { line: 6, col: 49 },
+                            end: AstPoint { line: 6, col: 50 },
+                        },
+                        value: AstJTypeKind::Class(AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint { line: 6, col: 49 },
+                                end: AstPoint { line: 6, col: 50 },
+                            },
+                            value: "U".into(),
+                        }),
+                    },
+                ],
+            ),
+        };
+        let out: JType = (&inp).into();
+        assert_eq!(
+            JType::Generic(
+                "IntFunction".to_string(),
+                vec![JType::Wildcard, JType::Class("U".to_string())]
+            ),
+            out
+        );
     }
 }

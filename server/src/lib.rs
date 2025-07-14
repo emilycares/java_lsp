@@ -9,6 +9,7 @@ pub mod signature;
 
 use std::sync::Arc;
 
+use ast::types::AstPoint;
 use lsp_types::{
     CodeActionKind, CodeActionOptions, CodeActionProviderCapability, CompletionOptions,
     HoverProviderCapability, InitializeParams, OneOf, ServerCapabilities, SignatureHelpOptions,
@@ -84,4 +85,11 @@ fn main_loop(
     });
     router::route(backend)?;
     Ok(())
+}
+
+fn to_ast_point(position: lsp_types::Position) -> AstPoint {
+    AstPoint::new(
+        position.line.try_into().unwrap_or_default(),
+        position.character.try_into().unwrap_or_default(),
+    )
 }

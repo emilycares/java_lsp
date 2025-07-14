@@ -1,14 +1,10 @@
 use std::collections::HashMap;
 
+use ast::types::AstFile;
 use lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, Position, Range, TextEdit, Uri, WorkspaceEdit,
 };
-use parser::{
-    dto::{self, ImportUnit},
-    java::parse_jtype,
-};
-use tree_sitter::{Point, Tree};
-use tree_sitter_util::{CommentSkiper, lsp::to_lsp_position};
+use parser::dto::{self, ImportUnit};
 use tyres::TyresError;
 use variables::LocalVariable;
 
@@ -110,7 +106,7 @@ pub fn import_jtype(
     None
 }
 
-pub fn get_import_position(tree: &Tree) -> Option<Position> {
+pub fn get_import_position(ast: &AstFile) -> Option<Position> {
     let mut cursor = tree.walk();
     cursor.first_child();
     cursor.sibling();
@@ -119,12 +115,12 @@ pub fn get_import_position(tree: &Tree) -> Option<Position> {
     }
     None
 }
-pub fn import_text_edit(classpath: &str, tree: &Tree) -> Vec<TextEdit> {
+pub fn import_text_edit(classpath: &str, ast: &AstFile) -> Vec<TextEdit> {
     let mut pos = Position {
         line: 2,
         character: 0,
     };
-    if let Some(npos) = get_import_position(tree) {
+    if let Some(npos) = get_import_position(ast) {
         pos = npos;
     }
 

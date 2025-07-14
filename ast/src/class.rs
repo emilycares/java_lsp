@@ -38,7 +38,7 @@ pub fn parse_class(
                 continue;
             }
             Err(e) => {
-                errors.push(("class variable", e));
+                errors.push(("class variable".to_string(), e));
             }
         }
         match parse_class_constructor(tokens, pos) {
@@ -48,7 +48,7 @@ pub fn parse_class(
                 continue;
             }
             Err(e) => {
-                errors.push(("class constructor", e));
+                errors.push(("class constructor".to_string(), e));
             }
         }
         match parse_class_method(tokens, pos) {
@@ -58,11 +58,11 @@ pub fn parse_class(
                 continue;
             }
             Err(e) => {
-                errors.push(("class method", e));
+                errors.push(("class method".to_string(), e));
             }
         }
         return Err(AstError::AllChildrenFailed {
-            parent: "class",
+            parent: "class".to_string(),
             errors,
         });
     }
@@ -79,7 +79,7 @@ pub fn parse_class(
         pos,
     ))
 }
-fn parse_class_constructor(
+pub fn parse_class_constructor(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstClassConstructor, usize), AstError> {
@@ -101,12 +101,18 @@ fn parse_class_constructor(
         pos,
     ))
 }
-fn parse_class_variable(
+pub fn parse_class_variable(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstClassVariable, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let (avaliability, pos) = parse_avaliability(tokens, pos)?;
+    let mut fin = false;
+    let mut pos = pos;
+    if let Ok(npos) = assert_token(tokens, pos, Token::Final) {
+        pos = npos;
+        fin = true;
+    }
     let (jtype, pos) = parse_jtype(tokens, pos)?;
     let (name, pos) = parse_name(tokens, pos)?;
     let mut value = None;
@@ -123,6 +129,7 @@ fn parse_class_variable(
         AstClassVariable {
             avaliability,
             name,
+            fin,
             jtype,
             value,
             range: AstRange::from_position_token(start, end),
@@ -130,12 +137,12 @@ fn parse_class_variable(
         pos,
     ))
 }
-fn parse_class_method(
+pub fn parse_class_method(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstClassMethod, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
-    let (header, pos) = parse_method_header(tokens, pos)?;
+    let (header, pos) = parse_method_header(tokens, pos, AstAvailability::Protected)?;
     let (block, pos) = parse_block(tokens, pos)?;
 
     let end = tokens.get(pos).ok_or(AstError::eof())?;
