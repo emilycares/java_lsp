@@ -182,20 +182,22 @@ AstFile {
                             },
                         ),
                     },
-                    value: StringLiteral(
-                        AstIdentifier {
-                            range: AstRange {
-                                start: AstPoint {
-                                    line: 8,
-                                    col: 31,
+                    value: Nuget(
+                        StringLiteral(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 8,
+                                        col: 31,
+                                    },
+                                    end: AstPoint {
+                                        line: 8,
+                                        col: 35,
+                                    },
                                 },
-                                end: AstPoint {
-                                    line: 8,
-                                    col: 35,
-                                },
+                                value: "A",
                             },
-                            value: "A",
-                        },
+                        ),
                     ),
                 },
                 AstInterfaceConstant {
@@ -250,20 +252,22 @@ AstFile {
                             },
                         ),
                     },
-                    value: StringLiteral(
-                        AstIdentifier {
-                            range: AstRange {
-                                start: AstPoint {
-                                    line: 9,
-                                    col: 24,
+                    value: Nuget(
+                        StringLiteral(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 9,
+                                        col: 24,
+                                    },
+                                    end: AstPoint {
+                                        line: 9,
+                                        col: 28,
+                                    },
                                 },
-                                end: AstPoint {
-                                    line: 9,
-                                    col: 28,
-                                },
+                                value: "B",
                             },
-                            value: "B",
-                        },
+                        ),
                     ),
                 },
                 AstInterfaceConstant {
@@ -318,20 +322,22 @@ AstFile {
                             },
                         ),
                     },
-                    value: StringLiteral(
-                        AstIdentifier {
-                            range: AstRange {
-                                start: AstPoint {
-                                    line: 11,
-                                    col: 24,
+                    value: Nuget(
+                        StringLiteral(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 11,
+                                        col: 24,
+                                    },
+                                    end: AstPoint {
+                                        line: 11,
+                                        col: 28,
+                                    },
                                 },
-                                end: AstPoint {
-                                    line: 11,
-                                    col: 28,
-                                },
+                                value: "C",
                             },
-                            value: "C",
-                        },
+                        ),
                     ),
                 },
             ],

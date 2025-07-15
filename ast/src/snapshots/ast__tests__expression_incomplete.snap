@@ -1,0 +1,116 @@
+---
+source: ast/src/lib.rs
+expression: parsed.unwrap()
+---
+(
+    AstExpression {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 20,
+            },
+        },
+        ident: Some(
+            AstIdentifier {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 0,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 5,
+                    },
+                },
+                value: "local",
+            },
+        ),
+        values: None,
+        next: Some(
+            AstExpression {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 5,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 20,
+                    },
+                },
+                ident: None,
+                values: None,
+                next: Some(
+                    AstExpression {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 6,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 20,
+                            },
+                        },
+                        ident: Some(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 0,
+                                        col: 6,
+                                    },
+                                    end: AstPoint {
+                                        line: 0,
+                                        col: 12,
+                                    },
+                                },
+                                value: "concat",
+                            },
+                        ),
+                        values: None,
+                        next: Some(
+                            AstExpression {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 0,
+                                        col: 12,
+                                    },
+                                    end: AstPoint {
+                                        line: 0,
+                                        col: 20,
+                                    },
+                                },
+                                ident: None,
+                                values: Some(
+                                    [
+                                        StringLiteral(
+                                            AstIdentifier {
+                                                range: AstRange {
+                                                    start: AstPoint {
+                                                        line: 0,
+                                                        col: 13,
+                                                    },
+                                                    end: AstPoint {
+                                                        line: 0,
+                                                        col: 20,
+                                                    },
+                                                },
+                                                value: "hehe",
+                                            },
+                                        ),
+                                    ],
+                                ),
+                                next: None,
+                            },
+                        ),
+                    },
+                ),
+            },
+        ),
+    },
+    8,
+)

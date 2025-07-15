@@ -338,29 +338,31 @@ AstFile {
                         ),
                     },
                 },
-                AstInterfaceMethod {
+            ],
+            default_methods: [
+                AstInterfaceMethodDefault {
                     range: AstRange {
                         start: AstPoint {
                             line: 8,
                             col: 4,
                         },
                         end: AstPoint {
-                            line: 8,
-                            col: 39,
+                            line: 11,
+                            col: 1,
                         },
                     },
                     header: AstMethodHeader {
                         range: AstRange {
                             start: AstPoint {
                                 line: 8,
-                                col: 4,
+                                col: 11,
                             },
                             end: AstPoint {
                                 line: 8,
                                 col: 39,
                             },
                         },
-                        avaliability: Public,
+                        avaliability: Undefined,
                         name: AstIdentifier {
                             range: AstRange {
                                 start: AstPoint {
@@ -500,9 +502,71 @@ AstFile {
                             },
                         ),
                     },
+                    block: AstBlock {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 8,
+                                col: 38,
+                            },
+                            end: AstPoint {
+                                line: 10,
+                                col: 5,
+                            },
+                        },
+                        entries: [
+                            Return(
+                                AstBlockReturn {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 9,
+                                            col: 8,
+                                        },
+                                        end: AstPoint {
+                                            line: 10,
+                                            col: 5,
+                                        },
+                                    },
+                                    value: Some(
+                                        Expression(
+                                            AstExpression {
+                                                range: AstRange {
+                                                    start: AstPoint {
+                                                        line: 9,
+                                                        col: 15,
+                                                    },
+                                                    end: AstPoint {
+                                                        line: 9,
+                                                        col: 18,
+                                                    },
+                                                },
+                                                ident: Some(
+                                                    Identifier(
+                                                        AstIdentifier {
+                                                            range: AstRange {
+                                                                start: AstPoint {
+                                                                    line: 9,
+                                                                    col: 15,
+                                                                },
+                                                                end: AstPoint {
+                                                                    line: 9,
+                                                                    col: 18,
+                                                                },
+                                                            },
+                                                            value: "arg",
+                                                        },
+                                                    ),
+                                                ),
+                                                values: None,
+                                                next: None,
+                                            },
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ],
+                    },
                 },
             ],
-            default_methods: [],
         },
     ),
 }
