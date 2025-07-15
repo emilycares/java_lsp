@@ -34,6 +34,8 @@ pub fn get_vars(
         AstThing::Interface(ast_interface) => {
             out.extend(get_interface_constats(&ast_interface.constants));
         }
+        AstThing::Enumeration(_) => (),
+        AstThing::Annotation(_) => (),
     }
 
     // let n = cursor.goto_first_child_for_point(*point);

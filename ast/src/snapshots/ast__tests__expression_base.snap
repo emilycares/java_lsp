@@ -15,19 +15,21 @@ expression: parsed.unwrap()
             },
         },
         ident: Some(
-            AstIdentifier {
-                range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 0,
+            Identifier(
+                AstIdentifier {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 0,
+                            col: 0,
+                        },
+                        end: AstPoint {
+                            line: 0,
+                            col: 6,
+                        },
                     },
-                    end: AstPoint {
-                        line: 0,
-                        col: 6,
-                    },
+                    value: "Logger",
                 },
-                value: "Logger",
-            },
+            ),
         ),
         values: None,
         next: Some(
@@ -57,19 +59,21 @@ expression: parsed.unwrap()
                             },
                         },
                         ident: Some(
-                            AstIdentifier {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 0,
-                                        col: 7,
+                            Identifier(
+                                AstIdentifier {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 0,
+                                            col: 7,
+                                        },
+                                        end: AstPoint {
+                                            line: 0,
+                                            col: 16,
+                                        },
                                     },
-                                    end: AstPoint {
-                                        line: 0,
-                                        col: 16,
-                                    },
+                                    value: "getLogger",
                                 },
-                                value: "getLogger",
-                            },
+                            ),
                         ),
                         values: None,
                         next: Some(
@@ -86,85 +90,101 @@ expression: parsed.unwrap()
                                 },
                                 ident: None,
                                 values: Some(
-                                    [
-                                        Expression(
-                                            AstExpression {
-                                                range: AstRange {
-                                                    start: AstPoint {
-                                                        line: 0,
-                                                        col: 17,
-                                                    },
-                                                    end: AstPoint {
-                                                        line: 0,
-                                                        col: 27,
-                                                    },
-                                                },
-                                                ident: Some(
-                                                    AstIdentifier {
-                                                        range: AstRange {
-                                                            start: AstPoint {
-                                                                line: 0,
-                                                                col: 17,
-                                                            },
-                                                            end: AstPoint {
-                                                                line: 0,
-                                                                col: 21,
-                                                            },
+                                    AstValues {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 0,
+                                                col: 16,
+                                            },
+                                            end: AstPoint {
+                                                line: 0,
+                                                col: 28,
+                                            },
+                                        },
+                                        values: [
+                                            Expression(
+                                                AstExpression {
+                                                    range: AstRange {
+                                                        start: AstPoint {
+                                                            line: 0,
+                                                            col: 17,
                                                         },
-                                                        value: "Test",
-                                                    },
-                                                ),
-                                                values: None,
-                                                next: Some(
-                                                    AstExpression {
-                                                        range: AstRange {
-                                                            start: AstPoint {
-                                                                line: 0,
-                                                                col: 21,
-                                                            },
-                                                            end: AstPoint {
-                                                                line: 0,
-                                                                col: 27,
-                                                            },
+                                                        end: AstPoint {
+                                                            line: 0,
+                                                            col: 27,
                                                         },
-                                                        ident: None,
-                                                        values: None,
-                                                        next: Some(
-                                                            AstExpression {
+                                                    },
+                                                    ident: Some(
+                                                        Identifier(
+                                                            AstIdentifier {
                                                                 range: AstRange {
                                                                     start: AstPoint {
                                                                         line: 0,
-                                                                        col: 22,
+                                                                        col: 17,
                                                                     },
                                                                     end: AstPoint {
                                                                         line: 0,
-                                                                        col: 27,
+                                                                        col: 21,
                                                                     },
                                                                 },
-                                                                ident: Some(
-                                                                    AstIdentifier {
-                                                                        range: AstRange {
-                                                                            start: AstPoint {
-                                                                                line: 0,
-                                                                                col: 22,
-                                                                            },
-                                                                            end: AstPoint {
-                                                                                line: 0,
-                                                                                col: 27,
-                                                                            },
-                                                                        },
-                                                                        value: "class",
-                                                                    },
-                                                                ),
-                                                                values: None,
-                                                                next: None,
+                                                                value: "Test",
                                                             },
                                                         ),
-                                                    },
-                                                ),
-                                            },
-                                        ),
-                                    ],
+                                                    ),
+                                                    values: None,
+                                                    next: Some(
+                                                        AstExpression {
+                                                            range: AstRange {
+                                                                start: AstPoint {
+                                                                    line: 0,
+                                                                    col: 21,
+                                                                },
+                                                                end: AstPoint {
+                                                                    line: 0,
+                                                                    col: 27,
+                                                                },
+                                                            },
+                                                            ident: None,
+                                                            values: None,
+                                                            next: Some(
+                                                                AstExpression {
+                                                                    range: AstRange {
+                                                                        start: AstPoint {
+                                                                            line: 0,
+                                                                            col: 22,
+                                                                        },
+                                                                        end: AstPoint {
+                                                                            line: 0,
+                                                                            col: 27,
+                                                                        },
+                                                                    },
+                                                                    ident: Some(
+                                                                        Identifier(
+                                                                            AstIdentifier {
+                                                                                range: AstRange {
+                                                                                    start: AstPoint {
+                                                                                        line: 0,
+                                                                                        col: 22,
+                                                                                    },
+                                                                                    end: AstPoint {
+                                                                                        line: 0,
+                                                                                        col: 27,
+                                                                                    },
+                                                                                },
+                                                                                value: "class",
+                                                                            },
+                                                                        ),
+                                                                    ),
+                                                                    values: None,
+                                                                    next: None,
+                                                                },
+                                                            ),
+                                                        },
+                                                    ),
+                                                },
+                                            ),
+                                        ],
+                                    },
                                 ),
                                 next: None,
                             },

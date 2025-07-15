@@ -71,11 +71,10 @@ pub fn parse_interface(
                 errors.push(("interface_method_impl".to_string(), e));
             }
         }
-        // return Err(AstError::AllChildrenFailed {
-        //     parent: "interface".to_string(),
-        //     errors,
-        // });
-        pos += 1;
+        return Err(AstError::AllChildrenFailed {
+            parent: "interface".to_string(),
+            errors,
+        });
     }
 
     Ok((
@@ -122,7 +121,8 @@ pub fn parse_interface_method(
 ) -> Result<(AstInterfaceMethod, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let (header, pos) = parse_method_header(tokens, pos, AstAvailability::Public)?;
-    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::Semicolon)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstInterfaceMethod {
             range: AstRange::from_position_token(start, end),
@@ -137,8 +137,15 @@ pub fn parse_interface_method_impl(
     pos: usize,
 ) -> Result<(AstInterfaceMethodDefault, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
-    let pos = assert_token(tokens, pos, Token::Default)?;
-    let (header, pos) = parse_method_header(tokens, pos, AstAvailability::Public)?;
+    let mut availability = AstAvailability::Public;
+    let mut pos = pos;
+    if let Ok(npos) = assert_token(tokens, pos, Token::Default) {
+        pos = npos;
+    } else if let Ok((nava, npos)) = parse_avaliability(tokens, pos) {
+        pos = npos;
+        availability = nava;
+    }
+    let (header, pos) = parse_method_header(tokens, pos, availability)?;
     let (block, pos) = parse_block(tokens, pos)?;
     let end = tokens.get(pos).ok_or(AstError::eof())?;
     Ok((

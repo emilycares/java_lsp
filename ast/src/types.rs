@@ -169,7 +169,7 @@ pub struct AstBlockVariable {
 #[derive(Debug, PartialEq)]
 pub struct AstBlockReturn {
     pub range: AstRange,
-    pub value: AstValue,
+    pub value: Option<AstValue>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -279,21 +279,36 @@ pub enum AstValue {
     NewClass(AstValueNewClass),
     Equasion(AstValueEquasion),
     Variable(AstIdentifier),
+    Expression(AstExpression),
+    Nuget(AstValueNuget),
+}
+#[derive(Debug, PartialEq)]
+pub enum AstValueNuget {
     Number(AstNumber),
     Double(AstDouble),
     Float(AstDouble),
     StringLiteral(AstIdentifier),
     CharLiteral(AstIdentifier),
     BooleanLiteral(AstBoolean),
-    Expression(AstExpression),
 }
 
 #[derive(Debug, PartialEq)]
 pub struct AstExpression {
     pub range: AstRange,
-    pub ident: Option<AstIdentifier>,
-    pub values: Option<Vec<AstValue>>,
+    pub ident: Option<AstExpressionIdentifier>,
+    pub values: Option<AstValues>,
     pub next: Option<Box<AstExpression>>,
+}
+#[derive(Debug, PartialEq)]
+pub enum AstExpressionIdentifier {
+    Identifier(AstIdentifier),
+    Nuget(AstValueNuget),
+}
+
+#[derive(Debug, PartialEq)]
+pub struct AstValues {
+    pub range: AstRange,
+    pub values: Vec<AstValue>,
 }
 impl AstExpression {
     pub fn has_content(&self) -> bool {

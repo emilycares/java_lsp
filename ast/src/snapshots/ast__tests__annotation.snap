@@ -83,20 +83,22 @@ AstFile {
                         },
                         value: Int,
                     },
-                    value: Number(
-                        AstNumber {
-                            range: AstRange {
-                                start: AstPoint {
-                                    line: 2,
-                                    col: 24,
+                    value: Nuget(
+                        Number(
+                            AstNumber {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 2,
+                                        col: 24,
+                                    },
+                                    end: AstPoint {
+                                        line: 2,
+                                        col: 25,
+                                    },
                                 },
-                                end: AstPoint {
-                                    line: 2,
-                                    col: 25,
-                                },
+                                value: 0,
                             },
-                            value: 0,
-                        },
+                        ),
                     ),
                 },
                 AstAnnotationField {
@@ -150,20 +152,22 @@ AstFile {
                             },
                         ),
                     },
-                    value: StringLiteral(
-                        AstIdentifier {
-                            range: AstRange {
-                                start: AstPoint {
-                                    line: 3,
-                                    col: 26,
+                    value: Nuget(
+                        StringLiteral(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 3,
+                                        col: 26,
+                                    },
+                                    end: AstPoint {
+                                        line: 3,
+                                        col: 34,
+                                    },
                                 },
-                                end: AstPoint {
-                                    line: 3,
-                                    col: 34,
-                                },
+                                value: "Hello",
                             },
-                            value: "Hello",
-                        },
+                        ),
                     ),
                 },
             ],

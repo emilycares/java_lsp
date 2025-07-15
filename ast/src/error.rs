@@ -158,7 +158,13 @@ pub fn assert_token(
         None => Err(AstError::eof()),
     }?
 }
-
+pub fn assert_semicolon(tokens: &[PositionToken], pos: usize) -> usize {
+    let mut pos = pos;
+    if let Ok(npos) = assert_token(tokens, pos, Token::Semicolon) {
+        pos = npos;
+    }
+    pos
+}
 #[derive(Debug, PartialEq)]
 pub struct ExpectedToken {
     pub expected: Token,
@@ -181,16 +187,18 @@ impl ExpectedToken {
 #[derive(Debug, PartialEq)]
 pub struct InvalidToken {
     pub found: Token,
+    pub pos: usize,
     pub line: usize,
     pub col: usize,
 }
 
 impl InvalidToken {
-    pub fn from(pos: &PositionToken) -> Self {
+    pub fn from(token: &PositionToken, pos: usize) -> Self {
         Self {
-            found: pos.token.clone(),
-            line: pos.line,
-            col: pos.col,
+            found: token.token.clone(),
+            pos,
+            line: token.line,
+            col: token.col,
         }
     }
 }
