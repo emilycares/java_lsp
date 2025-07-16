@@ -821,22 +821,40 @@ AstFile {
                         ),
                     },
                     value: Some(
-                        Nuget(
-                            StringLiteral(
-                                AstIdentifier {
-                                    range: AstRange {
-                                        start: AstPoint {
-                                            line: 11,
-                                            col: 22,
-                                        },
-                                        end: AstPoint {
-                                            line: 11,
-                                            col: 29,
-                                        },
+                        Expression(
+                            AstExpression {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 11,
+                                        col: 22,
                                     },
-                                    value: "hihi",
+                                    end: AstPoint {
+                                        line: 11,
+                                        col: 28,
+                                    },
                                 },
-                            ),
+                                ident: Some(
+                                    Nuget(
+                                        StringLiteral(
+                                            AstIdentifier {
+                                                range: AstRange {
+                                                    start: AstPoint {
+                                                        line: 11,
+                                                        col: 22,
+                                                    },
+                                                    end: AstPoint {
+                                                        line: 11,
+                                                        col: 29,
+                                                    },
+                                                },
+                                                value: "hihi",
+                                            },
+                                        ),
+                                    ),
+                                ),
+                                values: None,
+                                next: None,
+                            },
                         ),
                     ),
                     fin: false,
@@ -1023,22 +1041,40 @@ AstFile {
                                                                     },
                                                                 },
                                                                 values: [
-                                                                    Nuget(
-                                                                        StringLiteral(
-                                                                            AstIdentifier {
-                                                                                range: AstRange {
-                                                                                    start: AstPoint {
-                                                                                        line: 12,
-                                                                                        col: 34,
-                                                                                    },
-                                                                                    end: AstPoint {
-                                                                                        line: 12,
-                                                                                        col: 41,
-                                                                                    },
+                                                                    Expression(
+                                                                        AstExpression {
+                                                                            range: AstRange {
+                                                                                start: AstPoint {
+                                                                                    line: 12,
+                                                                                    col: 34,
                                                                                 },
-                                                                                value: "haha",
+                                                                                end: AstPoint {
+                                                                                    line: 12,
+                                                                                    col: 40,
+                                                                                },
                                                                             },
-                                                                        ),
+                                                                            ident: Some(
+                                                                                Nuget(
+                                                                                    StringLiteral(
+                                                                                        AstIdentifier {
+                                                                                            range: AstRange {
+                                                                                                start: AstPoint {
+                                                                                                    line: 12,
+                                                                                                    col: 34,
+                                                                                                },
+                                                                                                end: AstPoint {
+                                                                                                    line: 12,
+                                                                                                    col: 41,
+                                                                                                },
+                                                                                            },
+                                                                                            value: "haha",
+                                                                                        },
+                                                                                    ),
+                                                                                ),
+                                                                            ),
+                                                                            values: None,
+                                                                            next: None,
+                                                                        },
                                                                     ),
                                                                 ],
                                                             },

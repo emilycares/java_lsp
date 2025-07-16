@@ -39,7 +39,7 @@ pub fn parse_file(tokens: &[PositionToken]) -> Result<AstFile, AstError> {
 fn parse_package(tokens: &[PositionToken], pos: usize) -> Result<(AstIdentifier, usize), AstError> {
     let pos = assert_token(tokens, pos, Token::Package)?;
     let (package_name, pos) = parse_identifier(tokens, pos)?;
-    let pos = assert_token(tokens, pos, Token::Semicolon)?;
+    let pos = assert_semicolon(tokens, pos);
     Ok((package_name, pos))
 }
 ///  import java.io.IOException;
@@ -84,7 +84,7 @@ fn parse_import(tokens: &[PositionToken], pos: usize) -> Result<(AstImport, usiz
         pos = npos;
         prefix = true;
     }
-    let pos = assert_token(tokens, pos, Token::Semicolon)?;
+    let pos = assert_semicolon(tokens, pos);
     let end = tokens.get(pos).ok_or(AstError::eof())?;
     Ok((
         AstImport {
@@ -192,10 +192,10 @@ fn parse_value_equasion(
     pos: usize,
 ) -> Result<(AstValue, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
-    let (lhs, pos) = parse_value_nuget(tokens, pos)?;
+    let (lhs, pos) = parse_value_for_equasion(tokens, pos)?;
     let (operator, pos) = parse_value_operator(tokens, pos)?;
-    let (rhs, pos) = parse_value_nuget(tokens, pos)?;
-    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    let (rhs, pos) = parse_value_for_equasion(tokens, pos)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstValue::Equasion(AstValueEquasion {
             range: AstRange::from_position_token(start, end),
@@ -205,6 +205,24 @@ fn parse_value_equasion(
         }),
         pos,
     ))
+}
+fn parse_value_for_equasion(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstValue, usize), AstError> {
+    let mut errors = vec![];
+    match parse_expression(tokens, pos) {
+        Ok((expression, pos)) => return Ok((AstValue::Expression(expression), pos)),
+        Err(e) => errors.push(("value expression".to_string(), e)),
+    };
+    match parse_value_nuget(tokens, pos) {
+        Ok((nuget, pos)) => return Ok((nuget, pos)),
+        Err(e) => errors.push(("value nuget".to_string(), e)),
+    }
+    Err(AstError::AllChildrenFailed {
+        parent: "value".to_string(),
+        errors,
+    })
 }
 
 fn parse_value_nuget(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, usize), AstError> {
@@ -275,7 +293,9 @@ fn parse_value_nuget(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, 
                 pos + 1,
             ))
         }
-        Token::DoubleQuote => parse_string_literal(tokens, pos),
+        Token::DoubleQuote => {
+            parse_string_literal(tokens, pos).map(|i| (AstValue::Nuget(i.0), i.1))
+        }
         Token::SingleQuote => parse_char_literal(tokens, pos),
         Token::True => parse_boolean_literal(tokens, pos, true),
         Token::False => parse_boolean_literal(tokens, pos, false),
@@ -307,7 +327,7 @@ fn parse_boolean_literal(
 fn parse_string_literal(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(AstValue, usize), AstError> {
+) -> Result<(AstValueNuget, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let pos = assert_token(tokens, pos, Token::DoubleQuote)?;
     let mut value = SmolStrBuilder::new();
@@ -332,10 +352,10 @@ fn parse_string_literal(
     let pos = assert_token(tokens, pos, Token::DoubleQuote)?;
     let end = tokens.get(pos).ok_or(AstError::eof())?;
     Ok((
-        AstValue::Nuget(AstValueNuget::StringLiteral(AstIdentifier {
+        AstValueNuget::StringLiteral(AstIdentifier {
             range: AstRange::from_position_token(start, end),
             value: value.finish(),
-        })),
+        }),
         pos,
     ))
 }
@@ -416,6 +436,17 @@ fn parse_expression(
         Token::Identifier(_) | Token::Class => {
             let (id, npos) = parse_expression_lhs(tokens, pos)?;
             ident = Some(AstExpressionIdentifier::Identifier(id));
+            pos = npos;
+            if let Ok((exp, npos)) = parse_expression(tokens, pos) {
+                pos = npos;
+                if exp.has_content() {
+                    next = Some(Box::new(exp));
+                }
+            }
+        }
+        Token::DoubleQuote => {
+            let (value, npos) = parse_string_literal(tokens, pos)?;
+            ident = Some(AstExpressionIdentifier::Nuget(value));
             pos = npos;
             if let Ok((exp, npos)) = parse_expression(tokens, pos) {
                 pos = npos;
@@ -568,7 +599,7 @@ fn parse_block_assign(
     let (key, pos) = parse_expression(tokens, pos)?;
     let pos = assert_token(tokens, pos, Token::Equal)?;
     let (value, pos) = parse_value(tokens, pos)?;
-    let pos = assert_token(tokens, pos, Token::Semicolon)?;
+    let pos = assert_semicolon(tokens, pos);
     let end = tokens.get(pos).ok_or(AstError::eof())?;
 
     Ok((
@@ -1121,7 +1152,7 @@ fn parse_avaliability(
 
 #[cfg(test)]
 pub mod tests {
-    use crate::{error::PrintErr, lexer, parse_expression, parse_file};
+    use crate::{error::PrintErr, lexer, parse_expression, parse_file, parse_value_equasion};
 
     #[test]
     fn everything() {
@@ -1211,8 +1242,25 @@ pub mod tests {
         parsed.print_err(content);
         insta::assert_debug_snapshot!(parsed.unwrap());
     }
+
+    #[test]
+    fn equasion_method_call() {
+        let content = r#""z" + a.getThing()"#;
+        let tokens = lexer::lex(content).unwrap();
+        let parsed = parse_value_equasion(&tokens, 0);
+        parsed.print_err(content);
+        insta::assert_debug_snapshot!(parsed.unwrap());
+    }
     #[test]
     fn annotation() {
+        let content = include_str!("../../parser/test/Annotation.java");
+        let tokens = lexer::lex(content).unwrap();
+        let parsed = parse_file(&tokens);
+        parsed.print_err(content);
+        insta::assert_debug_snapshot!(parsed.unwrap());
+    }
+    #[test]
+    fn more_syntax() {
         let content = include_str!("../../parser/test/Annotation.java");
         let tokens = lexer::lex(content).unwrap();
         let parsed = parse_file(&tokens);

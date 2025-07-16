@@ -71,22 +71,40 @@ AstFile {
                         value: "A",
                     },
                     parameters: [
-                        Nuget(
-                            StringLiteral(
-                                AstIdentifier {
-                                    range: AstRange {
-                                        start: AstPoint {
-                                            line: 2,
-                                            col: 6,
-                                        },
-                                        end: AstPoint {
-                                            line: 2,
-                                            col: 10,
-                                        },
+                        Expression(
+                            AstExpression {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 2,
+                                        col: 6,
                                     },
-                                    value: "a",
+                                    end: AstPoint {
+                                        line: 2,
+                                        col: 9,
+                                    },
                                 },
-                            ),
+                                ident: Some(
+                                    Nuget(
+                                        StringLiteral(
+                                            AstIdentifier {
+                                                range: AstRange {
+                                                    start: AstPoint {
+                                                        line: 2,
+                                                        col: 6,
+                                                    },
+                                                    end: AstPoint {
+                                                        line: 2,
+                                                        col: 10,
+                                                    },
+                                                },
+                                                value: "a",
+                                            },
+                                        ),
+                                    ),
+                                ),
+                                values: None,
+                                next: None,
+                            },
                         ),
                     ],
                 },
@@ -115,22 +133,40 @@ AstFile {
                         value: "B",
                     },
                     parameters: [
-                        Nuget(
-                            StringLiteral(
-                                AstIdentifier {
-                                    range: AstRange {
-                                        start: AstPoint {
-                                            line: 3,
-                                            col: 6,
-                                        },
-                                        end: AstPoint {
-                                            line: 3,
-                                            col: 10,
-                                        },
+                        Expression(
+                            AstExpression {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 3,
+                                        col: 6,
                                     },
-                                    value: "b",
+                                    end: AstPoint {
+                                        line: 3,
+                                        col: 9,
+                                    },
                                 },
-                            ),
+                                ident: Some(
+                                    Nuget(
+                                        StringLiteral(
+                                            AstIdentifier {
+                                                range: AstRange {
+                                                    start: AstPoint {
+                                                        line: 3,
+                                                        col: 6,
+                                                    },
+                                                    end: AstPoint {
+                                                        line: 3,
+                                                        col: 10,
+                                                    },
+                                                },
+                                                value: "b",
+                                            },
+                                        ),
+                                    ),
+                                ),
+                                values: None,
+                                next: None,
+                            },
                         ),
                     ],
                 },
@@ -159,22 +195,40 @@ AstFile {
                         value: "C",
                     },
                     parameters: [
-                        Nuget(
-                            StringLiteral(
-                                AstIdentifier {
-                                    range: AstRange {
-                                        start: AstPoint {
-                                            line: 4,
-                                            col: 6,
-                                        },
-                                        end: AstPoint {
-                                            line: 4,
-                                            col: 10,
-                                        },
+                        Expression(
+                            AstExpression {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 4,
+                                        col: 6,
                                     },
-                                    value: "c",
+                                    end: AstPoint {
+                                        line: 4,
+                                        col: 9,
+                                    },
                                 },
-                            ),
+                                ident: Some(
+                                    Nuget(
+                                        StringLiteral(
+                                            AstIdentifier {
+                                                range: AstRange {
+                                                    start: AstPoint {
+                                                        line: 4,
+                                                        col: 6,
+                                                    },
+                                                    end: AstPoint {
+                                                        line: 4,
+                                                        col: 10,
+                                                    },
+                                                },
+                                                value: "c",
+                                            },
+                                        ),
+                                    ),
+                                ),
+                                values: None,
+                                next: None,
+                            },
                         ),
                     ],
                 },
