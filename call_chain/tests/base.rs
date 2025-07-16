@@ -134,14 +134,14 @@ public class Test {
             name: "String".to_string(),
             range: AstRange {
                 start: AstPoint { line: 5, col: 15 },
-                end: AstPoint { line: 5, col: 17 },
+                end: AstPoint { line: 5, col: 18 },
             }
         }])
     );
 }
 
 #[test]
-fn call_chain_field() {
+fn call_chain_field_base() {
     let content = "
 package ch.emilycares;
 public class Test {
@@ -563,7 +563,7 @@ public class Test {
 }
 
 #[test]
-fn call_chain_argument() {
+fn call_chain_argument_base() {
     let content = "
 package ch.emilycares;
 public class Test {
@@ -728,7 +728,7 @@ public class Test {
 }
 
 #[test]
-fn call_chain_argument_second_var() {
+fn call_chain_argument_second_var_base() {
     let content = "
 package ch.emilycares;
 public class Test {
@@ -1025,7 +1025,7 @@ fn call_chain_argument_calc() {
 package ch.emilycares;
 public class Test {
     public void hello() {
-        concat("a" + a.getThing());
+        concat("z" + a.getThing());
         return;
     }
 }
