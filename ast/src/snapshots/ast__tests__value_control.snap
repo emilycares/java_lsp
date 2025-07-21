@@ -1,0 +1,69 @@
+---
+source: ast/src/lib.rs
+expression: parsed.unwrap()
+---
+(
+    Equasion(
+        AstValueEquasion {
+            range: AstRange {
+                start: AstPoint {
+                    line: 0,
+                    col: 0,
+                },
+                end: AstPoint {
+                    line: 0,
+                    col: 13,
+                },
+            },
+            lhs: Nuget(
+                BooleanLiteral(
+                    AstBoolean {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 0,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 4,
+                            },
+                        },
+                        value: true,
+                    },
+                ),
+            ),
+            operator: Equal(
+                AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 5,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 7,
+                    },
+                },
+            ),
+            rhs: Some(
+                Nuget(
+                    BooleanLiteral(
+                        AstBoolean {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 8,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 13,
+                                },
+                            },
+                            value: false,
+                        },
+                    ),
+                ),
+            ),
+        },
+    ),
+    3,
+)

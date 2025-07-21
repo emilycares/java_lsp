@@ -11,6 +11,7 @@ license.workspace = true
 
 [dependencies]
 ast = { path = "../ast"}
+smol_str.workspace = true
 
 [dev-dependencies]
 pretty_assertions.workspace = true

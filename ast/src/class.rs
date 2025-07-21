@@ -38,7 +38,7 @@ pub fn parse_class(
                 continue;
             }
             Err(e) => {
-                errors.push(("class variable".to_string(), e));
+                errors.push(("class variable".into(), e));
             }
         }
         match parse_class_constructor(tokens, pos) {
@@ -48,7 +48,7 @@ pub fn parse_class(
                 continue;
             }
             Err(e) => {
-                errors.push(("class constructor".to_string(), e));
+                errors.push(("class constructor".into(), e));
             }
         }
         match parse_class_method(tokens, pos) {
@@ -58,11 +58,11 @@ pub fn parse_class(
                 continue;
             }
             Err(e) => {
-                errors.push(("class method".to_string(), e));
+                errors.push(("class method".into(), e));
             }
         }
         return Err(AstError::AllChildrenFailed {
-            parent: "class".to_string(),
+            parent: "class".into(),
             errors,
         });
     }

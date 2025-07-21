@@ -1,3 +1,4 @@
+use ast::types::AstPoint;
 use call_chain::CallItem;
 use dashmap::DashMap;
 use document::Document;
@@ -19,12 +20,11 @@ pub enum SignatureError {
 
 pub fn signature_driver(
     document: &Document,
-    point: &tree_sitter::Point,
+    point: &AstPoint,
     class: &Class,
     class_map: &DashMap<std::string::String, parser::dto::Class>,
 ) -> Result<SignatureHelp, SignatureError> {
-    if let Some(call_chain) = call_chain::get_call_chain(&document.tree, document.as_bytes(), point)
-    {
+    if let Some(call_chain) = call_chain::get_call_chain(&document.ast, point) {
         let imports = imports::imports(document);
         let vars = variables::get_vars(document, point).map_err(SignatureError::Variables)?;
         return get_signature(call_chain, &imports, &vars, class, class_map);
@@ -133,6 +133,7 @@ fn method_to_signature_information(method: &dto::Method) -> SignatureInformation
 pub mod tests {
     use std::path::PathBuf;
 
+    use ast::types::AstPoint;
     use dashmap::DashMap;
     use document::Document;
     use lsp_types::{
@@ -140,7 +141,6 @@ pub mod tests {
     };
     use parser::dto;
     use pretty_assertions::assert_eq;
-    use tree_sitter::Point;
 
     use super::signature_driver;
 
@@ -181,7 +181,7 @@ public class Test {
 ";
         let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
-        let out = signature_driver(&doc, &Point::new(5, 29), &class, &class_map).unwrap();
+        let out = signature_driver(&doc, &AstPoint::new(5, 29), &class, &class_map).unwrap();
         assert_eq!(
             out,
             SignatureHelp {
@@ -257,7 +257,7 @@ public class Test {
 ";
         let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
-        let out = signature_driver(&doc, &Point::new(5, 29), &class, &class_map).unwrap();
+        let out = signature_driver(&doc, &AstPoint::new(5, 29), &class, &class_map).unwrap();
         assert_eq!(
             out,
             SignatureHelp {
@@ -350,7 +350,7 @@ public class Test {
 "#;
         let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
-        let out = signature_driver(&doc, &Point::new(5, 39), &class, &class_map).unwrap();
+        let out = signature_driver(&doc, &AstPoint::new(5, 39), &class, &class_map).unwrap();
         assert_eq!(
             out,
             SignatureHelp {

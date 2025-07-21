@@ -32,11 +32,11 @@ pub fn parse_annotation(
                 continue;
             }
             Err(e) => {
-                errors.push(("interface_constant".to_string(), e));
+                errors.push(("interface_constant".into(), e));
             }
         }
         return Err(AstError::AllChildrenFailed {
-            parent: "annotation".to_string(),
+            parent: "annotation".into(),
             errors,
         });
     }

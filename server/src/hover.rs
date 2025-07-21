@@ -1,9 +1,8 @@
-use call_chain::{self, CallItem, class_or_variable};
+use ast::types::{AstFile, AstPoint};
+use call_chain::{self, CallItem};
 use document::Document;
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
 use parser::dto::{self, ImportUnit};
-use tree_sitter::Point;
-use tree_sitter_util::lsp::to_lsp_range;
 use tyres::TyresError;
 use variables::LocalVariable;
 
@@ -22,14 +21,14 @@ pub enum HoverError {
 
 pub fn base(
     document: &Document,
-    point: &Point,
+    point: &AstPoint,
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Result<Hover, HoverError> {
-    let tree = &document.tree;
+    let ast = &document.ast;
     let bytes = document.as_bytes();
-    match class_action(tree, bytes, point, lo_va, imports, class_map) {
+    match class_action(ast, bytes, point, lo_va, imports, class_map) {
         Ok((class, range)) => {
             return Ok(class_to_hover(class, range));
         }
@@ -40,8 +39,7 @@ pub fn base(
         return Err(HoverError::NoClass(document.class_path.clone()));
     };
 
-    let Some(call_chain) = call_chain::get_call_chain(&document.tree, document.as_bytes(), point)
-    else {
+    let Some(call_chain) = call_chain::get_call_chain(ast, point) else {
         return Err(HoverError::CallChainEmpty);
     };
 
@@ -71,9 +69,9 @@ pub enum ClassActionError {
 }
 
 pub fn class_action(
-    tree: &tree_sitter::Tree,
+    tree: &AstFile,
     bytes: &[u8],
-    point: &Point,
+    point: &AstPoint,
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
@@ -113,7 +111,7 @@ pub fn class_action(
 pub fn call_chain_hover(
     document: &Document,
     call_chain: Vec<CallItem>,
-    point: &Point,
+    point: &AstPoint,
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &dto::Class,
@@ -307,10 +305,10 @@ fn class_to_hover(class: dto::Class, range: Range) -> Hover {
 mod tests {
     use std::path::PathBuf;
 
+    use ast::types::AstPoint;
     use dashmap::DashMap;
     use document::Document;
     use parser::dto;
-    use tree_sitter::Point;
 
     use crate::hover::{call_chain_hover, class_action};
 
@@ -325,13 +323,13 @@ public class Test {
 }
 ";
         let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
-        let tree = &doc.tree;
+        let ast = &doc.ast;
         let bytes = doc.as_bytes();
 
         let out = class_action(
-            tree,
+            ast,
             bytes,
-            &Point::new(3, 14),
+            &AstPoint::new(3, 14),
             &[],
             &[],
             &string_class_map(),
@@ -351,13 +349,13 @@ public class Test {
 }
 ";
         let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
-        let tree = &doc.tree;
+        let ast = &doc.ast;
         let bytes = doc.as_bytes();
 
         let out = class_action(
-            tree,
+            ast,
             bytes,
-            &Point::new(3, 9),
+            &AstPoint::new(3, 9),
             &[],
             &[],
             &string_class_map(),
@@ -382,10 +380,10 @@ public class Test {
 }
 ";
         let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
-        let point = Point::new(5, 29);
+        let point = AstPoint::new(5, 29);
         let vars = variables::get_vars(&doc, &point).unwrap();
 
-        let chain = call_chain::get_call_chain(&doc.tree, doc.as_bytes(), &point).unwrap();
+        let chain = call_chain::get_call_chain(&doc.ast, &point).unwrap();
         let out = call_chain_hover(&doc, chain, &point, &vars, &[], &class, &string_class_map());
         assert!(out.is_ok());
     }

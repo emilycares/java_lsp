@@ -1,5 +1,7 @@
 use std::panic::Location;
 
+use smol_str::SmolStr;
+
 use super::lexer::{PositionToken, Token};
 
 pub trait PrintErr {
@@ -25,11 +27,12 @@ pub enum AstError {
     InvalidName(InvalidToken),
     InvalidNuget(InvalidToken),
     AllChildrenFailed {
-        parent: String,
-        errors: Vec<(String, AstError)>,
+        parent: SmolStr,
+        errors: Vec<(SmolStr, AstError)>,
     },
     InvalidExpression(InvalidToken),
     InvalidDouble(i64, i64),
+    InvalidBoolean(InvalidToken),
 }
 impl AstError {
     #[track_caller]
@@ -116,6 +119,14 @@ impl AstError {
             }
             AstError::InvalidDouble(a, b) => {
                 eprintln!("Invalid double {a}.{b}");
+            }
+            AstError::InvalidBoolean(invalid_token) => {
+                print_helper(
+                    content,
+                    invalid_token.line,
+                    invalid_token.col,
+                    format!("Token not allowed in boolean: {:?}", invalid_token.found),
+                );
             }
         }
     }

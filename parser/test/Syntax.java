@@ -3,7 +3,7 @@ public class Syntax {
     public static void main(String[] args) {
         if (a ) {
         }
-        if true
+        if (true)
           1;
 
         if (a) {
@@ -11,9 +11,9 @@ public class Syntax {
         }
         while (true) {
         }
-        for(i=1;i<=5;i++) {
+        for(int i=1;i<=5;i++) {
         }
-        outer: for(i=1;i<=5;i++) {
+        outer: for(int i=1;i<=5;i++) {
         }
         String[] cars = {"Volvo", "BMW", "Ford", "Mazda"};
         System.out.println(cars[0]);
