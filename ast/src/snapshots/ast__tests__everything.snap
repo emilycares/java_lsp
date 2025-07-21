@@ -753,38 +753,40 @@ AstFile {
                                                         },
                                                     },
                                                 ),
-                                                rhs: Expression(
-                                                    AstExpression {
-                                                        range: AstRange {
-                                                            start: AstPoint {
-                                                                line: 30,
-                                                                col: 19,
-                                                            },
-                                                            end: AstPoint {
-                                                                line: 30,
-                                                                col: 20,
-                                                            },
-                                                        },
-                                                        ident: Some(
-                                                            Identifier(
-                                                                AstIdentifier {
-                                                                    range: AstRange {
-                                                                        start: AstPoint {
-                                                                            line: 30,
-                                                                            col: 19,
-                                                                        },
-                                                                        end: AstPoint {
-                                                                            line: 30,
-                                                                            col: 20,
-                                                                        },
-                                                                    },
-                                                                    value: "b",
+                                                rhs: Some(
+                                                    Expression(
+                                                        AstExpression {
+                                                            range: AstRange {
+                                                                start: AstPoint {
+                                                                    line: 30,
+                                                                    col: 19,
                                                                 },
+                                                                end: AstPoint {
+                                                                    line: 30,
+                                                                    col: 20,
+                                                                },
+                                                            },
+                                                            ident: Some(
+                                                                Identifier(
+                                                                    AstIdentifier {
+                                                                        range: AstRange {
+                                                                            start: AstPoint {
+                                                                                line: 30,
+                                                                                col: 19,
+                                                                            },
+                                                                            end: AstPoint {
+                                                                                line: 30,
+                                                                                col: 20,
+                                                                            },
+                                                                        },
+                                                                        value: "b",
+                                                                    },
+                                                                ),
                                                             ),
-                                                        ),
-                                                        values: None,
-                                                        next: None,
-                                                    },
+                                                            values: None,
+                                                            next: None,
+                                                        },
+                                                    ),
                                                 ),
                                             },
                                         ),
@@ -1021,38 +1023,40 @@ AstFile {
                                                         },
                                                     },
                                                 ),
-                                                rhs: Expression(
-                                                    AstExpression {
-                                                        range: AstRange {
-                                                            start: AstPoint {
-                                                                line: 34,
-                                                                col: 17,
-                                                            },
-                                                            end: AstPoint {
-                                                                line: 34,
-                                                                col: 18,
-                                                            },
-                                                        },
-                                                        ident: Some(
-                                                            Identifier(
-                                                                AstIdentifier {
-                                                                    range: AstRange {
-                                                                        start: AstPoint {
-                                                                            line: 34,
-                                                                            col: 17,
-                                                                        },
-                                                                        end: AstPoint {
-                                                                            line: 34,
-                                                                            col: 18,
-                                                                        },
-                                                                    },
-                                                                    value: "b",
+                                                rhs: Some(
+                                                    Expression(
+                                                        AstExpression {
+                                                            range: AstRange {
+                                                                start: AstPoint {
+                                                                    line: 34,
+                                                                    col: 17,
                                                                 },
+                                                                end: AstPoint {
+                                                                    line: 34,
+                                                                    col: 18,
+                                                                },
+                                                            },
+                                                            ident: Some(
+                                                                Identifier(
+                                                                    AstIdentifier {
+                                                                        range: AstRange {
+                                                                            start: AstPoint {
+                                                                                line: 34,
+                                                                                col: 17,
+                                                                            },
+                                                                            end: AstPoint {
+                                                                                line: 34,
+                                                                                col: 18,
+                                                                            },
+                                                                        },
+                                                                        value: "b",
+                                                                    },
+                                                                ),
                                                             ),
-                                                        ),
-                                                        values: None,
-                                                        next: None,
-                                                    },
+                                                            values: None,
+                                                            next: None,
+                                                        },
+                                                    ),
                                                 ),
                                             },
                                         ),

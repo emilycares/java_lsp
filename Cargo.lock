@@ -173,6 +173,7 @@ version = "0.1.0"
 dependencies = [
  "ast",
  "pretty_assertions",
+ "smol_str",
 ]
 
 [[package]]
@@ -1866,11 +1867,10 @@ dependencies = [
 name = "tyres"
 version = "0.1.0"
 dependencies = [
+ "ast",
  "call_chain",
  "dashmap",
  "parser",
- "tree-sitter",
- "tree-sitter-util",
  "variables",
 ]
 

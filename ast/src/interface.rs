@@ -48,7 +48,7 @@ pub fn parse_interface(
                 continue;
             }
             Err(e) => {
-                errors.push(("interface_constant".to_string(), e));
+                errors.push(("interface_constant".into(), e));
             }
         }
         match parse_interface_method(tokens, pos) {
@@ -58,7 +58,7 @@ pub fn parse_interface(
                 continue;
             }
             Err(e) => {
-                errors.push(("interface_method".to_string(), e));
+                errors.push(("interface_method".into(), e));
             }
         }
         match parse_interface_method_impl(tokens, pos) {
@@ -68,11 +68,11 @@ pub fn parse_interface(
                 continue;
             }
             Err(e) => {
-                errors.push(("interface_method_impl".to_string(), e));
+                errors.push(("interface_method_impl".into(), e));
             }
         }
         return Err(AstError::AllChildrenFailed {
-            parent: "interface".to_string(),
+            parent: "interface".into(),
             errors,
         });
     }

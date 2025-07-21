@@ -53,7 +53,7 @@ pub fn parse_enumeration(
                 continue;
             }
             Err(e) => {
-                errors.push(("enum_method".to_string(), e));
+                errors.push(("enum_method".into(), e));
             }
         }
         match parse_class_constructor(tokens, pos) {
@@ -63,7 +63,7 @@ pub fn parse_enumeration(
                 continue;
             }
             Err(e) => {
-                errors.push(("enum_constructor".to_string(), e));
+                errors.push(("enum_constructor".into(), e));
             }
         }
         match parse_class_variable(tokens, pos) {
@@ -73,11 +73,11 @@ pub fn parse_enumeration(
                 continue;
             }
             Err(e) => {
-                errors.push(("enum_variable".to_string(), e));
+                errors.push(("enum_variable".into(), e));
             }
         }
         return Err(AstError::AllChildrenFailed {
-            parent: "enum".to_string(),
+            parent: "enum".into(),
             errors,
         });
     }

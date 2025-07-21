@@ -3,66 +3,66 @@ source: ast/src/lib.rs
 expression: parsed.unwrap()
 ---
 (
-    Equasion(
-        AstValueEquasion {
-            range: AstRange {
-                start: AstPoint {
-                    line: 0,
-                    col: 0,
-                },
-                end: AstPoint {
-                    line: 0,
-                    col: 18,
-                },
+    AstValueEquasion {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
             },
-            lhs: Expression(
-                AstExpression {
-                    range: AstRange {
-                        start: AstPoint {
-                            line: 0,
-                            col: 0,
-                        },
-                        end: AstPoint {
-                            line: 0,
-                            col: 3,
-                        },
-                    },
-                    ident: Some(
-                        Nuget(
-                            StringLiteral(
-                                AstIdentifier {
-                                    range: AstRange {
-                                        start: AstPoint {
-                                            line: 0,
-                                            col: 0,
-                                        },
-                                        end: AstPoint {
-                                            line: 0,
-                                            col: 5,
-                                        },
-                                    },
-                                    value: "z",
-                                },
-                            ),
-                        ),
-                    ),
-                    values: None,
-                    next: None,
-                },
-            ),
-            operator: Plus(
-                AstRange {
+            end: AstPoint {
+                line: 0,
+                col: 18,
+            },
+        },
+        lhs: Expression(
+            AstExpression {
+                range: AstRange {
                     start: AstPoint {
                         line: 0,
-                        col: 4,
+                        col: 0,
                     },
                     end: AstPoint {
                         line: 0,
-                        col: 5,
+                        col: 3,
                     },
                 },
-            ),
-            rhs: Expression(
+                ident: Some(
+                    Nuget(
+                        StringLiteral(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 0,
+                                        col: 0,
+                                    },
+                                    end: AstPoint {
+                                        line: 0,
+                                        col: 5,
+                                    },
+                                },
+                                value: "z",
+                            },
+                        ),
+                    ),
+                ),
+                values: None,
+                next: None,
+            },
+        ),
+        operator: Plus(
+            AstRange {
+                start: AstPoint {
+                    line: 0,
+                    col: 4,
+                },
+                end: AstPoint {
+                    line: 0,
+                    col: 5,
+                },
+            },
+        ),
+        rhs: Some(
+            Expression(
                 AstExpression {
                     range: AstRange {
                         start: AstPoint {
@@ -173,7 +173,7 @@ expression: parsed.unwrap()
                     ),
                 },
             ),
-        },
-    ),
+        ),
+    },
     9,
 )

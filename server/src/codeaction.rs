@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ast::types::AstFile;
+use ast::types::{AstFile, AstPoint};
 use lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, Position, Range, TextEdit, Uri, WorkspaceEdit,
 };
@@ -9,7 +9,7 @@ use tyres::TyresError;
 use variables::LocalVariable;
 
 pub struct CodeActionContext<'a> {
-    pub point: &'a Point,
+    pub point: &'a AstPoint,
     pub imports: &'a [ImportUnit],
     pub class_map: &'a dashmap::DashMap<String, parser::dto::Class>,
     pub class: &'a dto::Class,
@@ -26,7 +26,7 @@ pub enum CodeActionError {
 }
 
 pub fn replace_with_value_type(
-    tree: &tree_sitter::Tree,
+    tree: &AstFile,
     bytes: &[u8],
     context: &CodeActionContext,
 ) -> Result<Option<CodeActionOrCommand>, CodeActionError> {

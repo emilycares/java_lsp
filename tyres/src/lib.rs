@@ -2,11 +2,10 @@ mod parent;
 
 use std::ops::Deref;
 
+use ast::types::AstPoint;
 use call_chain::CallItem;
 use dashmap::DashMap;
 use parser::dto::{self, Class, ImportUnit, JType};
-use tree_sitter::Point;
-use tree_sitter_util::is_point_in_range;
 use variables::LocalVariable;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -63,14 +62,14 @@ pub fn is_imported<'a>(
             None
         }
         ImportUnit::Package(p) | ImportUnit::Prefix(p) => {
-            let possible_class_path = format!("{}.{}", p, jtype);
+            let possible_class_path = format!("{p}.{jtype}");
             if class_map.contains_key(&possible_class_path) {
                 return Some(ImportResult::Class(possible_class_path));
             }
             None
         }
         ImportUnit::StaticPrefix(p) => {
-            let possible_class_path = format!("{}.{}", p, jtype);
+            let possible_class_path = format!("{p}.{jtype}");
             if class_map.contains_key(&possible_class_path) {
                 return Some(ImportResult::StaticClass(possible_class_path));
             }
@@ -85,8 +84,8 @@ pub fn resolve(
     imports: &[ImportUnit],
     class_map: &DashMap<std::string::String, parser::dto::Class>,
 ) -> Result<ResolveState, TyresError> {
-    eprintln!("resolve: {}", jtype);
-    let lang_class_key = format!("java.lang.{}", jtype);
+    eprintln!("resolve: {jtype}");
+    let lang_class_key = format!("java.lang.{jtype}");
     if let Some(lang_class) = class_map.get(lang_class_key.as_str()) {
         return Ok(ResolveState {
             jtype: JType::Class(lang_class_key),
@@ -217,14 +216,14 @@ pub fn resolve_call_chain_to_point(
     imports: &[ImportUnit],
     class: &Class,
     class_map: &DashMap<String, Class>,
-    point: &Point,
+    point: &AstPoint,
 ) -> Result<ResolveState, TyresError> {
     if call_chain.is_empty() {
         return Err(TyresError::CallChainEmtpy);
     }
     let mut ops: Vec<ResolveState> = vec![];
     for item in call_chain {
-        if is_point_in_range(point, item.get_range()) {
+        if item.get_range().is_in_range(point) {
             break;
         }
         let op = call_chain_op(item, &ops, lo_va, imports, class, class_map, true);

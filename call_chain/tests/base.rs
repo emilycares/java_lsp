@@ -29,7 +29,7 @@ public class Test {
     assert_eq!(
         out,
         Some(vec![CallItem::ClassOrVariable {
-            name: "local".to_string(),
+            name: "local".into(),
             range: AstRange {
                 start: AstPoint { line: 8, col: 17 },
                 end: AstPoint { line: 8, col: 22 }
@@ -58,7 +58,7 @@ public class Test {
     assert_eq!(
         out,
         Some(vec![CallItem::ClassOrVariable {
-            name: "a".to_string(),
+            name: "a".into(),
             range: AstRange {
                 start: AstPoint { line: 4, col: 8 },
                 end: AstPoint { line: 4, col: 9 }
@@ -94,14 +94,14 @@ fn call_chain_method_a() {
         out,
         Some(vec![
             CallItem::ClassOrVariable {
-                name: "local".to_string(),
+                name: "local".into(),
                 range: AstRange {
                     start: AstPoint { line: 8, col: 17 },
                     end: AstPoint { line: 8, col: 22 },
                 }
             },
             CallItem::MethodCall {
-                name: "concat".to_string(),
+                name: "concat".into(),
                 range: AstRange {
                     start: AstPoint { line: 8, col: 23 },
                     end: AstPoint { line: 8, col: 29 }
@@ -131,7 +131,7 @@ public class Test {
     assert_eq!(
         out,
         Some(vec![CallItem::Class {
-            name: "String".to_string(),
+            name: "String".into(),
             range: AstRange {
                 start: AstPoint { line: 5, col: 15 },
                 end: AstPoint { line: 5, col: 18 },
@@ -160,14 +160,14 @@ public class Test {
         out,
         Some(vec![
             CallItem::ClassOrVariable {
-                name: "local".to_string(),
+                name: "local".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 17 },
                     end: AstPoint { line: 5, col: 22 },
                 }
             },
             CallItem::FieldAccess {
-                name: "a".to_string(),
+                name: "a".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 23 },
                     end: AstPoint { line: 5, col: 24 },
@@ -197,14 +197,14 @@ public class GreetingResource {
         out,
         Some(vec![
             CallItem::ClassOrVariable {
-                name: "a".to_string(),
+                name: "a".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 8 },
                     end: AstPoint { line: 5, col: 9 },
                 }
             },
             CallItem::MethodCall {
-                name: "concat".to_string(),
+                name: "concat".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 10 },
                     end: AstPoint { line: 5, col: 16 }
@@ -234,21 +234,21 @@ public class GreetingResource {
         out,
         Some(vec![
             CallItem::ClassOrVariable {
-                name: "a".to_string(),
+                name: "a".into(),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 8 },
                     end: AstPoint { line: 4, col: 9 },
                 }
             },
             CallItem::MethodCall {
-                name: "concat".to_string(),
+                name: "concat".into(),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 10 },
                     end: AstPoint { line: 4, col: 16 }
                 }
             },
             CallItem::MethodCall {
-                name: "other".to_string(),
+                name: "other".into(),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 21 },
                     end: AstPoint { line: 4, col: 26 }
@@ -278,21 +278,21 @@ public class Test {
         out,
         Some(vec![
             CallItem::ClassOrVariable {
-                name: "local".to_string(),
+                name: "local".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 17 },
                     end: AstPoint { line: 5, col: 22 }
                 }
             },
             CallItem::FieldAccess {
-                name: "a".to_string(),
+                name: "a".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 23 },
                     end: AstPoint { line: 5, col: 24 }
                 },
             },
             CallItem::MethodCall {
-                name: "b".to_string(),
+                name: "b".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 25 },
                     end: AstPoint { line: 5, col: 26 }
@@ -322,21 +322,21 @@ public class Test {
         out,
         Some(vec![
             CallItem::ClassOrVariable {
-                name: "local".to_string(),
+                name: "local".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 17 },
                     end: AstPoint { line: 5, col: 22 },
                 }
             },
             CallItem::MethodCall {
-                name: "a".to_string(),
+                name: "a".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 23 },
                     end: AstPoint { line: 5, col: 24 },
                 }
             },
             CallItem::FieldAccess {
-                name: "b".to_string(),
+                name: "b".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 27 },
                     end: AstPoint { line: 5, col: 28 },
@@ -365,7 +365,7 @@ public class Test {
     assert_eq!(
         out,
         Some(vec![CallItem::ClassOrVariable {
-            name: "local".to_string(),
+            name: "local".into(),
             range: AstRange {
                 start: AstPoint { line: 5, col: 17 },
                 end: AstPoint { line: 5, col: 22 },
@@ -394,21 +394,21 @@ public class Test {
         out,
         Some(vec![
             CallItem::ClassOrVariable {
-                name: "local".to_string(),
+                name: "local".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 16 },
                     end: AstPoint { line: 5, col: 21 },
                 }
             },
             CallItem::MethodCall {
-                name: "a".to_string(),
+                name: "a".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 22 },
                     end: AstPoint { line: 5, col: 23 },
                 }
             },
             CallItem::FieldAccess {
-                name: "c".to_string(),
+                name: "c".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 26 },
                     end: AstPoint { line: 5, col: 27 },
@@ -438,21 +438,21 @@ public class Test {
         out,
         Some(vec![
             CallItem::ClassOrVariable {
-                name: "local".to_string(),
+                name: "local".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 16 },
                     end: AstPoint { line: 5, col: 21 }
                 }
             },
             CallItem::FieldAccess {
-                name: "a".to_string(),
+                name: "a".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 22 },
                     end: AstPoint { line: 5, col: 23 },
                 }
             },
             CallItem::MethodCall {
-                name: "c".to_string(),
+                name: "c".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 24 },
                     end: AstPoint { line: 5, col: 25 },
@@ -482,21 +482,21 @@ public class Test {
         out,
         Some(vec![
             CallItem::ClassOrVariable {
-                name: "local".to_string(),
+                name: "local".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 8 },
                     end: AstPoint { line: 5, col: 13 },
                 }
             },
             CallItem::FieldAccess {
-                name: "a".to_string(),
+                name: "a".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 14 },
                     end: AstPoint { line: 5, col: 15 },
                 }
             },
             CallItem::MethodCall {
-                name: "c".to_string(),
+                name: "c".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 16 },
                     end: AstPoint { line: 5, col: 17 },
@@ -525,7 +525,7 @@ public class Test {
     assert_eq!(
         out,
         Some(vec![CallItem::ClassOrVariable {
-            name: "String".to_string(),
+            name: "String".into(),
             range: AstRange {
                 start: AstPoint { line: 5, col: 8 },
                 end: AstPoint { line: 5, col: 14 },
@@ -553,7 +553,7 @@ public class Test {
     assert_eq!(
         out,
         Some(vec![CallItem::ClassOrVariable {
-            name: "String".to_string(),
+            name: "String".into(),
             range: AstRange {
                 start: AstPoint { line: 5, col: 20 },
                 end: AstPoint { line: 5, col: 26 },
@@ -583,14 +583,14 @@ public class Test {
         Some(vec![CallItem::ArgumentList {
             prev: vec![
                 CallItem::ClassOrVariable {
-                    name: "local".to_string(),
+                    name: "local".into(),
                     range: AstRange {
                         start: AstPoint { line: 5, col: 8 },
                         end: AstPoint { line: 5, col: 13 },
                     },
                 },
                 CallItem::MethodCall {
-                    name: "concat".to_string(),
+                    name: "concat".into(),
                     range: AstRange {
                         start: AstPoint { line: 5, col: 14 },
                         end: AstPoint { line: 5, col: 20 },
@@ -629,14 +629,14 @@ public class Test {
             CallItem::ArgumentList {
                 prev: vec![
                     CallItem::ClassOrVariable {
-                        name: "local".to_string(),
+                        name: "local".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 8 },
                             end: AstPoint { line: 5, col: 13 },
                         },
                     },
                     CallItem::MethodCall {
-                        name: "concat".to_string(),
+                        name: "concat".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 14 },
                             end: AstPoint { line: 5, col: 20 },
@@ -648,7 +648,7 @@ public class Test {
                     end: AstPoint { line: 5, col: 29 },
                 },
                 filled_params: vec![vec![CallItem::ClassOrVariable {
-                    name: "local".to_string(),
+                    name: "local".into(),
                     range: AstRange {
                         start: AstPoint { line: 5, col: 21 },
                         end: AstPoint { line: 5, col: 26 }
@@ -657,7 +657,7 @@ public class Test {
                 active_param: Some(0),
             },
             CallItem::ClassOrVariable {
-                name: "local".to_string(),
+                name: "local".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 21 },
                     end: AstPoint { line: 5, col: 26 }
@@ -689,14 +689,14 @@ public class Test {
             CallItem::ArgumentList {
                 prev: vec![
                     CallItem::ClassOrVariable {
-                        name: "local".to_string(),
+                        name: "local".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 8 },
                             end: AstPoint { line: 5, col: 13 },
                         },
                     },
                     CallItem::MethodCall {
-                        name: "concat".to_string(),
+                        name: "concat".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 14 },
                             end: AstPoint { line: 5, col: 20 },
@@ -708,7 +708,7 @@ public class Test {
                     end: AstPoint { line: 5, col: 28 },
                 },
                 filled_params: vec![vec![CallItem::ClassOrVariable {
-                    name: "local".to_string(),
+                    name: "local".into(),
                     range: AstRange {
                         start: AstPoint { line: 5, col: 21 },
                         end: AstPoint { line: 5, col: 26 }
@@ -717,7 +717,7 @@ public class Test {
                 active_param: Some(0)
             },
             CallItem::ClassOrVariable {
-                name: "local".to_string(),
+                name: "local".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 21 },
                     end: AstPoint { line: 5, col: 26 }
@@ -758,14 +758,14 @@ public class Test {
             CallItem::ArgumentList {
                 prev: vec![
                     CallItem::ClassOrVariable {
-                        name: "a".to_string(),
+                        name: "a".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 8 },
                             end: AstPoint { line: 5, col: 9 },
                         },
                     },
                     CallItem::MethodCall {
-                        name: "concat".to_string(),
+                        name: "concat".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 10 },
                             end: AstPoint { line: 5, col: 16 },
@@ -778,14 +778,14 @@ public class Test {
                 },
                 filled_params: vec![
                     vec![CallItem::ClassOrVariable {
-                        name: "b".to_string(),
+                        name: "b".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 17 },
                             end: AstPoint { line: 5, col: 18 },
                         },
                     }],
                     vec![CallItem::ClassOrVariable {
-                        name: "c".to_string(),
+                        name: "c".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 20 },
                             end: AstPoint { line: 5, col: 21 },
@@ -795,7 +795,7 @@ public class Test {
                 active_param: Some(1)
             },
             CallItem::ClassOrVariable {
-                name: "c".to_string(),
+                name: "c".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 20 },
                     end: AstPoint { line: 5, col: 21 },
@@ -827,14 +827,14 @@ public class Test {
             CallItem::ArgumentList {
                 prev: vec![
                     CallItem::ClassOrVariable {
-                        name: "a".to_string(),
+                        name: "a".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 8 },
                             end: AstPoint { line: 5, col: 9 },
                         },
                     },
                     CallItem::MethodCall {
-                        name: "concat".to_string(),
+                        name: "concat".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 10 },
                             end: AstPoint { line: 5, col: 16 },
@@ -847,14 +847,14 @@ public class Test {
                 },
                 filled_params: vec![
                     vec![CallItem::ClassOrVariable {
-                        name: "b".to_string(),
+                        name: "b".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 17 },
                             end: AstPoint { line: 5, col: 18 },
                         }
                     }],
                     vec![CallItem::ClassOrVariable {
-                        name: "c".to_string(),
+                        name: "c".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 21 },
                             end: AstPoint { line: 5, col: 22 },
@@ -864,7 +864,7 @@ public class Test {
                 active_param: Some(0)
             },
             CallItem::ClassOrVariable {
-                name: "b".to_string(),
+                name: "b".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 17 },
                     end: AstPoint { line: 5, col: 18 },
@@ -896,14 +896,14 @@ public class Test {
             CallItem::ArgumentList {
                 prev: vec![
                     CallItem::ClassOrVariable {
-                        name: "a".to_string(),
+                        name: "a".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 8 },
                             end: AstPoint { line: 5, col: 9 },
                         },
                     },
                     CallItem::MethodCall {
-                        name: "concat".to_string(),
+                        name: "concat".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 10 },
                             end: AstPoint { line: 5, col: 16 },
@@ -916,14 +916,14 @@ public class Test {
                 },
                 filled_params: vec![
                     vec![CallItem::ClassOrVariable {
-                        name: "b".to_string(),
+                        name: "b".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 17 },
                             end: AstPoint { line: 5, col: 18 },
                         }
                     }],
                     vec![CallItem::ClassOrVariable {
-                        name: "c".to_string(),
+                        name: "c".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 20 },
                             end: AstPoint { line: 5, col: 21 },
@@ -933,7 +933,7 @@ public class Test {
                 active_param: Some(1)
             },
             CallItem::ClassOrVariable {
-                name: "c".to_string(),
+                name: "c".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 20 },
                     end: AstPoint { line: 5, col: 21 },
@@ -965,14 +965,14 @@ public class Test {
             CallItem::ArgumentList {
                 prev: vec![
                     CallItem::ClassOrVariable {
-                        name: "a".to_string(),
+                        name: "a".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 8 },
                             end: AstPoint { line: 5, col: 9 },
                         },
                     },
                     CallItem::MethodCall {
-                        name: "concat".to_string(),
+                        name: "concat".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 10 },
                             end: AstPoint { line: 5, col: 16 },
@@ -985,14 +985,14 @@ public class Test {
                 },
                 filled_params: vec![vec![
                     CallItem::ClassOrVariable {
-                        name: "b".to_string(),
+                        name: "b".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 17 },
                             end: AstPoint { line: 5, col: 18 },
                         }
                     },
                     CallItem::FieldAccess {
-                        name: "a".to_string(),
+                        name: "a".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 19 },
                             end: AstPoint { line: 5, col: 20 }
@@ -1002,14 +1002,14 @@ public class Test {
                 active_param: Some(0)
             },
             CallItem::ClassOrVariable {
-                name: "b".to_string(),
+                name: "b".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 17 },
                     end: AstPoint { line: 5, col: 18 },
                 }
             },
             CallItem::FieldAccess {
-                name: "a".to_string(),
+                name: "a".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 19 },
                     end: AstPoint { line: 5, col: 20 }
@@ -1039,7 +1039,7 @@ public class Test {
         Some(vec![
             CallItem::ArgumentList {
                 prev: vec![CallItem::MethodCall {
-                    name: "concat".to_string(),
+                    name: "concat".into(),
                     range: AstRange {
                         start: AstPoint { line: 4, col: 8 },
                         end: AstPoint { line: 4, col: 14 }
@@ -1047,14 +1047,14 @@ public class Test {
                 },],
                 filled_params: vec![vec![
                     CallItem::ClassOrVariable {
-                        name: "a".to_string(),
+                        name: "a".into(),
                         range: AstRange {
                             start: AstPoint { line: 4, col: 21 },
                             end: AstPoint { line: 4, col: 22 },
                         }
                     },
                     CallItem::MethodCall {
-                        name: "getThing".to_string(),
+                        name: "getThing".into(),
                         range: AstRange {
                             start: AstPoint { line: 4, col: 23 },
                             end: AstPoint { line: 4, col: 31 }
@@ -1068,14 +1068,14 @@ public class Test {
                 },
             },
             CallItem::ClassOrVariable {
-                name: "a".to_string(),
+                name: "a".into(),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 21 },
                     end: AstPoint { line: 4, col: 22 },
                 }
             },
             CallItem::MethodCall {
-                name: "getThing".to_string(),
+                name: "getThing".into(),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 23 },
                     end: AstPoint { line: 4, col: 31 }
@@ -1105,14 +1105,14 @@ public class Test {
         Some(vec![CallItem::ArgumentList {
             prev: vec![
                 CallItem::ClassOrVariable {
-                    name: "a".to_string(),
+                    name: "a".into(),
                     range: AstRange {
                         start: AstPoint { line: 4, col: 8 },
                         end: AstPoint { line: 4, col: 9 },
                     },
                 },
                 CallItem::MethodCall {
-                    name: "concat".to_string(),
+                    name: "concat".into(),
                     range: AstRange {
                         start: AstPoint { line: 4, col: 10 },
                         end: AstPoint { line: 4, col: 16 },
@@ -1151,14 +1151,14 @@ public class Test {
             CallItem::ArgumentList {
                 prev: vec![
                     CallItem::ClassOrVariable {
-                        name: "a".to_string(),
+                        name: "a".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 8 },
                             end: AstPoint { line: 5, col: 9 },
                         },
                     },
                     CallItem::MethodCall {
-                        name: "concat".to_string(),
+                        name: "concat".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 10 },
                             end: AstPoint { line: 5, col: 16 },
@@ -1171,14 +1171,14 @@ public class Test {
                 },
                 filled_params: vec![vec![
                     CallItem::ClassOrVariable {
-                        name: "b".to_string(),
+                        name: "b".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 17 },
                             end: AstPoint { line: 5, col: 18 }
                         }
                     },
                     CallItem::MethodCall {
-                        name: "a".to_string(),
+                        name: "a".into(),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 19 },
                             end: AstPoint { line: 5, col: 20 },
@@ -1188,14 +1188,14 @@ public class Test {
                 active_param: Some(0)
             },
             CallItem::ClassOrVariable {
-                name: "b".to_string(),
+                name: "b".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 17 },
                     end: AstPoint { line: 5, col: 18 }
                 }
             },
             CallItem::MethodCall {
-                name: "a".to_string(),
+                name: "a".into(),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 19 },
                     end: AstPoint { line: 5, col: 20 },
@@ -1206,7 +1206,7 @@ public class Test {
 }
 
 #[test]
-fn call_chain_if() {
+fn call_chain_if_base() {
     let content = "
 package ch.emilycares;
 public class Test {
@@ -1218,13 +1218,16 @@ public class Test {
 }
 ";
     let tokens = ast::lexer::lex(content).unwrap();
-    let ast = ast::parse_file(&tokens).unwrap();
+    let ast = ast::parse_file(&tokens);
+    ast.print_err(content);
+    let ast = ast.unwrap();
+    dbg!(&ast);
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 14));
     assert_eq!(
         out,
         Some(vec![CallItem::ClassOrVariable {
-            name: "a".to_string(),
+            name: "a".into(),
             range: AstRange {
                 start: AstPoint { line: 4, col: 12 },
                 end: AstPoint { line: 4, col: 13 },
@@ -1246,13 +1249,15 @@ public class Test {
 }
 ";
     let tokens = ast::lexer::lex(content).unwrap();
-    let ast = ast::parse_file(&tokens).unwrap();
+    let ast = ast::parse_file(&tokens);
+    ast.print_err(content);
+    let ast = ast.unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 19));
     assert_eq!(
         out,
         Some(vec![CallItem::ClassOrVariable {
-            name: "b".to_string(),
+            name: "b".into(),
             range: AstRange {
                 start: AstPoint { line: 4, col: 17 },
                 end: AstPoint { line: 4, col: 18 },
@@ -1278,7 +1283,7 @@ public class Test {
     assert_eq!(
         out,
         Some(vec![CallItem::ClassOrVariable {
-            name: "a".to_string(),
+            name: "a".into(),
             range: AstRange {
                 start: AstPoint { line: 4, col: 15 },
                 end: AstPoint { line: 4, col: 16 }
@@ -1305,14 +1310,14 @@ public class Test {
         out,
         Some(vec![
             CallItem::ClassOrVariable {
-                name: "a".to_string(),
+                name: "a".into(),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 15 },
                     end: AstPoint { line: 4, col: 16 },
                 }
             },
             CallItem::MethodCall {
-                name: "b".to_string(),
+                name: "b".into(),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 17 },
                     end: AstPoint { line: 4, col: 18 },
@@ -1340,7 +1345,7 @@ public class Test {
     assert_eq!(
         out,
         Some(vec![CallItem::Class {
-            name: "String".to_string(),
+            name: "String".into(),
             range: AstRange {
                 start: AstPoint { line: 4, col: 12 },
                 end: AstPoint { line: 4, col: 18 }
@@ -1368,14 +1373,14 @@ public class Test {
         out,
         Some(vec![
             CallItem::Class {
-                name: "String".to_string(),
+                name: "String".into(),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 12 },
                     end: AstPoint { line: 4, col: 18 },
                 }
             },
             CallItem::FieldAccess {
-                name: "a".to_string(),
+                name: "a".into(),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 21 },
                     end: AstPoint { line: 4, col: 22 },
@@ -1404,14 +1409,14 @@ public class Test {
         out,
         Some(vec![
             CallItem::Class {
-                name: "String".to_string(),
+                name: "String".into(),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 12 },
                     end: AstPoint { line: 4, col: 18 },
                 }
             },
             CallItem::MethodCall {
-                name: "a".to_string(),
+                name: "a".into(),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 21 },
                     end: AstPoint { line: 4, col: 22 },
@@ -1437,14 +1442,14 @@ public class Test {
         out,
         Some(vec![
             CallItem::ClassOrVariable {
-                name: "Logger".to_string(),
+                name: "Logger".into(),
                 range: AstRange {
                     start: AstPoint { line: 3, col: 32 },
                     end: AstPoint { line: 3, col: 38 },
                 }
             },
             CallItem::MethodCall {
-                name: "getLogger".to_string(),
+                name: "getLogger".into(),
                 range: AstRange {
                     start: AstPoint { line: 3, col: 39 },
                     end: AstPoint { line: 3, col: 48 },
@@ -1474,14 +1479,14 @@ public class Test {
         out,
         Some(vec![
             CallItem::ClassOrVariable {
-                name: "MediaType".to_string(),
+                name: "MediaType".into(),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 14 },
                     end: AstPoint { line: 4, col: 23 },
                 }
             },
             CallItem::FieldAccess {
-                name: "TEXT_PLAIN".to_string(),
+                name: "TEXT_PLAIN".into(),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 24 },
                     end: AstPoint { line: 4, col: 34 },
@@ -1515,14 +1520,14 @@ public class Test {
                 }
             },
             CallItem::FieldAccess {
-                name: "a".to_string(),
+                name: "a".into(),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 18 },
                     end: AstPoint { line: 4, col: 19 }
                 }
             },
             CallItem::MethodCall {
-                name: "toString".to_string(),
+                name: "toString".into(),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 20 },
                     end: AstPoint { line: 4, col: 28 }
@@ -1557,7 +1562,7 @@ public class Test {
                 }
             },
             CallItem::FieldAccess {
-                name: "asd".to_string(),
+                name: "asd".into(),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 11 },
                     end: AstPoint { line: 4, col: 14 }

@@ -1,6 +1,5 @@
 ---
 source: ast/src/lib.rs
-assertion_line: 1268
 expression: parsed.unwrap()
 ---
 AstFile {

@@ -1,34 +1,35 @@
-use std::cmp::{max, min};
+use std::cmp::{self, max, min};
 
-use ast::range::AstRangeHelper;
+use ast::range::{AstRangeHelper, add_ranges};
 use ast::types::{
-    AstBlock, AstBlockEntry, AstExpression, AstExpressionIdentifier, AstFile, AstPoint, AstRange,
-    AstThing, AstValue, AstValueNuget,
+    AstBlock, AstBlockEntry, AstExpression, AstExpressionIdentifier, AstFile, AstIf, AstIfContent,
+    AstPoint, AstRange, AstThing, AstValue, AstValueNuget,
 };
+use smol_str::SmolStr;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum CallItem {
     MethodCall {
-        name: String,
+        name: SmolStr,
         range: AstRange,
     },
     FieldAccess {
-        name: String,
+        name: SmolStr,
         range: AstRange,
     },
     Variable {
-        name: String,
+        name: SmolStr,
         range: AstRange,
     },
     This {
         range: AstRange,
     },
     Class {
-        name: String,
+        name: SmolStr,
         range: AstRange,
     },
     ClassOrVariable {
-        name: String,
+        name: SmolStr,
         range: AstRange,
     },
     ArgumentList {
@@ -97,7 +98,54 @@ pub fn get_call_chain(ast: &AstFile, point: &AstPoint) -> Option<Vec<CallItem>> 
     None
 }
 
+pub fn validate(call_chain: &[CallItem], point: &AstPoint) -> (usize, Vec<CallItem>) {
+    let item = call_chain
+        .iter()
+        .enumerate()
+        .find(|(_n, ci)| match ci {
+            CallItem::MethodCall { name: _, range } => range.is_in_range(point),
+            CallItem::FieldAccess { name: _, range } => range.is_in_range(point),
+            CallItem::Variable { name: _, range } => range.is_in_range(point),
+            CallItem::This { range } => range.is_in_range(point),
+            CallItem::ClassOrVariable { name: _, range } => range.is_in_range(point),
+            CallItem::Class { name: _, range } => range.is_in_range(point),
+            CallItem::ArgumentList {
+                prev,
+                range,
+                filled_params: _,
+                active_param: _,
+            } => {
+                if range.is_in_range(point) {
+                    return true;
+                }
+                let mut prevs = None;
+                for p in prev {
+                    match prevs {
+                        None => {
+                            prevs = Some(*p.get_range());
+                        }
+                        Some(pr) => prevs = Some(add_ranges(pr, *p.get_range())),
+                    }
+                }
+                if let Some(r) = prevs {
+                    if r.is_in_range(point) {
+                        return true;
+                    }
+                }
+                false
+            }
+        })
+        .map(|i| i.0)
+        .unwrap_or_default();
+
+    let relevat = &call_chain[0..cmp::min(item + 1, call_chain.len())];
+    (item, relevat.to_vec())
+}
+
 fn cc_block(block: &AstBlock, point: &AstPoint) -> Option<Vec<CallItem>> {
+    if !block.range.is_in_range(point) {
+        return None;
+    }
     if let Some(entry) = block.entries.iter().find(|i| i.is_in_range(point)) {
         return cc_block_entrie(entry, point);
     }
@@ -122,6 +170,48 @@ fn cc_block_entrie(entry: &AstBlockEntry, point: &AstPoint) -> Option<Vec<CallIt
             cc_expression(&ast_block_expression.value, point)
         }
         AstBlockEntry::Assign(_ast_block_assign) => todo!(),
+        AstBlockEntry::If(ast_if) => cc_if(ast_if, point),
+        AstBlockEntry::While(_ast_while) => todo!(),
+    }
+}
+
+fn cc_if(ast_if: &AstIf, point: &AstPoint) -> Option<Vec<CallItem>> {
+    match ast_if {
+        AstIf::If {
+            range,
+            control,
+            control_range,
+            content,
+            el,
+        } => {
+            if !range.is_in_range(point) {
+                return None;
+            }
+            if control_range.is_in_range(point) {
+                return cc_value(control, point);
+            }
+            if content.is_in_range(point) {
+                return cc_if_content(content, point);
+            }
+            if let Some(el) = el {
+                return cc_if(el, point);
+            }
+            None
+        }
+        AstIf::Else { range, content } => {
+            if !range.is_in_range(point) {
+                return None;
+            }
+            cc_if_content(content, point)
+        }
+    }
+}
+
+fn cc_if_content(content: &AstIfContent, point: &AstPoint) -> Option<Vec<CallItem>> {
+    match content {
+        AstIfContent::Block(ast_block) => cc_block(ast_block, point),
+        AstIfContent::Value(ast_value) => cc_value(ast_value, point),
+        AstIfContent::None => None,
     }
 }
 
@@ -138,7 +228,7 @@ fn cc_value(value: &AstValue, point: &AstPoint) -> Option<Vec<CallItem>> {
 fn cc_variable(ast_identifier: &ast::types::AstIdentifier) -> Option<Vec<CallItem>> {
     Some(vec![CallItem::ClassOrVariable {
         name: ast_identifier.into(),
-        range: ast_identifier.range.clone(),
+        range: ast_identifier.range,
     }])
 }
 
@@ -201,7 +291,7 @@ fn cc_arugments(point: &AstPoint, out: &mut Vec<CallItem>, values: &ast::types::
             prev: out.clone(),
             active_param: Some(active_param),
             filled_params,
-            range: values.range.clone(),
+            range: values.range,
         };
         out.clear();
 
@@ -265,17 +355,17 @@ fn cc_expr_ident(
             if has_args {
                 out.push(CallItem::MethodCall {
                     name: ast_identifier.into(),
-                    range: ast_identifier.range.clone(),
+                    range: ast_identifier.range,
                 });
             } else if has_parent {
                 out.push(CallItem::FieldAccess {
                     name: ast_identifier.into(),
-                    range: ast_identifier.range.clone(),
+                    range: ast_identifier.range,
                 });
             } else {
                 out.push(CallItem::ClassOrVariable {
                     name: ast_identifier.into(),
-                    range: ast_identifier.range.clone(),
+                    range: ast_identifier.range,
                 });
             }
         }
@@ -286,7 +376,7 @@ fn cc_expr_ident(
             AstValueNuget::StringLiteral(ast_identifier) => {
                 out.push(CallItem::Class {
                     name: "String".into(),
-                    range: ast_identifier.range.clone(),
+                    range: ast_identifier.range,
                 });
             }
             AstValueNuget::CharLiteral(_ast_identifier) => todo!(),

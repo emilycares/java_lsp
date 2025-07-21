@@ -3,14 +3,13 @@ use std::{
     hash::Hash,
 };
 
+use ast::types::AstPoint;
 use call_chain::CallItem;
 use document::{ClassSource, Document, DocumentError};
 use lsp_types::Location;
 use parser::dto::{self, Class, ImportUnit};
 use position::PositionSymbol;
 use rayon::iter::{IntoParallelRefIterator, ParallelBridge, ParallelIterator};
-use tree_sitter::Point;
-use tree_sitter_util::lsp::to_lsp_range;
 use variables::LocalVariable;
 
 use crate::definition::{self};
@@ -19,7 +18,6 @@ use crate::definition::{self};
 pub enum ReferencesError {
     IoRead(String, std::io::Error),
     Position(position::PosionError),
-    Treesitter(tree_sitter_util::TreesitterError),
     FindClassnameInClasspath(String),
     Tyres(tyres::TyresError),
     ValidatedItemDoesNotExists,
@@ -37,7 +35,7 @@ pub enum ReferenceUnit {
 pub struct ReferencePosition(PositionSymbol);
 
 pub struct ReferencesContext<'a> {
-    pub point: &'a Point,
+    pub point: &'a AstPoint,
     pub imports: &'a [ImportUnit],
     pub class_map: &'a dashmap::DashMap<String, parser::dto::Class>,
     pub class: &'a dto::Class,
@@ -166,7 +164,7 @@ fn method_references(
     );
     match doc {
         ClassSource::Owned(doc) => {
-            let o = match position::get_method_usage(doc.as_bytes(), query_method_name, &doc.tree) {
+            let o = match position::get_method_usage(doc.as_bytes(), query_method_name, &doc.ast) {
                 Err(e) => Err(ReferencesError::Position(e))?,
                 Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
             };
@@ -174,7 +172,7 @@ fn method_references(
             o
         }
         ClassSource::Ref(doc) => {
-            match position::get_method_usage(doc.as_bytes(), query_method_name, &doc.tree) {
+            match position::get_method_usage(doc.as_bytes(), query_method_name, &doc.ast) {
                 Err(e) => Err(ReferencesError::Position(e))?,
                 Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
             }

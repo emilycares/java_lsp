@@ -2,7 +2,7 @@ use smol_str::SmolStr;
 
 use crate::lexer::PositionToken;
 
-#[derive(Debug, PartialEq, Default, Clone)]
+#[derive(Debug, PartialEq, Default, Clone, Copy)]
 pub struct AstRange {
     pub start: AstPoint,
     pub end: AstPoint,
@@ -27,7 +27,7 @@ impl AstRange {
     }
 }
 
-#[derive(Debug, PartialEq, Default, Clone, PartialOrd)]
+#[derive(Debug, PartialEq, Default, Clone, Copy, PartialOrd)]
 pub struct AstPoint {
     pub line: usize,
     pub col: usize,
@@ -90,7 +90,7 @@ pub struct AstClassVariable {
     pub name: AstIdentifier,
     pub jtype: AstJType,
     pub value: Option<AstValue>,
-    pub(crate) fin: bool,
+    pub fin: bool,
 }
 
 #[derive(Debug, PartialEq)]
@@ -133,7 +133,7 @@ pub struct AstMethodParamerter {
     pub range: AstRange,
     pub jtype: AstJType,
     pub name: AstIdentifier,
-    pub(crate) fin: bool,
+    pub fin: bool,
 }
 #[derive(Debug, PartialEq)]
 pub enum AstBlockEntry {
@@ -141,6 +141,45 @@ pub enum AstBlockEntry {
     Variable(AstBlockVariable),
     Expression(AstBlockExpression),
     Assign(AstBlockAssign),
+    If(AstIf),
+    While(AstWhile),
+    For(AstFor),
+}
+#[derive(Debug, PartialEq)]
+pub struct AstWhile {
+    pub range: AstRange,
+    pub control: AstValue,
+    pub block: AstBlock,
+    pub lable: Option<AstIdentifier>,
+}
+#[derive(Debug, PartialEq)]
+pub struct AstFor {
+    pub range: AstRange,
+    pub var: AstBlockVariable,
+    pub check: AstValueEquasion,
+    pub change: AstValueEquasion,
+    pub block: AstBlock,
+    pub lable: Option<AstIdentifier>,
+}
+#[derive(Debug, PartialEq)]
+pub enum AstIf {
+    If {
+        range: AstRange,
+        control: AstValue,
+        control_range: AstRange,
+        content: AstIfContent,
+        el: Option<Box<AstIf>>,
+    },
+    Else {
+        range: AstRange,
+        content: AstIfContent,
+    },
+}
+#[derive(Debug, PartialEq)]
+pub enum AstIfContent {
+    Block(AstBlock),
+    Value(AstValue),
+    None,
 }
 #[derive(Debug, PartialEq)]
 pub struct AstBlockAssign {
@@ -156,7 +195,7 @@ pub struct AstBlockExpression {
 #[derive(Debug, PartialEq)]
 pub struct AstBlock {
     pub range: AstRange,
-    pub entries: Vec<AstBlockEntry>,
+    pub entries: Vec<Box<AstBlockEntry>>,
 }
 #[derive(Debug, PartialEq)]
 pub struct AstBlockVariable {
@@ -281,6 +320,7 @@ pub enum AstValue {
     Variable(AstIdentifier),
     Expression(AstExpression),
     Nuget(AstValueNuget),
+    Array(AstValues),
 }
 #[derive(Debug, PartialEq)]
 pub enum AstValueNuget {
@@ -334,12 +374,23 @@ pub struct AstValueEquasion {
     pub range: AstRange,
     pub lhs: Box<AstValue>,
     pub operator: AstValueEquasionOperator,
-    pub rhs: Box<AstValue>,
+    pub rhs: Box<Option<AstValue>>,
 }
 #[derive(Debug, PartialEq)]
 pub enum AstValueEquasionOperator {
     Plus(AstRange),
+    PlusPlus(AstRange),
     Minus(AstRange),
+    MinusMinus(AstRange),
+    Equal(AstRange),
+    NotEqual(AstRange),
+    Multiply(AstRange),
+    Devide(AstRange),
+    Modulo(AstRange),
+    Le(AstRange),
+    Lt(AstRange),
+    Ge(AstRange),
+    Gt(AstRange),
 }
 
 #[derive(Debug, PartialEq)]

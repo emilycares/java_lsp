@@ -35,7 +35,11 @@ impl Token {
             | Token::Dash
             | Token::Star
             | Token::Dot
+            | Token::Colon
             | Token::Semicolon
+            | Token::Percent
+            | Token::Ampersand
+            | Token::VerticalBar
             | Token::LeftParenCurly
             | Token::RightParenCurly
             | Self::LeftParenSquare
@@ -80,6 +84,8 @@ impl Token {
             | Token::Static
             | Token::Final
             | Token::Default
+            | Token::Else
+            | Token::For
             | Token::If => KEYWORDS
                 .entries()
                 .find(|i| i.1 == self)
@@ -99,6 +105,10 @@ impl Token {
             Token::Star => SmolStr::new_inline("*"),
             Token::Dot => SmolStr::new_inline("."),
             Token::Semicolon => SmolStr::new_inline(";"),
+            Token::Colon => SmolStr::new_inline(":"),
+            Token::Percent => SmolStr::new_inline("%"),
+            Token::Ampersand => SmolStr::new_inline("&"),
+            Token::VerticalBar => SmolStr::new_inline("|"),
             Token::LeftParenCurly => SmolStr::new_inline("{"),
             Token::RightParenCurly => SmolStr::new_inline("}"),
             Token::LeftParenSquare => SmolStr::new_inline("["),
@@ -147,6 +157,8 @@ impl Token {
             Token::Static => SmolStr::new_inline("static"),
             Token::Final => SmolStr::new_inline("final"),
             Token::Default => SmolStr::new_inline("default"),
+            Token::Else => SmolStr::new_inline("else"),
+            Token::For => SmolStr::new_inline("for"),
         }
     }
 
@@ -167,11 +179,16 @@ pub enum Token {
     Star,
     Dot,
     Semicolon,
+    Colon,
+    Percent,
+    Ampersand,
+    VerticalBar,
     LeftParenCurly,
     RightParenCurly,
     Comma,
     If,
     While,
+    For,
     Package,
     Import,
     Public,
@@ -215,6 +232,7 @@ pub enum Token {
     Default,
     LeftParenSquare,
     RightParenSquare,
+    Else,
 }
 
 #[derive(Debug, PartialEq)]
@@ -227,6 +245,7 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
     "true" => Token::True,
     "false" => Token::False,
     "while" => Token::While,
+    "for" => Token::For,
     "package" => Token::Package,
     "import" => Token::Import,
     "public" => Token::Public,
@@ -252,6 +271,7 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
     "static" => Token::Static,
     "final" => Token::Final,
     "default" => Token::Default,
+    "else" => Token::Else,
 };
 
 pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
@@ -382,6 +402,38 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                 });
                 col += 1;
             }
+            ':' => {
+                tokens.push(PositionToken {
+                    token: Token::Colon,
+                    line,
+                    col,
+                });
+                col += 1;
+            }
+            '%' => {
+                tokens.push(PositionToken {
+                    token: Token::Percent,
+                    line,
+                    col,
+                });
+                col += 1;
+            }
+            '&' => {
+                tokens.push(PositionToken {
+                    token: Token::Ampersand,
+                    line,
+                    col,
+                });
+                col += 1;
+            }
+            '|' => {
+                tokens.push(PositionToken {
+                    token: Token::VerticalBar,
+                    line,
+                    col,
+                });
+                col += 1;
+            }
             '?' => {
                 tokens.push(PositionToken {
                     token: Token::QuestionMark,
@@ -471,6 +523,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                         col,
                     });
                     col += 2;
+                    index += 1;
                 } else {
                     col += 1;
                     tokens.push(PositionToken {
@@ -488,6 +541,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                         col,
                     });
                     col += 2;
+                    index += 1;
                 } else {
                     tokens.push(PositionToken {
                         token: Token::ExclamationMark,
@@ -505,6 +559,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                         col,
                     });
                     col += 2;
+                    index += 1;
                 } else {
                     tokens.push(PositionToken {
                         token: Token::Lt,
