@@ -1,8 +1,8 @@
 use crate::{
     error::{AstError, assert_token},
     lexer::{PositionToken, Token},
-    parse_avaliability, parse_block, parse_identifier, parse_jtype, parse_method_header,
-    parse_method_paramerters, parse_name, parse_superclass, parse_value,
+    parse_avaliability, parse_block, parse_expression, parse_identifier, parse_jtype,
+    parse_method_header, parse_method_paramerters, parse_name, parse_superclass,
     types::{
         AstAvailability, AstClass, AstClassConstructor, AstClassMethod, AstClassVariable, AstRange,
         AstThing,
@@ -89,7 +89,7 @@ pub fn parse_class_constructor(
     let (parameters, pos) = parse_method_paramerters(tokens, pos)?;
     let (block, pos) = parse_block(tokens, pos)?;
 
-    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstClassConstructor {
             avaliability,
@@ -115,15 +115,15 @@ pub fn parse_class_variable(
     }
     let (jtype, pos) = parse_jtype(tokens, pos)?;
     let (name, pos) = parse_name(tokens, pos)?;
-    let mut value = None;
+    let mut expression = None;
     let mut pos = pos;
     if let Ok(npos) = assert_token(tokens, pos, Token::Equal) {
-        let (avalue, npos) = parse_value(tokens, npos)?;
+        let (aexpr, npos) = parse_expression(tokens, npos)?;
         pos = npos;
-        value = Some(avalue);
+        expression = Some(aexpr);
     }
     let pos = assert_token(tokens, pos, Token::Semicolon)?;
-    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
 
     Ok((
         AstClassVariable {
@@ -131,7 +131,7 @@ pub fn parse_class_variable(
             name,
             fin,
             jtype,
-            value,
+            expression,
             range: AstRange::from_position_token(start, end),
         },
         pos,
@@ -145,7 +145,7 @@ pub fn parse_class_method(
     let (header, pos) = parse_method_header(tokens, pos, AstAvailability::Protected)?;
     let (block, pos) = parse_block(tokens, pos)?;
 
-    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstClassMethod {
             header,

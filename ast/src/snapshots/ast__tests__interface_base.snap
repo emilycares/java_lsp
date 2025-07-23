@@ -347,8 +347,8 @@ AstFile {
                             col: 4,
                         },
                         end: AstPoint {
-                            line: 11,
-                            col: 1,
+                            line: 10,
+                            col: 5,
                         },
                     },
                     header: AstMethodHeader {
@@ -526,40 +526,39 @@ AstFile {
                                             col: 5,
                                         },
                                     },
-                                    value: Some(
-                                        Expression(
-                                            AstExpression {
-                                                range: AstRange {
-                                                    start: AstPoint {
-                                                        line: 9,
-                                                        col: 15,
-                                                    },
-                                                    end: AstPoint {
-                                                        line: 9,
-                                                        col: 18,
-                                                    },
+                                    expression: Some(
+                                        AstExpression {
+                                            range: AstRange {
+                                                start: AstPoint {
+                                                    line: 9,
+                                                    col: 15,
                                                 },
-                                                ident: Some(
-                                                    Identifier(
-                                                        AstIdentifier {
-                                                            range: AstRange {
-                                                                start: AstPoint {
-                                                                    line: 9,
-                                                                    col: 15,
-                                                                },
-                                                                end: AstPoint {
-                                                                    line: 9,
-                                                                    col: 18,
-                                                                },
-                                                            },
-                                                            value: "arg",
-                                                        },
-                                                    ),
-                                                ),
-                                                values: None,
-                                                next: None,
+                                                end: AstPoint {
+                                                    line: 9,
+                                                    col: 18,
+                                                },
                                             },
-                                        ),
+                                            ident: Some(
+                                                Identifier(
+                                                    AstIdentifier {
+                                                        range: AstRange {
+                                                            start: AstPoint {
+                                                                line: 9,
+                                                                col: 15,
+                                                            },
+                                                            end: AstPoint {
+                                                                line: 9,
+                                                                col: 18,
+                                                            },
+                                                        },
+                                                        value: "arg",
+                                                    },
+                                                ),
+                                            ),
+                                            values: None,
+                                            next: None,
+                                            operator: None,
+                                        },
                                     ),
                                 },
                             ),

@@ -1328,7 +1328,7 @@ public class Test {
 }
 
 #[test]
-fn call_chain_new_instance() {
+fn call_chain_new_instance_base() {
     let content = "
 package ch.emilycares;
 public class Test {
@@ -1339,7 +1339,9 @@ public class Test {
 }
 ";
     let tokens = ast::lexer::lex(content).unwrap();
-    let ast = ast::parse_file(&tokens).unwrap();
+    let ast = ast::parse_file(&tokens);
+    ast.print_err(content);
+    let ast = ast.unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 22));
     assert_eq!(

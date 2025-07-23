@@ -1,9 +1,9 @@
 use std::cmp::{self, max, min};
 
-use ast::range::{AstRangeHelper, add_ranges};
+use ast::range::{AstInRange, add_ranges};
 use ast::types::{
-    AstBlock, AstBlockEntry, AstExpression, AstExpressionIdentifier, AstFile, AstIf, AstIfContent,
-    AstPoint, AstRange, AstThing, AstValue, AstValueNuget,
+    AstBlock, AstBlockEntry, AstExpression, AstExpressionIdentifier, AstExpressionOperator,
+    AstFile, AstIf, AstIfContent, AstPoint, AstRange, AstThing, AstValue, AstValueNuget,
 };
 use smol_str::SmolStr;
 
@@ -146,23 +146,53 @@ fn cc_block(block: &AstBlock, point: &AstPoint) -> Option<Vec<CallItem>> {
     if !block.range.is_in_range(point) {
         return None;
     }
-    if let Some(entry) = block.entries.iter().find(|i| i.is_in_range(point)) {
+
+    if let Some(entry) = block
+        .entries
+        .iter()
+        .min_by_key(|expression| dist_block_entry(point, expression.as_ref()))
+    {
         return cc_block_entrie(entry, point);
     }
     None
 }
 
+fn dist_block_entry(point: &AstPoint, entry: &AstBlockEntry) -> usize {
+    match entry {
+        AstBlockEntry::Return(ast_block_return) => dist(point, &ast_block_return.range),
+        AstBlockEntry::Variable(ast_block_variable) => dist(point, &ast_block_variable.range),
+        AstBlockEntry::Expression(ast_block_expression) => dist(point, &ast_block_expression.range),
+        AstBlockEntry::Assign(ast_block_assign) => dist(point, &ast_block_assign.range),
+        AstBlockEntry::If(ast_if) => dist_if(point, ast_if),
+        AstBlockEntry::While(ast_while) => dist(point, &ast_while.range),
+        AstBlockEntry::For(ast_for) => dist(point, &ast_for.range),
+    }
+}
+
+fn dist_if(point: &AstPoint, ast_if: &AstIf) -> usize {
+    match ast_if {
+        AstIf::If {
+            range,
+            control: _,
+            control_range: _,
+            content: _,
+            el: _,
+        } => dist(&point, range),
+        AstIf::Else { range, content: _ } => dist(&point, range),
+    }
+}
+
 fn cc_block_entrie(entry: &AstBlockEntry, point: &AstPoint) -> Option<Vec<CallItem>> {
     match entry {
         AstBlockEntry::Return(ast_block_return) => {
-            if let Some(ref value) = ast_block_return.value {
-                return cc_value(value, point);
+            if let Some(ref expression) = ast_block_return.expression {
+                return cc_expression(expression, point);
             }
             None
         }
         AstBlockEntry::Variable(ast_block_variable) => {
-            if let Some(ref value) = ast_block_variable.value {
-                return cc_value(value, point);
+            if let Some(ref expression) = ast_block_variable.expression {
+                return cc_expression(expression, point);
             }
             None
         }
@@ -172,6 +202,7 @@ fn cc_block_entrie(entry: &AstBlockEntry, point: &AstPoint) -> Option<Vec<CallIt
         AstBlockEntry::Assign(_ast_block_assign) => todo!(),
         AstBlockEntry::If(ast_if) => cc_if(ast_if, point),
         AstBlockEntry::While(_ast_while) => todo!(),
+        AstBlockEntry::For(_ast_for) => todo!(),
     }
 }
 
@@ -188,7 +219,7 @@ fn cc_if(ast_if: &AstIf, point: &AstPoint) -> Option<Vec<CallItem>> {
                 return None;
             }
             if control_range.is_in_range(point) {
-                return cc_value(control, point);
+                return cc_value(control);
             }
             if content.is_in_range(point) {
                 return cc_if_content(content, point);
@@ -210,18 +241,30 @@ fn cc_if(ast_if: &AstIf, point: &AstPoint) -> Option<Vec<CallItem>> {
 fn cc_if_content(content: &AstIfContent, point: &AstPoint) -> Option<Vec<CallItem>> {
     match content {
         AstIfContent::Block(ast_block) => cc_block(ast_block, point),
-        AstIfContent::Value(ast_value) => cc_value(ast_value, point),
         AstIfContent::None => None,
+        AstIfContent::Expression(ast_expression) => cc_expression(ast_expression, point),
     }
 }
 
-fn cc_value(value: &AstValue, point: &AstPoint) -> Option<Vec<CallItem>> {
+fn cc_value(value: &AstValue) -> Option<Vec<CallItem>> {
     match value {
         AstValue::NewClass(_ast_value_new_class) => todo!(),
-        AstValue::Equasion(ast_value_equasion) => cc_equasion(ast_value_equasion, point),
         AstValue::Variable(ast_identifier) => cc_variable(ast_identifier),
-        AstValue::Nuget(_ast_value_nuget) => todo!(),
-        AstValue::Expression(ast_expression) => cc_expression(ast_expression, point),
+        AstValue::Nuget(ast_nuget) => cc_value_nuget(ast_nuget),
+        AstValue::Array(_ast_values) => todo!(),
+    }
+}
+fn cc_value_nuget(ast_nuget: &AstValueNuget) -> Option<Vec<CallItem>> {
+    match ast_nuget {
+        AstValueNuget::Number(_ast_number) => todo!(),
+        AstValueNuget::Double(_ast_double) => todo!(),
+        AstValueNuget::Float(_ast_double) => todo!(),
+        AstValueNuget::StringLiteral(ast_identifier) => Some(vec![CallItem::Class {
+            name: "String".into(),
+            range: ast_identifier.range,
+        }]),
+        AstValueNuget::CharLiteral(_ast_identifier) => todo!(),
+        AstValueNuget::BooleanLiteral(_ast_boolean) => todo!(),
     }
 }
 
@@ -232,21 +275,11 @@ fn cc_variable(ast_identifier: &ast::types::AstIdentifier) -> Option<Vec<CallIte
     }])
 }
 
-fn cc_equasion(
-    ast_value_equasion: &ast::types::AstValueEquasion,
-    point: &AstPoint,
-) -> Option<Vec<CallItem>> {
-    let lhs = dist_value(point, ast_value_equasion.lhs.as_ref());
-    let rhs = dist_value(point, ast_value_equasion.rhs.as_ref());
-    let i = lhs.min(rhs);
-    if i == lhs {
-        cc_value(&ast_value_equasion.lhs, point)
-    } else {
-        cc_value(&ast_value_equasion.rhs, point)
-    }
-}
-
 fn cc_expression(ast_expression: &AstExpression, point: &AstPoint) -> Option<Vec<CallItem>> {
+    dbg!(ast_expression);
+    // if !(ast_expression.range.is_in_range(point) || ast_expression.range.is_after_range(point)) {
+    //     return None;
+    // }
     let mut out = vec![];
     cc_expr(ast_expression, point, false, &mut out);
     Some(out)
@@ -276,11 +309,10 @@ fn cc_expr(
 fn cc_arugments(point: &AstPoint, out: &mut Vec<CallItem>, values: &ast::types::AstValues) {
     if values.range.is_in_range(point) {
         let active_param = get_active_param(values, point);
-        dbg!(&values.values);
         let mut filled_params: Vec<Vec<CallItem>> = values
             .values
             .iter()
-            .map(|i| cc_value(i, point).unwrap_or_default())
+            .map(|i| cc_expression(i, point).unwrap_or_default())
             .collect();
 
         if filled_params.is_empty() {
@@ -307,27 +339,11 @@ fn get_active_param(values: &ast::types::AstValues, point: &AstPoint) -> usize {
         .values
         .iter()
         .enumerate()
-        .min_by_key(|(_, value)| dist_value(point, value))
+        .min_by_key(|(_, expression)| dist(point, &expression.range))
         .map(|i| i.0)
         .unwrap_or_default()
 }
 
-fn dist_value(point: &AstPoint, value: &AstValue) -> usize {
-    match value {
-        AstValue::NewClass(ast_value_new_class) => dist(point, &ast_value_new_class.range),
-        AstValue::Equasion(ast_value_equasion) => dist(point, &ast_value_equasion.range),
-        AstValue::Variable(ast_identifier) => dist(point, &ast_identifier.range),
-        AstValue::Expression(ast_expression) => dist(point, &ast_expression.range),
-        AstValue::Nuget(ast_value_nuget) => match ast_value_nuget {
-            AstValueNuget::Number(ast_number) => dist(point, &ast_number.range),
-            AstValueNuget::Double(ast_double) => dist(point, &ast_double.range),
-            AstValueNuget::Float(ast_double) => dist(point, &ast_double.range),
-            AstValueNuget::StringLiteral(ast_identifier) => dist(point, &ast_identifier.range),
-            AstValueNuget::CharLiteral(ast_identifier) => dist(point, &ast_identifier.range),
-            AstValueNuget::BooleanLiteral(ast_boolean) => dist(point, &ast_boolean.range),
-        },
-    }
-}
 fn dist(point: &AstPoint, range: &AstRange) -> usize {
     if point < &range.start {
         line_col_diff(point, &range.start)
@@ -382,5 +398,11 @@ fn cc_expr_ident(
             AstValueNuget::CharLiteral(_ast_identifier) => todo!(),
             AstValueNuget::BooleanLiteral(_ast_boolean) => todo!(),
         },
+        AstExpressionIdentifier::Value(ast_value) => {
+            if let Some(val) = cc_value(&ast_value) {
+                out.extend(val);
+            }
+        }
+        AstExpressionIdentifier::ArrayAccess(_ast_value) => todo!(),
     }
 }

@@ -102,7 +102,7 @@ pub fn parse_interface_constant(
     let pos = assert_token(tokens, pos, Token::Equal)?;
     let (value, pos) = parse_value(tokens, pos)?;
     let pos = assert_token(tokens, pos, Token::Semicolon)?;
-    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstInterfaceConstant {
             range: AstRange::from_position_token(start, end),
@@ -147,7 +147,7 @@ pub fn parse_interface_method_impl(
     }
     let (header, pos) = parse_method_header(tokens, pos, availability)?;
     let (block, pos) = parse_block(tokens, pos)?;
-    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstInterfaceMethodDefault {
             range: AstRange::from_position_token(start, end),

@@ -137,8 +137,8 @@ AstFile {
                             col: 4,
                         },
                         end: AstPoint {
-                            line: 9,
-                            col: 10,
+                            line: 8,
+                            col: 35,
                         },
                     },
                     avaliability: Public,
@@ -182,40 +182,22 @@ AstFile {
                             },
                         ),
                     },
-                    value: Expression(
-                        AstExpression {
-                            range: AstRange {
-                                start: AstPoint {
-                                    line: 8,
-                                    col: 31,
+                    value: Nuget(
+                        StringLiteral(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 8,
+                                        col: 31,
+                                    },
+                                    end: AstPoint {
+                                        line: 8,
+                                        col: 35,
+                                    },
                                 },
-                                end: AstPoint {
-                                    line: 8,
-                                    col: 34,
-                                },
+                                value: "A",
                             },
-                            ident: Some(
-                                Nuget(
-                                    StringLiteral(
-                                        AstIdentifier {
-                                            range: AstRange {
-                                                start: AstPoint {
-                                                    line: 8,
-                                                    col: 31,
-                                                },
-                                                end: AstPoint {
-                                                    line: 8,
-                                                    col: 35,
-                                                },
-                                            },
-                                            value: "A",
-                                        },
-                                    ),
-                                ),
-                            ),
-                            values: None,
-                            next: None,
-                        },
+                        ),
                     ),
                 },
                 AstInterfaceConstant {
@@ -225,8 +207,8 @@ AstFile {
                             col: 4,
                         },
                         end: AstPoint {
-                            line: 11,
-                            col: 10,
+                            line: 9,
+                            col: 28,
                         },
                     },
                     avaliability: Undefined,
@@ -270,40 +252,22 @@ AstFile {
                             },
                         ),
                     },
-                    value: Expression(
-                        AstExpression {
-                            range: AstRange {
-                                start: AstPoint {
-                                    line: 9,
-                                    col: 24,
+                    value: Nuget(
+                        StringLiteral(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 9,
+                                        col: 24,
+                                    },
+                                    end: AstPoint {
+                                        line: 9,
+                                        col: 28,
+                                    },
                                 },
-                                end: AstPoint {
-                                    line: 9,
-                                    col: 27,
-                                },
+                                value: "B",
                             },
-                            ident: Some(
-                                Nuget(
-                                    StringLiteral(
-                                        AstIdentifier {
-                                            range: AstRange {
-                                                start: AstPoint {
-                                                    line: 9,
-                                                    col: 24,
-                                                },
-                                                end: AstPoint {
-                                                    line: 9,
-                                                    col: 28,
-                                                },
-                                            },
-                                            value: "B",
-                                        },
-                                    ),
-                                ),
-                            ),
-                            values: None,
-                            next: None,
-                        },
+                        ),
                     ),
                 },
                 AstInterfaceConstant {
@@ -313,8 +277,8 @@ AstFile {
                             col: 4,
                         },
                         end: AstPoint {
-                            line: 13,
-                            col: 8,
+                            line: 11,
+                            col: 28,
                         },
                     },
                     avaliability: Undefined,
@@ -358,40 +322,22 @@ AstFile {
                             },
                         ),
                     },
-                    value: Expression(
-                        AstExpression {
-                            range: AstRange {
-                                start: AstPoint {
-                                    line: 11,
-                                    col: 24,
+                    value: Nuget(
+                        StringLiteral(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 11,
+                                        col: 24,
+                                    },
+                                    end: AstPoint {
+                                        line: 11,
+                                        col: 28,
+                                    },
                                 },
-                                end: AstPoint {
-                                    line: 11,
-                                    col: 27,
-                                },
+                                value: "C",
                             },
-                            ident: Some(
-                                Nuget(
-                                    StringLiteral(
-                                        AstIdentifier {
-                                            range: AstRange {
-                                                start: AstPoint {
-                                                    line: 11,
-                                                    col: 24,
-                                                },
-                                                end: AstPoint {
-                                                    line: 11,
-                                                    col: 28,
-                                                },
-                                            },
-                                            value: "C",
-                                        },
-                                    ),
-                                ),
-                            ),
-                            values: None,
-                            next: None,
-                        },
+                        ),
                     ),
                 },
             ],
