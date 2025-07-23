@@ -223,7 +223,7 @@ pub fn resolve_call_chain_to_point(
     }
     let mut ops: Vec<ResolveState> = vec![];
     for item in call_chain {
-        if item.get_range().is_in_range(point) {
+        if item.get_range().is_after_range(point) {
             break;
         }
         let op = call_chain_op(item, &ops, lo_va, imports, class, class_map, true);

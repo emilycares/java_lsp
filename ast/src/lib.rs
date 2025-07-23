@@ -7,11 +7,12 @@ use lexer::{PositionToken, Token};
 use smol_str::SmolStrBuilder;
 use types::{
     AstAvailability, AstBlock, AstBlockAssign, AstBlockEntry, AstBlockExpression, AstBlockReturn,
-    AstBlockVariable, AstBoolean, AstDouble, AstExpression, AstExpressionIdentifier, AstExtends,
-    AstFile, AstFor, AstIdentifier, AstIf, AstIfContent, AstImport, AstImportUnit, AstImports,
-    AstJType, AstJTypeKind, AstMethodHeader, AstMethodParamerter, AstMethodParamerters, AstNumber,
-    AstPoint, AstRange, AstSuperClass, AstThing, AstThrowsDeclaration, AstTypeParameters, AstValue,
-    AstValueEquasion, AstValueEquasionOperator, AstValueNuget, AstValues, AstWhile,
+    AstBlockVariable, AstBoolean, AstDouble, AstExpression, AstExpressionIdentifier,
+    AstExpressionOperator, AstExtends, AstFile, AstFor, AstIdentifier, AstIf, AstIfContent,
+    AstImport, AstImportUnit, AstImports, AstJType, AstJTypeKind, AstMethodHeader,
+    AstMethodParamerter, AstMethodParamerters, AstNumber, AstPoint, AstRange, AstSuperClass,
+    AstThing, AstThrowsDeclaration, AstTypeParameters, AstValue, AstValueNuget, AstValues,
+    AstWhile,
 };
 
 pub mod annotation;
@@ -166,21 +167,17 @@ fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, usize)
 
 fn parse_value(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, usize), AstError> {
     let mut errors = vec![];
-    match parse_value_equasion(tokens, pos) {
-        Ok((v, pos)) => return Ok((AstValue::Equasion(v), pos)),
-        Err(e) => errors.push(("value expression".into(), e)),
+    match parse_boolean_literal(tokens, pos) {
+        Ok((nuget, pos)) => return Ok((nuget, pos)),
+        Err(e) => errors.push(("value boolean".into(), e)),
     }
-    match parse_expression(tokens, pos) {
-        Ok((expression, pos)) => return Ok((AstValue::Expression(expression), pos)),
-        Err(e) => errors.push(("value expression".into(), e)),
-    };
     match parse_value_new_class(tokens, pos) {
         Ok(v) => return Ok(v),
         Err(e) => errors.push(("value new class".into(), e)),
     };
     match parse_value_array(tokens, pos) {
         Ok(v) => return Ok(v),
-        Err(e) => errors.push(("value new class".into(), e)),
+        Err(e) => errors.push(("value array".into(), e)),
     };
     match parse_value_nuget(tokens, pos) {
         Ok((nuget, pos)) => return Ok((nuget, pos)),
@@ -205,7 +202,7 @@ fn parse_value_array(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, 
             pos = npos;
             continue;
         }
-        let (value, npos) = parse_value(tokens, pos)?;
+        let (value, npos) = parse_expression(tokens, pos)?;
         pos = npos;
         values.push(value);
         if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
@@ -221,74 +218,6 @@ fn parse_value_array(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, 
         }),
         pos,
     ))
-}
-
-fn parse_value_control(
-    tokens: &[PositionToken],
-    pos: usize,
-) -> Result<(AstValue, usize), AstError> {
-    let mut errors = vec![];
-    match parse_value_equasion(tokens, pos) {
-        Ok((v, pos)) => return Ok((AstValue::Equasion(v), pos)),
-        Err(e) => errors.push(("value expression".into(), e)),
-    }
-    match parse_expression(tokens, pos) {
-        Ok((expression, pos)) => return Ok((AstValue::Expression(expression), pos)),
-        Err(e) => errors.push(("value expression".into(), e)),
-    };
-    match parse_boolean_literal(tokens, pos) {
-        Ok((v, pos)) => return Ok((v, pos)),
-        Err(e) => errors.push(("value boolean".into(), e)),
-    }
-    Err(AstError::AllChildrenFailed {
-        parent: "value control".into(),
-        errors,
-    })
-}
-fn parse_value_equasion(
-    tokens: &[PositionToken],
-    pos: usize,
-) -> Result<(AstValueEquasion, usize), AstError> {
-    let start = tokens.get(pos).ok_or(AstError::eof())?;
-    let (lhs, pos) = parse_value_for_equasion(tokens, pos)?;
-    let (operator, pos) = parse_value_operator(tokens, pos)?;
-    let mut pos = pos;
-    let mut rhs = None;
-    if !(matches!(operator, AstValueEquasionOperator::PlusPlus(_))
-        || matches!(operator, AstValueEquasionOperator::MinusMinus(_)))
-    {
-        let (r, npos) = parse_value_for_equasion(tokens, pos)?;
-        rhs = Some(r);
-        pos = npos;
-    }
-    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
-    Ok((
-        AstValueEquasion {
-            range: AstRange::from_position_token(start, end),
-            lhs: Box::new(lhs),
-            operator,
-            rhs: Box::new(rhs),
-        },
-        pos,
-    ))
-}
-fn parse_value_for_equasion(
-    tokens: &[PositionToken],
-    pos: usize,
-) -> Result<(AstValue, usize), AstError> {
-    let mut errors = vec![];
-    match parse_expression(tokens, pos) {
-        Ok((expression, pos)) => return Ok((AstValue::Expression(expression), pos)),
-        Err(e) => errors.push(("value expression".into(), e)),
-    };
-    match parse_value_nuget(tokens, pos) {
-        Ok((nuget, pos)) => return Ok((nuget, pos)),
-        Err(e) => errors.push(("value nuget".into(), e)),
-    }
-    Err(AstError::AllChildrenFailed {
-        parent: "value equasion".into(),
-        errors,
-    })
 }
 
 fn parse_value_nuget(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, usize), AstError> {
@@ -390,11 +319,6 @@ fn parse_boolean_literal_input(
         pos + 1,
     ))
 }
-#[derive(PartialEq, Eq)]
-enum Bool {
-    True,
-    False,
-}
 
 fn parse_boolean_literal(
     tokens: &[PositionToken],
@@ -403,14 +327,14 @@ fn parse_boolean_literal(
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let value;
     match start.token {
-        Token::True => value = Bool::True,
-        Token::False => value = Bool::False,
+        Token::True => value = true,
+        Token::False => value = false,
         _ => return Err(AstError::InvalidBoolean(InvalidToken::from(start, pos))),
     }
     Ok((
         AstValue::Nuget(AstValueNuget::BooleanLiteral(AstBoolean {
             range: AstRange::from_position_token(start, start),
-            value: value == Bool::True,
+            value,
         })),
         pos + 1,
     ))
@@ -454,19 +378,19 @@ fn parse_string_literal(
 fn parse_value_operator(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(AstValueEquasionOperator, usize), AstError> {
+) -> Result<(AstExpressionOperator, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     match &start.token {
         Token::Plus => {
             if let Ok(npos) = assert_token(tokens, pos + 1, Token::Plus) {
                 let end = tokens.get(npos).ok_or(AstError::eof())?;
                 Ok((
-                    AstValueEquasionOperator::PlusPlus(AstRange::from_position_token(start, end)),
+                    AstExpressionOperator::PlusPlus(AstRange::from_position_token(start, end)),
                     npos,
                 ))
             } else {
                 Ok((
-                    AstValueEquasionOperator::Plus(AstRange::from_position_token(start, start)),
+                    AstExpressionOperator::Plus(AstRange::from_position_token(start, start)),
                     pos + 1,
                 ))
             }
@@ -475,60 +399,64 @@ fn parse_value_operator(
             if let Ok(npos) = assert_token(tokens, pos + 1, Token::Dash) {
                 let end = tokens.get(npos).ok_or(AstError::eof())?;
                 Ok((
-                    AstValueEquasionOperator::MinusMinus(AstRange::from_position_token(start, end)),
+                    AstExpressionOperator::MinusMinus(AstRange::from_position_token(start, end)),
                     npos,
                 ))
             } else {
                 Ok((
-                    AstValueEquasionOperator::Minus(AstRange::from_position_token(start, start)),
+                    AstExpressionOperator::Minus(AstRange::from_position_token(start, start)),
                     pos + 1,
                 ))
             }
         }
+        Token::Dot => Ok((
+            AstExpressionOperator::Dot(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
         Token::Star => Ok((
-            AstValueEquasionOperator::Multiply(AstRange::from_position_token(start, start)),
+            AstExpressionOperator::Multiply(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
         Token::Slash => Ok((
-            AstValueEquasionOperator::Devide(AstRange::from_position_token(start, start)),
+            AstExpressionOperator::Devide(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
         Token::Percent => Ok((
-            AstValueEquasionOperator::Modulo(AstRange::from_position_token(start, start)),
+            AstExpressionOperator::Modulo(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
         Token::EqualDouble => Ok((
-            AstValueEquasionOperator::Equal(AstRange::from_position_token(start, start)),
+            AstExpressionOperator::Equal(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
         Token::Ne => Ok((
-            AstValueEquasionOperator::NotEqual(AstRange::from_position_token(start, start)),
+            AstExpressionOperator::NotEqual(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
         Token::Gt => Ok((
-            AstValueEquasionOperator::Gt(AstRange::from_position_token(start, start)),
+            AstExpressionOperator::Gt(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
         Token::Ge => Ok((
-            AstValueEquasionOperator::Ge(AstRange::from_position_token(start, start)),
+            AstExpressionOperator::Ge(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
         Token::Lt => Ok((
-            AstValueEquasionOperator::Lt(AstRange::from_position_token(start, start)),
+            AstExpressionOperator::Lt(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
         Token::Le => Ok((
-            AstValueEquasionOperator::Le(AstRange::from_position_token(start, start)),
+            AstExpressionOperator::Le(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
         _ => Err(AstError::InvalidNuget(InvalidToken::from(start, pos))),
     }
 }
 
-fn parse_value_parameters(
+fn parse_expression_parameters(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(Vec<AstValue>, usize), AstError> {
+) -> Result<(Vec<AstExpression>, usize), AstError> {
     let mut pos = assert_token(tokens, pos, Token::LeftParen)?;
     let mut out = vec![];
     loop {
@@ -540,9 +468,9 @@ fn parse_value_parameters(
             pos = npos;
             continue;
         }
-        let (value, npos) = parse_value(tokens, pos)?;
+        let (expression, npos) = parse_expression(tokens, pos)?;
         pos = npos;
-        out.push(value);
+        out.push(expression);
         if let Ok(npos) = assert_token(tokens, pos, Token::RightParen) {
             pos = npos;
             break;
@@ -558,7 +486,7 @@ fn parse_value_new_class(
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let pos = assert_token(tokens, pos, Token::New)?;
     let (jtype, pos) = parse_jtype(tokens, pos)?;
-    let (parameters, pos) = parse_value_parameters(tokens, pos)?;
+    let (parameters, pos) = parse_expression_parameters(tokens, pos)?;
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstValue::NewClass(types::AstValueNewClass {
@@ -576,6 +504,7 @@ fn parse_expression(
     let mut ident = None;
     let mut values = None;
     let mut next = None;
+    let mut operator = AstExpressionOperator::None;
 
     let mut pos = pos;
     let start = tokens.get(pos).ok_or(AstError::eof())?;
@@ -591,36 +520,37 @@ fn parse_expression(
                 }
             }
         }
-        Token::DoubleQuote => {
-            let (value, npos) = parse_string_literal(tokens, pos)?;
-            pos = npos;
-            ident = Some(AstExpressionIdentifier::Nuget(value));
-            if let Ok((exp, npos)) = parse_expression(tokens, pos) {
-                pos = npos;
-                if exp.has_content() {
-                    next = Some(Box::new(exp));
-                }
-            }
-        }
-        Token::Dot => {
+        Token::LeftParenSquare => {
             pos += 1;
-            if let Ok((exp, npos)) = parse_expression(tokens, pos) {
+            let (value, npos) = parse_value(tokens, pos)?;
+            let npos = assert_token(tokens, npos, Token::RightParenSquare)?;
+            ident = Some(AstExpressionIdentifier::ArrayAccess(value));
+            if let Ok((exp, npos)) = parse_expression(tokens, npos) {
                 pos = npos;
                 if exp.has_content() {
                     next = Some(Box::new(exp));
                 }
             }
         }
+        // Token::Dot => {
+        //     operator = AstExpressionOperator::Dot(AstRange::from_position_token(start, start));
+        //     pos += 1;
+        //     if let Ok((exp, npos)) = parse_expression(tokens, pos) {
+        //         pos = npos;
+        //         if exp.has_content() {
+        //             next = Some(Box::new(exp));
+        //         }
+        //     }
+        // }
         Token::LeftParen => {
             let values_start = tokens.get(pos).ok_or(AstError::eof())?;
-            if let Ok((vals, npos)) = parse_value_parameters(tokens, pos) {
-                pos = npos;
-                let values_end = tokens.get(pos - 1).ok_or(AstError::eof())?;
-                values = Some(types::AstValues {
-                    range: AstRange::from_position_token(values_start, values_end),
-                    values: vals,
-                });
-            }
+            let (vals, npos) = parse_expression_parameters(tokens, pos)?;
+            pos = npos;
+            let values_end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+            values = Some(types::AstValues {
+                range: AstRange::from_position_token(values_start, values_end),
+                values: vals,
+            });
             if let Ok((exp, npos)) = parse_expression(tokens, pos) {
                 pos = npos;
                 if exp.has_content() {
@@ -629,7 +559,39 @@ fn parse_expression(
             }
         }
         _ => {
-            return Err(AstError::InvalidExpression(InvalidToken::from(start, pos)));
+            let mut errors = vec![];
+            match parse_value_operator(tokens, pos) {
+                Ok((op, npos)) => {
+                    pos = npos;
+                    operator = op;
+                    if let Ok((exp, npos)) = parse_expression(tokens, pos) {
+                        pos = npos;
+                        if exp.has_content() {
+                            next = Some(Box::new(exp));
+                        }
+                    }
+                }
+                Err(e) => errors.push(("operator".into(), e)),
+            }
+            match parse_value(tokens, pos) {
+                Ok((value, npos)) => {
+                    pos = npos;
+                    ident = Some(AstExpressionIdentifier::Value(Box::new(value)));
+                    if let Ok((exp, npos)) = parse_expression(tokens, pos) {
+                        pos = npos;
+                        if exp.has_content() {
+                            next = Some(Box::new(exp));
+                        }
+                    }
+                }
+                Err(e) => errors.push(("value".into(), e)),
+            }
+            if errors.len() >= 2 {
+                return Err(AstError::AllChildrenFailed {
+                    parent: "expression".into(),
+                    errors,
+                });
+            }
         }
     }
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
@@ -639,6 +601,7 @@ fn parse_expression(
             ident,
             next,
             values,
+            operator,
         },
         pos,
     ))
@@ -676,21 +639,21 @@ fn parse_block_variable(
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let (jtype, pos) = parse_jtype(tokens, pos)?;
     let (name, pos) = parse_name(tokens, pos)?;
-    let mut value = None;
+    let mut expression = None;
     let mut pos = pos;
     if let Ok(npos) = assert_token(tokens, pos, Token::Equal) {
-        let (avalue, npos) = parse_value(tokens, npos)?;
+        let (aexpression, npos) = parse_expression(tokens, npos)?;
         pos = npos;
-        value = Some(avalue);
+        expression = Some(aexpression);
     }
     let pos = assert_semicolon(tokens, pos);
-    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
 
     Ok((
         AstBlockVariable {
             name,
             jtype,
-            value,
+            expression,
             range: AstRange::from_position_token(start, end),
         },
         pos,
@@ -704,10 +667,10 @@ fn parse_block_return(
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let pos = assert_token(tokens, pos, Token::Return)?;
     let mut pos = pos;
-    let mut value: Option<AstValue> = None;
-    if let Ok((nvalue, npos)) = parse_value(tokens, pos) {
+    let mut expression = None;
+    if let Ok((nexpression, npos)) = parse_expression(tokens, pos) {
         pos = npos;
-        value = Some(nvalue);
+        expression = Some(nexpression);
     }
     let pos = assert_token(tokens, pos, Token::Semicolon)?;
     let end = tokens.get(pos).ok_or(AstError::eof())?;
@@ -715,7 +678,7 @@ fn parse_block_return(
     Ok((
         AstBlockReturn {
             range: AstRange::from_position_token(start, end),
-            value,
+            expression,
         },
         pos,
     ))
@@ -745,7 +708,7 @@ fn parse_block_assign(
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let (key, pos) = parse_expression(tokens, pos)?;
     let pos = assert_token(tokens, pos, Token::Equal)?;
-    let (value, pos) = parse_value(tokens, pos)?;
+    let (expression, pos) = parse_expression(tokens, pos)?;
     let pos = assert_semicolon(tokens, pos);
     let end = tokens.get(pos).ok_or(AstError::eof())?;
 
@@ -753,7 +716,7 @@ fn parse_block_assign(
         AstBlockAssign {
             range: AstRange::from_position_token(start, end),
             key,
-            value,
+            expression,
         },
         pos,
     ))
@@ -1004,7 +967,7 @@ fn parse_while(tokens: &[PositionToken], pos: usize) -> Result<(AstWhile, usize)
     }
     let pos = assert_token(tokens, pos, Token::While)?;
     let pos = assert_token(tokens, pos, Token::LeftParen)?;
-    let (control, pos) = parse_value_control(tokens, pos)?;
+    let (control, pos) = parse_value(tokens, pos)?;
     let pos = assert_token(tokens, pos, Token::RightParen)?;
     let (block, pos) = parse_block(tokens, pos)?;
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
@@ -1031,9 +994,9 @@ fn parse_for(tokens: &[PositionToken], pos: usize) -> Result<(AstFor, usize), As
     let pos = assert_token(tokens, pos, Token::For)?;
     let pos = assert_token(tokens, pos, Token::LeftParen)?;
     let (var, pos) = parse_block_variable(tokens, pos)?;
-    let (check, pos) = parse_value_equasion(tokens, pos)?;
+    let (check, pos) = parse_expression(tokens, pos)?;
     let pos = assert_token(tokens, pos, Token::Semicolon)?;
-    let (change, pos) = parse_value_equasion(tokens, pos)?;
+    let (change, pos) = parse_expression(tokens, pos)?;
     let pos = assert_token(tokens, pos, Token::RightParen)?;
     let (block, pos) = parse_block(tokens, pos)?;
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
@@ -1055,7 +1018,7 @@ fn parse_if(tokens: &[PositionToken], pos: usize) -> Result<(AstIf, usize), AstE
     let pos = assert_token(tokens, pos, Token::If)?;
     let start_control = tokens.get(pos).ok_or(AstError::eof())?;
     let pos = assert_token(tokens, pos, Token::LeftParen)?;
-    let (control, pos) = parse_value_control(tokens, pos)?;
+    let (control, pos) = parse_value(tokens, pos)?;
     let end_control = tokens.get(pos).ok_or(AstError::eof())?;
     let pos = assert_token(tokens, pos, Token::RightParen)?;
     let mut pos = pos;
@@ -1063,8 +1026,8 @@ fn parse_if(tokens: &[PositionToken], pos: usize) -> Result<(AstIf, usize), AstE
     if let Ok((block, npos)) = parse_block(tokens, pos) {
         content = AstIfContent::Block(block);
         pos = npos;
-    } else if let Ok((expression, npos)) = parse_value(tokens, pos) {
-        content = AstIfContent::Value(expression);
+    } else if let Ok((expression, npos)) = parse_expression(tokens, pos) {
+        content = AstIfContent::Expression(expression);
         let npos = assert_semicolon(tokens, npos);
         pos = npos;
     }
@@ -1383,16 +1346,19 @@ fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, usize)
                         out_pos,
                     ))
                 }
-                Token::LeftParenSquare => Ok((
-                    AstJType {
-                        range: AstRange::from_position_token(current, current),
-                        value: AstJTypeKind::Array(Box::new(AstJType {
+                Token::LeftParenSquare => {
+                    let npos = assert_token(tokens, pos + 2, Token::RightParenSquare)?;
+                    Ok((
+                        AstJType {
                             range: AstRange::from_position_token(current, current),
-                            value: AstJTypeKind::Class(ident),
-                        })),
-                    },
-                    out_pos + 2,
-                )),
+                            value: AstJTypeKind::Array(Box::new(AstJType {
+                                range: AstRange::from_position_token(current, current),
+                                value: AstJTypeKind::Class(ident),
+                            })),
+                        },
+                        npos,
+                    ))
+                }
                 _ => Ok((
                     AstJType {
                         value: AstJTypeKind::Class(ident),
@@ -1435,10 +1401,7 @@ fn parse_avaliability(
 
 #[cfg(test)]
 pub mod tests {
-    use crate::{
-        error::PrintErr, lexer, parse_expression, parse_file, parse_value_control,
-        parse_value_equasion,
-    };
+    use crate::{error::PrintErr, lexer, parse_block_variable, parse_expression, parse_file};
 
     #[test]
     fn everything() {
@@ -1533,7 +1496,7 @@ pub mod tests {
     fn equasion_method_call() {
         let content = r#""z" + a.getThing()"#;
         let tokens = lexer::lex(content).unwrap();
-        let parsed = parse_value_equasion(&tokens, 0);
+        let parsed = parse_expression(&tokens, 0);
         parsed.print_err(content);
         insta::assert_debug_snapshot!(parsed.unwrap());
     }
@@ -1551,15 +1514,14 @@ pub mod tests {
         let tokens = lexer::lex(content).unwrap();
         let parsed = parse_file(&tokens);
         parsed.print_err(content);
-        assert!(false);
-        // insta::assert_debug_snapshot!(parsed.unwrap());
+        insta::assert_debug_snapshot!(parsed.unwrap());
     }
 
     #[test]
-    fn value_control() {
-        let content = r#"true == false"#;
+    fn variable_array() {
+        let content = r#"String[] cars = {"Volvo", "BMW", "Ford", "Mazda"};"#;
         let tokens = lexer::lex(content).unwrap();
-        let parsed = parse_value_control(&tokens, 0);
+        let parsed = parse_block_variable(&tokens, 0);
         parsed.print_err(content);
         insta::assert_debug_snapshot!(parsed.unwrap());
     }

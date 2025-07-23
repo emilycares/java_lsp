@@ -60,7 +60,7 @@ fn get_class_methods(
 ) -> impl Iterator<Item = LocalVariable> {
     methods
         .iter()
-        .filter(|i| i.range.is_in_range(point))
+        .filter(|i| i.range.is_after_range(point))
         .flat_map(|i| {
             interleave(
                 i.header

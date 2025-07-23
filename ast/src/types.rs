@@ -25,6 +25,13 @@ impl AstRange {
         }
         false
     }
+    pub fn is_after_range(&self, point: &AstPoint) -> bool {
+        let after = AstPoint {
+            line: self.end.line,
+            col: self.end.col + 1,
+        };
+        point == &after
+    }
 }
 
 #[derive(Debug, PartialEq, Default, Clone, Copy, PartialOrd)]
@@ -39,24 +46,24 @@ impl AstPoint {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstFile {
     pub package: AstIdentifier,
     pub imports: AstImports,
     pub thing: AstThing,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstImports {
     pub range: AstRange,
     pub imports: Vec<AstImport>,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstImport {
     pub range: AstRange,
     pub unit: AstImportUnit,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum AstImportUnit {
     Class(AstIdentifier),
     StaticClass(AstIdentifier),
@@ -65,7 +72,7 @@ pub enum AstImportUnit {
     StaticPrefix(AstIdentifier),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum AstAvailability {
     Public,
     Private,
@@ -73,7 +80,7 @@ pub enum AstAvailability {
     Undefined,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstClass {
     pub avaliability: AstAvailability,
     pub name: AstIdentifier,
@@ -83,23 +90,23 @@ pub struct AstClass {
     pub constructors: Vec<AstClassConstructor>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstClassVariable {
     pub range: AstRange,
     pub avaliability: AstAvailability,
     pub name: AstIdentifier,
     pub jtype: AstJType,
-    pub value: Option<AstValue>,
+    pub expression: Option<AstExpression>,
     pub fin: bool,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstClassMethod {
     pub range: AstRange,
     pub header: AstMethodHeader,
     pub block: AstBlock,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstMethodHeader {
     pub range: AstRange,
     pub avaliability: AstAvailability,
@@ -110,12 +117,12 @@ pub struct AstMethodHeader {
     pub throws: Option<AstThrowsDeclaration>,
     pub type_parameters: Option<AstTypeParameters>,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstThrowsDeclaration {
     pub range: AstRange,
     pub parameters: Vec<AstJType>,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstClassConstructor {
     pub range: AstRange,
     pub avaliability: AstAvailability,
@@ -123,19 +130,19 @@ pub struct AstClassConstructor {
     pub parameters: AstMethodParamerters,
     pub block: AstBlock,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstMethodParamerters {
     pub range: AstRange,
     pub parameters: Vec<AstMethodParamerter>,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstMethodParamerter {
     pub range: AstRange,
     pub jtype: AstJType,
     pub name: AstIdentifier,
     pub fin: bool,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum AstBlockEntry {
     Return(AstBlockReturn),
     Variable(AstBlockVariable),
@@ -145,23 +152,23 @@ pub enum AstBlockEntry {
     While(AstWhile),
     For(AstFor),
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstWhile {
     pub range: AstRange,
     pub control: AstValue,
     pub block: AstBlock,
     pub lable: Option<AstIdentifier>,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstFor {
     pub range: AstRange,
     pub var: AstBlockVariable,
-    pub check: AstValueEquasion,
-    pub change: AstValueEquasion,
+    pub check: AstExpression,
+    pub change: AstExpression,
     pub block: AstBlock,
     pub lable: Option<AstIdentifier>,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum AstIf {
     If {
         range: AstRange,
@@ -175,43 +182,43 @@ pub enum AstIf {
         content: AstIfContent,
     },
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum AstIfContent {
     Block(AstBlock),
-    Value(AstValue),
+    Expression(AstExpression),
     None,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstBlockAssign {
     pub range: AstRange,
     pub key: AstExpression,
-    pub value: AstValue,
+    pub expression: AstExpression,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstBlockExpression {
     pub range: AstRange,
     pub value: AstExpression,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstBlock {
     pub range: AstRange,
     pub entries: Vec<Box<AstBlockEntry>>,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstBlockVariable {
     pub range: AstRange,
     pub name: AstIdentifier,
     pub jtype: AstJType,
-    pub value: Option<AstValue>,
+    pub expression: Option<AstExpression>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstBlockReturn {
     pub range: AstRange,
-    pub value: Option<AstValue>,
+    pub expression: Option<AstExpression>,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct AstIdentifier {
     pub range: AstRange,
     pub value: SmolStr,
@@ -240,30 +247,30 @@ impl From<&AstIdentifier> for SmolStr {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstNumber {
     pub range: AstRange,
     pub value: i64,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstDouble {
     pub range: AstRange,
     pub value: f64,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum AstSuperClass {
     None,
     Name(AstIdentifier),
     ClassPath(AstIdentifier),
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstAnnotation {
     pub avaliability: AstAvailability,
     pub name: AstIdentifier,
     pub fields: Vec<AstAnnotationField>,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstAnnotationField {
     pub range: AstRange,
     pub name: AstIdentifier,
@@ -271,7 +278,7 @@ pub struct AstAnnotationField {
     pub value: AstValue,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstInterface {
     pub avaliability: AstAvailability,
     pub name: AstIdentifier,
@@ -282,7 +289,7 @@ pub struct AstInterface {
     pub default_methods: Vec<AstInterfaceMethodDefault>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum AstThing {
     Class(AstClass),
     Interface(AstInterface),
@@ -290,12 +297,12 @@ pub enum AstThing {
     Annotation(AstAnnotation),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstJType {
     pub range: AstRange,
     pub value: AstJTypeKind,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum AstJTypeKind {
     Void,
     Byte,
@@ -313,16 +320,14 @@ pub enum AstJTypeKind {
     Parameter(AstIdentifier),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum AstValue {
     NewClass(AstValueNewClass),
-    Equasion(AstValueEquasion),
     Variable(AstIdentifier),
-    Expression(AstExpression),
     Nuget(AstValueNuget),
     Array(AstValues),
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum AstValueNuget {
     Number(AstNumber),
     Double(AstDouble),
@@ -332,23 +337,26 @@ pub enum AstValueNuget {
     BooleanLiteral(AstBoolean),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstExpression {
     pub range: AstRange,
     pub ident: Option<AstExpressionIdentifier>,
     pub values: Option<AstValues>,
     pub next: Option<Box<AstExpression>>,
+    pub operator: AstExpressionOperator,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum AstExpressionIdentifier {
     Identifier(AstIdentifier),
     Nuget(AstValueNuget),
+    Value(Box<AstValue>),
+    ArrayAccess(AstValue),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstValues {
     pub range: AstRange,
-    pub values: Vec<AstValue>,
+    pub values: Vec<AstExpression>,
 }
 impl AstExpression {
     pub fn has_content(&self) -> bool {
@@ -356,28 +364,21 @@ impl AstExpression {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstValueNewClass {
     pub range: AstRange,
     pub jtype: AstJType,
-    pub parameters: Vec<AstValue>,
+    pub parameters: Vec<AstExpression>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstBoolean {
     pub range: AstRange,
     pub value: bool,
 }
 
 #[derive(Debug, PartialEq)]
-pub struct AstValueEquasion {
-    pub range: AstRange,
-    pub lhs: Box<AstValue>,
-    pub operator: AstValueEquasionOperator,
-    pub rhs: Box<Option<AstValue>>,
-}
-#[derive(Debug, PartialEq)]
-pub enum AstValueEquasionOperator {
+pub enum AstExpressionOperator {
     Plus(AstRange),
     PlusPlus(AstRange),
     Minus(AstRange),
@@ -391,19 +392,21 @@ pub enum AstValueEquasionOperator {
     Lt(AstRange),
     Ge(AstRange),
     Gt(AstRange),
+    None,
+    Dot(AstRange),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstTypeParameters {
     pub range: AstRange,
     pub parameters: Vec<AstIdentifier>,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstExtends {
     pub range: AstRange,
     pub parameters: Vec<AstJType>,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstInterfaceConstant {
     pub range: AstRange,
     pub avaliability: AstAvailability,
@@ -411,19 +414,19 @@ pub struct AstInterfaceConstant {
     pub jtype: AstJType,
     pub value: AstValue,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstInterfaceMethod {
     pub range: AstRange,
     pub header: AstMethodHeader,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstInterfaceMethodDefault {
     pub range: AstRange,
     pub header: AstMethodHeader,
     pub block: AstBlock,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstEnumeration {
     pub avaliability: AstAvailability,
     pub name: AstIdentifier,
@@ -432,9 +435,9 @@ pub struct AstEnumeration {
     pub variables: Vec<AstClassVariable>,
     pub constructors: Vec<AstClassConstructor>,
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct AstEnumerationVariant {
     pub range: AstRange,
     pub name: AstIdentifier,
-    pub parameters: Vec<AstValue>,
+    pub parameters: Vec<AstExpression>,
 }
