@@ -14,6 +14,7 @@ pub fn parse_interface(
     pos: usize,
     avaliability: AstAvailability,
 ) -> Result<(AstThing, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
     let (name, pos) = parse_identifier(tokens, pos)?;
     let mut pos = pos;
     let mut type_parameters = None;
@@ -76,9 +77,11 @@ pub fn parse_interface(
             errors,
         });
     }
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
 
     Ok((
         AstThing::Interface(AstInterface {
+            range: AstRange::from_position_token(start, end),
             avaliability,
             name,
             type_parameters,

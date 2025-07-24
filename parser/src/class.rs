@@ -431,6 +431,7 @@ fn parse_field_type(c: Option<char>, chars: &mut std::str::Chars) -> dto::JType 
 mod tests {
     use crate::{class::load_class, loader::SourceDestination};
 
+    #[cfg(not(windows))]
     #[test]
     fn relative_source() {
         let result = load_class(

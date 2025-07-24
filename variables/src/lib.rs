@@ -83,7 +83,7 @@ fn get_block_vars(
     block: &ast::types::AstBlock,
     _point: &AstPoint,
 ) -> impl Iterator<Item = LocalVariable> {
-    block.entries.iter().filter_map(|i| match i {
+    block.entries.iter().filter_map(|i| match i.as_ref() {
         AstBlockEntry::Variable(i) => Some(LocalVariable {
             level: 1,
             jtype: (&i.jtype).into(),

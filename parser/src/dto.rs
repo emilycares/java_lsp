@@ -281,6 +281,12 @@ impl Display for JType {
     }
 }
 
+impl PartialEq<AstJType> for JType {
+    fn eq(&self, other: &AstJType) -> bool {
+        Into::<JType>::into(other) == *self
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::ops::Deref;

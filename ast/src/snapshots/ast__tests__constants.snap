@@ -1,6 +1,7 @@
 ---
 source: ast/src/lib.rs
 expression: parsed.unwrap()
+snapshot_kind: text
 ---
 AstFile {
     package: AstIdentifier {
@@ -113,6 +114,16 @@ AstFile {
     },
     thing: Interface(
         AstInterface {
+            range: AstRange {
+                start: AstPoint {
+                    line: 6,
+                    col: 17,
+                },
+                end: AstPoint {
+                    line: 16,
+                    col: 1,
+                },
+            },
             avaliability: Public,
             name: AstIdentifier {
                 range: AstRange {

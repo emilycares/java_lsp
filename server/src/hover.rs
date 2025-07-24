@@ -6,6 +6,8 @@ use parser::dto::{self, ImportUnit};
 use tyres::TyresError;
 use variables::LocalVariable;
 
+use crate::codeaction::to_lsp_range;
+
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum HoverError {
@@ -69,43 +71,44 @@ pub enum ClassActionError {
 }
 
 pub fn class_action(
-    tree: &AstFile,
-    bytes: &[u8],
-    point: &AstPoint,
-    lo_va: &[LocalVariable],
-    imports: &[ImportUnit],
-    class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
+    _tree: &AstFile,
+    _bytes: &[u8],
+    _point: &AstPoint,
+    _lo_va: &[LocalVariable],
+    _imports: &[ImportUnit],
+    _class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Result<(dto::Class, Range), ClassActionError> {
-    let Ok(n) = tree_sitter_util::get_node_at_point(tree, *point) else {
-        return Err(ClassActionError::CouldNotGetNode);
-    };
-    match n.kind() {
-        "type_identifier" => {
-            if let Ok(jtype) = n.utf8_text(bytes) {
-                return match tyres::resolve(jtype, imports, class_map) {
-                    Ok(resolve_state) => Ok((resolve_state.class, to_lsp_range(n.range()))),
-                    Err(tyres_error) => Err(ClassActionError::Tyres { tyres_error }),
-                };
-            }
-        }
-        "identifier" => {
-            if let Some(CallItem::ClassOrVariable {
-                name: class,
-                range: _,
-            }) = class_or_variable(n, bytes)
-            {
-                if lo_va.iter().any(|v| v.name == class) {
-                    return Err(ClassActionError::VariableFound);
-                }
-                return match tyres::resolve(&class, imports, class_map) {
-                    Ok(resolve_state) => Ok((resolve_state.class, to_lsp_range(n.range()))),
-                    Err(tyres_error) => Err(ClassActionError::Tyres { tyres_error }),
-                };
-            }
-        }
-        _ => {}
-    };
-    Err(ClassActionError::NotFound)
+    unimplemented!()
+    // let Ok(n) = tree_sitter_util::get_node_at_point(tree, *point) else {
+    //     return Err(ClassActionError::CouldNotGetNode);
+    // };
+    // match n.kind() {
+    //     "type_identifier" => {
+    //         if let Ok(jtype) = n.utf8_text(bytes) {
+    //             return match tyres::resolve(jtype, imports, class_map) {
+    //                 Ok(resolve_state) => Ok((resolve_state.class, to_lsp_range(n.range()))),
+    //                 Err(tyres_error) => Err(ClassActionError::Tyres { tyres_error }),
+    //             };
+    //         }
+    //     }
+    //     "identifier" => {
+    //         if let Some(CallItem::ClassOrVariable {
+    //             name: class,
+    //             range: _,
+    //         }) = class_or_variable(n, bytes)
+    //         {
+    //             if lo_va.iter().any(|v| v.name == class) {
+    //                 return Err(ClassActionError::VariableFound);
+    //             }
+    //             return match tyres::resolve(&class, imports, class_map) {
+    //                 Ok(resolve_state) => Ok((resolve_state.class, to_lsp_range(n.range()))),
+    //                 Err(tyres_error) => Err(ClassActionError::Tyres { tyres_error }),
+    //             };
+    //         }
+    //     }
+    //     _ => {}
+    // };
+    // Err(ClassActionError::NotFound)
 }
 
 pub fn call_chain_hover(
@@ -135,31 +138,31 @@ pub fn call_chain_hover(
                 .into_iter()
                 .filter(|m| m.name == *name)
                 .collect();
-            Ok(methods_to_hover(&methods, to_lsp_range(*range)))
+            Ok(methods_to_hover(&methods, to_lsp_range(range)))
         }
         CallItem::FieldAccess { name, range } => {
             let Some(method) = resolve_state.class.fields.iter().find(|m| m.name == *name) else {
                 return Err(HoverError::LocalVariableNotFound {
-                    name: name.to_owned(),
+                    name: name.to_string(),
                 });
             };
-            Ok(field_to_hover(method, to_lsp_range(*range)))
+            Ok(field_to_hover(method, to_lsp_range(range)))
         }
         CallItem::Variable { name, range } => {
             let Some(var) = lo_va.iter().find(|v| v.name == *name) else {
                 return Err(HoverError::LocalVariableNotFound {
-                    name: name.to_owned(),
+                    name: name.to_string(),
                 });
             };
-            Ok(variables_to_hover(vec![var], to_lsp_range(*range)))
+            Ok(variables_to_hover(vec![var], to_lsp_range(range)))
         }
         CallItem::Class { name: _, range } => {
-            Ok(class_to_hover(resolve_state.class, to_lsp_range(*range)))
+            Ok(class_to_hover(resolve_state.class, to_lsp_range(range)))
         }
         CallItem::ClassOrVariable { name, range } => {
             let vars: Vec<_> = lo_va.iter().filter(|v| v.name == *name).collect();
             if vars.is_empty() {
-                return Ok(class_to_hover(resolve_state.class, to_lsp_range(*range)));
+                return Ok(class_to_hover(resolve_state.class, to_lsp_range(range)));
             }
             match parser::load_java(document.as_bytes(), parser::loader::SourceDestination::None) {
                 Err(e) => Err(HoverError::ParseError(e)),
@@ -189,7 +192,7 @@ pub fn call_chain_hover(
                             kind: MarkupKind::Markdown,
                             value: format!("{}\n{}\n{}", vars, fields, methods),
                         }),
-                        range: Some(to_lsp_range(*range)),
+                        range: Some(to_lsp_range(range)),
                     })
                 }
             }

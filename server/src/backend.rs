@@ -1,6 +1,5 @@
 use std::{collections::HashMap, path::PathBuf, str::FromStr, sync::Arc};
 
-use ast::types::AstPoint;
 use call_chain::get_call_chain;
 use common::{TaskProgress, project_kind::ProjectKind};
 use compile::CompileError;
@@ -448,8 +447,8 @@ impl Backend {
         if do_rest {
             eprintln!("Call chain is emtpy");
             out.extend(completion::static_methods(
-                &imports,
                 &document.ast,
+                &imports,
                 &self.class_map,
             ));
             out.extend(completion::complete_vars(&vars));
@@ -502,7 +501,7 @@ impl Backend {
                 eprintln!("Error while class definition: {e:?}");
             }
         }
-        let Some(call_chain) = get_call_chain(&document.tree, document.as_bytes(), &point) else {
+        let Some(call_chain) = get_call_chain(&document.ast, &point) else {
             eprintln!("Defintion could not get callchain");
             return None;
         };
@@ -532,7 +531,7 @@ impl Backend {
             }
         }?;
         match class_action(
-            &document.tree,
+            &document.ast,
             document.as_bytes(),
             &point,
             &vars,
@@ -548,7 +547,7 @@ impl Backend {
             }
             Err(e) => eprintln!("Got refrence class error: {e:?}"),
         }
-        let Some(call_chain) = get_call_chain(&document.tree, document.as_bytes(), &point) else {
+        let Some(call_chain) = get_call_chain(&document.ast, &point) else {
             eprintln!("Defintion could not get callchain");
             return None;
         };
@@ -585,7 +584,6 @@ impl Backend {
         };
         let current_file = params.text_document.uri;
         let point = to_ast_point(params.range.start);
-        let bytes = document.as_bytes();
 
         let imports = imports::imports(document.value());
 
@@ -609,11 +607,11 @@ impl Backend {
             vars: &vars,
             current_file: &current_file,
         };
-        if let Some(imps) = codeaction::import_jtype(&document.tree, bytes, &context) {
+        if let Some(imps) = codeaction::import_jtype(&document.ast, &context) {
             return Some(imps);
         }
 
-        match codeaction::replace_with_value_type(&document.tree, bytes, &context) {
+        match codeaction::replace_with_value_type(&document.ast, &context) {
             Ok(None) => (),
             Ok(Some(e)) => return Some(vec![e]),
             Err(e) => {
@@ -631,7 +629,7 @@ impl Backend {
         };
         let uri = params.text_document.uri;
 
-        let symbols = position::get_symbols(document.as_bytes(), &document.tree);
+        let symbols = position::get_class_position(&document.ast, None);
         match symbols {
             Ok(symbols) => {
                 let symbols = position::symbols_to_document_symbols(symbols, uri);
@@ -672,8 +670,8 @@ impl Backend {
                 ))
             })
             .filter_map(|(path, source)| match source {
-                ClassSource::Owned(d) => Some((path, position::get_symbols(d.as_bytes(), &d.tree))),
-                ClassSource::Ref(d) => Some((path, position::get_symbols(d.as_bytes(), &d.tree))),
+                ClassSource::Owned(d) => Some((path, position::get_class_position(&d.ast, None))),
+                ClassSource::Ref(d) => Some((path, position::get_class_position(&d.ast, None))),
                 ClassSource::Err(_) => None,
             })
             .map(|(path, symbols)| {

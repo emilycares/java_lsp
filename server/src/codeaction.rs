@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ast::types::{AstFile, AstPoint};
+use ast::types::{AstBlockVariable, AstFile, AstIf, AstPoint, AstRange};
 use lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, Position, Range, TextEdit, Uri, WorkspaceEdit,
 };
@@ -26,28 +26,51 @@ pub enum CodeActionError {
 }
 
 pub fn replace_with_value_type(
-    tree: &AstFile,
-    bytes: &[u8],
+    ast: &AstFile,
     context: &CodeActionContext,
 ) -> Result<Option<CodeActionOrCommand>, CodeActionError> {
-    let Ok(node) =
-        tree_sitter_util::digg_until_kind(tree, *context.point, "local_variable_declaration")
-    else {
-        return Ok(None);
+    let mut classvar = None;
+    let mut blockvar = None;
+    match &ast.thing {
+        ast::types::AstThing::Class(ast_class) => {
+            let cvars = ast_class
+                .variables
+                .iter()
+                .find(|i| i.range.is_in_range(context.point));
+            if let Some(v) = cvars {
+                classvar = Some(v);
+            } else {
+                let bvars = ast_class
+                    .methods
+                    .iter()
+                    .find_map(|i| find_var_block(&i.block, &context.point));
+                if let Some(v) = bvars {
+                    blockvar = Some(v);
+                }
+            }
+        }
+        ast::types::AstThing::Interface(_ast_interface) => todo!(),
+        ast::types::AstThing::Enumeration(_ast_enumeration) => todo!(),
+        ast::types::AstThing::Annotation(_ast_annotation) => todo!(),
+    }
+    let point;
+    let current_type = match (classvar, blockvar) {
+        (None, None) => return Ok(None),
+        (None, Some(b)) => {
+            point = b.range.end;
+            &b.jtype
+        }
+        (Some(c), None) => {
+            point = c.range.end;
+            &c.jtype
+        }
+        (Some(_), Some(b)) => {
+            point = b.range.end;
+            &b.jtype
+        }
     };
-    let mut cursor = node.walk();
-    cursor.first_child();
-    let current_type_range = cursor.node().range();
-    let current_type =
-        parse_jtype(&cursor.node(), bytes, &vec![]).map_err(CodeActionError::ParseJava)?;
-    cursor.sibling();
-    cursor.first_child();
-    cursor.sibling();
-    cursor.sibling();
-    let mut point = cursor.node().range().end_point;
-    point.column -= 1;
     // value here
-    let Some(call_chain) = call_chain::get_call_chain(tree, bytes, &point) else {
+    let Some(call_chain) = call_chain::get_call_chain(ast, &point) else {
         return Err(CodeActionError::NoCallCain);
     };
     let value_resolve_state = tyres::resolve_call_chain_value(
@@ -59,14 +82,14 @@ pub fn replace_with_value_type(
     )
     .map_err(CodeActionError::Tyres)?;
 
-    if current_type != value_resolve_state.jtype {
+    if &value_resolve_state.jtype != current_type {
         // Required by lsp types
         #[allow(clippy::mutable_key_type)]
         let mut changes = HashMap::new();
         changes.insert(
             context.current_file.to_owned(),
             vec![TextEdit {
-                range: tree_sitter_util::lsp::to_lsp_range(current_type_range),
+                range: to_lsp_range(&current_type.range),
                 new_text: value_resolve_state.class.name.clone(),
             }],
         );
@@ -85,35 +108,106 @@ pub fn replace_with_value_type(
     Ok(None)
 }
 
-pub fn import_jtype(
-    tree: &Tree,
-    bytes: &[u8],
-    context: &CodeActionContext,
-) -> Option<Vec<CodeActionOrCommand>> {
-    if let Ok(n) = tree_sitter_util::get_node_at_point(tree, *context.point) {
-        if n.kind() == "type_identifier" {
-            if let Ok(jtype) = n.utf8_text(bytes) {
-                if !tyres::is_imported_class_name(jtype, context.imports, context.class_map) {
-                    let i = tyres::resolve_import(jtype, context.class_map)
-                        .iter()
-                        .map(|a| import_to_code_action(context.current_file, a, tree))
-                        .collect();
-                    return Some(i);
-                }
-            }
-        }
+pub fn to_lsp_range(range: &AstRange) -> Range {
+    Range {
+        start: Position {
+            line: range.start.line as u32,
+            character: range.start.col as u32,
+        },
+        end: Position {
+            line: range.end.line as u32,
+            character: range.end.col as u32,
+        },
     }
+}
+
+fn find_var_block<'a>(
+    block: &'a ast::types::AstBlock,
+    point: &'a AstPoint,
+) -> Option<&'a AstBlockVariable> {
+    block.entries.iter().find_map(|i| match i.as_ref() {
+        ast::types::AstBlockEntry::Return(_ast_block_return) => None,
+        ast::types::AstBlockEntry::Variable(ast_block_variable) => {
+            if ast_block_variable.range.is_in_range(point) {
+                return Some(ast_block_variable);
+            }
+            None
+        }
+        ast::types::AstBlockEntry::Expression(_ast_block_expression) => None,
+        ast::types::AstBlockEntry::Assign(_ast_block_assign) => None,
+        ast::types::AstBlockEntry::If(ast_if) => match ast_if {
+            AstIf::If {
+                range,
+                control: _,
+                control_range: _,
+                content,
+                el: _,
+            } => {
+                if range.is_in_range(point) {
+                    return match content {
+                        ast::types::AstIfContent::Block(ast_block) => {
+                            find_var_block(ast_block, point)
+                        }
+                        ast::types::AstIfContent::Expression(_ast_expression) => None,
+                        ast::types::AstIfContent::None => None,
+                    };
+                }
+                None
+            }
+            AstIf::Else { range, content } => {
+                if range.is_in_range(point) {
+                    return match content {
+                        ast::types::AstIfContent::Block(ast_block) => {
+                            find_var_block(ast_block, point)
+                        }
+                        ast::types::AstIfContent::Expression(_ast_expression) => None,
+                        ast::types::AstIfContent::None => None,
+                    };
+                }
+                None
+            }
+        },
+        ast::types::AstBlockEntry::While(ast_while) => {
+            if ast_while.range.is_in_range(point) {
+                return find_var_block(&ast_while.block, point);
+            }
+            None
+        }
+        ast::types::AstBlockEntry::For(ast_for) => {
+            if ast_for.range.is_in_range(point) {
+                return find_var_block(&ast_for.block, point);
+            }
+            None
+        }
+    })
+}
+
+pub fn import_jtype(
+    _ast: &AstFile,
+    _context: &CodeActionContext,
+) -> Option<Vec<CodeActionOrCommand>> {
+    // if let Ok(n) = tree_sitter_util::get_node_at_point(tree, *context.point) {
+    //     if n.kind() == "type_identifier" {
+    //         if let Ok(jtype) = n.utf8_text(bytes) {
+    //             if !tyres::is_imported_class_name(jtype, context.imports, context.class_map) {
+    //                 let i = tyres::resolve_import(jtype, context.class_map)
+    //                     .iter()
+    //                     .map(|a| import_to_code_action(context.current_file, a, tree))
+    //                     .collect();
+    //                 return Some(i);
+    //             }
+    //         }
+    //     }
+    // }
     None
 }
 
 pub fn get_import_position(ast: &AstFile) -> Option<Position> {
-    let mut cursor = tree.walk();
-    cursor.first_child();
-    cursor.sibling();
-    if cursor.node().kind() == "import_declaration" {
-        return Some(to_lsp_position(cursor.node().end_position()));
-    }
-    None
+    let end = ast.imports.range.end;
+    Some(Position {
+        line: end.line as u32,
+        character: end.col as u32,
+    })
 }
 pub fn import_text_edit(classpath: &str, ast: &AstFile) -> Vec<TextEdit> {
     let mut pos = Position {
@@ -132,12 +226,12 @@ pub fn import_text_edit(classpath: &str, ast: &AstFile) -> Vec<TextEdit> {
 pub fn import_to_code_action(
     current_file: &Uri,
     classpath: &str,
-    tree: &Tree,
+    ast: &AstFile,
 ) -> CodeActionOrCommand {
     // Required by lsp types
     #[allow(clippy::mutable_key_type)]
     let mut changes = HashMap::new();
-    changes.insert(current_file.to_owned(), import_text_edit(classpath, tree));
+    changes.insert(current_file.to_owned(), import_text_edit(classpath, ast));
     CodeActionOrCommand::CodeAction(CodeAction {
         kind: Some(CodeActionKind::QUICKFIX),
         title: format!("Import {}", classpath),
@@ -152,12 +246,12 @@ pub fn import_to_code_action(
 pub mod tests {
     use std::{path::PathBuf, str::FromStr};
 
+    use ast::types::AstPoint;
     use dashmap::DashMap;
     use document::Document;
     use lsp_types::Uri;
     use parser::dto::{self, ImportUnit};
     use pretty_assertions::assert_eq;
-    use tree_sitter::Point;
 
     use crate::codeaction::replace_with_value_type;
 
@@ -173,7 +267,7 @@ public class Test {
     }
 }
         "#;
-        let point = Point::new(4, 10);
+        let point = AstPoint::new(4, 10);
         let doc = Document::setup(
             content,
             PathBuf::from_str("./").unwrap(),
@@ -181,12 +275,8 @@ public class Test {
         )
         .unwrap();
         let imports = vec![];
-        let class = parser::java::load_java_tree(
-            content.as_bytes(),
-            parser::loader::SourceDestination::None,
-            &doc.tree,
-        )
-        .unwrap();
+        let class = parser::java::load_java_tree(&doc.ast, parser::loader::SourceDestination::None)
+            .unwrap();
         let uri = Uri::from_str("file:///a").unwrap();
         let context = CodeActionContext {
             point: &point,
@@ -196,7 +286,7 @@ public class Test {
             vars: &variables::get_vars(&doc, &point).unwrap(),
             current_file: &uri,
         };
-        let out = replace_with_value_type(&doc.tree, content.as_bytes(), &context);
+        let out = replace_with_value_type(&doc.ast, &context);
         let result = out.unwrap().unwrap();
         match result {
             lsp_types::CodeActionOrCommand::CodeAction(code_action) => {
@@ -216,7 +306,7 @@ public class Test {
     }
 }
         "#;
-        let point = Point::new(4, 10);
+        let point = AstPoint::new(4, 10);
         let doc = Document::setup(
             content,
             PathBuf::from_str("./").unwrap(),
@@ -224,12 +314,8 @@ public class Test {
         )
         .unwrap();
         let imports = vec![ImportUnit::Class("java.io.FileInputStream".to_string())];
-        let class = parser::java::load_java_tree(
-            content.as_bytes(),
-            parser::loader::SourceDestination::None,
-            &doc.tree,
-        )
-        .unwrap();
+        let class = parser::java::load_java_tree(&doc.ast, parser::loader::SourceDestination::None)
+            .unwrap();
         let uri = Uri::from_str("file:///a").unwrap();
         let context = CodeActionContext {
             point: &point,
@@ -239,7 +325,7 @@ public class Test {
             vars: &variables::get_vars(&doc, &point).unwrap(),
             current_file: &uri,
         };
-        let out = replace_with_value_type(&doc.tree, content.as_bytes(), &context);
+        let out = replace_with_value_type(&doc.ast, &context);
         let result = out.unwrap().unwrap();
         match result {
             lsp_types::CodeActionOrCommand::CodeAction(code_action) => {
@@ -263,7 +349,7 @@ public class Test {
     }
 }
         "#;
-        let point = Point::new(5, 10);
+        let point = AstPoint::new(5, 10);
         let doc = Document::setup(
             content,
             PathBuf::from_str("./").unwrap(),
@@ -271,12 +357,8 @@ public class Test {
         )
         .unwrap();
         let imports = vec![];
-        let class = parser::java::load_java_tree(
-            content.as_bytes(),
-            parser::loader::SourceDestination::None,
-            &doc.tree,
-        )
-        .unwrap();
+        let class = parser::java::load_java_tree(&doc.ast, parser::loader::SourceDestination::None)
+            .unwrap();
         let uri = Uri::from_str("file:///a").unwrap();
         let context = CodeActionContext {
             point: &point,
@@ -286,7 +368,7 @@ public class Test {
             vars: &variables::get_vars(&doc, &point).unwrap(),
             current_file: &uri,
         };
-        let out = replace_with_value_type(&doc.tree, content.as_bytes(), &context);
+        let out = replace_with_value_type(&doc.ast, &context);
         let result = out.unwrap().unwrap();
         match result {
             lsp_types::CodeActionOrCommand::CodeAction(code_action) => {

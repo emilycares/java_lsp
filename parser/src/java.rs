@@ -31,27 +31,26 @@ pub fn load_java(
     let str = str::from_utf8(bytes).map_err(ParseJavaError::Utf8)?;
     let tokens = lexer::lex(str).map_err(ParseJavaError::Lexer)?;
     let parsed = ast::parse_file(&tokens).map_err(ParseJavaError::Ast)?;
-    load_java_tree(parsed, source)
+    load_java_tree(&parsed, source)
 }
 
 pub fn load_java_tree(
-    ast: AstFile,
+    ast: &AstFile,
     source: SourceDestination,
 ) -> Result<crate::dto::Class, ParseJavaError> {
-    let thing = ast.thing;
     let mut methods: Vec<Method> = vec![];
     let mut fields: Vec<Field> = vec![];
-    let class_path_base: String = ast.package.into();
-    let name;
+    let class_path_base: String = (&ast.package).into();
+    let name: String;
     let mut super_class = dto::SuperClass::None;
     let mut super_interfaces = vec![];
     let imports: Vec<ImportUnit> = ast.imports.imports.iter().map(|i| i.into()).collect();
-    match thing {
+    match &ast.thing {
         AstThing::Class(class) => {
-            name = class.name.into();
+            name = (&class.name).into();
             methods.extend(class.methods.iter().map(convert_class_method));
             fields.extend(class.variables.iter().map(convert_class_field));
-            super_class = match class.superclass {
+            super_class = match &class.superclass {
                 ast::types::AstSuperClass::None => dto::SuperClass::None,
                 ast::types::AstSuperClass::Name(ast_identifier) => {
                     dto::SuperClass::Name(ast_identifier.into())
@@ -62,13 +61,13 @@ pub fn load_java_tree(
             };
         }
         AstThing::Enumeration(enumeration) => {
-            name = enumeration.name.into();
+            name = (&enumeration.name).into();
             methods.extend(enumeration.methods.iter().map(convert_class_method));
             fields.extend(enumeration.variables.iter().map(convert_class_field));
         }
         AstThing::Interface(interface) => {
-            name = interface.name.into();
-            if let Some(ext) = interface.extends {
+            name = (&interface.name).into();
+            if let Some(ext) = &interface.extends {
                 super_interfaces.extend(fun_name(&ext, &imports));
             }
             methods.extend(interface.methods.iter().map(convert_interface_method));
@@ -81,7 +80,7 @@ pub fn load_java_tree(
             fields.extend(interface.constants.iter().map(convert_interface_constant));
         }
         AstThing::Annotation(annotation) => {
-            name = annotation.name.into();
+            name = (&annotation.name).into();
             fields.extend(annotation.fields.iter().map(convert_annotation_field));
         }
     }
@@ -99,7 +98,7 @@ pub fn load_java_tree(
         access: vec![],
         super_class,
         super_interfaces,
-        imports: convert_imports(ast.imports, class_path_base),
+        imports: convert_imports(&ast.imports, class_path_base),
         name,
         methods,
         fields,
@@ -121,7 +120,7 @@ fn fun_name(ext: &AstExtends, imports: &[ImportUnit]) -> impl Iterator<Item = dt
     })
 }
 
-fn convert_imports(imports: AstImports, package: String) -> Vec<ImportUnit> {
+fn convert_imports(imports: &AstImports, package: String) -> Vec<ImportUnit> {
     let mut out = vec![ImportUnit::Package(package)];
     out.extend(imports.imports.iter().map(|i| i.into()));
     out

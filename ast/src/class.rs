@@ -14,6 +14,7 @@ pub fn parse_class(
     pos: usize,
     avaliability: AstAvailability,
 ) -> Result<(AstThing, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
     let (name, pos) = parse_identifier(tokens, pos)?;
     let (superclass, pos) = parse_superclass(tokens, pos)?;
     let pos = assert_token(tokens, pos, Token::LeftParenCurly)?;
@@ -66,9 +67,11 @@ pub fn parse_class(
             errors,
         });
     }
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
 
     Ok((
         AstThing::Class(AstClass {
+            range: AstRange::from_position_token(start, end),
             avaliability,
             name,
             superclass,

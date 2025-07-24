@@ -1,10 +1,8 @@
-use ast::types::AstFile;
+use ast::types::{AstFile, AstPoint};
 use call_chain::get_call_chain;
 use document::{Document, DocumentError};
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat};
 use parser::dto::{self, ImportUnit};
-use tree_sitter::{Point, Tree};
-use tree_sitter_util::{get_node_at_point, get_string_node};
 use variables::LocalVariable;
 
 use crate::codeaction;
@@ -34,7 +32,7 @@ pub fn complete_vars(vars: &[LocalVariable]) -> Vec<CompletionItem> {
 }
 
 /// Preview class with the description of methods
-pub fn class_describe(val: &dto::Class, add_import_tree: Option<&Tree>) -> CompletionItem {
+pub fn class_describe(val: &dto::Class, ast: Option<&AstFile>) -> CompletionItem {
     let methods: Vec<_> = val
         .methods
         .iter()
@@ -52,8 +50,8 @@ pub fn class_describe(val: &dto::Class, add_import_tree: Option<&Tree>) -> Compl
 
     let mut addi = None;
 
-    if let Some(tree) = add_import_tree {
-        addi = Some(codeaction::import_text_edit(&val.class_path, tree));
+    if let Some(ast) = ast {
+        addi = Some(codeaction::import_text_edit(&val.class_path, ast));
     }
 
     let detail = format!("package {};\n{}", val.class_path, methods.join(", "));
@@ -67,7 +65,11 @@ pub fn class_describe(val: &dto::Class, add_import_tree: Option<&Tree>) -> Compl
 }
 
 /// Unpack class as completion items with methods and fields
-pub fn class_unpack(val: &dto::Class, imports: &[ImportUnit], tree: &Tree) -> Vec<CompletionItem> {
+pub fn class_unpack(
+    val: &dto::Class,
+    imports: &[ImportUnit],
+    ast: &AstFile,
+) -> Vec<CompletionItem> {
     let mut out = vec![];
 
     out.extend(
@@ -79,7 +81,7 @@ pub fn class_unpack(val: &dto::Class, imports: &[ImportUnit], tree: &Tree) -> Ve
                 }
                 i.access.contains(&parser::dto::Access::Public)
             })
-            .map(|i| complete_method(i, imports, tree)),
+            .map(|i| complete_method(i, imports, ast)),
     );
 
     out.extend(
@@ -140,7 +142,7 @@ fn complete_method(m: &dto::Method, imports: &[ImportUnit], ast: &AstFile) -> Co
             let mut additional_text_edits = None;
             if !imports.contains(&import) {
                 if let ImportUnit::Class(class_path) = import {
-                    additional_text_edits = Some(codeaction::import_text_edit(&class_path, tree));
+                    additional_text_edits = Some(codeaction::import_text_edit(&class_path, ast));
                 };
             }
 
@@ -210,16 +212,15 @@ fn type_to_snippet(import: &mut Option<ImportUnit>, p: &dto::Parameter) -> Strin
 /// Completion of the previous variable
 pub fn complete_call_chain(
     document: &Document,
-    point: &Point,
+    point: &AstPoint,
     vars: &[LocalVariable],
     imports: &[ImportUnit],
     class: &dto::Class,
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Result<Vec<CompletionItem>, CompletionError> {
-    if let Some(call_chain) = get_call_chain(&document.tree, document.as_bytes(), point).as_deref()
-    {
+    if let Some(call_chain) = get_call_chain(&document.ast, point).as_deref() {
         return match tyres::resolve_call_chain(call_chain, vars, imports, class, class_map) {
-            Ok(resolve_state) => Ok(class_unpack(&resolve_state.class, imports, &document.tree)),
+            Ok(resolve_state) => Ok(class_unpack(&resolve_state.class, imports, &document.ast)),
             Err(tyres_error) => Err(CompletionError::Tyres { tyres_error }),
         };
     }
@@ -227,78 +228,57 @@ pub fn complete_call_chain(
 }
 
 pub fn classes(
-    document: &Document,
-    point: &Point,
-    imports: &[ImportUnit],
-    class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
+    _document: &Document,
+    point: &AstPoint,
+    _imports: &[ImportUnit],
+    _class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Vec<CompletionItem> {
-    let tree = &document.tree;
-
-    if point.column < 3 {
+    if point.col < 3 {
         return vec![];
     }
 
-    let Ok(node) = get_node_at_point(tree, Point::new(point.row, point.column - 2)) else {
-        return vec![];
-    };
+    let out = vec![];
 
-    let bytes = document.as_bytes();
-
-    let mut out = vec![];
-
-    if let Some(text) = is_class_completion(node, bytes) {
-        out.extend(
-            imports
-                .iter()
-                .filter_map(|imp| match imp {
-                    ImportUnit::Class(c) => Some(c),
-                    ImportUnit::StaticClass(c) => Some(c),
-                    ImportUnit::StaticClassMethod(_, _) => None,
-                    ImportUnit::Prefix(_) => None,
-                    ImportUnit::StaticPrefix(_) => None,
-                    ImportUnit::Package(_) => None,
-                })
-                .filter(|c| {
-                    let Some((_, cname)) = c.rsplit_once(".") else {
-                        return false;
-                    };
-                    cname.starts_with(&text)
-                })
-                .filter_map(|class_path| class_map.get(class_path))
-                .map(|c| class_describe(&c, None)),
-        );
-        out.extend(
-            class_map
-                .iter()
-                .filter(|c| c.name.starts_with(&text))
-                .filter(|i| !i.name.contains("&"))
-                .filter(|v| {
-                    let class_path = v.value().class_path.as_str();
-                    !imports::is_imported(imports, class_path)
-                })
-                .map(|v| class_describe(v.value(), Some(&document.tree)))
-                .take(20),
-        );
+    // TODO
+    if false {
+        // out.extend(
+        //     imports
+        //         .iter()
+        //         .filter_map(|imp| match imp {
+        //             ImportUnit::Class(c) => Some(c),
+        //             ImportUnit::StaticClass(c) => Some(c),
+        //             ImportUnit::StaticClassMethod(_, _) => None,
+        //             ImportUnit::Prefix(_) => None,
+        //             ImportUnit::StaticPrefix(_) => None,
+        //             ImportUnit::Package(_) => None,
+        //         })
+        //         .filter(|c| {
+        //             let Some((_, cname)) = c.rsplit_once(".") else {
+        //                 return false;
+        //             };
+        //             cname.starts_with(&text)
+        //         })
+        //         .filter_map(|class_path| class_map.get(class_path))
+        //         .map(|c| class_describe(&c, None)),
+        // );
+        // out.extend(
+        //     class_map
+        //         .iter()
+        //         .filter(|c| c.name.starts_with(&text))
+        //         .filter(|i| !i.name.contains("&"))
+        //         .filter(|v| {
+        //             let class_path = v.value().class_path.as_str();
+        //             !imports::is_imported(imports, class_path)
+        //         })
+        //         .map(|v| class_describe(v.value(), Some(&document.ast)))
+        //         .take(20),
+        // );
     }
     out
 }
 
-fn is_class_completion(node: tree_sitter::Node<'_>, bytes: &[u8]) -> Option<String> {
-    match node.kind() {
-        "identifier" | "type_identifier" => {
-            let text = get_string_node(&node, bytes);
-            if let Some(c) = text.chars().next() {
-                if c.is_uppercase() {
-                    return Some(text);
-                }
-            }
-            None
-        }
-        _ => None,
-    }
-}
-
 pub fn static_methods(
+    ast: &AstFile,
     imports: &[ImportUnit],
     class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
 ) -> Vec<CompletionItem> {
@@ -321,7 +301,7 @@ pub fn static_methods(
                 .collect(),
             ImportUnit::Package(_) => vec![],
         })
-        .map(|m| complete_method(&m, imports, tree))
+        .map(|m| complete_method(&m, imports, ast))
         .collect()
 }
 
@@ -329,6 +309,7 @@ pub fn static_methods(
 mod tests {
     use std::path::PathBuf;
 
+    use ast::types::{AstPoint, AstRange};
     use dashmap::DashMap;
     use document::Document;
     use lsp_types::{
@@ -337,7 +318,6 @@ mod tests {
     };
     use parser::dto::{self, ImportUnit};
     use pretty_assertions::assert_eq;
-    use tree_sitter::Point;
     use variables::LocalVariable;
 
     use crate::completion::{Snippet, classes, complete_call_chain};
@@ -387,12 +367,7 @@ public class GreetingResource {
             jtype: dto::JType::Class("String".to_owned()),
             name: "other".to_owned(),
             is_fun: false,
-            range: tree_sitter::Range {
-                start_byte: 0,
-                end_byte: 0,
-                start_point: Point { row: 0, column: 0 },
-                end_point: Point { row: 0, column: 0 },
-            },
+            range: AstRange::default(),
         }];
         let imports = vec![
             ImportUnit::Class("jakarta.inject.Inject".to_string()),
@@ -422,7 +397,7 @@ public class GreetingResource {
 
         let out = complete_call_chain(
             &doc,
-            &Point::new(25, 24),
+            &AstPoint::new(25, 24),
             &lo_va,
             &imports,
             &class,
@@ -465,12 +440,7 @@ public class Test {
             jtype: dto::JType::Class("String".to_owned()),
             name: "local".to_owned(),
             is_fun: false,
-            range: tree_sitter::Range {
-                start_byte: 0,
-                end_byte: 0,
-                start_point: Point { row: 0, column: 0 },
-                end_point: Point { row: 0, column: 0 },
-            },
+            range: AstRange::default(),
         }];
         let imports = vec![];
         let class = dto::Class {
@@ -496,7 +466,7 @@ public class Test {
 
         let out = complete_call_chain(
             &doc,
-            &Point::new(8, 40),
+            &AstPoint::new(8, 40),
             &lo_va,
             &imports,
             &class,
@@ -600,7 +570,7 @@ public class Test {
 ";
         let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
 
-        let out = classes(&doc, &Point::new(5, 16), &[], &class_map);
+        let out = classes(&doc, &AstPoint::new(5, 16), &[], &class_map);
         assert_eq!(
             out,
             vec![CompletionItem {
@@ -653,7 +623,7 @@ public class Test {
 
         let out = classes(
             &doc,
-            &Point::new(6, 16),
+            &AstPoint::new(6, 16),
             &[ImportUnit::Class("java.lang.StringBuilder".to_string())],
             &class_map,
         );
