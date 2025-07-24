@@ -1018,7 +1018,8 @@ fn parse_if(tokens: &[PositionToken], pos: usize) -> Result<(AstIf, usize), AstE
     let pos = assert_token(tokens, pos, Token::If)?;
     let start_control = tokens.get(pos).ok_or(AstError::eof())?;
     let pos = assert_token(tokens, pos, Token::LeftParen)?;
-    let (control, pos) = parse_value(tokens, pos)?;
+    let (control, pos) = parse_expression(tokens, pos)?;
+    dbg!(&control);
     let end_control = tokens.get(pos).ok_or(AstError::eof())?;
     let pos = assert_token(tokens, pos, Token::RightParen)?;
     let mut pos = pos;

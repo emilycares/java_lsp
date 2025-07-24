@@ -1,10 +1,11 @@
 ---
 source: parser/src/class.rs
 expression: result.unwrap()
+snapshot_kind: text
 ---
 Class {
     class_path: "ch.emilycares.Everything",
-    source: "/source/ch/emilycares/Everything.java",
+    source: "/source\\ch\\emilycares\\Everything.java",
     access: [],
     imports: [
         Package(

@@ -2,8 +2,8 @@ use std::cmp::{self, max, min};
 
 use ast::range::{AstInRange, add_ranges};
 use ast::types::{
-    AstBlock, AstBlockEntry, AstExpression, AstExpressionIdentifier, AstExpressionOperator,
-    AstFile, AstIf, AstIfContent, AstPoint, AstRange, AstThing, AstValue, AstValueNuget,
+    AstBlock, AstBlockEntry, AstExpression, AstExpressionIdentifier, AstFile, AstIf, AstIfContent,
+    AstPoint, AstRange, AstThing, AstValue, AstValueNuget,
 };
 use smol_str::SmolStr;
 
@@ -219,7 +219,7 @@ fn cc_if(ast_if: &AstIf, point: &AstPoint) -> Option<Vec<CallItem>> {
                 return None;
             }
             if control_range.is_in_range(point) {
-                return cc_value(control);
+                return cc_expression(control, point);
             }
             if content.is_in_range(point) {
                 return cc_if_content(content, point);
@@ -405,4 +405,24 @@ fn cc_expr_ident(
         }
         AstExpressionIdentifier::ArrayAccess(_ast_value) => todo!(),
     }
+}
+
+pub fn flatten_argument_lists(call_chain: &[CallItem]) -> Vec<CallItem> {
+    let mut out = vec![];
+    for ci in call_chain {
+        if let CallItem::ArgumentList {
+            prev,
+            active_param,
+            filled_params: _,
+            range: _,
+        } = ci
+        {
+            if active_param.is_none() {
+                out.extend(prev.iter().map(Clone::clone));
+            }
+        } else {
+            out.push(ci.clone());
+        }
+    }
+    out
 }

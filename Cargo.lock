@@ -183,15 +183,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
-name = "cc"
-version = "1.2.27"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d487aa071b5f64da6f19a3e848e3578944b726ee5a4854b82172f02aa876bfdc"
-dependencies = [
- "shlex",
-]
-
-[[package]]
 name = "cesu8"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -741,9 +732,6 @@ dependencies = [
  "document",
  "parser",
  "pretty_assertions",
- "tree-sitter",
- "tree-sitter-java",
- "tree-sitter-util",
 ]
 
 [[package]]
@@ -1252,12 +1240,9 @@ dependencies = [
 name = "position"
 version = "0.1.0"
 dependencies = [
+ "ast",
  "lsp-types",
  "pretty_assertions",
- "streaming-iterator",
- "tree-sitter",
- "tree-sitter-java",
- "tree-sitter-util",
 ]
 
 [[package]]
@@ -1547,7 +1532,6 @@ version = "1.0.140"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20068b6e96dc6c9bd23e01df8827e6c7e1f2fddd43c21810382803c136b99373"
 dependencies = [
- "indexmap",
  "itoa",
  "memchr",
  "ryu",
@@ -1594,12 +1578,6 @@ dependencies = [
  "tyres",
  "variables",
 ]
-
-[[package]]
-name = "shlex"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
 name = "signal-hook-registry"
@@ -1674,12 +1652,6 @@ name = "str_indices"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d08889ec5408683408db66ad89e0e1f93dff55c73a4ccc71c427d5b277ee47e6"
-
-[[package]]
-name = "streaming-iterator"
-version = "0.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b2231b7c3057d5e4ad0156fb3dc807d900806020c5ffa3ee6ff2c8c76fb8520"
 
 [[package]]
 name = "strsim"
@@ -1823,44 +1795,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9d12581f227e93f094d3af2ae690a574abb8a2b9b7a96e7cfe9647b2b617678"
 dependencies = [
  "once_cell",
-]
-
-[[package]]
-name = "tree-sitter"
-version = "0.25.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7cf18d43cbf0bfca51f657132cc616a5097edc4424d538bae6fa60142eaf9f0"
-dependencies = [
- "cc",
- "regex",
- "regex-syntax",
- "serde_json",
- "streaming-iterator",
- "tree-sitter-language",
-]
-
-[[package]]
-name = "tree-sitter-java"
-version = "0.23.5"
-source = "git+https://github.com/emilycares/tree-sitter-java.git?branch=fix_partial#25aed34980a69a003dea0c42ee3c835f8ce86c9d"
-dependencies = [
- "cc",
- "tree-sitter-language",
-]
-
-[[package]]
-name = "tree-sitter-language"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4013970217383f67b18aef68f6fb2e8d409bc5755227092d32efb0422ba24b8"
-
-[[package]]
-name = "tree-sitter-util"
-version = "0.1.0"
-dependencies = [
- "lsp-types",
- "tree-sitter",
- "tree-sitter-java",
 ]
 
 [[package]]

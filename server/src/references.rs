@@ -1,9 +1,10 @@
 use std::{
     fs::{self},
     hash::Hash,
+    str::Utf8Error,
 };
 
-use ast::types::AstPoint;
+use ast::types::{AstFile, AstPoint};
 use call_chain::CallItem;
 use document::{ClassSource, Document, DocumentError};
 use lsp_types::Location;
@@ -12,11 +13,17 @@ use position::PositionSymbol;
 use rayon::iter::{IntoParallelRefIterator, ParallelBridge, ParallelIterator};
 use variables::LocalVariable;
 
-use crate::definition::{self};
+use crate::{
+    codeaction::to_lsp_range,
+    definition::{self},
+};
 
 #[derive(Debug)]
 pub enum ReferencesError {
     IoRead(String, std::io::Error),
+    Utf8(Utf8Error),
+    Lexer(ast::lexer::LexerError),
+    Ast(ast::error::AstError),
     Position(position::PosionError),
     FindClassnameInClasspath(String),
     Tyres(tyres::TyresError),
@@ -56,7 +63,11 @@ pub fn class_path(
             })
             .filter_map(|lookup| {
                 let refs = get_position_refrences(&lookup, class_path, None).ok()?;
-                Some((lookup, refs.first().map(|i| i.0.get_range())?))
+                let a = refs.first().map(|i| i.0.get_range());
+                match a {
+                    Some(a) => Some((lookup, *a)),
+                    None => None,
+                }
             })
             .filter_map(
                 |(lookup, range)| match definition::class_to_uri(lookup.value()) {
@@ -69,7 +80,7 @@ pub fn class_path(
             )
             .map(|(i, range)| Location {
                 uri: i,
-                range: to_lsp_range(range),
+                range: to_lsp_range(&range),
             })
             .collect();
         return Some(refs);
@@ -114,7 +125,7 @@ pub fn call_chain_references(
                     locations.extend(
                         method_refs
                             .iter()
-                            .map(|i| Location::new(uri.clone(), to_lsp_range(i.0.get_range()))),
+                            .map(|i| Location::new(uri.clone(), to_lsp_range(&i.0.get_range()))),
                     );
                 }
             }
@@ -226,33 +237,33 @@ pub fn reference_update_class(
 fn get_position_refrences(
     class: &Class,
     query_class_path: &str,
-    tree_bytes: Option<(&tree_sitter::Tree, &[u8])>,
+    ast: Option<&AstFile>,
 ) -> Result<Vec<ReferencePosition>, ReferencesError> {
     let Some(query_class_name) = ImportUnit::class_path_get_class_name(query_class_path) else {
         return Err(ReferencesError::FindClassnameInClasspath(
             query_class_path.to_string(),
         ));
     };
-    if let Some((tree, bytes)) = tree_bytes {
-        pos_refs_helper(tree, bytes, query_class_name)
+    if let Some(ast) = ast {
+        pos_refs_helper(ast, query_class_name)
     } else {
         match fs::read(&class.source) {
             Err(e) => Err(ReferencesError::IoRead(class.source.clone(), e)),
             Ok(bytes) => {
-                let (_, tree) =
-                    tree_sitter_util::parse(&bytes).map_err(ReferencesError::Treesitter)?;
-                pos_refs_helper(&tree, &bytes, query_class_name)
+                let str = str::from_utf8(&bytes).map_err(ReferencesError::Utf8)?;
+                let tokens = ast::lexer::lex(str).map_err(ReferencesError::Lexer)?;
+                let ast = ast::parse_file(&tokens).map_err(ReferencesError::Ast)?;
+                pos_refs_helper(&ast, query_class_name)
             }
         }
     }
 }
 
 fn pos_refs_helper(
-    tree: &tree_sitter::Tree,
-    bytes: &[u8],
+    ast: &AstFile,
     query_class_name: &str,
 ) -> Result<Vec<ReferencePosition>, ReferencesError> {
-    match position::get_type_usage(bytes, query_class_name, tree) {
+    match position::get_type_usage(query_class_name, ast) {
         Err(e) => Err(ReferencesError::Position(e))?,
         Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
     }

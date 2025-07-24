@@ -1,16 +1,18 @@
 use std::str::FromStr;
 
+use ast::types::AstPoint;
 use call_chain::CallItem;
 use document::{Document, DocumentError};
 use lsp_types::{GotoDefinitionResponse, Location, Uri};
 use parser::dto::{self, ImportUnit};
 use position::PositionSymbol;
-use tree_sitter::Point;
-use tree_sitter_util::lsp::to_lsp_range;
 use tyres::TyresError;
 use variables::LocalVariable;
 
-use crate::hover::{ClassActionError, class_action};
+use crate::{
+    codeaction::to_lsp_range,
+    hover::{ClassActionError, class_action},
+};
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -28,7 +30,7 @@ pub enum DefinitionError {
 }
 pub struct DefinitionContext<'a> {
     pub document_uri: Uri,
-    pub point: &'a Point,
+    pub point: &'a AstPoint,
     pub vars: &'a [LocalVariable],
     pub imports: &'a [ImportUnit],
     pub class: &'a dto::Class,
@@ -40,11 +42,11 @@ pub fn class(
     document: &Document,
     context: &DefinitionContext,
 ) -> Result<GotoDefinitionResponse, DefinitionError> {
-    let tree = &document.tree;
+    let ast = &document.ast;
     let bytes = document.as_bytes();
 
     match class_action(
-        tree,
+        ast,
         bytes,
         context.point,
         context.vars,
@@ -52,8 +54,7 @@ pub fn class(
         context.class_map,
     ) {
         Ok((class, _range)) => {
-            let source_file = get_source_content(&class.source, context.document_map)?;
-            let ranges = position::get_class_position(source_file.as_bytes(), &class.name)
+            let ranges = position::get_class_position(ast, Some(&class.name))
                 .map_err(DefinitionError::Position)?;
             let uri = class_to_uri(&class)?;
             Ok(go_to_definition_range(uri, ranges))
@@ -122,12 +123,12 @@ pub fn call_chain_definition(
                 .map(|v| v.range)
             else {
                 return Err(DefinitionError::LocalVariableNotFound {
-                    name: name.to_owned(),
+                    name: name.to_string(),
                 });
             };
             Ok(GotoDefinitionResponse::Scalar(Location {
                 uri: context.document_uri.clone(),
-                range: to_lsp_range(range),
+                range: to_lsp_range(&range),
             }))
         }
         Some(CallItem::ClassOrVariable { name, range: _ }) => {
@@ -216,7 +217,6 @@ mod tests {
     use std::path::PathBuf;
 
     use dashmap::DashMap;
-    use parser::loader::SourceDestination;
 
     use super::*;
 
@@ -233,8 +233,7 @@ public class Test {
     }
 }
         "#;
-        let point = Point::new(6, 16);
-        let bytes = content.as_bytes();
+        let point = AstPoint::new(6, 16);
         let document = Document::setup(
             content,
             PathBuf::from_str("/Test.java").unwrap(),
@@ -243,10 +242,11 @@ public class Test {
         .unwrap();
         let document_uri = Uri::from_str("file:///Test.java").unwrap();
         let class =
-            parser::java::load_java_tree(bytes, SourceDestination::None, &document.tree).unwrap();
+            parser::java::load_java_tree(&document.ast, parser::loader::SourceDestination::None)
+                .unwrap();
         let vars = variables::get_vars(&document, &point).unwrap();
         let imports = imports::imports(&document);
-        let call_chain = call_chain::get_call_chain(&document.tree, bytes, &point).unwrap();
+        let call_chain = call_chain::get_call_chain(&document.ast, &point).unwrap();
         let context = DefinitionContext {
             document_uri,
             point: &point,
@@ -275,8 +275,7 @@ public class Test {
     }
 }
         "#;
-        let point = Point::new(8, 24);
-        let bytes = content.as_bytes();
+        let point = AstPoint::new(8, 24);
         let document = Document::setup(
             content,
             PathBuf::from_str("/Test.java").unwrap(),
@@ -285,10 +284,11 @@ public class Test {
         .unwrap();
         let document_uri = Uri::from_str("file:///Test.java").unwrap();
         let class =
-            parser::java::load_java_tree(bytes, SourceDestination::None, &document.tree).unwrap();
+            parser::java::load_java_tree(&document.ast, parser::loader::SourceDestination::None)
+                .unwrap();
         let vars = variables::get_vars(&document, &point).unwrap();
         let imports = imports::imports(&document);
-        let call_chain = call_chain::get_call_chain(&document.tree, bytes, &point).unwrap();
+        let call_chain = call_chain::get_call_chain(&document.ast, &point).unwrap();
         let context = DefinitionContext {
             document_uri,
             point: &point,

@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 
-use ast::types::AstFile;
+use ast::{error::PrintErr, types::AstFile};
 use dashmap::mapref::one::RefMut;
 use lsp_types::TextDocumentContentChangeEvent;
 use ropey::Rope;
@@ -111,11 +111,11 @@ impl Document {
         if update_str {
             self.str_data = self.text.to_string();
         }
-        if let Ok(tokens) = ast::lexer::lex(&self.str_data).map_err(DocumentError::Lexer) {
-            if let Ok(ast) = ast::parse_file(&tokens).map_err(DocumentError::Ast) {
-                self.ast = ast;
-            }
-        }
+        let tokens = ast::lexer::lex(&self.str_data).unwrap();
+        let ast = ast::parse_file(&tokens);
+        ast.print_err(&self.str_data);
+        let ast = ast.unwrap();
+        self.ast = ast;
     }
 }
 

@@ -82,6 +82,7 @@ pub enum AstAvailability {
 
 #[derive(Debug)]
 pub struct AstClass {
+    pub range: AstRange,
     pub avaliability: AstAvailability,
     pub name: AstIdentifier,
     pub superclass: AstSuperClass,
@@ -172,7 +173,7 @@ pub struct AstFor {
 pub enum AstIf {
     If {
         range: AstRange,
-        control: AstValue,
+        control: AstExpression,
         control_range: AstRange,
         content: AstIfContent,
         el: Option<Box<AstIf>>,
@@ -280,6 +281,7 @@ pub struct AstAnnotationField {
 
 #[derive(Debug)]
 pub struct AstInterface {
+    pub range: AstRange,
     pub avaliability: AstAvailability,
     pub name: AstIdentifier,
     pub type_parameters: Option<AstTypeParameters>,

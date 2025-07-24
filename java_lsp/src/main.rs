@@ -1,7 +1,5 @@
 use clap::Parser;
 use cli::{Args, Commands};
-use tokio::io;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() {
