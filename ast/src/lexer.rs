@@ -86,6 +86,11 @@ impl Token {
             | Token::Default
             | Token::Else
             | Token::For
+            | Token::Break
+            | Token::Continue
+            | Token::Switch
+            | Token::Case
+            | Token::Do
             | Token::If => KEYWORDS
                 .entries()
                 .find(|i| i.1 == self)
@@ -159,6 +164,11 @@ impl Token {
             Token::Default => SmolStr::new_inline("default"),
             Token::Else => SmolStr::new_inline("else"),
             Token::For => SmolStr::new_inline("for"),
+            Token::Break => SmolStr::new_inline("break"),
+            Token::Continue => SmolStr::new_inline("continue"),
+            Token::Switch => SmolStr::new_inline("swtich"),
+            Token::Case => SmolStr::new_inline("case"),
+            Token::Do => SmolStr::new_inline("do"),
         }
     }
 
@@ -233,6 +243,11 @@ pub enum Token {
     LeftParenSquare,
     RightParenSquare,
     Else,
+    Break,
+    Continue,
+    Switch,
+    Case,
+    Do,
 }
 
 #[derive(Debug, PartialEq)]
@@ -272,6 +287,11 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
     "final" => Token::Final,
     "default" => Token::Default,
     "else" => Token::Else,
+    "break" => Token::Break,
+    "continue" => Token::Continue,
+    "switch" => Token::Switch,
+    "case" => Token::Case,
+    "do" => Token::Do,
 };
 
 pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {

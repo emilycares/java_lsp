@@ -1,0 +1,22 @@
+---
+source: ast/src/lib.rs
+expression: parsed.unwrap()
+---
+(
+    StringLiteral(
+        AstIdentifier {
+            range: AstRange {
+                start: AstPoint {
+                    line: 1,
+                    col: 8,
+                },
+                end: AstPoint {
+                    line: 4,
+                    col: 16,
+                },
+            },
+            value: "Hereisamuiltilinestring",
+        },
+    ),
+    11,
+)

@@ -1,6 +1,7 @@
 ---
 source: ast/src/lib.rs
 expression: parsed.unwrap()
+snapshot_kind: text
 ---
 AstFile {
     package: AstIdentifier {
@@ -71,7 +72,7 @@ AstFile {
                         value: "A",
                     },
                     parameters: [
-                        AstExpression {
+                        AstRecursiveExpression {
                             range: AstRange {
                                 start: AstPoint {
                                     line: 2,
@@ -94,7 +95,7 @@ AstFile {
                                                     },
                                                     end: AstPoint {
                                                         line: 2,
-                                                        col: 10,
+                                                        col: 9,
                                                     },
                                                 },
                                                 value: "a",
@@ -134,7 +135,7 @@ AstFile {
                         value: "B",
                     },
                     parameters: [
-                        AstExpression {
+                        AstRecursiveExpression {
                             range: AstRange {
                                 start: AstPoint {
                                     line: 3,
@@ -157,7 +158,7 @@ AstFile {
                                                     },
                                                     end: AstPoint {
                                                         line: 3,
-                                                        col: 10,
+                                                        col: 9,
                                                     },
                                                 },
                                                 value: "b",
@@ -197,7 +198,7 @@ AstFile {
                         value: "C",
                     },
                     parameters: [
-                        AstExpression {
+                        AstRecursiveExpression {
                             range: AstRange {
                                 start: AstPoint {
                                     line: 4,
@@ -220,7 +221,7 @@ AstFile {
                                                     },
                                                     end: AstPoint {
                                                         line: 4,
-                                                        col: 10,
+                                                        col: 9,
                                                     },
                                                 },
                                                 value: "c",
@@ -342,7 +343,7 @@ AstFile {
                                         },
                                     },
                                     expression: Some(
-                                        AstExpression {
+                                        AstRecursiveExpression {
                                             range: AstRange {
                                                 start: AstPoint {
                                                     line: 12,
@@ -555,7 +556,7 @@ AstFile {
                                             col: 5,
                                         },
                                     },
-                                    key: AstExpression {
+                                    key: AstRecursiveExpression {
                                         range: AstRange {
                                             start: AstPoint {
                                                 line: 8,
@@ -585,7 +586,7 @@ AstFile {
                                         ),
                                         values: None,
                                         next: Some(
-                                            AstExpression {
+                                            AstRecursiveExpression {
                                                 range: AstRange {
                                                     start: AstPoint {
                                                         line: 8,
@@ -599,7 +600,7 @@ AstFile {
                                                 ident: None,
                                                 values: None,
                                                 next: Some(
-                                                    AstExpression {
+                                                    AstRecursiveExpression {
                                                         range: AstRange {
                                                             start: AstPoint {
                                                                 line: 8,
@@ -648,7 +649,7 @@ AstFile {
                                         ),
                                         operator: None,
                                     },
-                                    expression: AstExpression {
+                                    expression: AstRecursiveExpression {
                                         range: AstRange {
                                             start: AstPoint {
                                                 line: 8,

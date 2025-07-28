@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use ast::types::{AstBlockVariable, AstFile, AstIf, AstPoint, AstRange};
+use ast::types::{
+    AstBlockEntry, AstBlockVariable, AstFile, AstIf, AstIfContent, AstPoint, AstRange,
+};
 use lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, Position, Range, TextEdit, Uri, WorkspaceEdit,
 };
@@ -126,16 +128,16 @@ fn find_var_block<'a>(
     point: &'a AstPoint,
 ) -> Option<&'a AstBlockVariable> {
     block.entries.iter().find_map(|i| match i.as_ref() {
-        ast::types::AstBlockEntry::Return(_ast_block_return) => None,
-        ast::types::AstBlockEntry::Variable(ast_block_variable) => {
+        AstBlockEntry::Return(_ast_block_return) => None,
+        AstBlockEntry::Variable(ast_block_variable) => {
             if ast_block_variable.range.is_in_range(point) {
                 return Some(ast_block_variable);
             }
             None
         }
-        ast::types::AstBlockEntry::Expression(_ast_block_expression) => None,
-        ast::types::AstBlockEntry::Assign(_ast_block_assign) => None,
-        ast::types::AstBlockEntry::If(ast_if) => match ast_if {
+        AstBlockEntry::Expression(_ast_block_expression) => None,
+        AstBlockEntry::Assign(_ast_block_assign) => None,
+        AstBlockEntry::If(ast_if) => match ast_if {
             AstIf::If {
                 range,
                 control: _,
@@ -145,11 +147,9 @@ fn find_var_block<'a>(
             } => {
                 if range.is_in_range(point) {
                     return match content {
-                        ast::types::AstIfContent::Block(ast_block) => {
-                            find_var_block(ast_block, point)
-                        }
-                        ast::types::AstIfContent::Expression(_ast_expression) => None,
-                        ast::types::AstIfContent::None => None,
+                        AstIfContent::Block(ast_block) => find_var_block(ast_block, point),
+                        AstIfContent::Expression(_ast_expression) => None,
+                        AstIfContent::None => None,
                     };
                 }
                 None
@@ -157,25 +157,29 @@ fn find_var_block<'a>(
             AstIf::Else { range, content } => {
                 if range.is_in_range(point) {
                     return match content {
-                        ast::types::AstIfContent::Block(ast_block) => {
-                            find_var_block(ast_block, point)
-                        }
-                        ast::types::AstIfContent::Expression(_ast_expression) => None,
-                        ast::types::AstIfContent::None => None,
+                        AstIfContent::Block(ast_block) => find_var_block(ast_block, point),
+                        AstIfContent::Expression(_ast_expression) => None,
+                        AstIfContent::None => None,
                     };
                 }
                 None
             }
         },
-        ast::types::AstBlockEntry::While(ast_while) => {
+        AstBlockEntry::While(ast_while) => {
             if ast_while.range.is_in_range(point) {
                 return find_var_block(&ast_while.block, point);
             }
             None
         }
-        ast::types::AstBlockEntry::For(ast_for) => {
+        AstBlockEntry::For(ast_for) => {
             if ast_for.range.is_in_range(point) {
                 return find_var_block(&ast_for.block, point);
+            }
+            None
+        }
+        AstBlockEntry::ForEnhanced(ast_for_enhanced) => {
+            if ast_for_enhanced.range.is_in_range(point) {
+                // return find_var_block(&ast_for_enhanced.block, point);
             }
             None
         }

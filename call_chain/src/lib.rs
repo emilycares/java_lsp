@@ -2,8 +2,9 @@ use std::cmp::{self, max, min};
 
 use ast::range::{AstInRange, add_ranges};
 use ast::types::{
-    AstBlock, AstBlockEntry, AstExpression, AstExpressionIdentifier, AstFile, AstIf, AstIfContent,
-    AstPoint, AstRange, AstThing, AstValue, AstValueNuget,
+    AstBaseExpression, AstBlock, AstBlockEntry, AstExpressionIdentifier, AstFile, AstIf,
+    AstIfContent, AstJTypeKind, AstPoint, AstRange, AstRecursiveExpression, AstThing, AstValue,
+    AstValueNewClass, AstValueNuget,
 };
 use smol_str::SmolStr;
 
@@ -166,6 +167,7 @@ fn dist_block_entry(point: &AstPoint, entry: &AstBlockEntry) -> usize {
         AstBlockEntry::If(ast_if) => dist_if(point, ast_if),
         AstBlockEntry::While(ast_while) => dist(point, &ast_while.range),
         AstBlockEntry::For(ast_for) => dist(point, &ast_for.range),
+        AstBlockEntry::ForEnhanced(ast_for_enhanced) => dist(point, &ast_for_enhanced.range),
     }
 }
 
@@ -186,24 +188,63 @@ fn cc_block_entrie(entry: &AstBlockEntry, point: &AstPoint) -> Option<Vec<CallIt
     match entry {
         AstBlockEntry::Return(ast_block_return) => {
             if let Some(ref expression) = ast_block_return.expression {
-                return cc_expression(expression, point);
+                return cc_recursive_expression(expression, point);
             }
             None
         }
-        AstBlockEntry::Variable(ast_block_variable) => {
-            if let Some(ref expression) = ast_block_variable.expression {
-                return cc_expression(expression, point);
-            }
-            None
-        }
+        AstBlockEntry::Variable(ast_block_variable) => cc_block_variable(ast_block_variable, point),
         AstBlockEntry::Expression(ast_block_expression) => {
-            cc_expression(&ast_block_expression.value, point)
+            cc_recursive_expression(&ast_block_expression.value, point)
         }
         AstBlockEntry::Assign(_ast_block_assign) => todo!(),
         AstBlockEntry::If(ast_if) => cc_if(ast_if, point),
-        AstBlockEntry::While(_ast_while) => todo!(),
-        AstBlockEntry::For(_ast_for) => todo!(),
+        AstBlockEntry::While(ast_while) => {
+            if ast_while.control.range.is_in_range(point) {
+                return cc_recursive_expression(&ast_while.control, point);
+            }
+            if ast_while.block.range.is_in_range(point) {
+                return cc_block(&ast_while.block, point);
+            }
+            None
+        }
+        AstBlockEntry::For(ast_for) => {
+            if ast_for.var.range.is_in_range(point) {
+                return cc_block_variable(&ast_for.var, point);
+            }
+            if ast_for.check.range.is_in_range(point) {
+                return cc_recursive_expression(&ast_for.check, point);
+            }
+            if ast_for.change.range.is_in_range(point) {
+                return cc_recursive_expression(&ast_for.change, point);
+            }
+            if ast_for.block.range.is_in_range(point) {
+                return cc_block(&ast_for.block, point);
+            }
+            None
+        }
+        AstBlockEntry::ForEnhanced(ast_for_enhanced) => {
+            if ast_for_enhanced.var.range.is_in_range(point) {
+                return cc_block_variable(&ast_for_enhanced.var, point);
+            }
+            if ast_for_enhanced.rhs.range.is_in_range(point) {
+                return cc_recursive_expression(&ast_for_enhanced.rhs, point);
+            }
+            if ast_for_enhanced.block.range.is_in_range(point) {
+                return cc_block(&ast_for_enhanced.block, point);
+            }
+            None
+        }
     }
+}
+
+fn cc_block_variable(
+    ast_block_variable: &ast::types::AstBlockVariable,
+    point: &AstPoint,
+) -> Option<Vec<CallItem>> {
+    if let Some(ref expression) = ast_block_variable.expression {
+        return cc_base_expression(expression, point);
+    }
+    None
 }
 
 fn cc_if(ast_if: &AstIf, point: &AstPoint) -> Option<Vec<CallItem>> {
@@ -219,7 +260,7 @@ fn cc_if(ast_if: &AstIf, point: &AstPoint) -> Option<Vec<CallItem>> {
                 return None;
             }
             if control_range.is_in_range(point) {
-                return cc_expression(control, point);
+                return cc_recursive_expression(control, point);
             }
             if content.is_in_range(point) {
                 return cc_if_content(content, point);
@@ -242,29 +283,54 @@ fn cc_if_content(content: &AstIfContent, point: &AstPoint) -> Option<Vec<CallIte
     match content {
         AstIfContent::Block(ast_block) => cc_block(ast_block, point),
         AstIfContent::None => None,
-        AstIfContent::Expression(ast_expression) => cc_expression(ast_expression, point),
+        AstIfContent::Expression(ast_expression) => cc_recursive_expression(ast_expression, point),
     }
 }
 
 fn cc_value(value: &AstValue) -> Option<Vec<CallItem>> {
     match value {
-        AstValue::NewClass(_ast_value_new_class) => todo!(),
+        AstValue::NewClass(ast_value_new_class) => cc_new_class(ast_value_new_class),
         AstValue::Variable(ast_identifier) => cc_variable(ast_identifier),
         AstValue::Nuget(ast_nuget) => cc_value_nuget(ast_nuget),
         AstValue::Array(_ast_values) => todo!(),
     }
 }
+
+fn cc_new_class(ast_value_new_class: &AstValueNewClass) -> Option<Vec<CallItem>> {
+    if let AstJTypeKind::Class(c) = &ast_value_new_class.jtype.value {
+        return Some(vec![CallItem::Class {
+            name: c.value.clone(),
+            range: ast_value_new_class.range,
+        }]);
+    }
+    None
+}
 fn cc_value_nuget(ast_nuget: &AstValueNuget) -> Option<Vec<CallItem>> {
     match ast_nuget {
-        AstValueNuget::Number(_ast_number) => todo!(),
-        AstValueNuget::Double(_ast_double) => todo!(),
-        AstValueNuget::Float(_ast_double) => todo!(),
+        AstValueNuget::Int(ast_number) => Some(vec![CallItem::Class {
+            name: "Integer".into(),
+            range: ast_number.range,
+        }]),
+        AstValueNuget::Double(ast_double) => Some(vec![CallItem::Class {
+            name: "Double".into(),
+            range: ast_double.range,
+        }]),
+        AstValueNuget::Float(ast_double) => Some(vec![CallItem::Class {
+            name: "Float".into(),
+            range: ast_double.range,
+        }]),
         AstValueNuget::StringLiteral(ast_identifier) => Some(vec![CallItem::Class {
             name: "String".into(),
             range: ast_identifier.range,
         }]),
-        AstValueNuget::CharLiteral(_ast_identifier) => todo!(),
-        AstValueNuget::BooleanLiteral(_ast_boolean) => todo!(),
+        AstValueNuget::CharLiteral(ast_identifier) => Some(vec![CallItem::Class {
+            name: "Char".into(),
+            range: ast_identifier.range,
+        }]),
+        AstValueNuget::BooleanLiteral(ast_boolean) => Some(vec![CallItem::Class {
+            name: "Boolean".into(),
+            range: ast_boolean.range,
+        }]),
     }
 }
 
@@ -275,18 +341,30 @@ fn cc_variable(ast_identifier: &ast::types::AstIdentifier) -> Option<Vec<CallIte
     }])
 }
 
-fn cc_expression(ast_expression: &AstExpression, point: &AstPoint) -> Option<Vec<CallItem>> {
-    dbg!(ast_expression);
-    // if !(ast_expression.range.is_in_range(point) || ast_expression.range.is_after_range(point)) {
-    //     return None;
-    // }
+fn cc_base_expression(
+    ast_expression: &AstBaseExpression,
+    point: &AstPoint,
+) -> Option<Vec<CallItem>> {
+    match ast_expression {
+        AstBaseExpression::Casted(_ast_casted_expression) => todo!(),
+        AstBaseExpression::Recursive(ast_recursive_expression) => {
+            cc_recursive_expression(ast_recursive_expression, point)
+        }
+        AstBaseExpression::InlineIf(_ast_inline_if_expression) => todo!(),
+    }
+}
+
+fn cc_recursive_expression(
+    ast_expression: &AstRecursiveExpression,
+    point: &AstPoint,
+) -> Option<Vec<CallItem>> {
     let mut out = vec![];
     cc_expr(ast_expression, point, false, &mut out);
     Some(out)
 }
 
 fn cc_expr(
-    ast_expression: &AstExpression,
+    ast_expression: &AstRecursiveExpression,
     point: &AstPoint,
     has_parent: bool,
     out: &mut Vec<CallItem>,
@@ -312,7 +390,7 @@ fn cc_arugments(point: &AstPoint, out: &mut Vec<CallItem>, values: &ast::types::
         let mut filled_params: Vec<Vec<CallItem>> = values
             .values
             .iter()
-            .map(|i| cc_expression(i, point).unwrap_or_default())
+            .map(|i| cc_recursive_expression(i, point).unwrap_or_default())
             .collect();
 
         if filled_params.is_empty() {
@@ -385,19 +463,11 @@ fn cc_expr_ident(
                 });
             }
         }
-        AstExpressionIdentifier::Nuget(ast_value_nuget) => match ast_value_nuget {
-            AstValueNuget::Number(_ast_number) => todo!(),
-            AstValueNuget::Double(_ast_double) => todo!(),
-            AstValueNuget::Float(_ast_double) => todo!(),
-            AstValueNuget::StringLiteral(ast_identifier) => {
-                out.push(CallItem::Class {
-                    name: "String".into(),
-                    range: ast_identifier.range,
-                });
+        AstExpressionIdentifier::Nuget(ast_value_nuget) => {
+            if let Some(val) = cc_value_nuget(&ast_value_nuget) {
+                out.extend(val);
             }
-            AstValueNuget::CharLiteral(_ast_identifier) => todo!(),
-            AstValueNuget::BooleanLiteral(_ast_boolean) => todo!(),
-        },
+        }
         AstExpressionIdentifier::Value(ast_value) => {
             if let Some(val) = cc_value(&ast_value) {
                 out.extend(val);

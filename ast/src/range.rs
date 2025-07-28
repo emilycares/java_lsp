@@ -35,6 +35,18 @@ impl AstInRange for &AstBlockEntry {
             AstBlockEntry::If(ast_if) => ast_if.is_in_range(point),
             AstBlockEntry::While(ast_while) => ast_while.range.is_in_range(point),
             AstBlockEntry::For(ast_while) => ast_while.range.is_in_range(point),
+            AstBlockEntry::ForEnhanced(ast_for_enhanced) => {
+                ast_for_enhanced.range.is_in_range(point)
+            }
+            AstBlockEntry::Break(ast_block_break) => ast_block_break.range.is_in_range(point),
+            AstBlockEntry::Continue(ast_block_continue) => {
+                ast_block_continue.range.is_in_range(point)
+            }
+            AstBlockEntry::Switch(ast_switch) => ast_switch.range.is_in_range(point),
+            AstBlockEntry::SwitchCase(ast_switch_case) => ast_switch_case.range.is_in_range(point),
+            AstBlockEntry::SwitchDefault(ast_switch_case) => {
+                ast_switch_case.range.is_in_range(point)
+            }
         }
     }
 }
@@ -88,7 +100,7 @@ impl AstAfterRange for &AstValue {
 impl AstInRange for &AstValueNuget {
     fn is_in_range(&self, point: &AstPoint) -> bool {
         match self {
-            AstValueNuget::Number(ast_number) => ast_number.range.is_in_range(point),
+            AstValueNuget::Int(ast_number) => ast_number.range.is_in_range(point),
             AstValueNuget::Double(ast_double) => ast_double.range.is_in_range(point),
             AstValueNuget::Float(ast_double) => ast_double.range.is_in_range(point),
             AstValueNuget::StringLiteral(ast_identifier) => ast_identifier.range.is_in_range(point),
@@ -100,7 +112,7 @@ impl AstInRange for &AstValueNuget {
 impl AstAfterRange for &AstValueNuget {
     fn is_after_range(&self, point: &AstPoint) -> bool {
         match self {
-            AstValueNuget::Number(ast_number) => ast_number.range.is_after_range(point),
+            AstValueNuget::Int(ast_number) => ast_number.range.is_after_range(point),
             AstValueNuget::Double(ast_double) => ast_double.range.is_after_range(point),
             AstValueNuget::Float(ast_double) => ast_double.range.is_after_range(point),
             AstValueNuget::StringLiteral(ast_identifier) => {

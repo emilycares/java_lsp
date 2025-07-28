@@ -1,0 +1,150 @@
+---
+source: ast/src/lib.rs
+expression: ast
+---
+(
+    AstRecursiveExpression {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 16,
+            },
+        },
+        ident: Some(
+            Identifier(
+                AstIdentifier {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 0,
+                            col: 0,
+                        },
+                        end: AstPoint {
+                            line: 0,
+                            col: 7,
+                        },
+                    },
+                    value: "numbers",
+                },
+            ),
+        ),
+        values: None,
+        next: Some(
+            AstRecursiveExpression {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 7,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 16,
+                    },
+                },
+                ident: Some(
+                    ArrayAccess(
+                        Nuget(
+                            Int(
+                                AstInt {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 0,
+                                            col: 8,
+                                        },
+                                        end: AstPoint {
+                                            line: 0,
+                                            col: 9,
+                                        },
+                                    },
+                                    value: 0,
+                                },
+                            ),
+                        ),
+                    ),
+                ),
+                values: None,
+                next: Some(
+                    AstRecursiveExpression {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 10,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 16,
+                            },
+                        },
+                        ident: Some(
+                            ArrayAccess(
+                                Nuget(
+                                    Int(
+                                        AstInt {
+                                            range: AstRange {
+                                                start: AstPoint {
+                                                    line: 0,
+                                                    col: 11,
+                                                },
+                                                end: AstPoint {
+                                                    line: 0,
+                                                    col: 12,
+                                                },
+                                            },
+                                            value: 0,
+                                        },
+                                    ),
+                                ),
+                            ),
+                        ),
+                        values: None,
+                        next: Some(
+                            AstRecursiveExpression {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 0,
+                                        col: 13,
+                                    },
+                                    end: AstPoint {
+                                        line: 0,
+                                        col: 16,
+                                    },
+                                },
+                                ident: Some(
+                                    ArrayAccess(
+                                        Nuget(
+                                            Int(
+                                                AstInt {
+                                                    range: AstRange {
+                                                        start: AstPoint {
+                                                            line: 0,
+                                                            col: 14,
+                                                        },
+                                                        end: AstPoint {
+                                                            line: 0,
+                                                            col: 15,
+                                                        },
+                                                    },
+                                                    value: 0,
+                                                },
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                                values: None,
+                                next: None,
+                                operator: None,
+                            },
+                        ),
+                        operator: None,
+                    },
+                ),
+                operator: None,
+            },
+        ),
+        operator: None,
+    },
+    10,
+)

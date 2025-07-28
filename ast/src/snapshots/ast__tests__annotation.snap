@@ -84,8 +84,8 @@ AstFile {
                         value: Int,
                     },
                     value: Nuget(
-                        Number(
-                            AstNumber {
+                        Int(
+                            AstInt {
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 2,
@@ -162,7 +162,7 @@ AstFile {
                                     },
                                     end: AstPoint {
                                         line: 3,
-                                        col: 34,
+                                        col: 33,
                                     },
                                 },
                                 value: "Hello",

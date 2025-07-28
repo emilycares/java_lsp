@@ -3,7 +3,7 @@ source: ast/src/lib.rs
 expression: parsed.unwrap()
 ---
 (
-    AstExpression {
+    AstRecursiveExpression {
         range: AstRange {
             start: AstPoint {
                 line: 0,
@@ -26,7 +26,7 @@ expression: parsed.unwrap()
                                 },
                                 end: AstPoint {
                                     line: 0,
-                                    col: 5,
+                                    col: 3,
                                 },
                             },
                             value: "z",
@@ -37,7 +37,7 @@ expression: parsed.unwrap()
         ),
         values: None,
         next: Some(
-            AstExpression {
+            AstRecursiveExpression {
                 range: AstRange {
                     start: AstPoint {
                         line: 0,
@@ -51,7 +51,7 @@ expression: parsed.unwrap()
                 ident: None,
                 values: None,
                 next: Some(
-                    AstExpression {
+                    AstRecursiveExpression {
                         range: AstRange {
                             start: AstPoint {
                                 line: 0,
@@ -81,7 +81,7 @@ expression: parsed.unwrap()
                         ),
                         values: None,
                         next: Some(
-                            AstExpression {
+                            AstRecursiveExpression {
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 0,
@@ -95,7 +95,7 @@ expression: parsed.unwrap()
                                 ident: None,
                                 values: None,
                                 next: Some(
-                                    AstExpression {
+                                    AstRecursiveExpression {
                                         range: AstRange {
                                             start: AstPoint {
                                                 line: 0,
@@ -125,7 +125,7 @@ expression: parsed.unwrap()
                                         ),
                                         values: None,
                                         next: Some(
-                                            AstExpression {
+                                            AstRecursiveExpression {
                                                 range: AstRange {
                                                     start: AstPoint {
                                                         line: 0,

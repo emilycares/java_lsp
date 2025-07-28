@@ -1,7 +1,6 @@
 ---
 source: ast/src/lib.rs
 expression: parsed.unwrap()
-snapshot_kind: text
 ---
 AstFile {
     package: AstIdentifier {
@@ -203,7 +202,7 @@ AstFile {
                                     },
                                     end: AstPoint {
                                         line: 8,
-                                        col: 35,
+                                        col: 34,
                                     },
                                 },
                                 value: "A",
@@ -273,7 +272,7 @@ AstFile {
                                     },
                                     end: AstPoint {
                                         line: 9,
-                                        col: 28,
+                                        col: 27,
                                     },
                                 },
                                 value: "B",
@@ -343,7 +342,7 @@ AstFile {
                                     },
                                     end: AstPoint {
                                         line: 11,
-                                        col: 28,
+                                        col: 27,
                                     },
                                 },
                                 value: "C",

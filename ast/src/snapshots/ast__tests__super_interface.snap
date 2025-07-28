@@ -401,7 +401,7 @@ AstFile {
                                         },
                                     },
                                     expression: Some(
-                                        AstExpression {
+                                        AstRecursiveExpression {
                                             range: AstRange {
                                                 start: AstPoint {
                                                     line: 10,
@@ -431,7 +431,7 @@ AstFile {
                                             ),
                                             values: None,
                                             next: Some(
-                                                AstExpression {
+                                                AstRecursiveExpression {
                                                     range: AstRange {
                                                         start: AstPoint {
                                                             line: 10,
@@ -445,7 +445,7 @@ AstFile {
                                                     ident: None,
                                                     values: None,
                                                     next: Some(
-                                                        AstExpression {
+                                                        AstRecursiveExpression {
                                                             range: AstRange {
                                                                 start: AstPoint {
                                                                     line: 10,
@@ -475,7 +475,7 @@ AstFile {
                                                             ),
                                                             values: None,
                                                             next: Some(
-                                                                AstExpression {
+                                                                AstRecursiveExpression {
                                                                     range: AstRange {
                                                                         start: AstPoint {
                                                                             line: 10,
@@ -500,7 +500,7 @@ AstFile {
                                                                                 },
                                                                             },
                                                                             values: [
-                                                                                AstExpression {
+                                                                                AstRecursiveExpression {
                                                                                     range: AstRange {
                                                                                         start: AstPoint {
                                                                                             line: 10,
@@ -530,7 +530,7 @@ AstFile {
                                                                                     ),
                                                                                     values: None,
                                                                                     next: Some(
-                                                                                        AstExpression {
+                                                                                        AstRecursiveExpression {
                                                                                             range: AstRange {
                                                                                                 start: AstPoint {
                                                                                                     line: 10,
@@ -563,7 +563,7 @@ AstFile {
                                                                                     ),
                                                                                     operator: None,
                                                                                 },
-                                                                                AstExpression {
+                                                                                AstRecursiveExpression {
                                                                                     range: AstRange {
                                                                                         start: AstPoint {
                                                                                             line: 10,
