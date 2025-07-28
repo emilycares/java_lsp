@@ -91,6 +91,11 @@ impl Token {
             | Token::Switch
             | Token::Case
             | Token::Do
+            | Token::Try
+            | Token::Catch
+            | Token::Finally
+            | Token::Throw
+            | Token::Yield
             | Token::If => KEYWORDS
                 .entries()
                 .find(|i| i.1 == self)
@@ -169,6 +174,11 @@ impl Token {
             Token::Switch => SmolStr::new_inline("swtich"),
             Token::Case => SmolStr::new_inline("case"),
             Token::Do => SmolStr::new_inline("do"),
+            Token::Try => SmolStr::new_inline("try"),
+            Token::Catch => SmolStr::new_inline("catch"),
+            Token::Finally => SmolStr::new_inline("finally"),
+            Token::Throw => SmolStr::new_inline("throw"),
+            Token::Yield => SmolStr::new_inline("yield"),
         }
     }
 
@@ -248,6 +258,11 @@ pub enum Token {
     Switch,
     Case,
     Do,
+    Try,
+    Catch,
+    Finally,
+    Throw,
+    Yield,
 }
 
 #[derive(Debug, PartialEq)]
@@ -292,6 +307,11 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
     "switch" => Token::Switch,
     "case" => Token::Case,
     "do" => Token::Do,
+    "try" => Token::Try,
+    "catch" => Token::Catch,
+    "finally" => Token::Finally,
+    "throw" => Token::Throw,
+    "yield" => Token::Yield,
 };
 
 pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {

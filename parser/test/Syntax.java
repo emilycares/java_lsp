@@ -71,6 +71,15 @@ public class Syntax {
         } finally {
           System.out.println("The 'try catch' is finished.");
         }
+        try {
+            String some3 = "s";
+        } catch (Exception | IOException e3) {
+            String other3 = "o";
+        } catch (IOException e3) {
+            String other3 = "o";
+        } finally {
+            String fin3 = "a";
+        }
         throw new ArithmeticException("Access denied");
         numbers.forEach( (n) -> { System.out.println(n); } );
         String message = switch (number) {

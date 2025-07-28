@@ -1072,6 +1072,16 @@ fn parse_block(tokens: &[PositionToken], pos: usize) -> Result<(AstBlock, usize)
                 errors.push(("block while".into(), e));
             }
         }
+        match parse_do_while(tokens, pos) {
+            Ok((nret, npos)) => {
+                pos = npos;
+                entries.push(Box::new(AstBlockEntry::While(nret)));
+                continue;
+            }
+            Err(e) => {
+                errors.push(("block do while".into(), e));
+            }
+        }
         match parse_for(tokens, pos) {
             Ok((nret, npos)) => {
                 pos = npos;
@@ -1173,6 +1183,35 @@ fn parse_while(tokens: &[PositionToken], pos: usize) -> Result<(AstWhile, usize)
     let (control, pos) = parse_recursive_expression(tokens, pos)?;
     let pos = assert_token(tokens, pos, Token::RightParen)?;
     let (block, pos) = parse_block(tokens, pos)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstWhile {
+            range: AstRange::from_position_token(start, end),
+            control,
+            block,
+            lable,
+        },
+        pos,
+    ))
+}
+fn parse_do_while(tokens: &[PositionToken], pos: usize) -> Result<(AstWhile, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let mut pos = pos;
+    let mut lable = None;
+    if let Ok((lab, npos)) = parse_name(tokens, pos) {
+        let npos = assert_token(tokens, npos, Token::Colon)?;
+
+        lable = Some(lab);
+        pos = npos;
+    }
+    let pos = assert_token(tokens, pos, Token::Do)?;
+    let (block, pos) = parse_block(tokens, pos)?;
+
+    let pos = assert_token(tokens, pos, Token::While)?;
+    let pos = assert_token(tokens, pos, Token::LeftParen)?;
+    let (control, pos) = parse_recursive_expression(tokens, pos)?;
+    let pos = assert_token(tokens, pos, Token::RightParen)?;
+    let pos = assert_token(tokens, pos, Token::Semicolon)?;
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstWhile {
