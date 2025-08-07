@@ -12,6 +12,7 @@ use common::TaskProgress;
 use dashmap::DashMap;
 use futures::{AsyncBufReadExt, StreamExt};
 use parser::{dto::ClassFolder, loader::SourceDestination};
+use smol_str::SmolStr;
 use tokio::{process::Command, task::JoinSet};
 
 #[cfg(not(target_os = "windows"))]
@@ -34,7 +35,7 @@ pub enum JdkError {
 }
 
 pub async fn load_classes(
-    class_map: &DashMap<std::string::String, parser::dto::Class>,
+    class_map: &DashMap<SmolStr, parser::dto::Class>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
 ) -> Result<(), JdkError> {
     let (java_path, op_dir) = get_work_dirs().await?;
@@ -118,7 +119,7 @@ async fn load_old(mut path: PathBuf, op_dir: PathBuf) -> Result<ClassFolder, Jdk
             source_dir
                 .to_str()
                 .expect("Should be represented as string")
-                .to_owned(),
+                .into(),
         ),
         None,
     )
@@ -149,7 +150,7 @@ async fn load_javafx(
                     source_dir_jfx
                         .to_str()
                         .expect("Should be represented as string")
-                        .to_owned(),
+                        .into(),
                 ),
                 None,
             )
@@ -256,7 +257,7 @@ async fn load_jmods(
                                     relative_source
                                         .to_str()
                                         .expect("Should be represented as string")
-                                        .to_owned(),
+                                        .into(),
                                 ),
                             );
                             let a = completed_number.fetch_add(1, Ordering::Relaxed);

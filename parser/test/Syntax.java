@@ -80,6 +80,24 @@ public class Syntax {
         } finally {
             String fin3 = "a";
         }
+        try {
+            scanner = new Scanner(new File("test.txt"));
+            while (scanner.hasNext()) {
+                System.out.println(scanner.nextLine());
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } finally {
+            if (scanner != null) {
+                scanner.close();
+            }
+        }
+        try (AutoCloseableResourcesFirst af = new AutoCloseableResourcesFirst();
+            AutoCloseableResourcesSecond as = new AutoCloseableResourcesSecond()) {
+
+            af.doSomething();
+            as.doSomething();
+        }
         throw new ArithmeticException("Access denied");
         numbers.forEach( (n) -> { System.out.println(n); } );
         String message = switch (number) {
@@ -105,27 +123,6 @@ public class Syntax {
         """
         Java ist besser
         --Thorben""";
-        try {
-            scanner = new Scanner(new File("test.txt"));
-            while (scanner.hasNext()) {
-                System.out.println(scanner.nextLine());
-            }
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } finally {
-            if (scanner != null) {
-                scanner.close();
-            }
-        }
-        try (AutoCloseableResourcesFirst af = new AutoCloseableResourcesFirst();
-            AutoCloseableResourcesSecond as = new AutoCloseableResourcesSecond()) {
-
-            af.doSomething();
-            as.doSomething();
-        }
-
-
-
         return;
     }
 }

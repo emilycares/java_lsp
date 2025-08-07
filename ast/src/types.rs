@@ -75,35 +75,63 @@ pub enum AstImportUnit {
 #[derive(Debug)]
 pub enum AstAvailability {
     Public,
+    PublicStatic,
     Private,
+    PrivateStatic,
     Protected,
+    ProtectedStatic,
     Undefined,
+    UndefinedStatic,
+}
+impl AstAvailability {
+    pub fn to_static(&self) -> Self {
+        match self {
+            AstAvailability::Public => Self::PublicStatic,
+            AstAvailability::PublicStatic => Self::PublicStatic,
+            AstAvailability::Private => Self::PrivateStatic,
+            AstAvailability::PrivateStatic => Self::PrivateStatic,
+            AstAvailability::Protected => Self::ProtectedStatic,
+            AstAvailability::ProtectedStatic => Self::ProtectedStatic,
+            AstAvailability::Undefined => Self::UndefinedStatic,
+            AstAvailability::UndefinedStatic => Self::UndefinedStatic,
+        }
+    }
 }
 
 #[derive(Debug)]
 pub struct AstClass {
     pub range: AstRange,
     pub avaliability: AstAvailability,
+    pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
     pub superclass: AstSuperClass,
     pub variables: Vec<AstClassVariable>,
     pub methods: Vec<AstClassMethod>,
     pub constructors: Vec<AstClassConstructor>,
 }
+#[derive(Debug, PartialEq)]
+pub enum AstStaticFinal {
+    None,
+    Static,
+    Final,
+    StaticFinal,
+}
 
 #[derive(Debug)]
 pub struct AstClassVariable {
     pub range: AstRange,
     pub avaliability: AstAvailability,
+    pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
     pub jtype: AstJType,
     pub expression: Option<AstRecursiveExpression>,
-    pub fin: bool,
+    pub static_final: AstStaticFinal,
 }
 
 #[derive(Debug)]
 pub struct AstClassMethod {
     pub range: AstRange,
+    pub annotated: Vec<AstAnnotated>,
     pub header: AstMethodHeader,
     pub block: AstBlock,
 }
@@ -114,7 +142,6 @@ pub struct AstMethodHeader {
     pub name: AstIdentifier,
     pub jtype: AstJType,
     pub parameters: AstMethodParamerters,
-    pub stat: bool,
     pub throws: Option<AstThrowsDeclaration>,
     pub type_parameters: Option<AstTypeParameters>,
 }
@@ -127,6 +154,7 @@ pub struct AstThrowsDeclaration {
 pub struct AstClassConstructor {
     pub range: AstRange,
     pub avaliability: AstAvailability,
+    pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
     pub parameters: AstMethodParamerters,
     pub block: AstBlock,
@@ -158,6 +186,8 @@ pub enum AstBlockEntry {
     Switch(AstSwitch),
     SwitchCase(AstSwitchCase),
     SwitchDefault(AstSwitchDefault),
+    TryCatch(AstTryCatch),
+    Throw(AstThrow),
 }
 #[derive(Debug)]
 pub struct AstWhile {
@@ -219,10 +249,29 @@ pub enum AstIfContent {
     None,
 }
 #[derive(Debug)]
+pub struct AstThrow {
+    pub range: AstRange,
+    pub value: AstValueNewClass,
+}
+#[derive(Debug)]
+pub struct AstTryCatch {
+    pub range: AstRange,
+    pub resources_block: Option<AstBlock>,
+    pub block: AstBlock,
+    pub cases: Vec<AstTryCatchCase>,
+    pub finally_block: Option<AstBlock>,
+}
+#[derive(Debug)]
+pub struct AstTryCatchCase {
+    pub range: AstRange,
+    pub variable: AstBlockVariableMutliType,
+    pub block: AstBlock,
+}
+#[derive(Debug)]
 pub struct AstBlockAssign {
     pub range: AstRange,
     pub key: AstRecursiveExpression,
-    pub expression: AstRecursiveExpression,
+    pub expression: Option<AstRecursiveExpression>,
 }
 #[derive(Debug)]
 pub struct AstBlockExpression {
@@ -232,13 +281,20 @@ pub struct AstBlockExpression {
 #[derive(Debug)]
 pub struct AstBlock {
     pub range: AstRange,
-    pub entries: Vec<Box<AstBlockEntry>>,
+    pub entries: Vec<AstBlockEntry>,
 }
 #[derive(Debug)]
 pub struct AstBlockVariable {
     pub range: AstRange,
     pub name: AstIdentifier,
     pub jtype: AstJType,
+    pub expression: Option<AstBaseExpression>,
+}
+#[derive(Debug)]
+pub struct AstBlockVariableMutliType {
+    pub range: AstRange,
+    pub name: AstIdentifier,
+    pub jtypes: Vec<AstJType>,
     pub expression: Option<AstBaseExpression>,
 }
 
@@ -303,8 +359,18 @@ pub enum AstSuperClass {
     ClassPath(AstIdentifier),
 }
 #[derive(Debug)]
+/// Usage of a Annotation
+pub struct AstAnnotated {
+    pub range: AstRange,
+    pub name: AstIdentifier,
+    pub parameters: Vec<AstRecursiveExpression>,
+}
+
+#[derive(Debug)]
+/// Definition of a new Annotation
 pub struct AstAnnotation {
     pub avaliability: AstAvailability,
+    pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
     pub fields: Vec<AstAnnotationField>,
 }
@@ -320,6 +386,7 @@ pub struct AstAnnotationField {
 pub struct AstInterface {
     pub range: AstRange,
     pub avaliability: AstAvailability,
+    pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
     pub type_parameters: Option<AstTypeParameters>,
     pub extends: Option<AstExtends>,
@@ -357,6 +424,8 @@ pub enum AstJTypeKind {
     Array(Box<AstJType>),
     Generic(AstIdentifier, Vec<AstJType>),
     Parameter(AstIdentifier),
+    /// Untyped variable
+    Var,
 }
 
 #[derive(Debug)]
@@ -398,7 +467,7 @@ pub struct AstRecursiveExpression {
 pub enum AstExpressionIdentifier {
     Identifier(AstIdentifier),
     Nuget(AstValueNuget),
-    Value(Box<AstValue>),
+    Value(AstValue),
     ArrayAccess(AstValue),
 }
 
@@ -411,6 +480,17 @@ impl AstRecursiveExpression {
     pub fn has_content(&self) -> bool {
         self.ident.is_some() || self.next.is_some() || self.values.is_some()
     }
+}
+#[derive(Debug)]
+pub struct AstLambda {
+    pub range: AstRange,
+    pub parameters: AstLambdaParameters,
+    pub block: AstBlock,
+}
+#[derive(Debug, Default)]
+pub struct AstLambdaParameters {
+    pub range: AstRange,
+    pub values: Vec<AstIdentifier>,
 }
 
 #[derive(Debug)]
@@ -465,6 +545,7 @@ pub struct AstExtends {
 #[derive(Debug)]
 pub struct AstInterfaceConstant {
     pub range: AstRange,
+    pub annotated: Vec<AstAnnotated>,
     pub avaliability: AstAvailability,
     pub name: AstIdentifier,
     pub jtype: AstJType,
@@ -473,11 +554,13 @@ pub struct AstInterfaceConstant {
 #[derive(Debug)]
 pub struct AstInterfaceMethod {
     pub range: AstRange,
+    pub annotated: Vec<AstAnnotated>,
     pub header: AstMethodHeader,
 }
 #[derive(Debug)]
 pub struct AstInterfaceMethodDefault {
     pub range: AstRange,
+    pub annotated: Vec<AstAnnotated>,
     pub header: AstMethodHeader,
     pub block: AstBlock,
 }
@@ -485,6 +568,7 @@ pub struct AstInterfaceMethodDefault {
 #[derive(Debug)]
 pub struct AstEnumeration {
     pub avaliability: AstAvailability,
+    pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
     pub variants: Vec<AstEnumerationVariant>,
     pub methods: Vec<AstClassMethod>,

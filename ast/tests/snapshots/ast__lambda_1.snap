@@ -1,0 +1,59 @@
+---
+source: ast/tests/ast.rs
+expression: parsed.unwrap()
+---
+(
+    AstLambda {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 8,
+            },
+        },
+        parameters: AstLambdaParameters {
+            range: AstRange {
+                start: AstPoint {
+                    line: 0,
+                    col: 0,
+                },
+                end: AstPoint {
+                    line: 0,
+                    col: 1,
+                },
+            },
+            values: [
+                AstIdentifier {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 0,
+                            col: 0,
+                        },
+                        end: AstPoint {
+                            line: 0,
+                            col: 1,
+                        },
+                    },
+                    value: "n",
+                },
+            ],
+        },
+        block: AstBlock {
+            range: AstRange {
+                start: AstPoint {
+                    line: 0,
+                    col: 5,
+                },
+                end: AstPoint {
+                    line: 0,
+                    col: 8,
+                },
+            },
+            entries: [],
+        },
+    },
+    5,
+)

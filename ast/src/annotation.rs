@@ -2,13 +2,14 @@ use crate::{
     error::{AstError, assert_token},
     lexer::{PositionToken, Token},
     parse_identifier, parse_jtype, parse_name, parse_value,
-    types::{AstAnnotation, AstAnnotationField, AstAvailability, AstRange, AstThing},
+    types::{AstAnnotated, AstAnnotation, AstAnnotationField, AstAvailability, AstRange, AstThing},
 };
 
 pub fn parse_annotation(
     tokens: &[PositionToken],
     pos: usize,
     avaliability: AstAvailability,
+    annotated: Vec<AstAnnotated>,
 ) -> Result<(AstThing, usize), AstError> {
     let pos = assert_token(tokens, pos, Token::Interface)?;
     let (name, pos) = parse_identifier(tokens, pos)?;
@@ -43,6 +44,7 @@ pub fn parse_annotation(
     Ok((
         AstThing::Annotation(AstAnnotation {
             avaliability,
+            annotated,
             name,
             fields,
         }),

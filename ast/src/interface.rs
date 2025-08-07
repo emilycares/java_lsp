@@ -1,10 +1,10 @@
 use crate::{
     error::{AstError, assert_token},
     lexer::{PositionToken, Token},
-    parse_avaliability, parse_block, parse_extends, parse_identifier, parse_jtype,
-    parse_method_header, parse_name, parse_type_parameters, parse_value,
+    parse_annotated_list, parse_avaliability, parse_block, parse_extends, parse_identifier,
+    parse_jtype, parse_method_header, parse_name, parse_type_parameters, parse_value,
     types::{
-        AstAvailability, AstInterface, AstInterfaceConstant, AstInterfaceMethod,
+        AstAnnotated, AstAvailability, AstInterface, AstInterfaceConstant, AstInterfaceMethod,
         AstInterfaceMethodDefault, AstRange, AstThing,
     },
 };
@@ -13,6 +13,7 @@ pub fn parse_interface(
     tokens: &[PositionToken],
     pos: usize,
     avaliability: AstAvailability,
+    annotated: Vec<AstAnnotated>,
 ) -> Result<(AstThing, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let (name, pos) = parse_identifier(tokens, pos)?;
@@ -83,6 +84,7 @@ pub fn parse_interface(
         AstThing::Interface(AstInterface {
             range: AstRange::from_position_token(start, end),
             avaliability,
+            annotated,
             name,
             type_parameters,
             extends,
@@ -99,6 +101,7 @@ pub fn parse_interface_constant(
     pos: usize,
 ) -> Result<(AstInterfaceConstant, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let (annotated, pos) = parse_annotated_list(tokens, pos)?;
     let (avaliability, pos) = parse_avaliability(tokens, pos)?;
     let (jtype, pos) = parse_jtype(tokens, pos)?;
     let (name, pos) = parse_name(tokens, pos)?;
@@ -109,6 +112,7 @@ pub fn parse_interface_constant(
     Ok((
         AstInterfaceConstant {
             range: AstRange::from_position_token(start, end),
+            annotated,
             avaliability,
             name,
             jtype,
@@ -123,12 +127,14 @@ pub fn parse_interface_method(
     pos: usize,
 ) -> Result<(AstInterfaceMethod, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let (annotated, pos) = parse_annotated_list(tokens, pos)?;
     let (header, pos) = parse_method_header(tokens, pos, AstAvailability::Public)?;
     let pos = assert_token(tokens, pos, Token::Semicolon)?;
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstInterfaceMethod {
             range: AstRange::from_position_token(start, end),
+            annotated,
             header,
         },
         pos,
@@ -140,6 +146,7 @@ pub fn parse_interface_method_impl(
     pos: usize,
 ) -> Result<(AstInterfaceMethodDefault, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let (annotated, pos) = parse_annotated_list(tokens, pos)?;
     let mut availability = AstAvailability::Public;
     let mut pos = pos;
     if let Ok(npos) = assert_token(tokens, pos, Token::Default) {
@@ -154,6 +161,7 @@ pub fn parse_interface_method_impl(
     Ok((
         AstInterfaceMethodDefault {
             range: AstRange::from_position_token(start, end),
+            annotated,
             header,
             block,
         },

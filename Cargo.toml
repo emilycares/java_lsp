@@ -73,4 +73,4 @@ phf = { version = "0.12", features = ["macros"] }
 rayon = "1.10"
 insta = { version = "1.43.1", default-features = false }
 criterion = { version = "0.7.0", features = ["html_reports"] }
-smol_str = "0.3.2"
+smol_str = { version = "0.3.2", features = ["serde"] }

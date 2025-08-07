@@ -1,6 +1,7 @@
 ---
-source: ast/src/lib.rs
+source: ast/tests/ast.rs
 expression: parsed.unwrap()
+snapshot_kind: text
 ---
 AstFile {
     package: AstIdentifier {
@@ -32,6 +33,7 @@ AstFile {
     thing: Annotation(
         AstAnnotation {
             avaliability: Public,
+            annotated: [],
             name: AstIdentifier {
                 range: AstRange {
                     start: AstPoint {

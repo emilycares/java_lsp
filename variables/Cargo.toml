@@ -10,10 +10,11 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
-itertools.workspace = true
+smol_str.workspace = true
 document = {path = "../document"}
 parser = {path = "../parser"}
 ast = {path = "../ast"}
 
 [dev-dependencies]
+insta.workspace = true
 pretty_assertions.workspace = true

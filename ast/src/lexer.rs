@@ -52,6 +52,7 @@ impl Token {
             | Token::Gt
             | Token::Equal
             | Token::ExclamationMark
+            | Token::Underscore
             | Token::DoubleQuote
             | Token::SingleQuote => 1,
             Token::EqualDouble | Token::Le | Token::Ge | Token::Ne => 2,
@@ -96,6 +97,8 @@ impl Token {
             | Token::Finally
             | Token::Throw
             | Token::Yield
+            | Token::Var
+            | Token::This
             | Token::If => KEYWORDS
                 .entries()
                 .find(|i| i.1 == self)
@@ -179,6 +182,9 @@ impl Token {
             Token::Finally => SmolStr::new_inline("finally"),
             Token::Throw => SmolStr::new_inline("throw"),
             Token::Yield => SmolStr::new_inline("yield"),
+            Token::Var => SmolStr::new_inline("var"),
+            Token::This => SmolStr::new_inline("this"),
+            Token::Underscore => SmolStr::new_inline("_"),
         }
     }
 
@@ -263,6 +269,9 @@ pub enum Token {
     Finally,
     Throw,
     Yield,
+    Var,
+    This,
+    Underscore,
 }
 
 #[derive(Debug, PartialEq)]
@@ -312,6 +321,8 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
     "finally" => Token::Finally,
     "throw" => Token::Throw,
     "yield" => Token::Yield,
+    "var" => Token::Var,
+    "this" => Token::This,
 };
 
 pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
@@ -477,6 +488,14 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
             '?' => {
                 tokens.push(PositionToken {
                     token: Token::QuestionMark,
+                    line,
+                    col,
+                });
+                col += 1;
+            }
+            '_' => {
+                tokens.push(PositionToken {
+                    token: Token::Underscore,
                     line,
                     col,
                 });

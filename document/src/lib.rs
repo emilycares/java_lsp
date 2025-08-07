@@ -1,16 +1,17 @@
 use std::{fs, path::PathBuf};
 
 use ast::{error::PrintErr, types::AstFile};
-use dashmap::mapref::one::RefMut;
+use dashmap::{DashMap, mapref::one::RefMut};
 use lsp_types::TextDocumentContentChangeEvent;
 use ropey::Rope;
+use smol_str::SmolStr;
 
 pub struct Document {
     pub text: ropey::Rope,
     pub str_data: String,
     pub ast: AstFile,
     pub path: PathBuf,
-    pub class_path: String,
+    pub class_path: SmolStr,
 }
 
 #[derive(Debug)]
@@ -28,12 +29,12 @@ impl Document {
         self.reparse(false);
         Ok(())
     }
-    pub fn setup_read(path: PathBuf, class_path: String) -> Result<Self, DocumentError> {
+    pub fn setup_read(path: PathBuf, class_path: SmolStr) -> Result<Self, DocumentError> {
         let text = fs::read_to_string(&path).map_err(DocumentError::Io)?;
         let rope = ropey::Rope::from_str(&text);
         Self::setup_rope(&text, path, rope, class_path)
     }
-    pub fn setup(text: &str, path: PathBuf, class_path: String) -> Result<Self, DocumentError> {
+    pub fn setup(text: &str, path: PathBuf, class_path: SmolStr) -> Result<Self, DocumentError> {
         let rope = ropey::Rope::from_str(text);
         Self::setup_rope(text, path, rope, class_path)
     }
@@ -42,10 +43,12 @@ impl Document {
         text: &str,
         path: PathBuf,
         rope: Rope,
-        class_path: String,
+        class_path: SmolStr,
     ) -> Result<Self, DocumentError> {
         let tokens = ast::lexer::lex(text).map_err(DocumentError::Lexer)?;
-        let ast = ast::parse_file(&tokens).map_err(DocumentError::Ast)?;
+        let ast = ast::parse_file(&tokens);
+        ast.print_err(text);
+        let ast = ast.map_err(DocumentError::Ast)?;
         Ok(Self {
             text: rope,
             str_data: text.to_string(),
@@ -121,13 +124,13 @@ impl Document {
 
 pub enum ClassSource<'a, D> {
     Owned(D),
-    Ref(RefMut<'a, String, Document>),
+    Ref(RefMut<'a, SmolStr, Document>),
     Err(DocumentError),
 }
 pub fn read_document_or_open_class<'a, 'b>(
     source: &'b str,
-    class_path: String,
-    document_map: &'a dashmap::DashMap<String, Document>,
+    class_path: SmolStr,
+    document_map: &'a DashMap<SmolStr, Document>,
     uri: &'b str,
 ) -> ClassSource<'a, Document> {
     match document_map.get_mut(uri) {

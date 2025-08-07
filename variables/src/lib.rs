@@ -1,18 +1,51 @@
 use ast::types::{
-    AstBlockEntry, AstClassMethod, AstInterfaceConstant, AstPoint, AstRange, AstThing,
+    AstBlock, AstBlockEntry, AstBlockVariable, AstClassMethod, AstFor, AstForEnhanced, AstIf,
+    AstIfContent, AstInterfaceConstant, AstMethodParamerter, AstPoint, AstRange, AstSwitch,
+    AstThing, AstTryCatch, AstWhile,
 };
 use document::Document;
-use itertools::interleave;
 use parser::{dto, java::ParseJavaError};
+use smol_str::SmolStr;
 
 /// document::Documentut a variable or function in a Document
 #[derive(Debug, PartialEq, Clone)]
 pub struct LocalVariable {
     pub level: usize,
     pub jtype: dto::JType,
-    pub name: String,
+    pub name: SmolStr,
     pub is_fun: bool,
     pub range: AstRange,
+}
+
+impl LocalVariable {
+    pub fn from_block_variable(i: &AstBlockVariable, level: usize) -> Self {
+        LocalVariable {
+            level,
+            jtype: (&i.jtype).into(),
+            name: (&i.name).into(),
+            is_fun: false,
+            range: i.range.clone(),
+        }
+    }
+    pub fn from_class_method(i: &AstClassMethod, level: usize) -> Self {
+        LocalVariable {
+            level,
+            jtype: (&i.header.jtype).into(),
+            name: (&i.header.name).into(),
+            is_fun: true,
+            range: i.range.clone(),
+        }
+    }
+
+    fn from_method_parameter(parameter: &AstMethodParamerter, level: usize) -> LocalVariable {
+        LocalVariable {
+            level,
+            jtype: (&parameter.jtype).into(),
+            name: (&parameter.name).into(),
+            is_fun: false,
+            range: parameter.range.clone(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -26,13 +59,16 @@ pub fn get_vars(
     point: &AstPoint,
 ) -> Result<Vec<LocalVariable>, VariablesError> {
     let mut out: Vec<LocalVariable> = vec![];
+    let level = 0;
     match &document.ast.thing {
         AstThing::Class(ast_class) => {
-            out.extend(get_class_variables(&ast_class.variables));
-            out.extend(get_class_methods(&ast_class.methods, point));
+            let level = level + 1;
+            out.extend(get_class_variables(&ast_class.variables, level));
+            out.extend(get_class_methods(&ast_class.methods, point, level));
         }
         AstThing::Interface(ast_interface) => {
-            out.extend(get_interface_constats(&ast_interface.constants));
+            let level = level + 1;
+            out.extend(get_interface_constats(&ast_interface.constants, level));
         }
         AstThing::Enumeration(_) => (),
         AstThing::Annotation(_) => (),
@@ -44,9 +80,10 @@ pub fn get_vars(
 
 fn get_interface_constats(
     contants: &[AstInterfaceConstant],
+    level: usize,
 ) -> impl Iterator<Item = LocalVariable> {
-    contants.iter().map(|i| LocalVariable {
-        level: 0,
+    contants.iter().map(move |i| LocalVariable {
+        level,
         jtype: (&i.jtype).into(),
         name: (&i.name).into(),
         is_fun: false,
@@ -57,53 +94,161 @@ fn get_interface_constats(
 fn get_class_methods(
     methods: &[AstClassMethod],
     point: &AstPoint,
-) -> impl Iterator<Item = LocalVariable> {
-    methods
-        .iter()
-        .filter(|i| i.range.is_after_range(point))
-        .flat_map(|i| {
-            interleave(
-                i.header
+    level: usize,
+) -> Vec<LocalVariable> {
+    let level = level + 1;
+    let mut out = vec![];
+
+    for method in methods {
+        out.push(LocalVariable::from_class_method(method, level));
+        if method.range.is_in_range(point) {
+            out.extend(
+                method
+                    .header
                     .parameters
                     .parameters
                     .iter()
-                    .map(|i| LocalVariable {
-                        level: 0,
-                        jtype: (&i.jtype).into(),
-                        name: (&i.name).into(),
-                        is_fun: false,
-                        range: i.range.clone(),
-                    }),
-                get_block_vars(&i.block, point),
-            )
+                    .map(move |i| LocalVariable::from_method_parameter(i, level)),
+            );
+            out.extend(get_block_vars(&method.block, point, level));
+        }
+    }
+    out
+}
+
+fn get_block_vars(block: &AstBlock, point: &AstPoint, level: usize) -> Vec<LocalVariable> {
+    let level = level + 1;
+    if !block.range.is_in_range(point) {
+        return vec![];
+    }
+    block
+        .entries
+        .iter()
+        .flat_map(|i| match i {
+            AstBlockEntry::Return(_)
+            | AstBlockEntry::Expression(_)
+            | AstBlockEntry::Break(_)
+            | AstBlockEntry::Continue(_)
+            | AstBlockEntry::Throw(_)
+            | AstBlockEntry::SwitchCase(_)
+            | AstBlockEntry::SwitchDefault(_)
+            | AstBlockEntry::Assign(_) => vec![],
+            AstBlockEntry::Variable(i) => vec![LocalVariable::from_block_variable(i, level)],
+            AstBlockEntry::If(ast_if) => if_vars(&ast_if, point, level),
+            AstBlockEntry::While(ast_while) => while_vars(&ast_while, point, level),
+            AstBlockEntry::For(ast_for) => for_vars(&ast_for, point, level),
+            AstBlockEntry::ForEnhanced(ast_for_enhanced) => {
+                for_enanced_vars(&ast_for_enhanced, point, level)
+            }
+            AstBlockEntry::Switch(ast_switch) => switch_vars(&ast_switch, point, level),
+            AstBlockEntry::TryCatch(ast_try_catch) => try_catch_vars(&ast_try_catch, point, level),
         })
+        .collect()
+}
+fn try_catch_vars(
+    ast_try_catch: &AstTryCatch,
+    point: &AstPoint,
+    level: usize,
+) -> Vec<LocalVariable> {
+    if !ast_try_catch.range.is_in_range(point) {
+        return vec![];
+    }
+    let level = level + 1;
+    let mut out = vec![];
+    if let Some(resources) = &ast_try_catch.resources_block {
+        out.extend(get_block_vars(&resources, point, level));
+    }
+    out.extend(get_block_vars(&ast_try_catch.block, point, level));
+    if let Some(finally_block) = &ast_try_catch.finally_block {
+        out.extend(get_block_vars(&finally_block, point, level));
+    }
+    out
 }
 
-fn get_block_vars(
-    block: &ast::types::AstBlock,
-    _point: &AstPoint,
-) -> impl Iterator<Item = LocalVariable> {
-    block.entries.iter().filter_map(|i| match i.as_ref() {
-        AstBlockEntry::Variable(i) => Some(LocalVariable {
-            level: 1,
-            jtype: (&i.jtype).into(),
-            name: (&i.name).into(),
-            is_fun: false,
-            range: i.range.clone(),
-        }),
-        _ => None,
-    })
+fn switch_vars(ast_for_enhanced: &AstSwitch, point: &AstPoint, level: usize) -> Vec<LocalVariable> {
+    if !ast_for_enhanced.range.is_in_range(point) {
+        return vec![];
+    }
+    let level = level + 1;
+    let mut out = vec![];
+    out.extend(get_block_vars(&ast_for_enhanced.block, point, level));
+    out
 }
 
+fn for_enanced_vars(
+    ast_for_enhanced: &AstForEnhanced,
+    point: &AstPoint,
+    level: usize,
+) -> Vec<LocalVariable> {
+    if !ast_for_enhanced.range.is_in_range(point) {
+        return vec![];
+    }
+    let level = level + 1;
+    let mut out = vec![];
+    out.push(LocalVariable::from_block_variable(
+        &ast_for_enhanced.var,
+        level,
+    ));
+    out.extend(get_block_vars(&ast_for_enhanced.block, point, level));
+    out
+}
+
+fn for_vars(ast_for: &AstFor, point: &AstPoint, level: usize) -> Vec<LocalVariable> {
+    if !ast_for.range.is_in_range(point) {
+        return vec![];
+    }
+    let level = level + 1;
+    let mut out = vec![];
+    out.push(LocalVariable::from_block_variable(&ast_for.var, level));
+    out.extend(get_block_vars(&ast_for.block, point, level));
+    out
+}
+fn while_vars(ast_while: &AstWhile, point: &AstPoint, level: usize) -> Vec<LocalVariable> {
+    if !ast_while.range.is_in_range(point) {
+        return vec![];
+    }
+    let level = level + 1;
+    get_block_vars(&ast_while.block, point, level)
+}
+fn if_vars(ast_if: &AstIf, point: &AstPoint, level: usize) -> Vec<LocalVariable> {
+    let level = level + 1;
+    match ast_if {
+        AstIf::If {
+            range,
+            control: _,
+            control_range: _,
+            content,
+            el,
+        } => {
+            if range.is_in_range(point) {
+                if let AstIfContent::Block(block) = content {
+                    return get_block_vars(block, point, level);
+                }
+            }
+            if let Some(el) = el.as_ref() {
+                return if_vars(el, point, level);
+            }
+        }
+        AstIf::Else { range, content } => {
+            if range.is_in_range(point) {
+                if let AstIfContent::Block(block) = content {
+                    return get_block_vars(block, point, level);
+                }
+            }
+        }
+    }
+    vec![]
+}
 fn get_class_variables(
     variables: &[ast::types::AstClassVariable],
+    level: usize,
 ) -> impl Iterator<Item = LocalVariable> {
-    variables.iter().map(|i| LocalVariable {
-        level: 0,
+    variables.iter().map(move |i| LocalVariable {
+        range: i.range.clone(),
+        level,
         jtype: (&i.jtype).into(),
         name: (&i.name).into(),
         is_fun: false,
-        range: i.range.clone(),
     })
 }
 
@@ -119,7 +264,7 @@ pub mod tests {
     use crate::{LocalVariable, get_vars};
 
     #[test]
-    fn this_context() {
+    fn this_context_base() {
         let content = "
 package ch.emilycares;
 
@@ -138,46 +283,46 @@ public class Test {
     }
 }
         ";
-        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
 
         let out = get_vars(&doc, &AstPoint::new(12, 17)).unwrap();
         assert_eq!(
             out,
             vec![
                 LocalVariable {
-                    level: 2,
-                    jtype: dto::JType::Class("String".to_owned()),
-                    name: "hello".to_owned(),
+                    level: 1,
+                    jtype: dto::JType::Class("String".into()),
+                    name: "hello".into(),
                     is_fun: false,
                     range: AstRange {
-                        start: AstPoint { line: 5, col: 11 },
-                        end: AstPoint { line: 5, col: 16 },
+                        start: AstPoint { line: 5, col: 4 },
+                        end: AstPoint { line: 5, col: 17 },
                     },
                 },
                 LocalVariable {
-                    level: 2,
-                    jtype: dto::JType::Class("String".to_owned()),
-                    name: "se".to_owned(),
+                    level: 1,
+                    jtype: dto::JType::Class("String".into()),
+                    name: "se".into(),
                     is_fun: false,
                     range: AstRange {
-                        start: AstPoint { line: 6, col: 11 },
-                        end: AstPoint { line: 6, col: 13 },
+                        start: AstPoint { line: 6, col: 4 },
+                        end: AstPoint { line: 6, col: 14 },
                     },
                 },
                 LocalVariable {
-                    level: 2,
-                    jtype: dto::JType::Class("String".to_owned()),
-                    name: "other".to_owned(),
+                    level: 1,
+                    jtype: dto::JType::Class("String".into()),
+                    name: "other".into(),
                     is_fun: false,
                     range: AstRange {
-                        start: AstPoint { line: 8, col: 19 },
+                        start: AstPoint { line: 8, col: 4 },
                         end: AstPoint { line: 8, col: 24 },
                     },
                 },
                 LocalVariable {
                     level: 2,
                     jtype: dto::JType::Void,
-                    name: "hello".to_owned(),
+                    name: "hello".into(),
                     is_fun: true,
                     range: AstRange {
                         start: AstPoint { line: 10, col: 16 },
@@ -186,8 +331,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 3,
-                    jtype: dto::JType::Class("String".to_owned()),
-                    name: "a".to_owned(),
+                    jtype: dto::JType::Class("String".into()),
+                    name: "a".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 10, col: 29 },
@@ -196,8 +341,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 3,
-                    jtype: dto::JType::Class("String".to_owned()),
-                    name: "local".to_owned(),
+                    jtype: dto::JType::Class("String".into()),
+                    name: "local".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 11, col: 15 },
@@ -206,8 +351,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 3,
-                    jtype: dto::JType::Class("var".to_owned()),
-                    name: "lo".to_owned(),
+                    jtype: dto::JType::Class("var".into()),
+                    name: "lo".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 13, col: 12 },
@@ -227,19 +372,19 @@ public class Test {
      
 }
         ";
-        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
 
         let out = get_vars(&doc, &AstPoint::new(4, 6)).unwrap();
         assert_eq!(
             out,
             vec![LocalVariable {
-                level: 2,
-                jtype: dto::JType::Class("Logger".to_string()),
-                name: "logger".to_string(),
+                level: 1,
+                jtype: dto::JType::Class("Logger".into()),
+                name: "logger".into(),
                 is_fun: false,
                 range: AstRange {
-                    start: AstPoint { line: 3, col: 26 },
-                    end: AstPoint { line: 3, col: 32 },
+                    start: AstPoint { line: 3, col: 4 },
+                    end: AstPoint { line: 3, col: 70 },
                 },
             },]
         );
@@ -265,26 +410,27 @@ public class Test {
     }
 }
         ";
-        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
+        dbg!(&doc.ast);
 
         let out = get_vars(&doc, &AstPoint::new(12, 17)).unwrap();
         assert_eq!(
             out,
             vec![
                 LocalVariable {
-                    level: 2,
-                    jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_owned()))),
-                    name: "hello".to_owned(),
+                    level: 1,
+                    jtype: dto::JType::Array(Box::new(dto::JType::Class("String".into()))),
+                    name: "hello".into(),
                     is_fun: false,
                     range: AstRange {
-                        start: AstPoint { line: 5, col: 13 },
-                        end: AstPoint { line: 5, col: 18 },
+                        start: AstPoint { line: 5, col: 4 },
+                        end: AstPoint { line: 5, col: 19 },
                     },
                 },
                 LocalVariable {
                     level: 2,
-                    jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_owned()))),
-                    name: "se".to_owned(),
+                    jtype: dto::JType::Array(Box::new(dto::JType::Class("String".into()))),
+                    name: "se".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 6, col: 13 },
@@ -293,8 +439,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 2,
-                    jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_owned()))),
-                    name: "other".to_owned(),
+                    jtype: dto::JType::Array(Box::new(dto::JType::Class("String".into()))),
+                    name: "other".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 8, col: 21 },
@@ -304,7 +450,7 @@ public class Test {
                 LocalVariable {
                     level: 2,
                     jtype: dto::JType::Void,
-                    name: "hello".to_owned(),
+                    name: "hello".into(),
                     is_fun: true,
                     range: AstRange {
                         start: AstPoint { line: 10, col: 16 },
@@ -313,8 +459,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 3,
-                    jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_owned()))),
-                    name: "a".to_owned(),
+                    jtype: dto::JType::Array(Box::new(dto::JType::Class("String".into()))),
+                    name: "a".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 10, col: 31 },
@@ -323,8 +469,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 3,
-                    jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_owned()))),
-                    name: "local".to_owned(),
+                    jtype: dto::JType::Array(Box::new(dto::JType::Class("String".into()))),
+                    name: "local".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 11, col: 17 },
@@ -333,8 +479,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 3,
-                    jtype: dto::JType::Class("var".to_owned()),
-                    name: "lo".to_owned(),
+                    jtype: dto::JType::Class("var".into()),
+                    name: "lo".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 13, col: 12 },
@@ -364,7 +510,7 @@ public class Test {
     }
 }
         ";
-        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
 
         let out = get_vars(&doc, &AstPoint::new(8, 54)).unwrap();
         assert_eq!(
@@ -373,7 +519,7 @@ public class Test {
                 LocalVariable {
                     level: 2,
                     jtype: dto::JType::Void,
-                    name: "hello".to_string(),
+                    name: "hello".into(),
                     is_fun: true,
                     range: AstRange {
                         start: AstPoint { line: 3, col: 16 },
@@ -383,10 +529,10 @@ public class Test {
                 LocalVariable {
                     level: 3,
                     jtype: dto::JType::Generic(
-                        "List".to_owned(),
-                        vec![dto::JType::Class("String".to_string())]
+                        "List".into(),
+                        vec![dto::JType::Class("String".into())]
                     ),
-                    name: "names".to_string(),
+                    name: "names".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 4, col: 21 },
@@ -396,7 +542,7 @@ public class Test {
                 LocalVariable {
                     level: 5,
                     jtype: dto::JType::Int,
-                    name: "i".to_string(),
+                    name: "i".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 5, col: 17 },
@@ -405,8 +551,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 7,
-                    jtype: dto::JType::Class("String".to_owned(),),
-                    name: "name".to_string(),
+                    jtype: dto::JType::Class("String".into(),),
+                    name: "name".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 6, col: 22 },
@@ -416,7 +562,7 @@ public class Test {
                 LocalVariable {
                     level: 12,
                     jtype: dto::JType::Void,
-                    name: "n".to_string(),
+                    name: "n".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 7, col: 32 },
@@ -426,7 +572,7 @@ public class Test {
                 LocalVariable {
                     level: 12,
                     jtype: dto::JType::Void,
-                    name: "m".to_string(),
+                    name: "m".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 7, col: 35 },
@@ -436,7 +582,7 @@ public class Test {
                 LocalVariable {
                     level: 17,
                     jtype: dto::JType::Void,
-                    name: "c".to_string(),
+                    name: "c".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 8, col: 48 },
@@ -483,7 +629,7 @@ public class Test {
     }
 }
         "#;
-        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
 
         let out = get_vars(&doc, &AstPoint::new(8, 54)).unwrap();
         assert_eq!(
@@ -492,7 +638,7 @@ public class Test {
                 LocalVariable {
                     level: 2,
                     jtype: dto::JType::Void,
-                    name: "hello".to_string(),
+                    name: "hello".into(),
                     is_fun: true,
                     range: AstRange {
                         start: AstPoint { line: 3, col: 16 },
@@ -501,8 +647,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 4,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "fast1".to_string(),
+                    jtype: dto::JType::Class("String".into()),
+                    name: "fast1".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 5, col: 19 },
@@ -511,8 +657,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 4,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "second1".to_string(),
+                    jtype: dto::JType::Class("String".into()),
+                    name: "second1".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 6, col: 19 },
@@ -521,8 +667,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 4,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "ty1".to_string(),
+                    jtype: dto::JType::Class("String".into()),
+                    name: "ty1".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 8, col: 19 },
@@ -531,8 +677,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 4,
-                    jtype: dto::JType::Class("IOException".to_string()),
-                    name: "eio1".to_string(),
+                    jtype: dto::JType::Class("IOException".into()),
+                    name: "eio1".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 9, col: 29 },
@@ -541,8 +687,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 5,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "ca1".to_string(),
+                    jtype: dto::JType::Class("String".into()),
+                    name: "ca1".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 10, col: 19 },
@@ -551,8 +697,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 5,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "fin".to_string(),
+                    jtype: dto::JType::Class("String".into()),
+                    name: "fin".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 12, col: 19 },
@@ -561,8 +707,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 4,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "some2".to_string(),
+                    jtype: dto::JType::Class("String".into()),
+                    name: "some2".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 16, col: 19 },
@@ -571,8 +717,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 4,
-                    jtype: dto::JType::Class("Exception".to_string()),
-                    name: "e2".to_string(),
+                    jtype: dto::JType::Class("Exception".into()),
+                    name: "e2".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 17, col: 27 },
@@ -581,8 +727,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 5,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "other2".to_string(),
+                    jtype: dto::JType::Class("String".into()),
+                    name: "other2".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 18, col: 19 },
@@ -591,8 +737,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 4,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "some3".to_string(),
+                    jtype: dto::JType::Class("String".into()),
+                    name: "some3".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 22, col: 19 },
@@ -601,8 +747,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 4,
-                    jtype: dto::JType::Class("Exception".to_string()),
-                    name: "e3".to_string(),
+                    jtype: dto::JType::Class("Exception".into()),
+                    name: "e3".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 23, col: 41 },
@@ -611,8 +757,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 5,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "other3".to_string(),
+                    jtype: dto::JType::Class("String".into()),
+                    name: "other3".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 24, col: 19 },
@@ -621,8 +767,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 4,
-                    jtype: dto::JType::Class("IOException".to_string()),
-                    name: "e3".to_string(),
+                    jtype: dto::JType::Class("IOException".into()),
+                    name: "e3".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 25, col: 29 },
@@ -631,8 +777,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 5,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "other3".to_string(),
+                    jtype: dto::JType::Class("String".into()),
+                    name: "other3".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 26, col: 19 },
@@ -641,8 +787,8 @@ public class Test {
                 },
                 LocalVariable {
                     level: 5,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "fin3".to_string(),
+                    jtype: dto::JType::Class("String".into()),
+                    name: "fin3".into(),
                     is_fun: false,
                     range: AstRange {
                         start: AstPoint { line: 28, col: 19 },
@@ -665,34 +811,9 @@ public class Test {
     }
 }
         "#;
-        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
 
         let out = get_vars(&doc, &AstPoint::new(6, 46)).unwrap();
-        assert_eq!(
-            out,
-            vec![
-                LocalVariable {
-                    level: 2,
-                    jtype: dto::JType::Void,
-                    name: "ioStuff".to_string(),
-                    is_fun: true,
-                    range: AstRange {
-                        start: AstPoint { line: 3, col: 19 },
-                        end: AstPoint { line: 3, col: 26 },
-                    },
-                },
-                LocalVariable {
-                    level: 4,
-                    jtype: dto::JType::Class("IOException".to_string()),
-                    name: "eoeoeoeooe".to_string(),
-                    is_fun: false,
-                    range: AstRange {
-                        start: AstPoint { line: 5, col: 29 },
-                        end: AstPoint { line: 5, col: 39 },
-                    },
-                },
-            ]
-        );
     }
 
     #[test]
@@ -707,43 +828,9 @@ public class Test {
     }
 }
         "#;
-        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
 
         let out = get_vars(&doc, &AstPoint::new(5, 22)).unwrap();
-        assert_eq!(
-            out,
-            vec![
-                LocalVariable {
-                    level: 2,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "options".to_string(),
-                    is_fun: true,
-                    range: AstRange {
-                        start: AstPoint { line: 4, col: 18 },
-                        end: AstPoint { line: 4, col: 25 },
-                    },
-                },
-                LocalVariable {
-                    level: 3,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "outer".to_string(),
-                    is_fun: false,
-                    range: AstRange {
-                        start: AstPoint { line: 4, col: 39 },
-                        end: AstPoint { line: 4, col: 44 },
-                    },
-                },
-                LocalVariable {
-                    level: 3,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "inner".to_string(),
-                    is_fun: false,
-                    range: AstRange {
-                        start: AstPoint { line: 5, col: 13 },
-                        end: AstPoint { line: 5, col: 18 },
-                    },
-                },
-            ]
-        );
+        insta::assert_debug_snapshot!(out);
     }
 }

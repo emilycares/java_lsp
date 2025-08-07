@@ -10,6 +10,7 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
+smol_str.workspace = true
 dashmap.workspace = true
 futures.workspace = true
 tokio.workspace = true

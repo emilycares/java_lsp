@@ -7,13 +7,14 @@ use lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, Position, Range, TextEdit, Uri, WorkspaceEdit,
 };
 use parser::dto::{self, ImportUnit};
+use smol_str::SmolStr;
 use tyres::TyresError;
 use variables::LocalVariable;
 
 pub struct CodeActionContext<'a> {
     pub point: &'a AstPoint,
     pub imports: &'a [ImportUnit],
-    pub class_map: &'a dashmap::DashMap<String, parser::dto::Class>,
+    pub class_map: &'a dashmap::DashMap<SmolStr, parser::dto::Class>,
     pub class: &'a dto::Class,
     pub vars: &'a [LocalVariable],
     pub current_file: &'a Uri,
@@ -92,7 +93,7 @@ pub fn replace_with_value_type(
             context.current_file.to_owned(),
             vec![TextEdit {
                 range: to_lsp_range(&current_type.range),
-                new_text: value_resolve_state.class.name.clone(),
+                new_text: value_resolve_state.class.name.to_string(),
             }],
         );
         let action = CodeActionOrCommand::CodeAction(CodeAction {
@@ -127,7 +128,7 @@ fn find_var_block<'a>(
     block: &'a ast::types::AstBlock,
     point: &'a AstPoint,
 ) -> Option<&'a AstBlockVariable> {
-    block.entries.iter().find_map(|i| match i.as_ref() {
+    block.entries.iter().find_map(|i| match i {
         AstBlockEntry::Return(_ast_block_return) => None,
         AstBlockEntry::Variable(ast_block_variable) => {
             if ast_block_variable.range.is_in_range(point) {
@@ -179,10 +180,42 @@ fn find_var_block<'a>(
         }
         AstBlockEntry::ForEnhanced(ast_for_enhanced) => {
             if ast_for_enhanced.range.is_in_range(point) {
-                // return find_var_block(&ast_for_enhanced.block, point);
+                return find_var_block(&ast_for_enhanced.block, point);
             }
             None
         }
+        AstBlockEntry::Break(_ast_block_break) => None,
+        AstBlockEntry::Continue(_ast_block_continue) => None,
+        AstBlockEntry::Switch(ast_switch) => {
+            if ast_switch.range.is_in_range(point) {
+                return find_var_block(&ast_switch.block, point);
+            }
+            None
+        }
+        AstBlockEntry::SwitchCase(_ast_switch_case) => None,
+        AstBlockEntry::SwitchDefault(_ast_switch_default) => None,
+        AstBlockEntry::TryCatch(ast_try_catch) => {
+            if ast_try_catch.range.is_in_range(point) {
+                if ast_try_catch.block.range.is_in_range(point) {
+                    return find_var_block(&ast_try_catch.block, point);
+                }
+                if let Some(b) = &ast_try_catch.resources_block {
+                    return find_var_block(&b, point);
+                }
+                if let Some(b) = &ast_try_catch.finally_block {
+                    return find_var_block(&b, point);
+                }
+                if let Some(b) = ast_try_catch
+                    .cases
+                    .iter()
+                    .find(|i| i.range.is_in_range(point))
+                {
+                    return find_var_block(&b.block, point);
+                }
+            }
+            None
+        }
+        AstBlockEntry::Throw(_ast_throw) => None,
     })
 }
 
@@ -227,6 +260,7 @@ pub fn import_text_edit(classpath: &str, ast: &AstFile) -> Vec<TextEdit> {
         new_text: format!("\nimport {};", classpath),
     }]
 }
+
 pub fn import_to_code_action(
     current_file: &Uri,
     classpath: &str,
@@ -256,6 +290,7 @@ pub mod tests {
     use lsp_types::Uri;
     use parser::dto::{self, ImportUnit};
     use pretty_assertions::assert_eq;
+    use smol_str::SmolStr;
 
     use crate::codeaction::replace_with_value_type;
 
@@ -275,7 +310,7 @@ public class Test {
         let doc = Document::setup(
             content,
             PathBuf::from_str("./").unwrap(),
-            "ch.emilycares.Test".to_string(),
+            "ch.emilycares.Test".into(),
         )
         .unwrap();
         let imports = vec![];
@@ -314,10 +349,10 @@ public class Test {
         let doc = Document::setup(
             content,
             PathBuf::from_str("./").unwrap(),
-            "ch.emilycares.Test".to_string(),
+            "ch.emilycares.Test".into(),
         )
         .unwrap();
-        let imports = vec![ImportUnit::Class("java.io.FileInputStream".to_string())];
+        let imports = vec![ImportUnit::Class("java.io.FileInputStream".into())];
         let class = parser::java::load_java_tree(&doc.ast, parser::loader::SourceDestination::None)
             .unwrap();
         let uri = Uri::from_str("file:///a").unwrap();
@@ -357,7 +392,7 @@ public class Test {
         let doc = Document::setup(
             content,
             PathBuf::from_str("./").unwrap(),
-            "ch.emilycares.Test".to_string(),
+            "ch.emilycares.Test".into(),
         )
         .unwrap();
         let imports = vec![];
@@ -381,16 +416,16 @@ public class Test {
             _ => unreachable!(),
         }
     }
-    fn get_class_map() -> DashMap<String, dto::Class> {
-        let class_map: DashMap<String, dto::Class> = DashMap::new();
+    fn get_class_map() -> DashMap<SmolStr, dto::Class> {
+        let class_map: DashMap<SmolStr, dto::Class> = DashMap::new();
         class_map.insert(
-            "java.lang.String".to_string(),
+            "java.lang.String".into(),
             dto::Class {
                 access: vec![dto::Access::Public],
-                name: "String".to_string(),
+                name: "String".into(),
                 methods: vec![dto::Method {
                     access: vec![dto::Access::Public],
-                    name: "length".to_string(),
+                    name: "length".into(),
                     ret: dto::JType::Int,
                     ..Default::default()
                 }],
@@ -398,10 +433,10 @@ public class Test {
             },
         );
         class_map.insert(
-            "java.io.FileInputStream".to_string(),
+            "java.io.FileInputStream".into(),
             dto::Class {
                 access: vec![dto::Access::Public],
-                name: "FileInputStream".to_string(),
+                name: "FileInputStream".into(),
                 methods: vec![],
                 ..Default::default()
             },

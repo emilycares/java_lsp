@@ -6,18 +6,23 @@ use ast::types::AstPoint;
 use call_chain::CallItem;
 use dashmap::DashMap;
 use parser::dto::{self, Class, ImportUnit, JType};
+use smol_str::{SmolStr, SmolStrBuilder};
 use variables::LocalVariable;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TyresError {
-    ClassNotFound { class_path: String },
+    ClassNotFound {
+        class_path: SmolStr,
+    },
     NoClassInOps,
-    MethodNotFound(String),
-    FieldNotFound(String),
-    VariableNotFound(String),
-    NotImported(String),
+    MethodNotFound(SmolStr),
+    FieldNotFound(SmolStr),
+    VariableNotFound(SmolStr),
+    NotImported(SmolStr),
     CallChainInvalid(Vec<CallItem>),
     CallChainEmtpy,
+    /// Value needs to be checked, type is var
+    CheckValue,
 }
 
 #[derive(Debug, Clone)]
@@ -29,47 +34,56 @@ pub struct ResolveState {
 pub fn is_imported_class_name(
     jtype: &str,
     imports: &[ImportUnit],
-    class_map: &DashMap<std::string::String, parser::dto::Class>,
+    class_map: &DashMap<SmolStr, parser::dto::Class>,
 ) -> bool {
     is_imported(jtype, imports, class_map).is_some()
 }
 
 #[derive(Debug)]
 pub enum ImportResult {
-    Class(String),
-    StaticClass(String),
+    Class(SmolStr),
+    StaticClass(SmolStr),
 }
 
 pub fn is_imported<'a>(
     jtype: &'a str,
     imports: &'a [ImportUnit],
-    class_map: &DashMap<std::string::String, parser::dto::Class>,
+    class_map: &DashMap<SmolStr, parser::dto::Class>,
 ) -> Option<ImportResult> {
     if jtype.starts_with("java.lang") {
-        return Some(ImportResult::Class(jtype.to_string()));
+        return Some(ImportResult::Class(jtype.into()));
     }
     imports.iter().find_map(|i| match i {
         ImportUnit::Class(c) => {
             if ImportUnit::class_path_match_class_name(c, jtype) {
-                return Some(ImportResult::Class(c.to_string()));
+                return Some(ImportResult::Class(c.clone()));
             }
             None
         }
         ImportUnit::StaticClass(c) => {
             if ImportUnit::class_path_match_class_name(c, jtype) {
-                return Some(ImportResult::StaticClass(c.to_string()));
+                return Some(ImportResult::StaticClass(c.clone()));
             }
             None
         }
         ImportUnit::Package(p) | ImportUnit::Prefix(p) => {
-            let possible_class_path = format!("{p}.{jtype}");
+            let mut possible_class_path = SmolStrBuilder::new();
+            possible_class_path.push_str(p);
+            possible_class_path.push('.');
+            possible_class_path.push_str(jtype);
+            let possible_class_path = possible_class_path.finish();
+
             if class_map.contains_key(&possible_class_path) {
                 return Some(ImportResult::Class(possible_class_path));
             }
             None
         }
         ImportUnit::StaticPrefix(p) => {
-            let possible_class_path = format!("{p}.{jtype}");
+            let mut possible_class_path = SmolStrBuilder::new();
+            possible_class_path.push_str(p);
+            possible_class_path.push('.');
+            possible_class_path.push_str(jtype);
+            let possible_class_path = possible_class_path.finish();
             if class_map.contains_key(&possible_class_path) {
                 return Some(ImportResult::StaticClass(possible_class_path));
             }
@@ -82,11 +96,14 @@ pub fn is_imported<'a>(
 pub fn resolve(
     jtype: &str,
     imports: &[ImportUnit],
-    class_map: &DashMap<std::string::String, parser::dto::Class>,
+    class_map: &DashMap<SmolStr, parser::dto::Class>,
 ) -> Result<ResolveState, TyresError> {
     eprintln!("resolve: {jtype}");
-    let lang_class_key = format!("java.lang.{jtype}");
-    if let Some(lang_class) = class_map.get(lang_class_key.as_str()) {
+    let mut lang_class_key = SmolStrBuilder::new();
+    lang_class_key.push_str("java.util.");
+    lang_class_key.push_str(jtype);
+    let lang_class_key = lang_class_key.finish();
+    if let Some(lang_class) = class_map.get(&lang_class_key) {
         return Ok(ResolveState {
             jtype: JType::Class(lang_class_key),
             class: parent::inclued_parent(lang_class.deref().to_owned(), class_map),
@@ -96,11 +113,11 @@ pub fn resolve(
     if jtype.contains('.') {
         let Some(imported_class) = class_map.get(jtype) else {
             return Err(TyresError::ClassNotFound {
-                class_path: jtype.to_string(),
+                class_path: jtype.into(),
             });
         };
         return Ok(ResolveState {
-            jtype: JType::Class(jtype.to_string()),
+            jtype: JType::Class(jtype.into()),
             class: parent::inclued_parent(imported_class.deref().to_owned(), class_map),
         });
     }
@@ -116,7 +133,7 @@ pub fn resolve(
                 class: parent::inclued_parent(imported_class.deref().to_owned(), class_map),
             })
         }
-        None => Err(TyresError::NotImported(jtype.to_string())),
+        None => Err(TyresError::NotImported(jtype.into())),
     }
 }
 
@@ -143,7 +160,7 @@ pub fn resolve_class_key(
 pub fn resolve_var(
     extend: &LocalVariable,
     imports: &[ImportUnit],
-    class_map: &DashMap<std::string::String, parser::dto::Class>,
+    class_map: &DashMap<SmolStr, parser::dto::Class>,
 ) -> Result<ResolveState, TyresError> {
     resolve_jtype(&extend.jtype, imports, class_map)
 }
@@ -154,7 +171,7 @@ pub fn resolve_params(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &DashMap<String, Class>,
+    class_map: &DashMap<SmolStr, Class>,
 ) -> Vec<Result<ResolveState, TyresError>> {
     params
         .iter()
@@ -167,7 +184,7 @@ pub fn resolve_call_chain(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &DashMap<String, Class>,
+    class_map: &DashMap<SmolStr, Class>,
 ) -> Result<ResolveState, TyresError> {
     if call_chain.is_empty() {
         return Err(TyresError::CallChainEmtpy);
@@ -191,7 +208,7 @@ pub fn resolve_call_chain_value(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &DashMap<String, Class>,
+    class_map: &DashMap<SmolStr, Class>,
 ) -> Result<ResolveState, TyresError> {
     if call_chain.is_empty() {
         return Err(TyresError::CallChainEmtpy);
@@ -215,7 +232,7 @@ pub fn resolve_call_chain_to_point(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &DashMap<String, Class>,
+    class_map: &DashMap<SmolStr, Class>,
     point: &AstPoint,
 ) -> Result<ResolveState, TyresError> {
     if call_chain.is_empty() {
@@ -245,7 +262,7 @@ fn call_chain_op(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &DashMap<String, Class>,
+    class_map: &DashMap<SmolStr, Class>,
     resolve_argument: bool,
 ) -> Result<ResolveState, TyresError> {
     match item {
@@ -256,7 +273,7 @@ fn call_chain_op(
             if let Some(method) = class.methods.iter().find(|m| m.name == *name) {
                 return resolve_jtype(&method.ret, imports, class_map);
             }
-            Err(TyresError::MethodNotFound(name.to_string()))
+            Err(TyresError::MethodNotFound(name.clone()))
         }
         CallItem::FieldAccess { name, range: _ } => {
             let Some(ResolveState { class, jtype: _ }) = ops.last() else {
@@ -265,13 +282,13 @@ fn call_chain_op(
             if let Some(method) = class.fields.iter().find(|m| m.name == *name) {
                 return resolve_jtype(&method.jtype, imports, class_map);
             }
-            Err(TyresError::FieldNotFound(name.to_string()))
+            Err(TyresError::FieldNotFound(name.clone()))
         }
         CallItem::Variable { name, range: _ } => {
             if let Some(lo) = lo_va.iter().find(|va| va.name == *name) {
                 return resolve_var(lo, imports, class_map);
             }
-            Err(TyresError::VariableNotFound(name.to_string()))
+            Err(TyresError::VariableNotFound(name.clone()))
         }
         CallItem::This { range: _ } => Ok(ResolveState {
             class: class.clone(),
@@ -314,91 +331,91 @@ fn call_chain_op(
 pub fn resolve_jtype(
     jtype: &JType,
     imports: &[ImportUnit],
-    class_map: &DashMap<String, Class>,
+    class_map: &DashMap<SmolStr, Class>,
 ) -> Result<ResolveState, TyresError> {
     match jtype {
         JType::Void => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "void".to_string(),
+                name: "void".into(),
                 ..Default::default()
             },
         }),
         JType::Byte => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "byte".to_string(),
+                name: "byte".into(),
                 ..Default::default()
             },
         }),
         JType::Char => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "char".to_string(),
+                name: "char".into(),
                 ..Default::default()
             },
         }),
         JType::Double => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "double".to_string(),
+                name: "double".into(),
                 ..Default::default()
             },
         }),
         JType::Float => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "float".to_string(),
+                name: "float".into(),
                 ..Default::default()
             },
         }),
         JType::Int => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "int".to_string(),
+                name: "int".into(),
                 ..Default::default()
             },
         }),
         JType::Long => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "long".to_string(),
+                name: "long".into(),
                 ..Default::default()
             },
         }),
         JType::Short => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "short".to_string(),
+                name: "short".into(),
                 ..Default::default()
             },
         }),
         JType::Boolean => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "boolean".to_string(),
+                name: "boolean".into(),
                 ..Default::default()
             },
         }),
         JType::Wildcard => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "Wildcard".to_string(),
+                name: "Wildcard".into(),
                 ..Default::default()
             },
         }),
         JType::Array(i) => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "array".to_string(),
+                name: "array".into(),
                 methods: vec![dto::Method {
-                    name: "clone".to_string(),
+                    name: "clone".into(),
                     ret: JType::Array(i.clone()),
                     ..Default::default()
                 }],
                 fields: vec![dto::Field {
                     access: vec![],
-                    name: "length".to_string(),
+                    name: "length".into(),
                     jtype: JType::Int,
                     source: None,
                 }],
@@ -407,12 +424,20 @@ pub fn resolve_jtype(
         }),
         JType::Class(c) => resolve(c, imports, class_map),
         JType::Generic(c, _vec) => resolve(c, imports, class_map),
-        JType::Parameter(p) => Ok(ResolveState {
-            jtype: jtype.clone(),
-            class: Class {
-                name: format!("<{}>", p),
-                ..Default::default()
-            },
-        }),
+        JType::Parameter(p) => {
+            let mut name = SmolStrBuilder::new();
+            name.push('<');
+            name.push_str(p);
+            name.push('>');
+            let name = name.finish();
+            Ok(ResolveState {
+                jtype: jtype.clone(),
+                class: Class {
+                    name,
+                    ..Default::default()
+                },
+            })
+        }
+        JType::Var => Err(TyresError::CheckValue),
     }
 }

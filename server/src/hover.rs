@@ -3,6 +3,7 @@ use call_chain::{self, CallItem};
 use document::Document;
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
 use parser::dto::{self, ImportUnit};
+use smol_str::{SmolStr, ToSmolStr};
 use tyres::TyresError;
 use variables::LocalVariable;
 
@@ -15,9 +16,9 @@ pub enum HoverError {
     CallChainEmpty,
     ParseError(parser::java::ParseJavaError),
     ValidatedItemDoesNotExists,
-    LocalVariableNotFound { name: String },
+    LocalVariableNotFound { name: SmolStr },
     Unimlemented,
-    NoClass(String),
+    NoClass(SmolStr),
     ArgumentNotFound,
 }
 
@@ -26,7 +27,7 @@ pub fn base(
     point: &AstPoint,
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
-    class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
+    class_map: &dashmap::DashMap<SmolStr, parser::dto::Class>,
 ) -> Result<Hover, HoverError> {
     let ast = &document.ast;
     let bytes = document.as_bytes();
@@ -38,7 +39,7 @@ pub fn base(
         Err(e) => eprintln!("class action hover error: {e:?}"),
     };
     let Some(class) = class_map.get(&document.class_path) else {
-        return Err(HoverError::NoClass(document.class_path.clone()));
+        return Err(HoverError::NoClass(document.class_path.to_smolstr()));
     };
 
     let Some(call_chain) = call_chain::get_call_chain(ast, point) else {
@@ -76,9 +77,9 @@ pub fn class_action(
     _point: &AstPoint,
     _lo_va: &[LocalVariable],
     _imports: &[ImportUnit],
-    _class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
+    _class_map: &dashmap::DashMap<SmolStr, parser::dto::Class>,
 ) -> Result<(dto::Class, Range), ClassActionError> {
-    unimplemented!()
+    todo!()
     // let Ok(n) = tree_sitter_util::get_node_at_point(tree, *point) else {
     //     return Err(ClassActionError::CouldNotGetNode);
     // };
@@ -118,7 +119,7 @@ pub fn call_chain_hover(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &dto::Class,
-    class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
+    class_map: &dashmap::DashMap<SmolStr, parser::dto::Class>,
 ) -> Result<Hover, HoverError> {
     let (item, relevat) = call_chain::validate(&call_chain, point);
     let Some(el) = call_chain.get(item) else {
@@ -142,17 +143,13 @@ pub fn call_chain_hover(
         }
         CallItem::FieldAccess { name, range } => {
             let Some(method) = resolve_state.class.fields.iter().find(|m| m.name == *name) else {
-                return Err(HoverError::LocalVariableNotFound {
-                    name: name.to_string(),
-                });
+                return Err(HoverError::LocalVariableNotFound { name: name.clone() });
             };
             Ok(field_to_hover(method, to_lsp_range(range)))
         }
         CallItem::Variable { name, range } => {
             let Some(var) = lo_va.iter().find(|v| v.name == *name) else {
-                return Err(HoverError::LocalVariableNotFound {
-                    name: name.to_string(),
-                });
+                return Err(HoverError::LocalVariableNotFound { name: name.clone() });
             };
             Ok(variables_to_hover(vec![var], to_lsp_range(range)))
         }
@@ -312,6 +309,7 @@ mod tests {
     use dashmap::DashMap;
     use document::Document;
     use parser::dto;
+    use smol_str::SmolStr;
 
     use crate::hover::{call_chain_hover, class_action};
 
@@ -325,7 +323,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
         let ast = &doc.ast;
         let bytes = doc.as_bytes();
 
@@ -351,7 +349,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
         let ast = &doc.ast;
         let bytes = doc.as_bytes();
 
@@ -370,7 +368,7 @@ public class Test {
     fn method_hover() {
         let class = dto::Class {
             access: vec![dto::Access::Public],
-            name: "Test".to_string(),
+            name: "Test".into(),
             ..Default::default()
         };
         let content = "
@@ -382,7 +380,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
+        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
         let point = AstPoint::new(5, 29);
         let vars = variables::get_vars(&doc, &point).unwrap();
 
@@ -391,16 +389,16 @@ public class Test {
         assert!(out.is_ok());
     }
 
-    fn string_class_map() -> DashMap<String, dto::Class> {
-        let class_map: DashMap<String, dto::Class> = DashMap::new();
+    fn string_class_map() -> DashMap<SmolStr, dto::Class> {
+        let class_map: DashMap<SmolStr, dto::Class> = DashMap::new();
         class_map.insert(
-            "java.lang.String".to_string(),
+            "java.lang.String".into(),
             dto::Class {
                 access: vec![dto::Access::Public],
-                name: "String".to_string(),
+                name: "String".into(),
                 methods: vec![dto::Method {
                     access: vec![dto::Access::Public],
-                    name: "length".to_string(),
+                    name: "length".into(),
                     ret: dto::JType::Int,
                     ..Default::default()
                 }],

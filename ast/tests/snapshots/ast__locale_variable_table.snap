@@ -1,6 +1,7 @@
 ---
-source: ast/src/lib.rs
+source: ast/tests/ast.rs
 expression: parsed.unwrap()
+snapshot_kind: text
 ---
 AstFile {
     package: AstIdentifier {
@@ -70,6 +71,7 @@ AstFile {
                 },
             },
             avaliability: Public,
+            annotated: [],
             name: AstIdentifier {
                 range: AstRange {
                     start: AstPoint {
@@ -97,6 +99,7 @@ AstFile {
                         },
                     },
                     avaliability: Private,
+                    annotated: [],
                     name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {
@@ -230,7 +233,7 @@ AstFile {
                             operator: None,
                         },
                     ),
-                    fin: false,
+                    static_final: None,
                 },
             ],
             methods: [
@@ -245,6 +248,7 @@ AstFile {
                             col: 3,
                         },
                     },
+                    annotated: [],
                     header: AstMethodHeader {
                         range: AstRange {
                             start: AstPoint {
@@ -296,7 +300,6 @@ AstFile {
                             },
                             parameters: [],
                         },
-                        stat: false,
                         throws: None,
                         type_parameters: None,
                     },
@@ -713,6 +716,7 @@ AstFile {
                             col: 3,
                         },
                     },
+                    annotated: [],
                     header: AstMethodHeader {
                         range: AstRange {
                             start: AstPoint {
@@ -843,7 +847,6 @@ AstFile {
                                 },
                             ],
                         },
-                        stat: false,
                         throws: None,
                         type_parameters: None,
                     },

@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use ast::types::{AstAvailability, AstImport, AstImportUnit, AstJType, AstJTypeKind};
 use serde::{Deserialize, Serialize};
+use smol_str::SmolStr;
 
 #[derive(Debug)]
 pub enum ClassError {
@@ -32,11 +33,11 @@ impl ClassFolder {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
 pub struct Class {
-    pub class_path: String,
-    pub source: String,
+    pub class_path: SmolStr,
+    pub source: SmolStr,
     pub access: Vec<Access>,
     pub imports: Vec<ImportUnit>,
-    pub name: String,
+    pub name: SmolStr,
     pub methods: Vec<Method>,
     pub fields: Vec<Field>,
     pub super_class: SuperClass,
@@ -53,18 +54,18 @@ impl Class {
 pub enum SuperClass {
     #[default]
     None,
-    Name(String),
-    ClassPath(String),
+    Name(SmolStr),
+    ClassPath(SmolStr),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ImportUnit {
-    Package(String),
-    Class(String),
-    StaticClass(String),
-    StaticClassMethod(String, String),
-    Prefix(String),
-    StaticPrefix(String),
+    Package(SmolStr),
+    Class(SmolStr),
+    StaticClass(SmolStr),
+    StaticClassMethod(SmolStr, SmolStr),
+    Prefix(SmolStr),
+    StaticPrefix(SmolStr),
 }
 impl ImportUnit {
     pub fn class_path_get_class_name(class_path: &str) -> Option<&str> {
@@ -78,7 +79,7 @@ impl ImportUnit {
             .iter()
             .any(|i| *i == name)
     }
-    pub fn get_imported_class_package(&self, name: &str) -> Option<String> {
+    pub fn get_imported_class_package(&self, name: &str) -> Option<SmolStr> {
         match self {
             ImportUnit::Class(class_path) | ImportUnit::StaticClass(class_path) => {
                 if Self::class_path_match_class_name(class_path, name) {
@@ -147,12 +148,16 @@ pub enum Access {
 }
 
 impl Access {
-    pub fn from(value: &AstAvailability, def: Access) -> Self {
+    pub fn from(value: &AstAvailability, def: Access) -> Vec<Self> {
         match value {
-            AstAvailability::Public => Access::Public,
-            AstAvailability::Private => Access::Private,
-            AstAvailability::Protected => Access::Protected,
-            AstAvailability::Undefined => def,
+            AstAvailability::Public => vec![Access::Public],
+            AstAvailability::Private => vec![Access::Private],
+            AstAvailability::Protected => vec![Access::Protected],
+            AstAvailability::Undefined => vec![def],
+            AstAvailability::PublicStatic => vec![Access::Static, Access::Public],
+            AstAvailability::PrivateStatic => vec![Access::Static, Access::Private],
+            AstAvailability::ProtectedStatic => vec![Access::Static, Access::Protected],
+            AstAvailability::UndefinedStatic => vec![Access::Static, def],
         }
     }
 }
@@ -160,26 +165,26 @@ impl Access {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
 pub struct Method {
     pub access: Vec<Access>,
-    pub name: String,
+    pub name: SmolStr,
     pub parameters: Vec<Parameter>,
     pub throws: Vec<JType>,
     pub ret: JType,
     /// When None then it is in the class
-    pub source: Option<String>,
+    pub source: Option<SmolStr>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Field {
     pub access: Vec<Access>,
-    pub name: String,
+    pub name: SmolStr,
     pub jtype: JType,
     /// When None then it is in the class
-    pub source: Option<String>,
+    pub source: Option<SmolStr>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Parameter {
-    pub name: Option<String>,
+    pub name: Option<SmolStr>,
     pub jtype: JType,
 }
 
@@ -196,10 +201,11 @@ pub enum JType {
     Short,
     Boolean,
     Wildcard,
-    Class(String),
+    Class(SmolStr),
     Array(Box<JType>),
-    Generic(String, Vec<JType>),
-    Parameter(String),
+    Generic(SmolStr, Vec<JType>),
+    Parameter(SmolStr),
+    Var,
 }
 impl From<&AstJType> for JType {
     fn from(value: &AstJType) -> Self {
@@ -221,6 +227,7 @@ impl From<&AstJType> for JType {
                 ast_jtypes.iter().map(|i| i.into()).collect(),
             ),
             AstJTypeKind::Parameter(ast_identifier) => JType::Parameter(ast_identifier.into()),
+            AstJTypeKind::Var => JType::Var,
         }
     }
 }
@@ -244,6 +251,7 @@ impl From<AstJType> for JType {
                 ast_jtypes.iter().map(|i| i.into()).collect(),
             ),
             AstJTypeKind::Parameter(ast_identifier) => JType::Parameter(ast_identifier.into()),
+            AstJTypeKind::Var => Self::Var,
         }
     }
 }
@@ -277,6 +285,7 @@ impl Display for JType {
                 write!(f, "{}<{}>", class, v)
             }
             JType::Parameter(p) => write!(f, "<{}>", p),
+            JType::Var => write!(f, "var"),
         }
     }
 }
@@ -343,8 +352,8 @@ mod tests {
         let out: JType = (&inp).into();
         assert_eq!(
             JType::Generic(
-                "IntFunction".to_string(),
-                vec![JType::Wildcard, JType::Class("U".to_string())]
+                "IntFunction".into(),
+                vec![JType::Wildcard, JType::Class("U".into())]
             ),
             out
         );

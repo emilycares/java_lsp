@@ -1,6 +1,7 @@
 ---
-source: ast/src/lib.rs
+source: ast/tests/ast.rs
 expression: parsed.unwrap()
+snapshot_kind: text
 ---
 AstFile {
     package: AstIdentifier {
@@ -124,6 +125,7 @@ AstFile {
                 },
             },
             avaliability: Public,
+            annotated: [],
             name: AstIdentifier {
                 range: AstRange {
                     start: AstPoint {
@@ -151,6 +153,7 @@ AstFile {
                             col: 35,
                         },
                     },
+                    annotated: [],
                     avaliability: Public,
                     name: AstIdentifier {
                         range: AstRange {
@@ -221,6 +224,7 @@ AstFile {
                             col: 28,
                         },
                     },
+                    annotated: [],
                     avaliability: Undefined,
                     name: AstIdentifier {
                         range: AstRange {
@@ -291,6 +295,7 @@ AstFile {
                             col: 28,
                         },
                     },
+                    annotated: [],
                     avaliability: Undefined,
                     name: AstIdentifier {
                         range: AstRange {
@@ -363,6 +368,7 @@ AstFile {
                             col: 19,
                         },
                     },
+                    annotated: [],
                     header: AstMethodHeader {
                         range: AstRange {
                             start: AstPoint {
@@ -414,7 +420,6 @@ AstFile {
                             },
                             parameters: [],
                         },
-                        stat: false,
                         throws: None,
                         type_parameters: None,
                     },
@@ -430,6 +435,7 @@ AstFile {
                             col: 70,
                         },
                     },
+                    annotated: [],
                     header: AstMethodHeader {
                         range: AstRange {
                             start: AstPoint {
@@ -588,7 +594,6 @@ AstFile {
                                 },
                             ],
                         },
-                        stat: false,
                         throws: Some(
                             AstThrowsDeclaration {
                                 range: AstRange {

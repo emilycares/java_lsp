@@ -172,6 +172,7 @@ name = "call_chain"
 version = "0.1.0"
 dependencies = [
  "ast",
+ "insta",
  "pretty_assertions",
  "smol_str",
 ]
@@ -496,6 +497,7 @@ dependencies = [
  "parser",
  "pretty_assertions",
  "ropey",
+ "smol_str",
 ]
 
 [[package]]
@@ -671,6 +673,7 @@ dependencies = [
  "nom 8.0.0",
  "parser",
  "pretty_assertions",
+ "smol_str",
  "tokio",
 ]
 
@@ -808,6 +811,7 @@ dependencies = [
  "futures",
  "parser",
  "pretty_assertions",
+ "smol_str",
  "tokio",
  "zip_util",
 ]
@@ -900,6 +904,7 @@ dependencies = [
  "nom 8.0.0",
  "parser",
  "pretty_assertions",
+ "smol_str",
  "tokio",
  "zip_util",
 ]
@@ -1103,6 +1108,7 @@ dependencies = [
  "rayon",
  "rc-zip-tokio",
  "serde",
+ "smol_str",
  "tokio",
 ]
 
@@ -1565,6 +1571,7 @@ dependencies = [
  "rayon",
  "ropey",
  "serde_json",
+ "smol_str",
  "tokio",
  "tyres",
  "variables",
@@ -1796,6 +1803,7 @@ dependencies = [
  "call_chain",
  "dashmap",
  "parser",
+ "smol_str",
  "variables",
 ]
 
@@ -1817,9 +1825,10 @@ version = "0.1.0"
 dependencies = [
  "ast",
  "document",
- "itertools 0.14.0",
+ "insta",
  "parser",
  "pretty_assertions",
+ "smol_str",
 ]
 
 [[package]]

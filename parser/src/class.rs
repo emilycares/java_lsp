@@ -9,10 +9,11 @@ use classfile_parser::field_info::{FieldAccessFlags, FieldInfo};
 use classfile_parser::method_info::MethodAccessFlags;
 use classfile_parser::{ClassAccessFlags, ClassFile, class_parser};
 use itertools::Itertools;
+use smol_str::SmolStr;
 
 pub fn load_class(
     bytes: &[u8],
-    class_path: String,
+    class_path: SmolStr,
     source: SourceDestination,
 ) -> Result<dto::Class, dto::ClassError> {
     let res = class_parser(bytes);
@@ -64,13 +65,16 @@ pub fn load_class(
                 .collect();
 
             let name = lookup_class_name(&c, c.this_class.into()).expect("Class should have name");
-            let package = class_path.trim_end_matches(&name).trim_end_matches(".");
-            let mut imports = vec![ImportUnit::Package(package.to_string())];
+            let package = class_path
+                .trim_end_matches(name.as_str())
+                .trim_end_matches(".");
+            let mut imports = vec![ImportUnit::Package(package.into())];
             imports.extend(
                 used_classes
                     .into_iter()
                     .filter(|i| *i != class_path)
                     .unique()
+                    .map(|i| i.into())
                     .map(ImportUnit::Class),
             );
 
@@ -80,9 +84,10 @@ pub fn load_class(
                     e,
                     MAIN_SEPARATOR,
                     &class_path.replace(".", MAIN_SEPARATOR_STR)
-                ),
-                SourceDestination::Here(e) => e,
-                SourceDestination::None => "".to_string(),
+                )
+                .into(),
+                SourceDestination::Here(e) => e.into(),
+                SourceDestination::None => "".into(),
             };
             let super_interfaces: Vec<_> = c
                 .interfaces
@@ -113,13 +118,13 @@ pub fn load_class(
     }
 }
 
-fn lookup_class_name(c: &ClassFile, index: usize) -> Option<String> {
+fn lookup_class_name(c: &ClassFile, index: usize) -> Option<SmolStr> {
     match c.const_pool.get(index.saturating_sub(1)) {
         Some(ConstantInfo::Class(class)) => lookup_string(c, class.name_index)
             .expect("Class to have name")
             .split("/")
             .last()
-            .map(|a| a.to_string()),
+            .map(|a| a.into()),
         _ => None,
     }
 }
@@ -202,7 +207,7 @@ fn parse_method(
                 })
                 .filter_map(|name| {
                     if let Some((_, name)) = name.rsplit_once("/") {
-                        return Some(name.to_string());
+                        return Some(name.into());
                     }
                     None
                 })
@@ -219,7 +224,7 @@ fn parse_method(
     })
 }
 
-fn parse_used_classes(c: &ClassFile, code_attribute: Option<CodeAttribute>) -> Vec<String> {
+fn parse_used_classes(c: &ClassFile, code_attribute: Option<CodeAttribute>) -> Vec<SmolStr> {
     if let Some(code_attribute) = code_attribute {
         let local_variable_table_attributes: Vec<LocalVariableTableAttribute> = code_attribute
             .attributes
@@ -251,16 +256,11 @@ fn parse_used_classes(c: &ClassFile, code_attribute: Option<CodeAttribute>) -> V
     vec![]
 }
 
-fn jtype_class_names(i: JType) -> Vec<String> {
+fn jtype_class_names(i: JType) -> Vec<SmolStr> {
     match i {
         JType::Class(class) => vec![class],
         JType::Array(jtype) => jtype_class_names(*jtype),
-        JType::Generic(class, jtypes) => {
-            let mut out = vec![class];
-            let e: Vec<String> = jtypes.into_iter().flat_map(jtype_class_names).collect();
-            out.extend(e);
-            out
-        }
+        JType::Generic(_class, jtypes) => jtypes.into_iter().flat_map(jtype_class_names).collect(),
         _ => vec![],
     }
 }
@@ -355,13 +355,13 @@ fn parse_field_access(method: &FieldInfo) -> Vec<dto::Access> {
     access
 }
 
-fn lookup_string(c: &ClassFile, index: u16) -> Option<String> {
+fn lookup_string(c: &ClassFile, index: u16) -> Option<SmolStr> {
     if index == 0 {
         return None;
     }
     let con = &c.const_pool[(index - 1) as usize];
     match con {
-        ConstantInfo::Utf8(utf8) => Some(utf8.utf8_string.clone()),
+        ConstantInfo::Utf8(utf8) => Some((&utf8.utf8_string).into()),
         _ => None,
     }
 }
@@ -417,7 +417,7 @@ fn parse_field_type(c: Option<char>, chars: &mut std::str::Chars) -> dto::JType 
                 }
                 class_name.push(ch);
             }
-            dto::JType::Class(class_name.replace('/', "."))
+            dto::JType::Class(class_name.replace('/', ".").into())
         }
         '[' => dto::JType::Array(Box::new(parse_field_type(chars.next(), chars))),
         _ => {
@@ -436,8 +436,8 @@ mod tests {
     fn relative_source() {
         let result = load_class(
             include_bytes!("../test/Everything.class"),
-            "ch.emilycares.Everything".to_string(),
-            SourceDestination::RelativeInFolder("/source".to_string()),
+            "ch.emilycares.Everything".into(),
+            SourceDestination::RelativeInFolder("/source".into()),
         );
         insta::assert_debug_snapshot!(result.unwrap());
     }
@@ -446,7 +446,7 @@ mod tests {
     fn everything() {
         let result = load_class(
             include_bytes!("../test/Everything.class"),
-            "ch.emilycares.Everything".to_string(),
+            "ch.emilycares.Everything".into(),
             SourceDestination::None,
         );
 
@@ -456,7 +456,7 @@ mod tests {
     fn super_base() {
         let result = load_class(
             include_bytes!("../test/Super.class"),
-            "ch.emilycares.Super".to_string(),
+            "ch.emilycares.Super".into(),
             SourceDestination::None,
         );
 
@@ -466,8 +466,8 @@ mod tests {
     fn thrower() {
         let result = load_class(
             include_bytes!("../test/Thrower.class"),
-            "ch.emilycares.Thrower".to_string(),
-            SourceDestination::Here("/path/to/source/Thrower.java".to_string()),
+            "ch.emilycares.Thrower".into(),
+            SourceDestination::Here("/path/to/source/Thrower.java".into()),
         );
         insta::assert_debug_snapshot!(result.unwrap());
     }
@@ -475,7 +475,7 @@ mod tests {
     fn super_interfaces() {
         let result = load_class(
             include_bytes!("../test/SuperInterface.class"),
-            "ch.emilycares.SuperInterface".to_string(),
+            "ch.emilycares.SuperInterface".into(),
             SourceDestination::None,
         );
 
@@ -485,7 +485,7 @@ mod tests {
     fn variables() {
         let result = load_class(
             include_bytes!("../test/LocalVariableTable.class"),
-            "ch.emilycares.LocalVariableTable".to_string(),
+            "ch.emilycares.LocalVariableTable".into(),
             SourceDestination::None,
         );
 

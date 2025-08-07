@@ -11,6 +11,7 @@ use lsp_types::Location;
 use parser::dto::{self, Class, ImportUnit};
 use position::PositionSymbol;
 use rayon::iter::{IntoParallelRefIterator, ParallelBridge, ParallelIterator};
+use smol_str::SmolStr;
 use variables::LocalVariable;
 
 use crate::{
@@ -20,7 +21,7 @@ use crate::{
 
 #[derive(Debug)]
 pub enum ReferencesError {
-    IoRead(String, std::io::Error),
+    IoRead(SmolStr, std::io::Error),
     Utf8(Utf8Error),
     Lexer(ast::lexer::LexerError),
     Ast(ast::error::AstError),
@@ -35,8 +36,8 @@ pub enum ReferencesError {
 
 #[derive(Debug)]
 pub enum ReferenceUnit {
-    Class(String),
-    StaticClass(String),
+    Class(SmolStr),
+    StaticClass(SmolStr),
 }
 #[derive(Debug)]
 pub struct ReferencePosition(PositionSymbol);
@@ -44,15 +45,15 @@ pub struct ReferencePosition(PositionSymbol);
 pub struct ReferencesContext<'a> {
     pub point: &'a AstPoint,
     pub imports: &'a [ImportUnit],
-    pub class_map: &'a dashmap::DashMap<String, parser::dto::Class>,
+    pub class_map: &'a dashmap::DashMap<SmolStr, parser::dto::Class>,
     pub class: &'a dto::Class,
     pub vars: &'a [LocalVariable],
 }
 
 pub fn class_path(
     class_path: &str,
-    reference_map: &dashmap::DashMap<String, Vec<ReferenceUnit>>,
-    class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
+    reference_map: &dashmap::DashMap<SmolStr, Vec<ReferenceUnit>>,
+    class_map: &dashmap::DashMap<SmolStr, parser::dto::Class>,
 ) -> Option<Vec<Location>> {
     if let Some(crefs) = reference_map.get(class_path) {
         let refs = crefs
@@ -91,8 +92,8 @@ pub fn class_path(
 pub fn call_chain_references(
     call_chain: &[CallItem],
     context: &ReferencesContext,
-    reference_map: &dashmap::DashMap<String, Vec<ReferenceUnit>>,
-    document_map: &dashmap::DashMap<String, Document>,
+    reference_map: &dashmap::DashMap<SmolStr, Vec<ReferenceUnit>>,
+    document_map: &dashmap::DashMap<SmolStr, Document>,
 ) -> Result<Vec<Location>, ReferencesError> {
     let (item, relevat) = call_chain::validate(call_chain, context.point);
 
@@ -160,18 +161,18 @@ pub fn call_chain_references(
 fn method_references(
     class: &Class,
     query_method_name: &str,
-    document_map: &dashmap::DashMap<String, Document>,
+    document_map: &dashmap::DashMap<SmolStr, Document>,
 ) -> Result<Vec<ReferencePosition>, ReferencesError> {
     let uri = definition::source_to_uri(&class.source).map_err(|e| {
         eprintln!("Got into defintion error: {e:?}");
         ReferencesError::Definition
     })?;
-    let uri = uri.to_string();
+    let uri = uri.as_str();
     let doc = document::read_document_or_open_class(
         &class.source,
         class.class_path.clone(),
         document_map,
-        &uri,
+        uri,
     );
     match doc {
         ClassSource::Owned(doc) => {
@@ -179,7 +180,7 @@ fn method_references(
                 Err(e) => Err(ReferencesError::Position(e))?,
                 Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
             };
-            document_map.insert(uri, doc);
+            document_map.insert(uri.into(), doc);
             o
         }
         ClassSource::Ref(doc) => {
@@ -194,8 +195,8 @@ fn method_references(
 
 pub fn init_refernece_map(
     project_classes: &[Class],
-    class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
-    reference_map: &dashmap::DashMap<String, Vec<ReferenceUnit>>,
+    class_map: &dashmap::DashMap<SmolStr, parser::dto::Class>,
+    reference_map: &dashmap::DashMap<SmolStr, Vec<ReferenceUnit>>,
 ) -> Result<(), ReferencesError> {
     project_classes.par_iter().for_each(|class| {
         let _ = reference_update_class(class, class_map, reference_map);
@@ -205,8 +206,8 @@ pub fn init_refernece_map(
 
 pub fn reference_update_class(
     class: &Class,
-    class_map: &dashmap::DashMap<String, Class>,
-    reference_map: &dashmap::DashMap<String, Vec<ReferenceUnit>>,
+    class_map: &dashmap::DashMap<SmolStr, Class>,
+    reference_map: &dashmap::DashMap<SmolStr, Vec<ReferenceUnit>>,
 ) -> Result<(), ReferencesError> {
     let class_path = class.class_path.clone();
     for import in &class.imports {
@@ -287,10 +288,10 @@ where
 }
 
 fn get_implicit_imports(
-    class_map: &dashmap::DashMap<String, Class>,
+    class_map: &dashmap::DashMap<SmolStr, Class>,
     class: &Class,
-    package: &String,
-) -> Vec<String> {
+    package: &SmolStr,
+) -> Vec<SmolStr> {
     class_map
         .clone()
         .into_read_only()
@@ -302,8 +303,7 @@ fn get_implicit_imports(
             }
             false
         })
-        .map(|a| a.to_string())
-        .map(|k| (k.clone(), class_map.get(&k)))
+        .map(|k| (k.clone(), class_map.get(k)))
         .filter(|(_, class)| class.is_some())
         .map(|(k, class)| (k, class.unwrap()))
         // Prefilter already parsed data before parsing file with treesitter

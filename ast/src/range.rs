@@ -47,6 +47,8 @@ impl AstInRange for &AstBlockEntry {
             AstBlockEntry::SwitchDefault(ast_switch_case) => {
                 ast_switch_case.range.is_in_range(point)
             }
+            AstBlockEntry::TryCatch(ast_try_catch) => ast_try_catch.range.is_in_range(point),
+            AstBlockEntry::Throw(ast_throw) => ast_throw.range.is_in_range(point),
         }
     }
 }

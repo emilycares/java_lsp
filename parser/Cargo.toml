@@ -13,6 +13,7 @@ license.workspace = true
 
 [dependencies]
 ast = { path = "../ast"}
+smol_str.workspace = true
 classfile-parser.workspace = true
 jwalk.workspace = true
 rayon.workspace = true

@@ -13,6 +13,7 @@ use parser::{
     dto::{Class, ClassFolder},
     loader::SourceDestination,
 };
+use smol_str::SmolStr;
 use tokio::{process::Command, task::JoinSet};
 
 use crate::{
@@ -64,7 +65,7 @@ pub enum MavenFetchError {
 const MAVEN_CFC: &str = ".maven.cfc";
 
 pub async fn fetch_deps(
-    class_map: Arc<DashMap<String, Class>>,
+    class_map: Arc<DashMap<SmolStr, Class>>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
     use_cache: bool,
     download: bool,
@@ -102,11 +103,7 @@ pub async fn fetch_deps(
         let mut source_dir = source_jar.clone();
         source_dir.set_file_name("");
         source_dir = source_dir.join("source");
-        let source_dir_string = source_dir
-            .as_path()
-            .to_str()
-            .unwrap_or_default()
-            .to_string();
+        let source_dir_string = source_dir.as_path().to_str().unwrap_or_default().into();
 
         if !source_dir.exists() {
             handles.spawn(async move {

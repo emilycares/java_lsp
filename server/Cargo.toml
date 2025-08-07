@@ -21,6 +21,7 @@ serde_json.workspace = true
 rayon.workspace = true
 parking_lot.workspace = true
 jwalk.workspace = true
+smol_str.workspace = true
 format = { path = "../format"}
 parser = { path = "../parser"}
 maven = { path = "../maven"}

@@ -12,6 +12,7 @@ use crate::{
 use jwalk::WalkDir;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
+use smol_str::SmolStr;
 use std::fmt::Debug;
 use tokio::fs::read;
 
@@ -24,14 +25,14 @@ pub enum ParserLoaderError {
 
 #[derive(Debug, Clone)]
 pub enum SourceDestination {
-    Here(String),
-    RelativeInFolder(String),
+    Here(SmolStr),
+    RelativeInFolder(SmolStr),
     None,
 }
 
 pub fn load_class_fs<T>(
     path: T,
-    class_path: String,
+    class_path: SmolStr,
     source: SourceDestination,
 ) -> Result<dto::Class, dto::ClassError>
 where
@@ -87,15 +88,15 @@ pub async fn load_java_files(folder: PathBuf) -> Vec<Class> {
         .filter(|e| !e.file_type().is_dir())
         .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
         .filter(|e| e.ends_with(".java"))
-        .filter_map(|p| {
-            match load_java_fs(p.as_str(), SourceDestination::Here(p.as_str().to_string())) {
+        .filter_map(
+            |p| match load_java_fs(p.as_str(), SourceDestination::Here((&p).into())) {
                 Ok(c) => Some(c),
                 Err(e) => {
                     eprintln!("Unable to load java: {p}: {e:?}");
                     None
                 }
-            }
-        })
+            },
+        )
         .collect::<Vec<_>>()
 }
 
@@ -128,7 +129,7 @@ pub async fn load_classes_jar<P: AsRef<Path>>(
 
         let buf = entry.bytes().await.map_err(ParserLoaderError::IO)?;
 
-        match load_class(buf.as_slice(), class_path.to_string(), source.clone()) {
+        match load_class(buf.as_slice(), class_path.into(), source.clone()) {
             Ok(c) => classes.push(c),
             Err(e) => {
                 eprintln!("Unable to load class: {file_name} {e:?}");
@@ -153,7 +154,7 @@ pub fn load_classes<P: AsRef<Path>>(path: P, source: SourceDestination) -> dto::
                 let class_path = class_path.trim_start_matches(MAIN_SEPARATOR);
                 let class_path = class_path.trim_end_matches(".class");
                 let class_path = class_path.replace(MAIN_SEPARATOR, ".");
-                match load_class_fs(p.as_str(), class_path.to_string(), source.clone()) {
+                match load_class_fs(p.as_str(), class_path.into(), source.clone()) {
                     Ok(c) => Some(c),
                     Err(e) => {
                         eprintln!("Unable to load class: {p}: {e:?}");

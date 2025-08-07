@@ -1,6 +1,7 @@
 ---
-source: ast/src/lib.rs
-expression: ast
+source: ast/tests/ast.rs
+expression: parsed.unwrap()
+snapshot_kind: text
 ---
 (
     AstRecursiveExpression {
@@ -11,7 +12,7 @@ expression: ast
             },
             end: AstPoint {
                 line: 0,
-                col: 10,
+                col: 6,
             },
         },
         ident: Some(
@@ -24,10 +25,10 @@ expression: ast
                         },
                         end: AstPoint {
                             line: 0,
-                            col: 7,
+                            col: 1,
                         },
                     },
-                    value: "numbers",
+                    value: "a",
                 },
             ),
         ),
@@ -37,40 +38,64 @@ expression: ast
                 range: AstRange {
                     start: AstPoint {
                         line: 0,
-                        col: 7,
+                        col: 2,
                     },
                     end: AstPoint {
                         line: 0,
-                        col: 10,
+                        col: 6,
                     },
                 },
-                ident: Some(
-                    ArrayAccess(
-                        Nuget(
-                            Int(
-                                AstInt {
+                ident: None,
+                values: None,
+                next: Some(
+                    AstRecursiveExpression {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 5,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 6,
+                            },
+                        },
+                        ident: Some(
+                            Identifier(
+                                AstIdentifier {
                                     range: AstRange {
                                         start: AstPoint {
                                             line: 0,
-                                            col: 8,
+                                            col: 5,
                                         },
                                         end: AstPoint {
                                             line: 0,
-                                            col: 9,
+                                            col: 6,
                                         },
                                     },
-                                    value: 0,
+                                    value: "b",
                                 },
                             ),
                         ),
-                    ),
+                        values: None,
+                        next: None,
+                        operator: None,
+                    },
                 ),
-                values: None,
-                next: None,
-                operator: None,
+                operator: Equal(
+                    AstRange {
+                        start: AstPoint {
+                            line: 0,
+                            col: 2,
+                        },
+                        end: AstPoint {
+                            line: 0,
+                            col: 4,
+                        },
+                    },
+                ),
             },
         ),
         operator: None,
     },
-    4,
+    3,
 )

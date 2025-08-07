@@ -1,5 +1,5 @@
 ---
-source: ast/src/lib.rs
+source: ast/tests/ast.rs
 expression: parsed.unwrap()
 snapshot_kind: text
 ---
@@ -43,6 +43,7 @@ AstFile {
                 },
             },
             avaliability: Public,
+            annotated: [],
             name: AstIdentifier {
                 range: AstRange {
                     start: AstPoint {
@@ -70,6 +71,7 @@ AstFile {
                         },
                     },
                     avaliability: Undefined,
+                    annotated: [],
                     name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {
@@ -330,7 +332,7 @@ AstFile {
                             operator: None,
                         },
                     ),
-                    fin: false,
+                    static_final: None,
                 },
                 AstClassVariable {
                     range: AstRange {
@@ -344,6 +346,7 @@ AstFile {
                         },
                     },
                     avaliability: Undefined,
+                    annotated: [],
                     name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {
@@ -408,7 +411,7 @@ AstFile {
                             operator: None,
                         },
                     ),
-                    fin: false,
+                    static_final: None,
                 },
                 AstClassVariable {
                     range: AstRange {
@@ -422,6 +425,7 @@ AstFile {
                         },
                     },
                     avaliability: Undefined,
+                    annotated: [],
                     name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {
@@ -486,7 +490,7 @@ AstFile {
                             operator: None,
                         },
                     ),
-                    fin: false,
+                    static_final: None,
                 },
                 AstClassVariable {
                     range: AstRange {
@@ -500,6 +504,7 @@ AstFile {
                         },
                     },
                     avaliability: Undefined,
+                    annotated: [],
                     name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {
@@ -564,7 +569,7 @@ AstFile {
                             operator: None,
                         },
                     ),
-                    fin: false,
+                    static_final: None,
                 },
                 AstClassVariable {
                     range: AstRange {
@@ -578,6 +583,7 @@ AstFile {
                         },
                     },
                     avaliability: Undefined,
+                    annotated: [],
                     name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {
@@ -642,7 +648,7 @@ AstFile {
                             operator: None,
                         },
                     ),
-                    fin: false,
+                    static_final: None,
                 },
                 AstClassVariable {
                     range: AstRange {
@@ -656,6 +662,7 @@ AstFile {
                         },
                     },
                     avaliability: Undefined,
+                    annotated: [],
                     name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {
@@ -720,7 +727,7 @@ AstFile {
                             operator: None,
                         },
                     ),
-                    fin: false,
+                    static_final: None,
                 },
                 AstClassVariable {
                     range: AstRange {
@@ -734,6 +741,7 @@ AstFile {
                         },
                     },
                     avaliability: Undefined,
+                    annotated: [],
                     name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {
@@ -798,7 +806,7 @@ AstFile {
                             operator: None,
                         },
                     ),
-                    fin: false,
+                    static_final: None,
                 },
                 AstClassVariable {
                     range: AstRange {
@@ -812,6 +820,7 @@ AstFile {
                         },
                     },
                     avaliability: Undefined,
+                    annotated: [],
                     name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {
@@ -876,7 +885,7 @@ AstFile {
                             operator: None,
                         },
                     ),
-                    fin: false,
+                    static_final: None,
                 },
                 AstClassVariable {
                     range: AstRange {
@@ -890,6 +899,7 @@ AstFile {
                         },
                     },
                     avaliability: Undefined,
+                    annotated: [],
                     name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {
@@ -954,7 +964,7 @@ AstFile {
                             operator: None,
                         },
                     ),
-                    fin: false,
+                    static_final: None,
                 },
                 AstClassVariable {
                     range: AstRange {
@@ -968,6 +978,7 @@ AstFile {
                         },
                     },
                     avaliability: Undefined,
+                    annotated: [],
                     name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {
@@ -1046,7 +1057,7 @@ AstFile {
                             operator: None,
                         },
                     ),
-                    fin: false,
+                    static_final: None,
                 },
                 AstClassVariable {
                     range: AstRange {
@@ -1060,6 +1071,7 @@ AstFile {
                         },
                     },
                     avaliability: Undefined,
+                    annotated: [],
                     name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {
@@ -1292,7 +1304,7 @@ AstFile {
                             operator: None,
                         },
                     ),
-                    fin: false,
+                    static_final: None,
                 },
                 AstClassVariable {
                     range: AstRange {
@@ -1306,6 +1318,7 @@ AstFile {
                         },
                     },
                     avaliability: Undefined,
+                    annotated: [],
                     name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {
@@ -1451,7 +1464,7 @@ AstFile {
                             operator: None,
                         },
                     ),
-                    fin: false,
+                    static_final: None,
                 },
             ],
             methods: [
@@ -1466,6 +1479,7 @@ AstFile {
                             col: 43,
                         },
                     },
+                    annotated: [],
                     header: AstMethodHeader {
                         range: AstRange {
                             start: AstPoint {
@@ -1477,7 +1491,7 @@ AstFile {
                                 col: 42,
                             },
                         },
-                        avaliability: Public,
+                        avaliability: PublicStatic,
                         name: AstIdentifier {
                             range: AstRange {
                                 start: AstPoint {
@@ -1585,7 +1599,6 @@ AstFile {
                                 },
                             ],
                         },
-                        stat: true,
                         throws: None,
                         type_parameters: None,
                     },

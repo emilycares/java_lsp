@@ -3,13 +3,14 @@ use crate::{
     error::{AstError, assert_token},
     lexer::{PositionToken, Token},
     parse_expression_parameters, parse_identifier,
-    types::{AstAvailability, AstEnumerationVariant, AstRange, AstThing},
+    types::{AstAnnotated, AstAvailability, AstEnumerationVariant, AstRange, AstThing},
 };
 
 pub fn parse_enumeration(
     tokens: &[PositionToken],
     pos: usize,
     avaliability: AstAvailability,
+    annotated: Vec<AstAnnotated>,
 ) -> Result<(AstThing, usize), AstError> {
     let (name, pos) = parse_identifier(tokens, pos)?;
     let mut errors = vec![];
@@ -84,6 +85,7 @@ pub fn parse_enumeration(
     Ok((
         AstThing::Enumeration(crate::types::AstEnumeration {
             avaliability,
+            annotated,
             name,
             variants,
             methods,

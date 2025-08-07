@@ -1,5 +1,5 @@
 ---
-source: ast/src/lib.rs
+source: ast/tests/ast.rs
 expression: parsed.unwrap()
 snapshot_kind: text
 ---
@@ -43,6 +43,7 @@ AstFile {
                 },
             },
             avaliability: Public,
+            annotated: [],
             name: AstIdentifier {
                 range: AstRange {
                     start: AstPoint {
@@ -70,6 +71,7 @@ AstFile {
                         },
                     },
                     avaliability: Public,
+                    annotated: [],
                     name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {
@@ -97,7 +99,7 @@ AstFile {
                         value: Int,
                     },
                     expression: None,
-                    fin: false,
+                    static_final: None,
                 },
                 AstClassVariable {
                     range: AstRange {
@@ -111,6 +113,7 @@ AstFile {
                         },
                     },
                     avaliability: Private,
+                    annotated: [],
                     name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {
@@ -138,7 +141,7 @@ AstFile {
                         value: Int,
                     },
                     expression: None,
-                    fin: false,
+                    static_final: None,
                 },
                 AstClassVariable {
                     range: AstRange {
@@ -152,6 +155,7 @@ AstFile {
                         },
                     },
                     avaliability: Private,
+                    annotated: [],
                     name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {
@@ -179,7 +183,7 @@ AstFile {
                         value: Int,
                     },
                     expression: None,
-                    fin: false,
+                    static_final: None,
                 },
             ],
             methods: [],

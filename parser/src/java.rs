@@ -8,6 +8,7 @@ use ast::{
         AstThing, AstTypeParameters,
     },
 };
+use smol_str::{SmolStr, SmolStrBuilder};
 
 use crate::{
     dto::{self, Access, Field, ImportUnit, Method},
@@ -40,14 +41,14 @@ pub fn load_java_tree(
 ) -> Result<crate::dto::Class, ParseJavaError> {
     let mut methods: Vec<Method> = vec![];
     let mut fields: Vec<Field> = vec![];
-    let class_path_base: String = (&ast.package).into();
-    let name: String;
+    let class_path_base: SmolStr = (&ast.package).into();
+    let name: SmolStr;
     let mut super_class = dto::SuperClass::None;
     let mut super_interfaces = vec![];
     let imports: Vec<ImportUnit> = ast.imports.imports.iter().map(|i| i.into()).collect();
     match &ast.thing {
         AstThing::Class(class) => {
-            name = (&class.name).into();
+            name = (&class.name.value).clone();
             methods.extend(class.methods.iter().map(convert_class_method));
             fields.extend(class.variables.iter().map(convert_class_field));
             super_class = match &class.superclass {
@@ -86,15 +87,20 @@ pub fn load_java_tree(
     }
     let source = match source {
         SourceDestination::RelativeInFolder(e) => {
-            format!("{}/{}/{}.java", e, &class_path_base.replace(".", "/"), name)
+            format!("{}/{}/{}.java", e, &class_path_base.replace(".", "/"), name).into()
         }
-        SourceDestination::Here(e) => e.replace("\\", "/"),
-        SourceDestination::None => "".to_string(),
+        SourceDestination::Here(e) => e.replace("\\", "/").into(),
+        SourceDestination::None => "".into(),
     };
+    let mut class_path = SmolStrBuilder::new();
+    class_path.push_str(&class_path_base);
+    class_path.push('.');
+    class_path.push_str(&name);
+    let class_path = class_path.finish();
 
     Ok(dto::Class {
         source,
-        class_path: format!("{class_path_base}.{name}"),
+        class_path,
         access: vec![],
         super_class,
         super_interfaces,
@@ -120,19 +126,14 @@ fn fun_name(ext: &AstExtends, imports: &[ImportUnit]) -> impl Iterator<Item = dt
     })
 }
 
-fn convert_imports(imports: &AstImports, package: String) -> Vec<ImportUnit> {
+fn convert_imports(imports: &AstImports, package: SmolStr) -> Vec<ImportUnit> {
     let mut out = vec![ImportUnit::Package(package)];
     out.extend(imports.imports.iter().map(|i| i.into()));
     out
 }
 
 fn convert_class_method(m: &AstClassMethod) -> Method {
-    let mut access = vec![];
-    if m.header.stat {
-        access.push(dto::Access::Static);
-    }
-    let avaliability = Access::from(&m.header.avaliability, Access::Protected);
-    access.push(avaliability);
+    let access = Access::from(&m.header.avaliability, Access::Public);
     let parameters = m
         .header
         .parameters
@@ -157,12 +158,7 @@ fn convert_class_method(m: &AstClassMethod) -> Method {
     }
 }
 fn convert_interface_method(m: &AstInterfaceMethod) -> Method {
-    let mut access = vec![];
-    if m.header.stat {
-        access.push(dto::Access::Static);
-    }
-    let avaliability = Access::from(&m.header.avaliability, Access::Public);
-    access.push(avaliability);
+    let access = Access::from(&m.header.avaliability, Access::Public);
     let parameters = m
         .header
         .parameters
@@ -191,12 +187,7 @@ fn convert_interface_method(m: &AstInterfaceMethod) -> Method {
     }
 }
 fn convert_interface_default_method(m: &AstInterfaceMethodDefault) -> Method {
-    let mut access = vec![];
-    if m.header.stat {
-        access.push(dto::Access::Static);
-    }
-    let avaliability = Access::from(&m.header.avaliability, Access::Public);
-    access.push(avaliability);
+    let access = Access::from(&m.header.avaliability, Access::Public);
     let parameters = m
         .header
         .parameters
@@ -227,7 +218,7 @@ fn convert_interface_default_method(m: &AstInterfaceMethodDefault) -> Method {
 
 fn convert_interface_constant(c: &AstInterfaceConstant) -> dto::Field {
     dto::Field {
-        access: vec![Access::from(&c.avaliability, Access::Public)],
+        access: Access::from(&c.avaliability, Access::Public),
         name: (&c.name).into(),
         jtype: (&c.jtype).into(),
         source: None,
@@ -243,7 +234,7 @@ fn convert_annotation_field(c: &AstAnnotationField) -> dto::Field {
 }
 fn convert_class_field(c: &AstClassVariable) -> dto::Field {
     dto::Field {
-        access: vec![Access::from(&c.avaliability, Access::Public)],
+        access: Access::from(&c.avaliability, Access::Public),
         name: (&c.name).into(),
         jtype: (&c.jtype).into(),
         source: None,
@@ -260,7 +251,7 @@ fn check_type_parameters(
     };
 
     if let dto::JType::Class(ref p) = jtype {
-        if type_parameters.parameters.iter().any(|i| i.value == p) {
+        if type_parameters.parameters.iter().any(|i| i.value == *p) {
             return dto::JType::Parameter(p.to_owned());
         }
     }
@@ -269,7 +260,7 @@ fn check_type_parameters(
             .iter()
             .map(|i| {
                 if let dto::JType::Class(p) = i {
-                    if type_parameters.parameters.iter().any(|i| i.value == p) {
+                    if type_parameters.parameters.iter().any(|i| i.value == *p) {
                         return dto::JType::Parameter(p.to_owned());
                     }
                 }
@@ -292,7 +283,7 @@ pub mod tests {
     fn jtype_recognition() {
         let result = load_java(
             include_bytes!("../test/Types.java"),
-            SourceDestination::Here("/path/to/source/Test.java".to_string()),
+            SourceDestination::Here("/path/to/source/Test.java".into()),
         );
         insta::assert_debug_snapshot!(result.unwrap());
     }
@@ -305,7 +296,7 @@ public class Test extends a { }
         "#;
         let result = load_java(
             content.as_bytes(),
-            SourceDestination::Here("/path/to/source/Test.java".to_string()),
+            SourceDestination::Here("/path/to/source/Test.java".into()),
         );
         insta::assert_debug_snapshot!(result.unwrap());
     }
@@ -320,7 +311,7 @@ public class Test {
         "#;
         let result = load_java(
             content.as_bytes(),
-            SourceDestination::Here("/path/to/source/Test.java".to_string()),
+            SourceDestination::Here("/path/to/source/Test.java".into()),
         );
         insta::assert_debug_snapshot!(result.unwrap());
     }
@@ -330,7 +321,7 @@ public class Test {
         let content = include_str!("../test/Thrower.java");
         let result = load_java(
             content.as_bytes(),
-            SourceDestination::Here("/path/to/source/Thrower.java".to_string()),
+            SourceDestination::Here("/path/to/source/Thrower.java".into()),
         );
         insta::assert_debug_snapshot!(result.unwrap());
     }
@@ -339,7 +330,7 @@ public class Test {
     fn interface_constants() {
         let result = load_java(
             include_bytes!("../test/Constants.java"),
-            SourceDestination::RelativeInFolder("/path/to/source".to_string()),
+            SourceDestination::RelativeInFolder("/path/to/source".into()),
         );
 
         insta::assert_debug_snapshot!(result.unwrap());
@@ -349,7 +340,7 @@ public class Test {
     fn interface_base() {
         let result = load_java(
             include_bytes!("../test/InterfaceBase.java"),
-            SourceDestination::RelativeInFolder("/path/to/source".to_string()),
+            SourceDestination::RelativeInFolder("/path/to/source".into()),
         );
 
         insta::assert_debug_snapshot!(result.unwrap());
@@ -359,7 +350,7 @@ public class Test {
     fn jenum() {
         let result = load_java(
             include_bytes!("../test/Variants.java"),
-            SourceDestination::RelativeInFolder("/path/to/source".to_string()),
+            SourceDestination::RelativeInFolder("/path/to/source".into()),
         );
         insta::assert_debug_snapshot!(result.unwrap());
     }
@@ -368,7 +359,7 @@ public class Test {
     fn jannotation() {
         let result = load_java(
             include_bytes!("../test/Annotation.java"),
-            SourceDestination::RelativeInFolder("/path/to/source".to_string()),
+            SourceDestination::RelativeInFolder("/path/to/source".into()),
         );
         insta::assert_debug_snapshot!(result.unwrap());
     }
@@ -397,7 +388,7 @@ public class Test {
  "#;
         let result = load_java(
             src.as_bytes(),
-            SourceDestination::RelativeInFolder("/path/to/source".to_string()),
+            SourceDestination::RelativeInFolder("/path/to/source".into()),
         );
 
         insta::assert_debug_snapshot!(result.unwrap());

@@ -10,6 +10,7 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
+smol_str.workspace = true
 dashmap.workspace = true
 parser = { path = "../parser"}
 call_chain = { path = "../call_chain"}

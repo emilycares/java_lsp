@@ -8,6 +8,7 @@ use std::{fmt::Debug, path::Path};
 use dto::ClassError;
 use java::ParseJavaError;
 use loader::SourceDestination;
+use smol_str::SmolStr;
 
 pub fn update_project_java_file<T: AsRef<Path>>(
     file: T,
@@ -15,13 +16,13 @@ pub fn update_project_java_file<T: AsRef<Path>>(
 ) -> Result<dto::Class, ParseJavaError> {
     load_java(
         bytes,
-        SourceDestination::Here(file.as_ref().to_str().unwrap_or_default().to_string()),
+        SourceDestination::Here(file.as_ref().to_str().unwrap_or_default().into()),
     )
 }
 
 pub fn load_class_fs<T>(
     path: T,
-    class_path: String,
+    class_path: SmolStr,
     source: SourceDestination,
 ) -> Result<dto::Class, dto::ClassError>
 where

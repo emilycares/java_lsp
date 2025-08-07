@@ -20,17 +20,17 @@ pub fn is_imported(imports: &[ImportUnit], class_path: &str) -> bool {
                 }
             }
             ImportUnit::Prefix(p) => {
-                if class_path.starts_with(p) {
+                if class_path.starts_with(p.as_str()) {
                     return true;
                 }
             }
             ImportUnit::StaticPrefix(p) => {
-                if class_path.starts_with(p) {
+                if class_path.starts_with(p.as_str()) {
                     return true;
                 }
             }
             ImportUnit::Package(p) => {
-                if class_path.starts_with(p) {
+                if class_path.starts_with(p.as_str()) {
                     return true;
                 }
             }

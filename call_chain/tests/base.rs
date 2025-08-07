@@ -87,7 +87,6 @@ fn call_chain_method_a() {
     let ast = ast::parse_file(&tokens);
     ast.print_err(SYMBOL_METHOD);
     let ast = ast.unwrap();
-    // dbg!(&ast);
 
     let out = get_call_chain(&ast, &AstPoint::new(8, 40));
     assert_eq!(
@@ -128,16 +127,7 @@ public class Test {
     let ast = ast.unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 19));
-    assert_eq!(
-        out,
-        Some(vec![CallItem::Class {
-            name: "String".into(),
-            range: AstRange {
-                start: AstPoint { line: 5, col: 15 },
-                end: AstPoint { line: 5, col: 18 },
-            }
-        }])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -1221,7 +1211,6 @@ public class Test {
     let ast = ast::parse_file(&tokens);
     ast.print_err(content);
     let ast = ast.unwrap();
-    dbg!(&ast);
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 14));
     assert_eq!(
@@ -1254,16 +1243,7 @@ public class Test {
     let ast = ast.unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 19));
-    assert_eq!(
-        out,
-        Some(vec![CallItem::ClassOrVariable {
-            name: "b".into(),
-            range: AstRange {
-                start: AstPoint { line: 4, col: 17 },
-                end: AstPoint { line: 4, col: 18 },
-            }
-        },])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -1344,16 +1324,7 @@ public class Test {
     let ast = ast.unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 22));
-    assert_eq!(
-        out,
-        Some(vec![CallItem::Class {
-            name: "String".into(),
-            range: AstRange {
-                start: AstPoint { line: 4, col: 12 },
-                end: AstPoint { line: 4, col: 18 }
-            }
-        }])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -1413,8 +1384,8 @@ public class Test {
             CallItem::Class {
                 name: "String".into(),
                 range: AstRange {
-                    start: AstPoint { line: 4, col: 12 },
-                    end: AstPoint { line: 4, col: 18 },
+                    start: AstPoint { line: 4, col: 8 },
+                    end: AstPoint { line: 4, col: 20 },
                 }
             },
             CallItem::MethodCall {
@@ -1474,7 +1445,9 @@ public class Test {
 }
 "#;
     let tokens = ast::lexer::lex(content).unwrap();
-    let ast = ast::parse_file(&tokens).unwrap();
+    let ast = ast::parse_file(&tokens);
+    ast.print_err(content);
+    let ast = ast.unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 27));
     assert_eq!(
@@ -1509,7 +1482,9 @@ public class Test {
 }
 "#;
     let tokens = ast::lexer::lex(content).unwrap();
-    let ast = ast::parse_file(&tokens).unwrap();
+    let ast = ast::parse_file(&tokens);
+    ast.print_err(content);
+    let ast = ast.unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 27));
     assert_eq!(
