@@ -86,7 +86,7 @@ pub fn get_call_chain(ast: &AstFile, point: &AstPoint) -> Option<Vec<CallItem>> 
                     .filter(|i| i.range.is_in_range(point))
                     .flat_map(|i| {
                         if let Some(expr) = &i.expression {
-                            return cc_recursive_expression(&expr, point);
+                            return cc_recursive_expression(expr, point);
                         }
                         None
                     })
@@ -99,9 +99,9 @@ pub fn get_call_chain(ast: &AstFile, point: &AstPoint) -> Option<Vec<CallItem>> 
                     .filter(|i| i.range.is_in_range(point))
                     .flat_map(|i| {
                         if i.block.range.is_in_range(point) {
-                            return cc_block(&i.block, point);
+                            cc_block(&i.block, point)
                         } else {
-                            return cc_annotated(&i.annotated, point);
+                            cc_annotated(&i.annotated, point)
                         }
                     })
                     .flatten(),
@@ -113,9 +113,9 @@ pub fn get_call_chain(ast: &AstFile, point: &AstPoint) -> Option<Vec<CallItem>> 
                     .filter(|i| i.range.is_in_range(point))
                     .flat_map(|i| {
                         if i.block.range.is_in_range(point) {
-                            return cc_block(&i.block, point);
+                            cc_block(&i.block, point)
                         } else {
-                            return cc_annotated(&i.annotated, point);
+                            cc_annotated(&i.annotated, point)
                         }
                     })
                     .flatten(),
@@ -129,9 +129,9 @@ pub fn get_call_chain(ast: &AstFile, point: &AstPoint) -> Option<Vec<CallItem>> 
                     .filter(|i| i.range.is_in_range(point))
                     .flat_map(|i| {
                         if i.block.range.is_in_range(point) {
-                            return cc_block(&i.block, point);
+                            cc_block(&i.block, point)
                         } else {
-                            return cc_annotated(&i.annotated, point);
+                            cc_annotated(&i.annotated, point)
                         }
                     })
                     .flatten(),
@@ -195,11 +195,10 @@ pub fn validate(call_chain: &[CallItem], point: &AstPoint) -> (usize, Vec<CallIt
                         Some(pr) => prevs = Some(add_ranges(pr, *p.get_range())),
                     }
                 }
-                if let Some(r) = prevs {
-                    if r.is_in_range(point) {
+                if let Some(r) = prevs
+                    && r.is_in_range(point) {
                         return true;
                     }
-                }
                 false
             }
         })
@@ -253,8 +252,8 @@ fn dist_if(point: &AstPoint, ast_if: &AstIf) -> usize {
             control_range: _,
             content: _,
             el: _,
-        } => dist(&point, range),
-        AstIf::Else { range, content: _ } => dist(&point, range),
+        } => dist(point, range),
+        AstIf::Else { range, content: _ } => dist(point, range),
     }
 }
 
@@ -480,8 +479,8 @@ fn cc_expr(
         | AstExpressionOperator::AmpersandAmpersand(_)
         | AstExpressionOperator::VerticalBar(_)
         | AstExpressionOperator::VerticalBarVerticalBar(_) => {
-            if let Some(ident) = &ast_expression.ident {
-                if let Some(next) = &ast_expression.next {
+            if let Some(ident) = &ast_expression.ident
+                && let Some(next) = &ast_expression.next {
                     let a = dist(point, &next.as_ref().range);
                     let b = dist(point, &next.range);
 
@@ -495,7 +494,6 @@ fn cc_expr(
                         cc_expr(next.as_ref(), point, true, out);
                     }
                 }
-            }
         }
         AstExpressionOperator::None
         | AstExpressionOperator::QuestionMark(_)
@@ -605,12 +603,12 @@ fn cc_expr_ident(
             }
         }
         AstExpressionIdentifier::Nuget(ast_value_nuget) => {
-            if let Some(val) = cc_value_nuget(&ast_value_nuget) {
+            if let Some(val) = cc_value_nuget(ast_value_nuget) {
                 out.extend(val);
             }
         }
         AstExpressionIdentifier::Value(ast_value) => {
-            if let Some(val) = cc_value(&ast_value) {
+            if let Some(val) = cc_value(ast_value) {
                 out.extend(val);
             }
         }

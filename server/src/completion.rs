@@ -141,11 +141,10 @@ fn complete_method(m: &dto::Method, imports: &[ImportUnit], ast: &AstFile) -> Co
         },
         Snippet::Import { snippet, import } => {
             let mut additional_text_edits = None;
-            if !imports.contains(&import) {
-                if let ImportUnit::Class(class_path) = import {
+            if !imports.contains(&import)
+                && let ImportUnit::Class(class_path) = import {
                     additional_text_edits = Some(codeaction::import_text_edit(&class_path, ast));
                 };
-            }
 
             CompletionItem {
                 label: m.name.to_string(),

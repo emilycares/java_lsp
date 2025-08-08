@@ -46,7 +46,7 @@ pub fn replace_with_value_type(
                 let bvars = ast_class
                     .methods
                     .iter()
-                    .find_map(|i| find_var_block(&i.block, &context.point));
+                    .find_map(|i| find_var_block(&i.block, context.point));
                 if let Some(v) = bvars {
                     blockvar = Some(v);
                 }
@@ -200,10 +200,10 @@ fn find_var_block<'a>(
                     return find_var_block(&ast_try_catch.block, point);
                 }
                 if let Some(b) = &ast_try_catch.resources_block {
-                    return find_var_block(&b, point);
+                    return find_var_block(b, point);
                 }
                 if let Some(b) = &ast_try_catch.finally_block {
-                    return find_var_block(&b, point);
+                    return find_var_block(b, point);
                 }
                 if let Some(b) = ast_try_catch
                     .cases

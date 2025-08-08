@@ -58,11 +58,10 @@ pub async fn fetch_deps(
         let jars: Vec<PathBuf> = o
             .filter_map(|i| i.ok())
             .filter(|i| {
-                if let Ok(ft) = i.file_type() {
-                    if ft.is_file() {
+                if let Ok(ft) = i.file_type()
+                    && ft.is_file() {
                         return true;
                     }
-                }
                 false
             })
             .filter(|i| i.file_name().to_string_lossy().ends_with(".jar"))

@@ -48,7 +48,7 @@ pub fn load_java_tree(
     let imports: Vec<ImportUnit> = ast.imports.imports.iter().map(|i| i.into()).collect();
     match &ast.thing {
         AstThing::Class(class) => {
-            name = (&class.name.value).clone();
+            name = class.name.value.clone();
             methods.extend(class.methods.iter().map(convert_class_method));
             fields.extend(class.variables.iter().map(convert_class_field));
             super_class = match &class.superclass {
@@ -69,7 +69,7 @@ pub fn load_java_tree(
         AstThing::Interface(interface) => {
             name = (&interface.name).into();
             if let Some(ext) = &interface.extends {
-                super_interfaces.extend(fun_name(&ext, &imports));
+                super_interfaces.extend(fun_name(ext, &imports));
             }
             methods.extend(interface.methods.iter().map(convert_interface_method));
             methods.extend(
@@ -250,20 +250,18 @@ fn check_type_parameters(
         return jtype;
     };
 
-    if let dto::JType::Class(ref p) = jtype {
-        if type_parameters.parameters.iter().any(|i| i.value == *p) {
+    if let dto::JType::Class(ref p) = jtype
+        && type_parameters.parameters.iter().any(|i| i.value == *p) {
             return dto::JType::Parameter(p.to_owned());
         }
-    }
     if let dto::JType::Generic(name, params) = jtype {
         let params = params
             .iter()
             .map(|i| {
-                if let dto::JType::Class(p) = i {
-                    if type_parameters.parameters.iter().any(|i| i.value == *p) {
+                if let dto::JType::Class(p) = i
+                    && type_parameters.parameters.iter().any(|i| i.value == *p) {
                         return dto::JType::Parameter(p.to_owned());
                     }
-                }
                 i.clone()
             })
             .collect();

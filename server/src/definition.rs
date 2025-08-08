@@ -148,11 +148,10 @@ pub fn call_chain_definition(
             filled_params,
             range: _,
         }) => {
-            if let Some(active_param) = active_param {
-                if let Some(current_param) = filled_params.get(*active_param) {
+            if let Some(active_param) = active_param
+                && let Some(current_param) = filled_params.get(*active_param) {
                     return call_chain_definition(current_param, context);
                 }
-            }
             Err(DefinitionError::ArgumentNotFound)
         }
         Some(a) => unimplemented!("call_chain_definition {a:?}"),

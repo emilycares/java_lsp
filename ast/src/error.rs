@@ -138,11 +138,10 @@ fn print_helper(content: &str, line: usize, col: usize, msg: String) {
         false => content.lines().enumerate().skip(line - 1),
         true => content.lines().enumerate().skip(line),
     };
-    if !is_zero {
-        if let Some((number, line)) = lines.next() {
+    if !is_zero
+        && let Some((number, line)) = lines.next() {
             eprintln!("{number} {line}");
         }
-    }
     if let Some((number, line)) = lines.next() {
         eprintln!("{number} \x1b[93m{line}\x1b[0m");
     }

@@ -181,11 +181,10 @@ impl Backend {
     fn compile(&self, path: &str) -> Vec<CompileError> {
         match self.project_kind {
             ProjectKind::Maven => {
-                if let Some(classpath) = maven::compile::generate_classpath() {
-                    if let Some(errors) = compile::compile_java_file(path, &classpath) {
+                if let Some(classpath) = maven::compile::generate_classpath()
+                    && let Some(errors) = compile::compile_java_file(path, &classpath) {
                         return errors;
                     }
-                }
             }
             ProjectKind::Gradle {
                 path_build_gradle: _,

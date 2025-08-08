@@ -74,7 +74,6 @@ pub fn load_class(
                     .into_iter()
                     .filter(|i| *i != class_path)
                     .unique()
-                    .map(|i| i.into())
                     .map(ImportUnit::Class),
             );
 
@@ -86,7 +85,7 @@ pub fn load_class(
                     &class_path.replace(".", MAIN_SEPARATOR_STR)
                 )
                 .into(),
-                SourceDestination::Here(e) => e.into(),
+                SourceDestination::Here(e) => e,
                 SourceDestination::None => "".into(),
             };
             let super_interfaces: Vec<_> = c

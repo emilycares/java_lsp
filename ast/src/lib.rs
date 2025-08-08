@@ -429,12 +429,11 @@ fn parse_boolean_literal(
     pos: usize,
 ) -> Result<(AstValue, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
-    let value;
-    match start.token {
-        Token::True => value = true,
-        Token::False => value = false,
+    let value = match start.token {
+        Token::True => true,
+        Token::False => false,
         _ => return Err(AstError::InvalidBoolean(InvalidToken::from(start, pos))),
-    }
+    };
     Ok((
         AstValue::Nuget(AstValueNuget::BooleanLiteral(AstBoolean {
             range: AstRange::from_position_token(start, start),
@@ -450,14 +449,13 @@ pub fn parse_string_literal(
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let mut pos = assert_token(tokens, pos, Token::DoubleQuote)?;
     let mut multiline = false;
-    if let Ok(npos) = assert_token(tokens, pos, Token::DoubleQuote) {
-        if let Ok(npos) = assert_token(tokens, npos, Token::DoubleQuote) {
-            pos = npos;
-            multiline = true;
-        }
+    if let Ok(npos) = assert_token(tokens, pos, Token::DoubleQuote)
+        && let Ok(npos) = assert_token(tokens, npos, Token::DoubleQuote)
+    {
+        pos = npos;
+        multiline = true;
     }
     let mut value = SmolStrBuilder::new();
-    let mut pos = pos;
     loop {
         let token = tokens.get(pos).ok_or(AstError::eof())?;
         match &token.token {
@@ -465,18 +463,14 @@ pub fn parse_string_literal(
                 let peek = tokens.get(pos - 1).ok_or(AstError::eof())?;
                 if peek.token == Token::BackSlash {
                     value.push_str("\\\"");
-                } else {
-                    if !multiline {
-                        pos += 1;
-                        break;
-                    } else {
-                        if let Ok(npos) = assert_token(tokens, pos, Token::DoubleQuote) {
-                            if let Ok(npos) = assert_token(tokens, npos, Token::DoubleQuote) {
-                                pos = npos;
-                                break;
-                            }
-                        }
-                    }
+                } else if !multiline {
+                    pos += 1;
+                    break;
+                } else if let Ok(npos) = assert_token(tokens, pos, Token::DoubleQuote)
+                    && let Ok(npos) = assert_token(tokens, npos, Token::DoubleQuote)
+                {
+                    pos = npos;
+                    break;
                 }
             }
             cot => {
@@ -1538,7 +1532,7 @@ fn parse_if(tokens: &[PositionToken], pos: usize) -> Result<(AstIf, usize), AstE
         }
         if let Ok((i, npos)) = parse_block(tokens, pos) {
             el = Some(Box::new(AstIf::Else {
-                range: i.range.clone(),
+                range: i.range,
                 content: AstIfContent::Block(i),
             }));
             pos = npos;
@@ -1706,10 +1700,10 @@ pub fn parse_name(
                 pos += 1;
             }
             _ => {
-                if pos == init_pos {
-                    if let Ok(t) = tokens.get(pos).ok_or(AstError::eof()) {
-                        return Err(AstError::InvalidName(InvalidToken::from(t, pos)));
-                    }
+                if pos == init_pos
+                    && let Ok(t) = tokens.get(pos).ok_or(AstError::eof())
+                {
+                    return Err(AstError::InvalidName(InvalidToken::from(t, pos)));
                 }
                 break;
             }
@@ -1903,7 +1897,7 @@ fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, usize)
             let range = AstRange::from_position_token(current, current);
             let ident = AstIdentifier {
                 value: ident.clone(),
-                range: range.clone(),
+                range,
             };
             match token.token {
                 Token::Lt => {
@@ -1974,17 +1968,13 @@ fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, usize)
     let mut pos = pos;
     let mut base = base;
 
-    loop {
-        if let Ok(npos) = assert_token(tokens, pos, Token::LeftParenSquare) {
-            if let Ok(npos) = assert_token(tokens, npos, Token::RightParenSquare) {
-                pos = npos;
-                base = AstJType {
-                    range: AstRange::from_position_token(current, current),
-                    value: AstJTypeKind::Array(Box::new(base)),
-                };
-            } else {
-                break;
-            }
+    while let Ok(npos) = assert_token(tokens, pos, Token::LeftParenSquare) {
+        if let Ok(npos) = assert_token(tokens, npos, Token::RightParenSquare) {
+            pos = npos;
+            base = AstJType {
+                range: AstRange::from_position_token(current, current),
+                value: AstJTypeKind::Array(Box::new(base)),
+            };
         } else {
             break;
         }

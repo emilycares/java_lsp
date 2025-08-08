@@ -24,7 +24,7 @@ impl LocalVariable {
             jtype: (&i.jtype).into(),
             name: (&i.name).into(),
             is_fun: false,
-            range: i.range.clone(),
+            range: i.range,
         }
     }
     pub fn from_class_method(i: &AstClassMethod, level: usize) -> Self {
@@ -33,7 +33,7 @@ impl LocalVariable {
             jtype: (&i.header.jtype).into(),
             name: (&i.header.name).into(),
             is_fun: true,
-            range: i.range.clone(),
+            range: i.range,
         }
     }
 
@@ -43,7 +43,7 @@ impl LocalVariable {
             jtype: (&parameter.jtype).into(),
             name: (&parameter.name).into(),
             is_fun: false,
-            range: parameter.range.clone(),
+            range: parameter.range,
         }
     }
 }
@@ -87,7 +87,7 @@ fn get_interface_constats(
         jtype: (&i.jtype).into(),
         name: (&i.name).into(),
         is_fun: false,
-        range: i.range.clone(),
+        range: i.range,
     })
 }
 
@@ -134,14 +134,14 @@ fn get_block_vars(block: &AstBlock, point: &AstPoint, level: usize) -> Vec<Local
             | AstBlockEntry::SwitchDefault(_)
             | AstBlockEntry::Assign(_) => vec![],
             AstBlockEntry::Variable(i) => vec![LocalVariable::from_block_variable(i, level)],
-            AstBlockEntry::If(ast_if) => if_vars(&ast_if, point, level),
-            AstBlockEntry::While(ast_while) => while_vars(&ast_while, point, level),
-            AstBlockEntry::For(ast_for) => for_vars(&ast_for, point, level),
+            AstBlockEntry::If(ast_if) => if_vars(ast_if, point, level),
+            AstBlockEntry::While(ast_while) => while_vars(ast_while, point, level),
+            AstBlockEntry::For(ast_for) => for_vars(ast_for, point, level),
             AstBlockEntry::ForEnhanced(ast_for_enhanced) => {
-                for_enanced_vars(&ast_for_enhanced, point, level)
+                for_enanced_vars(ast_for_enhanced, point, level)
             }
-            AstBlockEntry::Switch(ast_switch) => switch_vars(&ast_switch, point, level),
-            AstBlockEntry::TryCatch(ast_try_catch) => try_catch_vars(&ast_try_catch, point, level),
+            AstBlockEntry::Switch(ast_switch) => switch_vars(ast_switch, point, level),
+            AstBlockEntry::TryCatch(ast_try_catch) => try_catch_vars(ast_try_catch, point, level),
         })
         .collect()
 }
@@ -156,11 +156,11 @@ fn try_catch_vars(
     let level = level + 1;
     let mut out = vec![];
     if let Some(resources) = &ast_try_catch.resources_block {
-        out.extend(get_block_vars(&resources, point, level));
+        out.extend(get_block_vars(resources, point, level));
     }
     out.extend(get_block_vars(&ast_try_catch.block, point, level));
     if let Some(finally_block) = &ast_try_catch.finally_block {
-        out.extend(get_block_vars(&finally_block, point, level));
+        out.extend(get_block_vars(finally_block, point, level));
     }
     out
 }
@@ -220,21 +220,19 @@ fn if_vars(ast_if: &AstIf, point: &AstPoint, level: usize) -> Vec<LocalVariable>
             content,
             el,
         } => {
-            if range.is_in_range(point) {
-                if let AstIfContent::Block(block) = content {
+            if range.is_in_range(point)
+                && let AstIfContent::Block(block) = content {
                     return get_block_vars(block, point, level);
                 }
-            }
             if let Some(el) = el.as_ref() {
                 return if_vars(el, point, level);
             }
         }
         AstIf::Else { range, content } => {
-            if range.is_in_range(point) {
-                if let AstIfContent::Block(block) = content {
+            if range.is_in_range(point)
+                && let AstIfContent::Block(block) = content {
                     return get_block_vars(block, point, level);
                 }
-            }
         }
     }
     vec![]
@@ -244,7 +242,7 @@ fn get_class_variables(
     level: usize,
 ) -> impl Iterator<Item = LocalVariable> {
     variables.iter().map(move |i| LocalVariable {
-        range: i.range.clone(),
+        range: i.range,
         level,
         jtype: (&i.jtype).into(),
         name: (&i.name).into(),

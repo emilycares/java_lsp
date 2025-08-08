@@ -65,10 +65,7 @@ pub fn class_path(
             .filter_map(|lookup| {
                 let refs = get_position_refrences(&lookup, class_path, None).ok()?;
                 let a = refs.first().map(|i| i.0.get_range());
-                match a {
-                    Some(a) => Some((lookup, *a)),
-                    None => None,
-                }
+                a.map(|a| (lookup, *a))
             })
             .filter_map(
                 |(lookup, range)| match definition::class_to_uri(lookup.value()) {
@@ -126,7 +123,7 @@ pub fn call_chain_references(
                     locations.extend(
                         method_refs
                             .iter()
-                            .map(|i| Location::new(uri.clone(), to_lsp_range(&i.0.get_range()))),
+                            .map(|i| Location::new(uri.clone(), to_lsp_range(i.0.get_range()))),
                     );
                 }
             }
@@ -141,8 +138,8 @@ pub fn call_chain_references(
             filled_params,
             range: _,
         }) => {
-            if let Some(active_param) = active_param {
-                if let Some(current_param) = filled_params.get(*active_param) {
+            if let Some(active_param) = active_param
+                && let Some(current_param) = filled_params.get(*active_param) {
                     return call_chain_references(
                         current_param,
                         context,
@@ -150,7 +147,6 @@ pub fn call_chain_references(
                         document_map,
                     );
                 }
-            }
             Err(ReferencesError::ArgumentNotFound)
         }
         Some(a) => unimplemented!("call_chain_references {a:?}"),

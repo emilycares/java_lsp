@@ -16,35 +16,31 @@ pub fn get_class_position(
 ) -> Result<Vec<PositionSymbol>, PosionError> {
     match &ast.thing {
         ast::types::AstThing::Class(ast_class) => {
-            if let Some(name) = name {
-                if ast_class.name.value != name {
+            if let Some(name) = name
+                && ast_class.name.value != name {
                     return Ok(vec![]);
                 }
-            }
             Ok(vec![PositionSymbol::Range(ast_class.name.range)])
         }
         ast::types::AstThing::Interface(ast_interface) => {
-            if let Some(name) = name {
-                if ast_interface.name.value != name {
+            if let Some(name) = name
+                && ast_interface.name.value != name {
                     return Ok(vec![]);
                 }
-            }
             Ok(vec![PositionSymbol::Range(ast_interface.name.range)])
         }
         ast::types::AstThing::Enumeration(ast_enumeration) => {
-            if let Some(name) = name {
-                if ast_enumeration.name.value != name {
+            if let Some(name) = name
+                && ast_enumeration.name.value != name {
                     return Ok(vec![]);
                 }
-            }
             Ok(vec![PositionSymbol::Range(ast_enumeration.name.range)])
         }
         ast::types::AstThing::Annotation(ast_annotation) => {
-            if let Some(name) = name {
-                if ast_annotation.name.value != name {
+            if let Some(name) = name
+                && ast_annotation.name.value != name {
                     return Ok(vec![]);
                 }
-            }
             Ok(vec![PositionSymbol::Range(ast_annotation.name.range)])
         }
     }

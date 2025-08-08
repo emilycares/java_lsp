@@ -204,11 +204,10 @@ async fn load_jmods(
                 let jmod_executable = jmod_executable.clone();
                 let jmods_dir = jmods_dir.clone();
                 if let Ok(jmod) = jmod {
-                    if let Ok(ft) = jmod.file_type() {
-                        if !ft.is_file() {
+                    if let Ok(ft) = jmod.file_type()
+                        && !ft.is_file() {
                             continue;
                         }
-                    }
                     let jmod = jmod.path();
                     if let Some(jmod_name) = jmod
                         .file_name()
@@ -299,23 +298,21 @@ async fn unzip_to_dir(dir: &Path, zip: &PathBuf) -> Result<(), JdkError> {
 async fn get_work_dirs() -> Result<(PathBuf, PathBuf), JdkError> {
     let mut java_path =
         java_executable_location().expect("There should be a java executabel in path");
-    if java_path.is_symlink() {
-        if let Ok(linked) = fs::read_link(&java_path) {
+    if java_path.is_symlink()
+        && let Ok(linked) = fs::read_link(&java_path) {
             java_path = linked;
         }
-    }
     let version = get_java_version(&java_path).await?;
     java_path.pop();
     let mut java_folder = java_path.clone();
     java_folder.pop();
-    if let Some(java_folder_name) = java_folder.file_name() {
-        if let Some(java_folder_name) = java_folder_name.to_str() {
+    if let Some(java_folder_name) = java_folder.file_name()
+        && let Some(java_folder_name) = java_folder_name.to_str() {
             let jdk_name = format!("{}_{}", java_folder_name, version);
             let op_dir = opdir(jdk_name);
 
             return Ok((java_path, op_dir));
         }
-    }
     Err(JdkError::WorkDir)
 }
 

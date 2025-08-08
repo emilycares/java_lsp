@@ -200,8 +200,8 @@ pub fn call_chain_hover(
             filled_params,
             range: _,
         } => {
-            if let Some(active_param) = active_param {
-                if let Some(current_param) = filled_params.get(*active_param) {
+            if let Some(active_param) = active_param
+                && let Some(current_param) = filled_params.get(*active_param) {
                     return call_chain_hover(
                         document,
                         current_param.clone(),
@@ -212,7 +212,6 @@ pub fn call_chain_hover(
                         class_map,
                     );
                 }
-            }
             Err(HoverError::ArgumentNotFound)
         }
         CallItem::This { range: _ } => Err(HoverError::Unimlemented),

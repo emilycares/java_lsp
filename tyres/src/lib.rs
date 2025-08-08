@@ -308,9 +308,9 @@ fn call_chain_op(
             filled_params,
         } => {
             if resolve_argument {
-                if let Some(active_param) = active_param {
-                    if let Some(current_param) = filled_params.get(*active_param) {
-                        if !current_param.is_empty() {
+                if let Some(active_param) = active_param
+                    && let Some(current_param) = filled_params.get(*active_param)
+                        && !current_param.is_empty() {
                             return resolve_call_chain(
                                 current_param,
                                 lo_va,
@@ -319,8 +319,6 @@ fn call_chain_op(
                                 class_map,
                             );
                         }
-                    }
-                }
                 return resolve_call_chain(prev, lo_va, imports, class, class_map);
             }
             resolve_call_chain(prev, lo_va, imports, class, class_map)
