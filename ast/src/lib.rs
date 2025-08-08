@@ -306,7 +306,7 @@ fn parse_value_array(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, 
             pos = npos;
             continue;
         }
-        let (value, npos) = parse_recursive_expression(tokens, pos)?;
+        let (value, npos) = parse_expression(tokens, pos)?;
         pos = npos;
         values.push(value);
         if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
@@ -614,7 +614,7 @@ fn parse_value_operator(
 fn parse_expression_parameters(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(Vec<AstRecursiveExpression>, usize), AstError> {
+) -> Result<(Vec<AstBaseExpression>, usize), AstError> {
     let mut pos = assert_token(tokens, pos, Token::LeftParen)?;
     let mut out = vec![];
     loop {
@@ -626,7 +626,7 @@ fn parse_expression_parameters(
             pos = npos;
             continue;
         }
-        let (expression, npos) = parse_recursive_expression(tokens, pos)?;
+        let (expression, npos) = parse_expression(tokens, pos)?;
         pos = npos;
         out.push(expression);
         if let Ok(npos) = assert_token(tokens, pos, Token::RightParen) {
@@ -660,6 +660,12 @@ fn parse_expression(
     pos: usize,
 ) -> Result<(AstBaseExpression, usize), AstError> {
     let mut errors = vec![];
+    match parse_lambda(tokens, pos) {
+        Ok((casted, pos)) => {
+            return Ok((AstBaseExpression::Lambda(casted), pos));
+        }
+        Err(e) => errors.push(("lambda".into(), e)),
+    }
     match parse_casted_expression(tokens, pos) {
         Ok((casted, pos)) => {
             return Ok((AstBaseExpression::Casted(casted), pos));

@@ -201,6 +201,14 @@ fn lambda_2() {
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
+#[test]
+fn lambda_in_expression() {
+    let content = "numbers.forEach( (n) -> { System.out.println(n); } )";
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_recursive_expression(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
 
 #[test]
 fn equal_expr() {

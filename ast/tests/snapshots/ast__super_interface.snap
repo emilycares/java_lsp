@@ -1,7 +1,6 @@
 ---
 source: ast/tests/ast.rs
 expression: parsed.unwrap()
-snapshot_kind: text
 ---
 AstFile {
     package: AstIdentifier {
@@ -501,105 +500,109 @@ AstFile {
                                                                                 },
                                                                             },
                                                                             values: [
-                                                                                AstRecursiveExpression {
-                                                                                    range: AstRange {
-                                                                                        start: AstPoint {
-                                                                                            line: 10,
-                                                                                            col: 36,
-                                                                                        },
-                                                                                        end: AstPoint {
-                                                                                            line: 10,
-                                                                                            col: 49,
-                                                                                        },
-                                                                                    },
-                                                                                    ident: Some(
-                                                                                        Identifier(
-                                                                                            AstIdentifier {
-                                                                                                range: AstRange {
-                                                                                                    start: AstPoint {
-                                                                                                        line: 10,
-                                                                                                        col: 36,
-                                                                                                    },
-                                                                                                    end: AstPoint {
-                                                                                                        line: 10,
-                                                                                                        col: 47,
-                                                                                                    },
-                                                                                                },
-                                                                                                value: "spliterator",
+                                                                                Recursive(
+                                                                                    AstRecursiveExpression {
+                                                                                        range: AstRange {
+                                                                                            start: AstPoint {
+                                                                                                line: 10,
+                                                                                                col: 36,
                                                                                             },
-                                                                                        ),
-                                                                                    ),
-                                                                                    values: None,
-                                                                                    next: Some(
-                                                                                        AstRecursiveExpression {
-                                                                                            range: AstRange {
-                                                                                                start: AstPoint {
-                                                                                                    line: 10,
-                                                                                                    col: 47,
-                                                                                                },
-                                                                                                end: AstPoint {
-                                                                                                    line: 10,
-                                                                                                    col: 49,
-                                                                                                },
+                                                                                            end: AstPoint {
+                                                                                                line: 10,
+                                                                                                col: 49,
                                                                                             },
-                                                                                            ident: None,
-                                                                                            values: Some(
-                                                                                                AstValues {
+                                                                                        },
+                                                                                        ident: Some(
+                                                                                            Identifier(
+                                                                                                AstIdentifier {
                                                                                                     range: AstRange {
                                                                                                         start: AstPoint {
                                                                                                             line: 10,
-                                                                                                            col: 47,
+                                                                                                            col: 36,
                                                                                                         },
                                                                                                         end: AstPoint {
                                                                                                             line: 10,
-                                                                                                            col: 49,
+                                                                                                            col: 47,
                                                                                                         },
                                                                                                     },
-                                                                                                    values: [],
+                                                                                                    value: "spliterator",
                                                                                                 },
                                                                                             ),
-                                                                                            next: None,
-                                                                                            operator: None,
-                                                                                        },
-                                                                                    ),
-                                                                                    operator: None,
-                                                                                },
-                                                                                AstRecursiveExpression {
-                                                                                    range: AstRange {
-                                                                                        start: AstPoint {
-                                                                                            line: 10,
-                                                                                            col: 51,
-                                                                                        },
-                                                                                        end: AstPoint {
-                                                                                            line: 10,
-                                                                                            col: 56,
-                                                                                        },
-                                                                                    },
-                                                                                    ident: Some(
-                                                                                        Value(
-                                                                                            Nuget(
-                                                                                                BooleanLiteral(
-                                                                                                    AstBoolean {
+                                                                                        ),
+                                                                                        values: None,
+                                                                                        next: Some(
+                                                                                            AstRecursiveExpression {
+                                                                                                range: AstRange {
+                                                                                                    start: AstPoint {
+                                                                                                        line: 10,
+                                                                                                        col: 47,
+                                                                                                    },
+                                                                                                    end: AstPoint {
+                                                                                                        line: 10,
+                                                                                                        col: 49,
+                                                                                                    },
+                                                                                                },
+                                                                                                ident: None,
+                                                                                                values: Some(
+                                                                                                    AstValues {
                                                                                                         range: AstRange {
                                                                                                             start: AstPoint {
                                                                                                                 line: 10,
-                                                                                                                col: 51,
+                                                                                                                col: 47,
                                                                                                             },
                                                                                                             end: AstPoint {
                                                                                                                 line: 10,
-                                                                                                                col: 56,
+                                                                                                                col: 49,
                                                                                                             },
                                                                                                         },
-                                                                                                        value: false,
+                                                                                                        values: [],
                                                                                                     },
+                                                                                                ),
+                                                                                                next: None,
+                                                                                                operator: None,
+                                                                                            },
+                                                                                        ),
+                                                                                        operator: None,
+                                                                                    },
+                                                                                ),
+                                                                                Recursive(
+                                                                                    AstRecursiveExpression {
+                                                                                        range: AstRange {
+                                                                                            start: AstPoint {
+                                                                                                line: 10,
+                                                                                                col: 51,
+                                                                                            },
+                                                                                            end: AstPoint {
+                                                                                                line: 10,
+                                                                                                col: 56,
+                                                                                            },
+                                                                                        },
+                                                                                        ident: Some(
+                                                                                            Value(
+                                                                                                Nuget(
+                                                                                                    BooleanLiteral(
+                                                                                                        AstBoolean {
+                                                                                                            range: AstRange {
+                                                                                                                start: AstPoint {
+                                                                                                                    line: 10,
+                                                                                                                    col: 51,
+                                                                                                                },
+                                                                                                                end: AstPoint {
+                                                                                                                    line: 10,
+                                                                                                                    col: 56,
+                                                                                                                },
+                                                                                                            },
+                                                                                                            value: false,
+                                                                                                        },
+                                                                                                    ),
                                                                                                 ),
                                                                                             ),
                                                                                         ),
-                                                                                    ),
-                                                                                    values: None,
-                                                                                    next: None,
-                                                                                    operator: None,
-                                                                                },
+                                                                                        values: None,
+                                                                                        next: None,
+                                                                                        operator: None,
+                                                                                    },
+                                                                                ),
                                                                             ],
                                                                         },
                                                                     ),

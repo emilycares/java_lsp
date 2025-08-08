@@ -363,7 +363,7 @@ pub enum AstSuperClass {
 pub struct AstAnnotated {
     pub range: AstRange,
     pub name: AstIdentifier,
-    pub parameters: Vec<AstRecursiveExpression>,
+    pub parameters: Vec<AstBaseExpression>,
 }
 
 #[derive(Debug)]
@@ -448,6 +448,7 @@ pub enum AstValueNuget {
 pub enum AstBaseExpression {
     Casted(AstCastedExpression),
     Recursive(AstRecursiveExpression),
+    Lambda(AstLambda),
 }
 #[derive(Debug)]
 pub struct AstCastedExpression {
@@ -474,7 +475,7 @@ pub enum AstExpressionIdentifier {
 #[derive(Debug)]
 pub struct AstValues {
     pub range: AstRange,
-    pub values: Vec<AstRecursiveExpression>,
+    pub values: Vec<AstBaseExpression>,
 }
 impl AstRecursiveExpression {
     pub fn has_content(&self) -> bool {
@@ -497,7 +498,7 @@ pub struct AstLambdaParameters {
 pub struct AstValueNewClass {
     pub range: AstRange,
     pub jtype: AstJType,
-    pub parameters: Vec<AstRecursiveExpression>,
+    pub parameters: Vec<AstBaseExpression>,
 }
 
 #[derive(Debug)]
@@ -579,5 +580,5 @@ pub struct AstEnumeration {
 pub struct AstEnumerationVariant {
     pub range: AstRange,
     pub name: AstIdentifier,
-    pub parameters: Vec<AstRecursiveExpression>,
+    pub parameters: Vec<AstBaseExpression>,
 }
