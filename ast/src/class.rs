@@ -1,3 +1,4 @@
+//! Parsing functions for class
 use crate::{
     error::{AstError, assert_token},
     lexer::{PositionToken, Token},
@@ -5,11 +6,12 @@ use crate::{
     parse_method_header, parse_method_paramerters, parse_name, parse_name_single,
     parse_recursive_expression, parse_superclass,
     types::{
-        AstAnnotated, AstAvailability, AstClass, AstClassConstructor, AstClassMethod,
-        AstClassVariable, AstRange, AstStaticFinal, AstThing,
+        AstAnnotated, AstAvailability, AstClass, AstClassBlock, AstClassConstructor,
+        AstClassMethod, AstClassVariable, AstRange, AstStaticFinal, AstThing,
     },
 };
 
+/// `Name { ... }`
 pub fn parse_class(
     tokens: &[PositionToken],
     pos: usize,
@@ -19,6 +21,29 @@ pub fn parse_class(
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let (name, pos) = parse_identifier(tokens, pos)?;
     let (superclass, pos) = parse_superclass(tokens, pos)?;
+    let (block, pos) = parse_class_block(tokens, pos)?;
+    dbg!("e");
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    dbg!("class end ");
+
+    Ok((
+        AstThing::Class(AstClass {
+            range: AstRange::from_position_token(start, end),
+            avaliability,
+            annotated,
+            name,
+            superclass,
+            block,
+        }),
+        pos,
+    ))
+}
+
+/// `{ ... }`
+pub fn parse_class_block(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstClassBlock, usize), AstError> {
     let pos = assert_token(tokens, pos, Token::LeftParenCurly)?;
     let mut variables = vec![];
     let mut methods = vec![];
@@ -26,14 +51,13 @@ pub fn parse_class(
     let mut pos = pos;
     let mut errors = vec![];
     loop {
-        errors.clear();
-        if tokens.get(pos).is_none() {
-            break;
-        }
         if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
+            dbg!("class block end curly");
             pos = npos;
             break;
         };
+        errors.clear();
+        dbg!("class ay");
         match parse_class_variable(tokens, pos) {
             Ok((variable, npos)) => {
                 pos = npos;
@@ -58,6 +82,7 @@ pub fn parse_class(
             Ok((method, npos)) => {
                 pos = npos;
                 methods.push(method);
+                dbg!("method");
                 continue;
             }
             Err(e) => {
@@ -69,22 +94,17 @@ pub fn parse_class(
             errors,
         });
     }
-    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
-
+    dbg!("ge");
     Ok((
-        AstThing::Class(AstClass {
-            range: AstRange::from_position_token(start, end),
-            avaliability,
-            annotated,
-            name,
-            superclass,
+        AstClassBlock {
             variables,
             methods,
             constructors,
-        }),
+        },
         pos,
     ))
 }
+/// `private Variants(String tag) { ... }`
 pub fn parse_class_constructor(
     tokens: &[PositionToken],
     pos: usize,
@@ -109,6 +129,7 @@ pub fn parse_class_constructor(
         pos,
     ))
 }
+/// `private final String tag;`
 pub fn parse_class_variable(
     tokens: &[PositionToken],
     pos: usize,
@@ -155,6 +176,7 @@ pub fn parse_class_variable(
         pos,
     ))
 }
+/// `public String getTag() { ... }`
 pub fn parse_class_method(
     tokens: &[PositionToken],
     pos: usize,
@@ -163,7 +185,6 @@ pub fn parse_class_method(
     let (annotated, pos) = parse_annotated_list(tokens, pos)?;
     let (header, pos) = parse_method_header(tokens, pos, AstAvailability::Protected)?;
     let (block, pos) = parse_block(tokens, pos)?;
-
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstClassMethod {

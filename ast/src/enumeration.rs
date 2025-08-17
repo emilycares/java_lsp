@@ -1,3 +1,4 @@
+//! Parsing functions for enum
 use crate::{
     class::{parse_class_constructor, parse_class_method, parse_class_variable},
     error::{AstError, assert_token},
@@ -6,6 +7,7 @@ use crate::{
     types::{AstAnnotated, AstAvailability, AstEnumerationVariant, AstRange, AstThing},
 };
 
+/// `AAA { ... }`
 pub fn parse_enumeration(
     tokens: &[PositionToken],
     pos: usize,
@@ -95,6 +97,8 @@ pub fn parse_enumeration(
         pos,
     ))
 }
+/// `A`
+/// `A("a")`
 pub fn parse_enum_variant(
     tokens: &[PositionToken],
     pos: usize,

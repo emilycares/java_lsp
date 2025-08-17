@@ -1,3 +1,4 @@
+//! Parsing functions for interface
 use crate::{
     error::{AstError, assert_token},
     lexer::{PositionToken, Token},
@@ -9,6 +10,7 @@ use crate::{
     },
 };
 
+/// `Named { ... }`
 pub fn parse_interface(
     tokens: &[PositionToken],
     pos: usize,
@@ -96,6 +98,7 @@ pub fn parse_interface(
     ))
 }
 
+/// `public String CONSTANT_A = "A";`
 pub fn parse_interface_constant(
     tokens: &[PositionToken],
     pos: usize,
@@ -122,6 +125,7 @@ pub fn parse_interface_constant(
     ))
 }
 
+/// `public static<A> A a(final A arg) {`
 pub fn parse_interface_method(
     tokens: &[PositionToken],
     pos: usize,
@@ -141,6 +145,7 @@ pub fn parse_interface_method(
     ))
 }
 
+/// ` default Stream<E> stream() { ... }`
 pub fn parse_interface_method_impl(
     tokens: &[PositionToken],
     pos: usize,

@@ -17,30 +17,34 @@ pub fn get_class_position(
     match &ast.thing {
         ast::types::AstThing::Class(ast_class) => {
             if let Some(name) = name
-                && ast_class.name.value != name {
-                    return Ok(vec![]);
-                }
+                && ast_class.name.value != name
+            {
+                return Ok(vec![]);
+            }
             Ok(vec![PositionSymbol::Range(ast_class.name.range)])
         }
         ast::types::AstThing::Interface(ast_interface) => {
             if let Some(name) = name
-                && ast_interface.name.value != name {
-                    return Ok(vec![]);
-                }
+                && ast_interface.name.value != name
+            {
+                return Ok(vec![]);
+            }
             Ok(vec![PositionSymbol::Range(ast_interface.name.range)])
         }
         ast::types::AstThing::Enumeration(ast_enumeration) => {
             if let Some(name) = name
-                && ast_enumeration.name.value != name {
-                    return Ok(vec![]);
-                }
+                && ast_enumeration.name.value != name
+            {
+                return Ok(vec![]);
+            }
             Ok(vec![PositionSymbol::Range(ast_enumeration.name.range)])
         }
         ast::types::AstThing::Annotation(ast_annotation) => {
             if let Some(name) = name
-                && ast_annotation.name.value != name {
-                    return Ok(vec![]);
-                }
+                && ast_annotation.name.value != name
+            {
+                return Ok(vec![]);
+            }
             Ok(vec![PositionSymbol::Range(ast_annotation.name.range)])
         }
     }
@@ -53,6 +57,7 @@ pub fn get_method_positions(bytes: &[u8], name: &str) -> Result<Vec<PositionSymb
 
     match &ast.thing {
         ast::types::AstThing::Class(ast_class) => Ok(ast_class
+            .block
             .methods
             .iter()
             .map(|i| &i.header.name)
@@ -84,6 +89,7 @@ pub fn get_field_positions(bytes: &[u8], name: &str) -> Result<Vec<PositionSymbo
 
     match &ast.thing {
         ast::types::AstThing::Class(ast_class) => Ok(ast_class
+            .block
             .variables
             .iter()
             .map(|i| &i.name)

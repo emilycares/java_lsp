@@ -1,17 +1,24 @@
+//! Range type and methods
 use crate::types::{
     AstBlockEntry, AstClassMethod, AstIf, AstIfContent, AstPoint, AstRange, AstValue, AstValueNuget,
 };
 
+/// Join two ranges a must be before b
 pub fn add_ranges(a: AstRange, b: AstRange) -> AstRange {
+    assert!(a.end < b.start);
     AstRange {
         start: a.start,
         end: b.end,
     }
 }
+/// Helper to check if ranged type is after of point
 pub trait AstAfterRange {
+    /// if ranged type is after of point
     fn is_after_range(&self, point: &AstPoint) -> bool;
 }
+/// Helper to check if ranged type is inside of point
 pub trait AstInRange {
+    /// if ranged type is inside of point
     fn is_in_range(&self, point: &AstPoint) -> bool;
 }
 
@@ -49,6 +56,10 @@ impl AstInRange for &AstBlockEntry {
             }
             AstBlockEntry::TryCatch(ast_try_catch) => ast_try_catch.range.is_in_range(point),
             AstBlockEntry::Throw(ast_throw) => ast_throw.range.is_in_range(point),
+            AstBlockEntry::SwitchCaseArrow(ast_switch_case_arrow) => {
+                ast_switch_case_arrow.range.is_in_range(point)
+            }
+            AstBlockEntry::Yield(ast_block_yield) => ast_block_yield.range.is_in_range(point),
         }
     }
 }

@@ -81,6 +81,7 @@ pub fn get_call_chain(ast: &AstFile, point: &AstPoint) -> Option<Vec<CallItem>> 
         AstThing::Class(ast_class) => {
             out.extend(
                 ast_class
+                    .block
                     .variables
                     .iter()
                     .filter(|i| i.range.is_in_range(point))
@@ -94,6 +95,7 @@ pub fn get_call_chain(ast: &AstFile, point: &AstPoint) -> Option<Vec<CallItem>> 
             );
             out.extend(
                 ast_class
+                    .block
                     .methods
                     .iter()
                     .filter(|i| i.range.is_in_range(point))
@@ -108,6 +110,7 @@ pub fn get_call_chain(ast: &AstFile, point: &AstPoint) -> Option<Vec<CallItem>> 
             );
             out.extend(
                 ast_class
+                    .block
                     .constructors
                     .iter()
                     .filter(|i| i.range.is_in_range(point))
@@ -152,7 +155,7 @@ fn cc_annotated(annotated: &[AstAnnotated], point: &AstPoint) -> Option<Vec<Call
         let param = a
             .parameters
             .iter()
-            .min_by_key(|expression| dist(point, &expression.range));
+            .min_by_key(|expression| dist(point, ast_expression_get_range(expression)));
 
         let mut out = vec![];
         if let Some(p) = param {
@@ -164,6 +167,15 @@ fn cc_annotated(annotated: &[AstAnnotated], point: &AstPoint) -> Option<Vec<Call
         return Some(out);
     }
     None
+}
+
+fn ast_expression_get_range(expression: &AstBaseExpression) -> &AstRange {
+    match expression {
+        AstBaseExpression::Casted(ast_casted_expression) => &ast_casted_expression.range,
+        AstBaseExpression::Recursive(ast_recursive_expression) => &ast_recursive_expression.range,
+        AstBaseExpression::Lambda(ast_lambda) => &ast_lambda.range,
+        AstBaseExpression::InlineSwitch(ast_switch) => &ast_switch.range,
+    }
 }
 
 pub fn validate(call_chain: &[CallItem], point: &AstPoint) -> (usize, Vec<CallItem>) {
@@ -196,9 +208,10 @@ pub fn validate(call_chain: &[CallItem], point: &AstPoint) -> (usize, Vec<CallIt
                     }
                 }
                 if let Some(r) = prevs
-                    && r.is_in_range(point) {
-                        return true;
-                    }
+                    && r.is_in_range(point)
+                {
+                    return true;
+                }
                 false
             }
         })
@@ -241,6 +254,10 @@ fn dist_block_entry(point: &AstPoint, entry: &AstBlockEntry) -> usize {
         AstBlockEntry::SwitchDefault(ast_switch_default) => dist(point, &ast_switch_default.range),
         AstBlockEntry::TryCatch(ast_try_catch) => dist(point, &ast_try_catch.range),
         AstBlockEntry::Throw(ast_throw) => dist(point, &ast_throw.range),
+        AstBlockEntry::SwitchCaseArrow(ast_switch_case_arrow) => {
+            dist(point, &ast_switch_case_arrow.range)
+        }
+        AstBlockEntry::Yield(ast_block_yield) => dist(point, &ast_block_yield.range),
     }
 }
 
@@ -327,6 +344,8 @@ fn cc_block_entrie(entry: &AstBlockEntry, point: &AstPoint) -> Option<Vec<CallIt
         AstBlockEntry::SwitchDefault(_ast_switch_default) => todo!(),
         AstBlockEntry::TryCatch(_ast_try_catch) => todo!(),
         AstBlockEntry::Throw(_ast_throw) => todo!(),
+        AstBlockEntry::SwitchCaseArrow(_ast_switch_case_arrow) => todo!(),
+        AstBlockEntry::Yield(_ast_block_yield) => todo!(),
     }
 }
 
@@ -443,6 +462,8 @@ fn cc_base_expression(
         AstBaseExpression::Recursive(ast_recursive_expression) => {
             cc_recursive_expression(ast_recursive_expression, point)
         }
+        AstBaseExpression::Lambda(_ast_lambda) => todo!(),
+        AstBaseExpression::InlineSwitch(_ast_switch) => todo!(),
     }
 }
 
@@ -451,11 +472,19 @@ fn cc_recursive_expression(
     point: &AstPoint,
 ) -> Option<Vec<CallItem>> {
     let mut out = vec![];
-    cc_expr(ast_expression, point, false, &mut out);
+    cc_expr_recursive(ast_expression, point, false, &mut out);
     Some(out)
 }
 
 fn cc_expr(
+    ast_expression: &AstBaseExpression,
+    point: &AstPoint,
+    has_parent: bool,
+    out: &mut Vec<CallItem>,
+) {
+}
+
+fn cc_expr_recursive(
     ast_expression: &AstRecursiveExpression,
     point: &AstPoint,
     has_parent: bool,
@@ -480,20 +509,21 @@ fn cc_expr(
         | AstExpressionOperator::VerticalBar(_)
         | AstExpressionOperator::VerticalBarVerticalBar(_) => {
             if let Some(ident) = &ast_expression.ident
-                && let Some(next) = &ast_expression.next {
-                    let a = dist(point, &next.as_ref().range);
-                    let b = dist(point, &next.range);
+                && let Some(next) = &ast_expression.next
+            {
+                let a = dist(point, &next.as_ref().range);
+                let b = dist(point, &next.range);
 
-                    if a < b {
-                        let mut has_args = false;
-                        if let Some(n) = &ast_expression.next {
-                            has_args = n.values.is_some();
-                        }
-                        cc_expr_ident(ident, has_args, has_parent, out);
-                    } else {
-                        cc_expr(next.as_ref(), point, true, out);
+                if a < b {
+                    let mut has_args = false;
+                    if let Some(n) = &ast_expression.next {
+                        has_args = n.values.is_some();
                     }
+                    cc_expr_ident(ident, has_args, has_parent, out);
+                } else {
+                    cc_expr(next.as_ref(), point, true, out);
                 }
+            }
         }
         AstExpressionOperator::None
         | AstExpressionOperator::QuestionMark(_)

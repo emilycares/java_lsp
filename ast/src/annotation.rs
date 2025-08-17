@@ -1,3 +1,4 @@
+//! Parsing functions for defining annotation
 use crate::{
     error::{AstError, assert_token},
     lexer::{PositionToken, Token},
@@ -5,6 +6,7 @@ use crate::{
     types::{AstAnnotated, AstAnnotation, AstAnnotationField, AstAvailability, AstRange, AstThing},
 };
 
+/// @Overwride
 pub fn parse_annotation(
     tokens: &[PositionToken],
     pos: usize,
@@ -52,6 +54,8 @@ pub fn parse_annotation(
     ))
 }
 
+/// @SomeAnnotation("hehe")
+///                 ------
 pub fn parse_annotation_field(
     tokens: &[PositionToken],
     pos: usize,

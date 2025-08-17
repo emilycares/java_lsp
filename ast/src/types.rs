@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 use smol_str::SmolStr;
 
 use crate::lexer::PositionToken;
@@ -105,6 +106,10 @@ pub struct AstClass {
     pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
     pub superclass: AstSuperClass,
+    pub block: AstClassBlock,
+}
+#[derive(Debug)]
+pub struct AstClassBlock {
     pub variables: Vec<AstClassVariable>,
     pub methods: Vec<AstClassMethod>,
     pub constructors: Vec<AstClassConstructor>,
@@ -188,6 +193,8 @@ pub enum AstBlockEntry {
     SwitchDefault(AstSwitchDefault),
     TryCatch(AstTryCatch),
     Throw(AstThrow),
+    SwitchCaseArrow(AstSwitchCaseArrow),
+    Yield(AstBlockYield),
 }
 #[derive(Debug)]
 pub struct AstWhile {
@@ -215,6 +222,12 @@ pub struct AstSwitch {
 pub struct AstSwitchCase {
     pub range: AstRange,
     pub value: AstValue,
+}
+#[derive(Debug)]
+pub struct AstSwitchCaseArrow {
+    pub range: AstRange,
+    pub values: Vec<AstValue>,
+    pub block: AstBlock,
 }
 #[derive(Debug)]
 pub struct AstSwitchDefault {
@@ -300,6 +313,11 @@ pub struct AstBlockVariableMutliType {
 
 #[derive(Debug)]
 pub struct AstBlockReturn {
+    pub range: AstRange,
+    pub expression: Option<AstRecursiveExpression>,
+}
+#[derive(Debug)]
+pub struct AstBlockYield {
     pub range: AstRange,
     pub expression: Option<AstRecursiveExpression>,
 }
@@ -449,6 +467,7 @@ pub enum AstBaseExpression {
     Casted(AstCastedExpression),
     Recursive(AstRecursiveExpression),
     Lambda(AstLambda),
+    InlineSwitch(AstSwitch),
 }
 #[derive(Debug)]
 pub struct AstCastedExpression {
@@ -499,6 +518,7 @@ pub struct AstValueNewClass {
     pub range: AstRange,
     pub jtype: AstJType,
     pub parameters: Vec<AstBaseExpression>,
+    pub block: Option<AstClassBlock>,
 }
 
 #[derive(Debug)]

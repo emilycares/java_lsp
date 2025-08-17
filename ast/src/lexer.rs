@@ -1,21 +1,28 @@
+//! Transform document into a token vector
 use phf::phf_map;
 use smol_str::SmolStr;
 
 use crate::types::AstPoint;
 
+/// Position in document
 #[derive(Debug, PartialEq, Clone)]
 pub struct PositionToken {
+    /// Data
     pub token: Token,
+    /// line in file
     pub line: usize,
+    /// column in file
     pub col: usize,
 }
 impl PositionToken {
+    /// Start point of Token
     pub fn start_point(&self) -> AstPoint {
         AstPoint {
             line: self.line,
             col: self.col,
         }
     }
+    /// End point of Token
     pub fn end_point(&self) -> AstPoint {
         AstPoint {
             line: self.line,
@@ -25,6 +32,7 @@ impl PositionToken {
 }
 
 impl Token {
+    /// Length of token
     pub fn len(&self) -> usize {
         match self {
             Token::Identifier(i) => i.len(),
@@ -107,6 +115,7 @@ impl Token {
         }
     }
 
+    /// string version of token
     pub fn to_string(&self) -> SmolStr {
         match self {
             Token::Identifier(smol_str) => smol_str.clone(),
@@ -189,93 +198,173 @@ impl Token {
     }
 
     #[must_use]
+    /// if empty
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 }
 
+/// Tokens of document
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
+    /// Data
     Identifier(SmolStr),
+    /// 123
     Number(i64),
+    /// (
     LeftParen,
+    /// )
     RightParen,
+    /// +
     Plus,
+    /// -
     Dash,
+    /// *
     Star,
+    /// .
     Dot,
+    /// ;
     Semicolon,
+    /// :
     Colon,
+    /// %
     Percent,
+    /// &
     Ampersand,
+    /// |
     VerticalBar,
+    /// {
     LeftParenCurly,
+    /// }
     RightParenCurly,
+    /// ,
     Comma,
+    /// if
     If,
+    /// while
     While,
+    /// for
     For,
+    /// package
     Package,
+    /// import
     Import,
+    /// public
     Public,
+    /// private
     Private,
+    /// protected
     Protected,
+    /// class
     Class,
+    /// interface
     Interface,
+    /// enum
     Enum,
+    /// void
     Void,
+    /// throws
     Throws,
+    /// int
     Int,
+    /// double
     Double,
+    /// float
     Float,
+    /// /
     Slash,
+    /// \
     BackSlash,
+    /// @
     At,
+    /// <=
     Le,
+    /// <
     Lt,
+    /// >=
     Ge,
+    /// >
     Gt,
+    /// extends
     Extends,
+    /// implements
     Implements,
+    /// true
     True,
+    /// false
     False,
+    /// ==
     EqualDouble,
+    /// =
     Equal,
+    /// !=
     Ne,
+    /// !
     ExclamationMark,
+    /// "
     DoubleQuote,
+    /// '
     SingleQuote,
+    /// new
     New,
+    /// return
     Return,
+    /// ?
     QuestionMark,
+    /// char
     Char,
+    /// boolean
     Boolean,
+    /// byte
     Byte,
+    /// short
     Short,
+    /// long
     Long,
+    /// static
     Static,
+    /// final
     Final,
+    /// defautl
     Default,
+    /// [
     LeftParenSquare,
+    /// ]
     RightParenSquare,
+    /// else
     Else,
+    /// break
     Break,
+    /// continue
     Continue,
+    /// switch
     Switch,
+    /// case
     Case,
+    /// do
     Do,
+    /// try
     Try,
+    /// catch
     Catch,
+    /// finally
     Finally,
+    /// throw
     Throw,
+    /// yield
     Yield,
+    /// var
     Var,
+    /// this
     This,
+    /// _
     Underscore,
 }
 
+/// Error during lex function
 #[derive(Debug, PartialEq)]
 pub enum LexerError {
+    /// Not implmented
     UnknwonChar(char),
 }
 
@@ -325,6 +414,7 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
     "this" => Token::This,
 };
 
+/// Output token vec for document
 pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
     let mut tokens = Vec::new();
     let chars: Vec<char> = input.chars().collect();
@@ -705,6 +795,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
     Ok(tokens)
 }
 
+/// tests
 #[cfg(test)]
 pub mod tests {
     use crate::lexer::{self};

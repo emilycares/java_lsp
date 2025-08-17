@@ -49,8 +49,8 @@ pub fn load_java_tree(
     match &ast.thing {
         AstThing::Class(class) => {
             name = class.name.value.clone();
-            methods.extend(class.methods.iter().map(convert_class_method));
-            fields.extend(class.variables.iter().map(convert_class_field));
+            methods.extend(class.block.methods.iter().map(convert_class_method));
+            fields.extend(class.block.variables.iter().map(convert_class_field));
             super_class = match &class.superclass {
                 ast::types::AstSuperClass::None => dto::SuperClass::None,
                 ast::types::AstSuperClass::Name(ast_identifier) => {
@@ -251,17 +251,19 @@ fn check_type_parameters(
     };
 
     if let dto::JType::Class(ref p) = jtype
-        && type_parameters.parameters.iter().any(|i| i.value == *p) {
-            return dto::JType::Parameter(p.to_owned());
-        }
+        && type_parameters.parameters.iter().any(|i| i.value == *p)
+    {
+        return dto::JType::Parameter(p.to_owned());
+    }
     if let dto::JType::Generic(name, params) = jtype {
         let params = params
             .iter()
             .map(|i| {
                 if let dto::JType::Class(p) = i
-                    && type_parameters.parameters.iter().any(|i| i.value == *p) {
-                        return dto::JType::Parameter(p.to_owned());
-                    }
+                    && type_parameters.parameters.iter().any(|i| i.value == *p)
+                {
+                    return dto::JType::Parameter(p.to_owned());
+                }
                 i.clone()
             })
             .collect();

@@ -63,8 +63,8 @@ pub fn get_vars(
     match &document.ast.thing {
         AstThing::Class(ast_class) => {
             let level = level + 1;
-            out.extend(get_class_variables(&ast_class.variables, level));
-            out.extend(get_class_methods(&ast_class.methods, point, level));
+            out.extend(get_class_variables(&ast_class.block.variables, level));
+            out.extend(get_class_methods(&ast_class.block.methods, point, level));
         }
         AstThing::Interface(ast_interface) => {
             let level = level + 1;
@@ -132,6 +132,8 @@ fn get_block_vars(block: &AstBlock, point: &AstPoint, level: usize) -> Vec<Local
             | AstBlockEntry::Throw(_)
             | AstBlockEntry::SwitchCase(_)
             | AstBlockEntry::SwitchDefault(_)
+            | AstBlockEntry::SwitchCaseArrow(_)
+            | AstBlockEntry::Yield(_)
             | AstBlockEntry::Assign(_) => vec![],
             AstBlockEntry::Variable(i) => vec![LocalVariable::from_block_variable(i, level)],
             AstBlockEntry::If(ast_if) => if_vars(ast_if, point, level),
@@ -221,18 +223,20 @@ fn if_vars(ast_if: &AstIf, point: &AstPoint, level: usize) -> Vec<LocalVariable>
             el,
         } => {
             if range.is_in_range(point)
-                && let AstIfContent::Block(block) = content {
-                    return get_block_vars(block, point, level);
-                }
+                && let AstIfContent::Block(block) = content
+            {
+                return get_block_vars(block, point, level);
+            }
             if let Some(el) = el.as_ref() {
                 return if_vars(el, point, level);
             }
         }
         AstIf::Else { range, content } => {
             if range.is_in_range(point)
-                && let AstIfContent::Block(block) = content {
-                    return get_block_vars(block, point, level);
-                }
+                && let AstIfContent::Block(block) = content
+            {
+                return get_block_vars(block, point, level);
+            }
         }
     }
     vec![]
