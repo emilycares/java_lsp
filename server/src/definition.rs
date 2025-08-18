@@ -149,9 +149,10 @@ pub fn call_chain_definition(
             range: _,
         }) => {
             if let Some(active_param) = active_param
-                && let Some(current_param) = filled_params.get(*active_param) {
-                    return call_chain_definition(current_param, context);
-                }
+                && let Some(current_param) = filled_params.get(*active_param)
+            {
+                return call_chain_definition(current_param, context);
+            }
             Err(DefinitionError::ArgumentNotFound)
         }
         Some(a) => unimplemented!("call_chain_definition {a:?}"),
@@ -243,7 +244,7 @@ public class Test {
         let class =
             parser::java::load_java_tree(&document.ast, parser::loader::SourceDestination::None)
                 .unwrap();
-        let vars = variables::get_vars(&document, &point).unwrap();
+        let vars = variables::get_vars(&document.ast, &point).unwrap();
         let imports = imports::imports(&document);
         let call_chain = call_chain::get_call_chain(&document.ast, &point).unwrap();
         let context = DefinitionContext {
@@ -285,7 +286,7 @@ public class Test {
         let class =
             parser::java::load_java_tree(&document.ast, parser::loader::SourceDestination::None)
                 .unwrap();
-        let vars = variables::get_vars(&document, &point).unwrap();
+        let vars = variables::get_vars(&document.ast, &point).unwrap();
         let imports = imports::imports(&document);
         let call_chain = call_chain::get_call_chain(&document.ast, &point).unwrap();
         let context = DefinitionContext {

@@ -1,7 +1,6 @@
 ---
 source: ast/tests/ast.rs
 expression: parsed.unwrap()
-snapshot_kind: text
 ---
 AstFile {
     package: AstIdentifier {
@@ -160,11 +159,11 @@ AstFile {
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 3,
-                                        col: 26,
+                                        col: 32,
                                     },
                                     end: AstPoint {
                                         line: 3,
-                                        col: 33,
+                                        col: 25,
                                     },
                                 },
                                 value: "Hello",

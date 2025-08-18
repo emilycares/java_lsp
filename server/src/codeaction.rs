@@ -37,6 +37,7 @@ pub fn replace_with_value_type(
     match &ast.thing {
         ast::types::AstThing::Class(ast_class) => {
             let cvars = ast_class
+                .block
                 .variables
                 .iter()
                 .find(|i| i.range.is_in_range(context.point));
@@ -44,6 +45,7 @@ pub fn replace_with_value_type(
                 classvar = Some(v);
             } else {
                 let bvars = ast_class
+                    .block
                     .methods
                     .iter()
                     .find_map(|i| find_var_block(&i.block, context.point));
@@ -216,6 +218,8 @@ fn find_var_block<'a>(
             None
         }
         AstBlockEntry::Throw(_ast_throw) => None,
+        AstBlockEntry::SwitchCaseArrow(_ast_switch_case_arrow) => None,
+        AstBlockEntry::Yield(_ast_block_yield) => None,
     })
 }
 
@@ -261,6 +265,7 @@ pub fn import_text_edit(classpath: &str, ast: &AstFile) -> Vec<TextEdit> {
     }]
 }
 
+#[allow(unused)]
 pub fn import_to_code_action(
     current_file: &Uri,
     classpath: &str,
@@ -322,7 +327,7 @@ public class Test {
             imports: &imports,
             class_map: &get_class_map(),
             class: &class,
-            vars: &variables::get_vars(&doc, &point).unwrap(),
+            vars: &variables::get_vars(&doc.ast, &point).unwrap(),
             current_file: &uri,
         };
         let out = replace_with_value_type(&doc.ast, &context);
@@ -361,7 +366,7 @@ public class Test {
             imports: &imports,
             class_map: &get_class_map(),
             class: &class,
-            vars: &variables::get_vars(&doc, &point).unwrap(),
+            vars: &variables::get_vars(&doc.ast, &point).unwrap(),
             current_file: &uri,
         };
         let out = replace_with_value_type(&doc.ast, &context);
@@ -404,7 +409,7 @@ public class Test {
             imports: &imports,
             class_map: &get_class_map(),
             class: &class,
-            vars: &variables::get_vars(&doc, &point).unwrap(),
+            vars: &variables::get_vars(&doc.ast, &point).unwrap(),
             current_file: &uri,
         };
         let out = replace_with_value_type(&doc.ast, &context);

@@ -182,9 +182,10 @@ impl Backend {
         match self.project_kind {
             ProjectKind::Maven => {
                 if let Some(classpath) = maven::compile::generate_classpath()
-                    && let Some(errors) = compile::compile_java_file(path, &classpath) {
-                        return errors;
-                    }
+                    && let Some(errors) = compile::compile_java_file(path, &classpath)
+                {
+                    return errors;
+                }
             }
             ProjectKind::Gradle {
                 path_build_gradle: _,
@@ -363,7 +364,7 @@ impl Backend {
         let document = self.document_map.get_mut(uri.as_str())?;
         let point = to_ast_point(params.text_document_position_params.position);
         let imports = imports::imports(document.value());
-        let vars = match variables::get_vars(document.value(), &point) {
+        let vars = match variables::get_vars(&document.ast, &point) {
             Ok(v) => Some(v),
             Err(e) => {
                 eprintln!("Could not get vars: {e:?}");
@@ -412,7 +413,7 @@ impl Backend {
         };
         let mut out = vec![];
         let point = to_ast_point(params.position);
-        let vars = match variables::get_vars(document.value(), &point) {
+        let vars = match variables::get_vars(&document.ast, &point) {
             Ok(v) => Some(v),
             Err(e) => {
                 eprintln!("Could not get vars: {e:?}");
@@ -476,7 +477,7 @@ impl Backend {
 
         let point = to_ast_point(params.position);
         let imports = imports::imports(document.value());
-        let vars = match variables::get_vars(document.value(), &point) {
+        let vars = match variables::get_vars(&document.ast, &point) {
             Ok(v) => Some(v),
             Err(e) => {
                 eprintln!("Could not get vars: {e:?}");
@@ -526,7 +527,7 @@ impl Backend {
         };
         let point = to_ast_point(params.position);
         let imports = imports::imports(document.value());
-        let vars = match variables::get_vars(document.value(), &point) {
+        let vars = match variables::get_vars(&document.ast, &point) {
             Ok(v) => Some(v),
             Err(e) => {
                 eprintln!("Could not get vars: {e:?}");
@@ -594,7 +595,7 @@ impl Backend {
             eprintln!("Could not find class {}", document.class_path);
             return None;
         };
-        let vars = match variables::get_vars(document.value(), &point) {
+        let vars = match variables::get_vars(&document.ast, &point) {
             Ok(v) => Some(v),
             Err(e) => {
                 eprintln!("Could not get vars: {e:?}");

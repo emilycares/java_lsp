@@ -475,12 +475,17 @@ fn cc_recursive_expression(
     cc_expr_recursive(ast_expression, point, false, &mut out);
     Some(out)
 }
+fn cc_expression(ast_expression: &AstBaseExpression, point: &AstPoint) -> Option<Vec<CallItem>> {
+    let mut out = vec![];
+    cc_expr(ast_expression, point, false, &mut out);
+    Some(out)
+}
 
 fn cc_expr(
-    ast_expression: &AstBaseExpression,
-    point: &AstPoint,
-    has_parent: bool,
-    out: &mut Vec<CallItem>,
+    _ast_expression: &AstBaseExpression,
+    _point: &AstPoint,
+    _has_parent: bool,
+    _out: &mut Vec<CallItem>,
 ) {
 }
 
@@ -521,7 +526,7 @@ fn cc_expr_recursive(
                     }
                     cc_expr_ident(ident, has_args, has_parent, out);
                 } else {
-                    cc_expr(next.as_ref(), point, true, out);
+                    cc_expr_recursive(next.as_ref(), point, true, out);
                 }
             }
         }
@@ -538,7 +543,7 @@ fn cc_expr_recursive(
                 cc_expr_ident(ident, has_args, has_parent, out);
             }
             if let Some(next) = &ast_expression.next {
-                cc_expr(next.as_ref(), point, true, out);
+                cc_expr_recursive(next.as_ref(), point, true, out);
             }
             if let Some(values) = &ast_expression.values {
                 cc_arugments(point, out, values);
@@ -553,7 +558,7 @@ fn cc_arugments(point: &AstPoint, out: &mut Vec<CallItem>, values: &ast::types::
         let mut filled_params: Vec<Vec<CallItem>> = values
             .values
             .iter()
-            .map(|i| cc_recursive_expression(i, point).unwrap_or_default())
+            .map(|i| cc_expression(i, point).unwrap_or_default())
             .collect();
 
         if filled_params.is_empty() {
@@ -580,7 +585,7 @@ fn get_active_param(values: &ast::types::AstValues, point: &AstPoint) -> usize {
         .values
         .iter()
         .enumerate()
-        .min_by_key(|(_, expression)| dist(point, &expression.range))
+        .min_by_key(|(_, expression)| dist(point, ast_expression_get_range(expression)))
         .map(|i| i.0)
         .unwrap_or_default()
 }

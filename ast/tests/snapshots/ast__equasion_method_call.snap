@@ -7,7 +7,7 @@ expression: parsed.unwrap()
         range: AstRange {
             start: AstPoint {
                 line: 0,
-                col: 0,
+                col: 2,
             },
             end: AstPoint {
                 line: 0,
@@ -22,7 +22,7 @@ expression: parsed.unwrap()
                             range: AstRange {
                                 start: AstPoint {
                                     line: 0,
-                                    col: 0,
+                                    col: 2,
                                 },
                                 end: AstPoint {
                                     line: 0,
@@ -192,5 +192,5 @@ expression: parsed.unwrap()
         ),
         operator: None,
     },
-    9,
+    7,
 )

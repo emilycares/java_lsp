@@ -38,7 +38,6 @@ pub fn parse_file(tokens: &[PositionToken]) -> Result<AstFile, AstError> {
     let (package_name, pos) = parse_package(tokens, 0)?;
     let (imports, pos) = parse_imports(tokens, pos)?;
     let (thing, _pos) = parse_thing(tokens, pos)?;
-    dbg!("endfild");
 
     Ok(AstFile {
         package: package_name,
@@ -406,7 +405,7 @@ fn parse_value_nuget(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, 
                 pos + 1,
             ))
         }
-        Token::DoubleQuote => {
+        Token::StringLiteral(_) => {
             parse_string_literal(tokens, pos).map(|i| (AstValue::Nuget(i.0), i.1))
         }
         Token::SingleQuote => parse_char_literal(tokens, pos),
@@ -462,46 +461,20 @@ pub fn parse_string_literal(
     pos: usize,
 ) -> Result<(AstValueNuget, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
-    let mut pos = assert_token(tokens, pos, Token::DoubleQuote)?;
-    let mut multiline = false;
-    if let Ok(npos) = assert_token(tokens, pos, Token::DoubleQuote)
-        && let Ok(npos) = assert_token(tokens, npos, Token::DoubleQuote)
-    {
-        pos = npos;
-        multiline = true;
-    }
-    let mut value = SmolStrBuilder::new();
-    loop {
-        let token = tokens.get(pos).ok_or(AstError::eof())?;
-        match &token.token {
-            Token::DoubleQuote => {
-                let peek = tokens.get(pos - 1).ok_or(AstError::eof())?;
-                if peek.token == Token::BackSlash {
-                    value.push_str("\\\"");
-                } else if !multiline {
-                    pos += 1;
-                    break;
-                } else if let Ok(npos) = assert_token(tokens, pos, Token::DoubleQuote)
-                    && let Ok(npos) = assert_token(tokens, npos, Token::DoubleQuote)
-                {
-                    pos = npos;
-                    break;
-                }
-            }
-            cot => {
-                value.push_str(&cot.to_string());
-            }
+    let pos_token = tokens.get(pos).ok_or(AstError::eof())?;
+    match &pos_token.token {
+        Token::StringLiteral(str) => {
+            let end = tokens.get(pos.saturating_sub(1)).ok_or(AstError::eof())?;
+            Ok((
+                AstValueNuget::StringLiteral(AstIdentifier {
+                    range: AstRange::from_position_token(start, end),
+                    value: str.clone(),
+                }),
+                pos + 1,
+            ))
         }
-        pos += 1;
+        _ => Err(AstError::InvalidString(InvalidToken::from(pos_token, pos))),
     }
-    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
-    Ok((
-        AstValueNuget::StringLiteral(AstIdentifier {
-            range: AstRange::from_position_token(start, end),
-            value: value.finish(),
-        }),
-        pos,
-    ))
 }
 
 fn parse_value_operator(
@@ -1082,6 +1055,11 @@ fn parse_method_header(
 
     if let Ok(npos) = assert_token(tokens, pos, Token::Static) {
         avaliability = avaliability.to_static();
+        pos = npos;
+    }
+
+    if let Ok(npos) = assert_token(tokens, pos, Token::Final) {
+        avaliability = avaliability.to_final();
         pos = npos;
     }
 

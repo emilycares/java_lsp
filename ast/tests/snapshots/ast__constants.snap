@@ -1,7 +1,6 @@
 ---
 source: ast/tests/ast.rs
 expression: parsed.unwrap()
-snapshot_kind: text
 ---
 AstFile {
     package: AstIdentifier {
@@ -201,11 +200,11 @@ AstFile {
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 8,
-                                        col: 31,
+                                        col: 33,
                                     },
                                     end: AstPoint {
                                         line: 8,
-                                        col: 34,
+                                        col: 31,
                                     },
                                 },
                                 value: "A",
@@ -272,11 +271,11 @@ AstFile {
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 9,
-                                        col: 24,
+                                        col: 26,
                                     },
                                     end: AstPoint {
                                         line: 9,
-                                        col: 27,
+                                        col: 24,
                                     },
                                 },
                                 value: "B",
@@ -343,11 +342,11 @@ AstFile {
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 11,
-                                        col: 24,
+                                        col: 26,
                                     },
                                     end: AstPoint {
                                         line: 11,
-                                        col: 27,
+                                        col: 24,
                                     },
                                 },
                                 value: "C",

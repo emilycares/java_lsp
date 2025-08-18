@@ -158,6 +158,18 @@ impl Access {
             AstAvailability::PrivateStatic => vec![Access::Static, Access::Private],
             AstAvailability::ProtectedStatic => vec![Access::Static, Access::Protected],
             AstAvailability::UndefinedStatic => vec![Access::Static, def],
+            AstAvailability::PublicFinal => vec![Access::Public, Access::Final],
+            AstAvailability::PublicStaticFinal => vec![Access::Static, Access::Final],
+            AstAvailability::PrivateFinal => vec![Access::Private, Access::Final],
+            AstAvailability::PrivateStaticFinal => {
+                vec![Access::Private, Access::Static, Access::Final]
+            }
+            AstAvailability::ProtectedFinal => vec![Access::Protected, Access::Final],
+            AstAvailability::ProtectedStaticFinal => {
+                vec![Access::Protected, Access::Static, Access::Final]
+            }
+            AstAvailability::UndefinedFinal => vec![def, Access::Final],
+            AstAvailability::UndefinedStaticFinal => vec![def, Access::Static, Access::Final],
         }
     }
 }

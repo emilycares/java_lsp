@@ -12,5 +12,11 @@ async fn main() {
             };
             let _ = server::main();
         }
+        Some(Commands::AstCheck { file }) => {
+            cli::ast_check(file);
+        }
+        Some(Commands::AstCheckFolder { folder }) => {
+            cli::ast_check_folder(folder);
+        }
     }
 }

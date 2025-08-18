@@ -209,11 +209,11 @@ AstFile {
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 8,
-                                        col: 6,
+                                        col: 13,
                                     },
                                     end: AstPoint {
                                         line: 8,
-                                        col: 14,
+                                        col: 19,
                                     },
                                 },
                                 ident: Some(
@@ -224,11 +224,11 @@ AstFile {
                                                     range: AstRange {
                                                         start: AstPoint {
                                                             line: 8,
-                                                            col: 6,
+                                                            col: 13,
                                                         },
                                                         end: AstPoint {
                                                             line: 8,
-                                                            col: 14,
+                                                            col: 6,
                                                         },
                                                     },
                                                     value: "/hello",
@@ -361,11 +361,11 @@ AstFile {
                                             range: AstRange {
                                                 start: AstPoint {
                                                     line: 12,
-                                                    col: 10,
+                                                    col: 17,
                                                 },
                                                 end: AstPoint {
                                                     line: 12,
-                                                    col: 18,
+                                                    col: 23,
                                                 },
                                             },
                                             ident: Some(
@@ -376,11 +376,11 @@ AstFile {
                                                                 range: AstRange {
                                                                     start: AstPoint {
                                                                         line: 12,
-                                                                        col: 10,
+                                                                        col: 17,
                                                                     },
                                                                     end: AstPoint {
                                                                         line: 12,
-                                                                        col: 18,
+                                                                        col: 10,
                                                                     },
                                                                 },
                                                                 value: "{name}",
@@ -926,11 +926,11 @@ AstFile {
                                                 range: AstRange {
                                                     start: AstPoint {
                                                         line: 17,
-                                                        col: 15,
+                                                        col: 39,
                                                     },
                                                     end: AstPoint {
                                                         line: 17,
-                                                        col: 40,
+                                                        col: 62,
                                                     },
                                                 },
                                                 ident: Some(
@@ -941,14 +941,14 @@ AstFile {
                                                                     range: AstRange {
                                                                         start: AstPoint {
                                                                             line: 17,
-                                                                            col: 15,
+                                                                            col: 39,
                                                                         },
                                                                         end: AstPoint {
                                                                             line: 17,
-                                                                            col: 40,
+                                                                            col: 14,
                                                                         },
                                                                     },
-                                                                    value: "HellofromQuarkusREST",
+                                                                    value: "Hello from Quarkus REST",
                                                                 },
                                                             ),
                                                         ),

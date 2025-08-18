@@ -1,7 +1,6 @@
 ---
 source: call_chain/tests/base.rs
 expression: out
-snapshot_kind: text
 ---
 Some(
     [
@@ -10,11 +9,11 @@ Some(
             range: AstRange {
                 start: AstPoint {
                     line: 5,
-                    col: 15,
+                    col: 16,
                 },
                 end: AstPoint {
                     line: 5,
-                    col: 17,
+                    col: 14,
                 },
             },
         },

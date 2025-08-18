@@ -1,13 +1,12 @@
 use ast::types::{
-    AstBlock, AstBlockEntry, AstBlockVariable, AstClassMethod, AstFor, AstForEnhanced, AstIf,
-    AstIfContent, AstInterfaceConstant, AstMethodParamerter, AstPoint, AstRange, AstSwitch,
+    AstBlock, AstBlockEntry, AstBlockVariable, AstClassMethod, AstFile, AstFor, AstForEnhanced,
+    AstIf, AstIfContent, AstInterfaceConstant, AstMethodParamerter, AstPoint, AstRange, AstSwitch,
     AstThing, AstTryCatch, AstWhile,
 };
-use document::Document;
 use parser::{dto, java::ParseJavaError};
 use smol_str::SmolStr;
 
-/// document::Documentut a variable or function in a Document
+/// variable or function in a ast
 #[derive(Debug, PartialEq, Clone)]
 pub struct LocalVariable {
     pub level: usize,
@@ -53,14 +52,11 @@ pub enum VariablesError {
     Parse(ParseJavaError),
 }
 
-/// Get Local Variables and Functions of the current Document
-pub fn get_vars(
-    document: &Document,
-    point: &AstPoint,
-) -> Result<Vec<LocalVariable>, VariablesError> {
+/// Get Local Variables and Functions of the current ast
+pub fn get_vars(ast: &AstFile, point: &AstPoint) -> Result<Vec<LocalVariable>, VariablesError> {
     let mut out: Vec<LocalVariable> = vec![];
     let level = 0;
-    match &document.ast.thing {
+    match &ast.thing {
         AstThing::Class(ast_class) => {
             let level = level + 1;
             out.extend(get_class_variables(&ast_class.block.variables, level));
@@ -161,6 +157,22 @@ fn try_catch_vars(
         out.extend(get_block_vars(resources, point, level));
     }
     out.extend(get_block_vars(&ast_try_catch.block, point, level));
+    if let Some(case) = ast_try_catch
+        .cases
+        .iter()
+        .find(|i| i.block.range.is_in_range(point))
+    {
+        for ty in &case.variable.jtypes {
+            out.push(LocalVariable {
+                level,
+                jtype: ty.into(),
+                name: case.variable.name.value.clone(),
+                is_fun: false,
+                range: case.variable.range,
+            });
+        }
+        out.extend(get_block_vars(&case.block, point, level));
+    }
     if let Some(finally_block) = &ast_try_catch.finally_block {
         out.extend(get_block_vars(finally_block, point, level));
     }
@@ -259,7 +271,6 @@ pub mod tests {
     use std::path::PathBuf;
 
     use ast::types::{AstPoint, AstRange};
-    use document::Document;
     use parser::dto;
     use pretty_assertions::assert_eq;
 
@@ -285,9 +296,10 @@ public class Test {
     }
 }
         ";
-        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
+        let ast = ast::parse_file(&tokens).unwrap();
 
-        let out = get_vars(&doc, &AstPoint::new(12, 17)).unwrap();
+        let out = get_vars(&ast, &AstPoint::new(12, 17)).unwrap();
         assert_eq!(
             out,
             vec![
@@ -374,9 +386,10 @@ public class Test {
      
 }
         ";
-        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
+        let ast = ast::parse_file(&tokens).unwrap();
 
-        let out = get_vars(&doc, &AstPoint::new(4, 6)).unwrap();
+        let out = get_vars(&ast, &AstPoint::new(4, 6)).unwrap();
         assert_eq!(
             out,
             vec![LocalVariable {
@@ -412,10 +425,10 @@ public class Test {
     }
 }
         ";
-        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
-        dbg!(&doc.ast);
+        let tokens = ast::lexer::lex(content).unwrap();
+        let ast = ast::parse_file(&tokens).unwrap();
 
-        let out = get_vars(&doc, &AstPoint::new(12, 17)).unwrap();
+        let out = get_vars(&ast, &AstPoint::new(12, 17)).unwrap();
         assert_eq!(
             out,
             vec![
@@ -512,9 +525,10 @@ public class Test {
     }
 }
         ";
-        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
+        let ast = ast::parse_file(&tokens).unwrap();
 
-        let out = get_vars(&doc, &AstPoint::new(8, 54)).unwrap();
+        let out = get_vars(&ast, &AstPoint::new(8, 54)).unwrap();
         assert_eq!(
             out,
             vec![
@@ -631,9 +645,10 @@ public class Test {
     }
 }
         "#;
-        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
+        let ast = ast::parse_file(&tokens).unwrap();
 
-        let out = get_vars(&doc, &AstPoint::new(8, 54)).unwrap();
+        let out = get_vars(&ast, &AstPoint::new(8, 54)).unwrap();
         assert_eq!(
             out,
             vec![
@@ -813,9 +828,11 @@ public class Test {
     }
 }
         "#;
-        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
+        let ast = ast::parse_file(&tokens).unwrap();
 
-        let out = get_vars(&doc, &AstPoint::new(6, 46)).unwrap();
+        let out = get_vars(&ast, &AstPoint::new(6, 46)).unwrap();
+        insta::assert_debug_snapshot!(out);
     }
 
     #[test]
@@ -830,9 +847,10 @@ public class Test {
     }
 }
         "#;
-        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
+        let ast = ast::parse_file(&tokens).unwrap();
 
-        let out = get_vars(&doc, &AstPoint::new(5, 22)).unwrap();
+        let out = get_vars(&ast, &AstPoint::new(5, 22)).unwrap();
         insta::assert_debug_snapshot!(out);
     }
 }

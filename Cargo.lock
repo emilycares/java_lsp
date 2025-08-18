@@ -302,7 +302,9 @@ dependencies = [
 name = "cli"
 version = "0.1.0"
 dependencies = [
+ "ast",
  "clap",
+ "jwalk",
 ]
 
 [[package]]
@@ -1824,7 +1826,6 @@ name = "variables"
 version = "0.1.0"
 dependencies = [
  "ast",
- "document",
  "insta",
  "parser",
  "pretty_assertions",

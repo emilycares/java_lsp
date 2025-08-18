@@ -201,17 +201,18 @@ pub fn call_chain_hover(
             range: _,
         } => {
             if let Some(active_param) = active_param
-                && let Some(current_param) = filled_params.get(*active_param) {
-                    return call_chain_hover(
-                        document,
-                        current_param.clone(),
-                        point,
-                        lo_va,
-                        imports,
-                        &resolve_state.class,
-                        class_map,
-                    );
-                }
+                && let Some(current_param) = filled_params.get(*active_param)
+            {
+                return call_chain_hover(
+                    document,
+                    current_param.clone(),
+                    point,
+                    lo_va,
+                    imports,
+                    &resolve_state.class,
+                    class_map,
+                );
+            }
             Err(HoverError::ArgumentNotFound)
         }
         CallItem::This { range: _ } => Err(HoverError::Unimlemented),
@@ -381,7 +382,7 @@ public class Test {
 ";
         let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
         let point = AstPoint::new(5, 29);
-        let vars = variables::get_vars(&doc, &point).unwrap();
+        let vars = variables::get_vars(&doc.ast, &point).unwrap();
 
         let chain = call_chain::get_call_chain(&doc.ast, &point).unwrap();
         let out = call_chain_hover(&doc, chain, &point, &vars, &[], &class, &string_class_map());

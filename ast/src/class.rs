@@ -22,9 +22,7 @@ pub fn parse_class(
     let (name, pos) = parse_identifier(tokens, pos)?;
     let (superclass, pos) = parse_superclass(tokens, pos)?;
     let (block, pos) = parse_class_block(tokens, pos)?;
-    dbg!("e");
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
-    dbg!("class end ");
 
     Ok((
         AstThing::Class(AstClass {
@@ -52,12 +50,10 @@ pub fn parse_class_block(
     let mut errors = vec![];
     loop {
         if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
-            dbg!("class block end curly");
             pos = npos;
             break;
         };
         errors.clear();
-        dbg!("class ay");
         match parse_class_variable(tokens, pos) {
             Ok((variable, npos)) => {
                 pos = npos;
@@ -82,7 +78,6 @@ pub fn parse_class_block(
             Ok((method, npos)) => {
                 pos = npos;
                 methods.push(method);
-                dbg!("method");
                 continue;
             }
             Err(e) => {
@@ -94,7 +89,6 @@ pub fn parse_class_block(
             errors,
         });
     }
-    dbg!("ge");
     Ok((
         AstClassBlock {
             variables,

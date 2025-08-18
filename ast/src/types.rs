@@ -76,13 +76,21 @@ pub enum AstImportUnit {
 #[derive(Debug)]
 pub enum AstAvailability {
     Public,
+    PublicFinal,
     PublicStatic,
+    PublicStaticFinal,
     Private,
+    PrivateFinal,
     PrivateStatic,
+    PrivateStaticFinal,
     Protected,
+    ProtectedFinal,
     ProtectedStatic,
+    ProtectedStaticFinal,
     Undefined,
+    UndefinedFinal,
     UndefinedStatic,
+    UndefinedStaticFinal,
 }
 impl AstAvailability {
     pub fn to_static(&self) -> Self {
@@ -95,6 +103,35 @@ impl AstAvailability {
             AstAvailability::ProtectedStatic => Self::ProtectedStatic,
             AstAvailability::Undefined => Self::UndefinedStatic,
             AstAvailability::UndefinedStatic => Self::UndefinedStatic,
+            AstAvailability::PublicFinal => Self::PublicStaticFinal,
+            AstAvailability::PublicStaticFinal => Self::PublicStaticFinal,
+            AstAvailability::PrivateFinal => Self::PublicStaticFinal,
+            AstAvailability::PrivateStaticFinal => Self::PrivateStaticFinal,
+            AstAvailability::ProtectedFinal => Self::ProtectedStaticFinal,
+            AstAvailability::ProtectedStaticFinal => Self::ProtectedStaticFinal,
+            AstAvailability::UndefinedFinal => Self::UndefinedStaticFinal,
+            AstAvailability::UndefinedStaticFinal => Self::UndefinedStaticFinal,
+        }
+    }
+
+    pub fn to_final(&self) -> AstAvailability {
+        match self {
+            AstAvailability::Public => Self::PublicFinal,
+            AstAvailability::PublicStatic => Self::PublicStaticFinal,
+            AstAvailability::Private => Self::PrivateFinal,
+            AstAvailability::PrivateStatic => Self::PrivateStaticFinal,
+            AstAvailability::Protected => Self::ProtectedFinal,
+            AstAvailability::ProtectedStatic => Self::ProtectedStaticFinal,
+            AstAvailability::Undefined => Self::UndefinedFinal,
+            AstAvailability::UndefinedStatic => Self::UndefinedStaticFinal,
+            AstAvailability::PublicFinal => Self::PublicFinal,
+            AstAvailability::PublicStaticFinal => Self::PublicStaticFinal,
+            AstAvailability::PrivateFinal => Self::PrivateFinal,
+            AstAvailability::PrivateStaticFinal => Self::PrivateStaticFinal,
+            AstAvailability::ProtectedFinal => Self::ProtectedFinal,
+            AstAvailability::ProtectedStaticFinal => Self::ProtectedStaticFinal,
+            AstAvailability::UndefinedFinal => Self::UndefinedFinal,
+            AstAvailability::UndefinedStaticFinal => Self::UndefinedStaticFinal,
         }
     }
 }

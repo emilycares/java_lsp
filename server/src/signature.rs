@@ -27,7 +27,7 @@ pub fn signature_driver(
 ) -> Result<SignatureHelp, SignatureError> {
     if let Some(call_chain) = call_chain::get_call_chain(&document.ast, point) {
         let imports = imports::imports(document);
-        let vars = variables::get_vars(document, point).map_err(SignatureError::Variables)?;
+        let vars = variables::get_vars(&document.ast, point).map_err(SignatureError::Variables)?;
         return get_signature(call_chain, &imports, &vars, class, class_map);
     }
     Err(SignatureError::NoCallChain)

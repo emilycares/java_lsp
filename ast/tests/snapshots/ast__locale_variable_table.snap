@@ -647,11 +647,11 @@ AstFile {
                                                                                         range: AstRange {
                                                                                             start: AstPoint {
                                                                                                 line: 8,
-                                                                                                col: 13,
+                                                                                                col: 14,
                                                                                             },
                                                                                             end: AstPoint {
                                                                                                 line: 8,
-                                                                                                col: 15,
+                                                                                                col: 14,
                                                                                             },
                                                                                         },
                                                                                         ident: Some(
@@ -662,11 +662,11 @@ AstFile {
                                                                                                             range: AstRange {
                                                                                                                 start: AstPoint {
                                                                                                                     line: 8,
-                                                                                                                    col: 13,
+                                                                                                                    col: 14,
                                                                                                                 },
                                                                                                                 end: AstPoint {
                                                                                                                     line: 8,
-                                                                                                                    col: 15,
+                                                                                                                    col: 12,
                                                                                                                 },
                                                                                                             },
                                                                                                             value: "",

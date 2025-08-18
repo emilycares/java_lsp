@@ -325,12 +325,9 @@ expression: tokens
         col: 11,
     },
     PositionToken {
-        token: DoubleQuote,
-        line: 8,
-        col: 13,
-    },
-    PositionToken {
-        token: DoubleQuote,
+        token: StringLiteral(
+            "",
+        ),
         line: 8,
         col: 14,
     },

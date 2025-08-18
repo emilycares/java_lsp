@@ -8,15 +8,15 @@ expression: parsed.unwrap()
             range: AstRange {
                 start: AstPoint {
                     line: 1,
-                    col: 8,
+                    col: 9,
                 },
                 end: AstPoint {
-                    line: 4,
-                    col: 16,
+                    line: 1,
+                    col: 9,
                 },
             },
-            value: "Hereisamuiltilinestring",
+            value: "",
         },
     ),
-    11,
+    1,
 )

@@ -1026,11 +1026,11 @@ AstFile {
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 11,
-                                        col: 22,
+                                        col: 27,
                                     },
                                     end: AstPoint {
                                         line: 11,
-                                        col: 28,
+                                        col: 31,
                                     },
                                 },
                                 ident: Some(
@@ -1041,11 +1041,11 @@ AstFile {
                                                     range: AstRange {
                                                         start: AstPoint {
                                                             line: 11,
-                                                            col: 22,
+                                                            col: 27,
                                                         },
                                                         end: AstPoint {
                                                             line: 11,
-                                                            col: 28,
+                                                            col: 22,
                                                         },
                                                     },
                                                     value: "hihi",
@@ -1248,11 +1248,11 @@ AstFile {
                                                                             range: AstRange {
                                                                                 start: AstPoint {
                                                                                     line: 12,
-                                                                                    col: 34,
+                                                                                    col: 39,
                                                                                 },
                                                                                 end: AstPoint {
                                                                                     line: 12,
-                                                                                    col: 40,
+                                                                                    col: 43,
                                                                                 },
                                                                             },
                                                                             ident: Some(
@@ -1263,11 +1263,11 @@ AstFile {
                                                                                                 range: AstRange {
                                                                                                     start: AstPoint {
                                                                                                         line: 12,
-                                                                                                        col: 34,
+                                                                                                        col: 39,
                                                                                                     },
                                                                                                     end: AstPoint {
                                                                                                         line: 12,
-                                                                                                        col: 40,
+                                                                                                        col: 34,
                                                                                                     },
                                                                                                 },
                                                                                                 value: "haha",

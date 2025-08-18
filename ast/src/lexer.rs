@@ -1,6 +1,6 @@
 //! Transform document into a token vector
 use phf::phf_map;
-use smol_str::SmolStr;
+use smol_str::{SmolStr, SmolStrBuilder};
 
 use crate::types::AstPoint;
 
@@ -36,6 +36,7 @@ impl Token {
     pub fn len(&self) -> usize {
         match self {
             Token::Identifier(i) => i.len(),
+            Token::StringLiteral(i) => i.len(),
             Token::Number(n) => n.to_string().len(),
             Token::LeftParen
             | Token::RightParen
@@ -61,7 +62,6 @@ impl Token {
             | Token::Equal
             | Token::ExclamationMark
             | Token::Underscore
-            | Token::DoubleQuote
             | Token::SingleQuote => 1,
             Token::EqualDouble | Token::Le | Token::Ge | Token::Ne => 2,
             Token::While
@@ -119,6 +119,7 @@ impl Token {
     pub fn to_string(&self) -> SmolStr {
         match self {
             Token::Identifier(smol_str) => smol_str.clone(),
+            Token::StringLiteral(smol_str) => smol_str.clone(),
             Token::Number(num) => num.to_string().into(),
             Token::LeftParen => SmolStr::new_inline("("),
             Token::RightParen => SmolStr::new_inline(")"),
@@ -166,7 +167,6 @@ impl Token {
             Token::Equal => SmolStr::new_inline("="),
             Token::Ne => SmolStr::new_inline("!="),
             Token::ExclamationMark => SmolStr::new_inline("!"),
-            Token::DoubleQuote => SmolStr::new_inline("\""),
             Token::SingleQuote => SmolStr::new_inline("'"),
             Token::New => SmolStr::new_inline("new"),
             Token::Return => SmolStr::new_inline("return"),
@@ -209,6 +209,8 @@ impl Token {
 pub enum Token {
     /// Data
     Identifier(SmolStr),
+    /// Data
+    StringLiteral(SmolStr),
     /// 123
     Number(i64),
     /// (
@@ -301,8 +303,6 @@ pub enum Token {
     Ne,
     /// !
     ExclamationMark,
-    /// "
-    DoubleQuote,
     /// '
     SingleQuote,
     /// new
@@ -649,8 +649,50 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                 col += 1;
             }
             '"' => {
+                index += 1;
+                let mut str = SmolStrBuilder::new();
+                let mut multi_line = false;
+                if let Some('"') = chars.get(index + 1) {
+                    if let Some('"') = chars.get(index + 2) {
+                        multi_line = true;
+                        index += 3;
+                    }
+                }
+                'string_literal: loop {
+                    let Some(ch) = chars.get(index) else {
+                        break;
+                    };
+                    if *ch == '\\' {
+                        let Some(peek) = chars.get(index + 1) else {
+                            break;
+                        };
+                        if *peek == '"' {
+                            str.push('\\');
+                            col += 1;
+                            index += 1;
+                            continue;
+                        }
+                    }
+                    if *ch == '"' {
+                        if !multi_line {
+                            col += 1;
+                            break 'string_literal;
+                        } else {
+                            if let Some('"') = chars.get(index + 1) {
+                                if let Some('"') = chars.get(index + 2) {
+                                    index += 3;
+                                    col += 3;
+                                    break 'string_literal;
+                                }
+                            }
+                        }
+                    }
+                    str.push(*ch);
+                    index += 1;
+                    col += 1;
+                }
                 tokens.push(PositionToken {
-                    token: Token::DoubleQuote,
+                    token: Token::StringLiteral(str.finish()),
                     line,
                     col,
                 });

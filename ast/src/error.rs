@@ -50,6 +50,8 @@ pub enum AstError {
     InvalidDouble(i64, i64),
     /// Invalid token in Boolean
     InvalidBoolean(InvalidToken),
+    /// Invalid string literal
+    InvalidString(InvalidToken),
 }
 
 impl PrintErr for AstError {
@@ -139,6 +141,14 @@ impl PrintErr for AstError {
                     invalid_token.line,
                     invalid_token.col,
                     format!("Token not allowed in boolean: {:?}", invalid_token.found),
+                );
+            }
+            AstError::InvalidString(invalid_token) => {
+                print_helper(
+                    content,
+                    invalid_token.line,
+                    invalid_token.col,
+                    format!("Not a string literal: {:?}", invalid_token.found),
                 );
             }
         }
