@@ -3,8 +3,9 @@ use std::cmp::{self, max, min};
 use ast::range::{AstInRange, add_ranges};
 use ast::types::{
     AstAnnotated, AstBaseExpression, AstBlock, AstBlockEntry, AstExpressionIdentifier,
-    AstExpressionOperator, AstFile, AstIf, AstIfContent, AstJTypeKind, AstPoint, AstRange,
-    AstRecursiveExpression, AstThing, AstValue, AstValueNewClass, AstValueNuget,
+    AstExpressionOperator, AstExpressionOrValue, AstFile, AstIf, AstIfContent, AstJTypeKind,
+    AstPoint, AstRange, AstRecursiveExpression, AstThing, AstValue, AstValueNewClass,
+    AstValueNuget,
 };
 use smol_str::SmolStr;
 
@@ -277,7 +278,7 @@ fn dist_if(point: &AstPoint, ast_if: &AstIf) -> usize {
 fn cc_block_entrie(entry: &AstBlockEntry, point: &AstPoint) -> Option<Vec<CallItem>> {
     match entry {
         AstBlockEntry::Return(ast_block_return) => {
-            if let Some(ref expression) = ast_block_return.expression {
+            if let AstExpressionOrValue::Expression(ref expression) = ast_block_return.expression {
                 return cc_recursive_expression(expression, point);
             }
             None

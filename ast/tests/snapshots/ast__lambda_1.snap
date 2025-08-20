@@ -41,19 +41,21 @@ expression: parsed.unwrap()
                 },
             ],
         },
-        block: AstBlock {
-            range: AstRange {
-                start: AstPoint {
-                    line: 0,
-                    col: 5,
+        rhs: Block(
+            AstBlock {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 5,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 8,
+                    },
                 },
-                end: AstPoint {
-                    line: 0,
-                    col: 8,
-                },
+                entries: [],
             },
-            entries: [],
-        },
+        ),
     },
     5,
 )

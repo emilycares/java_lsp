@@ -21,7 +21,7 @@ use types::{
 
 use crate::{
     class::parse_class_block,
-    types::{AstBlockYield, AstSwitchCaseArrow},
+    types::{AstBlockYield, AstExpressionOrValue, AstLambdaRhs, AstSwitchCaseArrow},
 };
 
 pub mod annotation;
@@ -257,14 +257,22 @@ pub fn parse_lambda(tokens: &[PositionToken], pos: usize) -> Result<(AstLambda, 
         pos = npos;
     }
     let pos = assert_token(tokens, pos, Token::Dash)?;
-    let pos = assert_token(tokens, pos, Token::Gt)?;
-    let (block, pos) = parse_block(tokens, pos)?;
+    let mut pos = assert_token(tokens, pos, Token::Gt)?;
+    let mut rhs = AstLambdaRhs::None;
+    if let Ok((block, npos)) = parse_block(tokens, pos) {
+        pos = npos;
+        rhs = AstLambdaRhs::Block(block);
+    } else if let Ok((expr, npos)) = parse_expression(tokens, pos) {
+        pos = npos;
+        rhs = AstLambdaRhs::Expr(Box::new(expr));
+    }
+
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstLambda {
             range: AstRange::from_position_token(start, end),
             parameters,
-            block,
+            rhs,
         },
         pos,
     ))
@@ -862,9 +870,11 @@ fn parse_block_variable_no_semicolon(
     let mut expression = None;
     let mut pos = pos;
     if let Ok(npos) = assert_token(tokens, pos, Token::Equal) {
-        let (aexpression, npos) = parse_expression(tokens, npos)?;
         pos = npos;
-        expression = Some(aexpression);
+        if let Ok((aexpression, npos)) = parse_expression(tokens, pos) {
+            pos = npos;
+            expression = Some(aexpression);
+        }
     }
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
 
@@ -924,10 +934,13 @@ fn parse_block_return(
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let pos = assert_token(tokens, pos, Token::Return)?;
     let mut pos = pos;
-    let mut expression = None;
+    let mut expression = AstExpressionOrValue::None;
     if let Ok((nexpression, npos)) = parse_recursive_expression(tokens, pos) {
         pos = npos;
-        expression = Some(nexpression);
+        expression = AstExpressionOrValue::Expression(nexpression);
+    } else if let Ok((value, npos)) = parse_value(tokens, pos) {
+        pos = npos;
+        expression = AstExpressionOrValue::Value(value);
     }
     let pos = assert_token(tokens, pos, Token::Semicolon)?;
     let end = tokens.get(pos).ok_or(AstError::eof())?;
@@ -1176,7 +1189,8 @@ fn parse_type_list(
     Ok((parameters, pos))
 }
 
-fn parse_block(tokens: &[PositionToken], pos: usize) -> Result<(AstBlock, usize), AstError> {
+/// { statements; }
+pub fn parse_block(tokens: &[PositionToken], pos: usize) -> Result<(AstBlock, usize), AstError> {
     parse_block_brackets(tokens, pos, Token::LeftParenCurly, Token::RightParenCurly)
 }
 fn parse_block_brackets(

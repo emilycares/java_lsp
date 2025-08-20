@@ -517,7 +517,7 @@ AstFile {
                                                 col: 5,
                                             },
                                         },
-                                        expression: Some(
+                                        expression: Expression(
                                             AstRecursiveExpression {
                                                 range: AstRange {
                                                     start: AstPoint {
@@ -729,7 +729,7 @@ AstFile {
                                                 col: 5,
                                             },
                                         },
-                                        expression: Some(
+                                        expression: Expression(
                                             AstRecursiveExpression {
                                                 range: AstRange {
                                                     start: AstPoint {
@@ -998,7 +998,7 @@ AstFile {
                                                 col: 5,
                                             },
                                         },
-                                        expression: Some(
+                                        expression: Expression(
                                             AstRecursiveExpression {
                                                 range: AstRange {
                                                     start: AstPoint {

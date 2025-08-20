@@ -351,7 +351,13 @@ pub struct AstBlockVariableMutliType {
 #[derive(Debug)]
 pub struct AstBlockReturn {
     pub range: AstRange,
-    pub expression: Option<AstRecursiveExpression>,
+    pub expression: AstExpressionOrValue,
+}
+#[derive(Debug)]
+pub enum AstExpressionOrValue {
+    None,
+    Expression(AstRecursiveExpression),
+    Value(AstValue),
 }
 #[derive(Debug)]
 pub struct AstBlockYield {
@@ -542,8 +548,16 @@ impl AstRecursiveExpression {
 pub struct AstLambda {
     pub range: AstRange,
     pub parameters: AstLambdaParameters,
-    pub block: AstBlock,
+    pub rhs: AstLambdaRhs,
 }
+
+#[derive(Debug)]
+pub enum AstLambdaRhs {
+    None,
+    Block(AstBlock),
+    Expr(Box<AstBaseExpression>),
+}
+
 #[derive(Debug, Default)]
 pub struct AstLambdaParameters {
     pub range: AstRange,

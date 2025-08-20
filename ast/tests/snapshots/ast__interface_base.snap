@@ -1,7 +1,6 @@
 ---
 source: ast/tests/ast.rs
 expression: parsed.unwrap()
-snapshot_kind: text
 ---
 AstFile {
     package: AstIdentifier {
@@ -538,7 +537,7 @@ AstFile {
                                             col: 5,
                                         },
                                     },
-                                    expression: Some(
+                                    expression: Expression(
                                         AstRecursiveExpression {
                                             range: AstRange {
                                                 start: AstPoint {

@@ -1017,7 +1017,7 @@ AstFile {
                                                 col: 3,
                                             },
                                         },
-                                        expression: Some(
+                                        expression: Expression(
                                             AstRecursiveExpression {
                                                 range: AstRange {
                                                     start: AstPoint {

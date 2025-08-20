@@ -1,7 +1,7 @@
 use ast::error::PrintErr;
 use ast::{
-    lexer, parse_block_variable, parse_file, parse_lambda, parse_name, parse_recursive_expression,
-    parse_string_literal,
+    lexer, parse_block, parse_block_variable, parse_file, parse_lambda, parse_name,
+    parse_recursive_expression, parse_string_literal,
 };
 
 #[test]
@@ -154,6 +154,14 @@ fn variable_array() {
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
+#[test]
+fn variable_var_no_value() {
+    let content = r#"{var a = }"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_block(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
 
 #[test]
 fn multi_line_string() {
@@ -196,6 +204,22 @@ fn lambda_1() {
 #[test]
 fn lambda_2() {
     let content = "(a, b, c) -> { }";
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_lambda(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+#[test]
+fn lambda_value() {
+    let content = "n -> true";
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_lambda(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+#[test]
+fn lambda_expr() {
+    let content = "n -> v.toString()";
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_lambda(&tokens, 0);
     parsed.print_err(content);
