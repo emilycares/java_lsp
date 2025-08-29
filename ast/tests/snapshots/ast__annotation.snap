@@ -23,8 +23,8 @@ AstFile {
                 col: 0,
             },
             end: AstPoint {
-                line: 1,
-                col: 6,
+                line: 0,
+                col: 22,
             },
         },
         imports: [],

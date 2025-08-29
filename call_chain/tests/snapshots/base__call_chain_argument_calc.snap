@@ -1,0 +1,67 @@
+---
+source: call_chain/tests/base.rs
+expression: out
+snapshot_kind: text
+---
+[
+    ArgumentList {
+        prev: [
+            MethodCall {
+                name: "concat",
+                range: AstRange {
+                    start: AstPoint {
+                        line: 4,
+                        col: 8,
+                    },
+                    end: AstPoint {
+                        line: 4,
+                        col: 14,
+                    },
+                },
+            },
+        ],
+        active_param: Some(
+            0,
+        ),
+        filled_params: [
+            [
+                Class {
+                    name: "String",
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 4,
+                            col: 17,
+                        },
+                        end: AstPoint {
+                            line: 4,
+                            col: 15,
+                        },
+                    },
+                },
+            ],
+        ],
+        range: AstRange {
+            start: AstPoint {
+                line: 4,
+                col: 14,
+            },
+            end: AstPoint {
+                line: 4,
+                col: 34,
+            },
+        },
+    },
+    Class {
+        name: "String",
+        range: AstRange {
+            start: AstPoint {
+                line: 4,
+                col: 17,
+            },
+            end: AstPoint {
+                line: 4,
+                col: 15,
+            },
+        },
+    },
+]

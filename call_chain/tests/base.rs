@@ -26,16 +26,7 @@ public class Test {
     let ast = ast.unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(8, 24));
-    assert_eq!(
-        out,
-        Some(vec![CallItem::ClassOrVariable {
-            name: "local".into(),
-            range: AstRange {
-                start: AstPoint { line: 8, col: 17 },
-                end: AstPoint { line: 8, col: 22 }
-            }
-        }])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -55,16 +46,7 @@ public class Test {
     let ast = ast.unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 11));
-    assert_eq!(
-        out,
-        Some(vec![CallItem::ClassOrVariable {
-            name: "a".into(),
-            range: AstRange {
-                start: AstPoint { line: 4, col: 8 },
-                end: AstPoint { line: 4, col: 9 }
-            }
-        }])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 pub const SYMBOL_METHOD: &str = r#"
@@ -89,25 +71,7 @@ fn call_chain_method_a() {
     let ast = ast.unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(8, 40));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ClassOrVariable {
-                name: "local".into(),
-                range: AstRange {
-                    start: AstPoint { line: 8, col: 17 },
-                    end: AstPoint { line: 8, col: 22 },
-                }
-            },
-            CallItem::MethodCall {
-                name: "concat".into(),
-                range: AstRange {
-                    start: AstPoint { line: 8, col: 23 },
-                    end: AstPoint { line: 8, col: 29 }
-                },
-            },
-        ])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -146,25 +110,7 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 26));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ClassOrVariable {
-                name: "local".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 17 },
-                    end: AstPoint { line: 5, col: 22 },
-                }
-            },
-            CallItem::FieldAccess {
-                name: "a".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 23 },
-                    end: AstPoint { line: 5, col: 24 },
-                }
-            }
-        ])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -183,25 +129,7 @@ public class GreetingResource {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 24));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ClassOrVariable {
-                name: "a".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 8 },
-                    end: AstPoint { line: 5, col: 9 },
-                }
-            },
-            CallItem::MethodCall {
-                name: "concat".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 10 },
-                    end: AstPoint { line: 5, col: 16 }
-                }
-            }
-        ])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -220,32 +148,7 @@ public class GreetingResource {
 
     // the cursor is on the concat method_call
     let out = get_call_chain(&ast, &AstPoint::new(4, 14));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ClassOrVariable {
-                name: "a".into(),
-                range: AstRange {
-                    start: AstPoint { line: 4, col: 8 },
-                    end: AstPoint { line: 4, col: 9 },
-                }
-            },
-            CallItem::MethodCall {
-                name: "concat".into(),
-                range: AstRange {
-                    start: AstPoint { line: 4, col: 10 },
-                    end: AstPoint { line: 4, col: 16 }
-                }
-            },
-            CallItem::MethodCall {
-                name: "other".into(),
-                range: AstRange {
-                    start: AstPoint { line: 4, col: 21 },
-                    end: AstPoint { line: 4, col: 26 }
-                }
-            }
-        ])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -264,32 +167,7 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 30));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ClassOrVariable {
-                name: "local".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 17 },
-                    end: AstPoint { line: 5, col: 22 }
-                }
-            },
-            CallItem::FieldAccess {
-                name: "a".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 23 },
-                    end: AstPoint { line: 5, col: 24 }
-                },
-            },
-            CallItem::MethodCall {
-                name: "b".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 25 },
-                    end: AstPoint { line: 5, col: 26 }
-                }
-            },
-        ])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -308,32 +186,7 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 30));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ClassOrVariable {
-                name: "local".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 17 },
-                    end: AstPoint { line: 5, col: 22 },
-                }
-            },
-            CallItem::MethodCall {
-                name: "a".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 23 },
-                    end: AstPoint { line: 5, col: 24 },
-                }
-            },
-            CallItem::FieldAccess {
-                name: "b".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 27 },
-                    end: AstPoint { line: 5, col: 28 },
-                }
-            }
-        ])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -352,16 +205,7 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 23));
-    assert_eq!(
-        out,
-        Some(vec![CallItem::ClassOrVariable {
-            name: "local".into(),
-            range: AstRange {
-                start: AstPoint { line: 5, col: 17 },
-                end: AstPoint { line: 5, col: 22 },
-            }
-        }])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -380,32 +224,7 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 28));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ClassOrVariable {
-                name: "local".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 16 },
-                    end: AstPoint { line: 5, col: 21 },
-                }
-            },
-            CallItem::MethodCall {
-                name: "a".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 22 },
-                    end: AstPoint { line: 5, col: 23 },
-                }
-            },
-            CallItem::FieldAccess {
-                name: "c".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 26 },
-                    end: AstPoint { line: 5, col: 27 },
-                }
-            },
-        ])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -424,32 +243,7 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 28));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ClassOrVariable {
-                name: "local".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 16 },
-                    end: AstPoint { line: 5, col: 21 }
-                }
-            },
-            CallItem::FieldAccess {
-                name: "a".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 22 },
-                    end: AstPoint { line: 5, col: 23 },
-                }
-            },
-            CallItem::MethodCall {
-                name: "c".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 24 },
-                    end: AstPoint { line: 5, col: 25 },
-                }
-            },
-        ])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -468,32 +262,7 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 20));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ClassOrVariable {
-                name: "local".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 8 },
-                    end: AstPoint { line: 5, col: 13 },
-                }
-            },
-            CallItem::FieldAccess {
-                name: "a".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 14 },
-                    end: AstPoint { line: 5, col: 15 },
-                }
-            },
-            CallItem::MethodCall {
-                name: "c".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 16 },
-                    end: AstPoint { line: 5, col: 17 },
-                }
-            },
-        ])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -512,16 +281,7 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 16));
-    assert_eq!(
-        out,
-        Some(vec![CallItem::ClassOrVariable {
-            name: "String".into(),
-            range: AstRange {
-                start: AstPoint { line: 5, col: 8 },
-                end: AstPoint { line: 5, col: 14 },
-            }
-        },])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -540,16 +300,7 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 28));
-    assert_eq!(
-        out,
-        Some(vec![CallItem::ClassOrVariable {
-            name: "String".into(),
-            range: AstRange {
-                start: AstPoint { line: 5, col: 20 },
-                end: AstPoint { line: 5, col: 26 },
-            }
-        },])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -568,37 +319,11 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 22));
-    assert_eq!(
-        out,
-        Some(vec![CallItem::ArgumentList {
-            prev: vec![
-                CallItem::ClassOrVariable {
-                    name: "local".into(),
-                    range: AstRange {
-                        start: AstPoint { line: 5, col: 8 },
-                        end: AstPoint { line: 5, col: 13 },
-                    },
-                },
-                CallItem::MethodCall {
-                    name: "concat".into(),
-                    range: AstRange {
-                        start: AstPoint { line: 5, col: 14 },
-                        end: AstPoint { line: 5, col: 20 },
-                    },
-                },
-            ],
-            range: AstRange {
-                start: AstPoint { line: 5, col: 20 },
-                end: AstPoint { line: 5, col: 23 },
-            },
-            filled_params: vec![vec![]],
-            active_param: Some(0)
-        },],)
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
-fn call_chain_argument_var() {
+fn call_chain_argument_var_base() {
     let content = "
 package ch.emilycares;
 public class Test {
@@ -613,48 +338,7 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 27));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ArgumentList {
-                prev: vec![
-                    CallItem::ClassOrVariable {
-                        name: "local".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 5, col: 8 },
-                            end: AstPoint { line: 5, col: 13 },
-                        },
-                    },
-                    CallItem::MethodCall {
-                        name: "concat".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 5, col: 14 },
-                            end: AstPoint { line: 5, col: 20 },
-                        },
-                    },
-                ],
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 20 },
-                    end: AstPoint { line: 5, col: 29 },
-                },
-                filled_params: vec![vec![CallItem::ClassOrVariable {
-                    name: "local".into(),
-                    range: AstRange {
-                        start: AstPoint { line: 5, col: 21 },
-                        end: AstPoint { line: 5, col: 26 }
-                    }
-                }]],
-                active_param: Some(0),
-            },
-            CallItem::ClassOrVariable {
-                name: "local".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 21 },
-                    end: AstPoint { line: 5, col: 26 }
-                }
-            }
-        ])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -673,48 +357,7 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 27));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ArgumentList {
-                prev: vec![
-                    CallItem::ClassOrVariable {
-                        name: "local".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 5, col: 8 },
-                            end: AstPoint { line: 5, col: 13 },
-                        },
-                    },
-                    CallItem::MethodCall {
-                        name: "concat".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 5, col: 14 },
-                            end: AstPoint { line: 5, col: 20 },
-                        },
-                    },
-                ],
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 20 },
-                    end: AstPoint { line: 5, col: 28 },
-                },
-                filled_params: vec![vec![CallItem::ClassOrVariable {
-                    name: "local".into(),
-                    range: AstRange {
-                        start: AstPoint { line: 5, col: 21 },
-                        end: AstPoint { line: 5, col: 26 }
-                    }
-                }]],
-                active_param: Some(0)
-            },
-            CallItem::ClassOrVariable {
-                name: "local".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 21 },
-                    end: AstPoint { line: 5, col: 26 }
-                }
-            }
-        ])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -733,7 +376,7 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 23));
-    match out.clone().unwrap().first().unwrap() {
+    match out.clone().first().unwrap() {
         CallItem::ArgumentList {
             prev: _,
             active_param,
@@ -742,57 +385,7 @@ public class Test {
         } => assert_eq!(active_param, &Some(1)),
         _ => unreachable!(),
     };
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ArgumentList {
-                prev: vec![
-                    CallItem::ClassOrVariable {
-                        name: "a".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 5, col: 8 },
-                            end: AstPoint { line: 5, col: 9 },
-                        },
-                    },
-                    CallItem::MethodCall {
-                        name: "concat".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 5, col: 10 },
-                            end: AstPoint { line: 5, col: 16 },
-                        },
-                    },
-                ],
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 16 },
-                    end: AstPoint { line: 5, col: 24 },
-                },
-                filled_params: vec![
-                    vec![CallItem::ClassOrVariable {
-                        name: "b".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 5, col: 17 },
-                            end: AstPoint { line: 5, col: 18 },
-                        },
-                    }],
-                    vec![CallItem::ClassOrVariable {
-                        name: "c".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 5, col: 20 },
-                            end: AstPoint { line: 5, col: 21 },
-                        },
-                    }]
-                ],
-                active_param: Some(1)
-            },
-            CallItem::ClassOrVariable {
-                name: "c".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 20 },
-                    end: AstPoint { line: 5, col: 21 },
-                }
-            }
-        ])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -811,57 +404,7 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 19));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ArgumentList {
-                prev: vec![
-                    CallItem::ClassOrVariable {
-                        name: "a".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 5, col: 8 },
-                            end: AstPoint { line: 5, col: 9 },
-                        },
-                    },
-                    CallItem::MethodCall {
-                        name: "concat".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 5, col: 10 },
-                            end: AstPoint { line: 5, col: 16 },
-                        },
-                    },
-                ],
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 16 },
-                    end: AstPoint { line: 5, col: 23 },
-                },
-                filled_params: vec![
-                    vec![CallItem::ClassOrVariable {
-                        name: "b".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 5, col: 17 },
-                            end: AstPoint { line: 5, col: 18 },
-                        }
-                    }],
-                    vec![CallItem::ClassOrVariable {
-                        name: "c".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 5, col: 21 },
-                            end: AstPoint { line: 5, col: 22 },
-                        }
-                    }],
-                ],
-                active_param: Some(0)
-            },
-            CallItem::ClassOrVariable {
-                name: "b".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 17 },
-                    end: AstPoint { line: 5, col: 18 },
-                }
-            }
-        ])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -880,57 +423,7 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 22));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ArgumentList {
-                prev: vec![
-                    CallItem::ClassOrVariable {
-                        name: "a".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 5, col: 8 },
-                            end: AstPoint { line: 5, col: 9 },
-                        },
-                    },
-                    CallItem::MethodCall {
-                        name: "concat".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 5, col: 10 },
-                            end: AstPoint { line: 5, col: 16 },
-                        },
-                    },
-                ],
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 16 },
-                    end: AstPoint { line: 5, col: 23 },
-                },
-                filled_params: vec![
-                    vec![CallItem::ClassOrVariable {
-                        name: "b".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 5, col: 17 },
-                            end: AstPoint { line: 5, col: 18 },
-                        }
-                    }],
-                    vec![CallItem::ClassOrVariable {
-                        name: "c".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 5, col: 20 },
-                            end: AstPoint { line: 5, col: 21 },
-                        }
-                    }]
-                ],
-                active_param: Some(1)
-            },
-            CallItem::ClassOrVariable {
-                name: "c".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 20 },
-                    end: AstPoint { line: 5, col: 21 },
-                }
-            }
-        ])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -949,64 +442,7 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 22));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ArgumentList {
-                prev: vec![
-                    CallItem::ClassOrVariable {
-                        name: "a".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 5, col: 8 },
-                            end: AstPoint { line: 5, col: 9 },
-                        },
-                    },
-                    CallItem::MethodCall {
-                        name: "concat".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 5, col: 10 },
-                            end: AstPoint { line: 5, col: 16 },
-                        },
-                    },
-                ],
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 16 },
-                    end: AstPoint { line: 5, col: 23 },
-                },
-                filled_params: vec![vec![
-                    CallItem::ClassOrVariable {
-                        name: "b".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 5, col: 17 },
-                            end: AstPoint { line: 5, col: 18 },
-                        }
-                    },
-                    CallItem::FieldAccess {
-                        name: "a".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 5, col: 19 },
-                            end: AstPoint { line: 5, col: 20 }
-                        },
-                    },
-                ]],
-                active_param: Some(0)
-            },
-            CallItem::ClassOrVariable {
-                name: "b".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 17 },
-                    end: AstPoint { line: 5, col: 18 },
-                }
-            },
-            CallItem::FieldAccess {
-                name: "a".into(),
-                range: AstRange {
-                    start: AstPoint { line: 5, col: 19 },
-                    end: AstPoint { line: 5, col: 20 }
-                },
-            },
-        ])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -1024,9 +460,10 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 28));
+    insta::assert_debug_snapshot!(out);
     assert_eq!(
         out,
-        Some(vec![
+        vec![
             CallItem::ArgumentList {
                 prev: vec![CallItem::MethodCall {
                     name: "concat".into(),
@@ -1036,8 +473,8 @@ public class Test {
                     },
                 },],
                 filled_params: vec![vec![
-                    CallItem::ClassOrVariable {
-                        name: "a".into(),
+                    CallItem::Class {
+                        name: "String".into(),
                         range: AstRange {
                             start: AstPoint { line: 4, col: 21 },
                             end: AstPoint { line: 4, col: 22 },
@@ -1057,8 +494,8 @@ public class Test {
                     end: AstPoint { line: 4, col: 34 },
                 },
             },
-            CallItem::ClassOrVariable {
-                name: "a".into(),
+            CallItem::Class {
+                name: "String".into(),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 21 },
                     end: AstPoint { line: 4, col: 22 },
@@ -1071,7 +508,7 @@ public class Test {
                     end: AstPoint { line: 4, col: 31 }
                 },
             },
-        ])
+        ]
     );
 }
 
@@ -1092,7 +529,7 @@ public class Test {
     let out = get_call_chain(&ast, &AstPoint::new(4, 18));
     assert_eq!(
         out,
-        Some(vec![CallItem::ArgumentList {
+        vec![CallItem::ArgumentList {
             prev: vec![
                 CallItem::ClassOrVariable {
                     name: "a".into(),
@@ -1115,7 +552,7 @@ public class Test {
             },
             filled_params: vec![vec![]],
             active_param: Some(0)
-        }])
+        }]
     );
 }
 
@@ -1137,7 +574,7 @@ public class Test {
     let out = get_call_chain(&ast, &AstPoint::new(5, 23));
     assert_eq!(
         out,
-        Some(vec![
+        vec![
             CallItem::ArgumentList {
                 prev: vec![
                     CallItem::ClassOrVariable {
@@ -1191,7 +628,7 @@ public class Test {
                     end: AstPoint { line: 5, col: 20 },
                 }
             },
-        ])
+        ]
     );
 }
 
@@ -1215,13 +652,13 @@ public class Test {
     let out = get_call_chain(&ast, &AstPoint::new(4, 14));
     assert_eq!(
         out,
-        Some(vec![CallItem::ClassOrVariable {
+        vec![CallItem::ClassOrVariable {
             name: "a".into(),
             range: AstRange {
                 start: AstPoint { line: 4, col: 12 },
                 end: AstPoint { line: 4, col: 13 },
             }
-        }])
+        }]
     );
 }
 
@@ -1262,13 +699,13 @@ public class Test {
     let out = get_call_chain(&ast, &AstPoint::new(4, 18));
     assert_eq!(
         out,
-        Some(vec![CallItem::ClassOrVariable {
+        vec![CallItem::ClassOrVariable {
             name: "a".into(),
             range: AstRange {
                 start: AstPoint { line: 4, col: 15 },
                 end: AstPoint { line: 4, col: 16 }
             }
-        },])
+        },]
     );
 }
 
@@ -1288,7 +725,7 @@ public class Test {
     let out = get_call_chain(&ast, &AstPoint::new(4, 22));
     assert_eq!(
         out,
-        Some(vec![
+        vec![
             CallItem::ClassOrVariable {
                 name: "a".into(),
                 range: AstRange {
@@ -1303,7 +740,7 @@ public class Test {
                     end: AstPoint { line: 4, col: 18 },
                 }
             }
-        ])
+        ]
     );
 }
 
@@ -1344,7 +781,7 @@ public class Test {
     let out = get_call_chain(&ast, &AstPoint::new(4, 22));
     assert_eq!(
         out,
-        Some(vec![
+        vec![
             CallItem::Class {
                 name: "String".into(),
                 range: AstRange {
@@ -1359,7 +796,7 @@ public class Test {
                     end: AstPoint { line: 4, col: 22 },
                 }
             }
-        ])
+        ]
     );
 }
 
@@ -1380,7 +817,7 @@ public class Test {
     let out = get_call_chain(&ast, &AstPoint::new(4, 25));
     assert_eq!(
         out,
-        Some(vec![
+        vec![
             CallItem::Class {
                 name: "String".into(),
                 range: AstRange {
@@ -1395,7 +832,7 @@ public class Test {
                     end: AstPoint { line: 4, col: 22 },
                 }
             }
-        ])
+        ]
     );
 }
 
@@ -1413,7 +850,7 @@ public class Test {
     let out = get_call_chain(&ast, &AstPoint::new(3, 43));
     assert_eq!(
         out,
-        Some(vec![
+        vec![
             CallItem::ClassOrVariable {
                 name: "Logger".into(),
                 range: AstRange {
@@ -1428,7 +865,7 @@ public class Test {
                     end: AstPoint { line: 3, col: 48 },
                 }
             }
-        ])
+        ]
     );
 }
 
@@ -1452,7 +889,7 @@ public class Test {
     let out = get_call_chain(&ast, &AstPoint::new(4, 27));
     assert_eq!(
         out,
-        Some(vec![
+        vec![
             CallItem::ClassOrVariable {
                 name: "MediaType".into(),
                 range: AstRange {
@@ -1467,7 +904,7 @@ public class Test {
                     end: AstPoint { line: 4, col: 34 },
                 }
             }
-        ])
+        ]
     );
 }
 
@@ -1489,7 +926,7 @@ public class Test {
     let out = get_call_chain(&ast, &AstPoint::new(4, 27));
     assert_eq!(
         out,
-        Some(vec![
+        vec![
             CallItem::This {
                 range: AstRange {
                     start: AstPoint { line: 4, col: 13 },
@@ -1510,7 +947,7 @@ public class Test {
                     end: AstPoint { line: 4, col: 28 }
                 }
             }
-        ])
+        ]
     );
 }
 
@@ -1531,7 +968,7 @@ public class Test {
     let out = get_call_chain(&ast, &AstPoint::new(4, 13));
     assert_eq!(
         out,
-        Some(vec![
+        vec![
             CallItem::This {
                 range: AstRange {
                     start: AstPoint { line: 4, col: 6 },
@@ -1545,6 +982,6 @@ public class Test {
                     end: AstPoint { line: 4, col: 14 }
                 }
             },
-        ])
+        ]
     );
 }

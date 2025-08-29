@@ -1845,7 +1845,6 @@ dependencies = [
  "ast",
  "insta",
  "parser",
- "pretty_assertions",
  "smol_str",
 ]
 

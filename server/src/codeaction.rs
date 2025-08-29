@@ -75,9 +75,7 @@ pub fn replace_with_value_type(
         }
     };
     // value here
-    let Some(call_chain) = call_chain::get_call_chain(ast, &point) else {
-        return Err(CodeActionError::NoCallCain);
-    };
+    let call_chain = call_chain::get_call_chain(ast, &point);
     let value_resolve_state = tyres::resolve_call_chain_value(
         &call_chain,
         context.vars,

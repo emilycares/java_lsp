@@ -219,13 +219,11 @@ pub fn complete_call_chain(
     class: &dto::Class,
     class_map: &dashmap::DashMap<SmolStr, parser::dto::Class>,
 ) -> Result<Vec<CompletionItem>, CompletionError> {
-    if let Some(call_chain) = get_call_chain(&document.ast, point).as_deref() {
-        return match tyres::resolve_call_chain(call_chain, vars, imports, class, class_map) {
-            Ok(resolve_state) => Ok(class_unpack(&resolve_state.class, imports, &document.ast)),
-            Err(tyres_error) => Err(CompletionError::Tyres { tyres_error }),
-        };
-    }
-    Ok(vec![])
+    let call_chain = get_call_chain(&document.ast, point);
+    return match tyres::resolve_call_chain(&call_chain, vars, imports, class, class_map) {
+        Ok(resolve_state) => Ok(class_unpack(&resolve_state.class, imports, &document.ast)),
+        Err(tyres_error) => Err(CompletionError::Tyres { tyres_error }),
+    };
 }
 
 pub fn classes(

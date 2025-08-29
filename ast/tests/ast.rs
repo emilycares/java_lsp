@@ -1,7 +1,7 @@
 use ast::error::PrintErr;
 use ast::{
-    lexer, parse_block, parse_block_variable, parse_file, parse_lambda, parse_name,
-    parse_recursive_expression, parse_string_literal,
+    lexer, parse_block, parse_block_return, parse_block_variable, parse_file, parse_lambda,
+    parse_name, parse_recursive_expression, parse_string_literal,
 };
 
 #[test]
@@ -239,6 +239,23 @@ fn equal_expr() {
     let content = "a == b ";
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_recursive_expression(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+#[test]
+fn new_array() {
+    let content = r#"
+     return new Object[][] {
+            { "NumberPatterns",
+                new String[] {
+                   "",
+                   ""
+                }
+            },
+        };   
+    "#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_block_return(&tokens, 0);
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }

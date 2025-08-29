@@ -42,9 +42,7 @@ pub fn base(
         return Err(HoverError::NoClass(document.class_path.to_smolstr()));
     };
 
-    let Some(call_chain) = call_chain::get_call_chain(ast, point) else {
-        return Err(HoverError::CallChainEmpty);
-    };
+    let call_chain = call_chain::get_call_chain(ast, point);
 
     call_chain_hover(
         document,
@@ -79,7 +77,6 @@ pub fn class_action(
     _imports: &[ImportUnit],
     _class_map: &dashmap::DashMap<SmolStr, parser::dto::Class>,
 ) -> Result<(dto::Class, Range), ClassActionError> {
-    todo!()
     // let Ok(n) = tree_sitter_util::get_node_at_point(tree, *point) else {
     //     return Err(ClassActionError::CouldNotGetNode);
     // };
@@ -109,7 +106,7 @@ pub fn class_action(
     //     }
     //     _ => {}
     // };
-    // Err(ClassActionError::NotFound)
+    Err(ClassActionError::NotFound)
 }
 
 pub fn call_chain_hover(
@@ -384,7 +381,7 @@ public class Test {
         let point = AstPoint::new(5, 29);
         let vars = variables::get_vars(&doc.ast, &point).unwrap();
 
-        let chain = call_chain::get_call_chain(&doc.ast, &point).unwrap();
+        let chain = call_chain::get_call_chain(&doc.ast, &point);
         let out = call_chain_hover(&doc, chain, &point, &vars, &[], &class, &string_class_map());
         assert!(out.is_ok());
     }

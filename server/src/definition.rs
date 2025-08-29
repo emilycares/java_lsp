@@ -246,7 +246,7 @@ public class Test {
                 .unwrap();
         let vars = variables::get_vars(&document.ast, &point).unwrap();
         let imports = imports::imports(&document);
-        let call_chain = call_chain::get_call_chain(&document.ast, &point).unwrap();
+        let call_chain = call_chain::get_call_chain(&document.ast, &point);
         let context = DefinitionContext {
             document_uri,
             point: &point,
@@ -288,7 +288,7 @@ public class Test {
                 .unwrap();
         let vars = variables::get_vars(&document.ast, &point).unwrap();
         let imports = imports::imports(&document);
-        let call_chain = call_chain::get_call_chain(&document.ast, &point).unwrap();
+        let call_chain = call_chain::get_call_chain(&document.ast, &point);
         let context = DefinitionContext {
             document_uri,
             point: &point,

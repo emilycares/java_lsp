@@ -3,20 +3,18 @@ source: call_chain/tests/base.rs
 expression: out
 snapshot_kind: text
 ---
-Some(
-    [
-        ClassOrVariable {
-            name: "a",
-            range: AstRange {
-                start: AstPoint {
-                    line: 4,
-                    col: 12,
-                },
-                end: AstPoint {
-                    line: 4,
-                    col: 13,
-                },
+[
+    ClassOrVariable {
+        name: "a",
+        range: AstRange {
+            start: AstPoint {
+                line: 4,
+                col: 12,
+            },
+            end: AstPoint {
+                line: 4,
+                col: 13,
             },
         },
-    ],
-)
+    },
+]

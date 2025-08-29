@@ -63,7 +63,7 @@ expression: parsed.unwrap()
                                 },
                                 end: AstPoint {
                                     line: 0,
-                                    col: 33,
+                                    col: 31,
                                 },
                             },
                             value: AstRecursiveExpression {

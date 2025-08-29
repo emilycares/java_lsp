@@ -16,4 +16,3 @@ ast = {path = "../ast"}
 
 [dev-dependencies]
 insta.workspace = true
-pretty_assertions.workspace = true

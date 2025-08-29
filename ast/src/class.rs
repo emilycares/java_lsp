@@ -2,9 +2,9 @@
 use crate::{
     error::{AstError, assert_token},
     lexer::{PositionToken, Token},
-    parse_annotated_list, parse_avaliability, parse_block, parse_identifier, parse_jtype,
-    parse_method_header, parse_method_paramerters, parse_name, parse_name_single,
-    parse_recursive_expression, parse_superclass,
+    parse_annotated_list, parse_avaliability, parse_block, parse_expression, parse_identifier,
+    parse_jtype, parse_method_header, parse_method_paramerters, parse_name, parse_name_single,
+    parse_superclass,
     types::{
         AstAnnotated, AstAvailability, AstClass, AstClassBlock, AstClassConstructor,
         AstClassMethod, AstClassVariable, AstRange, AstStaticFinal, AstThing,
@@ -150,7 +150,7 @@ pub fn parse_class_variable(
     let mut expression = None;
     let mut pos = pos;
     if let Ok(npos) = assert_token(tokens, pos, Token::Equal) {
-        let (aexpr, npos) = parse_recursive_expression(tokens, npos)?;
+        let (aexpr, npos) = parse_expression(tokens, npos)?;
         pos = npos;
         expression = Some(aexpr);
     }

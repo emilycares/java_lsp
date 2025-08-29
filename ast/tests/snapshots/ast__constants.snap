@@ -23,8 +23,8 @@ AstFile {
                 col: 0,
             },
             end: AstPoint {
-                line: 6,
-                col: 6,
+                line: 4,
+                col: 23,
             },
         },
         imports: [
@@ -35,8 +35,8 @@ AstFile {
                         col: 0,
                     },
                     end: AstPoint {
-                        line: 3,
-                        col: 6,
+                        line: 2,
+                        col: 23,
                     },
                 },
                 unit: Class(
@@ -62,8 +62,8 @@ AstFile {
                         col: 0,
                     },
                     end: AstPoint {
-                        line: 4,
-                        col: 6,
+                        line: 3,
+                        col: 27,
                     },
                 },
                 unit: Class(
@@ -89,8 +89,8 @@ AstFile {
                         col: 0,
                     },
                     end: AstPoint {
-                        line: 6,
-                        col: 6,
+                        line: 4,
+                        col: 23,
                     },
                 },
                 unit: Class(
@@ -376,7 +376,7 @@ AstFile {
                             },
                             end: AstPoint {
                                 line: 13,
-                                col: 19,
+                                col: 18,
                             },
                         },
                         avaliability: Undefined,
@@ -414,7 +414,7 @@ AstFile {
                                 },
                                 end: AstPoint {
                                     line: 13,
-                                    col: 19,
+                                    col: 18,
                                 },
                             },
                             parameters: [],
@@ -443,7 +443,7 @@ AstFile {
                             },
                             end: AstPoint {
                                 line: 15,
-                                col: 70,
+                                col: 69,
                             },
                         },
                         avaliability: Undefined,
@@ -495,7 +495,7 @@ AstFile {
                                 },
                                 end: AstPoint {
                                     line: 15,
-                                    col: 57,
+                                    col: 50,
                                 },
                             },
                             parameters: [
@@ -507,7 +507,7 @@ AstFile {
                                         },
                                         end: AstPoint {
                                             line: 15,
-                                            col: 40,
+                                            col: 39,
                                         },
                                     },
                                     jtype: AstJType {
@@ -560,7 +560,7 @@ AstFile {
                                         },
                                         end: AstPoint {
                                             line: 15,
-                                            col: 50,
+                                            col: 49,
                                         },
                                     },
                                     jtype: AstJType {
@@ -602,7 +602,7 @@ AstFile {
                                     },
                                     end: AstPoint {
                                         line: 15,
-                                        col: 70,
+                                        col: 69,
                                     },
                                 },
                                 parameters: [

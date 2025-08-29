@@ -117,7 +117,6 @@ impl PrintErr for AstError {
                     format!("Token not allowed in nuget: {:?}", invalid_token.found),
                 );
             }
-
             AstError::AllChildrenFailed { parent, errors } => {
                 eprintln!("All chilren failed in {parent}");
                 for (child, e) in errors {

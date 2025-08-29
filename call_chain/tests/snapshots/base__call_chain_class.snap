@@ -4,12 +4,12 @@ expression: out
 snapshot_kind: text
 ---
 [
-    Class {
+    ClassOrVariable {
         name: "String",
         range: AstRange {
             start: AstPoint {
                 line: 5,
-                col: 16,
+                col: 8,
             },
             end: AstPoint {
                 line: 5,

@@ -23,8 +23,8 @@ AstFile {
                 col: 0,
             },
             end: AstPoint {
-                line: 8,
-                col: 1,
+                line: 6,
+                col: 36,
             },
         },
         imports: [
@@ -35,8 +35,8 @@ AstFile {
                         col: 0,
                     },
                     end: AstPoint {
-                        line: 3,
-                        col: 6,
+                        line: 2,
+                        col: 25,
                     },
                 },
                 unit: Class(
@@ -62,8 +62,8 @@ AstFile {
                         col: 0,
                     },
                     end: AstPoint {
-                        line: 4,
-                        col: 6,
+                        line: 3,
+                        col: 34,
                     },
                 },
                 unit: Class(
@@ -89,8 +89,8 @@ AstFile {
                         col: 0,
                     },
                     end: AstPoint {
-                        line: 5,
-                        col: 6,
+                        line: 4,
+                        col: 26,
                     },
                 },
                 unit: Class(
@@ -116,8 +116,8 @@ AstFile {
                         col: 0,
                     },
                     end: AstPoint {
-                        line: 6,
-                        col: 6,
+                        line: 5,
+                        col: 30,
                     },
                 },
                 unit: Class(
@@ -143,8 +143,8 @@ AstFile {
                         col: 0,
                     },
                     end: AstPoint {
-                        line: 8,
-                        col: 1,
+                        line: 6,
+                        col: 36,
                     },
                 },
                 unit: Class(
@@ -553,7 +553,7 @@ AstFile {
                                 },
                                 end: AstPoint {
                                     line: 15,
-                                    col: 38,
+                                    col: 36,
                                 },
                             },
                             avaliability: Public,
@@ -605,7 +605,7 @@ AstFile {
                                     },
                                     end: AstPoint {
                                         line: 15,
-                                        col: 38,
+                                        col: 36,
                                     },
                                 },
                                 parameters: [
@@ -617,7 +617,7 @@ AstFile {
                                             },
                                             end: AstPoint {
                                                 line: 15,
-                                                col: 36,
+                                                col: 35,
                                             },
                                         },
                                         jtype: AstJType {
@@ -687,8 +687,8 @@ AstFile {
                                                 col: 8,
                                             },
                                             end: AstPoint {
-                                                line: 17,
-                                                col: 14,
+                                                line: 16,
+                                                col: 35,
                                             },
                                         },
                                         value: AstRecursiveExpression {
@@ -917,47 +917,49 @@ AstFile {
                                                 col: 8,
                                             },
                                             end: AstPoint {
-                                                line: 18,
-                                                col: 5,
+                                                line: 17,
+                                                col: 41,
                                             },
                                         },
                                         expression: Expression(
-                                            AstRecursiveExpression {
-                                                range: AstRange {
-                                                    start: AstPoint {
-                                                        line: 17,
-                                                        col: 39,
+                                            Recursive(
+                                                AstRecursiveExpression {
+                                                    range: AstRange {
+                                                        start: AstPoint {
+                                                            line: 17,
+                                                            col: 39,
+                                                        },
+                                                        end: AstPoint {
+                                                            line: 17,
+                                                            col: 62,
+                                                        },
                                                     },
-                                                    end: AstPoint {
-                                                        line: 17,
-                                                        col: 62,
-                                                    },
-                                                },
-                                                ident: Some(
-                                                    Value(
-                                                        Nuget(
-                                                            StringLiteral(
-                                                                AstIdentifier {
-                                                                    range: AstRange {
-                                                                        start: AstPoint {
-                                                                            line: 17,
-                                                                            col: 39,
+                                                    ident: Some(
+                                                        Value(
+                                                            Nuget(
+                                                                StringLiteral(
+                                                                    AstIdentifier {
+                                                                        range: AstRange {
+                                                                            start: AstPoint {
+                                                                                line: 17,
+                                                                                col: 39,
+                                                                            },
+                                                                            end: AstPoint {
+                                                                                line: 17,
+                                                                                col: 14,
+                                                                            },
                                                                         },
-                                                                        end: AstPoint {
-                                                                            line: 17,
-                                                                            col: 14,
-                                                                        },
+                                                                        value: "Hello from Quarkus REST",
                                                                     },
-                                                                    value: "Hello from Quarkus REST",
-                                                                },
+                                                                ),
                                                             ),
                                                         ),
                                                     ),
-                                                ),
-                                                values: None,
-                                                next: None,
-                                                operator: None,
-                                            },
+                                                    values: None,
+                                                    next: None,
+                                                    operator: None,
+                                                },
+                                            ),
                                         ),
                                     },
                                 ),
@@ -984,7 +986,7 @@ AstFile {
                                 },
                                 end: AstPoint {
                                     line: 20,
-                                    col: 32,
+                                    col: 30,
                                 },
                             },
                             avaliability: PublicStatic,
@@ -1022,7 +1024,7 @@ AstFile {
                                     },
                                     end: AstPoint {
                                         line: 20,
-                                        col: 32,
+                                        col: 30,
                                     },
                                 },
                                 parameters: [],

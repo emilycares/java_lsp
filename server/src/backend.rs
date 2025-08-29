@@ -505,10 +505,7 @@ impl Backend {
                 eprintln!("Error while class definition: {e:?}");
             }
         }
-        let Some(call_chain) = get_call_chain(&document.ast, &point) else {
-            eprintln!("Defintion could not get callchain");
-            return None;
-        };
+        let call_chain = get_call_chain(&document.ast, &point);
         match definition::call_chain_definition(&call_chain, &context) {
             Ok(definition) => return Some(definition),
             Err(e) => {
@@ -551,10 +548,7 @@ impl Backend {
             }
             Err(e) => eprintln!("Got refrence class error: {e:?}"),
         }
-        let Some(call_chain) = get_call_chain(&document.ast, &point) else {
-            eprintln!("Defintion could not get callchain");
-            return None;
-        };
+        let call_chain = get_call_chain(&document.ast, &point);
         let Some(class) = &self.class_map.get(&document.class_path) else {
             eprintln!("Could not find class {}", document.class_path);
             return None;

@@ -166,7 +166,7 @@ pub struct AstClassVariable {
     pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
     pub jtype: AstJType,
-    pub expression: Option<AstRecursiveExpression>,
+    pub expression: Option<AstExpression>,
     pub static_final: AstStaticFinal,
 }
 
@@ -301,7 +301,7 @@ pub enum AstIfContent {
 #[derive(Debug)]
 pub struct AstThrow {
     pub range: AstRange,
-    pub value: AstValueNewClass,
+    pub value: AstNewClass,
 }
 #[derive(Debug)]
 pub struct AstTryCatch {
@@ -321,7 +321,7 @@ pub struct AstTryCatchCase {
 pub struct AstBlockAssign {
     pub range: AstRange,
     pub key: AstRecursiveExpression,
-    pub expression: Option<AstRecursiveExpression>,
+    pub expression: Option<AstExpression>,
 }
 #[derive(Debug)]
 pub struct AstBlockExpression {
@@ -336,16 +336,17 @@ pub struct AstBlock {
 #[derive(Debug)]
 pub struct AstBlockVariable {
     pub range: AstRange,
+    pub fin: bool,
     pub name: AstIdentifier,
     pub jtype: AstJType,
-    pub expression: Option<AstBaseExpression>,
+    pub expression: Option<AstExpression>,
 }
 #[derive(Debug)]
 pub struct AstBlockVariableMutliType {
     pub range: AstRange,
     pub name: AstIdentifier,
     pub jtypes: Vec<AstJType>,
-    pub expression: Option<AstBaseExpression>,
+    pub expression: Option<AstExpression>,
 }
 
 #[derive(Debug)]
@@ -353,16 +354,17 @@ pub struct AstBlockReturn {
     pub range: AstRange,
     pub expression: AstExpressionOrValue,
 }
+
 #[derive(Debug)]
 pub enum AstExpressionOrValue {
     None,
-    Expression(AstRecursiveExpression),
+    Expression(AstExpression),
     Value(AstValue),
 }
 #[derive(Debug)]
 pub struct AstBlockYield {
     pub range: AstRange,
-    pub expression: Option<AstRecursiveExpression>,
+    pub expression: AstExpressionOrValue,
 }
 #[derive(Debug)]
 pub struct AstBlockBreak {
@@ -424,7 +426,7 @@ pub enum AstSuperClass {
 pub struct AstAnnotated {
     pub range: AstRange,
     pub name: AstIdentifier,
-    pub parameters: Vec<AstBaseExpression>,
+    pub parameters: Vec<AstExpression>,
 }
 
 #[derive(Debug)]
@@ -491,7 +493,6 @@ pub enum AstJTypeKind {
 
 #[derive(Debug)]
 pub enum AstValue {
-    NewClass(AstValueNewClass),
     Variable(AstIdentifier),
     Nuget(AstValueNuget),
     Array(AstValues),
@@ -506,11 +507,12 @@ pub enum AstValueNuget {
     BooleanLiteral(AstBoolean),
 }
 #[derive(Debug)]
-pub enum AstBaseExpression {
+pub enum AstExpression {
     Casted(AstCastedExpression),
     Recursive(AstRecursiveExpression),
     Lambda(AstLambda),
     InlineSwitch(AstSwitch),
+    NewClass(AstNewClass),
 }
 #[derive(Debug)]
 pub struct AstCastedExpression {
@@ -537,7 +539,7 @@ pub enum AstExpressionIdentifier {
 #[derive(Debug)]
 pub struct AstValues {
     pub range: AstRange,
-    pub values: Vec<AstBaseExpression>,
+    pub values: Vec<AstExpression>,
 }
 impl AstRecursiveExpression {
     pub fn has_content(&self) -> bool {
@@ -555,7 +557,7 @@ pub struct AstLambda {
 pub enum AstLambdaRhs {
     None,
     Block(AstBlock),
-    Expr(Box<AstBaseExpression>),
+    Expr(Box<AstExpression>),
 }
 
 #[derive(Debug, Default)]
@@ -565,11 +567,18 @@ pub struct AstLambdaParameters {
 }
 
 #[derive(Debug)]
-pub struct AstValueNewClass {
+pub struct AstNewClass {
     pub range: AstRange,
     pub jtype: AstJType,
-    pub parameters: Vec<AstBaseExpression>,
-    pub block: Option<AstClassBlock>,
+    pub rhs: Box<AstNewRhs>,
+}
+#[derive(Debug)]
+pub enum AstNewRhs {
+    None,
+    Parameters(Vec<AstExpression>),
+    Block(AstClassBlock),
+    ParametersAndBlock(Vec<AstExpression>, AstClassBlock),
+    Array(AstValues),
 }
 
 #[derive(Debug)]
@@ -651,5 +660,5 @@ pub struct AstEnumeration {
 pub struct AstEnumerationVariant {
     pub range: AstRange,
     pub name: AstIdentifier,
-    pub parameters: Vec<AstBaseExpression>,
+    pub parameters: Vec<AstExpression>,
 }

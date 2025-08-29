@@ -27,6 +27,7 @@ expression: parsed.unwrap()
                             col: 9,
                         },
                     },
+                    fin: false,
                     name: AstIdentifier {
                         range: AstRange {
                             start: AstPoint {

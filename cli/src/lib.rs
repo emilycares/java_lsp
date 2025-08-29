@@ -30,10 +30,11 @@ pub fn ast_check(file: PathBuf) {
     match std::fs::read_to_string(&file) {
         Ok(text) => match ast::lexer::lex(&text) {
             Ok(tokens) => {
-                let ast = ast::parse_file(&tokens);
                 eprintln!("Here: {:?}", file);
-                ast.print_err(&text);
+                let ast = ast::parse_file(&tokens);
                 if ast.is_err() {
+                    eprintln!("Here: {:?}", file);
+                    ast.print_err(&text);
                     std::process::exit(3);
                 }
             }

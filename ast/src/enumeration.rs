@@ -106,7 +106,7 @@ pub fn parse_enum_variant(
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let (name, pos) = parse_identifier(tokens, pos)?;
     let (parameters, pos) = parse_expression_parameters(tokens, pos)?;
-    let end = tokens.get(pos).ok_or(AstError::eof())?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstEnumerationVariant {
             range: AstRange::from_position_token(start, end),
