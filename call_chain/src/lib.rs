@@ -318,7 +318,7 @@ fn cc_block_entrie(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIt
                 return cc_block(&ast_switch.block, point, out);
             }
         }
-        AstBlockEntry::SwitchCase(ast_switch_case) => cc_value(&ast_switch_case.value, out),
+        AstBlockEntry::SwitchCase(ast_switch_case) => cc_value(&ast_switch_case.value, point, out),
         AstBlockEntry::SwitchDefault(_ast_switch_default) => (),
         AstBlockEntry::TryCatch(ast_try_catch) => {
             if let Some(res) = &ast_try_catch.resources_block {
@@ -395,18 +395,16 @@ fn cc_if_content(content: &AstIfContent, point: &AstPoint, out: &mut Vec<CallIte
     }
 }
 
-fn cc_value(value: &AstValue, out: &mut Vec<CallItem>) {
+fn cc_value(value: &AstValue, point: &AstPoint, out: &mut Vec<CallItem>) {
     match value {
         AstValue::Variable(ast_identifier) => cc_variable(ast_identifier, out),
         AstValue::Nuget(ast_nuget) => cc_value_nuget(ast_nuget, out),
+        AstValue::NewClass(ast_new_class) => cc_new_class(ast_new_class, point, out),
         AstValue::Array(_ast_values) => todo!(),
     }
 }
 
 fn cc_new_class(ast_new_class: &AstNewClass, point: &AstPoint, out: &mut Vec<CallItem>) {
-    if !ast_new_class.range.is_in_range(point) {
-        return;
-    }
     if let AstJTypeKind::Class(c) = &ast_new_class.jtype.value {
         out.push(CallItem::Class {
             name: c.value.clone(),
@@ -509,59 +507,71 @@ fn cc_expr_recursive(
     has_parent: bool,
     out: &mut Vec<CallItem>,
 ) {
-    match &ast_expression.operator {
-        AstExpressionOperator::Plus(_)
-        | AstExpressionOperator::PlusPlus(_)
-        | AstExpressionOperator::Minus(_)
-        | AstExpressionOperator::MinusMinus(_)
-        | AstExpressionOperator::Equal(_)
-        | AstExpressionOperator::NotEqual(_)
-        | AstExpressionOperator::Multiply(_)
-        | AstExpressionOperator::Devide(_)
-        | AstExpressionOperator::Modulo(_)
-        | AstExpressionOperator::Le(_)
-        | AstExpressionOperator::Lt(_)
-        | AstExpressionOperator::Ge(_)
-        | AstExpressionOperator::Gt(_)
-        | AstExpressionOperator::Ampersand(_)
-        | AstExpressionOperator::AmpersandAmpersand(_)
-        | AstExpressionOperator::VerticalBar(_)
-        | AstExpressionOperator::VerticalBarVerticalBar(_) => {
-            if let Some(ident) = &ast_expression.ident
-                && let Some(next) = &ast_expression.next
-            {
-                let a = dist(point, &ident_range(ident));
-                let b = dist(point, &next.range);
+    if let Some(next) = &ast_expression.next {
+        match &next.operator {
+            AstExpressionOperator::Plus(_)
+            | AstExpressionOperator::PlusPlus(_)
+            | AstExpressionOperator::Minus(_)
+            | AstExpressionOperator::MinusMinus(_)
+            | AstExpressionOperator::Equal(_)
+            | AstExpressionOperator::NotEqual(_)
+            | AstExpressionOperator::Multiply(_)
+            | AstExpressionOperator::Devide(_)
+            | AstExpressionOperator::Modulo(_)
+            | AstExpressionOperator::Le(_)
+            | AstExpressionOperator::Lt(_)
+            | AstExpressionOperator::Ge(_)
+            | AstExpressionOperator::Gt(_)
+            | AstExpressionOperator::Ampersand(_)
+            | AstExpressionOperator::AmpersandAmpersand(_)
+            | AstExpressionOperator::VerticalBar(_)
+            | AstExpressionOperator::VerticalBarVerticalBar(_) => {
+                if let Some(ident) = &ast_expression.ident {
+                    let a = dist(point, &ident_range(ident));
+                    let b = dist(point, &next.range);
 
-                if a < b {
+                    dbg!(a, b);
+                    if a < b {
+                        let mut has_args = false;
+                        if let Some(n) = &ast_expression.next {
+                            has_args = n.values.is_some();
+                        }
+                        cc_expr_ident(ident, has_args, false, point, out);
+                    } else {
+                        cc_expr_recursive(next.as_ref(), point, false, out);
+                    }
+                }
+            }
+            AstExpressionOperator::None
+            | AstExpressionOperator::QuestionMark(_)
+            | AstExpressionOperator::Colon(_)
+            | AstExpressionOperator::Dot(_)
+            | AstExpressionOperator::ExclemationMark(_) => {
+                if let Some(ident) = &ast_expression.ident {
                     let mut has_args = false;
                     if let Some(n) = &ast_expression.next {
                         has_args = n.values.is_some();
                     }
-                    cc_expr_ident(ident, has_args, has_parent, out);
-                } else {
+                    cc_expr_ident(ident, has_args, has_parent, point, out);
+                }
+                if let Some(next) = &ast_expression.next {
                     cc_expr_recursive(next.as_ref(), point, true, out);
+                }
+                if let Some(values) = &ast_expression.values {
+                    cc_arugments(point, out, values);
                 }
             }
         }
-        AstExpressionOperator::None
-        | AstExpressionOperator::QuestionMark(_)
-        | AstExpressionOperator::Colon(_)
-        | AstExpressionOperator::Dot(_)
-        | AstExpressionOperator::ExclemationMark(_) => {
-            if let Some(ident) = &ast_expression.ident {
-                let mut has_args = false;
-                if let Some(n) = &ast_expression.next {
-                    has_args = n.values.is_some();
-                }
-                cc_expr_ident(ident, has_args, has_parent, out);
+    } else {
+        if let Some(ident) = &ast_expression.ident {
+            let mut has_args = false;
+            if let Some(n) = &ast_expression.next {
+                has_args = n.values.is_some();
             }
-            if let Some(next) = &ast_expression.next {
-                cc_expr_recursive(next.as_ref(), point, true, out);
-            }
-            if let Some(values) = &ast_expression.values {
-                cc_arugments(point, out, values);
-            }
+            cc_expr_ident(ident, has_args, has_parent, point, out);
+        }
+        if let Some(values) = &ast_expression.values {
+            cc_arugments(point, out, values);
         }
     }
 }
@@ -577,30 +587,24 @@ fn ident_range(ident: &AstExpressionIdentifier) -> AstRange {
             AstValueNuget::CharLiteral(ast_identifier) => ast_identifier.range,
             AstValueNuget::BooleanLiteral(ast_boolean) => ast_boolean.range,
         },
-        AstExpressionIdentifier::Value(ast_value) => match ast_value {
-            AstValue::Variable(ast_identifier) => ast_identifier.range,
-            AstValue::Nuget(ast_value_nuget) => match ast_value_nuget {
-                AstValueNuget::Int(ast_int) => ast_int.range,
-                AstValueNuget::Double(ast_double) => ast_double.range,
-                AstValueNuget::Float(ast_double) => ast_double.range,
-                AstValueNuget::StringLiteral(ast_identifier) => ast_identifier.range,
-                AstValueNuget::CharLiteral(ast_identifier) => ast_identifier.range,
-                AstValueNuget::BooleanLiteral(ast_boolean) => ast_boolean.range,
-            },
-            AstValue::Array(ast_values) => ast_values.range,
+        AstExpressionIdentifier::Value(ast_value) => fun_name(ast_value),
+        AstExpressionIdentifier::ArrayAccess(ast_value) => fun_name(ast_value),
+    }
+}
+
+fn fun_name(ast_value: &AstValue) -> AstRange {
+    match ast_value {
+        AstValue::Variable(ast_identifier) => ast_identifier.range,
+        AstValue::Nuget(ast_value_nuget) => match ast_value_nuget {
+            AstValueNuget::Int(ast_int) => ast_int.range,
+            AstValueNuget::Double(ast_double) => ast_double.range,
+            AstValueNuget::Float(ast_double) => ast_double.range,
+            AstValueNuget::StringLiteral(ast_identifier) => ast_identifier.range,
+            AstValueNuget::CharLiteral(ast_identifier) => ast_identifier.range,
+            AstValueNuget::BooleanLiteral(ast_boolean) => ast_boolean.range,
         },
-        AstExpressionIdentifier::ArrayAccess(ast_value) => match ast_value {
-            AstValue::Variable(ast_identifier) => ast_identifier.range,
-            AstValue::Nuget(ast_value_nuget) => match ast_value_nuget {
-                AstValueNuget::Int(ast_int) => ast_int.range,
-                AstValueNuget::Double(ast_double) => ast_double.range,
-                AstValueNuget::Float(ast_double) => ast_double.range,
-                AstValueNuget::StringLiteral(ast_identifier) => ast_identifier.range,
-                AstValueNuget::CharLiteral(ast_identifier) => ast_identifier.range,
-                AstValueNuget::BooleanLiteral(ast_boolean) => ast_boolean.range,
-            },
-            AstValue::Array(ast_values) => ast_values.range,
-        },
+        AstValue::Array(ast_values) => ast_values.range,
+        AstValue::NewClass(ast_new_class) => ast_new_class.range,
     }
 }
 
@@ -666,16 +670,18 @@ fn cc_expr_ident(
     ident: &AstExpressionIdentifier,
     has_args: bool,
     has_parent: bool,
+    point: &AstPoint,
     out: &mut Vec<CallItem>,
 ) {
     match ident {
         AstExpressionIdentifier::Identifier(ast_identifier) => {
+            let is_empty = out.is_empty();
             if has_args {
                 out.push(CallItem::MethodCall {
                     name: ast_identifier.into(),
                     range: ast_identifier.range,
                 });
-            } else if has_parent {
+            } else if has_parent && !is_empty {
                 out.push(CallItem::FieldAccess {
                     name: ast_identifier.into(),
                     range: ast_identifier.range,
@@ -694,7 +700,7 @@ fn cc_expr_ident(
             }
         }
         AstExpressionIdentifier::Nuget(ast_value_nuget) => cc_value_nuget(ast_value_nuget, out),
-        AstExpressionIdentifier::Value(ast_value) => cc_value(ast_value, out),
+        AstExpressionIdentifier::Value(ast_value) => cc_value(ast_value, point, out),
         AstExpressionIdentifier::ArrayAccess(_ast_value) => todo!(),
     }
 }

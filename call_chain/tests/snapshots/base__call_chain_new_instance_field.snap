@@ -16,4 +16,17 @@ expression: out
             },
         },
     },
+    FieldAccess {
+        name: "a",
+        range: AstRange {
+            start: AstPoint {
+                line: 4,
+                col: 21,
+            },
+            end: AstPoint {
+                line: 4,
+                col: 22,
+            },
+        },
+    },
 ]

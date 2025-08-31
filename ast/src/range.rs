@@ -93,6 +93,7 @@ impl AstInRange for &AstValue {
             AstValue::Variable(ast_identifier) => ast_identifier.range.is_in_range(point),
             AstValue::Nuget(ast_value_nuget) => ast_value_nuget.is_in_range(point),
             AstValue::Array(ast_values) => ast_values.range.is_in_range(point),
+            AstValue::NewClass(ast_new_class) => ast_new_class.range.is_in_range(point),
         }
     }
 }
@@ -103,6 +104,7 @@ impl AstAfterRange for &AstValue {
             AstValue::Variable(ast_identifier) => ast_identifier.range.is_after_range(point),
             AstValue::Nuget(ast_value_nuget) => ast_value_nuget.is_after_range(point),
             AstValue::Array(ast_values) => ast_values.range.is_after_range(point),
+            AstValue::NewClass(ast_new_class) => ast_new_class.range.is_in_range(point),
         }
     }
 }

@@ -32,6 +32,7 @@ expression: ast
             ),
         ),
         values: None,
+        operator: None,
         next: Some(
             AstRecursiveExpression {
                 range: AstRange {
@@ -66,6 +67,7 @@ expression: ast
                     ),
                 ),
                 values: None,
+                operator: None,
                 next: Some(
                     AstRecursiveExpression {
                         range: AstRange {
@@ -100,6 +102,7 @@ expression: ast
                             ),
                         ),
                         values: None,
+                        operator: None,
                         next: Some(
                             AstRecursiveExpression {
                                 range: AstRange {
@@ -134,17 +137,14 @@ expression: ast
                                     ),
                                 ),
                                 values: None,
-                                next: None,
                                 operator: None,
+                                next: None,
                             },
                         ),
-                        operator: None,
                     },
                 ),
-                operator: None,
             },
         ),
-        operator: None,
     },
     10,
 )

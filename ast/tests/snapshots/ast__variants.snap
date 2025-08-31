@@ -106,8 +106,8 @@ AstFile {
                                     ),
                                 ),
                                 values: None,
-                                next: None,
                                 operator: None,
+                                next: None,
                             },
                         ),
                     ],
@@ -171,8 +171,8 @@ AstFile {
                                     ),
                                 ),
                                 values: None,
-                                next: None,
                                 operator: None,
+                                next: None,
                             },
                         ),
                     ],
@@ -236,8 +236,8 @@ AstFile {
                                     ),
                                 ),
                                 values: None,
-                                next: None,
                                 operator: None,
+                                next: None,
                             },
                         ),
                     ],
@@ -379,8 +379,8 @@ AstFile {
                                                     ),
                                                 ),
                                                 values: None,
-                                                next: None,
                                                 operator: None,
+                                                next: None,
                                             },
                                         ),
                                     ),
@@ -595,6 +595,7 @@ AstFile {
                                             ),
                                         ),
                                         values: None,
+                                        operator: None,
                                         next: Some(
                                             AstRecursiveExpression {
                                                 range: AstRange {
@@ -609,6 +610,18 @@ AstFile {
                                                 },
                                                 ident: None,
                                                 values: None,
+                                                operator: Dot(
+                                                    AstRange {
+                                                        start: AstPoint {
+                                                            line: 8,
+                                                            col: 12,
+                                                        },
+                                                        end: AstPoint {
+                                                            line: 8,
+                                                            col: 13,
+                                                        },
+                                                    },
+                                                ),
                                                 next: Some(
                                                     AstRecursiveExpression {
                                                         range: AstRange {
@@ -639,25 +652,12 @@ AstFile {
                                                             ),
                                                         ),
                                                         values: None,
-                                                        next: None,
                                                         operator: None,
-                                                    },
-                                                ),
-                                                operator: Dot(
-                                                    AstRange {
-                                                        start: AstPoint {
-                                                            line: 8,
-                                                            col: 12,
-                                                        },
-                                                        end: AstPoint {
-                                                            line: 8,
-                                                            col: 13,
-                                                        },
+                                                        next: None,
                                                     },
                                                 ),
                                             },
                                         ),
-                                        operator: None,
                                     },
                                     expression: Some(
                                         Recursive(
@@ -690,8 +690,8 @@ AstFile {
                                                     ),
                                                 ),
                                                 values: None,
-                                                next: None,
                                                 operator: None,
+                                                next: None,
                                             },
                                         ),
                                     ),

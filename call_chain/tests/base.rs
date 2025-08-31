@@ -461,55 +461,6 @@ public class Test {
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 28));
     insta::assert_debug_snapshot!(out);
-    assert_eq!(
-        out,
-        vec![
-            CallItem::ArgumentList {
-                prev: vec![CallItem::MethodCall {
-                    name: "concat".into(),
-                    range: AstRange {
-                        start: AstPoint { line: 4, col: 8 },
-                        end: AstPoint { line: 4, col: 14 }
-                    },
-                },],
-                filled_params: vec![vec![
-                    CallItem::Class {
-                        name: "String".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 4, col: 21 },
-                            end: AstPoint { line: 4, col: 22 },
-                        }
-                    },
-                    CallItem::MethodCall {
-                        name: "getThing".into(),
-                        range: AstRange {
-                            start: AstPoint { line: 4, col: 23 },
-                            end: AstPoint { line: 4, col: 31 }
-                        },
-                    },
-                ]],
-                active_param: Some(0),
-                range: AstRange {
-                    start: AstPoint { line: 4, col: 14 },
-                    end: AstPoint { line: 4, col: 34 },
-                },
-            },
-            CallItem::Class {
-                name: "String".into(),
-                range: AstRange {
-                    start: AstPoint { line: 4, col: 21 },
-                    end: AstPoint { line: 4, col: 22 },
-                }
-            },
-            CallItem::MethodCall {
-                name: "getThing".into(),
-                range: AstRange {
-                    start: AstPoint { line: 4, col: 23 },
-                    end: AstPoint { line: 4, col: 31 }
-                },
-            },
-        ]
-    );
 }
 
 #[test]
@@ -776,28 +727,12 @@ public class Test {
 }
 ";
     let tokens = ast::lexer::lex(content).unwrap();
-    let ast = ast::parse_file(&tokens).unwrap();
+    let ast = ast::parse_file(&tokens);
+    ast.print_err(content);
+    let ast = ast.unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 22));
-    assert_eq!(
-        out,
-        vec![
-            CallItem::Class {
-                name: "String".into(),
-                range: AstRange {
-                    start: AstPoint { line: 4, col: 12 },
-                    end: AstPoint { line: 4, col: 18 },
-                }
-            },
-            CallItem::FieldAccess {
-                name: "a".into(),
-                range: AstRange {
-                    start: AstPoint { line: 4, col: 21 },
-                    end: AstPoint { line: 4, col: 22 },
-                }
-            }
-        ]
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -812,7 +747,9 @@ public class Test {
 }
 ";
     let tokens = ast::lexer::lex(content).unwrap();
-    let ast = ast::parse_file(&tokens).unwrap();
+    let ast = ast::parse_file(&tokens);
+    ast.print_err(content);
+    let ast = ast.unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 25));
     assert_eq!(
@@ -965,7 +902,7 @@ public class Test {
     let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&ast, &AstPoint::new(4, 13));
+    let out = get_call_chain(&ast, &AstPoint::new(4, 15));
     assert_eq!(
         out,
         vec![

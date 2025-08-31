@@ -496,6 +496,7 @@ pub enum AstValue {
     Variable(AstIdentifier),
     Nuget(AstValueNuget),
     Array(AstValues),
+    NewClass(AstNewClass),
 }
 #[derive(Debug)]
 pub enum AstValueNuget {
@@ -525,8 +526,8 @@ pub struct AstRecursiveExpression {
     pub range: AstRange,
     pub ident: Option<AstExpressionIdentifier>,
     pub values: Option<AstValues>,
-    pub next: Option<Box<AstRecursiveExpression>>,
     pub operator: AstExpressionOperator,
+    pub next: Option<Box<AstRecursiveExpression>>,
 }
 #[derive(Debug)]
 pub enum AstExpressionIdentifier {

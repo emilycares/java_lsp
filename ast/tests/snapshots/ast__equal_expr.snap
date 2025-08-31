@@ -1,7 +1,6 @@
 ---
 source: ast/tests/ast.rs
 expression: parsed.unwrap()
-snapshot_kind: text
 ---
 (
     AstRecursiveExpression {
@@ -33,6 +32,7 @@ snapshot_kind: text
             ),
         ),
         values: None,
+        operator: None,
         next: Some(
             AstRecursiveExpression {
                 range: AstRange {
@@ -47,6 +47,18 @@ snapshot_kind: text
                 },
                 ident: None,
                 values: None,
+                operator: Equal(
+                    AstRange {
+                        start: AstPoint {
+                            line: 0,
+                            col: 2,
+                        },
+                        end: AstPoint {
+                            line: 0,
+                            col: 4,
+                        },
+                    },
+                ),
                 next: Some(
                     AstRecursiveExpression {
                         range: AstRange {
@@ -77,25 +89,12 @@ snapshot_kind: text
                             ),
                         ),
                         values: None,
-                        next: None,
                         operator: None,
-                    },
-                ),
-                operator: Equal(
-                    AstRange {
-                        start: AstPoint {
-                            line: 0,
-                            col: 2,
-                        },
-                        end: AstPoint {
-                            line: 0,
-                            col: 4,
-                        },
+                        next: None,
                     },
                 ),
             },
         ),
-        operator: None,
     },
     3,
 )

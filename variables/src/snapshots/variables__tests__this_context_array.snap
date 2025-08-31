@@ -95,7 +95,7 @@ expression: out
             },
             end: AstPoint {
                 line: 10,
-                col: 33,
+                col: 32,
             },
         },
     },

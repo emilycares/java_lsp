@@ -242,6 +242,19 @@ fn equal_expr() {
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
+
+// new String()
+#[test]
+fn new_string() {
+    let content = r#"
+     return new String();   
+    "#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_block_return(&tokens, 0);
+    parsed.print_err(content);
+    insta::assert_debug_snapshot!(parsed.unwrap());
+}
+
 #[test]
 fn new_array() {
     let content = r#"

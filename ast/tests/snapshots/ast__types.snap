@@ -143,6 +143,7 @@ AstFile {
                                         ),
                                     ),
                                     values: None,
+                                    operator: None,
                                     next: Some(
                                         AstRecursiveExpression {
                                             range: AstRange {
@@ -157,6 +158,18 @@ AstFile {
                                             },
                                             ident: None,
                                             values: None,
+                                            operator: Dot(
+                                                AstRange {
+                                                    start: AstPoint {
+                                                        line: 2,
+                                                        col: 21,
+                                                    },
+                                                    end: AstPoint {
+                                                        line: 2,
+                                                        col: 22,
+                                                    },
+                                                },
+                                            ),
                                             next: Some(
                                                 AstRecursiveExpression {
                                                     range: AstRange {
@@ -187,6 +200,7 @@ AstFile {
                                                         ),
                                                     ),
                                                     values: None,
+                                                    operator: None,
                                                     next: Some(
                                                         AstRecursiveExpression {
                                                             range: AstRange {
@@ -243,6 +257,7 @@ AstFile {
                                                                                     ),
                                                                                 ),
                                                                                 values: None,
+                                                                                operator: None,
                                                                                 next: Some(
                                                                                     AstRecursiveExpression {
                                                                                         range: AstRange {
@@ -257,6 +272,18 @@ AstFile {
                                                                                         },
                                                                                         ident: None,
                                                                                         values: None,
+                                                                                        operator: Dot(
+                                                                                            AstRange {
+                                                                                                start: AstPoint {
+                                                                                                    line: 2,
+                                                                                                    col: 37,
+                                                                                                },
+                                                                                                end: AstPoint {
+                                                                                                    line: 2,
+                                                                                                    col: 38,
+                                                                                                },
+                                                                                            },
+                                                                                        ),
                                                                                         next: Some(
                                                                                             AstRecursiveExpression {
                                                                                                 range: AstRange {
@@ -287,52 +314,25 @@ AstFile {
                                                                                                     ),
                                                                                                 ),
                                                                                                 values: None,
-                                                                                                next: None,
                                                                                                 operator: None,
-                                                                                            },
-                                                                                        ),
-                                                                                        operator: Dot(
-                                                                                            AstRange {
-                                                                                                start: AstPoint {
-                                                                                                    line: 2,
-                                                                                                    col: 37,
-                                                                                                },
-                                                                                                end: AstPoint {
-                                                                                                    line: 2,
-                                                                                                    col: 38,
-                                                                                                },
+                                                                                                next: None,
                                                                                             },
                                                                                         ),
                                                                                     },
                                                                                 ),
-                                                                                operator: None,
                                                                             },
                                                                         ),
                                                                     ],
                                                                 },
                                                             ),
-                                                            next: None,
                                                             operator: None,
+                                                            next: None,
                                                         },
                                                     ),
-                                                    operator: None,
-                                                },
-                                            ),
-                                            operator: Dot(
-                                                AstRange {
-                                                    start: AstPoint {
-                                                        line: 2,
-                                                        col: 21,
-                                                    },
-                                                    end: AstPoint {
-                                                        line: 2,
-                                                        col: 22,
-                                                    },
                                                 },
                                             ),
                                         },
                                     ),
-                                    operator: None,
                                 },
                             ),
                         ),
@@ -412,8 +412,8 @@ AstFile {
                                         ),
                                     ),
                                     values: None,
-                                    next: None,
                                     operator: None,
+                                    next: None,
                                 },
                             ),
                         ),
@@ -493,8 +493,8 @@ AstFile {
                                         ),
                                     ),
                                     values: None,
-                                    next: None,
                                     operator: None,
+                                    next: None,
                                 },
                             ),
                         ),
@@ -574,8 +574,8 @@ AstFile {
                                         ),
                                     ),
                                     values: None,
-                                    next: None,
                                     operator: None,
+                                    next: None,
                                 },
                             ),
                         ),
@@ -655,8 +655,8 @@ AstFile {
                                         ),
                                     ),
                                     values: None,
-                                    next: None,
                                     operator: None,
+                                    next: None,
                                 },
                             ),
                         ),
@@ -736,8 +736,8 @@ AstFile {
                                         ),
                                     ),
                                     values: None,
-                                    next: None,
                                     operator: None,
+                                    next: None,
                                 },
                             ),
                         ),
@@ -817,8 +817,8 @@ AstFile {
                                         ),
                                     ),
                                     values: None,
-                                    next: None,
                                     operator: None,
+                                    next: None,
                                 },
                             ),
                         ),
@@ -898,8 +898,8 @@ AstFile {
                                         ),
                                     ),
                                     values: None,
-                                    next: None,
                                     operator: None,
+                                    next: None,
                                 },
                             ),
                         ),
@@ -979,8 +979,8 @@ AstFile {
                                         ),
                                     ),
                                     values: None,
-                                    next: None,
                                     operator: None,
+                                    next: None,
                                 },
                             ),
                         ),
@@ -1074,8 +1074,8 @@ AstFile {
                                         ),
                                     ),
                                     values: None,
-                                    next: None,
                                     operator: None,
+                                    next: None,
                                 },
                             ),
                         ),
@@ -1194,6 +1194,7 @@ AstFile {
                                         ),
                                     ),
                                     values: None,
+                                    operator: None,
                                     next: Some(
                                         AstRecursiveExpression {
                                             range: AstRange {
@@ -1208,6 +1209,18 @@ AstFile {
                                             },
                                             ident: None,
                                             values: None,
+                                            operator: Dot(
+                                                AstRange {
+                                                    start: AstPoint {
+                                                        line: 12,
+                                                        col: 30,
+                                                    },
+                                                    end: AstPoint {
+                                                        line: 12,
+                                                        col: 31,
+                                                    },
+                                                },
+                                            ),
                                             next: Some(
                                                 AstRecursiveExpression {
                                                     range: AstRange {
@@ -1238,6 +1251,7 @@ AstFile {
                                                         ),
                                                     ),
                                                     values: None,
+                                                    operator: None,
                                                     next: Some(
                                                         AstRecursiveExpression {
                                                             range: AstRange {
@@ -1298,35 +1312,21 @@ AstFile {
                                                                                     ),
                                                                                 ),
                                                                                 values: None,
-                                                                                next: None,
                                                                                 operator: None,
+                                                                                next: None,
                                                                             },
                                                                         ),
                                                                     ],
                                                                 },
                                                             ),
-                                                            next: None,
                                                             operator: None,
+                                                            next: None,
                                                         },
                                                     ),
-                                                    operator: None,
-                                                },
-                                            ),
-                                            operator: Dot(
-                                                AstRange {
-                                                    start: AstPoint {
-                                                        line: 12,
-                                                        col: 30,
-                                                    },
-                                                    end: AstPoint {
-                                                        line: 12,
-                                                        col: 31,
-                                                    },
                                                 },
                                             ),
                                         },
                                     ),
-                                    operator: None,
                                 },
                             ),
                         ),

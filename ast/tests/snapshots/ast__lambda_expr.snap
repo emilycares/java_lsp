@@ -72,6 +72,7 @@ expression: parsed.unwrap()
                         ),
                     ),
                     values: None,
+                    operator: None,
                     next: Some(
                         AstRecursiveExpression {
                             range: AstRange {
@@ -86,6 +87,18 @@ expression: parsed.unwrap()
                             },
                             ident: None,
                             values: None,
+                            operator: Dot(
+                                AstRange {
+                                    start: AstPoint {
+                                        line: 0,
+                                        col: 6,
+                                    },
+                                    end: AstPoint {
+                                        line: 0,
+                                        col: 7,
+                                    },
+                                },
+                            ),
                             next: Some(
                                 AstRecursiveExpression {
                                     range: AstRange {
@@ -116,6 +129,7 @@ expression: parsed.unwrap()
                                         ),
                                     ),
                                     values: None,
+                                    operator: None,
                                     next: Some(
                                         AstRecursiveExpression {
                                             range: AstRange {
@@ -144,28 +158,14 @@ expression: parsed.unwrap()
                                                     values: [],
                                                 },
                                             ),
-                                            next: None,
                                             operator: None,
+                                            next: None,
                                         },
                                     ),
-                                    operator: None,
-                                },
-                            ),
-                            operator: Dot(
-                                AstRange {
-                                    start: AstPoint {
-                                        line: 0,
-                                        col: 6,
-                                    },
-                                    end: AstPoint {
-                                        line: 0,
-                                        col: 7,
-                                    },
                                 },
                             ),
                         },
                     ),
-                    operator: None,
                 },
             ),
         ),

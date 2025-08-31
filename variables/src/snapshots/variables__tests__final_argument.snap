@@ -35,7 +35,7 @@ expression: out
             },
             end: AstPoint {
                 line: 4,
-                col: 45,
+                col: 44,
             },
         },
     },

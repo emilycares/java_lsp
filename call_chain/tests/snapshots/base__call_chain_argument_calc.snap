@@ -1,7 +1,6 @@
 ---
 source: call_chain/tests/base.rs
 expression: out
-snapshot_kind: text
 ---
 [
     ArgumentList {
@@ -25,16 +24,29 @@ snapshot_kind: text
         ),
         filled_params: [
             [
-                Class {
-                    name: "String",
+                ClassOrVariable {
+                    name: "a",
                     range: AstRange {
                         start: AstPoint {
                             line: 4,
-                            col: 17,
+                            col: 21,
                         },
                         end: AstPoint {
                             line: 4,
-                            col: 15,
+                            col: 22,
+                        },
+                    },
+                },
+                MethodCall {
+                    name: "getThing",
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 4,
+                            col: 23,
+                        },
+                        end: AstPoint {
+                            line: 4,
+                            col: 31,
                         },
                     },
                 },
@@ -51,16 +63,29 @@ snapshot_kind: text
             },
         },
     },
-    Class {
-        name: "String",
+    ClassOrVariable {
+        name: "a",
         range: AstRange {
             start: AstPoint {
                 line: 4,
-                col: 17,
+                col: 21,
             },
             end: AstPoint {
                 line: 4,
-                col: 15,
+                col: 22,
+            },
+        },
+    },
+    MethodCall {
+        name: "getThing",
+        range: AstRange {
+            start: AstPoint {
+                line: 4,
+                col: 23,
+            },
+            end: AstPoint {
+                line: 4,
+                col: 31,
             },
         },
     },

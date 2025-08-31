@@ -190,6 +190,10 @@ fn parse_value(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, usize)
         Ok((nuget, pos)) => return Ok((nuget, pos)),
         Err(e) => errors.push(("value nuget".into(), e)),
     }
+    match parse_new_class(tokens, pos) {
+        Ok((new_class, pos)) => return Ok((AstValue::NewClass(new_class), pos)),
+        Err(e) => errors.push(("value new class".into(), e)),
+    }
     Err(AstError::AllChildrenFailed {
         parent: "value".into(),
         errors,
@@ -630,6 +634,7 @@ fn parse_expression_parameters(
     Ok((out, pos))
 }
 
+/// `new String()`
 fn parse_new_class(tokens: &[PositionToken], pos: usize) -> Result<(AstNewClass, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let pos = assert_token(tokens, pos, Token::New)?;

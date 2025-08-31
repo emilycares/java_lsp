@@ -552,8 +552,8 @@ AstFile {
                                                         ),
                                                     ),
                                                     values: None,
-                                                    next: None,
                                                     operator: None,
+                                                    next: None,
                                                 },
                                             ),
                                         ),
@@ -762,6 +762,7 @@ AstFile {
                                                         ),
                                                     ),
                                                     values: None,
+                                                    operator: None,
                                                     next: Some(
                                                         AstRecursiveExpression {
                                                             range: AstRange {
@@ -776,6 +777,18 @@ AstFile {
                                                             },
                                                             ident: None,
                                                             values: None,
+                                                            operator: Plus(
+                                                                AstRange {
+                                                                    start: AstPoint {
+                                                                        line: 30,
+                                                                        col: 17,
+                                                                    },
+                                                                    end: AstPoint {
+                                                                        line: 30,
+                                                                        col: 18,
+                                                                    },
+                                                                },
+                                                            ),
                                                             next: Some(
                                                                 AstRecursiveExpression {
                                                                     range: AstRange {
@@ -806,25 +819,12 @@ AstFile {
                                                                         ),
                                                                     ),
                                                                     values: None,
-                                                                    next: None,
                                                                     operator: None,
-                                                                },
-                                                            ),
-                                                            operator: Plus(
-                                                                AstRange {
-                                                                    start: AstPoint {
-                                                                        line: 30,
-                                                                        col: 17,
-                                                                    },
-                                                                    end: AstPoint {
-                                                                        line: 30,
-                                                                        col: 18,
-                                                                    },
+                                                                    next: None,
                                                                 },
                                                             ),
                                                         },
                                                     ),
-                                                    operator: None,
                                                 },
                                             ),
                                         ),
@@ -1033,6 +1033,7 @@ AstFile {
                                                         ),
                                                     ),
                                                     values: None,
+                                                    operator: None,
                                                     next: Some(
                                                         AstRecursiveExpression {
                                                             range: AstRange {
@@ -1047,6 +1048,18 @@ AstFile {
                                                             },
                                                             ident: None,
                                                             values: None,
+                                                            operator: Plus(
+                                                                AstRange {
+                                                                    start: AstPoint {
+                                                                        line: 34,
+                                                                        col: 15,
+                                                                    },
+                                                                    end: AstPoint {
+                                                                        line: 34,
+                                                                        col: 16,
+                                                                    },
+                                                                },
+                                                            ),
                                                             next: Some(
                                                                 AstRecursiveExpression {
                                                                     range: AstRange {
@@ -1077,25 +1090,12 @@ AstFile {
                                                                         ),
                                                                     ),
                                                                     values: None,
-                                                                    next: None,
                                                                     operator: None,
-                                                                },
-                                                            ),
-                                                            operator: Plus(
-                                                                AstRange {
-                                                                    start: AstPoint {
-                                                                        line: 34,
-                                                                        col: 15,
-                                                                    },
-                                                                    end: AstPoint {
-                                                                        line: 34,
-                                                                        col: 16,
-                                                                    },
+                                                                    next: None,
                                                                 },
                                                             ),
                                                         },
                                                     ),
-                                                    operator: None,
                                                 },
                                             ),
                                         ),
