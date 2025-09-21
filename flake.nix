@@ -23,14 +23,14 @@
       "aarch64-darwin"
     ];
     eachSystem = lib.genAttrs systems;
-    pkgsFor = eachSystem (system:
+    pkgs = eachSystem (system:
       import nixpkgs {
         localSystem.system = system;
         overlays = [(import rust-overlay) self.overlays.java_lsp];
       });
   in {
     packages = eachSystem (system: {
-      inherit (pkgsFor.${system}) java_lsp;
+      inherit (pkgs.${system}) java_lsp;
       /*
       The default java_lsp build. Uses the latest stable Rust toolchain, and unstable
       nixpkgs.
@@ -58,12 +58,15 @@
           rustPlatform = msrvPlatform;
         };
       })
-      pkgsFor;
+      pkgs;
 
     # Devshell behavior is preserved.
     devShells =
       lib.mapAttrs (system: pkgs: {
         default = pkgs.mkShell {
+          buildInputs = [
+            pkgs.rust-bin.stable.latest.default
+          ];
           nativeBuildInputs = with pkgs;
             [
               lld
@@ -81,7 +84,7 @@
           '';
         };
       })
-      pkgsFor;
+      pkgs;
 
     overlays = {
       java_lsp = final: prev: {

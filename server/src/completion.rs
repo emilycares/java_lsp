@@ -1,4 +1,4 @@
-use ast::types::{AstFile, AstPoint};
+use ast::types::{AstFile, AstImportUnit, AstPoint};
 use call_chain::get_call_chain;
 use document::{Document, DocumentError};
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat};
@@ -227,51 +227,68 @@ pub fn complete_call_chain(
 }
 
 pub fn classes(
-    _document: &Document,
+    document: &Document,
     point: &AstPoint,
-    _imports: &[ImportUnit],
-    _class_map: &dashmap::DashMap<SmolStr, parser::dto::Class>,
+    imports: &[ImportUnit],
+    class_map: &dashmap::DashMap<SmolStr, parser::dto::Class>,
 ) -> Vec<CompletionItem> {
     if point.col < 3 {
         return vec![];
     }
+    let mut out = vec![];
+    let text = get_class(&document.ast, point);
 
-    todo!();
-    // TODO
-    // if false {
-    // out.extend(
-    //     imports
-    //         .iter()
-    //         .filter_map(|imp| match imp {
-    //             ImportUnit::Class(c) => Some(c),
-    //             ImportUnit::StaticClass(c) => Some(c),
-    //             ImportUnit::StaticClassMethod(_, _) => None,
-    //             ImportUnit::Prefix(_) => None,
-    //             ImportUnit::StaticPrefix(_) => None,
-    //             ImportUnit::Package(_) => None,
-    //         })
-    //         .filter(|c| {
-    //             let Some((_, cname)) = c.rsplit_once(".") else {
-    //                 return false;
-    //             };
-    //             cname.starts_with(&text)
-    //         })
-    //         .filter_map(|class_path| class_map.get(class_path))
-    //         .map(|c| class_describe(&c, None)),
-    // );
-    // out.extend(
-    //     class_map
-    //         .iter()
-    //         .filter(|c| c.name.starts_with(&text))
-    //         .filter(|i| !i.name.contains("&"))
-    //         .filter(|v| {
-    //             let class_path = v.value().class_path.as_str();
-    //             !imports::is_imported(imports, class_path)
-    //         })
-    //         .map(|v| class_describe(v.value(), Some(&document.ast)))
-    //         .take(20),
-    // );
-    // }
+    out.extend(
+        imports
+            .iter()
+            .filter_map(|imp| match imp {
+                ImportUnit::Class(c) => Some(c),
+                ImportUnit::StaticClass(c) => Some(c),
+                ImportUnit::StaticClassMethod(_, _) => None,
+                ImportUnit::Prefix(_) => None,
+                ImportUnit::StaticPrefix(_) => None,
+                ImportUnit::Package(_) => None,
+            })
+            .filter(|c| {
+                let Some((_, cname)) = c.rsplit_once(".") else {
+                    return false;
+                };
+                cname.starts_with(&text)
+            })
+            .filter_map(|class_path| class_map.get(class_path))
+            .map(|c| class_describe(&c, None)),
+    );
+    out.extend(
+        class_map
+            .iter()
+            .filter(|c| c.name.starts_with(&text))
+            .filter(|i| !i.name.contains("&"))
+            .filter(|v| {
+                let class_path = v.value().class_path.as_str();
+                !imports::is_imported(imports, class_path)
+            })
+            .map(|v| class_describe(v.value(), Some(&document.ast)))
+            .take(20),
+    );
+    out
+}
+
+fn get_class(ast: &AstFile, point: &AstPoint) -> String {
+    let out = String::new();
+
+    match &ast.thing {
+        ast::types::AstThing::Class(ast_class) => {
+            for v in &ast_class.block.variables {
+                if !v.range.is_in_range(point) {
+                    continue;
+                }
+            }
+        }
+        ast::types::AstThing::Interface(_ast_interface) => (),
+        ast::types::AstThing::Enumeration(_ast_enumeration) => (),
+        ast::types::AstThing::Annotation(_ast_annotation) => (),
+    }
+    out
 }
 
 pub fn static_methods(

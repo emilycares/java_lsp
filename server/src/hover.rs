@@ -1,4 +1,4 @@
-use ast::types::{AstFile, AstPoint};
+use ast::types::{AstExpression, AstFile, AstJType, AstJTypeKind, AstPoint, AstThing};
 use call_chain::{self, CallItem};
 use document::Document;
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
@@ -67,6 +67,82 @@ pub enum ClassActionError {
         tyres_error: tyres::TyresError,
     },
     VariableFound,
+}
+fn get_class(ast: &AstFile, point: &AstPoint) -> String {
+    let mut out = String::new();
+
+    'thing: {
+        match &ast.thing {
+            AstThing::Class(ast_class) => {
+                for v in &ast_class.block.variables {
+                    if !v.range.is_in_range(point) {
+                        continue;
+                    }
+
+                    if v.jtype.range.is_in_range(point) {
+                        if let Some(o) = get_class_jtype(&v.jtype, point) {
+                            out = o;
+                            break 'thing;
+                        }
+                    }
+                    if let Some(ex) = &v.expression {
+                        if let Some(o) = get_class_expression(ex, point) {
+                            out = o;
+                            break 'thing;
+                        }
+                    }
+                }
+            }
+            AstThing::Interface(_ast_interface) => (),
+            AstThing::Enumeration(_ast_enumeration) => (),
+            AstThing::Annotation(_ast_annotation) => (),
+        }
+    }
+    out
+}
+
+fn get_class_expression(ex: &AstExpression, point: &AstPoint) -> Option<String> {
+    match &ex {
+        AstExpression::Casted(ast_casted_expression) => todo!(),
+        AstExpression::Recursive(ast_recursive_expression) => todo!(),
+        AstExpression::Lambda(ast_lambda) => todo!(),
+        AstExpression::InlineSwitch(ast_switch) => todo!(),
+        AstExpression::NewClass(ast_new_class) => todo!(),
+    }
+}
+
+fn get_class_jtype(jtype: &AstJType, point: &AstPoint) -> Option<String> {
+    match &jtype.value {
+        AstJTypeKind::Void => None,
+        AstJTypeKind::Byte => None,
+        AstJTypeKind::Char => None,
+        AstJTypeKind::Double => None,
+        AstJTypeKind::Float => None,
+        AstJTypeKind::Int => None,
+        AstJTypeKind::Long => None,
+        AstJTypeKind::Short => None,
+        AstJTypeKind::Boolean => None,
+        AstJTypeKind::Wildcard => None,
+        AstJTypeKind::Var => None,
+        AstJTypeKind::Parameter(ast_identifier) | AstJTypeKind::Class(ast_identifier) => {
+            if !ast_identifier.range.is_in_range(point) {
+                return None;
+            }
+            Some(ast_identifier.value.to_string())
+        }
+        AstJTypeKind::Array(ast_jtype) => get_class_jtype(&ast_jtype, point),
+        AstJTypeKind::Generic(ast_identifier, ast_jtypes) => {
+            if ast_identifier.range.is_in_range(point) {
+                return Some(ast_identifier.value.to_string());
+            }
+            for jt in ast_jtypes {
+                if let Some(j) = get_class_jtype(jt, point) {
+                    return Some(j);
+                }
+            }
+            None
+        }
+    }
 }
 
 pub fn class_action(
