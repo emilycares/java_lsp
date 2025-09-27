@@ -44,11 +44,9 @@ pub fn class(
     context: &DefinitionContext,
 ) -> Result<GotoDefinitionResponse, DefinitionError> {
     let ast = &document.ast;
-    let bytes = document.as_bytes();
 
     match class_action(
         ast,
-        bytes,
         context.point,
         context.vars,
         context.imports,

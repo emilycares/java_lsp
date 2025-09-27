@@ -1,4 +1,7 @@
-use ast::types::{AstExpression, AstFile, AstJType, AstJTypeKind, AstPoint, AstThing};
+use ast::types::{
+    AstBlock, AstBlockEntry, AstExpression, AstExpressionIdentifier, AstFile, AstJType,
+    AstJTypeKind, AstPoint, AstRange, AstRecursiveExpression, AstThing,
+};
 use call_chain::{self, CallItem};
 use document::Document;
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
@@ -30,8 +33,7 @@ pub fn base(
     class_map: &dashmap::DashMap<SmolStr, parser::dto::Class>,
 ) -> Result<Hover, HoverError> {
     let ast = &document.ast;
-    let bytes = document.as_bytes();
-    match class_action(ast, bytes, point, lo_va, imports, class_map) {
+    match class_action(ast, point, lo_va, imports, class_map) {
         Ok((class, range)) => {
             return Ok(class_to_hover(class, range));
         }
@@ -68,8 +70,12 @@ pub enum ClassActionError {
     },
     VariableFound,
 }
-fn get_class(ast: &AstFile, point: &AstPoint) -> String {
-    let mut out = String::new();
+struct FoundClass {
+    name: String,
+    range: AstRange,
+}
+fn get_class(ast: &AstFile, point: &AstPoint) -> Option<FoundClass> {
+    let mut out = None;
 
     'thing: {
         match &ast.thing {
@@ -79,17 +85,44 @@ fn get_class(ast: &AstFile, point: &AstPoint) -> String {
                         continue;
                     }
 
-                    if v.jtype.range.is_in_range(point) {
-                        if let Some(o) = get_class_jtype(&v.jtype, point) {
-                            out = o;
-                            break 'thing;
-                        }
+                    if let Some(o) = get_class_jtype(&v.jtype, point) {
+                        out = Some(o);
+                        break 'thing;
                     }
                     if let Some(ex) = &v.expression {
                         if let Some(o) = get_class_expression(ex, point) {
-                            out = o;
+                            out = Some(o);
                             break 'thing;
                         }
+                    }
+                }
+                for m in &ast_class.block.methods {
+                    if !m.range.is_in_range(point) {
+                        continue;
+                    }
+                    for ano in &m.annotated {
+                        if !ano.range.is_in_range(point) {
+                            continue;
+                        }
+
+                        if let Some(c) = get_class_identifier(&ano.name, point) {
+                            return Some(c);
+                        }
+                    }
+
+                    if let Some(o) = get_class_jtype(&m.header.jtype, point) {
+                        return Some(o);
+                    }
+                    if m.header.parameters.range.is_in_range(point) {
+                        for p in &m.header.parameters.parameters {
+                            if let Some(o) = get_class_jtype(&p.jtype, point) {
+                                return Some(o);
+                            }
+                        }
+                    }
+
+                    if let Some(b) = get_class_block(&m.block, point) {
+                        return Some(b);
                     }
                 }
             }
@@ -101,17 +134,81 @@ fn get_class(ast: &AstFile, point: &AstPoint) -> String {
     out
 }
 
-fn get_class_expression(ex: &AstExpression, point: &AstPoint) -> Option<String> {
+fn get_class_block(block: &AstBlock, point: &AstPoint) -> Option<FoundClass> {
+    if !block.range.is_in_range(point) {
+        return None;
+    }
+    for entry in &block.entries {
+        match entry {
+            AstBlockEntry::Return(_ast_block_return) => todo!(),
+            AstBlockEntry::Variable(_ast_block_variable) => todo!(),
+            AstBlockEntry::Expression(_ast_block_expression) => todo!(),
+            AstBlockEntry::Assign(_ast_block_assign) => todo!(),
+            AstBlockEntry::If(_ast_if) => todo!(),
+            AstBlockEntry::While(_ast_while) => todo!(),
+            AstBlockEntry::For(_ast_for) => todo!(),
+            AstBlockEntry::ForEnhanced(_ast_for_enhanced) => todo!(),
+            AstBlockEntry::Break(_ast_block_break) => todo!(),
+            AstBlockEntry::Continue(_ast_block_continue) => todo!(),
+            AstBlockEntry::Switch(_ast_switch) => todo!(),
+            AstBlockEntry::SwitchCase(_ast_switch_case) => todo!(),
+            AstBlockEntry::SwitchDefault(_ast_switch_default) => todo!(),
+            AstBlockEntry::TryCatch(_ast_try_catch) => todo!(),
+            AstBlockEntry::Throw(_ast_throw) => todo!(),
+            AstBlockEntry::SwitchCaseArrow(_ast_switch_case_arrow) => todo!(),
+            AstBlockEntry::Yield(_ast_block_yield) => todo!(),
+        }
+    }
+    None
+}
+
+fn get_class_expression(ex: &AstExpression, point: &AstPoint) -> Option<FoundClass> {
     match &ex {
-        AstExpression::Casted(ast_casted_expression) => todo!(),
-        AstExpression::Recursive(ast_recursive_expression) => todo!(),
+        AstExpression::Casted(ast_casted_expression) => {
+            if let Some(o) = get_class_jtype(&ast_casted_expression.cast, point) {
+                return Some(o);
+            }
+            if let Some(o) =
+                get_class_recursive_expression(&ast_casted_expression.expression, point)
+            {
+                return Some(o);
+            }
+            None
+        }
+        AstExpression::Recursive(ast_recursive_expression) => {
+            get_class_recursive_expression(ast_recursive_expression, point)
+        }
         AstExpression::Lambda(ast_lambda) => todo!(),
         AstExpression::InlineSwitch(ast_switch) => todo!(),
         AstExpression::NewClass(ast_new_class) => todo!(),
     }
 }
 
-fn get_class_jtype(jtype: &AstJType, point: &AstPoint) -> Option<String> {
+fn get_class_recursive_expression(
+    expression: &AstRecursiveExpression,
+    point: &AstPoint,
+) -> Option<FoundClass> {
+    let mut expression = expression;
+    loop {
+        if let Some(ident) = &expression.ident {
+            if let Some(i) = get_class_expression_identifier(ident, point) {
+                return Some(i);
+            }
+        }
+
+        if let Some(next) = &expression.next {
+            expression = next;
+        } else {
+            break;
+        }
+    }
+    None
+}
+
+fn get_class_jtype(jtype: &AstJType, point: &AstPoint) -> Option<FoundClass> {
+    if !jtype.range.is_in_range(point) {
+        return None;
+    }
     match &jtype.value {
         AstJTypeKind::Void => None,
         AstJTypeKind::Byte => None,
@@ -128,12 +225,15 @@ fn get_class_jtype(jtype: &AstJType, point: &AstPoint) -> Option<String> {
             if !ast_identifier.range.is_in_range(point) {
                 return None;
             }
-            Some(ast_identifier.value.to_string())
+            Some(FoundClass {
+                name: ast_identifier.value.to_string(),
+                range: ast_identifier.range,
+            })
         }
         AstJTypeKind::Array(ast_jtype) => get_class_jtype(&ast_jtype, point),
         AstJTypeKind::Generic(ast_identifier, ast_jtypes) => {
-            if ast_identifier.range.is_in_range(point) {
-                return Some(ast_identifier.value.to_string());
+            if let Some(value) = get_class_identifier(ast_identifier, point) {
+                return Some(value);
             }
             for jt in ast_jtypes {
                 if let Some(j) = get_class_jtype(jt, point) {
@@ -145,43 +245,45 @@ fn get_class_jtype(jtype: &AstJType, point: &AstPoint) -> Option<String> {
     }
 }
 
+fn get_class_identifier(
+    ast_identifier: &ast::types::AstIdentifier,
+    point: &AstPoint,
+) -> Option<FoundClass> {
+    if ast_identifier.range.is_in_range(point) {
+        return Some(FoundClass {
+            name: ast_identifier.value.to_string(),
+            range: ast_identifier.range,
+        });
+    }
+    None
+}
+fn get_class_expression_identifier(
+    ast_identifier: &AstExpressionIdentifier,
+    point: &AstPoint,
+) -> Option<FoundClass> {
+    match ast_identifier {
+        AstExpressionIdentifier::Identifier(ast_identifier) => {
+            get_class_identifier(ast_identifier, point)
+        }
+        AstExpressionIdentifier::Nuget(_ast_value_nuget) => None,
+        AstExpressionIdentifier::Value(_ast_value) => None,
+        AstExpressionIdentifier::ArrayAccess(_ast_value) => None,
+    }
+}
+
 pub fn class_action(
-    _tree: &AstFile,
-    _bytes: &[u8],
-    _point: &AstPoint,
+    ast: &AstFile,
+    point: &AstPoint,
     _lo_va: &[LocalVariable],
-    _imports: &[ImportUnit],
-    _class_map: &dashmap::DashMap<SmolStr, parser::dto::Class>,
+    imports: &[ImportUnit],
+    class_map: &dashmap::DashMap<SmolStr, parser::dto::Class>,
 ) -> Result<(dto::Class, Range), ClassActionError> {
-    // let Ok(n) = tree_sitter_util::get_node_at_point(tree, *point) else {
-    //     return Err(ClassActionError::CouldNotGetNode);
-    // };
-    // match n.kind() {
-    //     "type_identifier" => {
-    //         if let Ok(jtype) = n.utf8_text(bytes) {
-    //             return match tyres::resolve(jtype, imports, class_map) {
-    //                 Ok(resolve_state) => Ok((resolve_state.class, to_lsp_range(n.range()))),
-    //                 Err(tyres_error) => Err(ClassActionError::Tyres { tyres_error }),
-    //             };
-    //         }
-    //     }
-    //     "identifier" => {
-    //         if let Some(CallItem::ClassOrVariable {
-    //             name: class,
-    //             range: _,
-    //         }) = class_or_variable(n, bytes)
-    //         {
-    //             if lo_va.iter().any(|v| v.name == class) {
-    //                 return Err(ClassActionError::VariableFound);
-    //             }
-    //             return match tyres::resolve(&class, imports, class_map) {
-    //                 Ok(resolve_state) => Ok((resolve_state.class, to_lsp_range(n.range()))),
-    //                 Err(tyres_error) => Err(ClassActionError::Tyres { tyres_error }),
-    //             };
-    //         }
-    //     }
-    //     _ => {}
-    // };
+    if let Some(class) = get_class(ast, point) {
+        return match tyres::resolve(&class.name, imports, class_map) {
+            Ok(resolve_state) => Ok((resolve_state.class, to_lsp_range(&class.range))),
+            Err(tyres_error) => Err(ClassActionError::Tyres { tyres_error }),
+        };
+    }
     Err(ClassActionError::NotFound)
 }
 
@@ -398,16 +500,8 @@ public class Test {
 ";
         let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
         let ast = &doc.ast;
-        let bytes = doc.as_bytes();
 
-        let out = class_action(
-            ast,
-            bytes,
-            &AstPoint::new(3, 14),
-            &[],
-            &[],
-            &string_class_map(),
-        );
+        let out = class_action(ast, &AstPoint::new(3, 14), &[], &[], &string_class_map());
         assert!(out.is_ok());
     }
 
@@ -424,16 +518,9 @@ public class Test {
 ";
         let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
         let ast = &doc.ast;
-        let bytes = doc.as_bytes();
 
-        let out = class_action(
-            ast,
-            bytes,
-            &AstPoint::new(3, 9),
-            &[],
-            &[],
-            &string_class_map(),
-        );
+        let out = class_action(ast, &AstPoint::new(3, 9), &[], &[], &string_class_map());
+        dbg!(&out);
         assert!(out.is_ok());
     }
 

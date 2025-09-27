@@ -531,14 +531,7 @@ impl Backend {
                 None
             }
         }?;
-        match class_action(
-            &document.ast,
-            document.as_bytes(),
-            &point,
-            &vars,
-            &imports,
-            &self.class_map,
-        ) {
+        match class_action(&document.ast, &point, &vars, &imports, &self.class_map) {
             Ok((class, _range)) => {
                 if let Some(value) =
                     references::class_path(&class.class_path, &self.reference_map, &self.class_map)
