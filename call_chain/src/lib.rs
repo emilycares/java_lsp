@@ -419,22 +419,24 @@ fn cc_new_class(ast_new_class: &AstNewClass, point: &AstPoint, out: &mut Vec<Cal
             range: ast_new_class.range,
         });
     }
-    match ast_new_class.rhs.as_ref() {
-        AstNewRhs::None => (),
-        AstNewRhs::Parameters(ast_expressions) => ast_expressions
-            .iter()
-            .for_each(|i| cc_expr(i, point, false, out)),
-        AstNewRhs::Block(ast_class_block) => {
-            cc_class_block(ast_class_block, point, out);
-        }
-        AstNewRhs::ParametersAndBlock(ast_expressions, ast_class_block) => {
-            ast_expressions
+    if ast_new_class.range.is_in_range(point) {
+        match ast_new_class.rhs.as_ref() {
+            AstNewRhs::None => (),
+            AstNewRhs::Parameters(ast_expressions) => ast_expressions
                 .iter()
-                .for_each(|i| cc_expr(i, point, false, out));
+                .for_each(|i| cc_expr(i, point, false, out)),
+            AstNewRhs::Block(ast_class_block) => {
+                cc_class_block(ast_class_block, point, out);
+            }
+            AstNewRhs::ParametersAndBlock(ast_expressions, ast_class_block) => {
+                ast_expressions
+                    .iter()
+                    .for_each(|i| cc_expr(i, point, false, out));
 
-            cc_class_block(ast_class_block, point, out);
+                cc_class_block(ast_class_block, point, out);
+            }
+            AstNewRhs::Array(ast_values) => cc_array(ast_values, point, out),
         }
-        AstNewRhs::Array(ast_values) => cc_array(ast_values, point, out),
     }
 }
 
