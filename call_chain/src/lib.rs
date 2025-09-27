@@ -271,7 +271,15 @@ fn cc_block_entrie(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIt
         }
         AstBlockEntry::Assign(ast_block_assign) => {
             if let Some(expr) = &ast_block_assign.expression {
-                cc_expr(expr, point, false, out);
+                let a = dist(point, &ast_block_assign.key.range);
+                let b = dist(point, &ast_expression_get_range(expr));
+                if a > b {
+                    cc_expr(expr, point, false, out);
+                } else {
+                    cc_expr_recursive(&ast_block_assign.key, point, false, out);
+                }
+            } else {
+                cc_expr_recursive(&ast_block_assign.key, point, false, out);
             }
         }
         AstBlockEntry::If(ast_if) => cc_if(ast_if, point, out),
@@ -530,7 +538,6 @@ fn cc_expr_recursive(
                     let a = dist(point, &ident_range(ident));
                     let b = dist(point, &next.range);
 
-                    dbg!(a, b);
                     if a < b {
                         let mut has_args = false;
                         if let Some(n) = &ast_expression.next {

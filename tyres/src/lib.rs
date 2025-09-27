@@ -99,16 +99,6 @@ pub fn resolve(
     class_map: &DashMap<SmolStr, parser::dto::Class>,
 ) -> Result<ResolveState, TyresError> {
     eprintln!("resolve: {jtype}");
-    let mut lang_class_key = SmolStrBuilder::new();
-    lang_class_key.push_str("java.util.");
-    lang_class_key.push_str(jtype);
-    let lang_class_key = lang_class_key.finish();
-    if let Some(lang_class) = class_map.get(&lang_class_key) {
-        return Ok(ResolveState {
-            jtype: JType::Class(lang_class_key),
-            class: parent::inclued_parent(lang_class.deref().to_owned(), class_map),
-        });
-    }
 
     if jtype.contains('.') {
         let Some(imported_class) = class_map.get(jtype) else {
@@ -119,6 +109,17 @@ pub fn resolve(
         return Ok(ResolveState {
             jtype: JType::Class(jtype.into()),
             class: parent::inclued_parent(imported_class.deref().to_owned(), class_map),
+        });
+    }
+
+    let mut lang_class_key = SmolStrBuilder::new();
+    lang_class_key.push_str("java.lang.");
+    lang_class_key.push_str(jtype);
+    let lang_class_key = lang_class_key.finish();
+    if let Some(lang_class) = class_map.get(&lang_class_key) {
+        return Ok(ResolveState {
+            jtype: JType::Class(lang_class_key),
+            class: parent::inclued_parent(lang_class.deref().to_owned(), class_map),
         });
     }
 
@@ -310,15 +311,10 @@ fn call_chain_op(
             if resolve_argument {
                 if let Some(active_param) = active_param
                     && let Some(current_param) = filled_params.get(*active_param)
-                        && !current_param.is_empty() {
-                            return resolve_call_chain(
-                                current_param,
-                                lo_va,
-                                imports,
-                                class,
-                                class_map,
-                            );
-                        }
+                    && !current_param.is_empty()
+                {
+                    return resolve_call_chain(current_param, lo_va, imports, class, class_map);
+                }
                 return resolve_call_chain(prev, lo_va, imports, class, class_map);
             }
             resolve_call_chain(prev, lo_va, imports, class, class_map)

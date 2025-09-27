@@ -3,6 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -12,60 +13,40 @@
   outputs = {
     self,
     nixpkgs,
+    flake-utils,
     rust-overlay,
     ...
-  }: let
-    inherit (nixpkgs) lib;
-    systems = [
-      "x86_64-linux"
-      "aarch64-linux"
-      "x86_64-darwin"
-      "aarch64-darwin"
-    ];
-    eachSystem = lib.genAttrs systems;
-    pkgs = eachSystem (system:
-      import nixpkgs {
-        localSystem.system = system;
-        overlays = [(import rust-overlay) self.overlays.java_lsp];
-      });
-  in {
-    packages = eachSystem (system: {
-      inherit (pkgs.${system}) java_lsp;
-      /*
-      The default java_lsp build. Uses the latest stable Rust toolchain, and unstable
-      nixpkgs.
+  }:
+    flake-utils.lib.eachDefaultSystem (system: let
+      inherit (nixpkgs) lib;
+      pkgs = import nixpkgs {
+        inherit system;
+        overlays = [rust-overlay.overlays.default];
+      };
+      msrvToolchain = pkgs.pkgsBuildHost.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+      msrvPlatform = pkgs.makeRustPlatform {
+        cargo = msrvToolchain;
+        rustc = msrvToolchain;
+      };
 
-      The build inputs can be overridden with the following:
-
-      packages.${system}.default.override { rustPlatform = newPlatform; };
-
-      Overriding a derivation attribute can be done as well:
-
-      packages.${system}.default.overrideAttrs { buildType = "debug"; };
-      */
-      default = self.packages.${system}.java_lsp;
-    });
-    checks =
-      lib.mapAttrs (system: pkgs: let
-        # Get java_lsp's MSRV toolchain to build with by default.
-        msrvToolchain = pkgs.pkgsBuildHost.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-        msrvPlatform = pkgs.makeRustPlatform {
-          cargo = msrvToolchain;
-          rustc = msrvToolchain;
-        };
-      in {
+      rustToolchain = pkgs.rust-bin.stable."1.89.0".default.override {
+        extensions = ["rust-src" "rust-analyzer" "rustfmt"];
+      };
+    in {
+      packages = {
+        inherit (pkgs.${system}) java_lsp;
+        default = self.packages.${system}.java_lsp;
+      };
+      checks = {
         java_lsp = self.packages.${system}.java_lsp.override {
           rustPlatform = msrvPlatform;
         };
-      })
-      pkgs;
+      };
 
-    # Devshell behavior is preserved.
-    devShells =
-      lib.mapAttrs (system: pkgs: {
+      devShells = {
         default = pkgs.mkShell {
           buildInputs = [
-            pkgs.rust-bin.stable.latest.default
+            rustToolchain
           ];
           nativeBuildInputs = with pkgs;
             [
@@ -83,15 +64,14 @@
             export RUSTFLAGS="''${RUSTFLAGS:-""}"
           '';
         };
-      })
-      pkgs;
-
-    overlays = {
-      java_lsp = final: prev: {
-        java_lsp = final.callPackage ./default.nix {inherit lib;};
       };
 
-      default = self.overlays.java_lsp;
-    };
-  };
+      overlays = {
+        java_lsp = final: prev: {
+          java_lsp = final.callPackage ./default.nix {inherit lib;};
+        };
+
+        default = self.overlays.java_lsp;
+      };
+    });
 }
