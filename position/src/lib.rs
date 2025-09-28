@@ -10,7 +10,7 @@ pub enum PosionError {
     Ast(ast::error::AstError),
 }
 
-pub fn get_class_position(
+pub fn get_class_position_ast(
     ast: &AstFile,
     name: Option<&str>,
 ) -> Result<Vec<PositionSymbol>, PosionError> {
@@ -48,6 +48,24 @@ pub fn get_class_position(
             Ok(vec![PositionSymbol::Range(ast_annotation.name.range)])
         }
     }
+}
+
+pub fn get_class_position(
+    bytes: &[u8],
+    name: Option<&str>,
+) -> Result<Vec<PositionSymbol>, PosionError> {
+    let str = str::from_utf8(bytes).map_err(PosionError::Utf8)?;
+    let tokens = ast::lexer::lex(str).map_err(PosionError::Lexer)?;
+    let ast = ast::parse_file(&tokens).map_err(PosionError::Ast)?;
+    get_class_position_ast(&ast, name)
+}
+pub fn get_class_position_str(
+    str: &str,
+    name: Option<&str>,
+) -> Result<Vec<PositionSymbol>, PosionError> {
+    let tokens = ast::lexer::lex(str).map_err(PosionError::Lexer)?;
+    let ast = ast::parse_file(&tokens).map_err(PosionError::Ast)?;
+    get_class_position_ast(&ast, name)
 }
 
 pub fn get_method_positions(bytes: &[u8], name: &str) -> Result<Vec<PositionSymbol>, PosionError> {
@@ -218,8 +236,8 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::{
-        PositionSymbol, get_class_position, get_field_positions, get_method_positions,
-        get_type_usage,
+        PositionSymbol, get_class_position, get_class_position_ast, get_field_positions,
+        get_method_positions, get_type_usage,
     };
 
     #[test]
@@ -270,7 +288,7 @@ public class Test {}
 ";
         let tokens = ast::lexer::lex(&content).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
-        let out = get_class_position(&ast, Some("Test"));
+        let out = get_class_position_ast(&ast, Some("Test"));
         assert_eq!(
             out,
             Ok(vec![PositionSymbol::Range(AstRange {

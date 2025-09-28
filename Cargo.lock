@@ -651,6 +651,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "get_class"
+version = "0.1.0"
+dependencies = [
+ "ast",
+]
+
+[[package]]
 name = "getrandom"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1585,6 +1592,7 @@ dependencies = [
  "dashmap",
  "document",
  "format",
+ "get_class",
  "gradle",
  "imports",
  "jdk",

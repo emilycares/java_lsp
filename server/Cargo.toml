@@ -36,6 +36,7 @@ compile = { path = "../compile"}
 call_chain = { path = "../call_chain" }
 common = { path = "../common"}
 ast = { path = "../ast"}
+get_class = { path = "../get_class"}
 
 [dev-dependencies]
 pretty_assertions.workspace = true

@@ -620,7 +620,7 @@ impl Backend {
         };
         let uri = params.text_document.uri;
 
-        let symbols = position::get_class_position(&document.ast, None);
+        let symbols = position::get_class_position_ast(&document.ast, None);
         match symbols {
             Ok(symbols) => {
                 let symbols = position::symbols_to_document_symbols(symbols, uri);
@@ -661,8 +661,10 @@ impl Backend {
                 ))
             })
             .filter_map(|(path, source)| match source {
-                ClassSource::Owned(d) => Some((path, position::get_class_position(&d.ast, None))),
-                ClassSource::Ref(d) => Some((path, position::get_class_position(&d.ast, None))),
+                ClassSource::Owned(d) => {
+                    Some((path, position::get_class_position_ast(&d.ast, None)))
+                }
+                ClassSource::Ref(d) => Some((path, position::get_class_position_ast(&d.ast, None))),
                 ClassSource::Err(_) => None,
             })
             .map(|(path, symbols)| {

@@ -53,7 +53,7 @@ pub fn class(
         context.class_map,
     ) {
         Ok((class, _range)) => {
-            let ranges = position::get_class_position(ast, Some(&class.name))
+            let ranges = position::get_class_position_ast(ast, Some(&class.name))
                 .map_err(DefinitionError::Position)?;
             let uri = class_to_uri(&class)?;
             Ok(go_to_definition_range(uri, ranges))
@@ -79,6 +79,20 @@ pub fn call_chain_definition(
     )
     .map_err(DefinitionError::Tyres)?;
     match relevat.get(item) {
+        Some(CallItem::This { range: _ }) => {
+            let uri = source_to_uri(&resolve_state.class.source)?;
+            let content = get_source_content(&resolve_state.class.source, context.document_map)?;
+            let ranges = position::get_class_position_str(&content, None)
+                .map_err(DefinitionError::Position)?;
+            Ok(go_to_definition_range(uri, ranges))
+        }
+        Some(CallItem::Class { name, range: _ }) => {
+            let uri = source_to_uri(&resolve_state.class.source)?;
+            let content = get_source_content(&resolve_state.class.source, context.document_map)?;
+            let ranges = position::get_class_position_str(&content, Some(name))
+                .map_err(DefinitionError::Position)?;
+            Ok(go_to_definition_range(uri, ranges))
+        }
         Some(CallItem::MethodCall { name, range: _ }) => {
             let source_file = match resolve_state
                 .class
@@ -153,7 +167,6 @@ pub fn call_chain_definition(
             }
             Err(DefinitionError::ArgumentNotFound)
         }
-        Some(a) => unimplemented!("call_chain_definition {a:?}"),
         None => Err(DefinitionError::ValidatedItemDoesNotExists),
     }
 }
