@@ -2,7 +2,7 @@
 use crate::{
     error::{AstError, assert_token},
     lexer::{PositionToken, Token},
-    parse_identifier, parse_jtype, parse_name, parse_value,
+    parse_jtype, parse_name, parse_name_single, parse_value,
     types::{AstAnnotated, AstAnnotation, AstAnnotationField, AstAvailability, AstRange, AstThing},
 };
 
@@ -14,7 +14,7 @@ pub fn parse_annotation(
     annotated: Vec<AstAnnotated>,
 ) -> Result<(AstThing, usize), AstError> {
     let pos = assert_token(tokens, pos, Token::Interface)?;
-    let (name, pos) = parse_identifier(tokens, pos)?;
+    let (name, pos) = parse_name_single(tokens, pos)?;
     let pos = assert_token(tokens, pos, Token::LeftParenCurly)?;
     let mut pos = pos;
     let mut errors = vec![];

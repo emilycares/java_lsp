@@ -105,7 +105,7 @@ fn cc_class_block(block: &AstClassBlock, point: &AstPoint, out: &mut Vec<CallIte
         .filter(|i| i.range.is_in_range(point))
         .for_each(|i| {
             if let Some(expr) = &i.expression {
-                return cc_expr(expr, point, false, out);
+                cc_expr(expr, point, false, out)
             }
         });
     block
@@ -210,7 +210,6 @@ fn cc_block(block: &AstBlock, point: &AstPoint, out: &mut Vec<CallItem>) {
         .min_by_key(|expression| dist_block_entry(point, expression))
     {
         cc_block_entrie(entry, point, out);
-        return;
     }
 }
 
@@ -272,7 +271,7 @@ fn cc_block_entrie(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIt
         AstBlockEntry::Assign(ast_block_assign) => {
             if let Some(expr) = &ast_block_assign.expression {
                 let a = dist(point, &ast_block_assign.key.range);
-                let b = dist(point, &ast_expression_get_range(expr));
+                let b = dist(point, ast_expression_get_range(expr));
                 if a > b {
                     cc_expr(expr, point, false, out);
                 } else {
@@ -288,7 +287,7 @@ fn cc_block_entrie(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIt
                 return cc_expr_recursive(&ast_while.control, point, false, out);
             }
             if ast_while.block.range.is_in_range(point) {
-                return cc_block(&ast_while.block, point, out);
+                cc_block(&ast_while.block, point, out)
             }
         }
         AstBlockEntry::For(ast_for) => {
@@ -302,7 +301,7 @@ fn cc_block_entrie(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIt
                 return cc_expr_recursive(&ast_for.change, point, false, out);
             }
             if ast_for.block.range.is_in_range(point) {
-                return cc_block(&ast_for.block, point, out);
+                cc_block(&ast_for.block, point, out)
             }
         }
         AstBlockEntry::ForEnhanced(ast_for_enhanced) => {
@@ -313,7 +312,7 @@ fn cc_block_entrie(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIt
                 return cc_expr_recursive(&ast_for_enhanced.rhs, point, false, out);
             }
             if ast_for_enhanced.block.range.is_in_range(point) {
-                return cc_block(&ast_for_enhanced.block, point, out);
+                cc_block(&ast_for_enhanced.block, point, out)
             }
         }
         AstBlockEntry::Break(_ast_block_break) => (),
@@ -323,14 +322,14 @@ fn cc_block_entrie(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIt
                 return cc_expr_recursive(&ast_switch.check, point, false, out);
             }
             if ast_switch.block.range.is_in_range(point) {
-                return cc_block(&ast_switch.block, point, out);
+                cc_block(&ast_switch.block, point, out)
             }
         }
         AstBlockEntry::SwitchCase(ast_switch_case) => cc_value(&ast_switch_case.value, point, out),
         AstBlockEntry::SwitchDefault(_ast_switch_default) => (),
         AstBlockEntry::TryCatch(ast_try_catch) => {
             if let Some(res) = &ast_try_catch.resources_block {
-                cc_block(&res, point, out);
+                cc_block(res, point, out);
             }
 
             cc_block(&ast_try_catch.block, point, out);
@@ -344,7 +343,7 @@ fn cc_block_entrie(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIt
             }
 
             if let Some(res) = &ast_try_catch.finally_block {
-                cc_block(&res, point, out);
+                cc_block(res, point, out);
             }
         }
         AstBlockEntry::Throw(ast_throw) => cc_new_class(&ast_throw.value, point, out),
@@ -358,7 +357,7 @@ fn cc_block_variable(
     out: &mut Vec<CallItem>,
 ) {
     if let Some(ref expression) = ast_block_variable.expression {
-        return cc_expr(expression, point, false, out);
+        cc_expr(expression, point, false, out)
     }
 }
 
@@ -381,7 +380,7 @@ fn cc_if(ast_if: &AstIf, point: &AstPoint, out: &mut Vec<CallItem>) {
                 return cc_if_content(content, point, out);
             }
             if let Some(el) = el {
-                return cc_if(el, point, out);
+                cc_if(el, point, out)
             }
         }
         AstIf::Else { range, content } => {
@@ -501,9 +500,9 @@ fn cc_expr(
         }
         AstExpression::Lambda(ast_lambda) => match &ast_lambda.rhs {
             AstLambdaRhs::None => (),
-            AstLambdaRhs::Block(ast_block) => cc_block(&ast_block, point, out),
+            AstLambdaRhs::Block(ast_block) => cc_block(ast_block, point, out),
             AstLambdaRhs::Expr(ast_base_expression) => {
-                cc_expr(&ast_base_expression, point, has_parent, out)
+                cc_expr(ast_base_expression, point, has_parent, out)
             }
         },
         AstExpression::InlineSwitch(_ast_switch) => (),

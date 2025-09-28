@@ -152,7 +152,7 @@ fn block_expr(
         return vec![];
     }
 
-    return recursive_expr(&ast_expression.value, point, level);
+    recursive_expr(&ast_expression.value, point, level)
 }
 
 fn recursive_expr(
@@ -164,34 +164,34 @@ fn recursive_expr(
         return vec![];
     }
     let mut out = vec![];
-    if let Some(v) = &expr.values {
-        if !v.values.is_empty() {
-            out.extend(
-                v.values
-                    .iter()
-                    .flat_map(|i| base_expression(i, point, level)),
-            );
-        }
+    if let Some(v) = &expr.values
+        && !v.values.is_empty()
+    {
+        out.extend(
+            v.values
+                .iter()
+                .flat_map(|i| base_expression(i, point, level)),
+        );
     }
 
     if let Some(next) = &expr.next {
-        out.extend(recursive_expr(&next, point, level));
+        out.extend(recursive_expr(next, point, level));
     }
 
-    return out;
+    out
 }
 
 fn base_expression(i: &AstExpression, point: &AstPoint, level: usize) -> Vec<LocalVariable> {
     match i {
         AstExpression::Casted(c) => recursive_expr(&c.expression, point, level),
         AstExpression::Recursive(ast_recursive_expression) => {
-            return recursive_expr(ast_recursive_expression, point, level);
+            recursive_expr(ast_recursive_expression, point, level)
         }
         AstExpression::Lambda(ast_lambda) => {
             if ast_lambda.range.is_in_range(point) {
                 return lambda(ast_lambda, point, level);
             }
-            return vec![];
+            vec![]
         }
         AstExpression::InlineSwitch(ast_switch) => get_block_vars(&ast_switch.block, point, level),
         AstExpression::NewClass(_ast_new_class) => vec![],
@@ -211,7 +211,7 @@ fn lambda(lambda: &AstLambda, point: &AstPoint, level: usize) -> Vec<LocalVariab
 
     match &lambda.rhs {
         AstLambdaRhs::None => (),
-        AstLambdaRhs::Block(ast_block) => out.extend(get_block_vars(&ast_block, point, level)),
+        AstLambdaRhs::Block(ast_block) => out.extend(get_block_vars(ast_block, point, level)),
         AstLambdaRhs::Expr(ast_base_expression) => {
             out.extend(base_expression(ast_base_expression, point, level))
         }

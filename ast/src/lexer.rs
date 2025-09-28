@@ -652,11 +652,11 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                 index += 1;
                 let mut str = SmolStrBuilder::new();
                 let mut multi_line = false;
-                if let Some('"') = chars.get(index + 1) {
-                    if let Some('"') = chars.get(index + 2) {
-                        multi_line = true;
-                        index += 3;
-                    }
+                if let Some('"') = chars.get(index + 1)
+                    && let Some('"') = chars.get(index + 2)
+                {
+                    multi_line = true;
+                    index += 3;
                 }
                 'string_literal: loop {
                     let Some(ch) = chars.get(index) else {
@@ -677,14 +677,12 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                         if !multi_line {
                             col += 1;
                             break 'string_literal;
-                        } else {
-                            if let Some('"') = chars.get(index + 1) {
-                                if let Some('"') = chars.get(index + 2) {
-                                    index += 3;
-                                    col += 3;
-                                    break 'string_literal;
-                                }
-                            }
+                        } else if let Some('"') = chars.get(index + 1)
+                            && let Some('"') = chars.get(index + 2)
+                        {
+                            index += 3;
+                            col += 3;
+                            break 'string_literal;
                         }
                     }
                     str.push(*ch);

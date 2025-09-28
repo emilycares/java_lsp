@@ -140,14 +140,14 @@ pub fn resolve(
 
 pub fn resolve_import(
     jtype: &str,
-    class_map: &DashMap<std::string::String, parser::dto::Class>,
+    class_map: &DashMap<SmolStr, parser::dto::Class>,
 ) -> Vec<String> {
     resolve_class_key(class_map, |p| p.starts_with(jtype))
 }
 
 pub fn resolve_class_key(
-    class_map: &DashMap<std::string::String, parser::dto::Class>,
-    infl: impl Fn(&&std::string::String) -> bool,
+    class_map: &DashMap<SmolStr, parser::dto::Class>,
+    infl: impl Fn(&&SmolStr) -> bool,
 ) -> Vec<String> {
     class_map
         .clone()

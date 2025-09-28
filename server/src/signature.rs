@@ -28,7 +28,7 @@ pub fn signature_driver(
     let call_chain = call_chain::get_call_chain(&document.ast, point);
     let imports = imports::imports(document);
     let vars = variables::get_vars(&document.ast, point).map_err(SignatureError::Variables)?;
-    return get_signature(call_chain, &imports, &vars, class, class_map);
+    get_signature(call_chain, &imports, &vars, class, class_map)
 }
 pub fn get_signature(
     call_chain: Vec<CallItem>,

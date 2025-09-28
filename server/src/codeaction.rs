@@ -222,19 +222,21 @@ fn find_var_block<'a>(
 }
 
 pub fn import_jtype(
-    _ast: &AstFile,
-    _context: &CodeActionContext,
+    ast: &AstFile,
+    context: &CodeActionContext,
 ) -> Option<Vec<CodeActionOrCommand>> {
     // if let Ok(n) = tree_sitter_util::get_node_at_point(tree, *context.point) {
     //     if n.kind() == "type_identifier" {
     //         if let Ok(jtype) = n.utf8_text(bytes) {
-    //             if !tyres::is_imported_class_name(jtype, context.imports, context.class_map) {
-    //                 let i = tyres::resolve_import(jtype, context.class_map)
-    //                     .iter()
-    //                     .map(|a| import_to_code_action(context.current_file, a, tree))
-    //                     .collect();
-    //                 return Some(i);
-    //             }
+    if let Some(class) = get_class::get_class(ast, context.point)
+        && !tyres::is_imported_class_name(&class.name, context.imports, context.class_map)
+    {
+        let i = tyres::resolve_import(&class.name, context.class_map)
+            .iter()
+            .map(|a| import_to_code_action(context.current_file, a, ast))
+            .collect();
+        return Some(i);
+    }
     //         }
     //     }
     // }
@@ -244,8 +246,8 @@ pub fn import_jtype(
 pub fn get_import_position(ast: &AstFile) -> Option<Position> {
     let end = ast.imports.range.end;
     Some(Position {
-        line: end.line as u32,
-        character: end.col as u32,
+        line: (end.line as u32) + 1,
+        character: 0,
     })
 }
 pub fn import_text_edit(classpath: &str, ast: &AstFile) -> Vec<TextEdit> {

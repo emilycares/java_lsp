@@ -317,7 +317,6 @@ public class Test {
         let ast = &doc.ast;
 
         let out = class_action(ast, &AstPoint::new(3, 9), &[], &[], &string_class_map());
-        dbg!(&out);
         assert!(out.is_ok());
     }
 

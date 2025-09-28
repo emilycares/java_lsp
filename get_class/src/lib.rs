@@ -26,10 +26,10 @@ fn get_class_cblock(block: &ast::types::AstClassBlock, point: &AstPoint) -> Opti
         if let Some(o) = get_class_jtype(&v.jtype, point) {
             return Some(o);
         }
-        if let Some(ex) = &v.expression {
-            if let Some(o) = get_class_expression(ex, point) {
-                return Some(o);
-            }
+        if let Some(ex) = &v.expression
+            && let Some(o) = get_class_expression(ex, point)
+        {
+            return Some(o);
         }
     }
     for m in &block.methods {
@@ -118,7 +118,7 @@ fn get_class_expression(ex: &AstExpression, point: &AstPoint) -> Option<FoundCla
             match &ast_lambda.rhs {
                 AstLambdaRhs::None => None,
                 AstLambdaRhs::Block(ast_block) => get_class_block(ast_block, point),
-                AstLambdaRhs::Expr(ast_expression) => get_class_expression(&ast_expression, point),
+                AstLambdaRhs::Expr(ast_expression) => get_class_expression(ast_expression, point),
             }
         }
         AstExpression::InlineSwitch(_ast_switch) => None,
@@ -173,18 +173,18 @@ fn get_class_recursive_expression(
     }
     let mut expression = expression;
     loop {
-        if let Some(ident) = &expression.ident {
-            if let Some(i) = get_class_expression_identifier(ident, point) {
-                return Some(i);
-            }
+        if let Some(ident) = &expression.ident
+            && let Some(i) = get_class_expression_identifier(ident, point)
+        {
+            return Some(i);
         }
 
-        if let Some(vals) = &expression.values {
-            if vals.range.is_in_range(point) {
-                for val in &vals.values {
-                    if let Some(s) = get_class_expression(val, point) {
-                        return Some(s);
-                    }
+        if let Some(vals) = &expression.values
+            && vals.range.is_in_range(point)
+        {
+            for val in &vals.values {
+                if let Some(s) = get_class_expression(val, point) {
+                    return Some(s);
                 }
             }
         }
@@ -226,7 +226,7 @@ fn get_class_jtype(jtype: &AstJType, point: &AstPoint) -> Option<FoundClass> {
                 range: ast_identifier.range,
             })
         }
-        AstJTypeKind::Array(ast_jtype) => get_class_jtype(&ast_jtype, point),
+        AstJTypeKind::Array(ast_jtype) => get_class_jtype(ast_jtype, point),
         AstJTypeKind::Generic(ast_identifier, ast_jtypes) => {
             if let Some(value) = get_class_identifier(ast_identifier, point) {
                 return Some(value);
@@ -266,6 +266,3 @@ fn get_class_expression_identifier(
         AstExpressionIdentifier::ArrayAccess(_ast_value) => None,
     }
 }
-
-#[cfg(test)]
-mod tests {}

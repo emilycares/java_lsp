@@ -205,13 +205,9 @@ fn parse_annotated_list(
 ) -> Result<(Vec<AstAnnotated>, usize), AstError> {
     let mut out = vec![];
     let mut pos = pos;
-    loop {
-        if let Ok((a, npos)) = parse_annotated(tokens, pos) {
-            out.push(a);
-            pos = npos;
-        } else {
-            break;
-        }
+    while let Ok((a, npos)) = parse_annotated(tokens, pos) {
+        out.push(a);
+        pos = npos;
     }
     Ok((out, pos))
 }
@@ -221,7 +217,7 @@ fn parse_annotated(
 ) -> Result<(AstAnnotated, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let pos = assert_token(tokens, pos, Token::At)?;
-    let (name, pos) = parse_name(tokens, pos)?;
+    let (name, pos) = parse_name_single(tokens, pos)?;
     let mut parameters = vec![];
     let mut pos = pos;
     if let Ok((params, npos)) = parse_expression_parameters(tokens, pos) {
@@ -288,16 +284,12 @@ pub fn parse_lambda_parameters(
     let mut pos = pos;
     let mut values = vec![];
 
-    loop {
-        if let Ok((n, npos)) = parse_name(tokens, pos) {
-            values.push(n);
+    while let Ok((n, npos)) = parse_name(tokens, pos) {
+        values.push(n);
 
+        pos = npos;
+        if let Ok(npos) = assert_token(tokens, npos, Token::Comma) {
             pos = npos;
-            if let Ok(npos) = assert_token(tokens, npos, Token::Comma) {
-                pos = npos;
-            } else {
-                break;
-            }
         } else {
             break;
         }
@@ -649,16 +641,15 @@ fn parse_new_class(tokens: &[PositionToken], pos: usize) -> Result<(AstNewClass,
         let (array, npos) = parse_array(tokens, pos)?;
         rhs = AstNewRhs::Array(array);
         pos = npos;
-    } else {
-        if let Ok((b, npos)) = parse_class_block(tokens, pos) {
-            pos = npos;
-            if let AstNewRhs::Parameters(p) = rhs {
-                rhs = AstNewRhs::ParametersAndBlock(p, b);
-            } else {
-                rhs = AstNewRhs::Block(b);
-            }
+    } else if let Ok((b, npos)) = parse_class_block(tokens, pos) {
+        pos = npos;
+        if let AstNewRhs::Parameters(p) = rhs {
+            rhs = AstNewRhs::ParametersAndBlock(p, b);
+        } else {
+            rhs = AstNewRhs::Block(b);
         }
     }
+
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstNewClass {
@@ -960,7 +951,7 @@ pub fn parse_block_return(
     let mut expression = AstExpressionOrValue::None;
     if let Ok((nexpression, npos)) = parse_expression(tokens, pos) {
         pos = npos;
-        expression = AstExpressionOrValue::Expression(nexpression);
+        expression = AstExpressionOrValue::Expression(Box::new(nexpression));
     }
     let pos = assert_token(tokens, pos, Token::Semicolon)?;
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
@@ -968,7 +959,7 @@ pub fn parse_block_return(
     Ok((
         AstBlockReturn {
             range: AstRange::from_position_token(start, end),
-            expression: expression,
+            expression,
         },
         pos,
     ))
@@ -983,7 +974,7 @@ fn parse_block_yield(
     let mut expression = AstExpressionOrValue::None;
     if let Ok((nexpression, npos)) = parse_expression(tokens, pos) {
         pos = npos;
-        expression = AstExpressionOrValue::Expression(nexpression);
+        expression = AstExpressionOrValue::Expression(Box::new(nexpression));
     }
     let pos = assert_token(tokens, pos, Token::Semicolon)?;
     let end = tokens.get(pos).ok_or(AstError::eof())?;
@@ -1313,7 +1304,7 @@ fn parse_block_brackets(
         match parse_for(tokens, pos) {
             Ok((nret, npos)) => {
                 pos = npos;
-                entries.push(AstBlockEntry::For(nret));
+                entries.push(AstBlockEntry::For(Box::new(nret)));
                 continue;
             }
             Err(e) => {
@@ -1363,7 +1354,7 @@ fn parse_block_brackets(
         match parse_for_enhanced(tokens, pos) {
             Ok((nret, npos)) => {
                 pos = npos;
-                entries.push(AstBlockEntry::ForEnhanced(nret));
+                entries.push(AstBlockEntry::ForEnhanced(Box::new(nret)));
                 continue;
             }
             Err(e) => {
@@ -1641,7 +1632,7 @@ fn parse_if(tokens: &[PositionToken], pos: usize) -> Result<(AstIf, usize), AstE
         content = AstIfContent::Block(block);
         pos = npos;
     } else if let Ok((expression, npos)) = parse_recursive_expression(tokens, pos) {
-        content = AstIfContent::Expression(expression);
+        content = AstIfContent::Expression(Box::new(expression));
         let npos = assert_semicolon(tokens, npos);
         pos = npos;
     }
@@ -1666,7 +1657,7 @@ fn parse_if(tokens: &[PositionToken], pos: usize) -> Result<(AstIf, usize), AstE
     Ok((
         AstIf::If {
             range: AstRange::from_position_token(start, end),
-            control,
+            control: Box::new(control),
             control_range: AstRange::from_position_token(start_control, end_control),
             content,
             el,

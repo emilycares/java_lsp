@@ -1,4 +1,4 @@
-use ast::types::{AstFile, AstImportUnit, AstPoint};
+use ast::types::{AstFile, AstPoint};
 use call_chain::get_call_chain;
 use document::{Document, DocumentError};
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat};
@@ -220,10 +220,10 @@ pub fn complete_call_chain(
     class_map: &dashmap::DashMap<SmolStr, parser::dto::Class>,
 ) -> Result<Vec<CompletionItem>, CompletionError> {
     let call_chain = get_call_chain(&document.ast, point);
-    return match tyres::resolve_call_chain(&call_chain, vars, imports, class, class_map) {
+    match tyres::resolve_call_chain(&call_chain, vars, imports, class, class_map) {
         Ok(resolve_state) => Ok(class_unpack(&resolve_state.class, imports, &document.ast)),
         Err(tyres_error) => Err(CompletionError::Tyres { tyres_error }),
-    };
+    }
 }
 
 pub fn classes(

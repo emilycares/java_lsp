@@ -236,8 +236,8 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::{
-        PositionSymbol, get_class_position, get_class_position_ast, get_field_positions,
-        get_method_positions, get_type_usage,
+        PositionSymbol, get_class_position_ast, get_field_positions, get_method_positions,
+        get_type_usage,
     };
 
     #[test]

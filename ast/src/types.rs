@@ -221,8 +221,8 @@ pub enum AstBlockEntry {
     Assign(AstBlockAssign),
     If(AstIf),
     While(AstWhile),
-    For(AstFor),
-    ForEnhanced(AstForEnhanced),
+    For(Box<AstFor>),
+    ForEnhanced(Box<AstForEnhanced>),
     Break(AstBlockBreak),
     Continue(AstBlockContinue),
     Switch(AstSwitch),
@@ -282,7 +282,7 @@ pub struct AstForEnhanced {
 pub enum AstIf {
     If {
         range: AstRange,
-        control: AstRecursiveExpression,
+        control: Box<AstRecursiveExpression>,
         control_range: AstRange,
         content: AstIfContent,
         el: Option<Box<AstIf>>,
@@ -295,7 +295,7 @@ pub enum AstIf {
 #[derive(Debug)]
 pub enum AstIfContent {
     Block(AstBlock),
-    Expression(AstRecursiveExpression),
+    Expression(Box<AstRecursiveExpression>),
     None,
 }
 #[derive(Debug)]
@@ -358,7 +358,7 @@ pub struct AstBlockReturn {
 #[derive(Debug)]
 pub enum AstExpressionOrValue {
     None,
-    Expression(AstExpression),
+    Expression(Box<AstExpression>),
     Value(AstValue),
 }
 #[derive(Debug)]
