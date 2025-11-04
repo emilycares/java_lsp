@@ -1,0 +1,90 @@
+---
+source: ast/src/lexer.rs
+expression: tokens
+---
+[
+    PositionToken {
+        token: CharLiteral(
+            "\\b",
+        ),
+        line: 1,
+        col: 14,
+    },
+    PositionToken {
+        token: Plus,
+        line: 1,
+        col: 16,
+    },
+    PositionToken {
+        token: CharLiteral(
+            "\\t",
+        ),
+        line: 2,
+        col: 14,
+    },
+    PositionToken {
+        token: Plus,
+        line: 2,
+        col: 16,
+    },
+    PositionToken {
+        token: CharLiteral(
+            "\\n",
+        ),
+        line: 3,
+        col: 14,
+    },
+    PositionToken {
+        token: Plus,
+        line: 3,
+        col: 16,
+    },
+    PositionToken {
+        token: CharLiteral(
+            "\\f",
+        ),
+        line: 4,
+        col: 14,
+    },
+    PositionToken {
+        token: Plus,
+        line: 4,
+        col: 16,
+    },
+    PositionToken {
+        token: CharLiteral(
+            "\\r",
+        ),
+        line: 5,
+        col: 14,
+    },
+    PositionToken {
+        token: Plus,
+        line: 5,
+        col: 16,
+    },
+    PositionToken {
+        token: CharLiteral(
+            "\\\"",
+        ),
+        line: 6,
+        col: 14,
+    },
+    PositionToken {
+        token: Plus,
+        line: 6,
+        col: 16,
+    },
+    PositionToken {
+        token: CharLiteral(
+            "\\\\",
+        ),
+        line: 7,
+        col: 14,
+    },
+    PositionToken {
+        token: Plus,
+        line: 7,
+        col: 16,
+    },
+]

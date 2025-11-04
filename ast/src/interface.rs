@@ -1,5 +1,6 @@
 //! Parsing functions for interface
 use crate::{
+    ExpressionOptions,
     error::{AstError, assert_token},
     lexer::{PositionToken, Token},
     parse_annotated_list, parse_avaliability, parse_block, parse_expression, parse_extends,
@@ -135,7 +136,7 @@ pub fn parse_interface_constant(
     let (jtype, pos) = parse_jtype(tokens, pos)?;
     let (name, pos) = parse_name(tokens, pos)?;
     let pos = assert_token(tokens, pos, Token::Equal)?;
-    let (expression, pos) = parse_expression(tokens, pos)?;
+    let (expression, pos) = parse_expression(tokens, pos, &ExpressionOptions::None)?;
     let pos = assert_token(tokens, pos, Token::Semicolon)?;
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((

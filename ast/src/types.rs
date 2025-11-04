@@ -570,7 +570,6 @@ pub enum AstJTypeKind {
 pub enum AstValue {
     Variable(AstIdentifier),
     Nuget(AstValueNuget),
-    Array(AstValues),
 }
 #[derive(Debug)]
 pub enum AstValueNuget {
@@ -590,6 +589,7 @@ pub enum AstExpression {
     NewClass(AstNewClass),
     ClassAccess(AstClassAccess),
     Generics(AstGenerics),
+    Array(AstValues),
 }
 impl AstExpression {
     pub fn has_content(&self) -> bool {
@@ -601,6 +601,7 @@ impl AstExpression {
             | AstExpression::Lambda(_)
             | AstExpression::InlineSwitch(_)
             | AstExpression::NewClass(_)
+            | AstExpression::Array(_)
             | AstExpression::Generics(_)
             | AstExpression::ClassAccess(_) => true,
         }

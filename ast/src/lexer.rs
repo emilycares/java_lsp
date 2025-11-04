@@ -787,7 +787,13 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                         let Some(peek) = chars.get(index + 1) else {
                             break;
                         };
-                        if *peek == '\'' {
+                        if *peek == '\\' {
+                            char.push('\\');
+                            char.push('\\');
+                            col += 2;
+                            index += 2;
+                            continue;
+                        } else if *peek == '\'' {
                             char.push('\\');
                             char.push('\'');
                             col += 2;
@@ -989,6 +995,20 @@ pub mod tests {
     #[test]
     fn escaped_backslash() {
         let content = r#" "\\" "#;
+        let tokens = lexer::lex(content).unwrap();
+        insta::assert_debug_snapshot!(tokens);
+    }
+    #[test]
+    fn escaped_others() {
+        let content = r#" 
+            '\b' + 
+            '\t' + 
+            '\n' + 
+            '\f' + 
+            '\r' + 
+            '\"' +
+            '\\' + 
+         "#;
         let tokens = lexer::lex(content).unwrap();
         insta::assert_debug_snapshot!(tokens);
     }

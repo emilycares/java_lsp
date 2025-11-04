@@ -217,6 +217,7 @@ fn expression(i: &AstExpression, point: &AstPoint, level: usize) -> Vec<LocalVar
         AstExpression::NewClass(_ast_new_class) => vec![],
         AstExpression::ClassAccess(_ast_class_access) => vec![],
         AstExpression::Generics(_ast_generics) => vec![],
+        AstExpression::Array(_ast_values) => todo!(),
     }
 }
 

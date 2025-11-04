@@ -217,6 +217,7 @@ fn get_class_expression(ex: &AstExpression, point: &AstPoint) -> Option<FoundCla
             }
             None
         }
+        AstExpression::Array(_ast_values) => todo!(),
     }
 }
 

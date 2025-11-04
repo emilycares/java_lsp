@@ -182,6 +182,7 @@ fn ast_expression_get_range(expression: &AstExpression) -> &AstRange {
         AstExpression::NewClass(ast_new_class) => &ast_new_class.range,
         AstExpression::ClassAccess(ast_class_access) => &ast_class_access.range,
         AstExpression::Generics(ast_generics) => &ast_generics.range,
+        AstExpression::Array(ast_values) => &ast_values.range,
     }
 }
 
@@ -460,7 +461,6 @@ fn cc_value(value: &AstValue, _point: &AstPoint, out: &mut Vec<CallItem>) {
     match value {
         AstValue::Variable(ast_identifier) => cc_variable(ast_identifier, out),
         AstValue::Nuget(ast_nuget) => cc_value_nuget(ast_nuget, out),
-        AstValue::Array(_ast_values) => todo!(),
     }
 }
 
@@ -571,6 +571,7 @@ fn cc_expr(
             cc_class_access(ast_class_access, point, out)
         }
         AstExpression::Generics(_ast_generics) => (),
+        AstExpression::Array(_ast_values) => todo!(),
     }
 }
 
@@ -757,7 +758,6 @@ fn fun_name(ast_value: &AstValue) -> AstRange {
             AstValueNuget::CharLiteral(ast_identifier) => ast_identifier.range,
             AstValueNuget::BooleanLiteral(ast_boolean) => ast_boolean.range,
         },
-        AstValue::Array(ast_values) => ast_values.range,
     }
 }
 

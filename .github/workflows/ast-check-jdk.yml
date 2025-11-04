@@ -44,7 +44,7 @@ jobs:
     if: github.repository == 'emilycares/java_lsp'
     needs: build
     container: 
-      image: openjdk:25-jdk
+      image: eclipse-temurin:25-jdk
 
     steps:
       - name: Download executable

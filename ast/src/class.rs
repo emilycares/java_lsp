@@ -1,5 +1,6 @@
 //! Parsing functions for class
 use crate::{
+    ExpressionOptions,
     error::{AstError, assert_token},
     lexer::{PositionToken, Token},
     parse_annotated_list, parse_avaliability, parse_block, parse_constructor_header,
@@ -222,7 +223,7 @@ pub fn parse_class_variable(
     }
     let mut expression = None;
     if let Ok(npos) = assert_token(tokens, pos, Token::Equal) {
-        let (aexpr, npos) = parse_expression(tokens, npos)?;
+        let (aexpr, npos) = parse_expression(tokens, npos, &ExpressionOptions::None)?;
         pos = npos;
         expression = Some(aexpr);
     }

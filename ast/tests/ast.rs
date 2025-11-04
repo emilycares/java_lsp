@@ -1,9 +1,9 @@
 use ast::class::{parse_class_method, parse_class_variable};
 use ast::error::PrintErr;
 use ast::{
-    lexer, parse_block, parse_block_return, parse_block_variable, parse_file, parse_jtype,
-    parse_lambda, parse_name, parse_name_dot_logical, parse_new_class, parse_recursive_expression,
-    parse_string_literal,
+    ExpressionOptions, lexer, parse_block, parse_block_return, parse_block_variable, parse_file,
+    parse_jtype, parse_lambda, parse_name, parse_name_dot_logical, parse_new_class,
+    parse_recursive_expression, parse_string_literal,
 };
 
 #[test]
@@ -98,7 +98,7 @@ fn annotated() {
 fn expression_base() {
     let content = "Logger.getLogger(Test.class)";
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_recursive_expression(&tokens, 0);
+    let parsed = parse_recursive_expression(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -106,7 +106,7 @@ fn expression_base() {
 fn expression_array_access() {
     let content = "numbers[0]";
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_recursive_expression(&tokens, 0);
+    let parsed = parse_recursive_expression(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     let ast = parsed.unwrap();
     insta::assert_debug_snapshot!(ast);
@@ -116,7 +116,7 @@ fn expression_array_access() {
 fn expression_multi_array_access() {
     let content = "numbers[0][0][0]";
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_recursive_expression(&tokens, 0);
+    let parsed = parse_recursive_expression(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     let ast = parsed.unwrap();
     insta::assert_debug_snapshot!(ast);
@@ -127,7 +127,7 @@ fn expression_multi_array_access() {
 fn equasion_method_call() {
     let content = r#""z" + a.getThing()"#;
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_recursive_expression(&tokens, 0);
+    let parsed = parse_recursive_expression(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -191,7 +191,7 @@ fn name() {
 fn lambda() {
     let content = "(n) -> { System.out.println(n); }";
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_lambda(&tokens, 0);
+    let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -199,7 +199,7 @@ fn lambda() {
 fn lambda_1() {
     let content = "n -> { }";
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_lambda(&tokens, 0);
+    let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -207,7 +207,7 @@ fn lambda_1() {
 fn lambda_2() {
     let content = "(a, b, c) -> { }";
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_lambda(&tokens, 0);
+    let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -215,7 +215,7 @@ fn lambda_2() {
 fn lambda_value() {
     let content = "n -> true";
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_lambda(&tokens, 0);
+    let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -223,7 +223,7 @@ fn lambda_value() {
 fn lambda_expr() {
     let content = "n -> v.toString()";
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_lambda(&tokens, 0);
+    let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -231,7 +231,7 @@ fn lambda_expr() {
 fn lambda_in_expression() {
     let content = "numbers.forEach( (n) -> { System.out.println(n); } )";
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_recursive_expression(&tokens, 0);
+    let parsed = parse_recursive_expression(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -240,7 +240,7 @@ fn lambda_in_expression() {
 fn equal_expr() {
     let content = "a == b ";
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_recursive_expression(&tokens, 0);
+    let parsed = parse_recursive_expression(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -278,7 +278,7 @@ fn new_array() {
 fn long_expr() {
     let content = r#"IAFactory.getInstance().getIA("localhost", 1344, SERVICE).support(true)"#;
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_recursive_expression(&tokens, 0);
+    let parsed = parse_recursive_expression(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -286,7 +286,7 @@ fn long_expr() {
 fn cast() {
     let content = r#"new byte[] {(byte)'a'}"#;
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_new_class(&tokens, 0);
+    let parsed = parse_new_class(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -294,7 +294,7 @@ fn cast() {
 fn double_plus() {
     let content = r#"values[i++]"#;
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_recursive_expression(&tokens, 0);
+    let parsed = parse_recursive_expression(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }

@@ -28,7 +28,6 @@ pub fn parse_enumeration(
     let mut constructors = vec![];
     let mut end_reached = false;
     loop {
-        dbg!(tokens.get(pos));
         if let Ok(npos) = assert_token(tokens, pos, Token::Semicolon) {
             pos = npos;
             break;
@@ -57,7 +56,6 @@ pub fn parse_enumeration(
                 pos = npos;
                 break;
             };
-            dbg!(tokens.get(pos));
             match parse_class_method(tokens, pos) {
                 Ok((method, npos)) => {
                     methods.push(method);
