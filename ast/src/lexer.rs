@@ -117,6 +117,8 @@ impl Token {
             | Token::Volatile
             | Token::Transient
             | Token::Native
+            | Token::Sealed
+            | Token::Non
             | Token::If => KEYWORDS
                 .entries()
                 .find(|i| i.1 == self)
@@ -214,6 +216,8 @@ impl Token {
             Token::Native => SmolStr::new_inline("native"),
             Token::Caret => SmolStr::new_inline("^"),
             Token::Tilde => SmolStr::new_inline("~"),
+            Token::Sealed => SmolStr::new_inline("sealed"),
+            Token::Non => SmolStr::new_inline("non"),
         }
     }
 
@@ -399,6 +403,10 @@ pub enum Token {
     Caret,
     /// `~`
     Tilde,
+    /// sealed
+    Sealed,
+    /// non (used in non-sealed)
+    Non,
 }
 
 /// Error during lex function
@@ -459,6 +467,8 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
     "volatile" => Token::Volatile,
     "transient" => Token::Transient,
     "native" => Token::Native,
+    "sealed" => Token::Sealed,
+    "non" => Token::Non,
 };
 
 /// Output token vec for document

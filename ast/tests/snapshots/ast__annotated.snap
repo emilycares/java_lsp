@@ -180,6 +180,9 @@ AstFile {
             avaliability: AstAvailability(
                 Public,
             ),
+            attributes: AstThingAttributes(
+                0x0,
+            ),
             annotated: [
                 AstAnnotated {
                     range: AstRange {

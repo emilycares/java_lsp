@@ -64,6 +64,8 @@ pub fn ast_check(file: PathBuf) {
 }
 pub fn ast_check_dir(folder: PathBuf) {
     jwalk::WalkDir::new(canonicalize(folder).unwrap())
+        // Check in the same order always
+        .sort(true)
         .into_iter()
         .filter_map(|a| a.ok())
         .filter(|e| !e.file_type().is_dir())

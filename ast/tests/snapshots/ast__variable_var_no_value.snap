@@ -57,27 +57,7 @@ expression: parsed.unwrap()
                         },
                         value: Var,
                     },
-                    expression: Some(
-                        Recursive(
-                            AstRecursiveExpression {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 0,
-                                        col: 9,
-                                    },
-                                    end: AstPoint {
-                                        line: 0,
-                                        col: 9,
-                                    },
-                                },
-                                ident: None,
-                                values: None,
-                                operator: None,
-                                instance_of: None,
-                                next: None,
-                            },
-                        ),
-                    ),
+                    expression: None,
                 },
             ),
         ],

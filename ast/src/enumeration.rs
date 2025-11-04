@@ -4,7 +4,10 @@ use crate::{
     error::{AstError, assert_token},
     lexer::{PositionToken, Token},
     parse_expression_parameters, parse_identifier,
-    types::{AstAnnotated, AstAvailability, AstEnumerationVariant, AstRange, AstThing},
+    types::{
+        AstAnnotated, AstAvailability, AstEnumerationVariant, AstRange, AstThing,
+        AstThingAttributes,
+    },
 };
 
 /// `AAA { ... }`
@@ -12,6 +15,7 @@ pub fn parse_enumeration(
     tokens: &[PositionToken],
     pos: usize,
     avaliability: AstAvailability,
+    attributes: AstThingAttributes,
     annotated: Vec<AstAnnotated>,
 ) -> Result<(AstThing, usize), AstError> {
     let (name, pos) = parse_identifier(tokens, pos)?;
@@ -22,9 +26,16 @@ pub fn parse_enumeration(
     let mut methods = vec![];
     let mut variables = vec![];
     let mut constructors = vec![];
+    let mut end_reached = false;
     loop {
+        dbg!(tokens.get(pos));
         if let Ok(npos) = assert_token(tokens, pos, Token::Semicolon) {
             pos = npos;
+            break;
+        };
+        if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
+            pos = npos;
+            end_reached = true;
             break;
         };
         if let Ok((variant, npos)) = parse_enum_variant(tokens, pos) {
@@ -35,58 +46,58 @@ pub fn parse_enumeration(
         if let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
             pos = npos;
         }
-        if let Ok(npos) = assert_token(tokens, pos, Token::Semicolon) {
-            pos = npos;
-            break;
-        };
     }
-    loop {
-        errors.clear();
-        if tokens.get(pos).is_none() {
-            break;
-        }
-        if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
-            pos = npos;
-            break;
-        };
-        match parse_class_method(tokens, pos) {
-            Ok((method, npos)) => {
-                methods.push(method);
+    if !end_reached {
+        loop {
+            errors.clear();
+            if tokens.get(pos).is_none() {
+                break;
+            }
+            if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
                 pos = npos;
-                continue;
+                break;
+            };
+            dbg!(tokens.get(pos));
+            match parse_class_method(tokens, pos) {
+                Ok((method, npos)) => {
+                    methods.push(method);
+                    pos = npos;
+                    continue;
+                }
+                Err(e) => {
+                    errors.push(("enum_method".into(), e));
+                }
             }
-            Err(e) => {
-                errors.push(("enum_method".into(), e));
+            match parse_class_constructor(tokens, pos) {
+                Ok((constructor, npos)) => {
+                    constructors.push(constructor);
+                    pos = npos;
+                    continue;
+                }
+                Err(e) => {
+                    errors.push(("enum_constructor".into(), e));
+                }
             }
+            match parse_class_variable(tokens, pos) {
+                Ok((variable, npos)) => {
+                    variables.push(variable);
+                    pos = npos;
+                    continue;
+                }
+                Err(e) => {
+                    errors.push(("enum_variable".into(), e));
+                }
+            }
+            return Err(AstError::AllChildrenFailed {
+                parent: "enum".into(),
+                errors,
+            });
         }
-        match parse_class_constructor(tokens, pos) {
-            Ok((constructor, npos)) => {
-                constructors.push(constructor);
-                pos = npos;
-                continue;
-            }
-            Err(e) => {
-                errors.push(("enum_constructor".into(), e));
-            }
-        }
-        match parse_class_variable(tokens, pos) {
-            Ok((variable, npos)) => {
-                variables.push(variable);
-                pos = npos;
-                continue;
-            }
-            Err(e) => {
-                errors.push(("enum_variable".into(), e));
-            }
-        }
-        return Err(AstError::AllChildrenFailed {
-            parent: "enum".into(),
-            errors,
-        });
     }
     Ok((
         AstThing::Enumeration(crate::types::AstEnumeration {
             avaliability,
+            attributes,
             annotated,
             name,
             variants,
@@ -104,8 +115,12 @@ pub fn parse_enum_variant(
     pos: usize,
 ) -> Result<(AstEnumerationVariant, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
-    let (name, pos) = parse_identifier(tokens, pos)?;
-    let (parameters, pos) = parse_expression_parameters(tokens, pos)?;
+    let (name, mut pos) = parse_identifier(tokens, pos)?;
+    let mut parameters = vec![];
+    if let Ok((p, npos)) = parse_expression_parameters(tokens, pos) {
+        parameters = p;
+        pos = npos;
+    }
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstEnumerationVariant {

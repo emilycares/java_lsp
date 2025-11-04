@@ -3,10 +3,11 @@ use crate::{
     error::{AstError, assert_token},
     lexer::{PositionToken, Token},
     parse_annotated_list, parse_avaliability, parse_block, parse_expression, parse_extends,
-    parse_identifier, parse_jtype, parse_method_header, parse_name, parse_type_parameters,
+    parse_identifier, parse_jtype, parse_method_header, parse_name, parse_thing,
+    parse_type_parameters,
     types::{
         AstAnnotated, AstAvailability, AstInterface, AstInterfaceConstant, AstInterfaceMethod,
-        AstInterfaceMethodDefault, AstRange, AstStaticFinal, AstThing,
+        AstInterfaceMethodDefault, AstRange, AstStaticFinal, AstThing, AstThingAttributes,
     },
 };
 
@@ -15,6 +16,7 @@ pub fn parse_interface(
     tokens: &[PositionToken],
     pos: usize,
     avaliability: AstAvailability,
+    attributes: AstThingAttributes,
     annotated: Vec<AstAnnotated>,
 ) -> Result<(AstThing, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
@@ -35,6 +37,7 @@ pub fn parse_interface(
     let mut constants = vec![];
     let mut methods = vec![];
     let mut default_methods = vec![];
+    let mut inner = vec![];
     let mut pos = pos;
     loop {
         errors.clear();
@@ -75,6 +78,16 @@ pub fn parse_interface(
                 errors.push(("interface_method_impl".into(), e));
             }
         }
+        match parse_thing(tokens, pos) {
+            Ok((thing, npos)) => {
+                pos = npos;
+                inner.push(thing);
+                continue;
+            }
+            Err(e) => {
+                errors.push(("interface thing".into(), e));
+            }
+        }
         return Err(AstError::AllChildrenFailed {
             parent: "interface".into(),
             errors,
@@ -85,6 +98,7 @@ pub fn parse_interface(
     Ok((
         AstThing::Interface(AstInterface {
             range: AstRange::from_position_token(start, end),
+            attributes,
             avaliability,
             annotated,
             name,
@@ -93,6 +107,7 @@ pub fn parse_interface(
             constants,
             methods,
             default_methods,
+            inner,
         }),
         pos,
     ))

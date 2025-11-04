@@ -34,6 +34,9 @@ AstFile {
             avaliability: AstAvailability(
                 Public,
             ),
+            attributes: AstThingAttributes(
+                0x0,
+            ),
             annotated: [],
             name: AstIdentifier {
                 range: AstRange {

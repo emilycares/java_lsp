@@ -1,8 +1,8 @@
 use ast::types::{
     AstBlock, AstBlockEntry, AstBlockExpression, AstBlockVariable, AstClassMethod, AstExpression,
-    AstFile, AstFor, AstForContent, AstForEnhanced, AstIf, AstIfContent, AstInterfaceConstant,
-    AstLambda, AstLambdaRhs, AstMethodParamerter, AstPoint, AstRange, AstRecursiveExpression,
-    AstSwitch, AstThing, AstTryCatch, AstWhile, AstWhileContent,
+    AstFile, AstFor, AstForContent, AstForEnhanced, AstForVarOrExpression, AstIf, AstIfContent,
+    AstInterfaceConstant, AstLambda, AstLambdaRhs, AstMethodParamerter, AstPoint, AstRange,
+    AstRecursiveExpression, AstSwitch, AstThing, AstTryCatch, AstWhile, AstWhileContent,
 };
 use parser::dto;
 use smol_str::SmolStr;
@@ -322,7 +322,16 @@ fn for_vars(ast_for: &AstFor, point: &AstPoint, level: usize) -> Vec<LocalVariab
     }
     let level = level + 1;
     let mut out = vec![];
-    out.extend(LocalVariable::from_block_variable(&ast_for.var, level));
+    match &ast_for.var {
+        AstForVarOrExpression::None => (),
+        AstForVarOrExpression::Var(ast_block_variable) => {
+            out.extend(LocalVariable::from_block_variable(
+                ast_block_variable,
+                level,
+            ));
+        }
+        AstForVarOrExpression::Expression(_ast_expression) => (),
+    }
     out.extend(for_content_vars(&ast_for.content, point, level));
     out
 }

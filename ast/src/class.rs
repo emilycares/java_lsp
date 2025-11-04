@@ -8,7 +8,7 @@ use crate::{
     types::{
         AstAnnotated, AstAvailability, AstClass, AstClassBlock, AstClassConstructor,
         AstClassMethod, AstClassVariable, AstRange, AstStaticBlock, AstStaticFinal, AstSuperClass,
-        AstThing,
+        AstThing, AstThingAttributes,
     },
 };
 
@@ -17,6 +17,7 @@ pub fn parse_class(
     tokens: &[PositionToken],
     pos: usize,
     avaliability: AstAvailability,
+    attributes: AstThingAttributes,
     annotated: Vec<AstAnnotated>,
 ) -> Result<(AstThing, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
@@ -54,6 +55,7 @@ pub fn parse_class(
         AstThing::Class(AstClass {
             range: AstRange::from_position_token(start, end),
             avaliability,
+            attributes,
             annotated,
             name,
             type_parameters,

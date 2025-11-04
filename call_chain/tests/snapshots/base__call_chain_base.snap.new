@@ -1,0 +1,6 @@
+---
+source: call_chain/tests/base.rs
+assertion_line: 29
+expression: out
+---
+[]

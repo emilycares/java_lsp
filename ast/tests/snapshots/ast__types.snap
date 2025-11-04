@@ -44,6 +44,9 @@ AstFile {
             avaliability: AstAvailability(
                 Public,
             ),
+            attributes: AstThingAttributes(
+                0x0,
+            ),
             annotated: [],
             name: AstIdentifier {
                 range: AstRange {
@@ -280,27 +283,7 @@ AstFile {
                                                                                                     },
                                                                                                 ),
                                                                                             },
-                                                                                            next: Some(
-                                                                                                Recursive(
-                                                                                                    AstRecursiveExpression {
-                                                                                                        range: AstRange {
-                                                                                                            start: AstPoint {
-                                                                                                                line: 2,
-                                                                                                                col: 43,
-                                                                                                            },
-                                                                                                            end: AstPoint {
-                                                                                                                line: 2,
-                                                                                                                col: 43,
-                                                                                                            },
-                                                                                                        },
-                                                                                                        ident: None,
-                                                                                                        values: None,
-                                                                                                        operator: None,
-                                                                                                        instance_of: None,
-                                                                                                        next: None,
-                                                                                                    },
-                                                                                                ),
-                                                                                            ),
+                                                                                            next: None,
                                                                                         },
                                                                                     ),
                                                                                 ],

@@ -4,9 +4,9 @@ use ast::range::{AstInRange, add_ranges};
 use ast::types::{
     AstAnnotated, AstAnnotatedParameter, AstBlock, AstBlockEntry, AstBlockVariable, AstClassAccess,
     AstClassBlock, AstExpression, AstExpressionIdentifier, AstExpressionOperator,
-    AstExpressionOrValue, AstFile, AstForContent, AstIdentifier, AstIf, AstIfContent, AstJType,
-    AstJTypeKind, AstLambdaRhs, AstNewClass, AstNewRhs, AstPoint, AstRange, AstRecursiveExpression,
-    AstThing, AstValue, AstValueNuget, AstValues, AstWhileContent,
+    AstExpressionOrValue, AstFile, AstForContent, AstForVarOrExpression, AstIdentifier, AstIf,
+    AstIfContent, AstJType, AstJTypeKind, AstLambdaRhs, AstNewClass, AstNewRhs, AstPoint, AstRange,
+    AstRecursiveExpression, AstThing, AstValue, AstValueNuget, AstValues, AstWhileContent,
 };
 use smol_str::SmolStr;
 
@@ -321,8 +321,14 @@ fn cc_block_entrie(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIt
             cc_while_content(&ast_while.content, point, out);
         }
         AstBlockEntry::For(ast_for) => {
-            if ast_for.var.range.is_in_range(point) {
-                return cc_block_variable(&ast_for.var, point, out);
+            match &ast_for.var {
+                AstForVarOrExpression::None => (),
+                AstForVarOrExpression::Var(ast_block_variable) => {
+                    cc_block_variable(ast_block_variable, point, out)
+                }
+                AstForVarOrExpression::Expression(ast_expression) => {
+                    cc_expr(ast_expression, point, false, out);
+                }
             }
             cc_expr(&ast_for.check, point, false, out);
             if let Some(change) = &ast_for.change
@@ -353,7 +359,9 @@ fn cc_block_entrie(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIt
                 cc_block(&ast_switch.block, point, out)
             }
         }
-        AstBlockEntry::SwitchCase(ast_switch_case) => cc_value(&ast_switch_case.value, point, out),
+        AstBlockEntry::SwitchCase(ast_switch_case) => {
+            cc_expr(&ast_switch_case.expression, point, false, out)
+        }
         AstBlockEntry::SwitchDefault(_ast_switch_default) => (),
         AstBlockEntry::TryCatch(ast_try_catch) => {
             if let Some(res) = &ast_try_catch.resources_block {
@@ -663,6 +671,7 @@ fn cc_expr_recursive(
             | AstExpressionOperator::Ge(_)
             | AstExpressionOperator::Gt(_)
             | AstExpressionOperator::Tilde(_)
+            | AstExpressionOperator::Caret(_)
             | AstExpressionOperator::Ampersand(_)
             | AstExpressionOperator::AmpersandAmpersand(_)
             | AstExpressionOperator::VerticalBar(_)

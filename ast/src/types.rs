@@ -77,6 +77,14 @@ pub enum AstImportUnit {
 
 bitflags! {
    #[derive(Debug)]
+   pub struct AstThingAttributes: u8 {
+        const Sealed       = 0b00000001;
+        const NonSealed    = 0b00000010;
+    }
+}
+
+bitflags! {
+   #[derive(Debug)]
    pub struct AstAvailability: u8 {
         const Public       = 0b00000001;
         const Synchronized = 0b00000010;
@@ -93,6 +101,7 @@ bitflags! {
 pub struct AstClass {
     pub range: AstRange,
     pub avaliability: AstAvailability,
+    pub attributes: AstThingAttributes,
     pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
     pub type_parameters: Option<AstTypeParameters>,
@@ -104,6 +113,7 @@ pub struct AstClass {
 pub struct AstRecord {
     pub range: AstRange,
     pub avaliability: AstAvailability,
+    pub attributes: AstThingAttributes,
     pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
     pub record_entries: AstRecordEntries,
@@ -274,11 +284,17 @@ pub struct AstWhile {
 #[derive(Debug)]
 pub struct AstFor {
     pub range: AstRange,
-    pub var: AstBlockVariable,
+    pub var: AstForVarOrExpression,
     pub check: AstExpression,
     pub change: Option<AstBlockEntry>,
     pub content: AstForContent,
     pub lable: Option<AstIdentifier>,
+}
+#[derive(Debug)]
+pub enum AstForVarOrExpression {
+    None,
+    Var(AstBlockVariable),
+    Expression(AstExpression),
 }
 #[derive(Debug)]
 pub struct AstSwitch {
@@ -289,7 +305,7 @@ pub struct AstSwitch {
 #[derive(Debug)]
 pub struct AstSwitchCase {
     pub range: AstRange,
-    pub value: AstValue,
+    pub expression: AstExpression,
 }
 #[derive(Debug)]
 pub struct AstSwitchCaseArrow {
@@ -484,6 +500,7 @@ pub struct AstAnnotated {
 /// Definition of a new Annotation
 pub struct AstAnnotation {
     pub avaliability: AstAvailability,
+    pub attributes: AstThingAttributes,
     pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
     pub fields: Vec<AstAnnotationField>,
@@ -500,6 +517,7 @@ pub struct AstAnnotationField {
 pub struct AstInterface {
     pub range: AstRange,
     pub avaliability: AstAvailability,
+    pub attributes: AstThingAttributes,
     pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
     pub type_parameters: Option<AstTypeParameters>,
@@ -507,6 +525,7 @@ pub struct AstInterface {
     pub constants: Vec<AstInterfaceConstant>,
     pub methods: Vec<AstInterfaceMethod>,
     pub default_methods: Vec<AstInterfaceMethodDefault>,
+    pub inner: Vec<AstThing>,
 }
 
 #[derive(Debug)]
@@ -704,6 +723,7 @@ pub enum AstExpressionOperator {
     Colon(AstRange),
     Assign(AstRange),
     Tilde(AstRange),
+    Caret(AstRange),
 }
 
 #[derive(Debug)]
@@ -749,6 +769,7 @@ pub struct AstInterfaceMethodDefault {
 #[derive(Debug)]
 pub struct AstEnumeration {
     pub avaliability: AstAvailability,
+    pub attributes: AstThingAttributes,
     pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
     pub variants: Vec<AstEnumerationVariant>,

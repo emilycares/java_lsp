@@ -6,7 +6,7 @@ use crate::{
     parse_implements, parse_jtype, parse_name, parse_superclass,
     types::{
         AstAnnotated, AstAvailability, AstRange, AstRecord, AstRecordEntries, AstRecordEntry,
-        AstThing,
+        AstThing, AstThingAttributes,
     },
 };
 
@@ -15,6 +15,7 @@ pub fn parse_record(
     tokens: &[PositionToken],
     pos: usize,
     avaliability: AstAvailability,
+    attributes: AstThingAttributes,
     annotated: Vec<AstAnnotated>,
 ) -> Result<(AstThing, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
@@ -28,6 +29,7 @@ pub fn parse_record(
         AstThing::Record(AstRecord {
             range: AstRange::from_position_token(start, end),
             avaliability,
+            attributes,
             annotated,
             name,
             record_entries,

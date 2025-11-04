@@ -24,8 +24,9 @@ use crate::{
     record::parse_record,
     types::{
         AstAnnotatedParameter, AstBlockYield, AstClassAccess, AstConstructorHeader,
-        AstExpressionOrValue, AstForContent, AstGenerics, AstLambdaRhs, AstNewRhs,
-        AstSwitchCaseArrow, AstSynchronizedBlock, AstTypeParameter, AstWhileContent,
+        AstExpressionOrValue, AstForContent, AstForVarOrExpression, AstGenerics, AstLambdaRhs,
+        AstNewRhs, AstSwitchCaseArrow, AstSynchronizedBlock, AstThingAttributes, AstTypeParameter,
+        AstWhileContent,
     },
 };
 
@@ -151,12 +152,23 @@ fn parse_import(tokens: &[PositionToken], pos: usize) -> Result<(AstImport, usiz
 pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, usize), AstError> {
     let (annotated, pos) = parse_annotated_list(tokens, pos)?;
     let (mut avaliability, mut pos) = parse_avaliability(tokens, pos)?;
+    let mut attributes = AstThingAttributes::empty();
     loop {
         let t = tokens.get(pos).ok_or(AstError::eof())?;
         match t.token {
             Token::Static => avaliability |= AstAvailability::Static,
             Token::Final => avaliability |= AstAvailability::Final,
             Token::Abstract => avaliability |= AstAvailability::Abstract,
+            Token::Sealed => attributes |= AstThingAttributes::Sealed,
+            Token::Non => {
+                if let Ok(npos) = assert_token(tokens, pos + 1, Token::Dash) {
+                    if let Ok(npos) = assert_token(tokens, npos, Token::Sealed) {
+                        attributes |= AstThingAttributes::NonSealed;
+                        pos = npos;
+                        continue;
+                    }
+                }
+            }
             _ => break,
         }
         pos += 1;
@@ -165,11 +177,13 @@ pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, us
         Some(t) => {
             let pos = pos + 1;
             match t.token {
-                Token::Class => parse_class(tokens, pos, avaliability, annotated),
-                Token::Record => parse_record(tokens, pos, avaliability, annotated),
-                Token::Interface => parse_interface(tokens, pos, avaliability, annotated),
-                Token::Enum => parse_enumeration(tokens, pos, avaliability, annotated),
-                Token::At => parse_annotation(tokens, pos, avaliability, annotated),
+                Token::Class => parse_class(tokens, pos, avaliability, attributes, annotated),
+                Token::Record => parse_record(tokens, pos, avaliability, attributes, annotated),
+                Token::Interface => {
+                    parse_interface(tokens, pos, avaliability, attributes, annotated)
+                }
+                Token::Enum => parse_enumeration(tokens, pos, avaliability, attributes, annotated),
+                Token::At => parse_annotation(tokens, pos, avaliability, attributes, annotated),
                 _ => Err(AstError::ExpectedToken(ExpectedToken::from(
                     t,
                     pos,
@@ -382,10 +396,13 @@ fn parse_value_nuget(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, 
                             ));
                         }
                         _ => {
-                            return Err(AstError::InvalidNuget(InvalidToken::from(
-                                current,
-                                pos - 1,
-                            )));
+                            return Ok((
+                                AstValue::Nuget(AstValueNuget::Float(AstDouble {
+                                    range: AstRange::from_position_token(start, start),
+                                    value,
+                                })),
+                                pos,
+                            ));
                         }
                     }
                 }
@@ -617,6 +634,10 @@ fn parse_value_operator(
         )),
         Token::Tilde => Ok((
             AstExpressionOperator::Tilde(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::Caret => Ok((
+            AstExpressionOperator::Caret(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
         _ => Err(AstError::InvalidNuget(InvalidToken::from(start, pos))),
@@ -979,12 +1000,26 @@ pub fn parse_recursive_expression(
             'others: {
                 match parse_value_operator(tokens, pos) {
                     Ok((op, npos)) => {
-                        pos = npos;
-                        operator = op;
-                        if let Ok((exp, npos)) = parse_expression(tokens, pos) {
-                            pos = npos;
-                            if exp.has_content() {
-                                next = Some(Box::new(exp));
+                        match op {
+                            AstExpressionOperator::Colon(_)
+                            | AstExpressionOperator::QuestionMark(_) => {
+                                if let Ok((exp, npos)) = parse_expression(tokens, npos) {
+                                    pos = npos;
+                                    operator = op;
+                                    if exp.has_content() {
+                                        next = Some(Box::new(exp));
+                                    }
+                                }
+                            }
+                            _ => {
+                                pos = npos;
+                                operator = op;
+                                if let Ok((exp, npos)) = parse_expression(tokens, pos) {
+                                    pos = npos;
+                                    if exp.has_content() {
+                                        next = Some(Box::new(exp));
+                                    }
+                                }
                             }
                         }
                         break 'others;
@@ -1783,8 +1818,17 @@ fn parse_for(tokens: &[PositionToken], pos: usize) -> Result<(AstFor, usize), As
         pos = npos;
     }
     let pos = assert_token(tokens, pos, Token::For)?;
-    let pos = assert_token(tokens, pos, Token::LeftParen)?;
-    let (var, pos) = parse_block_variable(tokens, pos)?;
+    let mut pos = assert_token(tokens, pos, Token::LeftParen)?;
+    let mut var = AstForVarOrExpression::None;
+    if let Ok((v, npos)) = parse_block_variable(tokens, pos) {
+        var = AstForVarOrExpression::Var(v);
+        pos = npos;
+    } else {
+        let (e, npos) = parse_expression(tokens, pos)?;
+        let npos = assert_token(tokens, npos, Token::Semicolon)?;
+        pos = npos;
+        var = AstForVarOrExpression::Expression(e);
+    }
     let (check, pos) = parse_expression(tokens, pos)?;
     let mut pos = assert_token(tokens, pos, Token::Semicolon)?;
     let mut change = None;
@@ -1857,13 +1901,13 @@ fn parse_switch_case(
 ) -> Result<(AstSwitchCase, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let pos = assert_token(tokens, pos, Token::Case)?;
-    let (value, pos) = parse_value(tokens, pos)?;
+    let (expression, pos) = parse_expression(tokens, pos)?;
     let pos = assert_token(tokens, pos, Token::Colon)?;
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstSwitchCase {
             range: AstRange::from_position_token(start, end),
-            value,
+            expression,
         },
         pos,
     ))

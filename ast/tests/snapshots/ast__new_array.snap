@@ -308,27 +308,7 @@ expression: parsed.unwrap()
                                                                             ],
                                                                         },
                                                                     ),
-                                                                    next: Some(
-                                                                        Recursive(
-                                                                            AstRecursiveExpression {
-                                                                                range: AstRange {
-                                                                                    start: AstPoint {
-                                                                                        line: 7,
-                                                                                        col: 12,
-                                                                                    },
-                                                                                    end: AstPoint {
-                                                                                        line: 6,
-                                                                                        col: 17,
-                                                                                    },
-                                                                                },
-                                                                                ident: None,
-                                                                                values: None,
-                                                                                operator: None,
-                                                                                instance_of: None,
-                                                                                next: None,
-                                                                            },
-                                                                        ),
-                                                                    ),
+                                                                    next: None,
                                                                 },
                                                             ),
                                                         ],
