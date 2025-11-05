@@ -43,10 +43,14 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository == 'emilycares/java_lsp'
     needs: build
-    container: 
-      image: eclipse-temurin:25-jdk
 
     steps:
+      - name: Download jdk
+        run:  wget -O jdk.tar.gz https://release-assets.githubusercontent.com/github-production-release-asset/901810329/eece8483-4519-45ed-9eeb-b989502b4df8?sp=r&sv=2018-11-09&sr=b&spr=https&se=2025-11-05T17%3A40%3A57Z&rscd=attachment%3B+filename%3DOpenJDK25U-jdk_aarch64_linux_hotspot_25.0.1_8.tar.gz
+      - name: Unpack
+        run: tar -xvzf jdk.tar.gz
+      - name: Unpack
+        run: PATH=$PATH:/app/jdk-25.0.1+8/bin/
       - name: Download executable
         uses: actions/download-artifact@v4
         with:
