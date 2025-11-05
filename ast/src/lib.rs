@@ -21,11 +21,12 @@ use types::{
 
 use crate::{
     class::parse_class_block,
+    error::assert_semicolon_options,
     record::parse_record,
     types::{
         AstAnnotatedParameter, AstBlockYield, AstClassAccess, AstConstructorHeader,
-        AstExpressionOrValue, AstForContent, AstForVarOrExpression, AstGenerics, AstLambdaRhs,
-        AstNewRhs, AstSwitchCaseArrow, AstSynchronizedBlock, AstThingAttributes, AstTypeParameter,
+        AstExpressionOrValue, AstForContent, AstGenerics, AstLambdaRhs, AstNewRhs,
+        AstSwitchCaseArrow, AstSynchronizedBlock, AstThingAttributes, AstTypeParameter,
         AstWhileContent,
     },
 };
@@ -1131,10 +1132,17 @@ pub fn parse_block_variable(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstBlockVariable, usize), AstError> {
+    parse_block_variable_options(tokens, pos, &BlockEntryOptions::None)
+}
+fn parse_block_variable_options(
+    tokens: &[PositionToken],
+    pos: usize,
+    block_entry_options: &BlockEntryOptions,
+) -> Result<(AstBlockVariable, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let (block_variable, pos) = parse_block_variable_no_semicolon(tokens, pos)?;
     let mut block_variable = block_variable;
-    let pos = assert_semicolon(tokens, pos)?;
+    let pos = assert_semicolon_options(tokens, pos, block_entry_options)?;
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
 
     block_variable.range = AstRange::from_position_token(start, end);
@@ -1311,13 +1319,14 @@ fn parse_block_continue(
         pos,
     ))
 }
-fn parse_block_expression(
+fn parse_block_expression_options(
     tokens: &[PositionToken],
     pos: usize,
+    block_entry_options: &BlockEntryOptions,
 ) -> Result<(AstBlockExpression, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let (value, pos) = parse_expression(tokens, pos, &ExpressionOptions::None)?;
-    let pos = assert_semicolon(tokens, pos)?;
+    let pos = assert_semicolon_options(tokens, pos, block_entry_options)?;
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
 
     Ok((
@@ -1332,12 +1341,13 @@ fn parse_block_expression(
 fn parse_block_assign(
     tokens: &[PositionToken],
     pos: usize,
+    block_entry_options: &BlockEntryOptions,
 ) -> Result<(AstBlockAssign, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let (key, pos) = parse_recursive_expression(tokens, pos, &ExpressionOptions::None)?;
     let pos = assert_token(tokens, pos, Token::Equal)?;
     let (expression, pos) = parse_expression(tokens, pos, &ExpressionOptions::None)?;
-    let pos = assert_semicolon(tokens, pos)?;
+    let pos = assert_semicolon_options(tokens, pos, block_entry_options)?;
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
 
     Ok((
@@ -1594,12 +1604,27 @@ fn parse_block_brackets(
     ))
 }
 
+/// Options for expression parsing
+#[derive(Debug, PartialEq)]
+pub enum BlockEntryOptions {
+    /// Default expression
+    None,
+    /// Don't parse `;`
+    NoSemicolon,
+}
 fn parse_block_entry(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstBlockEntry, usize), AstError> {
+    parse_block_entry_options(tokens, pos, &BlockEntryOptions::None)
+}
+fn parse_block_entry_options(
+    tokens: &[PositionToken],
+    pos: usize,
+    block_entry_options: &BlockEntryOptions,
+) -> Result<(AstBlockEntry, usize), AstError> {
     let mut errors = vec![];
-    match parse_block_variable(tokens, pos) {
+    match parse_block_variable_options(tokens, pos, block_entry_options) {
         Ok((variable, pos)) => {
             return Ok((AstBlockEntry::Variable(variable), pos));
         }
@@ -1735,7 +1760,7 @@ fn parse_block_entry(
             errors.push(("static block".into(), e));
         }
     }
-    match parse_block_assign(tokens, pos) {
+    match parse_block_assign(tokens, pos, block_entry_options) {
         Ok((nret, pos)) => {
             return Ok((AstBlockEntry::Assign(nret), pos));
         }
@@ -1743,7 +1768,7 @@ fn parse_block_entry(
             errors.push(("block assign".into(), e));
         }
     }
-    match parse_block_expression(tokens, pos) {
+    match parse_block_expression_options(tokens, pos, block_entry_options) {
         Ok((nret, pos)) => {
             return Ok((AstBlockEntry::Expression(nret), pos));
         }
@@ -1848,24 +1873,14 @@ fn parse_for(tokens: &[PositionToken], pos: usize) -> Result<(AstFor, usize), As
         pos = npos;
     }
     let pos = assert_token(tokens, pos, Token::For)?;
-    let mut pos = assert_token(tokens, pos, Token::LeftParen)?;
-    let mut var = AstForVarOrExpression::None;
-    if let Ok((v, npos)) = parse_block_variable(tokens, pos) {
-        var = AstForVarOrExpression::Var(v);
-        pos = npos;
-    } else {
-        let (e, npos) = parse_expression(tokens, pos, &ExpressionOptions::None)?;
-        let npos = assert_token(tokens, npos, Token::Semicolon)?;
-        pos = npos;
-        var = AstForVarOrExpression::Expression(e);
-    }
+    let pos = assert_token(tokens, pos, Token::LeftParen)?;
+    let mut pos = pos;
+    let (vars, npos) = parse_comma_separated_block_entry(tokens, pos)?;
+    let npos = assert_token(tokens, npos, Token::Semicolon)?;
+    pos = npos;
     let (check, pos) = parse_expression(tokens, pos, &ExpressionOptions::None)?;
-    let mut pos = assert_token(tokens, pos, Token::Semicolon)?;
-    let mut change = None;
-    if let Ok((nchange, npos)) = parse_block_entry(tokens, pos) {
-        pos = npos;
-        change = Some(nchange);
-    }
+    let pos = assert_token(tokens, pos, Token::Semicolon)?;
+    let (changes, pos) = parse_comma_separated_block_entry(tokens, pos)?;
     let pos = assert_token(tokens, pos, Token::RightParen)?;
     let mut content = AstForContent::None;
     let mut errors = vec![];
@@ -1900,12 +1915,29 @@ fn parse_for(tokens: &[PositionToken], pos: usize) -> Result<(AstFor, usize), As
             range: AstRange::from_position_token(start, end),
             content,
             lable,
-            var,
+            vars,
             check,
-            change,
+            changes,
         },
         pos,
     ))
+}
+
+fn parse_comma_separated_block_entry(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(Vec<AstBlockEntry>, usize), AstError> {
+    let mut vars = vec![];
+    let options = BlockEntryOptions::NoSemicolon;
+    let (e, pos) = parse_block_entry_options(tokens, pos, &options)?;
+    vars.push(e);
+    let mut pos = pos;
+    while let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
+        let (e, npos) = parse_block_entry_options(tokens, npos, &options)?;
+        vars.push(e);
+        pos = npos;
+    }
+    Ok((vars, pos))
 }
 
 fn parse_switch(
@@ -2533,6 +2565,24 @@ fn parse_implements(
     let Ok(pos) = assert_token(tokens, pos, Token::Implements) else {
         return Ok((vec![], pos));
     };
+    let (out, pos) = parse_comma_seperated_jtype(tokens, pos)?;
+
+    Ok((out, pos))
+}
+
+fn parse_permits(tokens: &[PositionToken], pos: usize) -> Result<(Vec<AstJType>, usize), AstError> {
+    let Ok(pos) = assert_token(tokens, pos, Token::Permits) else {
+        return Ok((vec![], pos));
+    };
+    let (out, pos) = parse_comma_seperated_jtype(tokens, pos)?;
+
+    Ok((out, pos))
+}
+
+fn parse_comma_seperated_jtype(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(Vec<AstJType>, usize), AstError> {
     let mut out = vec![];
     let (jtype, pos) = parse_jtype(tokens, pos)?;
     out.push(jtype);
@@ -2542,7 +2592,6 @@ fn parse_implements(
         out.push(jtype);
         pos = npos;
     }
-
     Ok((out, pos))
 }
 

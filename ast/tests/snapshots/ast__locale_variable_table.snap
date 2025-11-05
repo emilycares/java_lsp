@@ -92,6 +92,7 @@ AstFile {
             type_parameters: None,
             superclass: None,
             implements: [],
+            permits: [],
             block: AstClassBlock {
                 variables: [
                     AstClassVariable {

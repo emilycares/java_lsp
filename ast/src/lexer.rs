@@ -119,6 +119,7 @@ impl Token {
             | Token::Native
             | Token::Sealed
             | Token::Non
+            | Token::Permits
             | Token::If => KEYWORDS
                 .entries()
                 .find(|i| i.1 == self)
@@ -218,6 +219,7 @@ impl Token {
             Token::Tilde => SmolStr::new_inline("~"),
             Token::Sealed => SmolStr::new_inline("sealed"),
             Token::Non => SmolStr::new_inline("non"),
+            Token::Permits => SmolStr::new_inline("permits"),
         }
     }
 
@@ -407,6 +409,8 @@ pub enum Token {
     Sealed,
     /// non (used in non-sealed)
     Non,
+    /// permits
+    Permits,
 }
 
 /// Error during lex function
@@ -469,6 +473,7 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
     "native" => Token::Native,
     "sealed" => Token::Sealed,
     "non" => Token::Non,
+    "permits" => Token::Permits,
 };
 
 /// Output token vec for document

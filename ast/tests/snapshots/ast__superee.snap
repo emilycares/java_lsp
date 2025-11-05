@@ -106,6 +106,7 @@ AstFile {
                 },
             ),
             implements: [],
+            permits: [],
             block: AstClassBlock {
                 variables: [],
                 methods: [],

@@ -5,7 +5,7 @@ use crate::{
     lexer::{PositionToken, Token},
     parse_annotated_list, parse_avaliability, parse_block, parse_constructor_header,
     parse_expression, parse_implements, parse_jtype, parse_method_header, parse_name,
-    parse_superclass, parse_thing, parse_type_parameters,
+    parse_permits, parse_superclass, parse_thing, parse_type_parameters,
     types::{
         AstAnnotated, AstAvailability, AstClass, AstClassBlock, AstClassConstructor,
         AstClassMethod, AstClassVariable, AstRange, AstStaticBlock, AstStaticFinal, AstSuperClass,
@@ -31,6 +31,7 @@ pub fn parse_class(
     };
     let mut superclass = AstSuperClass::None;
     let mut implements = vec![];
+    let mut permits = vec![];
     loop {
         let token = tokens.get(pos).ok_or(AstError::eof())?;
         match token.token {
@@ -43,6 +44,12 @@ pub fn parse_class(
             Token::Implements => {
                 let (i, npos) = parse_implements(tokens, pos)?;
                 implements = i;
+                pos = npos;
+                continue;
+            }
+            Token::Permits => {
+                let (i, npos) = parse_permits(tokens, pos)?;
+                permits = i;
                 pos = npos;
                 continue;
             }
@@ -62,6 +69,7 @@ pub fn parse_class(
             type_parameters,
             superclass,
             implements,
+            permits,
             block,
         }),
         pos,

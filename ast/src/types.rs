@@ -107,6 +107,7 @@ pub struct AstClass {
     pub type_parameters: Option<AstTypeParameters>,
     pub superclass: AstSuperClass,
     pub implements: Vec<AstJType>,
+    pub permits: Vec<AstJType>,
     pub block: AstClassBlock,
 }
 #[derive(Debug)]
@@ -284,17 +285,11 @@ pub struct AstWhile {
 #[derive(Debug)]
 pub struct AstFor {
     pub range: AstRange,
-    pub var: AstForVarOrExpression,
+    pub vars: Vec<AstBlockEntry>,
     pub check: AstExpression,
-    pub change: Option<AstBlockEntry>,
+    pub changes: Vec<AstBlockEntry>,
     pub content: AstForContent,
     pub lable: Option<AstIdentifier>,
-}
-#[derive(Debug)]
-pub enum AstForVarOrExpression {
-    None,
-    Var(AstBlockVariable),
-    Expression(AstExpression),
 }
 #[derive(Debug)]
 pub struct AstSwitch {

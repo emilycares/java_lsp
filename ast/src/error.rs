@@ -3,7 +3,11 @@ use std::panic::Location;
 
 use smol_str::{SmolStr, format_smolstr};
 
+use crate::BlockEntryOptions;
+
 use super::lexer::{PositionToken, Token};
+
+const PRINT_ALL_ERRORS: bool = false;
 
 /// Fancy log ast error
 pub trait PrintErr {
@@ -147,7 +151,7 @@ impl PrintErr for AstError {
             }
 
             AstError::AllChildrenFailed { parent, errors } => {
-                if false {
+                if PRINT_ALL_ERRORS {
                     eprintln!("{}", parent);
                     for e in errors {
                         eprintln!("{}", e.0);
@@ -257,6 +261,18 @@ pub fn assert_token(
 
 /// Optional semiolon
 #[track_caller]
+pub fn assert_semicolon_options(
+    tokens: &[PositionToken],
+    pos: usize,
+    block_entry_options: &BlockEntryOptions,
+) -> Result<usize, AstError> {
+    if block_entry_options == &BlockEntryOptions::NoSemicolon {
+        return Ok(pos);
+    }
+    assert_semicolon(tokens, pos)
+}
+/// Optional semiolon
+#[track_caller]
 pub fn assert_semicolon(tokens: &[PositionToken], pos: usize) -> Result<usize, AstError> {
     let mut pos = pos;
     match assert_token(tokens, pos, Token::Semicolon) {
@@ -322,5 +338,14 @@ impl InvalidToken {
             line: token.line,
             col: token.col,
         }
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config() {
+        assert_eq!(PRINT_ALL_ERRORS, false);
     }
 }
