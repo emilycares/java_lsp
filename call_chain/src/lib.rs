@@ -6,7 +6,7 @@ use ast::types::{
     AstClassBlock, AstExpression, AstExpressionIdentifier, AstExpressionOperator,
     AstExpressionOrValue, AstFile, AstForContent, AstIdentifier, AstIf, AstIfContent, AstJType,
     AstJTypeKind, AstLambdaRhs, AstNewClass, AstNewRhs, AstPoint, AstRange, AstRecursiveExpression,
-    AstThing, AstValue, AstValueNuget, AstValues, AstWhileContent,
+    AstSwitchCaseArrowContent, AstThing, AstValue, AstValueNuget, AstValues, AstWhileContent,
 };
 use smol_str::SmolStr;
 
@@ -268,6 +268,9 @@ fn dist_block_entry(point: &AstPoint, entry: &AstBlockEntry) -> usize {
         AstBlockEntry::SynchronizedBlock(ast_synchronized_block) => {
             dist(point, &ast_synchronized_block.range)
         }
+        AstBlockEntry::SwitchCaseArrowDefault(ast_switch_case_arrow_default) => {
+            dist(point, &ast_switch_case_arrow_default.range)
+        }
     }
 }
 
@@ -330,7 +333,7 @@ fn cc_block_entry(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIte
                 cc_block_entry(e, point, out);
             }
             if (&ast_for.content).is_in_range(point) {
-                return cc_for_content(&ast_for.content, point, out);
+                cc_for_content(&ast_for.content, point, out)
             }
         }
         AstBlockEntry::ForEnhanced(ast_for_enhanced) => {
@@ -376,10 +379,28 @@ fn cc_block_entry(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIte
             }
         }
         AstBlockEntry::Throw(ast_throw) => cc_expr(&ast_throw.expression, point, false, out),
-        AstBlockEntry::SwitchCaseArrow(_ast_switch_case_arrow) => todo!(),
         AstBlockEntry::SynchronizedBlock(ast_synchronized_block) => {
             cc_expr(&ast_synchronized_block.expression, point, false, out);
             cc_block(&ast_synchronized_block.block, point, out);
+        }
+        AstBlockEntry::SwitchCaseArrow(ast_switch_case_arrow) => {
+            cc_swtich_case_arrow_content(&ast_switch_case_arrow.content, point, out)
+        }
+        AstBlockEntry::SwitchCaseArrowDefault(ast_switch_case_arrow_default) => {
+            cc_swtich_case_arrow_content(&ast_switch_case_arrow_default.content, point, out)
+        }
+    }
+}
+
+fn cc_swtich_case_arrow_content(
+    content: &AstSwitchCaseArrowContent,
+    point: &AstPoint,
+    out: &mut Vec<CallItem>,
+) {
+    match content {
+        AstSwitchCaseArrowContent::Block(ast_block) => cc_block(ast_block, point, out),
+        AstSwitchCaseArrowContent::Entry(ast_block_entry) => {
+            cc_block_entry(ast_block_entry, point, out)
         }
     }
 }
@@ -389,8 +410,10 @@ fn cc_block_variable(
     point: &AstPoint,
     out: &mut Vec<CallItem>,
 ) {
-    if let Some(ref expression) = ast_block_variable.expression {
-        cc_expr(expression, point, false, out)
+    for nv in &ast_block_variable.name_values {
+        if let Some(ref expression) = nv.value {
+            cc_expr(expression, point, false, out)
+        }
     }
 }
 

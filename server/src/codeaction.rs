@@ -262,6 +262,7 @@ fn find_var_block_entry<'a>(
         AstBlockEntry::SwitchCaseArrow(_ast_switch_case_arrow) => None,
         AstBlockEntry::Yield(_ast_block_yield) => None,
         AstBlockEntry::SynchronizedBlock(_ast_synchronized_block) => todo!(),
+        AstBlockEntry::SwitchCaseArrowDefault(_ast_switch_case_arrow_default) => todo!(),
     }
 }
 

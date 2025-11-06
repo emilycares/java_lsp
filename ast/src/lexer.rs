@@ -66,7 +66,7 @@ impl Token {
             | Token::Caret
             | Token::Tilde
             | Token::SingleQuote => 1,
-            Token::EqualDouble | Token::Le | Token::Ge | Token::Ne => 2,
+            Token::EqualDouble | Token::Le | Token::Ge | Token::Ne | Token::Arrow => 2,
             Token::While
             | Token::Package
             | Token::Import
@@ -220,6 +220,7 @@ impl Token {
             Token::Sealed => SmolStr::new_inline("sealed"),
             Token::Non => SmolStr::new_inline("non"),
             Token::Permits => SmolStr::new_inline("permits"),
+            Token::Arrow => SmolStr::new_inline("->"),
         }
     }
 
@@ -411,6 +412,8 @@ pub enum Token {
     Non,
     /// permits
     Permits,
+    /// ->
+    Arrow,
 }
 
 /// Error during lex function
@@ -558,12 +561,22 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                 col += 1;
             }
             '-' => {
-                tokens.push(PositionToken {
-                    token: Token::Dash,
-                    line,
-                    col,
-                });
-                col += 1;
+                if let Some('>') = chars.get(index + 1) {
+                    tokens.push(PositionToken {
+                        token: Token::Arrow,
+                        line,
+                        col,
+                    });
+                    index += 1;
+                    col += 2;
+                } else {
+                    tokens.push(PositionToken {
+                        token: Token::Dash,
+                        line,
+                        col,
+                    });
+                    col += 1;
+                }
             }
             '*' => {
                 tokens.push(PositionToken {

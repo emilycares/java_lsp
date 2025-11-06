@@ -29,21 +29,6 @@ expression: parsed.unwrap()
                     },
                     fin: false,
                     annotated: [],
-                    names: [
-                        AstIdentifier {
-                            range: AstRange {
-                                start: AstPoint {
-                                    line: 0,
-                                    col: 5,
-                                },
-                                end: AstPoint {
-                                    line: 0,
-                                    col: 6,
-                                },
-                            },
-                            value: "a",
-                        },
-                    ],
                     jtype: AstJType {
                         range: AstRange {
                             start: AstPoint {
@@ -57,7 +42,34 @@ expression: parsed.unwrap()
                         },
                         value: Var,
                     },
-                    expression: None,
+                    name_values: [
+                        AstVariableNameValue {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 5,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 9,
+                                },
+                            },
+                            name: AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 0,
+                                        col: 5,
+                                    },
+                                    end: AstPoint {
+                                        line: 0,
+                                        col: 6,
+                                    },
+                                },
+                                value: "a",
+                            },
+                            value: None,
+                        },
+                    ],
                 },
             ),
         ],

@@ -224,7 +224,7 @@ pub enum AstBlockEntry {
     Return(AstBlockReturn),
     Variable(AstBlockVariable),
     Expression(AstBlockExpression),
-    Assign(AstBlockAssign),
+    Assign(Box<AstBlockAssign>),
     If(AstIf),
     While(AstWhile),
     For(Box<AstFor>),
@@ -234,9 +234,10 @@ pub enum AstBlockEntry {
     Switch(AstSwitch),
     SwitchCase(AstSwitchCase),
     SwitchDefault(AstSwitchDefault),
+    SwitchCaseArrow(AstSwitchCaseArrow),
+    SwitchCaseArrowDefault(AstSwitchCaseArrowDefault),
     TryCatch(AstTryCatch),
     Throw(AstThrow),
-    SwitchCaseArrow(AstSwitchCaseArrow),
     Yield(AstBlockYield),
     SynchronizedBlock(AstSynchronizedBlock),
 }
@@ -272,6 +273,9 @@ impl AstBlockEntry {
             AstBlockEntry::SynchronizedBlock(ast_synchronized_block) => {
                 ast_synchronized_block.range
             }
+            AstBlockEntry::SwitchCaseArrowDefault(ast_switch_case_arrow_default) => {
+                ast_switch_case_arrow_default.range
+            }
         }
     }
 }
@@ -305,8 +309,18 @@ pub struct AstSwitchCase {
 #[derive(Debug)]
 pub struct AstSwitchCaseArrow {
     pub range: AstRange,
-    pub values: Vec<AstValue>,
-    pub block: AstBlock,
+    pub values: Vec<AstExpression>,
+    pub content: Box<AstSwitchCaseArrowContent>,
+}
+#[derive(Debug)]
+pub struct AstSwitchCaseArrowDefault {
+    pub range: AstRange,
+    pub content: Box<AstSwitchCaseArrowContent>,
+}
+#[derive(Debug)]
+pub enum AstSwitchCaseArrowContent {
+    Block(AstBlock),
+    Entry(Box<AstBlockEntry>),
 }
 #[derive(Debug)]
 pub struct AstSwitchDefault {
@@ -398,9 +412,15 @@ pub struct AstBlockVariable {
     pub range: AstRange,
     pub fin: bool,
     pub annotated: Vec<AstAnnotated>,
-    pub names: Vec<AstIdentifier>,
     pub jtype: AstJType,
-    pub expression: Option<AstExpression>,
+    pub name_values: Vec<AstVariableNameValue>,
+}
+
+#[derive(Debug)]
+pub struct AstVariableNameValue {
+    pub range: AstRange,
+    pub name: AstIdentifier,
+    pub value: Option<AstExpression>,
 }
 #[derive(Debug)]
 pub struct AstBlockVariableMutliType {

@@ -64,6 +64,9 @@ impl AstInRange for &AstBlockEntry {
             AstBlockEntry::SynchronizedBlock(ast_synchronized_block) => {
                 ast_synchronized_block.range.is_in_range(point)
             }
+            AstBlockEntry::SwitchCaseArrowDefault(ast_switch_case_arrow_default) => {
+                ast_switch_case_arrow_default.range.is_in_range(point)
+            }
         }
     }
 }

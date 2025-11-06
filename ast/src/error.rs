@@ -1,11 +1,8 @@
 //! Error type and helper
-use std::panic::Location;
-
-use smol_str::{SmolStr, format_smolstr};
-
-use crate::BlockEntryOptions;
-
 use super::lexer::{PositionToken, Token};
+use crate::BlockEntryOptions;
+use smol_str::{SmolStr, format_smolstr};
+use std::panic::Location;
 
 const PRINT_ALL_ERRORS: bool = false;
 
@@ -346,6 +343,6 @@ mod tests {
 
     #[test]
     fn config() {
-        assert_eq!(PRINT_ALL_ERRORS, false);
+        assert!(!PRINT_ALL_ERRORS);
     }
 }

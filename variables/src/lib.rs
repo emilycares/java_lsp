@@ -2,7 +2,7 @@ use ast::types::{
     AstBlock, AstBlockEntry, AstBlockExpression, AstBlockVariable, AstClassMethod, AstExpression,
     AstFile, AstFor, AstForContent, AstForEnhanced, AstIf, AstIfContent, AstInterfaceConstant,
     AstLambda, AstLambdaRhs, AstMethodParamerter, AstPoint, AstRange, AstRecursiveExpression,
-    AstSwitch, AstThing, AstTryCatch, AstWhile, AstWhileContent,
+    AstSwitch, AstSwitchCaseArrowContent, AstThing, AstTryCatch, AstWhile, AstWhileContent,
 };
 use parser::dto;
 use smol_str::SmolStr;
@@ -22,11 +22,11 @@ impl LocalVariable {
         let mut out = vec![];
 
         let jtype: dto::JType = (&i.jtype).into();
-        for name in &i.names {
+        for nv in &i.name_values {
             out.push(LocalVariable {
                 level,
                 jtype: jtype.clone(),
-                name: name.into(),
+                name: nv.name.value.clone(),
                 is_fun: false,
                 range: i.range,
             });
@@ -148,7 +148,6 @@ fn get_block_entry_vars(
         | AstBlockEntry::Throw(_)
         | AstBlockEntry::SwitchCase(_)
         | AstBlockEntry::SwitchDefault(_)
-        | AstBlockEntry::SwitchCaseArrow(_)
         | AstBlockEntry::Yield(_)
         | AstBlockEntry::Assign(_) => vec![],
         AstBlockEntry::Variable(i) => LocalVariable::from_block_variable(i, level),
@@ -163,6 +162,25 @@ fn get_block_entry_vars(
         AstBlockEntry::TryCatch(ast_try_catch) => try_catch_vars(ast_try_catch, point, level),
         AstBlockEntry::SynchronizedBlock(ast_synchronized_block) => {
             get_block_vars(&ast_synchronized_block.block, point, level)
+        }
+        AstBlockEntry::SwitchCaseArrowDefault(ast_switch_case_arrow_default) => {
+            switch_case_arrow_content(&ast_switch_case_arrow_default.content, level, point)
+        }
+        AstBlockEntry::SwitchCaseArrow(ast_switch_case_arrow) => {
+            switch_case_arrow_content(&ast_switch_case_arrow.content, level, point)
+        }
+    }
+}
+
+fn switch_case_arrow_content(
+    content: &AstSwitchCaseArrowContent,
+    level: usize,
+    point: &AstPoint,
+) -> Vec<LocalVariable> {
+    match content {
+        AstSwitchCaseArrowContent::Block(ast_block) => get_block_vars(ast_block, point, level),
+        AstSwitchCaseArrowContent::Entry(ast_block_entry) => {
+            get_block_entry_vars(point, level, ast_block_entry)
         }
     }
 }

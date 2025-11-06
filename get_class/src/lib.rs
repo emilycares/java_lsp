@@ -100,9 +100,10 @@ fn get_class_block(block: &AstBlock, point: &AstPoint) -> Option<FoundClass> {
             AstBlockEntry::Switch(_ast_switch) => (),
             AstBlockEntry::SwitchCase(_ast_switch_case) => (),
             AstBlockEntry::SwitchDefault(_ast_switch_default) => (),
+            AstBlockEntry::SwitchCaseArrow(_ast_switch_case_arrow) => (),
+            AstBlockEntry::SwitchCaseArrowDefault(_ast_switch_case_arrow_default) => (),
             AstBlockEntry::TryCatch(_ast_try_catch) => (),
             AstBlockEntry::Throw(_ast_throw) => (),
-            AstBlockEntry::SwitchCaseArrow(_ast_switch_case_arrow) => (),
             AstBlockEntry::Yield(_ast_block_yield) => (),
             AstBlockEntry::SynchronizedBlock(ast_synchronized_block) => {
                 if let Some(o) = get_class_expression(&ast_synchronized_block.expression, point) {
@@ -233,9 +234,7 @@ fn get_class_recursive_expression(
             && let Some(i) = get_class_expression_identifier(ident, point)
         {
             return Some(i);
-        }
-
-        if let Some(vals) = &expression.values
+        } else if let Some(vals) = &expression.values
             && vals.range.is_in_range(point)
         {
             for val in &vals.values {
@@ -243,9 +242,7 @@ fn get_class_recursive_expression(
                     return Some(s);
                 }
             }
-        }
-
-        if let Some(next) = &expression.next {
+        } else if let Some(next) = &expression.next {
             return get_class_expression(next, point);
         } else {
             break;

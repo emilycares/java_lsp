@@ -26,7 +26,8 @@ use crate::{
     types::{
         AstAnnotatedParameter, AstBlockYield, AstClassAccess, AstConstructorHeader,
         AstExpressionOrValue, AstForContent, AstGenerics, AstLambdaRhs, AstNewRhs,
-        AstSwitchCaseArrow, AstSynchronizedBlock, AstThingAttributes, AstTypeParameter,
+        AstSwitchCaseArrow, AstSwitchCaseArrowContent, AstSwitchCaseArrowDefault,
+        AstSynchronizedBlock, AstThingAttributes, AstTypeParameter, AstVariableNameValue,
         AstWhileContent,
     },
 };
@@ -162,12 +163,12 @@ pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, us
             Token::Abstract => avaliability |= AstAvailability::Abstract,
             Token::Sealed => attributes |= AstThingAttributes::Sealed,
             Token::Non => {
-                if let Ok(npos) = assert_token(tokens, pos + 1, Token::Dash) {
-                    if let Ok(npos) = assert_token(tokens, npos, Token::Sealed) {
-                        attributes |= AstThingAttributes::NonSealed;
-                        pos = npos;
-                        continue;
-                    }
+                if let Ok(npos) = assert_token(tokens, pos + 1, Token::Dash)
+                    && let Ok(npos) = assert_token(tokens, npos, Token::Sealed)
+                {
+                    attributes |= AstThingAttributes::NonSealed;
+                    pos = npos;
+                    continue;
                 }
             }
             _ => break,
@@ -268,8 +269,7 @@ pub fn parse_lambda(
         };
         pos = npos;
     }
-    let pos = assert_token(tokens, pos, Token::Dash)?;
-    let mut pos = assert_token(tokens, pos, Token::Gt)?;
+    let mut pos = assert_token(tokens, pos, Token::Arrow)?;
     let mut rhs = AstLambdaRhs::None;
     if let Ok((block, npos)) = parse_block(tokens, pos) {
         pos = npos;
@@ -874,6 +874,8 @@ pub enum ExpressionOptions {
     /// Don't parse '<exp> ? <expr> : expr'
     /// QuestionMark and Colon will not be parsed as operators
     NoInlineIf,
+    /// Don't parse labdas
+    NoLambda,
 }
 /// `a.a()`
 /// `(byte)'\r'
@@ -887,11 +889,13 @@ pub fn parse_expression(
         Ok((v, pos)) => return Ok((AstExpression::Array(v), pos)),
         Err(e) => errors.push(("array".into(), e)),
     }
-    match parse_lambda(tokens, pos, expression_options) {
-        Ok((lambda, pos)) => {
-            return Ok((AstExpression::Lambda(lambda), pos));
+    if expression_options != &ExpressionOptions::NoLambda {
+        match parse_lambda(tokens, pos, expression_options) {
+            Ok((lambda, pos)) => {
+                return Ok((AstExpression::Lambda(lambda), pos));
+            }
+            Err(e) => errors.push(("lambda".into(), e)),
         }
-        Err(e) => errors.push(("lambda".into(), e)),
     }
     match parse_switch(tokens, pos, expression_options) {
         Ok((casted, pos)) => {
@@ -1161,22 +1165,14 @@ fn parse_block_variable_no_semicolon(
         fin = true;
     }
     let (jtype, pos) = parse_jtype(tokens, pos)?;
-    let mut names = vec![];
-    let (name, pos) = parse_name(tokens, pos)?;
-    names.push(name);
+    let mut name_values = vec![];
+    let (name_value, pos) = parse_variable_name_value(tokens, pos)?;
+    name_values.push(name_value);
     let mut pos = pos;
     while let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
-        let (name, npos) = parse_name(tokens, npos)?;
-        names.push(name);
+        let (name_value, npos) = parse_variable_name_value(tokens, npos)?;
+        name_values.push(name_value);
         pos = npos;
-    }
-    let mut expression = None;
-    if let Ok(npos) = assert_token(tokens, pos, Token::Equal) {
-        pos = npos;
-        if let Ok((aexpression, npos)) = parse_expression(tokens, pos, &ExpressionOptions::None) {
-            pos = npos;
-            expression = Some(aexpression);
-        }
     }
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
 
@@ -1185,9 +1181,34 @@ fn parse_block_variable_no_semicolon(
             range: AstRange::from_position_token(start, end),
             annotated,
             fin,
-            names,
             jtype,
-            expression,
+            name_values,
+        },
+        pos,
+    ))
+}
+
+fn parse_variable_name_value(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstVariableNameValue, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let (name, pos) = parse_name(tokens, pos)?;
+    let mut value = None;
+    let mut pos = pos;
+    if let Ok(npos) = assert_token(tokens, pos, Token::Equal) {
+        pos = npos;
+        if let Ok((aexpression, npos)) = parse_expression(tokens, pos, &ExpressionOptions::None) {
+            pos = npos;
+            value = Some(aexpression);
+        }
+    }
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstVariableNameValue {
+            range: AstRange::from_position_token(start, end),
+            name,
+            value,
         },
         pos,
     ))
@@ -1728,6 +1749,14 @@ fn parse_block_entry_options(
             errors.push(("block switch case arrow".into(), e));
         }
     }
+    match parse_switch_case_arrow_default(tokens, pos) {
+        Ok((nret, pos)) => {
+            return Ok((AstBlockEntry::SwitchCaseArrowDefault(nret), pos));
+        }
+        Err(e) => {
+            errors.push(("block switch case arrow".into(), e));
+        }
+    }
     match parse_switch_default(tokens, pos) {
         Ok((nret, pos)) => {
             return Ok((AstBlockEntry::SwitchDefault(nret), pos));
@@ -1762,7 +1791,42 @@ fn parse_block_entry_options(
     }
     match parse_block_assign(tokens, pos, block_entry_options) {
         Ok((nret, pos)) => {
-            return Ok((AstBlockEntry::Assign(nret), pos));
+            return Ok((AstBlockEntry::Assign(Box::new(nret)), pos));
+        }
+        Err(e) => {
+            errors.push(("block assign".into(), e));
+        }
+    }
+    match parse_block_expression_options(tokens, pos, block_entry_options) {
+        Ok((nret, pos)) => {
+            return Ok((AstBlockEntry::Expression(nret), pos));
+        }
+        Err(e) => {
+            errors.push(("block expression".into(), e));
+        }
+    }
+    Err(AstError::AllChildrenFailed {
+        parent: "block".into(),
+        errors,
+    })
+}
+fn parse_block_entry_minimal_options(
+    tokens: &[PositionToken],
+    pos: usize,
+    block_entry_options: &BlockEntryOptions,
+) -> Result<(AstBlockEntry, usize), AstError> {
+    let mut errors = vec![];
+    match parse_block_variable_options(tokens, pos, block_entry_options) {
+        Ok((variable, pos)) => {
+            return Ok((AstBlockEntry::Variable(variable), pos));
+        }
+        Err(e) => {
+            errors.push(("block variable".into(), e));
+        }
+    }
+    match parse_block_assign(tokens, pos, block_entry_options) {
+        Ok((nret, pos)) => {
+            return Ok((AstBlockEntry::Assign(Box::new(nret)), pos));
         }
         Err(e) => {
             errors.push(("block assign".into(), e));
@@ -1874,10 +1938,16 @@ fn parse_for(tokens: &[PositionToken], pos: usize) -> Result<(AstFor, usize), As
     }
     let pos = assert_token(tokens, pos, Token::For)?;
     let pos = assert_token(tokens, pos, Token::LeftParen)?;
+    let mut vars = vec![];
     let mut pos = pos;
-    let (vars, npos) = parse_comma_separated_block_entry(tokens, pos)?;
-    let npos = assert_token(tokens, npos, Token::Semicolon)?;
-    pos = npos;
+    if let Ok(npos) = assert_token(tokens, pos, Token::Semicolon) {
+        pos = npos
+    } else {
+        let (v, npos) = parse_comma_separated_block_entry(tokens, pos)?;
+        let npos = assert_token(tokens, npos, Token::Semicolon)?;
+        vars = v;
+        pos = npos;
+    }
     let (check, pos) = parse_expression(tokens, pos, &ExpressionOptions::None)?;
     let pos = assert_token(tokens, pos, Token::Semicolon)?;
     let (changes, pos) = parse_comma_separated_block_entry(tokens, pos)?;
@@ -1929,11 +1999,11 @@ fn parse_comma_separated_block_entry(
 ) -> Result<(Vec<AstBlockEntry>, usize), AstError> {
     let mut vars = vec![];
     let options = BlockEntryOptions::NoSemicolon;
-    let (e, pos) = parse_block_entry_options(tokens, pos, &options)?;
+    let (e, pos) = parse_block_entry_minimal_options(tokens, pos, &options)?;
     vars.push(e);
     let mut pos = pos;
     while let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
-        let (e, npos) = parse_block_entry_options(tokens, npos, &options)?;
+        let (e, npos) = parse_block_entry_minimal_options(tokens, npos, &options)?;
         vars.push(e);
         pos = npos;
     }
@@ -1986,7 +2056,7 @@ fn parse_switch_case_arrow(
     let mut pos = assert_token(tokens, pos, Token::Case)?;
     let mut values = vec![];
     loop {
-        let (value, npos) = parse_value(tokens, pos)?;
+        let (value, npos) = parse_expression(tokens, pos, &ExpressionOptions::NoLambda)?;
         values.push(value);
         pos = npos;
 
@@ -1997,18 +2067,52 @@ fn parse_switch_case_arrow(
             Err(_) => break,
         }
     }
-    let pos = assert_token(tokens, pos, Token::Dash)?;
-    let pos = assert_token(tokens, pos, Token::Gt)?;
-    let (block, pos) = parse_block(tokens, pos)?;
+    let pos = assert_token(tokens, pos, Token::Arrow)?;
+    let (content, pos) = parse_switch_case_arrow_content(tokens, pos)?;
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstSwitchCaseArrow {
             range: AstRange::from_position_token(start, end),
             values,
-            block,
+            content: Box::new(content),
         },
         pos,
     ))
+}
+fn parse_switch_case_arrow_default(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstSwitchCaseArrowDefault, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let pos = assert_token(tokens, pos, Token::Default)?;
+    let pos = assert_token(tokens, pos, Token::Arrow)?;
+    let (content, pos) = parse_switch_case_arrow_content(tokens, pos)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstSwitchCaseArrowDefault {
+            range: AstRange::from_position_token(start, end),
+            content: Box::new(content),
+        },
+        pos,
+    ))
+}
+
+fn parse_switch_case_arrow_content(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstSwitchCaseArrowContent, usize), AstError> {
+    let content;
+    let mut pos = pos;
+    if assert_token(tokens, pos, Token::LeftParenCurly).is_ok() {
+        let (block, npos) = parse_block(tokens, pos)?;
+        content = AstSwitchCaseArrowContent::Block(block);
+        pos = npos
+    } else {
+        let (entry, npos) = parse_block_entry(tokens, pos)?;
+        content = AstSwitchCaseArrowContent::Entry(Box::new(entry));
+        pos = npos
+    }
+    Ok((content, pos))
 }
 fn parse_switch_default(
     tokens: &[PositionToken],
@@ -2420,18 +2524,16 @@ pub fn parse_name_dot_logical(
                     first = false;
                     ident.push_str(id);
                     pos += 1;
-                } else {
-                    if tokens.get(pos + 1).ok_or(AstError::eof()).map(|i| &i.token)
+                } else if tokens.get(pos + 1).ok_or(AstError::eof()).map(|i| &i.token)
+                    == Ok(&Token::Dot)
+                    || tokens.get(pos - 1).ok_or(AstError::eof()).map(|i| &i.token)
                         == Ok(&Token::Dot)
-                        || tokens.get(pos - 1).ok_or(AstError::eof()).map(|i| &i.token)
-                            == Ok(&Token::Dot)
-                    {
-                        ident.push_str(id);
-                        pos += 1;
-                        continue;
-                    } else {
-                        break;
-                    }
+                {
+                    ident.push_str(id);
+                    pos += 1;
+                    continue;
+                } else {
+                    break;
                 }
             }
             Token::Dot => {
