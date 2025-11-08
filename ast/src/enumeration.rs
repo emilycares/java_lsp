@@ -1,7 +1,7 @@
 //! Parsing functions for enum
 use crate::{
     class::{parse_class_constructor, parse_class_method, parse_class_variable},
-    error::{AstError, assert_token},
+    error::{AstError, assert_semicolon, assert_token},
     lexer::{PositionToken, Token},
     parse_expression_parameters, parse_identifier,
     types::{
@@ -92,6 +92,7 @@ pub fn parse_enumeration(
             });
         }
     }
+    let pos = assert_semicolon(tokens, pos)?;
     Ok((
         AstThing::Enumeration(crate::types::AstEnumeration {
             avaliability,

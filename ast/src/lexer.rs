@@ -674,14 +674,6 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                 });
                 col += 1;
             }
-            '_' => {
-                tokens.push(PositionToken {
-                    token: Token::Underscore,
-                    line,
-                    col,
-                });
-                col += 1;
-            }
             '/' => {
                 let Some(peek) = chars.get(index + 1) else {
                     break;
@@ -928,13 +920,13 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                 col += string.len();
                 continue;
             }
-            'A'..='Z' | 'a'..='z' => {
+            'A'..='Z' | 'a'..='z' | '_' | '$' => {
                 let mut ident = SmolStrBuilder::new();
                 loop {
                     let Some(ch) = chars.get(index) else {
                         break;
                     };
-                    if !ch.is_ascii_alphanumeric() && ch != &'_' {
+                    if !ch.is_ascii_alphanumeric() && ch != &'_' && ch != &'$' {
                         break;
                     }
                     ident.push(*ch);

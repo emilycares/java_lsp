@@ -2,7 +2,7 @@ use ast::class::{parse_class_method, parse_class_variable};
 use ast::error::PrintErr;
 use ast::{
     ExpressionOptions, lexer, parse_block, parse_block_return, parse_block_variable, parse_file,
-    parse_jtype, parse_lambda, parse_name, parse_name_dot_logical, parse_new_class,
+    parse_for, parse_jtype, parse_lambda, parse_name, parse_name_dot_logical, parse_new_class,
     parse_recursive_expression, parse_string_literal,
 };
 
@@ -347,5 +347,15 @@ fn name_dot() {
     parsed.print_err(content);
     let parsed = parsed.unwrap();
     assert_eq!(tokens.len() - 1, parsed.1);
+    insta::assert_debug_snapshot!(parsed);
+}
+#[test]
+fn labled_emty_for() {
+    let content = r#" l: for (;;) {} "#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_for(&tokens, 0);
+    parsed.print_err(content);
+    let parsed = parsed.unwrap();
+    assert_eq!(tokens.len(), parsed.1);
     insta::assert_debug_snapshot!(parsed);
 }

@@ -2,7 +2,7 @@
   description = "java_lsp";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
     flake-utils.url = "github:numtide/flake-utils";
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
@@ -49,6 +49,7 @@
           ];
           nativeBuildInputs = with pkgs;
             [
+              jdk24
               lld_21
               hyperfine
               cargo-flamegraph

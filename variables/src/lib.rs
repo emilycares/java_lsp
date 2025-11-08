@@ -331,7 +331,6 @@ fn for_content_vars(content: &AstForContent, point: &AstPoint, level: usize) -> 
         AstForContent::BlockEntry(ast_block_entry) => {
             get_block_entry_vars(point, level, ast_block_entry)
         }
-        AstForContent::None => vec![],
     }
 }
 

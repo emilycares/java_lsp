@@ -701,6 +701,7 @@ fn parse_expression_parameters(
             pos = npos;
             continue;
         }
+
         let (expression, npos) = parse_expression(tokens, pos, &ExpressionOptions::None)?;
         pos = npos;
         out.push(expression);
@@ -880,6 +881,20 @@ pub enum ExpressionOptions {
 /// `a.a()`
 /// `(byte)'\r'
 pub fn parse_expression(
+    tokens: &[PositionToken],
+    pos: usize,
+    expression_options: &ExpressionOptions,
+) -> Result<(AstExpression, usize), AstError> {
+    let (e, pos) = parse_expression_inner(tokens, pos, expression_options)?;
+
+    if !e.has_content() {
+        let token = tokens.get(pos).ok_or(AstError::eof())?;
+        return Err(AstError::EmptyExpression(InvalidToken::from(token, pos)));
+    }
+
+    Ok((e, pos))
+}
+fn parse_expression_inner(
     tokens: &[PositionToken],
     pos: usize,
     expression_options: &ExpressionOptions,
@@ -1075,8 +1090,6 @@ pub fn parse_recursive_expression(
                     }
                     Err(e) => errors.push(("value".into(), e)),
                 }
-            }
-            if errors.len() >= 2 {
                 return Err(AstError::AllChildrenFailed {
                     parent: "expression".into(),
                     errors,
@@ -1313,13 +1326,19 @@ fn parse_block_break(
     pos: usize,
 ) -> Result<(AstBlockBreak, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
-    let pos = assert_token(tokens, pos, Token::Break)?;
+    let mut pos = assert_token(tokens, pos, Token::Break)?;
+    let mut label = None;
+    if let Ok((lab, npos)) = parse_name(tokens, pos) {
+        label = Some(lab);
+        pos = npos;
+    }
     let pos = assert_token(tokens, pos, Token::Semicolon)?;
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
 
     Ok((
         AstBlockBreak {
             range: AstRange::from_position_token(start, end),
+            label,
         },
         pos,
     ))
@@ -1600,11 +1619,13 @@ fn parse_block_brackets(
     let pos = assert_token(tokens, pos, left)?;
     let mut pos = pos;
     let mut entries = vec![];
+    let mut start_pos;
     loop {
         if let Ok(npos) = assert_token(tokens, pos, right.clone()) {
             pos = npos;
             break;
         };
+        start_pos = pos;
         match parse_block_entry(tokens, pos) {
             Ok((entry, npos)) => {
                 entries.push(entry);
@@ -1613,6 +1634,11 @@ fn parse_block_brackets(
             Err(e) => {
                 return Err(e);
             }
+        }
+        if pos == start_pos {
+            eprintln!("No block enty was parsed: {:?}", tokens.get(pos));
+            dbg!(entries.last());
+            break;
         }
     }
     let end = tokens.get(pos - 1).ok_or(AstError::eof()).unwrap();
@@ -1849,18 +1875,18 @@ fn parse_block_entry_minimal_options(
 fn parse_while(tokens: &[PositionToken], pos: usize) -> Result<(AstWhile, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let mut pos = pos;
-    let mut lable = None;
+    let mut label = None;
     if let Ok((lab, npos)) = parse_name(tokens, pos) {
         let npos = assert_token(tokens, npos, Token::Colon)?;
 
-        lable = Some(lab);
+        label = Some(lab);
         pos = npos;
     }
     let pos = assert_token(tokens, pos, Token::While)?;
     let pos = assert_token(tokens, pos, Token::LeftParen)?;
     let (control, pos) = parse_recursive_expression(tokens, pos, &ExpressionOptions::None)?;
     let mut pos = assert_token(tokens, pos, Token::RightParen)?;
-    let mut content = AstWhileContent::None;
+    let content;
     let mut errors = vec![];
     'while_content: {
         match parse_block(tokens, pos) {
@@ -1879,8 +1905,6 @@ fn parse_while(tokens: &[PositionToken], pos: usize) -> Result<(AstWhile, usize)
             }
             Err(e) => errors.push(("recursive expression".into(), e)),
         }
-    }
-    if errors.len() >= 2 {
         return Err(AstError::AllChildrenFailed {
             parent: "while".into(),
             errors,
@@ -1892,7 +1916,7 @@ fn parse_while(tokens: &[PositionToken], pos: usize) -> Result<(AstWhile, usize)
             range: AstRange::from_position_token(start, end),
             control,
             content,
-            lable,
+            label,
         },
         pos,
     ))
@@ -1900,11 +1924,11 @@ fn parse_while(tokens: &[PositionToken], pos: usize) -> Result<(AstWhile, usize)
 fn parse_do_while(tokens: &[PositionToken], pos: usize) -> Result<(AstWhile, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let mut pos = pos;
-    let mut lable = None;
+    let mut label = None;
     if let Ok((lab, npos)) = parse_name(tokens, pos) {
         let npos = assert_token(tokens, npos, Token::Colon)?;
 
-        lable = Some(lab);
+        label = Some(lab);
         pos = npos;
     }
     let pos = assert_token(tokens, pos, Token::Do)?;
@@ -1921,19 +1945,20 @@ fn parse_do_while(tokens: &[PositionToken], pos: usize) -> Result<(AstWhile, usi
             range: AstRange::from_position_token(start, end),
             control,
             content: AstWhileContent::Block(block),
-            lable,
+            label,
         },
         pos,
     ))
 }
-fn parse_for(tokens: &[PositionToken], pos: usize) -> Result<(AstFor, usize), AstError> {
+/// `for(;;) { ... }`
+pub fn parse_for(tokens: &[PositionToken], pos: usize) -> Result<(AstFor, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let mut pos = pos;
-    let mut lable = None;
+    let mut label = None;
     if let Ok((lab, npos)) = parse_name(tokens, pos) {
         let npos = assert_token(tokens, npos, Token::Colon)?;
 
-        lable = Some(lab);
+        label = Some(lab);
         pos = npos;
     }
     let pos = assert_token(tokens, pos, Token::For)?;
@@ -1948,13 +1973,26 @@ fn parse_for(tokens: &[PositionToken], pos: usize) -> Result<(AstFor, usize), As
         vars = v;
         pos = npos;
     }
-    let (check, pos) = parse_expression(tokens, pos, &ExpressionOptions::None)?;
-    let pos = assert_token(tokens, pos, Token::Semicolon)?;
-    let (changes, pos) = parse_comma_separated_block_entry(tokens, pos)?;
-    let pos = assert_token(tokens, pos, Token::RightParen)?;
-    let mut content = AstForContent::None;
+    let mut check = vec![];
+    if let Ok(npos) = assert_token(tokens, pos, Token::Semicolon) {
+        pos = npos
+    } else {
+        let (c, npos) = parse_comma_separated_block_entry(tokens, pos)?;
+        let npos = assert_token(tokens, npos, Token::Semicolon)?;
+        check = c;
+        pos = npos;
+    }
+    let mut changes = vec![];
+    if let Ok(npos) = assert_token(tokens, pos, Token::RightParen) {
+        pos = npos
+    } else {
+        let (c, npos) = parse_comma_separated_block_entry(tokens, pos)?;
+        let npos = assert_token(tokens, npos, Token::RightParen)?;
+        changes = c;
+        pos = npos;
+    }
+    let content;
     let mut errors = vec![];
-    let mut pos = pos;
     'for_content: {
         match parse_block(tokens, pos) {
             Ok((block, npos)) => {
@@ -1972,8 +2010,6 @@ fn parse_for(tokens: &[PositionToken], pos: usize) -> Result<(AstFor, usize), As
             }
             Err(e) => errors.push(("recursive expression".into(), e)),
         }
-    }
-    if errors.len() >= 2 {
         return Err(AstError::AllChildrenFailed {
             parent: "for".into(),
             errors,
@@ -1984,7 +2020,7 @@ fn parse_for(tokens: &[PositionToken], pos: usize) -> Result<(AstFor, usize), As
         AstFor {
             range: AstRange::from_position_token(start, end),
             content,
-            lable,
+            label,
             vars,
             check,
             changes,
@@ -2018,7 +2054,7 @@ fn parse_switch(
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let pos = assert_token(tokens, pos, Token::Switch)?;
     let pos = assert_token(tokens, pos, Token::LeftParen)?;
-    let (check, pos) = parse_recursive_expression(tokens, pos, expression_options)?;
+    let (check, pos) = parse_expression(tokens, pos, expression_options)?;
     let pos = assert_token(tokens, pos, Token::RightParen)?;
     let (block, pos) = parse_block(tokens, pos)?;
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
@@ -2026,7 +2062,7 @@ fn parse_switch(
         AstSwitch {
             range: AstRange::from_position_token(start, end),
             block,
-            check,
+            check: Box::new(check),
         },
         pos,
     ))
@@ -2136,11 +2172,11 @@ fn parse_for_enhanced(
 ) -> Result<(AstForEnhanced, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let mut pos = pos;
-    let mut lable = None;
+    let mut label = None;
     if let Ok((lab, npos)) = parse_name(tokens, pos) {
         let npos = assert_token(tokens, npos, Token::Colon)?;
 
-        lable = Some(lab);
+        label = Some(lab);
         pos = npos;
     }
     let pos = assert_token(tokens, pos, Token::For)?;
@@ -2149,7 +2185,7 @@ fn parse_for_enhanced(
     let pos = assert_token(tokens, pos, Token::Colon)?;
     let (rhs, pos) = parse_expression(tokens, pos, &ExpressionOptions::None)?;
     let pos = assert_token(tokens, pos, Token::RightParen)?;
-    let mut content = AstForContent::None;
+    let content;
     let mut errors = vec![];
     let mut pos = pos;
     'for_content: {
@@ -2169,8 +2205,6 @@ fn parse_for_enhanced(
             }
             Err(e) => errors.push(("recursive expression".into(), e)),
         }
-    }
-    if errors.len() >= 2 {
         return Err(AstError::AllChildrenFailed {
             parent: "for".into(),
             errors,
@@ -2181,7 +2215,7 @@ fn parse_for_enhanced(
         AstForEnhanced {
             range: AstRange::from_position_token(start, end),
             content,
-            lable,
+            label,
             var,
             rhs,
         },
@@ -2198,7 +2232,7 @@ fn parse_if(tokens: &[PositionToken], pos: usize) -> Result<(AstIf, usize), AstE
     let end_control = tokens.get(pos).ok_or(AstError::eof())?;
     let pos = assert_token(tokens, pos, Token::RightParen)?;
     let mut pos = pos;
-    let mut content = AstIfContent::None;
+    let content;
     let mut errors = vec![];
     'if_content: {
         match parse_block(tokens, pos) {
@@ -2217,8 +2251,6 @@ fn parse_if(tokens: &[PositionToken], pos: usize) -> Result<(AstIf, usize), AstE
             }
             Err(e) => errors.push(("recursive expression".into(), e)),
         }
-    }
-    if errors.len() >= 2 {
         return Err(AstError::AllChildrenFailed {
             parent: "if".into(),
             errors,

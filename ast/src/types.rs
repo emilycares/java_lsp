@@ -284,21 +284,21 @@ pub struct AstWhile {
     pub range: AstRange,
     pub control: AstRecursiveExpression,
     pub content: AstWhileContent,
-    pub lable: Option<AstIdentifier>,
+    pub label: Option<AstIdentifier>,
 }
 #[derive(Debug)]
 pub struct AstFor {
     pub range: AstRange,
     pub vars: Vec<AstBlockEntry>,
-    pub check: AstExpression,
+    pub check: Vec<AstBlockEntry>,
     pub changes: Vec<AstBlockEntry>,
     pub content: AstForContent,
-    pub lable: Option<AstIdentifier>,
+    pub label: Option<AstIdentifier>,
 }
 #[derive(Debug)]
 pub struct AstSwitch {
     pub range: AstRange,
-    pub check: AstRecursiveExpression,
+    pub check: Box<AstExpression>,
     pub block: AstBlock,
 }
 #[derive(Debug)]
@@ -332,7 +332,7 @@ pub struct AstForEnhanced {
     pub var: AstBlockVariable,
     pub rhs: AstExpression,
     pub content: AstForContent,
-    pub lable: Option<AstIdentifier>,
+    pub label: Option<AstIdentifier>,
 }
 #[derive(Debug)]
 pub enum AstIf {
@@ -352,19 +352,16 @@ pub enum AstIf {
 pub enum AstWhileContent {
     Block(AstBlock),
     BlockEntry(Box<AstBlockEntry>),
-    None,
 }
 #[derive(Debug)]
 pub enum AstIfContent {
     Block(AstBlock),
     BlockEntry(Box<AstBlockEntry>),
-    None,
 }
 #[derive(Debug)]
 pub enum AstForContent {
     Block(AstBlock),
     BlockEntry(Box<AstBlockEntry>),
-    None,
 }
 #[derive(Debug)]
 pub struct AstThrow {
@@ -451,6 +448,7 @@ pub struct AstBlockYield {
 #[derive(Debug)]
 pub struct AstBlockBreak {
     pub range: AstRange,
+    pub label: Option<AstIdentifier>,
 }
 #[derive(Debug)]
 pub struct AstBlockContinue {
@@ -653,9 +651,13 @@ pub struct AstValues {
 impl AstRecursiveExpression {
     pub fn has_content(&self) -> bool {
         self.ident.is_some()
+            || self.instance_of.is_some()
             || self.next.is_some()
             || self.values.is_some()
             || self.operator != AstExpressionOperator::None
+            || (matches!(self.operator, AstExpressionOperator::Colon(_)) && self.next.is_some())
+            || (matches!(self.operator, AstExpressionOperator::QuestionMark(_))
+                && self.next.is_some())
     }
 }
 #[derive(Debug)]

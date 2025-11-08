@@ -30,6 +30,8 @@ pub enum AstError {
     InvalidAvailability(InvalidToken),
     /// Invalid token in JType
     InvalidJtype(InvalidToken),
+    /// Expression was empty
+    EmptyExpression(InvalidToken),
     /// End of file reached
     UnexpectedEOF(SmolStr, u32, u32),
     /// Invalid token in Identifier
@@ -146,7 +148,6 @@ impl PrintErr for AstError {
                     format_smolstr!("Not a string literal: {:?}", invalid_token.found),
                 );
             }
-
             AstError::AllChildrenFailed { parent, errors } => {
                 if PRINT_ALL_ERRORS {
                     eprintln!("{}", parent);
@@ -162,6 +163,17 @@ impl PrintErr for AstError {
                     e.1.1.print_err(content);
                 }
             }
+            AstError::EmptyExpression(invalid_token) => {
+                print_helper(
+                    content,
+                    invalid_token.line,
+                    invalid_token.col,
+                    format_smolstr!(
+                        "Invalid Type token found: {:?} valid onese ar Int, String",
+                        invalid_token.found
+                    ),
+                );
+            }
         };
     }
 }
@@ -172,6 +184,7 @@ fn sort_helper_error(a: &(SmolStr, AstError)) -> usize {
         AstError::ExpectedToken(expected_token) => expected_token.pos,
         AstError::InvalidAvailability(invalid_token) => invalid_token.pos,
         AstError::InvalidJtype(invalid_token) => invalid_token.pos,
+        AstError::EmptyExpression(invalid_token) => invalid_token.pos,
         AstError::UnexpectedEOF(_, _, _) => 1000,
         AstError::IdentifierEmpty(invalid_token) => invalid_token.pos,
         AstError::InvalidName(invalid_token) => invalid_token.pos,
@@ -210,6 +223,7 @@ fn get_pos(e: &AstError) -> (usize, usize) {
         AstError::InvalidDouble(_, _) => todo!(),
         AstError::InvalidAvailability(invalid_token)
         | AstError::InvalidJtype(invalid_token)
+        | AstError::EmptyExpression(invalid_token)
         | AstError::IdentifierEmpty(invalid_token)
         | AstError::InvalidName(invalid_token)
         | AstError::InvalidNuget(invalid_token)
@@ -272,15 +286,8 @@ pub fn assert_semicolon_options(
 #[track_caller]
 pub fn assert_semicolon(tokens: &[PositionToken], pos: usize) -> Result<usize, AstError> {
     let mut pos = pos;
-    match assert_token(tokens, pos, Token::Semicolon) {
-        Ok(npos) => {
-            pos = npos;
-        }
-        Err(e) => {
-            if let AstError::UnexpectedEOF(_, _, _) = e {
-                return Err(e);
-            }
-        }
+    if let Ok(npos) = assert_token(tokens, pos, Token::Semicolon) {
+        pos = npos;
     }
     Ok(pos)
 }
@@ -342,6 +349,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(clippy::assertions_on_constants)]
     fn config() {
         assert!(!PRINT_ALL_ERRORS);
     }

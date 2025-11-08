@@ -182,7 +182,6 @@ fn find_var_block_entry<'a>(
                 if range.is_in_range(point) {
                     return match content {
                         AstIfContent::Block(ast_block) => find_var_block(ast_block, point),
-                        AstIfContent::None => None,
                         AstIfContent::BlockEntry(ast_block_entry) => {
                             find_var_block_entry(point, ast_block_entry)
                         }
@@ -194,7 +193,6 @@ fn find_var_block_entry<'a>(
                 if range.is_in_range(point) {
                     return match content {
                         AstIfContent::Block(ast_block) => find_var_block(ast_block, point),
-                        AstIfContent::None => None,
                         AstIfContent::BlockEntry(ast_block_entry) => {
                             find_var_block_entry(point, ast_block_entry)
                         }
@@ -207,7 +205,6 @@ fn find_var_block_entry<'a>(
             if ast_while.range.is_in_range(point) {
                 return match &ast_while.content {
                     AstWhileContent::Block(ast_block) => find_var_block(ast_block, point),
-                    AstWhileContent::None => None,
                     AstWhileContent::BlockEntry(ast_block_entry) => {
                         find_var_block_entry(point, ast_block_entry)
                     }
@@ -272,8 +269,7 @@ fn find_var_for_content<'a>(
 ) -> Option<&'a AstBlockVariable> {
     match content {
         AstForContent::Block(ast_block) => find_var_block(ast_block, point),
-        AstForContent::BlockEntry(ast_block_entry) => find_var_block_entry(point, &ast_block_entry),
-        AstForContent::None => None,
+        AstForContent::BlockEntry(ast_block_entry) => find_var_block_entry(point, ast_block_entry),
     }
 }
 

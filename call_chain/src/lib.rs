@@ -328,7 +328,9 @@ fn cc_block_entry(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIte
             for e in &ast_for.vars {
                 cc_block_entry(e, point, out);
             }
-            cc_expr(&ast_for.check, point, false, out);
+            for e in &ast_for.check {
+                cc_block_entry(e, point, out);
+            }
             for e in &ast_for.changes {
                 cc_block_entry(e, point, out);
             }
@@ -348,9 +350,7 @@ fn cc_block_entry(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIte
         AstBlockEntry::Break(_ast_block_break) => (),
         AstBlockEntry::Continue(_ast_block_continue) => (),
         AstBlockEntry::Switch(ast_switch) => {
-            if ast_switch.check.range.is_in_range(point) {
-                return cc_expr_recursive(&ast_switch.check, point, false, out);
-            }
+            cc_expr(&ast_switch.check, point, false, out);
             if ast_switch.block.range.is_in_range(point) {
                 cc_block(&ast_switch.block, point, out)
             }
@@ -451,21 +451,18 @@ fn cc_if(ast_if: &AstIf, point: &AstPoint, out: &mut Vec<CallItem>) {
 fn cc_if_content(content: &AstIfContent, point: &AstPoint, out: &mut Vec<CallItem>) {
     match content {
         AstIfContent::Block(ast_block) => cc_block(ast_block, point, out),
-        AstIfContent::None => (),
         AstIfContent::BlockEntry(ast_block_entry) => cc_block_entry(ast_block_entry, point, out),
     }
 }
 fn cc_for_content(content: &AstForContent, point: &AstPoint, out: &mut Vec<CallItem>) {
     match content {
         AstForContent::Block(ast_block) => cc_block(ast_block, point, out),
-        AstForContent::None => (),
         AstForContent::BlockEntry(ast_block_entry) => cc_block_entry(ast_block_entry, point, out),
     }
 }
 fn cc_while_content(content: &AstWhileContent, point: &AstPoint, out: &mut Vec<CallItem>) {
     match content {
         AstWhileContent::Block(ast_block) => cc_block(ast_block, point, out),
-        AstWhileContent::None => (),
         AstWhileContent::BlockEntry(ast_block_entry) => cc_block_entry(ast_block_entry, point, out),
     }
 }
@@ -580,19 +577,17 @@ fn cc_expr(
         },
         AstExpression::InlineSwitch(_ast_switch) => (),
         AstExpression::NewClass(ast_new_class) => cc_new_class(ast_new_class, point, out),
-        AstExpression::ClassAccess(ast_class_access) => {
-            cc_class_access(ast_class_access, point, out)
-        }
+        AstExpression::ClassAccess(ast_class_access) => cc_class_access(ast_class_access, out),
         AstExpression::Generics(_ast_generics) => (),
         AstExpression::Array(_ast_values) => todo!(),
     }
 }
 
-fn cc_class_access(ast_class_access: &AstClassAccess, point: &AstPoint, out: &mut Vec<CallItem>) {
-    cc_jtype(&ast_class_access.jtype, point, out)
+fn cc_class_access(ast_class_access: &AstClassAccess, out: &mut Vec<CallItem>) {
+    cc_jtype(&ast_class_access.jtype, out)
 }
 
-fn cc_jtype(jtype: &AstJType, point: &AstPoint, out: &mut Vec<CallItem>) {
+fn cc_jtype(jtype: &AstJType, out: &mut Vec<CallItem>) {
     match &jtype.value {
         AstJTypeKind::Void => out.push(CallItem::Class {
             name: "void".into(),
@@ -642,7 +637,7 @@ fn cc_jtype(jtype: &AstJType, point: &AstPoint, out: &mut Vec<CallItem>) {
             name: ast_identifier.value.clone(),
             range: jtype.range,
         }),
-        AstJTypeKind::Array(ast_jtype) => cc_jtype(ast_jtype, point, out),
+        AstJTypeKind::Array(ast_jtype) => cc_jtype(ast_jtype, out),
         AstJTypeKind::Generic(ast_identifier, _ast_jtypes) => out.push(CallItem::Class {
             name: ast_identifier.value.clone(),
             range: jtype.range,
@@ -653,7 +648,7 @@ fn cc_jtype(jtype: &AstJType, point: &AstPoint, out: &mut Vec<CallItem>) {
                 name: ident.value.clone(),
                 range: jtype.range,
             });
-            cc_jtype(inner, point, out);
+            cc_jtype(inner, out);
         }
     }
 }
