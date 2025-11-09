@@ -15,7 +15,7 @@ expression: out
         range: AstRange {
             start: AstPoint {
                 line: 5,
-                col: 13,
+                col: 4,
             },
             end: AstPoint {
                 line: 5,
@@ -35,7 +35,7 @@ expression: out
         range: AstRange {
             start: AstPoint {
                 line: 6,
-                col: 13,
+                col: 4,
             },
             end: AstPoint {
                 line: 6,
@@ -55,11 +55,11 @@ expression: out
         range: AstRange {
             start: AstPoint {
                 line: 8,
-                col: 21,
+                col: 4,
             },
             end: AstPoint {
                 line: 8,
-                col: 26,
+                col: 30,
             },
         },
     },
@@ -115,7 +115,7 @@ expression: out
             },
             end: AstPoint {
                 line: 11,
-                col: 28,
+                col: 26,
             },
         },
     },

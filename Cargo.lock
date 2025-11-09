@@ -1275,9 +1275,9 @@ dependencies = [
 
 [[package]]
 name = "rc-zip"
-version = "5.3.5"
+version = "5.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8270d7851511d7507b4c2124041cc01916d32d0a7a5d1ca6d0db4f05c14251ce"
+checksum = "9821aa8f639caa568fb12e6ca7a0a92eb3e77fa8729d19e10a5f43a536a14f62"
 dependencies = [
  "chardetng",
  "chrono",
@@ -1294,9 +1294,9 @@ dependencies = [
 
 [[package]]
 name = "rc-zip-tokio"
-version = "4.2.10"
+version = "4.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d3783f6633969d55a727789f26e14040ffa63c8c5fad01846910dee7920bdf7"
+checksum = "3ba502ac720266274a8d148f7c3e0391a21d7d2ef4c49e52031a28232b7e8a3e"
 dependencies = [
  "futures-util",
  "oval",

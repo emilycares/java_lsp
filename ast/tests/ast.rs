@@ -359,3 +359,12 @@ fn labled_emty_for() {
     assert_eq!(tokens.len(), parsed.1);
     insta::assert_debug_snapshot!(parsed);
 }
+#[test]
+fn new_casted_parameter() {
+    let content = r#" new HandleTable(10, (float) 3.00) "#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_new_class(&tokens, 0, &ExpressionOptions::None);
+    parsed.print_err(content);
+    let parsed = parsed.unwrap();
+    insta::assert_debug_snapshot!(parsed);
+}

@@ -75,28 +75,26 @@ AstFile {
                             },
                             end: AstPoint {
                                 line: 2,
-                                col: 45,
+                                col: 44,
                             },
                         },
                         avaliability: AstAvailability(
                             0x0,
                         ),
                         annotated: [],
-                        names: [
-                            AstIdentifier {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 2,
-                                        col: 9,
-                                    },
-                                    end: AstPoint {
-                                        line: 2,
-                                        col: 12,
-                                    },
+                        name: AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 2,
+                                    col: 9,
                                 },
-                                value: "LOG",
+                                end: AstPoint {
+                                    line: 2,
+                                    col: 12,
+                                },
                             },
-                        ],
+                            value: "LOG",
+                        },
                         jtype: AstJType {
                             range: AstRange {
                                 start: AstPoint {
@@ -317,28 +315,26 @@ AstFile {
                             },
                             end: AstPoint {
                                 line: 3,
-                                col: 27,
+                                col: 26,
                             },
                         },
                         avaliability: AstAvailability(
                             0x0,
                         ),
                         annotated: [],
-                        names: [
-                            AstIdentifier {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 3,
-                                        col: 10,
-                                    },
-                                    end: AstPoint {
-                                        line: 3,
-                                        col: 19,
-                                    },
+                        name: AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 3,
+                                    col: 10,
                                 },
-                                value: "IS_ACTIVE",
+                                end: AstPoint {
+                                    line: 3,
+                                    col: 19,
+                                },
                             },
-                        ],
+                            value: "IS_ACTIVE",
+                        },
                         jtype: AstJType {
                             range: AstRange {
                                 start: AstPoint {
@@ -405,28 +401,26 @@ AstFile {
                             },
                             end: AstPoint {
                                 line: 4,
-                                col: 20,
+                                col: 19,
                             },
                         },
                         avaliability: AstAvailability(
                             0x0,
                         ),
                         annotated: [],
-                        names: [
-                            AstIdentifier {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 4,
-                                        col: 7,
-                                    },
-                                    end: AstPoint {
-                                        line: 4,
-                                        col: 15,
-                                    },
+                        name: AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 4,
+                                    col: 7,
                                 },
-                                value: "one_byte",
+                                end: AstPoint {
+                                    line: 4,
+                                    col: 15,
+                                },
                             },
-                        ],
+                            value: "one_byte",
+                        },
                         jtype: AstJType {
                             range: AstRange {
                                 start: AstPoint {
@@ -493,28 +487,26 @@ AstFile {
                             },
                             end: AstPoint {
                                 line: 5,
-                                col: 18,
+                                col: 17,
                             },
                         },
                         avaliability: AstAvailability(
                             0x0,
                         ),
                         annotated: [],
-                        names: [
-                            AstIdentifier {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 5,
-                                        col: 6,
-                                    },
-                                    end: AstPoint {
-                                        line: 5,
-                                        col: 13,
-                                    },
+                        name: AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 5,
+                                    col: 6,
                                 },
-                                value: "one_int",
+                                end: AstPoint {
+                                    line: 5,
+                                    col: 13,
+                                },
                             },
-                        ],
+                            value: "one_int",
+                        },
                         jtype: AstJType {
                             range: AstRange {
                                 start: AstPoint {
@@ -581,28 +573,26 @@ AstFile {
                             },
                             end: AstPoint {
                                 line: 6,
-                                col: 22,
+                                col: 21,
                             },
                         },
                         avaliability: AstAvailability(
                             0x0,
                         ),
                         annotated: [],
-                        names: [
-                            AstIdentifier {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 6,
-                                        col: 8,
-                                    },
-                                    end: AstPoint {
-                                        line: 6,
-                                        col: 17,
-                                    },
+                        name: AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 6,
+                                    col: 8,
                                 },
-                                value: "one_short",
+                                end: AstPoint {
+                                    line: 6,
+                                    col: 17,
+                                },
                             },
-                        ],
+                            value: "one_short",
+                        },
                         jtype: AstJType {
                             range: AstRange {
                                 start: AstPoint {
@@ -669,28 +659,26 @@ AstFile {
                             },
                             end: AstPoint {
                                 line: 7,
-                                col: 23,
+                                col: 22,
                             },
                         },
                         avaliability: AstAvailability(
                             0x0,
                         ),
                         annotated: [],
-                        names: [
-                            AstIdentifier {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 7,
-                                        col: 7,
-                                    },
-                                    end: AstPoint {
-                                        line: 7,
-                                        col: 15,
-                                    },
+                        name: AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 7,
+                                    col: 7,
                                 },
-                                value: "one_long",
+                                end: AstPoint {
+                                    line: 7,
+                                    col: 15,
+                                },
                             },
-                        ],
+                            value: "one_long",
+                        },
                         jtype: AstJType {
                             range: AstRange {
                                 start: AstPoint {
@@ -757,28 +745,26 @@ AstFile {
                             },
                             end: AstPoint {
                                 line: 8,
-                                col: 27,
+                                col: 26,
                             },
                         },
                         avaliability: AstAvailability(
                             0x0,
                         ),
                         annotated: [],
-                        names: [
-                            AstIdentifier {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 8,
-                                        col: 9,
-                                    },
-                                    end: AstPoint {
-                                        line: 8,
-                                        col: 19,
-                                    },
+                        name: AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 8,
+                                    col: 9,
                                 },
-                                value: "one_double",
+                                end: AstPoint {
+                                    line: 8,
+                                    col: 19,
+                                },
                             },
-                        ],
+                            value: "one_double",
+                        },
                         jtype: AstJType {
                             range: AstRange {
                                 start: AstPoint {
@@ -845,28 +831,26 @@ AstFile {
                             },
                             end: AstPoint {
                                 line: 9,
-                                col: 26,
+                                col: 25,
                             },
                         },
                         avaliability: AstAvailability(
                             0x0,
                         ),
                         annotated: [],
-                        names: [
-                            AstIdentifier {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 9,
-                                        col: 8,
-                                    },
-                                    end: AstPoint {
-                                        line: 9,
-                                        col: 17,
-                                    },
+                        name: AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 9,
+                                    col: 8,
                                 },
-                                value: "one_float",
+                                end: AstPoint {
+                                    line: 9,
+                                    col: 17,
+                                },
                             },
-                        ],
+                            value: "one_float",
+                        },
                         jtype: AstJType {
                             range: AstRange {
                                 start: AstPoint {
@@ -933,28 +917,26 @@ AstFile {
                             },
                             end: AstPoint {
                                 line: 10,
-                                col: 21,
+                                col: 20,
                             },
                         },
                         avaliability: AstAvailability(
                             0x0,
                         ),
                         annotated: [],
-                        names: [
-                            AstIdentifier {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 10,
-                                        col: 7,
-                                    },
-                                    end: AstPoint {
-                                        line: 10,
-                                        col: 15,
-                                    },
+                        name: AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 10,
+                                    col: 7,
                                 },
-                                value: "one_char",
+                                end: AstPoint {
+                                    line: 10,
+                                    col: 15,
+                                },
                             },
-                        ],
+                            value: "one_char",
+                        },
                         jtype: AstJType {
                             range: AstRange {
                                 start: AstPoint {
@@ -1021,28 +1003,26 @@ AstFile {
                             },
                             end: AstPoint {
                                 line: 11,
-                                col: 29,
+                                col: 31,
                             },
                         },
                         avaliability: AstAvailability(
                             0x0,
                         ),
                         annotated: [],
-                        names: [
-                            AstIdentifier {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 11,
-                                        col: 9,
-                                    },
-                                    end: AstPoint {
-                                        line: 11,
-                                        col: 19,
-                                    },
+                        name: AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 11,
+                                    col: 9,
                                 },
-                                value: "one_string",
+                                end: AstPoint {
+                                    line: 11,
+                                    col: 19,
+                                },
                             },
-                        ],
+                            value: "one_string",
+                        },
                         jtype: AstJType {
                             range: AstRange {
                                 start: AstPoint {
@@ -1123,28 +1103,26 @@ AstFile {
                             },
                             end: AstPoint {
                                 line: 12,
-                                col: 42,
+                                col: 41,
                             },
                         },
                         avaliability: AstAvailability(
                             0x0,
                         ),
                         annotated: [],
-                        names: [
-                            AstIdentifier {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 12,
-                                        col: 15,
-                                    },
-                                    end: AstPoint {
-                                        line: 12,
-                                        col: 23,
-                                    },
+                        name: AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 12,
+                                    col: 15,
                                 },
-                                value: "one_list",
+                                end: AstPoint {
+                                    line: 12,
+                                    col: 23,
+                                },
                             },
-                        ],
+                            value: "one_list",
+                        },
                         jtype: AstJType {
                             range: AstRange {
                                 start: AstPoint {
@@ -1391,28 +1369,26 @@ AstFile {
                             },
                             end: AstPoint {
                                 line: 13,
-                                col: 43,
+                                col: 42,
                             },
                         },
                         avaliability: AstAvailability(
                             0x0,
                         ),
                         annotated: [],
-                        names: [
-                            AstIdentifier {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 13,
-                                        col: 19,
-                                    },
-                                    end: AstPoint {
-                                        line: 13,
-                                        col: 26,
-                                    },
+                        name: AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 13,
+                                    col: 19,
                                 },
-                                value: "one_map",
+                                end: AstPoint {
+                                    line: 13,
+                                    col: 26,
+                                },
                             },
-                        ],
+                            value: "one_map",
+                        },
                         jtype: AstJType {
                             range: AstRange {
                                 start: AstPoint {

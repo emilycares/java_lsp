@@ -164,8 +164,10 @@ fn find_var_block_entry<'a>(
     match i {
         AstBlockEntry::Return(_ast_block_return) => None,
         AstBlockEntry::Variable(ast_block_variable) => {
-            if ast_block_variable.range.is_in_range(point) {
-                return Some(ast_block_variable);
+            for v in ast_block_variable {
+                if v.range.is_in_range(point) {
+                    return Some(v);
+                }
             }
             None
         }
@@ -208,6 +210,7 @@ fn find_var_block_entry<'a>(
                     AstWhileContent::BlockEntry(ast_block_entry) => {
                         find_var_block_entry(point, ast_block_entry)
                     }
+                    AstWhileContent::None => None,
                 };
             }
             None

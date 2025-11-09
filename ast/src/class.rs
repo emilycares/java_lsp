@@ -3,13 +3,13 @@ use crate::{
     ExpressionOptions,
     error::{AstError, assert_token},
     lexer::{PositionToken, Token},
-    parse_annotated_list, parse_avaliability, parse_block, parse_constructor_header,
-    parse_expression, parse_implements, parse_jtype, parse_method_header, parse_name,
-    parse_permits, parse_superclass, parse_thing, parse_type_parameters,
+    parse_annotated_list, parse_array_type_on_name, parse_avaliability, parse_block,
+    parse_constructor_header, parse_expression, parse_implements, parse_jtype, parse_method_header,
+    parse_name, parse_permits, parse_superclass, parse_thing, parse_type_parameters,
     types::{
         AstAnnotated, AstAvailability, AstClass, AstClassBlock, AstClassConstructor,
-        AstClassMethod, AstClassVariable, AstRange, AstStaticBlock, AstStaticFinal, AstSuperClass,
-        AstThing, AstThingAttributes,
+        AstClassMethod, AstClassVariable, AstJType, AstRange, AstStaticBlock, AstStaticFinal,
+        AstSuperClass, AstThing, AstThingAttributes,
     },
 };
 
@@ -96,9 +96,9 @@ pub fn parse_class_block(
         };
         errors.clear();
         match parse_class_variable(tokens, pos) {
-            Ok((variable, npos)) => {
+            Ok((vars, npos)) => {
                 pos = npos;
-                variables.push(variable);
+                variables.extend(vars);
                 continue;
             }
             Err(e) => {
@@ -202,10 +202,12 @@ pub fn parse_class_constructor(
 pub fn parse_class_variable(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(AstClassVariable, usize), AstError> {
+) -> Result<(Vec<AstClassVariable>, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
-    let (annotated, pos) = parse_annotated_list(tokens, pos)?;
+    let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
     let (avaliability, pos) = parse_avaliability(tokens, pos)?;
+    let (annotated_after, pos) = parse_annotated_list(tokens, pos)?;
+    annotated.extend(annotated_after);
     let mut pos = pos;
     let mut static_final = AstStaticFinal::None;
     loop {
@@ -219,34 +221,65 @@ pub fn parse_class_variable(
         }
         pos += 1;
     }
+    let mut out = vec![];
     let (jtype, pos) = parse_jtype(tokens, pos)?;
-    let mut names = vec![];
-    let (name, pos) = parse_name(tokens, pos)?;
-    names.push(name);
+    let (v, pos) = parse_variable_base(
+        tokens,
+        start,
+        &annotated,
+        avaliability.clone(),
+        static_final.clone(),
+        &jtype,
+        pos,
+    )?;
+    out.push(v);
     let mut pos = pos;
     while let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
-        let (name, npos) = parse_name(tokens, npos)?;
-        names.push(name);
+        let (v, npos) = parse_variable_base(
+            tokens,
+            start,
+            &annotated,
+            avaliability.clone(),
+            static_final.clone(),
+            &jtype,
+            npos,
+        )?;
         pos = npos;
+        out.push(v);
     }
+
+    let pos = assert_token(tokens, pos, Token::Semicolon)?;
+
+    Ok((out, pos))
+}
+fn parse_variable_base(
+    tokens: &[PositionToken],
+    start: &PositionToken,
+    annotated: &[AstAnnotated],
+    avaliability: AstAvailability,
+    static_final: AstStaticFinal,
+    jtype: &AstJType,
+    pos: usize,
+) -> Result<(AstClassVariable, usize), AstError> {
+    let mut jtype = jtype.clone();
+    let (name, pos) = parse_name(tokens, pos)?;
+    let mut pos = parse_array_type_on_name(tokens, pos, &mut jtype);
     let mut expression = None;
     if let Ok(npos) = assert_token(tokens, pos, Token::Equal) {
-        let (aexpr, npos) = parse_expression(tokens, npos, &ExpressionOptions::None)?;
+        let (aexpression, npos) = parse_expression(tokens, npos, &ExpressionOptions::None)?;
         pos = npos;
-        expression = Some(aexpr);
+        expression = Some(aexpression);
     }
-    let pos = assert_token(tokens, pos, Token::Semicolon)?;
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
-
     Ok((
         AstClassVariable {
-            avaliability,
-            annotated,
-            names,
-            static_final,
-            jtype,
-            expression,
             range: AstRange::from_position_token(start, end),
+            annotated: annotated.to_owned(),
+            jtype,
+            name,
+            expression,
+            avaliability,
+            static_final,
         },
         pos,
     ))

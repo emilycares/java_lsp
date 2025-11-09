@@ -50,7 +50,7 @@ pub fn load_java_tree(
         AstThing::Class(class) => {
             name = class.name.value.clone();
             methods.extend(class.block.methods.iter().map(convert_class_method));
-            fields.extend(class.block.variables.iter().flat_map(convert_class_field));
+            fields.extend(class.block.variables.iter().map(convert_class_field));
             super_class = match &class.superclass {
                 ast::types::AstSuperClass::None => dto::SuperClass::None,
                 ast::types::AstSuperClass::Name(ast_identifier) => {
@@ -65,7 +65,7 @@ pub fn load_java_tree(
         AstThing::Enumeration(enumeration) => {
             name = (&enumeration.name).into();
             methods.extend(enumeration.methods.iter().map(convert_class_method));
-            fields.extend(enumeration.variables.iter().flat_map(convert_class_field));
+            fields.extend(enumeration.variables.iter().map(convert_class_field));
         }
         AstThing::Interface(interface) => {
             name = (&interface.name).into();
@@ -233,20 +233,16 @@ fn convert_annotation_field(c: &AstAnnotationField) -> dto::Field {
         source: None,
     }
 }
-fn convert_class_field(c: &AstClassVariable) -> Vec<dto::Field> {
+fn convert_class_field(c: &AstClassVariable) -> dto::Field {
     let access = Access::from(&c.avaliability, Access::Public);
     let jtype: dto::JType = (&c.jtype).into();
 
-    let mut out = vec![];
-    for name in &c.names {
-        out.push(dto::Field {
-            access: access.clone(),
-            jtype: jtype.clone(),
-            name: name.value.clone(),
-            source: None,
-        });
+    dto::Field {
+        access,
+        jtype,
+        name: c.name.value.clone(),
+        source: None,
     }
-    out
 }
 
 fn check_type_parameters(

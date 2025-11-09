@@ -245,46 +245,7 @@ fn cc_block(block: &AstBlock, point: &AstPoint, out: &mut Vec<CallItem>) {
 }
 
 fn dist_block_entry(point: &AstPoint, entry: &AstBlockEntry) -> usize {
-    match entry {
-        AstBlockEntry::Return(ast_block_return) => dist(point, &ast_block_return.range),
-        AstBlockEntry::Variable(ast_block_variable) => dist(point, &ast_block_variable.range),
-        AstBlockEntry::Expression(ast_block_expression) => dist(point, &ast_block_expression.range),
-        AstBlockEntry::Assign(ast_block_assign) => dist(point, &ast_block_assign.range),
-        AstBlockEntry::If(ast_if) => dist_if(point, ast_if),
-        AstBlockEntry::While(ast_while) => dist(point, &ast_while.range),
-        AstBlockEntry::For(ast_for) => dist(point, &ast_for.range),
-        AstBlockEntry::ForEnhanced(ast_for_enhanced) => dist(point, &ast_for_enhanced.range),
-        AstBlockEntry::Break(ast_block_break) => dist(point, &ast_block_break.range),
-        AstBlockEntry::Continue(ast_block_continue) => dist(point, &ast_block_continue.range),
-        AstBlockEntry::Switch(ast_switch) => dist(point, &ast_switch.range),
-        AstBlockEntry::SwitchCase(ast_switch_case) => dist(point, &ast_switch_case.range),
-        AstBlockEntry::SwitchDefault(ast_switch_default) => dist(point, &ast_switch_default.range),
-        AstBlockEntry::TryCatch(ast_try_catch) => dist(point, &ast_try_catch.range),
-        AstBlockEntry::Throw(ast_throw) => dist(point, &ast_throw.range),
-        AstBlockEntry::SwitchCaseArrow(ast_switch_case_arrow) => {
-            dist(point, &ast_switch_case_arrow.range)
-        }
-        AstBlockEntry::Yield(ast_block_yield) => dist(point, &ast_block_yield.range),
-        AstBlockEntry::SynchronizedBlock(ast_synchronized_block) => {
-            dist(point, &ast_synchronized_block.range)
-        }
-        AstBlockEntry::SwitchCaseArrowDefault(ast_switch_case_arrow_default) => {
-            dist(point, &ast_switch_case_arrow_default.range)
-        }
-    }
-}
-
-fn dist_if(point: &AstPoint, ast_if: &AstIf) -> usize {
-    match ast_if {
-        AstIf::If {
-            range,
-            control: _,
-            control_range: _,
-            content: _,
-            el: _,
-        } => dist(point, range),
-        AstIf::Else { range, content: _ } => dist(point, range),
-    }
+    dist(point, &entry.get_range())
 }
 
 fn cc_block_entry(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallItem>) {
@@ -300,7 +261,9 @@ fn cc_block_entry(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIte
             }
         }
         AstBlockEntry::Variable(ast_block_variable) => {
-            cc_block_variable(ast_block_variable, point, out)
+            for v in ast_block_variable {
+                cc_block_variable(v, point, out);
+            }
         }
         AstBlockEntry::Expression(ast_block_expression) => {
             cc_expr(&ast_block_expression.value, point, false, out)
@@ -339,8 +302,8 @@ fn cc_block_entry(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIte
             }
         }
         AstBlockEntry::ForEnhanced(ast_for_enhanced) => {
-            if ast_for_enhanced.var.range.is_in_range(point) {
-                return cc_block_variable(&ast_for_enhanced.var, point, out);
+            for v in &ast_for_enhanced.var {
+                return cc_block_variable(v, point, out);
             }
             cc_expr(&ast_for_enhanced.rhs, point, false, out);
             if (&ast_for_enhanced.content).is_in_range(point) {
@@ -410,10 +373,8 @@ fn cc_block_variable(
     point: &AstPoint,
     out: &mut Vec<CallItem>,
 ) {
-    for nv in &ast_block_variable.name_values {
-        if let Some(ref expression) = nv.value {
-            cc_expr(expression, point, false, out)
-        }
+    if let Some(ref expression) = ast_block_variable.value {
+        cc_expr(expression, point, false, out)
     }
 }
 
@@ -464,6 +425,7 @@ fn cc_while_content(content: &AstWhileContent, point: &AstPoint, out: &mut Vec<C
     match content {
         AstWhileContent::Block(ast_block) => cc_block(ast_block, point, out),
         AstWhileContent::BlockEntry(ast_block_entry) => cc_block_entry(ast_block_entry, point, out),
+        AstWhileContent::None => (),
     }
 }
 

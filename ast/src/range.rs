@@ -34,7 +34,12 @@ impl AstInRange for &AstBlockEntry {
         match self {
             AstBlockEntry::Return(ast_block_return) => ast_block_return.range.is_in_range(point),
             AstBlockEntry::Variable(ast_block_variable) => {
-                ast_block_variable.range.is_in_range(point)
+                for v in ast_block_variable {
+                    if v.range.is_in_range(point) {
+                        return true;
+                    }
+                }
+                false
             }
             AstBlockEntry::Expression(ast_block_expression) => {
                 ast_block_expression.range.is_in_range(point)

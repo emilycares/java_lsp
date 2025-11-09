@@ -280,28 +280,26 @@ AstFile {
                             },
                             end: AstPoint {
                                 line: 10,
-                                col: 36,
+                                col: 35,
                             },
                         },
                         avaliability: AstAvailability(
                             Private,
                         ),
                         annotated: [],
-                        names: [
-                            AstIdentifier {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 10,
-                                        col: 30,
-                                    },
-                                    end: AstPoint {
-                                        line: 10,
-                                        col: 35,
-                                    },
+                        name: AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 10,
+                                    col: 30,
                                 },
-                                value: "other",
+                                end: AstPoint {
+                                    line: 10,
+                                    col: 35,
+                                },
                             },
-                        ],
+                            value: "other",
+                        },
                         jtype: AstJType {
                             range: AstRange {
                                 start: AstPoint {

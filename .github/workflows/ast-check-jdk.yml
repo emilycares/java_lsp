@@ -5,58 +5,14 @@ on:
     branches:
       - main
       - ast_migration
-  merge_group:
-
-env:
-  MSRV: "1.88"
 
 jobs:
   build:
-    name: Build debug executable
+    name: Build and ast check jdk
     runs-on: ubuntu-latest
     if: github.repository == 'emilycares/java_lsp'
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v5
-
-      - name: Install MSRV toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.MSRV }}
-          targets: x86_64-unknown-linux-musl
-
-      - name: Manually install target
-        run: rustup target add x86_64-unknown-linux-musl
-
-      - name: Run cargo build
-        run: cargo build --target x86_64-unknown-linux-musl
-
-      - name: Upload executable
-        uses: actions/upload-artifact@v4
-        with:
-          name: d
-          overwrite: true
-          path: target/x86_64-unknown-linux-musl/debug/java_lsp
-
-  check:
-    name: Run ast-check-jdk
-    runs-on: ubuntu-latest
-    if: github.repository == 'emilycares/java_lsp'
-    needs: build
-
-    steps:
-      - name: Download jdk
-        run:  wget -O jdk.tar.gz https://release-assets.githubusercontent.com/github-production-release-asset/901810329/eece8483-4519-45ed-9eeb-b989502b4df8?sp=r&sv=2018-11-09&sr=b&spr=https&se=2025-11-05T17%3A40%3A57Z&rscd=attachment%3B+filename%3DOpenJDK25U-jdk_aarch64_linux_hotspot_25.0.1_8.tar.gz
-      - name: Unpack
-        run: tar -xvzf jdk.tar.gz
-      - name: Unpack
-        run: PATH=$PATH:/app/jdk-25.0.1+8/bin/
-      - name: Download executable
-        uses: actions/download-artifact@v4
-        with:
-          name: d
-          path: /app
-      - name: Make executable
-        run: chmod +x /app/java_lsp
-      - name: Run the Application
-        run: /app/java_lsp ast-check-jdk
+      - uses: actions/checkout@v5
+      - uses: nixbuild/nix-quick-install-action@v34
+      - run: nix build --version
+      - run: nix develop .#check_jdk --command bash -c "java_lsp ast-check-jdk"

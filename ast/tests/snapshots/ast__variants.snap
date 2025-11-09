@@ -412,28 +412,26 @@ AstFile {
                         },
                         end: AstPoint {
                             line: 6,
-                            col: 29,
+                            col: 28,
                         },
                     },
                     avaliability: AstAvailability(
                         Private,
                     ),
                     annotated: [],
-                    names: [
-                        AstIdentifier {
-                            range: AstRange {
-                                start: AstPoint {
-                                    line: 6,
-                                    col: 25,
-                                },
-                                end: AstPoint {
-                                    line: 6,
-                                    col: 28,
-                                },
+                    name: AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 6,
+                                col: 25,
                             },
-                            value: "tag",
+                            end: AstPoint {
+                                line: 6,
+                                col: 28,
+                            },
                         },
-                    ],
+                        value: "tag",
+                    },
                     jtype: AstJType {
                         range: AstRange {
                             start: AstPoint {

@@ -27,8 +27,7 @@ use crate::{
         AstAnnotatedParameter, AstBlockYield, AstClassAccess, AstConstructorHeader,
         AstExpressionOrValue, AstForContent, AstGenerics, AstLambdaRhs, AstNewRhs,
         AstSwitchCaseArrow, AstSwitchCaseArrowContent, AstSwitchCaseArrowDefault,
-        AstSynchronizedBlock, AstThingAttributes, AstTypeParameter, AstVariableNameValue,
-        AstWhileContent,
+        AstSynchronizedBlock, AstThingAttributes, AstTypeParameter, AstWhileContent,
     },
 };
 
@@ -380,7 +379,6 @@ fn parse_value_nuget(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, 
                         .map_err(|_| AstError::InvalidDouble(*num, n))?;
                     let pos = pos + 1;
                     let current = tokens.get(pos).ok_or(AstError::eof())?;
-                    let pos = pos + 1;
                     match &current.token {
                         Token::Identifier(val) if val == "d" => {
                             return Ok((
@@ -388,7 +386,7 @@ fn parse_value_nuget(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, 
                                     range: AstRange::from_position_token(start, start),
                                     value,
                                 })),
-                                pos,
+                                pos + 1,
                             ));
                         }
                         Token::Identifier(val) if val == "f" => {
@@ -397,7 +395,7 @@ fn parse_value_nuget(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, 
                                     range: AstRange::from_position_token(start, start),
                                     value,
                                 })),
-                                pos,
+                                pos + 1,
                             ));
                         }
                         _ => {
@@ -750,13 +748,13 @@ pub fn parse_new_class(
     let (jtype, pos) = parse_jtype(tokens, pos)?;
     let mut pos = pos;
     let mut rhs = AstNewRhs::None;
-    let mut set = false;
     let mut errors = vec![];
     match parse_array_parameters(tokens, pos, expression_options) {
         Ok((array_parameters, npos)) => {
             pos = npos;
-            rhs = AstNewRhs::ArrayParameters(array_parameters);
-            set = true;
+            if !array_parameters.is_empty() {
+                rhs = AstNewRhs::ArrayParameters(array_parameters);
+            }
         }
         Err(e) => errors.push(("array_parameters".into(), e)),
     }
@@ -764,7 +762,6 @@ pub fn parse_new_class(
         Ok((nrhs, npos)) => {
             pos = npos;
             rhs = AstNewRhs::Parameters(nrhs);
-            set = true;
         }
         Err(e) => errors.push(("expression_parameters".into(), e)),
     }
@@ -773,7 +770,6 @@ pub fn parse_new_class(
             Ok((nrhs, npos)) => {
                 pos = npos;
                 rhs = AstNewRhs::Array(nrhs);
-                set = true;
             }
             Err(e) => errors.push(("array".into(), e)),
         }
@@ -781,19 +777,16 @@ pub fn parse_new_class(
         match parse_class_block(tokens, pos) {
             Ok((b, npos)) => {
                 pos = npos;
-                if set {
-                    if let AstNewRhs::Parameters(p) = rhs {
-                        rhs = AstNewRhs::ParametersAndBlock(p, b);
-                    } else {
-                        rhs = AstNewRhs::Block(b);
-                    }
+                if let AstNewRhs::Parameters(p) = rhs {
+                    rhs = AstNewRhs::ParametersAndBlock(p, b);
+                } else {
+                    rhs = AstNewRhs::Block(b);
                 }
-                set = true;
             }
             Err(e) => errors.push(("array".into(), e)),
         }
     }
-    if !set {
+    if matches!(rhs, AstNewRhs::None) {
         return Err(AstError::AllChildrenFailed {
             parent: "new_class".into(),
             errors,
@@ -1148,27 +1141,22 @@ fn parse_expression_lhs(
 pub fn parse_block_variable(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(AstBlockVariable, usize), AstError> {
+) -> Result<(Vec<AstBlockVariable>, usize), AstError> {
     parse_block_variable_options(tokens, pos, &BlockEntryOptions::None)
 }
 fn parse_block_variable_options(
     tokens: &[PositionToken],
     pos: usize,
     block_entry_options: &BlockEntryOptions,
-) -> Result<(AstBlockVariable, usize), AstError> {
-    let start = tokens.get(pos).ok_or(AstError::eof())?;
+) -> Result<(Vec<AstBlockVariable>, usize), AstError> {
     let (block_variable, pos) = parse_block_variable_no_semicolon(tokens, pos)?;
-    let mut block_variable = block_variable;
     let pos = assert_semicolon_options(tokens, pos, block_entry_options)?;
-    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
-
-    block_variable.range = AstRange::from_position_token(start, end);
     Ok((block_variable, pos))
 }
 fn parse_block_variable_no_semicolon(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(AstBlockVariable, usize), AstError> {
+) -> Result<(Vec<AstBlockVariable>, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let (annotated, pos) = parse_annotated_list(tokens, pos)?;
     let mut pos = pos;
@@ -1177,55 +1165,54 @@ fn parse_block_variable_no_semicolon(
         pos = npos;
         fin = true;
     }
+    let mut out = vec![];
     let (jtype, pos) = parse_jtype(tokens, pos)?;
-    let mut name_values = vec![];
-    let (name_value, pos) = parse_variable_name_value(tokens, pos)?;
-    name_values.push(name_value);
+    let (v, pos) = parse_variable_base(tokens, start, &annotated, fin, &jtype, pos)?;
+    out.push(v);
     let mut pos = pos;
     while let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
-        let (name_value, npos) = parse_variable_name_value(tokens, npos)?;
-        name_values.push(name_value);
+        let (v, npos) = parse_variable_base(tokens, start, &annotated, fin, &jtype, npos)?;
         pos = npos;
+        out.push(v);
     }
-    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
 
-    Ok((
-        AstBlockVariable {
-            range: AstRange::from_position_token(start, end),
-            annotated,
-            fin,
-            jtype,
-            name_values,
-        },
-        pos,
-    ))
+    Ok((out, pos))
 }
 
-fn parse_variable_name_value(
+fn parse_variable_base(
     tokens: &[PositionToken],
+    start: &PositionToken,
+    annotated: &[AstAnnotated],
+    fin: bool,
+    jtype: &AstJType,
     pos: usize,
-) -> Result<(AstVariableNameValue, usize), AstError> {
-    let start = tokens.get(pos).ok_or(AstError::eof())?;
+) -> Result<(AstBlockVariable, usize), AstError> {
+    let mut jtype = jtype.clone();
     let (name, pos) = parse_name(tokens, pos)?;
+    let mut pos = parse_array_type_on_name(tokens, pos, &mut jtype);
     let mut value = None;
-    let mut pos = pos;
     if let Ok(npos) = assert_token(tokens, pos, Token::Equal) {
         pos = npos;
-        if let Ok((aexpression, npos)) = parse_expression(tokens, pos, &ExpressionOptions::None) {
+        // optional when typing `var = `
+        if let Ok((aexpression, npos)) = parse_expression(tokens, npos, &ExpressionOptions::None) {
             pos = npos;
             value = Some(aexpression);
         }
     }
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
-        AstVariableNameValue {
+        AstBlockVariable {
             range: AstRange::from_position_token(start, end),
+            fin,
+            annotated: annotated.to_owned(),
+            jtype,
             name,
             value,
         },
         pos,
     ))
 }
+
 fn parse_block_variable_multi_type_no_semicolon(
     tokens: &[PositionToken],
     pos: usize,
@@ -1456,6 +1443,22 @@ fn parse_method_header(
         pos,
     ))
 }
+
+/// `byte b[]` is modified to be the correct jtype
+fn parse_array_type_on_name(tokens: &[PositionToken], pos: usize, jtype: &mut AstJType) -> usize {
+    let mut pos = pos;
+    if let Ok(npos) = assert_token(tokens, pos, Token::LeftParenSquare)
+        && let Ok(npos) = assert_token(tokens, npos, Token::RightParenSquare)
+    {
+        pos = npos;
+        let orig = jtype.clone();
+        *jtype = AstJType {
+            range: jtype.range,
+            value: AstJTypeKind::Array(Box::new(orig)),
+        };
+    }
+    pos
+}
 fn parse_constructor_header(
     tokens: &[PositionToken],
     pos: usize,
@@ -1637,7 +1640,6 @@ fn parse_block_brackets(
         }
         if pos == start_pos {
             eprintln!("No block enty was parsed: {:?}", tokens.get(pos));
-            dbg!(entries.last());
             break;
         }
     }
@@ -1672,8 +1674,8 @@ fn parse_block_entry_options(
 ) -> Result<(AstBlockEntry, usize), AstError> {
     let mut errors = vec![];
     match parse_block_variable_options(tokens, pos, block_entry_options) {
-        Ok((variable, pos)) => {
-            return Ok((AstBlockEntry::Variable(variable), pos));
+        Ok((vars, pos)) => {
+            return Ok((AstBlockEntry::Variable(vars), pos));
         }
         Err(e) => {
             errors.push(("block variable".into(), e));
@@ -1886,9 +1888,16 @@ fn parse_while(tokens: &[PositionToken], pos: usize) -> Result<(AstWhile, usize)
     let pos = assert_token(tokens, pos, Token::LeftParen)?;
     let (control, pos) = parse_recursive_expression(tokens, pos, &ExpressionOptions::None)?;
     let mut pos = assert_token(tokens, pos, Token::RightParen)?;
-    let content;
+    let mut content = AstWhileContent::None;
     let mut errors = vec![];
     'while_content: {
+        match assert_token(tokens, pos, Token::Semicolon) {
+            Ok(npos) => {
+                pos = npos;
+                break 'while_content;
+            }
+            Err(e) => errors.push(("semicolon".into(), e)),
+        }
         match parse_block(tokens, pos) {
             Ok((block, npos)) => {
                 content = AstWhileContent::Block(block);
@@ -2442,7 +2451,7 @@ fn parse_method_paramerter(
         fin = true;
         pos = npos;
     }
-    let (jtype, pos) = parse_jtype(tokens, pos)?;
+    let (mut jtype, pos) = parse_jtype(tokens, pos)?;
     let mut pos = pos;
     if let Ok(npos) = assert_token(tokens, pos, Token::Dot)
         && let Ok(npos) = assert_token(tokens, npos, Token::Dot)
@@ -2452,6 +2461,7 @@ fn parse_method_paramerter(
         variatic = true;
     }
     let (name, pos) = parse_name(tokens, pos)?;
+    let pos = parse_array_type_on_name(tokens, pos, &mut jtype);
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstMethodParamerter {

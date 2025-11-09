@@ -16,20 +16,8 @@ expression: parsed.unwrap()
         },
         entries: [
             Variable(
-                AstBlockVariable {
-                    range: AstRange {
-                        start: AstPoint {
-                            line: 0,
-                            col: 1,
-                        },
-                        end: AstPoint {
-                            line: 0,
-                            col: 9,
-                        },
-                    },
-                    fin: false,
-                    annotated: [],
-                    jtype: AstJType {
+                [
+                    AstBlockVariable {
                         range: AstRange {
                             start: AstPoint {
                                 line: 0,
@@ -37,13 +25,25 @@ expression: parsed.unwrap()
                             },
                             end: AstPoint {
                                 line: 0,
-                                col: 4,
+                                col: 9,
                             },
                         },
-                        value: Var,
-                    },
-                    name_values: [
-                        AstVariableNameValue {
+                        fin: false,
+                        annotated: [],
+                        jtype: AstJType {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 1,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 4,
+                                },
+                            },
+                            value: Var,
+                        },
+                        name: AstIdentifier {
                             range: AstRange {
                                 start: AstPoint {
                                     line: 0,
@@ -51,26 +51,14 @@ expression: parsed.unwrap()
                                 },
                                 end: AstPoint {
                                     line: 0,
-                                    col: 9,
+                                    col: 6,
                                 },
                             },
-                            name: AstIdentifier {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 0,
-                                        col: 5,
-                                    },
-                                    end: AstPoint {
-                                        line: 0,
-                                        col: 6,
-                                    },
-                                },
-                                value: "a",
-                            },
-                            value: None,
+                            value: "a",
                         },
-                    ],
-                },
+                        value: None,
+                    },
+                ],
             ),
         ],
     },

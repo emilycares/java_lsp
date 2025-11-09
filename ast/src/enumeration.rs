@@ -77,8 +77,8 @@ pub fn parse_enumeration(
                 }
             }
             match parse_class_variable(tokens, pos) {
-                Ok((variable, npos)) => {
-                    variables.push(variable);
+                Ok((vars, npos)) => {
+                    variables.extend(vars);
                     pos = npos;
                     continue;
                 }

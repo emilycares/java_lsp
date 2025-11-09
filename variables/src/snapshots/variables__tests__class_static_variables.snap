@@ -13,11 +13,11 @@ expression: out
         range: AstRange {
             start: AstPoint {
                 line: 3,
-                col: 26,
+                col: 4,
             },
             end: AstPoint {
                 line: 3,
-                col: 32,
+                col: 69,
             },
         },
     },

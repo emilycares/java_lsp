@@ -126,16 +126,14 @@ pub fn get_field_positions(bytes: &[u8], name: &str) -> Result<Vec<PositionSymbo
             .block
             .variables
             .iter()
-            .flat_map(|i| &i.names)
-            .filter(|i| i.value == name)
+            .filter(|i| i.name.value == name)
             .map(|i| PositionSymbol::Range(i.range))
             .collect()),
         AstThing::Record(ast_record) => Ok(ast_record
             .block
             .variables
             .iter()
-            .flat_map(|i| &i.names)
-            .filter(|i| i.value == name)
+            .filter(|i| i.name.value == name)
             .map(|i| PositionSymbol::Range(i.range))
             .collect()),
         AstThing::Interface(ast_interface) => Ok(ast_interface
@@ -296,11 +294,11 @@ public class Test {
 ";
         let out = get_field_positions(content, "a");
         assert_eq!(
-            out,
             Ok(vec![PositionSymbol::Range(AstRange {
-                start: AstPoint { line: 3, col: 18 },
+                start: AstPoint { line: 3, col: 4 },
                 end: AstPoint { line: 3, col: 19 },
-            }),])
+            }),]),
+            out
         );
     }
 

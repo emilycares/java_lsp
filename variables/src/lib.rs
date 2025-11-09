@@ -18,20 +18,15 @@ pub struct LocalVariable {
 }
 
 impl LocalVariable {
-    pub fn from_block_variable(i: &AstBlockVariable, level: usize) -> Vec<Self> {
-        let mut out = vec![];
-
-        let jtype: dto::JType = (&i.jtype).into();
-        for nv in &i.name_values {
-            out.push(LocalVariable {
-                level,
-                jtype: jtype.clone(),
-                name: nv.name.value.clone(),
-                is_fun: false,
-                range: i.range,
-            });
+    pub fn from_block_variable(v: &AstBlockVariable, level: usize) -> Self {
+        let jtype: dto::JType = (&v.jtype).into();
+        LocalVariable {
+            level,
+            jtype: jtype.clone(),
+            name: v.name.value.clone(),
+            is_fun: false,
+            range: v.range,
         }
-        out
     }
     pub fn from_class_method(i: &AstClassMethod, level: usize) -> Self {
         LocalVariable {
@@ -150,7 +145,10 @@ fn get_block_entry_vars(
         | AstBlockEntry::SwitchDefault(_)
         | AstBlockEntry::Yield(_)
         | AstBlockEntry::Assign(_) => vec![],
-        AstBlockEntry::Variable(i) => LocalVariable::from_block_variable(i, level),
+        AstBlockEntry::Variable(i) => i
+            .iter()
+            .map(|i| LocalVariable::from_block_variable(i, level))
+            .collect(),
         AstBlockEntry::Expression(ast_expression) => block_expr(ast_expression, point, level),
         AstBlockEntry::If(ast_if) => if_vars(ast_if, point, level),
         AstBlockEntry::While(ast_while) => while_vars(ast_while, point, level),
@@ -317,10 +315,12 @@ fn for_enanced_vars(
     }
     let level = level + 1;
     let mut out = vec![];
-    out.extend(LocalVariable::from_block_variable(
-        &ast_for_enhanced.var,
-        level,
-    ));
+    out.extend(
+        ast_for_enhanced
+            .var
+            .iter()
+            .map(|i| LocalVariable::from_block_variable(i, level)),
+    );
     out.extend(for_content_vars(&ast_for_enhanced.content, point, level));
     out
 }
@@ -389,15 +389,15 @@ fn get_class_variables(
     variables: &[ast::types::AstClassVariable],
     level: usize,
 ) -> impl Iterator<Item = LocalVariable> {
-    variables.iter().flat_map(move |i| {
+    variables.iter().map(move |i| {
         let jtype: dto::JType = (&i.jtype).into();
-        i.names.iter().map(move |i| LocalVariable {
+        LocalVariable {
             range: i.range,
             level,
             jtype: jtype.clone(),
-            name: i.value.clone(),
+            name: i.name.value.clone(),
             is_fun: false,
-        })
+        }
     })
 }
 
