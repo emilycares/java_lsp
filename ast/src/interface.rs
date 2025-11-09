@@ -184,9 +184,13 @@ pub fn parse_interface_method_impl(
     let mut pos = pos;
     if let Ok(npos) = assert_token(tokens, pos, Token::Default) {
         pos = npos;
-    } else if let Ok((nava, npos)) = parse_avaliability(tokens, pos) {
+    }
+    if let Ok((nava, npos)) = parse_avaliability(tokens, pos) {
         pos = npos;
         availability = nava;
+    }
+    if let Ok(npos) = assert_token(tokens, pos, Token::Default) {
+        pos = npos;
     }
     let (header, pos) = parse_method_header(tokens, pos, availability)?;
     let (block, pos) = parse_block(tokens, pos)?;

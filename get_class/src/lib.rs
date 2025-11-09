@@ -10,7 +10,11 @@ pub struct FoundClass {
 
 /// Get class name under cursor
 pub fn get_class(ast: &AstFile, point: &AstPoint) -> Option<FoundClass> {
-    match &ast.thing {
+    thing(&ast.thing, point)
+}
+
+fn thing(thing: &AstThing, point: &AstPoint) -> Option<FoundClass> {
+    match &thing {
         AstThing::Class(ast_class) => get_class_cblock(&ast_class.block, point),
         AstThing::Record(ast_record) => get_class_cblock(&ast_record.block, point),
         AstThing::Interface(_ast_interface) => todo!(),
@@ -113,6 +117,11 @@ fn get_class_block(block: &AstBlock, point: &AstPoint) -> Option<FoundClass> {
                     return Some(o);
                 }
             }
+            AstBlockEntry::Thing(ast_thing) => {
+                if let Some(o) = thing(&ast_thing, point) {
+                    return Some(o);
+                }
+            }
         }
     }
     None
@@ -133,7 +142,8 @@ fn get_class_expression_or_value(
 
 fn get_class_expression(ex: &AstExpression, point: &AstPoint) -> Option<FoundClass> {
     match &ex {
-        AstExpression::Casted(ast_casted_expression) => {
+        AstExpression::Casted(ast_casted_expression)
+        | AstExpression::JType(ast_casted_expression) => {
             if !ast_casted_expression.range.is_in_range(point) {
                 return None;
             }

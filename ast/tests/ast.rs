@@ -1,9 +1,9 @@
 use ast::class::{parse_class_method, parse_class_variable};
 use ast::error::PrintErr;
 use ast::{
-    ExpressionOptions, lexer, parse_block, parse_block_return, parse_block_variable, parse_file,
-    parse_for, parse_jtype, parse_lambda, parse_name, parse_name_dot_logical, parse_new_class,
-    parse_recursive_expression, parse_string_literal,
+    ExpressionOptions, lexer, parse_block, parse_block_return, parse_block_variable,
+    parse_expression, parse_file, parse_for, parse_jtype, parse_lambda, parse_name,
+    parse_name_dot_logical, parse_new_class, parse_recursive_expression, parse_string_literal,
 };
 
 #[test]
@@ -364,6 +364,15 @@ fn new_casted_parameter() {
     let content = r#" new HandleTable(10, (float) 3.00) "#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_new_class(&tokens, 0, &ExpressionOptions::None);
+    parsed.print_err(content);
+    let parsed = parsed.unwrap();
+    insta::assert_debug_snapshot!(parsed);
+}
+#[test]
+fn class_colon_colon_new() {
+    let content = r#"Class<?>[]::new"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     let parsed = parsed.unwrap();
     insta::assert_debug_snapshot!(parsed);

@@ -4,7 +4,7 @@ use crate::BlockEntryOptions;
 use smol_str::{SmolStr, format_smolstr};
 use std::panic::Location;
 
-const PRINT_ALL_ERRORS: bool = false;
+const PRINT_ALL_ERRORS: bool = true;
 
 /// Fancy log ast error
 pub trait PrintErr {

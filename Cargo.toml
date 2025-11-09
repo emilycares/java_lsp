@@ -39,7 +39,7 @@ resolver = "3"
 
 [profile.dev]
 # Remove for debugging
-debug = "line-tables-only"
+# debug = "line-tables-only"
 
 [profile.dev.package]
 insta.opt-level = 3

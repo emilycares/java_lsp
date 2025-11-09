@@ -240,6 +240,7 @@ pub enum AstBlockEntry {
     Throw(AstThrow),
     Yield(AstBlockYield),
     SynchronizedBlock(AstSynchronizedBlock),
+    Thing(Box<AstThing>),
 }
 impl AstBlockEntry {
     pub fn get_range(&self) -> AstRange {
@@ -286,6 +287,7 @@ impl AstBlockEntry {
             AstBlockEntry::SwitchCaseArrowDefault(ast_switch_case_arrow_default) => {
                 ast_switch_case_arrow_default.range
             }
+            AstBlockEntry::Thing(ast_thing) => ast_thing.get_range(),
         }
     }
 }
@@ -518,6 +520,7 @@ pub struct AstAnnotated {
 #[derive(Debug, Clone)]
 /// Definition of a new Annotation
 pub struct AstAnnotation {
+    pub range: AstRange,
     pub avaliability: AstAvailability,
     pub attributes: AstThingAttributes,
     pub annotated: Vec<AstAnnotated>,
@@ -554,6 +557,17 @@ pub enum AstThing {
     Interface(AstInterface),
     Enumeration(AstEnumeration),
     Annotation(AstAnnotation),
+}
+impl AstThing {
+    pub fn get_range(&self) -> AstRange {
+        match self {
+            AstThing::Class(ast_class) => ast_class.range,
+            AstThing::Record(ast_record) => ast_record.range,
+            AstThing::Interface(ast_interface) => ast_interface.range,
+            AstThing::Enumeration(ast_enumeration) => ast_enumeration.range,
+            AstThing::Annotation(ast_annotation) => ast_annotation.range,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -609,6 +623,7 @@ pub enum AstExpression {
     ClassAccess(AstClassAccess),
     Generics(AstGenerics),
     Array(AstValues),
+    JType(AstCastedExpression),
 }
 impl AstExpression {
     pub fn has_content(&self) -> bool {
@@ -617,6 +632,7 @@ impl AstExpression {
                 ast_recursive_expression.has_content()
             }
             AstExpression::Casted(_)
+            | AstExpression::JType(_)
             | AstExpression::Lambda(_)
             | AstExpression::InlineSwitch(_)
             | AstExpression::NewClass(_)
@@ -646,7 +662,7 @@ pub enum AstExpressionIdentifier {
     Identifier(AstIdentifier),
     Nuget(AstValueNuget),
     Value(AstValue),
-    ArrayAccess(Box<AstRecursiveExpression>),
+    ArrayAccess(Box<AstExpression>),
 }
 
 #[derive(Debug, Clone)]
@@ -745,6 +761,7 @@ pub enum AstExpressionOperator {
     VerticalBarVerticalBar(AstRange),
     QuestionMark(AstRange),
     Colon(AstRange),
+    ColonColon(AstRange),
     Assign(AstRange),
     Tilde(AstRange),
     Caret(AstRange),
@@ -792,6 +809,7 @@ pub struct AstInterfaceMethodDefault {
 
 #[derive(Debug, Clone)]
 pub struct AstEnumeration {
+    pub range: AstRange,
     pub avaliability: AstAvailability,
     pub attributes: AstThingAttributes,
     pub annotated: Vec<AstAnnotated>,
@@ -800,6 +818,7 @@ pub struct AstEnumeration {
     pub methods: Vec<AstClassMethod>,
     pub variables: Vec<AstClassVariable>,
     pub constructors: Vec<AstClassConstructor>,
+    pub static_blocks: Vec<AstStaticBlock>,
 }
 #[derive(Debug, Clone)]
 pub struct AstEnumerationVariant {

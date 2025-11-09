@@ -1,7 +1,7 @@
 //! Parsing functions for class
 use crate::{
     ExpressionOptions,
-    error::{AstError, assert_token},
+    error::{AstError, assert_semicolon, assert_token},
     lexer::{PositionToken, Token},
     parse_annotated_list, parse_array_type_on_name, parse_avaliability, parse_block,
     parse_constructor_header, parse_expression, parse_implements, parse_jtype, parse_method_header,
@@ -162,7 +162,8 @@ pub fn parse_class_block(
     ))
 }
 
-fn parse_static_block(
+/// `static { ... }`
+pub fn parse_static_block(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstStaticBlock, usize), AstError> {
@@ -189,6 +190,7 @@ pub fn parse_class_constructor(
     let (block, pos) = parse_block(tokens, pos)?;
 
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    let pos = assert_semicolon(tokens, pos)?;
     Ok((
         AstClassConstructor {
             header,

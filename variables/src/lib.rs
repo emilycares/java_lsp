@@ -56,16 +56,23 @@ pub enum VariablesError {}
 pub fn get_vars(ast: &AstFile, point: &AstPoint) -> Result<Vec<LocalVariable>, VariablesError> {
     let mut out: Vec<LocalVariable> = vec![];
     let level = 0;
-    match &ast.thing {
+    get_vars_thing(&ast.thing, point, &mut out, level);
+
+    // let n = cursor.goto_first_child_for_point(*point);
+    Ok(out)
+}
+
+fn get_vars_thing(thing: &AstThing, point: &AstPoint, out: &mut Vec<LocalVariable>, level: usize) {
+    match &thing {
         AstThing::Class(ast_class) => {
             let level = level + 1;
             out.extend(get_class_variables(&ast_class.block.variables, level));
-            out.extend(get_class_methods(&ast_class.block.methods, point, level));
+            get_class_methods(&ast_class.block.methods, point, level, out);
         }
         AstThing::Record(ast_record) => {
             let level = level + 1;
             out.extend(get_class_variables(&ast_record.block.variables, level));
-            out.extend(get_class_methods(&ast_record.block.methods, point, level));
+            get_class_methods(&ast_record.block.methods, point, level, out);
         }
         AstThing::Interface(ast_interface) => {
             let level = level + 1;
@@ -74,9 +81,6 @@ pub fn get_vars(ast: &AstFile, point: &AstPoint) -> Result<Vec<LocalVariable>, V
         AstThing::Enumeration(_) => (),
         AstThing::Annotation(_) => (),
     }
-
-    // let n = cursor.goto_first_child_for_point(*point);
-    Ok(out)
 }
 
 fn get_interface_constats(
@@ -96,9 +100,9 @@ fn get_class_methods(
     methods: &[AstClassMethod],
     point: &AstPoint,
     level: usize,
-) -> Vec<LocalVariable> {
+    out: &mut Vec<LocalVariable>,
+) {
     let level = level + 1;
-    let mut out = vec![];
 
     for method in methods {
         out.push(LocalVariable::from_class_method(method, level));
@@ -112,30 +116,29 @@ fn get_class_methods(
                     .map(move |i| LocalVariable::from_method_parameter(i, level)),
             );
             if let Some(block) = &method.block {
-                out.extend(get_block_vars(block, point, level));
+                get_block_vars(block, point, level, out);
             }
         }
     }
-    out
 }
 
-fn get_block_vars(block: &AstBlock, point: &AstPoint, level: usize) -> Vec<LocalVariable> {
+fn get_block_vars(block: &AstBlock, point: &AstPoint, level: usize, out: &mut Vec<LocalVariable>) {
     let level = level + 1;
     if !block.range.is_in_range(point) {
-        return vec![];
+        return;
     }
     block
         .entries
         .iter()
-        .flat_map(|i| get_block_entry_vars(point, level, i))
-        .collect()
+        .for_each(|i| get_block_entry_vars(point, level, i, out));
 }
 
 fn get_block_entry_vars(
     point: &AstPoint,
     level: usize,
     block_entry: &AstBlockEntry,
-) -> Vec<LocalVariable> {
+    out: &mut Vec<LocalVariable>,
+) {
     match block_entry {
         AstBlockEntry::Return(_)
         | AstBlockEntry::Break(_)
@@ -144,29 +147,32 @@ fn get_block_entry_vars(
         | AstBlockEntry::SwitchCase(_)
         | AstBlockEntry::SwitchDefault(_)
         | AstBlockEntry::Yield(_)
-        | AstBlockEntry::Assign(_) => vec![],
-        AstBlockEntry::Variable(i) => i
-            .iter()
-            .map(|i| LocalVariable::from_block_variable(i, level))
-            .collect(),
-        AstBlockEntry::Expression(ast_expression) => block_expr(ast_expression, point, level),
-        AstBlockEntry::If(ast_if) => if_vars(ast_if, point, level),
-        AstBlockEntry::While(ast_while) => while_vars(ast_while, point, level),
-        AstBlockEntry::For(ast_for) => for_vars(ast_for, point, level),
-        AstBlockEntry::ForEnhanced(ast_for_enhanced) => {
-            for_enanced_vars(ast_for_enhanced, point, level)
+        | AstBlockEntry::Assign(_) => (),
+        AstBlockEntry::Variable(i) => {
+            out.extend(
+                i.iter()
+                    .map(|i| LocalVariable::from_block_variable(i, level)),
+            );
         }
-        AstBlockEntry::Switch(ast_switch) => switch_vars(ast_switch, point, level),
-        AstBlockEntry::TryCatch(ast_try_catch) => try_catch_vars(ast_try_catch, point, level),
+        AstBlockEntry::Expression(ast_expression) => block_expr(ast_expression, point, level, out),
+        AstBlockEntry::If(ast_if) => if_vars(ast_if, point, level, out),
+        AstBlockEntry::While(ast_while) => while_vars(ast_while, point, level, out),
+        AstBlockEntry::For(ast_for) => for_vars(ast_for, point, level, out),
+        AstBlockEntry::ForEnhanced(ast_for_enhanced) => {
+            for_enanced_vars(ast_for_enhanced, point, level, out);
+        }
+        AstBlockEntry::Switch(ast_switch) => switch_vars(ast_switch, point, level, out),
+        AstBlockEntry::TryCatch(ast_try_catch) => try_catch_vars(ast_try_catch, point, level, out),
         AstBlockEntry::SynchronizedBlock(ast_synchronized_block) => {
-            get_block_vars(&ast_synchronized_block.block, point, level)
+            get_block_vars(&ast_synchronized_block.block, point, level, out)
         }
         AstBlockEntry::SwitchCaseArrowDefault(ast_switch_case_arrow_default) => {
-            switch_case_arrow_content(&ast_switch_case_arrow_default.content, level, point)
+            switch_case_arrow_content(&ast_switch_case_arrow_default.content, level, point, out)
         }
         AstBlockEntry::SwitchCaseArrow(ast_switch_case_arrow) => {
-            switch_case_arrow_content(&ast_switch_case_arrow.content, level, point)
+            switch_case_arrow_content(&ast_switch_case_arrow.content, level, point, out)
         }
+        AstBlockEntry::Thing(ast_thing) => get_vars_thing(&ast_thing, point, out, level),
     }
 }
 
@@ -174,11 +180,12 @@ fn switch_case_arrow_content(
     content: &AstSwitchCaseArrowContent,
     level: usize,
     point: &AstPoint,
-) -> Vec<LocalVariable> {
+    out: &mut Vec<LocalVariable>,
+) {
     match content {
-        AstSwitchCaseArrowContent::Block(ast_block) => get_block_vars(ast_block, point, level),
+        AstSwitchCaseArrowContent::Block(ast_block) => get_block_vars(ast_block, point, level, out),
         AstSwitchCaseArrowContent::Entry(ast_block_entry) => {
-            get_block_entry_vars(point, level, ast_block_entry)
+            get_block_entry_vars(point, level, ast_block_entry, out)
         }
     }
 }
@@ -187,59 +194,60 @@ fn block_expr(
     ast_expression: &AstBlockExpression,
     point: &AstPoint,
     level: usize,
-) -> Vec<LocalVariable> {
+    out: &mut Vec<LocalVariable>,
+) {
     if !ast_expression.range.is_in_range(point) {
-        return vec![];
+        return;
     }
 
-    expression(&ast_expression.value, point, level)
+    expression(&ast_expression.value, point, level, out);
 }
 
 fn recursive_expr(
     expr: &AstRecursiveExpression,
     point: &AstPoint,
     level: usize,
-) -> Vec<LocalVariable> {
+    out: &mut Vec<LocalVariable>,
+) {
     if !expr.range.is_in_range(point) {
-        return vec![];
+        return;
     }
-    let mut out = vec![];
     if let Some(v) = &expr.values
         && !v.values.is_empty()
     {
-        out.extend(v.values.iter().flat_map(|i| expression(i, point, level)));
+        v.values
+            .iter()
+            .for_each(|i| expression(i, point, level, out));
     }
 
     if let Some(next) = &expr.next {
-        out.extend(expression(next, point, level));
+        expression(next, point, level, out);
     }
-
-    out
 }
 
-fn expression(i: &AstExpression, point: &AstPoint, level: usize) -> Vec<LocalVariable> {
+fn expression(i: &AstExpression, point: &AstPoint, level: usize, out: &mut Vec<LocalVariable>) {
     match i {
-        AstExpression::Casted(c) => expression(&c.expression, point, level),
+        AstExpression::Casted(c) => expression(&c.expression, point, level, out),
+        AstExpression::JType(c) => expression(&c.expression, point, level, out),
         AstExpression::Recursive(ast_recursive_expression) => {
-            recursive_expr(ast_recursive_expression, point, level)
+            recursive_expr(ast_recursive_expression, point, level, out)
         }
         AstExpression::Lambda(ast_lambda) => {
             if ast_lambda.range.is_in_range(point) {
-                return lambda(ast_lambda, point, level);
+                return lambda(ast_lambda, point, level, out);
             }
-            vec![]
         }
-        AstExpression::InlineSwitch(ast_switch) => get_block_vars(&ast_switch.block, point, level),
-        AstExpression::NewClass(_ast_new_class) => vec![],
-        AstExpression::ClassAccess(_ast_class_access) => vec![],
-        AstExpression::Generics(_ast_generics) => vec![],
-        AstExpression::Array(_ast_values) => todo!(),
+        AstExpression::InlineSwitch(ast_switch) => {
+            get_block_vars(&ast_switch.block, point, level, out)
+        }
+        AstExpression::NewClass(_)
+        | AstExpression::ClassAccess(_)
+        | AstExpression::Generics(_)
+        | AstExpression::Array(_) => (),
     }
 }
 
-fn lambda(lambda: &AstLambda, point: &AstPoint, level: usize) -> Vec<LocalVariable> {
-    let mut out = vec![];
-
+fn lambda(lambda: &AstLambda, point: &AstPoint, level: usize, out: &mut Vec<LocalVariable>) {
     out.extend(lambda.parameters.values.iter().map(|i| LocalVariable {
         level,
         jtype: dto::JType::Void,
@@ -250,29 +258,27 @@ fn lambda(lambda: &AstLambda, point: &AstPoint, level: usize) -> Vec<LocalVariab
 
     match &lambda.rhs {
         AstLambdaRhs::None => (),
-        AstLambdaRhs::Block(ast_block) => out.extend(get_block_vars(ast_block, point, level)),
+        AstLambdaRhs::Block(ast_block) => get_block_vars(ast_block, point, level, out),
         AstLambdaRhs::Expr(ast_base_expression) => {
-            out.extend(expression(ast_base_expression, point, level))
+            expression(ast_base_expression, point, level, out)
         }
     }
-
-    out
 }
 
 fn try_catch_vars(
     ast_try_catch: &AstTryCatch,
     point: &AstPoint,
     level: usize,
-) -> Vec<LocalVariable> {
+    out: &mut Vec<LocalVariable>,
+) {
     if !ast_try_catch.range.is_in_range(point) {
-        return vec![];
+        return;
     }
     let level = level + 1;
-    let mut out = vec![];
     if let Some(resources) = &ast_try_catch.resources_block {
-        out.extend(get_block_vars(resources, point, level));
+        get_block_vars(resources, point, level, out)
     }
-    out.extend(get_block_vars(&ast_try_catch.block, point, level));
+    get_block_vars(&ast_try_catch.block, point, level, out);
     if let Some(case) = ast_try_catch
         .cases
         .iter()
@@ -287,76 +293,79 @@ fn try_catch_vars(
                 range: case.variable.range,
             });
         }
-        out.extend(get_block_vars(&case.block, point, level));
+        get_block_vars(&case.block, point, level, out);
     }
     if let Some(finally_block) = &ast_try_catch.finally_block {
-        out.extend(get_block_vars(finally_block, point, level));
+        get_block_vars(finally_block, point, level, out);
     }
-    out
 }
 
-fn switch_vars(ast_for_enhanced: &AstSwitch, point: &AstPoint, level: usize) -> Vec<LocalVariable> {
+fn switch_vars(
+    ast_for_enhanced: &AstSwitch,
+    point: &AstPoint,
+    level: usize,
+    out: &mut Vec<LocalVariable>,
+) {
     if !ast_for_enhanced.range.is_in_range(point) {
-        return vec![];
+        return;
     }
     let level = level + 1;
-    let mut out = vec![];
-    out.extend(get_block_vars(&ast_for_enhanced.block, point, level));
-    out
+    get_block_vars(&ast_for_enhanced.block, point, level, out);
 }
 
 fn for_enanced_vars(
     ast_for_enhanced: &AstForEnhanced,
     point: &AstPoint,
     level: usize,
-) -> Vec<LocalVariable> {
+    out: &mut Vec<LocalVariable>,
+) {
     if !ast_for_enhanced.range.is_in_range(point) {
-        return vec![];
+        return;
     }
     let level = level + 1;
-    let mut out = vec![];
     out.extend(
         ast_for_enhanced
             .var
             .iter()
             .map(|i| LocalVariable::from_block_variable(i, level)),
     );
-    out.extend(for_content_vars(&ast_for_enhanced.content, point, level));
-    out
+    for_content_vars(&ast_for_enhanced.content, point, level, out);
 }
 
-fn for_content_vars(content: &AstForContent, point: &AstPoint, level: usize) -> Vec<LocalVariable> {
+fn for_content_vars(
+    content: &AstForContent,
+    point: &AstPoint,
+    level: usize,
+    out: &mut Vec<LocalVariable>,
+) {
     match content {
-        AstForContent::Block(ast_block) => get_block_vars(ast_block, point, level),
+        AstForContent::Block(ast_block) => get_block_vars(ast_block, point, level, out),
         AstForContent::BlockEntry(ast_block_entry) => {
-            get_block_entry_vars(point, level, ast_block_entry)
+            get_block_entry_vars(point, level, ast_block_entry, out)
         }
     }
 }
 
-fn for_vars(ast_for: &AstFor, point: &AstPoint, level: usize) -> Vec<LocalVariable> {
+fn for_vars(ast_for: &AstFor, point: &AstPoint, level: usize, out: &mut Vec<LocalVariable>) {
     if !ast_for.range.is_in_range(point) {
-        return vec![];
+        return;
     }
     let level = level + 1;
-    let mut out = vec![];
     for v in &ast_for.vars {
-        out.extend(get_block_entry_vars(point, level, v));
+        get_block_entry_vars(point, level, v, out);
     }
-    out.extend(for_content_vars(&ast_for.content, point, level));
-    out
+    for_content_vars(&ast_for.content, point, level, out);
 }
-fn while_vars(ast_while: &AstWhile, point: &AstPoint, level: usize) -> Vec<LocalVariable> {
+fn while_vars(ast_while: &AstWhile, point: &AstPoint, level: usize, out: &mut Vec<LocalVariable>) {
     if !ast_while.range.is_in_range(point) {
-        return vec![];
+        return;
     }
     let level = level + 1;
     if let AstWhileContent::Block(b) = &ast_while.content {
-        get_block_vars(b, point, level);
+        get_block_vars(b, point, level, out);
     }
-    vec![]
 }
-fn if_vars(ast_if: &AstIf, point: &AstPoint, level: usize) -> Vec<LocalVariable> {
+fn if_vars(ast_if: &AstIf, point: &AstPoint, level: usize, out: &mut Vec<LocalVariable>) {
     let level = level + 1;
     match ast_if {
         AstIf::If {
@@ -369,21 +378,20 @@ fn if_vars(ast_if: &AstIf, point: &AstPoint, level: usize) -> Vec<LocalVariable>
             if range.is_in_range(point)
                 && let AstIfContent::Block(block) = content
             {
-                return get_block_vars(block, point, level);
+                return get_block_vars(block, point, level, out);
             }
             if let Some(el) = el.as_ref() {
-                return if_vars(el, point, level);
+                return if_vars(el, point, level, out);
             }
         }
         AstIf::Else { range, content } => {
             if range.is_in_range(point)
                 && let AstIfContent::Block(block) = content
             {
-                return get_block_vars(block, point, level);
+                return get_block_vars(block, point, level, out);
             }
         }
     }
-    vec![]
 }
 fn get_class_variables(
     variables: &[ast::types::AstClassVariable],

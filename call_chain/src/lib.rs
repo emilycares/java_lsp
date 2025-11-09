@@ -78,12 +78,17 @@ struct Argument {
 /// Then it would return info about the variable other
 pub fn get_call_chain(ast: &AstFile, point: &AstPoint) -> Vec<CallItem> {
     let mut out = vec![];
-    match &ast.thing {
+    cc_thing(&ast.thing, point, &mut out);
+    out
+}
+
+fn cc_thing(thing: &AstThing, point: &AstPoint, out: &mut Vec<CallItem>) {
+    match &thing {
         AstThing::Class(ast_class) => {
-            cc_class_block(&ast_class.block, point, &mut out);
+            cc_class_block(&ast_class.block, point, out);
         }
         AstThing::Record(ast_record) => {
-            cc_class_block(&ast_record.block, point, &mut out);
+            cc_class_block(&ast_record.block, point, out);
         }
         AstThing::Interface(ast_interface) => ast_interface
             .default_methods
@@ -91,15 +96,14 @@ pub fn get_call_chain(ast: &AstFile, point: &AstPoint) -> Vec<CallItem> {
             .filter(|i| i.range.is_in_range(point))
             .for_each(|i| {
                 if i.block.range.is_in_range(point) {
-                    cc_block(&i.block, point, &mut out)
+                    cc_block(&i.block, point, out)
                 } else {
-                    cc_annotated(&i.annotated, point, &mut out)
+                    cc_annotated(&i.annotated, point, out)
                 }
             }),
         AstThing::Enumeration(_) => todo!(),
         AstThing::Annotation(_) => todo!(),
     }
-    out
 }
 
 fn cc_class_block(block: &AstClassBlock, point: &AstPoint, out: &mut Vec<CallItem>) {
@@ -176,6 +180,7 @@ fn cc_annotated(annotated: &[AstAnnotated], point: &AstPoint, out: &mut Vec<Call
 fn ast_expression_get_range(expression: &AstExpression) -> &AstRange {
     match expression {
         AstExpression::Casted(ast_casted_expression) => &ast_casted_expression.range,
+        AstExpression::JType(ast_casted_expression) => &ast_casted_expression.range,
         AstExpression::Recursive(ast_recursive_expression) => &ast_recursive_expression.range,
         AstExpression::Lambda(ast_lambda) => &ast_lambda.range,
         AstExpression::InlineSwitch(ast_switch) => &ast_switch.range,
@@ -352,6 +357,7 @@ fn cc_block_entry(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIte
         AstBlockEntry::SwitchCaseArrowDefault(ast_switch_case_arrow_default) => {
             cc_swtich_case_arrow_content(&ast_switch_case_arrow_default.content, point, out)
         }
+        AstBlockEntry::Thing(ast_thing) => cc_thing(ast_thing, point, out),
     }
 }
 
@@ -527,6 +533,9 @@ fn cc_expr(
         AstExpression::Casted(ast_casted_expression) => {
             cc_expr(&ast_casted_expression.expression, point, has_parent, out)
         }
+        AstExpression::JType(ast_casted_expression) => {
+            cc_expr(&ast_casted_expression.expression, point, has_parent, out)
+        }
         AstExpression::Recursive(ast_recursive_expression) => {
             cc_expr_recursive(ast_recursive_expression, point, has_parent, out)
         }
@@ -642,6 +651,7 @@ fn cc_expr_recursive(
             | AstExpressionOperator::Caret(_)
             | AstExpressionOperator::Ampersand(_)
             | AstExpressionOperator::AmpersandAmpersand(_)
+            | AstExpressionOperator::ColonColon(_)
             | AstExpressionOperator::VerticalBar(_)
             | AstExpressionOperator::VerticalBarVerticalBar(_) => {
                 if let Some(ident) = &ast_expression.ident {
@@ -710,7 +720,7 @@ fn ident_range(ident: &AstExpressionIdentifier) -> AstRange {
             AstValueNuget::BooleanLiteral(ast_boolean) => ast_boolean.range,
         },
         AstExpressionIdentifier::Value(ast_value) => fun_name(ast_value),
-        AstExpressionIdentifier::ArrayAccess(expr) => expr.range,
+        AstExpressionIdentifier::ArrayAccess(expr) => *ast_expression_get_range(&expr),
     }
 }
 

@@ -584,10 +584,21 @@ fn parse_value_operator_options(
             AstExpressionOperator::QuestionMark(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
-        Token::Colon if expression_options != &ExpressionOptions::NoInlineIf => Ok((
-            AstExpressionOperator::Colon(AstRange::from_position_token(start, start)),
-            pos + 1,
-        )),
+        Token::Colon => {
+            if let Ok(npos) = assert_token(tokens, pos + 1, Token::Colon) {
+                let end = tokens.get(npos).ok_or(AstError::eof())?;
+                return Ok((
+                    AstExpressionOperator::ColonColon(AstRange::from_position_token(start, end)),
+                    npos,
+                ));
+            } else if expression_options != &ExpressionOptions::NoInlineIf {
+                return Ok((
+                    AstExpressionOperator::Colon(AstRange::from_position_token(start, start)),
+                    pos + 1,
+                ));
+            }
+            Err(AstError::InvalidNuget(InvalidToken::from(start, pos)))
+        }
         Token::ExclamationMark if expression_options != &ExpressionOptions::NoInlineIf => Ok((
             AstExpressionOperator::ExclemationMark(AstRange::from_position_token(start, start)),
             pos + 1,
@@ -917,6 +928,12 @@ fn parse_expression_inner(
         }
         Err(e) => errors.push(("casted".into(), e)),
     }
+    match parse_jtype_expression(tokens, pos, expression_options) {
+        Ok((casted, pos)) => {
+            return Ok((AstExpression::JType(casted), pos));
+        }
+        Err(e) => errors.push(("casted".into(), e)),
+    }
     match parse_new_class(tokens, pos, expression_options) {
         Ok((new, pos)) => return Ok((AstExpression::NewClass(new), pos)),
         Err(e) => errors.push(("new class".into(), e)),
@@ -960,6 +977,24 @@ fn parse_casted_expression(
         pos,
     ))
 }
+fn parse_jtype_expression(
+    tokens: &[PositionToken],
+    pos: usize,
+    expression_options: &ExpressionOptions,
+) -> Result<(AstCastedExpression, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let (cast, pos) = parse_jtype(tokens, pos)?;
+    let (expression, pos) = parse_expression(tokens, pos, expression_options)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    Ok((
+        AstCastedExpression {
+            range: AstRange::from_position_token(start, end),
+            cast,
+            expression: Box::new(expression),
+        },
+        pos,
+    ))
+}
 /// `a.b.c("a".length)`
 pub fn parse_recursive_expression(
     tokens: &[PositionToken],
@@ -978,7 +1013,7 @@ pub fn parse_recursive_expression(
         Token::Semicolon => {
             return Err(AstError::InvalidExpression(InvalidToken::from(start, pos)));
         }
-        Token::Identifier(_) | Token::Class | Token::This => {
+        Token::Identifier(_) | Token::Class | Token::This | Token::New => {
             let (id, npos) = parse_expression_lhs(tokens, pos)?;
             pos = npos;
             ident = Some(AstExpressionIdentifier::Identifier(id));
@@ -991,8 +1026,7 @@ pub fn parse_recursive_expression(
         }
         Token::LeftParenSquare => {
             pos += 1;
-            let (array_access_expr, npos) =
-                parse_recursive_expression(tokens, pos, expression_options)?;
+            let (array_access_expr, npos) = parse_expression(tokens, pos, expression_options)?;
             let npos = assert_token(tokens, npos, Token::RightParenSquare)?;
             ident = Some(AstExpressionIdentifier::ArrayAccess(Box::new(
                 array_access_expr,
@@ -1127,6 +1161,16 @@ fn parse_expression_lhs(
                     AstIdentifier {
                         range: AstRange::from_position_token(start, start),
                         value: "this".into(),
+                    },
+                    pos + 1,
+                ))
+            }
+            Token::New => {
+                let start = tokens.get(pos).ok_or(AstError::eof())?;
+                Ok((
+                    AstIdentifier {
+                        range: AstRange::from_position_token(start, start),
+                        value: "new".into(),
                     },
                     pos + 1,
                 ))
@@ -1633,6 +1677,7 @@ fn parse_block_brackets(
             Ok((entry, npos)) => {
                 entries.push(entry);
                 pos = npos;
+                dbg!(tokens.get(pos));
             }
             Err(e) => {
                 return Err(e);
@@ -1823,6 +1868,14 @@ fn parse_block_entry_options(
         }
         Err(e) => {
             errors.push(("block assign".into(), e));
+        }
+    }
+    match parse_thing(tokens, pos) {
+        Ok((thing, pos)) => {
+            return Ok((AstBlockEntry::Thing(Box::new(thing)), pos));
+        }
+        Err(e) => {
+            errors.push(("class thing".into(), e));
         }
     }
     match parse_block_expression_options(tokens, pos, block_entry_options) {

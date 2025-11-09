@@ -17,6 +17,7 @@ pub fn parse_annotation(
     attributes: AstThingAttributes,
     annotated: Vec<AstAnnotated>,
 ) -> Result<(AstThing, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
     let pos = assert_token(tokens, pos, Token::Interface)?;
     let (name, pos) = parse_name_single(tokens, pos)?;
     let pos = assert_token(tokens, pos, Token::LeftParenCurly)?;
@@ -47,8 +48,10 @@ pub fn parse_annotation(
             errors,
         });
     }
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstThing::Annotation(AstAnnotation {
+            range: AstRange::from_position_token(start, end),
             avaliability,
             attributes,
             annotated,

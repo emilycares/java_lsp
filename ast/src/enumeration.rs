@@ -1,6 +1,8 @@
 //! Parsing functions for enum
 use crate::{
-    class::{parse_class_constructor, parse_class_method, parse_class_variable},
+    class::{
+        parse_class_constructor, parse_class_method, parse_class_variable, parse_static_block,
+    },
     error::{AstError, assert_semicolon, assert_token},
     lexer::{PositionToken, Token},
     parse_expression_parameters, parse_identifier,
@@ -18,6 +20,7 @@ pub fn parse_enumeration(
     attributes: AstThingAttributes,
     annotated: Vec<AstAnnotated>,
 ) -> Result<(AstThing, usize), AstError> {
+    let start = tokens.get(pos).ok_or(AstError::eof())?;
     let (name, pos) = parse_identifier(tokens, pos)?;
     let mut errors = vec![];
     let pos = assert_token(tokens, pos, Token::LeftParenCurly)?;
@@ -26,6 +29,7 @@ pub fn parse_enumeration(
     let mut methods = vec![];
     let mut variables = vec![];
     let mut constructors = vec![];
+    let mut static_blocks = vec![];
     let mut end_reached = false;
     loop {
         if let Ok(npos) = assert_token(tokens, pos, Token::Semicolon) {
@@ -86,6 +90,16 @@ pub fn parse_enumeration(
                     errors.push(("enum_variable".into(), e));
                 }
             }
+            match parse_static_block(tokens, pos) {
+                Ok((static_block, npos)) => {
+                    pos = npos;
+                    static_blocks.push(static_block);
+                    continue;
+                }
+                Err(e) => {
+                    errors.push(("static block".into(), e));
+                }
+            }
             return Err(AstError::AllChildrenFailed {
                 parent: "enum".into(),
                 errors,
@@ -93,8 +107,10 @@ pub fn parse_enumeration(
         }
     }
     let pos = assert_semicolon(tokens, pos)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
         AstThing::Enumeration(crate::types::AstEnumeration {
+            range: AstRange::from_position_token(start, end),
             avaliability,
             attributes,
             annotated,
@@ -103,6 +119,7 @@ pub fn parse_enumeration(
             methods,
             constructors,
             variables,
+            static_blocks,
         }),
         pos,
     ))
