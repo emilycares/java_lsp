@@ -386,3 +386,21 @@ fn parmeter_class_function_pass() {
     let parsed = parsed.unwrap();
     insta::assert_debug_snapshot!(parsed);
 }
+#[test]
+fn multiline_string_arg() {
+    let content = r#"{
+                        System.err.println("""
+                                          The VFORK launch mechanism has been deprecated for being dangerous.
+                                          It will be removed in a future java version. Either remove the
+                                          jdk.lang.Process.launchMechanism property (preferred) or use FORK mode
+                                          instead (-Djdk.lang.Process.launchMechanism=FORK).
+                                          """);
+                                          }
+    "#;
+    let tokens = lexer::lex(content).unwrap();
+    dbg!(&tokens);
+    let parsed = parse_block(&tokens, 0);
+    parsed.print_err(content);
+    let parsed = parsed.unwrap();
+    insta::assert_debug_snapshot!(parsed);
+}

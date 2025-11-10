@@ -770,8 +770,8 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                         } else if let Some('"') = chars.get(index + 1)
                             && let Some('"') = chars.get(index + 2)
                         {
-                            index += 3;
-                            col += 3;
+                            index += 2;
+                            col += 2;
                             break 'string_literal;
                         }
                     }

@@ -29,9 +29,36 @@ pub fn parse_class(
         type_parameters = Some(type_params);
         pos = npos;
     };
+    let (superclass, implements, permits, pos) = parse_implemnets_extends_permits(tokens, pos)?;
+    let (block, pos) = parse_class_block(tokens, pos)?;
+    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+
+    Ok((
+        AstThing::Class(AstClass {
+            range: AstRange::from_position_token(start, end),
+            avaliability,
+            attributes,
+            annotated,
+            name,
+            type_parameters,
+            superclass,
+            implements,
+            permits,
+            block,
+        }),
+        pos,
+    ))
+}
+
+/// `implements Option`
+pub fn parse_implemnets_extends_permits(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstSuperClass, Vec<AstJType>, Vec<AstJType>, usize), AstError> {
     let mut superclass = AstSuperClass::None;
     let mut implements = vec![];
     let mut permits = vec![];
+    let mut pos = pos;
     loop {
         let token = tokens.get(pos).ok_or(AstError::eof())?;
         match token.token {
@@ -56,24 +83,7 @@ pub fn parse_class(
             _ => break,
         }
     }
-    let (block, pos) = parse_class_block(tokens, pos)?;
-    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
-
-    Ok((
-        AstThing::Class(AstClass {
-            range: AstRange::from_position_token(start, end),
-            avaliability,
-            attributes,
-            annotated,
-            name,
-            type_parameters,
-            superclass,
-            implements,
-            permits,
-            block,
-        }),
-        pos,
-    ))
+    Ok((superclass, implements, permits, pos))
 }
 
 /// `{ ... }`
@@ -95,6 +105,15 @@ pub fn parse_class_block(
             break;
         };
         errors.clear();
+        match assert_token(tokens, pos, Token::Semicolon) {
+            Ok(npos) => {
+                pos = npos;
+                continue;
+            }
+            Err(e) => {
+                errors.push(("class semicolon".into(), e));
+            }
+        }
         match parse_class_variable(tokens, pos) {
             Ok((vars, npos)) => {
                 pos = npos;

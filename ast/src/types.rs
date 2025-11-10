@@ -465,6 +465,7 @@ pub struct AstBlockBreak {
 #[derive(Debug, Clone)]
 pub struct AstBlockContinue {
     pub range: AstRange,
+    pub label: Option<AstIdentifier>,
 }
 
 #[derive(Debug, Clone)]
@@ -552,6 +553,7 @@ pub struct AstInterface {
     pub methods: Vec<AstInterfaceMethod>,
     pub default_methods: Vec<AstInterfaceMethodDefault>,
     pub inner: Vec<AstThing>,
+    pub permits: Vec<AstJType>,
 }
 
 #[derive(Debug, Clone)]
@@ -819,11 +821,15 @@ pub struct AstEnumeration {
     pub attributes: AstThingAttributes,
     pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
+    pub implements: Vec<AstJType>,
+    pub permits: Vec<AstJType>,
+    pub superclass: AstSuperClass,
     pub variants: Vec<AstEnumerationVariant>,
     pub methods: Vec<AstClassMethod>,
     pub variables: Vec<AstClassVariable>,
     pub constructors: Vec<AstClassConstructor>,
     pub static_blocks: Vec<AstStaticBlock>,
+    pub inner: Vec<AstThing>,
 }
 #[derive(Debug, Clone)]
 pub struct AstEnumerationVariant {

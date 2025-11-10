@@ -1,11 +1,12 @@
 //! Parsing functions for enum
 use crate::{
     class::{
-        parse_class_constructor, parse_class_method, parse_class_variable, parse_static_block,
+        parse_class_constructor, parse_class_method, parse_class_variable,
+        parse_implemnets_extends_permits, parse_static_block,
     },
     error::{AstError, assert_semicolon, assert_token},
     lexer::{PositionToken, Token},
-    parse_expression_parameters, parse_identifier,
+    parse_expression_parameters, parse_identifier, parse_thing,
     types::{
         AstAnnotated, AstAvailability, AstEnumerationVariant, AstRange, AstThing,
         AstThingAttributes,
@@ -22,6 +23,7 @@ pub fn parse_enumeration(
 ) -> Result<(AstThing, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let (name, pos) = parse_identifier(tokens, pos)?;
+    let (superclass, implements, permits, pos) = parse_implemnets_extends_permits(tokens, pos)?;
     let mut errors = vec![];
     let pos = assert_token(tokens, pos, Token::LeftParenCurly)?;
     let mut pos = pos;
@@ -30,6 +32,7 @@ pub fn parse_enumeration(
     let mut variables = vec![];
     let mut constructors = vec![];
     let mut static_blocks = vec![];
+    let mut inner = vec![];
     let mut end_reached = false;
     loop {
         if let Ok(npos) = assert_token(tokens, pos, Token::Semicolon) {
@@ -100,6 +103,16 @@ pub fn parse_enumeration(
                     errors.push(("static block".into(), e));
                 }
             }
+            match parse_thing(tokens, pos) {
+                Ok((thing, npos)) => {
+                    pos = npos;
+                    inner.push(thing);
+                    continue;
+                }
+                Err(e) => {
+                    errors.push(("thing".into(), e));
+                }
+            }
             return Err(AstError::AllChildrenFailed {
                 parent: "enum".into(),
                 errors,
@@ -115,11 +128,15 @@ pub fn parse_enumeration(
             attributes,
             annotated,
             name,
+            superclass,
+            implements,
+            permits,
             variants,
             methods,
             constructors,
             variables,
             static_blocks,
+            inner,
         }),
         pos,
     ))

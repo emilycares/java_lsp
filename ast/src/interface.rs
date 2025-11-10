@@ -4,7 +4,7 @@ use crate::{
     error::{AstError, assert_token},
     lexer::{PositionToken, Token},
     parse_annotated_list, parse_avaliability, parse_block, parse_expression, parse_extends,
-    parse_identifier, parse_jtype, parse_method_header, parse_name, parse_thing,
+    parse_identifier, parse_jtype, parse_method_header, parse_name, parse_permits, parse_thing,
     parse_type_parameters,
     types::{
         AstAnnotated, AstAvailability, AstInterface, AstInterfaceConstant, AstInterfaceMethod,
@@ -29,9 +29,24 @@ pub fn parse_interface(
         type_parameters = Some(tp);
         pos = npos;
     }
-    if let Ok((tp, npos)) = parse_extends(tokens, pos) {
-        extends = Some(tp);
-        pos = npos;
+    let mut permits = vec![];
+    loop {
+        let token = tokens.get(pos).ok_or(AstError::eof())?;
+        match token.token {
+            Token::Extends => {
+                let (s, npos) = parse_extends(tokens, pos)?;
+                extends = Some(s);
+                pos = npos;
+                continue;
+            }
+            Token::Permits => {
+                let (i, npos) = parse_permits(tokens, pos)?;
+                permits = i;
+                pos = npos;
+                continue;
+            }
+            _ => break,
+        }
     }
     let pos = assert_token(tokens, pos, Token::LeftParenCurly)?;
     let mut errors = vec![];
@@ -105,6 +120,7 @@ pub fn parse_interface(
             name,
             type_parameters,
             extends,
+            permits,
             constants,
             methods,
             default_methods,

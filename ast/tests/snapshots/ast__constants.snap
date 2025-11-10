@@ -738,6 +738,7 @@ AstFile {
             ],
             default_methods: [],
             inner: [],
+            permits: [],
         },
     ),
 }

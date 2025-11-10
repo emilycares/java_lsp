@@ -1352,13 +1352,19 @@ fn parse_block_continue(
     pos: usize,
 ) -> Result<(AstBlockContinue, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
-    let pos = assert_token(tokens, pos, Token::Continue)?;
+    let mut pos = assert_token(tokens, pos, Token::Continue)?;
+    let mut label = None;
+    if let Ok((lab, npos)) = parse_name(tokens, pos) {
+        label = Some(lab);
+        pos = npos;
+    }
     let pos = assert_token(tokens, pos, Token::Semicolon)?;
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
 
     Ok((
         AstBlockContinue {
             range: AstRange::from_position_token(start, end),
+            label,
         },
         pos,
     ))
@@ -1646,6 +1652,7 @@ fn parse_block_brackets(
             break;
         };
         start_pos = pos;
+        pos = assert_semicolon(tokens, pos)?;
         match parse_block_entry(tokens, pos) {
             Ok((entry, npos)) => {
                 entries.push(entry);
@@ -2524,11 +2531,16 @@ pub fn parse_name(
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let value;
     let mut pos = pos;
-    if let Token::Identifier(i) = &start.token {
-        value = i.clone();
-        pos += 1;
-    } else {
-        return Err(AstError::InvalidName(InvalidToken::from(start, pos)));
+    match &start.token {
+        Token::Identifier(i) => {
+            value = i.clone();
+            pos += 1;
+        }
+        Token::Yield | Token::Record => {
+            value = start.token.to_string();
+            pos += 1;
+        }
+        _ => return Err(AstError::InvalidName(InvalidToken::from(start, pos))),
     }
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((

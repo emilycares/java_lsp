@@ -677,6 +677,7 @@ AstFile {
                 },
             ],
             inner: [],
+            permits: [],
         },
     ),
 }

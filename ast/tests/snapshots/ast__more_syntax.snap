@@ -6083,6 +6083,7 @@ AstFile {
                                                     col: 17,
                                                 },
                                             },
+                                            label: None,
                                         },
                                     ),
                                     TryCatch(
@@ -11840,11 +11841,11 @@ AstFile {
                                             range: AstRange {
                                                 start: AstPoint {
                                                     line: 122,
-                                                    col: 53,
+                                                    col: 52,
                                                 },
                                                 end: AstPoint {
                                                     line: 122,
-                                                    col: 95,
+                                                    col: 54,
                                                 },
                                             },
                                             value: Recursive(
@@ -11852,11 +11853,11 @@ AstFile {
                                                     range: AstRange {
                                                         start: AstPoint {
                                                             line: 122,
-                                                            col: 53,
+                                                            col: 52,
                                                         },
                                                         end: AstPoint {
                                                             line: 122,
-                                                            col: 95,
+                                                            col: 94,
                                                         },
                                                     },
                                                     ident: Some(
@@ -11867,7 +11868,7 @@ AstFile {
                                                                         range: AstRange {
                                                                             start: AstPoint {
                                                                                 line: 122,
-                                                                                col: 53,
+                                                                                col: 52,
                                                                             },
                                                                             end: AstPoint {
                                                                                 line: 121,

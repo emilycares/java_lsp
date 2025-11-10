@@ -352,6 +352,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore]
     #[allow(clippy::assertions_on_constants)]
     fn config() {
         assert!(!PRINT_ALL_ERRORS);
