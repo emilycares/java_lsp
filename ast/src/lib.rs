@@ -928,12 +928,6 @@ fn parse_expression_inner(
         }
         Err(e) => errors.push(("casted".into(), e)),
     }
-    match parse_jtype_expression(tokens, pos, expression_options) {
-        Ok((casted, pos)) => {
-            return Ok((AstExpression::JType(casted), pos));
-        }
-        Err(e) => errors.push(("casted".into(), e)),
-    }
     match parse_new_class(tokens, pos, expression_options) {
         Ok((new, pos)) => return Ok((AstExpression::NewClass(new), pos)),
         Err(e) => errors.push(("new class".into(), e)),
@@ -966,24 +960,6 @@ fn parse_casted_expression(
     let pos = assert_token(tokens, pos, Token::LeftParen)?;
     let (cast, pos) = parse_jtype(tokens, pos)?;
     let pos = assert_token(tokens, pos, Token::RightParen)?;
-    let (expression, pos) = parse_expression(tokens, pos, expression_options)?;
-    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
-    Ok((
-        AstCastedExpression {
-            range: AstRange::from_position_token(start, end),
-            cast,
-            expression: Box::new(expression),
-        },
-        pos,
-    ))
-}
-fn parse_jtype_expression(
-    tokens: &[PositionToken],
-    pos: usize,
-    expression_options: &ExpressionOptions,
-) -> Result<(AstCastedExpression, usize), AstError> {
-    let start = tokens.get(pos).ok_or(AstError::eof())?;
-    let (cast, pos) = parse_jtype(tokens, pos)?;
     let (expression, pos) = parse_expression(tokens, pos, expression_options)?;
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
     Ok((
@@ -1028,11 +1004,16 @@ pub fn parse_recursive_expression(
         }
         Token::LeftParenSquare => {
             pos += 1;
-            let (array_access_expr, npos) = parse_expression(tokens, pos, expression_options)?;
-            let npos = assert_token(tokens, npos, Token::RightParenSquare)?;
-            out.ident = Some(AstExpressionIdentifier::ArrayAccess(Box::new(
-                array_access_expr,
-            )));
+            if let Ok((array_access_expr, npos)) = parse_expression(tokens, pos, expression_options)
+            {
+                out.ident = Some(AstExpressionIdentifier::ArrayAccess(Box::new(
+                    array_access_expr,
+                )));
+                pos = npos;
+            } else {
+                out.ident = Some(AstExpressionIdentifier::EmptyArrayAccess);
+            }
+            let npos = assert_token(tokens, pos, Token::RightParenSquare)?;
             pos = npos;
             if let Ok((exp, npos)) = parse_expression(tokens, pos, expression_options) {
                 pos = npos;
@@ -1043,18 +1024,17 @@ pub fn parse_recursive_expression(
         }
         Token::LeftParen => {
             let values_start = tokens.get(pos).ok_or(AstError::eof())?;
-            if let Ok((vals, npos)) = parse_expression_parameters(tokens, pos) {
+            let (vals, npos) = parse_expression_parameters(tokens, pos)?;
+            pos = npos;
+            let values_end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+            out.values = Some(types::AstValues {
+                range: AstRange::from_position_token(values_start, values_end),
+                values: vals,
+            });
+            if let Ok((exp, npos)) = parse_expression(tokens, pos, expression_options) {
                 pos = npos;
-                let values_end = tokens.get(pos - 1).ok_or(AstError::eof())?;
-                out.values = Some(types::AstValues {
-                    range: AstRange::from_position_token(values_start, values_end),
-                    values: vals,
-                });
-                if let Ok((exp, npos)) = parse_expression(tokens, pos, expression_options) {
-                    pos = npos;
-                    if exp.has_content() {
-                        out.next = Some(Box::new(exp));
-                    }
+                if exp.has_content() {
+                    out.next = Some(Box::new(exp));
                 }
             }
         }
@@ -2053,9 +2033,16 @@ pub fn parse_for(tokens: &[PositionToken], pos: usize) -> Result<(AstFor, usize)
         changes = c;
         pos = npos;
     }
-    let content;
+    let mut content = AstForContent::None;
     let mut errors = vec![];
     'for_content: {
+        match assert_token(tokens, pos, Token::Semicolon) {
+            Ok(npos) => {
+                pos = npos;
+                break 'for_content;
+            }
+            Err(e) => errors.push(("semicolon".into(), e)),
+        }
         match parse_block(tokens, pos) {
             Ok((block, npos)) => {
                 content = AstForContent::Block(block);

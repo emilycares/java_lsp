@@ -377,3 +377,12 @@ fn class_colon_colon_new() {
     let parsed = parsed.unwrap();
     insta::assert_debug_snapshot!(parsed);
 }
+#[test]
+fn parmeter_class_function_pass() {
+    let content = r#"toArray(Class<?>[]::new)"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);
+    parsed.print_err(content);
+    let parsed = parsed.unwrap();
+    insta::assert_debug_snapshot!(parsed);
+}

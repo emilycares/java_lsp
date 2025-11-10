@@ -344,6 +344,7 @@ fn for_content_vars(
         AstForContent::BlockEntry(ast_block_entry) => {
             get_block_entry_vars(point, level, ast_block_entry, out)
         }
+        AstForContent::None => (),
     }
 }
 

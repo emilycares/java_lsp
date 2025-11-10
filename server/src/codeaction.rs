@@ -275,6 +275,7 @@ fn find_var_for_content<'a>(
     match content {
         AstForContent::Block(ast_block) => find_var_block(ast_block, point),
         AstForContent::BlockEntry(ast_block_entry) => find_var_block_entry(point, ast_block_entry),
+        AstForContent::None => None,
     }
 }
 

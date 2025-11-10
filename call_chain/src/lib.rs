@@ -426,6 +426,7 @@ fn cc_for_content(content: &AstForContent, point: &AstPoint, out: &mut Vec<CallI
     match content {
         AstForContent::Block(ast_block) => cc_block(ast_block, point, out),
         AstForContent::BlockEntry(ast_block_entry) => cc_block_entry(ast_block_entry, point, out),
+        AstForContent::None => (),
     }
 }
 fn cc_while_content(content: &AstWhileContent, point: &AstPoint, out: &mut Vec<CallItem>) {
@@ -722,6 +723,7 @@ fn ident_range(ident: &AstExpressionIdentifier) -> AstRange {
         },
         AstExpressionIdentifier::Value(ast_value) => fun_name(ast_value),
         AstExpressionIdentifier::ArrayAccess(expr) => *ast_expression_get_range(&expr),
+        AstExpressionIdentifier::EmptyArrayAccess => AstRange::default(),
     }
 }
 
@@ -832,7 +834,10 @@ fn cc_expr_ident(
         }
         AstExpressionIdentifier::Nuget(ast_value_nuget) => cc_value_nuget(ast_value_nuget, out),
         AstExpressionIdentifier::Value(ast_value) => cc_value(ast_value, point, out),
-        AstExpressionIdentifier::ArrayAccess(_ast_value) => todo!(),
+        AstExpressionIdentifier::ArrayAccess(arrayaccess) => {
+            cc_expr(&arrayaccess, point, has_parent, out)
+        }
+        AstExpressionIdentifier::EmptyArrayAccess => (),
     }
 }
 

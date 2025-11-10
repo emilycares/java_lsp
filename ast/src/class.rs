@@ -208,8 +208,6 @@ pub fn parse_class_variable(
     let start = tokens.get(pos).ok_or(AstError::eof())?;
     let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
     let (avaliability, pos) = parse_avaliability(tokens, pos)?;
-    let (annotated_after, pos) = parse_annotated_list(tokens, pos)?;
-    annotated.extend(annotated_after);
     let mut pos = pos;
     let mut static_final = AstStaticFinal::None;
     loop {
@@ -219,6 +217,12 @@ pub fn parse_class_variable(
             Token::Final => static_final |= AstStaticFinal::Final,
             Token::Volatile => static_final |= AstStaticFinal::Volatile,
             Token::Transient => static_final |= AstStaticFinal::Transient,
+            Token::At => {
+                let (annotated_after, npos) = parse_annotated_list(tokens, pos)?;
+                pos = npos;
+                annotated.extend(annotated_after);
+                continue;
+            }
             _ => break,
         }
         pos += 1;

@@ -104,6 +104,7 @@ impl AstInRange for &AstForContent {
         match self {
             AstForContent::Block(ast_block) => ast_block.range.is_in_range(point),
             AstForContent::BlockEntry(ast_block_entry) => (&**ast_block_entry).is_in_range(point),
+            AstForContent::None => false,
         }
     }
 }

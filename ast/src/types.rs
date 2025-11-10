@@ -376,6 +376,7 @@ pub enum AstIfContent {
 }
 #[derive(Debug, Clone)]
 pub enum AstForContent {
+    None,
     Block(AstBlock),
     BlockEntry(Box<AstBlockEntry>),
 }
@@ -666,6 +667,7 @@ pub enum AstExpressionIdentifier {
     Nuget(AstValueNuget),
     Value(AstValue),
     ArrayAccess(Box<AstExpression>),
+    EmptyArrayAccess,
 }
 
 #[derive(Debug, Clone)]

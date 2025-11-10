@@ -333,5 +333,6 @@ fn get_class_expression_identifier(
         AstExpressionIdentifier::Nuget(_ast_value_nuget) => None,
         AstExpressionIdentifier::Value(_ast_value) => None,
         AstExpressionIdentifier::ArrayAccess(_ast_value) => None,
+        AstExpressionIdentifier::EmptyArrayAccess => None,
     }
 }
