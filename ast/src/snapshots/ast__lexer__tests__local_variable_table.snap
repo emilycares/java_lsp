@@ -314,10 +314,10 @@ expression: tokens
     },
     PositionToken {
         token: Number(
-            1,
+            "1",
         ),
         line: 8,
-        col: 10,
+        col: 11,
     },
     PositionToken {
         token: Comma,
@@ -467,10 +467,10 @@ expression: tokens
     },
     PositionToken {
         token: Number(
-            1,
+            "1",
         ),
         line: 12,
-        col: 15,
+        col: 16,
     },
     PositionToken {
         token: Semicolon,

@@ -373,10 +373,10 @@ fn parse_value_nuget(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, 
         Token::Number(num) => {
             if let Ok(pos) = assert_token(tokens, pos + 1, Token::Dot) {
                 let current = tokens.get(pos).ok_or(AstError::eof())?;
-                if let Token::Number(n) = current.token {
+                if let Token::Number(n) = &current.token {
                     let value: f64 = format!("{num}.{n}")
                         .parse()
-                        .map_err(|_| AstError::InvalidDouble(*num, n))?;
+                        .map_err(|_| AstError::InvalidDouble(num.clone(), n.clone()))?;
                     let pos = pos + 1;
                     let current = tokens.get(pos).ok_or(AstError::eof())?;
                     match &current.token {
@@ -414,7 +414,7 @@ fn parse_value_nuget(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, 
                 return Ok((
                     AstValue::Nuget(AstValueNuget::Int(AstInt {
                         range: AstRange::from_position_token(start, start),
-                        value: *num,
+                        value: num.clone(),
                     })),
                     npos,
                 ));
@@ -422,7 +422,7 @@ fn parse_value_nuget(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, 
             Ok((
                 AstValue::Nuget(AstValueNuget::Int(AstInt {
                     range: AstRange::from_position_token(start, start),
-                    value: *num,
+                    value: num.clone(),
                 })),
                 pos + 1,
             ))
@@ -1000,15 +1000,17 @@ pub fn parse_recursive_expression(
     tokens: &[PositionToken],
     pos: usize,
     expression_options: &ExpressionOptions,
-) -> Result<(AstRecursiveExpression, usize), AstError> {
-    let mut ident = None;
-    let mut values = None;
-    let mut next = None;
-    let mut instance_of = None;
-    let mut operator = AstExpressionOperator::None;
-
-    let mut pos = pos;
+) -> Result<(Box<AstRecursiveExpression>, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let mut out = Box::new(AstRecursiveExpression {
+        range: AstRange::from_position_token(start, start),
+        ident: None,
+        next: None,
+        values: None,
+        operator: AstExpressionOperator::None,
+        instance_of: None,
+    });
+    let mut pos = pos;
     match start.token {
         Token::Semicolon => {
             return Err(AstError::InvalidExpression(InvalidToken::from(start, pos)));
@@ -1016,11 +1018,11 @@ pub fn parse_recursive_expression(
         Token::Identifier(_) | Token::Class | Token::This | Token::New => {
             let (id, npos) = parse_expression_lhs(tokens, pos)?;
             pos = npos;
-            ident = Some(AstExpressionIdentifier::Identifier(id));
+            out.ident = Some(AstExpressionIdentifier::Identifier(id));
             if let Ok((exp, npos)) = parse_expression(tokens, pos, expression_options) {
                 pos = npos;
                 if exp.has_content() {
-                    next = Some(Box::new(exp));
+                    out.next = Some(Box::new(exp));
                 }
             }
         }
@@ -1028,14 +1030,14 @@ pub fn parse_recursive_expression(
             pos += 1;
             let (array_access_expr, npos) = parse_expression(tokens, pos, expression_options)?;
             let npos = assert_token(tokens, npos, Token::RightParenSquare)?;
-            ident = Some(AstExpressionIdentifier::ArrayAccess(Box::new(
+            out.ident = Some(AstExpressionIdentifier::ArrayAccess(Box::new(
                 array_access_expr,
             )));
             pos = npos;
             if let Ok((exp, npos)) = parse_expression(tokens, pos, expression_options) {
                 pos = npos;
                 if exp.has_content() {
-                    next = Some(Box::new(exp));
+                    out.next = Some(Box::new(exp));
                 }
             }
         }
@@ -1044,14 +1046,14 @@ pub fn parse_recursive_expression(
             if let Ok((vals, npos)) = parse_expression_parameters(tokens, pos) {
                 pos = npos;
                 let values_end = tokens.get(pos - 1).ok_or(AstError::eof())?;
-                values = Some(types::AstValues {
+                out.values = Some(types::AstValues {
                     range: AstRange::from_position_token(values_start, values_end),
                     values: vals,
                 });
                 if let Ok((exp, npos)) = parse_expression(tokens, pos, expression_options) {
                     pos = npos;
                     if exp.has_content() {
-                        next = Some(Box::new(exp));
+                        out.next = Some(Box::new(exp));
                     }
                 }
             }
@@ -1059,12 +1061,12 @@ pub fn parse_recursive_expression(
         Token::InstanceOf => {
             pos += 1;
             let (jtype, npos) = parse_jtype(tokens, pos)?;
-            instance_of = Some(jtype);
+            out.instance_of = Some(jtype);
             pos = npos;
             if let Ok((exp, npos)) = parse_expression(tokens, pos, expression_options) {
                 pos = npos;
                 if exp.has_content() {
-                    next = Some(Box::new(exp));
+                    out.next = Some(Box::new(exp));
                 }
             }
         }
@@ -1080,21 +1082,21 @@ pub fn parse_recursive_expression(
                                     parse_expression(tokens, npos, expression_options)
                                 {
                                     pos = npos;
-                                    operator = op;
+                                    out.operator = op;
                                     if exp.has_content() {
-                                        next = Some(Box::new(exp));
+                                        out.next = Some(Box::new(exp));
                                     }
                                 }
                             }
                             _ => {
                                 pos = npos;
-                                operator = op;
+                                out.operator = op;
                                 if let Ok((exp, npos)) =
                                     parse_expression(tokens, pos, expression_options)
                                 {
                                     pos = npos;
                                     if exp.has_content() {
-                                        next = Some(Box::new(exp));
+                                        out.next = Some(Box::new(exp));
                                     }
                                 }
                             }
@@ -1106,11 +1108,11 @@ pub fn parse_recursive_expression(
                 match parse_value(tokens, pos) {
                     Ok((value, npos)) => {
                         pos = npos;
-                        ident = Some(AstExpressionIdentifier::Value(value));
+                        out.ident = Some(AstExpressionIdentifier::Value(value));
                         if let Ok((exp, npos)) = parse_expression(tokens, pos, expression_options) {
                             pos = npos;
                             if exp.has_content() {
-                                next = Some(Box::new(exp));
+                                out.next = Some(Box::new(exp));
                             }
                         }
                         break 'others;
@@ -1125,17 +1127,8 @@ pub fn parse_recursive_expression(
         }
     }
     let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
-    Ok((
-        AstRecursiveExpression {
-            range: AstRange::from_position_token(start, end),
-            ident,
-            next,
-            values,
-            operator,
-            instance_of,
-        },
-        pos,
-    ))
+    out.range = AstRange::from_position_token(start, end);
+    Ok((out, pos))
 }
 
 fn parse_expression_lhs(
@@ -1677,7 +1670,6 @@ fn parse_block_brackets(
             Ok((entry, npos)) => {
                 entries.push(entry);
                 pos = npos;
-                dbg!(tokens.get(pos));
             }
             Err(e) => {
                 return Err(e);
@@ -1718,6 +1710,14 @@ fn parse_block_entry_options(
     block_entry_options: &BlockEntryOptions,
 ) -> Result<(AstBlockEntry, usize), AstError> {
     let mut errors = vec![];
+    match parse_block(tokens, pos) {
+        Ok((block, pos)) => {
+            return Ok((AstBlockEntry::Block(block), pos));
+        }
+        Err(e) => {
+            errors.push(("block block".into(), e));
+        }
+    }
     match parse_block_variable_options(tokens, pos, block_entry_options) {
         Ok((vars, pos)) => {
             return Ok((AstBlockEntry::Variable(vars), pos));

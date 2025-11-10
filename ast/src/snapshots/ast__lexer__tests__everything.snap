@@ -287,10 +287,10 @@ expression: tokens
     },
     PositionToken {
         token: Number(
-            0,
+            "0",
         ),
         line: 20,
-        col: 15,
+        col: 16,
     },
     PositionToken {
         token: Semicolon,

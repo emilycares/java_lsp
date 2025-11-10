@@ -37,7 +37,11 @@ pub fn ast_check(file: PathBuf) {
                     let lex_time = before_lex.elapsed();
                     eprintln!("Here: {:?}", file);
 
-                    print!("Timings: [lexer: {:.2?}]", lex_time);
+                    print!(
+                        "Timings: [lexer: {:.2?}, tokens_len: {}]",
+                        lex_time,
+                        tokens.len()
+                    );
                     let before_ast = Instant::now();
                     let ast = ast::parse_file(&tokens);
                     let ast_time = before_ast.elapsed();

@@ -1,0 +1,26 @@
+---
+source: call_chain/tests/base.rs
+assertion_line: 463
+expression: out
+---
+[
+    ArgumentList {
+        prev: [],
+        active_param: Some(
+            0,
+        ),
+        filled_params: [
+            [],
+        ],
+        range: AstRange {
+            start: AstPoint {
+                line: 4,
+                col: 14,
+            },
+            end: AstPoint {
+                line: 4,
+                col: 34,
+            },
+        },
+    },
+]

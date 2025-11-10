@@ -264,6 +264,7 @@ fn find_var_block_entry<'a>(
         AstBlockEntry::SynchronizedBlock(_ast_synchronized_block) => todo!(),
         AstBlockEntry::SwitchCaseArrowDefault(_ast_switch_case_arrow_default) => todo!(),
         AstBlockEntry::Thing(_ast_thing) => todo!(),
+        AstBlockEntry::Block(ast_block) => find_var_block(ast_block, point),
     }
 }
 

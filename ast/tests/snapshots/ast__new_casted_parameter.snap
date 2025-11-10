@@ -48,11 +48,11 @@ expression: parsed
                         range: AstRange {
                             start: AstPoint {
                                 line: 0,
-                                col: 17,
+                                col: 19,
                             },
                             end: AstPoint {
                                 line: 0,
-                                col: 19,
+                                col: 21,
                             },
                         },
                         ident: Some(
@@ -63,14 +63,14 @@ expression: parsed
                                             range: AstRange {
                                                 start: AstPoint {
                                                     line: 0,
-                                                    col: 17,
+                                                    col: 19,
                                                 },
                                                 end: AstPoint {
                                                     line: 0,
-                                                    col: 19,
+                                                    col: 21,
                                                 },
                                             },
-                                            value: 10,
+                                            value: "10",
                                         },
                                     ),
                                 ),
@@ -91,7 +91,7 @@ expression: parsed
                             },
                             end: AstPoint {
                                 line: 0,
-                                col: 32,
+                                col: 35,
                             },
                         },
                         cast: AstJType {
@@ -112,11 +112,11 @@ expression: parsed
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 0,
-                                        col: 29,
+                                        col: 30,
                                     },
                                     end: AstPoint {
                                         line: 0,
-                                        col: 32,
+                                        col: 35,
                                     },
                                 },
                                 ident: Some(
@@ -127,11 +127,11 @@ expression: parsed
                                                     range: AstRange {
                                                         start: AstPoint {
                                                             line: 0,
-                                                            col: 29,
+                                                            col: 30,
                                                         },
                                                         end: AstPoint {
                                                             line: 0,
-                                                            col: 30,
+                                                            col: 31,
                                                         },
                                                     },
                                                     value: 3.0,

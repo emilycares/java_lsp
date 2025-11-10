@@ -49,39 +49,46 @@ expression: parsed.unwrap()
                     },
                     ident: Some(
                         ArrayAccess(
-                            AstRecursiveExpression {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 0,
-                                        col: 7,
-                                    },
-                                    end: AstPoint {
-                                        line: 0,
-                                        col: 10,
-                                    },
-                                },
-                                ident: Some(
-                                    Identifier(
-                                        AstIdentifier {
-                                            range: AstRange {
-                                                start: AstPoint {
-                                                    line: 0,
-                                                    col: 7,
-                                                },
-                                                end: AstPoint {
-                                                    line: 0,
-                                                    col: 8,
-                                                },
-                                            },
-                                            value: "i",
+                            JType(
+                                AstCastedExpression {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 0,
+                                            col: 7,
                                         },
-                                    ),
-                                ),
-                                values: None,
-                                operator: None,
-                                instance_of: None,
-                                next: Some(
-                                    Recursive(
+                                        end: AstPoint {
+                                            line: 0,
+                                            col: 10,
+                                        },
+                                    },
+                                    cast: AstJType {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 0,
+                                                col: 7,
+                                            },
+                                            end: AstPoint {
+                                                line: 0,
+                                                col: 8,
+                                            },
+                                        },
+                                        value: Class(
+                                            AstIdentifier {
+                                                range: AstRange {
+                                                    start: AstPoint {
+                                                        line: 0,
+                                                        col: 7,
+                                                    },
+                                                    end: AstPoint {
+                                                        line: 0,
+                                                        col: 8,
+                                                    },
+                                                },
+                                                value: "i",
+                                            },
+                                        ),
+                                    },
+                                    expression: Recursive(
                                         AstRecursiveExpression {
                                             range: AstRange {
                                                 start: AstPoint {
@@ -111,8 +118,8 @@ expression: parsed.unwrap()
                                             next: None,
                                         },
                                     ),
-                                ),
-                            },
+                                },
+                            ),
                         ),
                     ),
                     values: None,

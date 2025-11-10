@@ -117,6 +117,7 @@ pub struct AstRecord {
     pub attributes: AstThingAttributes,
     pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
+    pub type_parameters: Option<AstTypeParameters>,
     pub record_entries: AstRecordEntries,
     pub superclass: AstSuperClass,
     pub implements: Vec<AstJType>,
@@ -241,6 +242,7 @@ pub enum AstBlockEntry {
     Yield(AstBlockYield),
     SynchronizedBlock(AstSynchronizedBlock),
     Thing(Box<AstThing>),
+    Block(AstBlock),
 }
 impl AstBlockEntry {
     pub fn get_range(&self) -> AstRange {
@@ -288,13 +290,14 @@ impl AstBlockEntry {
                 ast_switch_case_arrow_default.range
             }
             AstBlockEntry::Thing(ast_thing) => ast_thing.get_range(),
+            AstBlockEntry::Block(ast_block) => ast_block.range,
         }
     }
 }
 #[derive(Debug, Clone)]
 pub struct AstWhile {
     pub range: AstRange,
-    pub control: AstRecursiveExpression,
+    pub control: Box<AstRecursiveExpression>,
     pub content: AstWhileContent,
     pub label: Option<AstIdentifier>,
 }
@@ -404,7 +407,7 @@ pub struct AstTryCatchCase {
 #[derive(Debug, Clone)]
 pub struct AstBlockAssign {
     pub range: AstRange,
-    pub key: AstRecursiveExpression,
+    pub key: Box<AstRecursiveExpression>,
     pub expression: AstExpression,
 }
 #[derive(Debug, Clone)]
@@ -495,7 +498,7 @@ impl From<&AstIdentifier> for SmolStr {
 #[derive(Debug, Clone)]
 pub struct AstInt {
     pub range: AstRange,
-    pub value: i64,
+    pub value: SmolStr,
 }
 #[derive(Debug, Clone)]
 pub struct AstDouble {
@@ -616,7 +619,7 @@ pub enum AstValueNuget {
 #[derive(Debug, Clone)]
 pub enum AstExpression {
     Casted(AstCastedExpression),
-    Recursive(AstRecursiveExpression),
+    Recursive(Box<AstRecursiveExpression>),
     Lambda(AstLambda),
     InlineSwitch(AstSwitch),
     NewClass(AstNewClass),

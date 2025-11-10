@@ -241,7 +241,7 @@ pub enum Token {
     /// \r
     CharLiteral(SmolStr),
     /// 123
-    Number(i64),
+    Number(SmolStr),
     /// (
     LeftParen,
     /// )
@@ -898,7 +898,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                 }
             }
             '0'..='9' => {
-                let mut string = String::new();
+                let mut string = SmolStrBuilder::new();
                 loop {
                     let Some(ch) = chars.get(index) else {
                         break;
@@ -910,14 +910,14 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                     };
                     index += 1;
                 }
-                let n: i64 = string.parse().unwrap();
+                let string = string.finish();
 
+                col += string.len();
                 tokens.push(PositionToken {
-                    token: Token::Number(n),
+                    token: Token::Number(string),
                     line,
                     col,
                 });
-                col += string.len();
                 continue;
             }
             'A'..='Z' | 'a'..='z' | '_' | '$' => {

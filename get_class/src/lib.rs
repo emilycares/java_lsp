@@ -122,6 +122,11 @@ fn get_class_block(block: &AstBlock, point: &AstPoint) -> Option<FoundClass> {
                     return Some(o);
                 }
             }
+            AstBlockEntry::Block(ast_block) => {
+                if let Some(o) = get_class_block(ast_block, point) {
+                    return Some(o);
+                }
+            }
         }
     }
     None

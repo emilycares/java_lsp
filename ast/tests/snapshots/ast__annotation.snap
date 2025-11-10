@@ -31,6 +31,16 @@ AstFile {
     },
     thing: Annotation(
         AstAnnotation {
+            range: AstRange {
+                start: AstPoint {
+                    line: 1,
+                    col: 8,
+                },
+                end: AstPoint {
+                    line: 4,
+                    col: 1,
+                },
+            },
             avaliability: AstAvailability(
                 Public,
             ),
@@ -96,14 +106,14 @@ AstFile {
                                     range: AstRange {
                                         start: AstPoint {
                                             line: 2,
-                                            col: 24,
+                                            col: 25,
                                         },
                                         end: AstPoint {
                                             line: 2,
-                                            col: 25,
+                                            col: 26,
                                         },
                                     },
-                                    value: 0,
+                                    value: "0",
                                 },
                             ),
                         ),

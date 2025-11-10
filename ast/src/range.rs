@@ -73,6 +73,7 @@ impl AstInRange for &AstBlockEntry {
                 ast_switch_case_arrow_default.range.is_in_range(point)
             }
             AstBlockEntry::Thing(ast_thing) => ast_thing.get_range().is_in_range(point),
+            AstBlockEntry::Block(ast_block) => ast_block.range.is_in_range(point),
         }
     }
 }

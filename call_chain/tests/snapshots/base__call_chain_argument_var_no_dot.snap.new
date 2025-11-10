@@ -1,0 +1,53 @@
+---
+source: call_chain/tests/base.rs
+assertion_line: 360
+expression: out
+---
+[
+    ArgumentList {
+        prev: [],
+        active_param: Some(
+            0,
+        ),
+        filled_params: [
+            [
+                ClassOrVariable {
+                    name: "local",
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 5,
+                            col: 21,
+                        },
+                        end: AstPoint {
+                            line: 5,
+                            col: 26,
+                        },
+                    },
+                },
+            ],
+        ],
+        range: AstRange {
+            start: AstPoint {
+                line: 5,
+                col: 20,
+            },
+            end: AstPoint {
+                line: 5,
+                col: 28,
+            },
+        },
+    },
+    ClassOrVariable {
+        name: "local",
+        range: AstRange {
+            start: AstPoint {
+                line: 5,
+                col: 21,
+            },
+            end: AstPoint {
+                line: 5,
+                col: 26,
+            },
+        },
+    },
+]

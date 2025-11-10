@@ -61,6 +61,7 @@
               [
                 javaPackages.compiler.temurin-bin.jdk-25
                 lld_21
+                gdb
                 hyperfine
                 cargo-flamegraph
                 cargo-nextest

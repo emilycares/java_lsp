@@ -1,6 +1,5 @@
 ---
 source: ast/tests/ast.rs
-assertion_line: 378
 expression: parsed
 ---
 (

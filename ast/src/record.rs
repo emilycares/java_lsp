@@ -3,7 +3,7 @@ use crate::{
     class::parse_class_block,
     error::{AstError, assert_token},
     lexer::{PositionToken, Token},
-    parse_implements, parse_jtype, parse_name, parse_superclass,
+    parse_implements, parse_jtype, parse_name, parse_superclass, parse_type_parameters,
     types::{
         AstAnnotated, AstAvailability, AstRange, AstRecord, AstRecordEntries, AstRecordEntry,
         AstThing, AstThingAttributes,
@@ -19,7 +19,12 @@ pub fn parse_record(
     annotated: Vec<AstAnnotated>,
 ) -> Result<(AstThing, usize), AstError> {
     let start = tokens.get(pos).ok_or(AstError::eof())?;
-    let (name, pos) = parse_name(tokens, pos)?;
+    let (name, mut pos) = parse_name(tokens, pos)?;
+    let mut type_parameters = None;
+    if let Ok((type_params, npos)) = parse_type_parameters(tokens, pos) {
+        type_parameters = Some(type_params);
+        pos = npos;
+    };
     let (record_entries, pos) = parse_record_entires(tokens, pos)?;
     let (implements, pos) = parse_implements(tokens, pos)?;
     let (superclass, pos) = parse_superclass(tokens, pos)?;
@@ -32,6 +37,7 @@ pub fn parse_record(
             attributes,
             annotated,
             name,
+            type_parameters,
             record_entries,
             superclass,
             implements,

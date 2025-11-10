@@ -358,6 +358,7 @@ fn cc_block_entry(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIte
             cc_swtich_case_arrow_content(&ast_switch_case_arrow_default.content, point, out)
         }
         AstBlockEntry::Thing(ast_thing) => cc_thing(ast_thing, point, out),
+        AstBlockEntry::Block(ast_block) => cc_block(ast_block, point, out),
     }
 }
 

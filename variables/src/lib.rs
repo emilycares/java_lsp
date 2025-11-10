@@ -173,6 +173,7 @@ fn get_block_entry_vars(
             switch_case_arrow_content(&ast_switch_case_arrow.content, level, point, out)
         }
         AstBlockEntry::Thing(ast_thing) => get_vars_thing(&ast_thing, point, out, level),
+        AstBlockEntry::Block(ast_block) => get_block_vars(ast_block, point, level, out),
     }
 }
 

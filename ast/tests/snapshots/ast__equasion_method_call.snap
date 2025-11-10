@@ -67,8 +67,8 @@ expression: parsed.unwrap()
                     ),
                     instance_of: None,
                     next: Some(
-                        Recursive(
-                            AstRecursiveExpression {
+                        JType(
+                            AstCastedExpression {
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 0,
@@ -79,9 +79,19 @@ expression: parsed.unwrap()
                                         col: 18,
                                     },
                                 },
-                                ident: Some(
-                                    Identifier(
-                                        AstIdentifier {
+                                cast: AstJType {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 0,
+                                            col: 6,
+                                        },
+                                        end: AstPoint {
+                                            line: 0,
+                                            col: 16,
+                                        },
+                                    },
+                                    value: Access {
+                                        ident: AstIdentifier {
                                             range: AstRange {
                                                 start: AstPoint {
                                                     line: 0,
@@ -94,112 +104,67 @@ expression: parsed.unwrap()
                                             },
                                             value: "a",
                                         },
-                                    ),
-                                ),
-                                values: None,
-                                operator: None,
-                                instance_of: None,
-                                next: Some(
-                                    Recursive(
-                                        AstRecursiveExpression {
+                                        inner: AstJType {
                                             range: AstRange {
                                                 start: AstPoint {
                                                     line: 0,
-                                                    col: 7,
+                                                    col: 8,
                                                 },
                                                 end: AstPoint {
                                                     line: 0,
-                                                    col: 18,
+                                                    col: 16,
                                                 },
                                             },
-                                            ident: None,
-                                            values: None,
-                                            operator: Dot(
-                                                AstRange {
+                                            value: Class(
+                                                AstIdentifier {
+                                                    range: AstRange {
+                                                        start: AstPoint {
+                                                            line: 0,
+                                                            col: 8,
+                                                        },
+                                                        end: AstPoint {
+                                                            line: 0,
+                                                            col: 16,
+                                                        },
+                                                    },
+                                                    value: "getThing",
+                                                },
+                                            ),
+                                        },
+                                    },
+                                },
+                                expression: Recursive(
+                                    AstRecursiveExpression {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 0,
+                                                col: 16,
+                                            },
+                                            end: AstPoint {
+                                                line: 0,
+                                                col: 18,
+                                            },
+                                        },
+                                        ident: None,
+                                        values: Some(
+                                            AstValues {
+                                                range: AstRange {
                                                     start: AstPoint {
                                                         line: 0,
-                                                        col: 7,
+                                                        col: 16,
                                                     },
                                                     end: AstPoint {
                                                         line: 0,
-                                                        col: 8,
+                                                        col: 18,
                                                     },
                                                 },
-                                            ),
-                                            instance_of: None,
-                                            next: Some(
-                                                Recursive(
-                                                    AstRecursiveExpression {
-                                                        range: AstRange {
-                                                            start: AstPoint {
-                                                                line: 0,
-                                                                col: 8,
-                                                            },
-                                                            end: AstPoint {
-                                                                line: 0,
-                                                                col: 18,
-                                                            },
-                                                        },
-                                                        ident: Some(
-                                                            Identifier(
-                                                                AstIdentifier {
-                                                                    range: AstRange {
-                                                                        start: AstPoint {
-                                                                            line: 0,
-                                                                            col: 8,
-                                                                        },
-                                                                        end: AstPoint {
-                                                                            line: 0,
-                                                                            col: 16,
-                                                                        },
-                                                                    },
-                                                                    value: "getThing",
-                                                                },
-                                                            ),
-                                                        ),
-                                                        values: None,
-                                                        operator: None,
-                                                        instance_of: None,
-                                                        next: Some(
-                                                            Recursive(
-                                                                AstRecursiveExpression {
-                                                                    range: AstRange {
-                                                                        start: AstPoint {
-                                                                            line: 0,
-                                                                            col: 16,
-                                                                        },
-                                                                        end: AstPoint {
-                                                                            line: 0,
-                                                                            col: 18,
-                                                                        },
-                                                                    },
-                                                                    ident: None,
-                                                                    values: Some(
-                                                                        AstValues {
-                                                                            range: AstRange {
-                                                                                start: AstPoint {
-                                                                                    line: 0,
-                                                                                    col: 16,
-                                                                                },
-                                                                                end: AstPoint {
-                                                                                    line: 0,
-                                                                                    col: 18,
-                                                                                },
-                                                                            },
-                                                                            values: [],
-                                                                        },
-                                                                    ),
-                                                                    operator: None,
-                                                                    instance_of: None,
-                                                                    next: None,
-                                                                },
-                                                            ),
-                                                        ),
-                                                    },
-                                                ),
-                                            ),
-                                        },
-                                    ),
+                                                values: [],
+                                            },
+                                        ),
+                                        operator: None,
+                                        instance_of: None,
+                                        next: None,
+                                    },
                                 ),
                             },
                         ),

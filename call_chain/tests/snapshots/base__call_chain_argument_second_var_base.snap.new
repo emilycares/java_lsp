@@ -1,0 +1,41 @@
+---
+source: call_chain/tests/base.rs
+assertion_line: 388
+expression: out
+---
+[
+    ArgumentList {
+        prev: [],
+        active_param: Some(
+            1,
+        ),
+        filled_params: [
+            [
+                ClassOrVariable {
+                    name: "b",
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 5,
+                            col: 17,
+                        },
+                        end: AstPoint {
+                            line: 5,
+                            col: 18,
+                        },
+                    },
+                },
+            ],
+            [],
+        ],
+        range: AstRange {
+            start: AstPoint {
+                line: 5,
+                col: 16,
+            },
+            end: AstPoint {
+                line: 5,
+                col: 24,
+            },
+        },
+    },
+]

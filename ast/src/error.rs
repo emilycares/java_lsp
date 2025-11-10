@@ -4,7 +4,7 @@ use crate::BlockEntryOptions;
 use smol_str::{SmolStr, format_smolstr};
 use std::panic::Location;
 
-const PRINT_ALL_ERRORS: bool = true;
+const PRINT_ALL_ERRORS: bool = false;
 
 /// Fancy log ast error
 pub trait PrintErr {
@@ -50,7 +50,7 @@ pub enum AstError {
     /// Invalid token in Expression
     InvalidExpression(InvalidToken),
     /// Invalid token in Double
-    InvalidDouble(i64, i64),
+    InvalidDouble(SmolStr, SmolStr),
     /// Invalid token in Boolean
     InvalidBoolean(InvalidToken),
     /// Invalid string literal
@@ -261,6 +261,9 @@ pub fn assert_token(
     pos: usize,
     expected: Token,
 ) -> Result<usize, AstError> {
+    if pos > tokens.len() {
+        return Err(AstError::eof());
+    }
     let t = tokens.get(pos).ok_or(AstError::eof())?;
     if t.token != expected {
         return Err(AstError::ExpectedToken(ExpectedToken::from(
