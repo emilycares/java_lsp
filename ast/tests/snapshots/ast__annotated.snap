@@ -1109,6 +1109,7 @@ AstFile {
                 constructors: [],
                 static_blocks: [],
                 inner: [],
+                blocks: [],
             },
         },
     ),

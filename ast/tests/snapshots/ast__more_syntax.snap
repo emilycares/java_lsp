@@ -859,7 +859,7 @@ AstFile {
                                                                                     },
                                                                                     end: AstPoint {
                                                                                         line: 13,
-                                                                                        col: 29,
+                                                                                        col: 26,
                                                                                     },
                                                                                 },
                                                                             ),
@@ -1180,7 +1180,7 @@ AstFile {
                                                                                     },
                                                                                     end: AstPoint {
                                                                                         line: 15,
-                                                                                        col: 36,
+                                                                                        col: 33,
                                                                                     },
                                                                                 },
                                                                             ),
@@ -3444,8 +3444,8 @@ AstFile {
                                                                 col: 8,
                                                             },
                                                             end: AstPoint {
-                                                                line: 27,
-                                                                col: 11,
+                                                                line: 26,
+                                                                col: 38,
                                                             },
                                                         },
                                                     ),
@@ -3524,8 +3524,8 @@ AstFile {
                                                                 col: 8,
                                                             },
                                                             end: AstPoint {
-                                                                line: 28,
-                                                                col: 11,
+                                                                line: 27,
+                                                                col: 12,
                                                             },
                                                         },
                                                     ),
@@ -4506,7 +4506,7 @@ AstFile {
                                                                         },
                                                                         end: AstPoint {
                                                                             line: 36,
-                                                                            col: 20,
+                                                                            col: 12,
                                                                         },
                                                                     },
                                                                 ),
@@ -4571,7 +4571,7 @@ AstFile {
                                                                                                 },
                                                                                                 end: AstPoint {
                                                                                                     line: 36,
-                                                                                                    col: 29,
+                                                                                                    col: 20,
                                                                                                 },
                                                                                             },
                                                                                         ),
@@ -4839,7 +4839,7 @@ AstFile {
                                                                                                         },
                                                                                                         end: AstPoint {
                                                                                                             line: 38,
-                                                                                                            col: 23,
+                                                                                                            col: 14,
                                                                                                         },
                                                                                                     },
                                                                                                 ),
@@ -10587,8 +10587,8 @@ AstFile {
                                                                                                         col: 16,
                                                                                                     },
                                                                                                     end: AstPoint {
-                                                                                                        line: 105,
-                                                                                                        col: 13,
+                                                                                                        line: 104,
+                                                                                                        col: 32,
                                                                                                     },
                                                                                                 },
                                                                                                 expression: Expression(
@@ -10709,8 +10709,8 @@ AstFile {
                                                                                                         col: 16,
                                                                                                     },
                                                                                                     end: AstPoint {
-                                                                                                        line: 108,
-                                                                                                        col: 13,
+                                                                                                        line: 107,
+                                                                                                        col: 32,
                                                                                                     },
                                                                                                 },
                                                                                                 expression: Expression(
@@ -10866,8 +10866,8 @@ AstFile {
                                                                                                         col: 16,
                                                                                                     },
                                                                                                     end: AstPoint {
-                                                                                                        line: 111,
-                                                                                                        col: 13,
+                                                                                                        line: 110,
+                                                                                                        col: 36,
                                                                                                     },
                                                                                                 },
                                                                                                 expression: Expression(
@@ -11466,6 +11466,7 @@ AstFile {
                                                                     constructors: [],
                                                                     static_blocks: [],
                                                                     inner: [],
+                                                                    blocks: [],
                                                                 },
                                                             ),
                                                             next: None,
@@ -11762,7 +11763,7 @@ AstFile {
                                                                                                                                                                 },
                                                                                                                                                                 end: AstPoint {
                                                                                                                                                                     line: 121,
-                                                                                                                                                                    col: 49,
+                                                                                                                                                                    col: 42,
                                                                                                                                                                 },
                                                                                                                                                             },
                                                                                                                                                         ),
@@ -11912,6 +11913,7 @@ AstFile {
                 constructors: [],
                 static_blocks: [],
                 inner: [],
+                blocks: [],
             },
         },
     ),

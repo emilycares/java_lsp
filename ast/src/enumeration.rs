@@ -4,7 +4,7 @@ use crate::{
         parse_class_constructor, parse_class_method, parse_class_variable,
         parse_implemnets_extends_permits, parse_static_block,
     },
-    error::{AstError, assert_semicolon, assert_token},
+    error::{AstError, GetStartEnd, assert_semicolon, assert_token},
     lexer::{PositionToken, Token},
     parse_expression_parameters, parse_identifier, parse_thing,
     types::{
@@ -21,7 +21,7 @@ pub fn parse_enumeration(
     attributes: AstThingAttributes,
     annotated: Vec<AstAnnotated>,
 ) -> Result<(AstThing, usize), AstError> {
-    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let start = tokens.start(pos)?;
     let (name, pos) = parse_identifier(tokens, pos)?;
     let (superclass, implements, permits, pos) = parse_implemnets_extends_permits(tokens, pos)?;
     let mut errors = vec![];
@@ -120,7 +120,7 @@ pub fn parse_enumeration(
         }
     }
     let pos = assert_semicolon(tokens, pos)?;
-    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    let end = tokens.end(pos)?;
     Ok((
         AstThing::Enumeration(crate::types::AstEnumeration {
             range: AstRange::from_position_token(start, end),
@@ -147,14 +147,14 @@ pub fn parse_enum_variant(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstEnumerationVariant, usize), AstError> {
-    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let start = tokens.start(pos)?;
     let (name, mut pos) = parse_identifier(tokens, pos)?;
     let mut parameters = vec![];
     if let Ok((p, npos)) = parse_expression_parameters(tokens, pos) {
         parameters = p;
         pos = npos;
     }
-    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    let end = tokens.end(pos)?;
     Ok((
         AstEnumerationVariant {
             range: AstRange::from_position_token(start, end),

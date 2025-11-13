@@ -348,7 +348,7 @@ AstFile {
                                             },
                                             end: AstPoint {
                                                 line: 6,
-                                                col: 7,
+                                                col: 6,
                                             },
                                         },
                                         name: AstIdentifier {
@@ -533,7 +533,7 @@ AstFile {
                                             },
                                             end: AstPoint {
                                                 line: 8,
-                                                col: 20,
+                                                col: 19,
                                             },
                                         },
                                         name: AstIdentifier {

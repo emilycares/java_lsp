@@ -303,10 +303,15 @@ fn get_class_jtype(jtype: &AstJType, point: &AstPoint) -> Option<FoundClass> {
             }
             None
         }
-        AstJTypeKind::Access { ident, inner: _ } => Some(FoundClass {
-            name: ident.value.to_string(),
-            range: ident.range,
-        }),
+        AstJTypeKind::Access { base, inner } => {
+            if let Some(j) = get_class_jtype(base, point) {
+                return Some(j);
+            }
+            if let Some(j) = get_class_jtype(inner, point) {
+                return Some(j);
+            }
+            None
+        }
     }
 }
 

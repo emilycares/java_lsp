@@ -103,7 +103,7 @@ expression: parsed
                                                         },
                                                         end: AstPoint {
                                                             line: 0,
-                                                            col: 15,
+                                                            col: 10,
                                                         },
                                                     },
                                                 ),

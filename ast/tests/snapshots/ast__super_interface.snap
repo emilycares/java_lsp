@@ -191,7 +191,7 @@ AstFile {
                                 },
                                 end: AstPoint {
                                     line: 8,
-                                    col: 34,
+                                    col: 33,
                                 },
                             },
                             name: AstIdentifier {

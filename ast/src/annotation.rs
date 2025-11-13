@@ -1,6 +1,6 @@
 //! Parsing functions for defining annotation
 use crate::{
-    error::{AstError, assert_token},
+    error::{AstError, GetStartEnd, assert_token},
     lexer::{PositionToken, Token},
     parse_jtype, parse_name, parse_name_single, parse_value,
     types::{
@@ -17,18 +17,17 @@ pub fn parse_annotation(
     attributes: AstThingAttributes,
     annotated: Vec<AstAnnotated>,
 ) -> Result<(AstThing, usize), AstError> {
-    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let start = tokens.start(pos)?;
     let pos = assert_token(tokens, pos, Token::Interface)?;
     let (name, pos) = parse_name_single(tokens, pos)?;
     let pos = assert_token(tokens, pos, Token::LeftParenCurly)?;
     let mut pos = pos;
     let mut errors = vec![];
     let mut fields = vec![];
+    let mut start_pos;
     loop {
+        start_pos = pos;
         errors.clear();
-        if tokens.get(pos).is_none() {
-            break;
-        }
         if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
             pos = npos;
             break;
@@ -43,12 +42,16 @@ pub fn parse_annotation(
                 errors.push(("interface_constant".into(), e));
             }
         }
+        if pos == start_pos {
+            eprintln!("No annotation field was parsed: {:?}", tokens.get(pos));
+            break;
+        }
         return Err(AstError::AllChildrenFailed {
             parent: "annotation".into(),
             errors,
         });
     }
-    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    let end = tokens.end(pos)?;
     Ok((
         AstThing::Annotation(AstAnnotation {
             range: AstRange::from_position_token(start, end),
@@ -80,7 +83,7 @@ pub fn parse_annotation_field(
         value = Some(v);
     }
     let pos = assert_token(tokens, pos, Token::Semicolon)?;
-    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    let end = tokens.end(pos)?;
     Ok((
         AstAnnotationField {
             range: AstRange::from_position_token(start, end),

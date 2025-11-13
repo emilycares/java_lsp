@@ -140,6 +140,7 @@ pub struct AstClassBlock {
     pub constructors: Vec<AstClassConstructor>,
     pub static_blocks: Vec<AstStaticBlock>,
     pub inner: Vec<AstThing>,
+    pub blocks: Vec<AstBlock>,
 }
 bitflags! {
    #[derive(PartialEq, Debug, Clone)]
@@ -600,7 +601,7 @@ pub enum AstJTypeKind {
     /// Untyped variable
     Var,
     Access {
-        ident: AstIdentifier,
+        base: Box<AstJType>,
         inner: Box<AstJType>,
     },
 }

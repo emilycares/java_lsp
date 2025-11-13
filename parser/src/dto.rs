@@ -248,7 +248,7 @@ impl From<&AstJType> for JType {
             ),
             AstJTypeKind::Parameter(ast_identifier) => JType::Parameter(ast_identifier.into()),
             AstJTypeKind::Var => JType::Var,
-            AstJTypeKind::Access { ident: _, inner: _ } => todo!(),
+            AstJTypeKind::Access { base: _, inner: _ } => todo!(),
         }
     }
 }
@@ -273,7 +273,7 @@ impl From<AstJType> for JType {
             ),
             AstJTypeKind::Parameter(ast_identifier) => JType::Parameter(ast_identifier.into()),
             AstJTypeKind::Var => Self::Var,
-            AstJTypeKind::Access { ident: _, inner: _ } => todo!(),
+            AstJTypeKind::Access { base: _, inner: _ } => todo!(),
         }
     }
 }

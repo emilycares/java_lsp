@@ -104,7 +104,7 @@ expression: parsed.unwrap()
                                                         },
                                                         end: AstPoint {
                                                             line: 0,
-                                                            col: 11,
+                                                            col: 8,
                                                         },
                                                     },
                                                 ),

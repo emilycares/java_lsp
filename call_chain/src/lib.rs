@@ -616,11 +616,8 @@ fn cc_jtype(jtype: &AstJType, out: &mut Vec<CallItem>) {
             range: jtype.range,
         }),
         AstJTypeKind::Parameter(_ast_identifier) => todo!("call_chain jtype parameter"),
-        AstJTypeKind::Access { ident, inner } => {
-            out.push(CallItem::Class {
-                name: ident.value.clone(),
-                range: jtype.range,
-            });
+        AstJTypeKind::Access { base, inner } => {
+            cc_jtype(base, out);
             cc_jtype(inner, out);
         }
     }

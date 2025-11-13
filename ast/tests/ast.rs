@@ -1,4 +1,4 @@
-use ast::class::{parse_class_method, parse_class_variable};
+use ast::class::{parse_class_block, parse_class_method, parse_class_variable};
 use ast::error::PrintErr;
 use ast::{
     ExpressionOptions, lexer, parse_block, parse_block_return, parse_block_variable,
@@ -398,8 +398,21 @@ fn multiline_string_arg() {
                                           }
     "#;
     let tokens = lexer::lex(content).unwrap();
-    dbg!(&tokens);
     let parsed = parse_block(&tokens, 0);
+    parsed.print_err(content);
+    let parsed = parsed.unwrap();
+    insta::assert_debug_snapshot!(parsed);
+}
+#[test]
+fn class_block_annotation() {
+    let content = r#"{
+    @Target(ElementType.METHOD)
+    @Retention(RetentionPolicy.RUNTIME)
+    @interface Compiled {
+    }
+    "#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_class_block(&tokens, 0);
     parsed.print_err(content);
     let parsed = parsed.unwrap();
     insta::assert_debug_snapshot!(parsed);

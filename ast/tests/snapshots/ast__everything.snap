@@ -1245,6 +1245,7 @@ AstFile {
                 ],
                 static_blocks: [],
                 inner: [],
+                blocks: [],
             },
         },
     ),

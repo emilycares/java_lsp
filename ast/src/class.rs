@@ -1,7 +1,7 @@
 //! Parsing functions for class
 use crate::{
     ExpressionOptions,
-    error::{AstError, assert_semicolon, assert_token},
+    error::{AstError, GetStartEnd, assert_semicolon, assert_token},
     lexer::{PositionToken, Token},
     parse_annotated_list, parse_array_type_on_name, parse_avaliability, parse_block,
     parse_constructor_header, parse_expression, parse_implements, parse_jtype, parse_method_header,
@@ -21,7 +21,7 @@ pub fn parse_class(
     attributes: AstThingAttributes,
     annotated: Vec<AstAnnotated>,
 ) -> Result<(AstThing, usize), AstError> {
-    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let start = tokens.start(pos)?;
     let (name, pos) = parse_name(tokens, pos)?;
     let mut type_parameters = None;
     let mut pos = pos;
@@ -31,7 +31,7 @@ pub fn parse_class(
     };
     let (superclass, implements, permits, pos) = parse_implemnets_extends_permits(tokens, pos)?;
     let (block, pos) = parse_class_block(tokens, pos)?;
-    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    let end = tokens.end(pos)?;
 
     Ok((
         AstThing::Class(AstClass {
@@ -93,17 +93,20 @@ pub fn parse_class_block(
 ) -> Result<(AstClassBlock, usize), AstError> {
     let pos = assert_token(tokens, pos, Token::LeftParenCurly)?;
     let mut static_blocks = vec![];
+    let mut blocks = vec![];
     let mut variables = vec![];
     let mut methods = vec![];
     let mut constructors = vec![];
     let mut inner = vec![];
     let mut pos = pos;
     let mut errors = vec![];
+    let mut start_pos;
     loop {
         if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
             pos = npos;
             break;
         };
+        start_pos = pos;
         errors.clear();
         match assert_token(tokens, pos, Token::Semicolon) {
             Ok(npos) => {
@@ -154,6 +157,16 @@ pub fn parse_class_block(
                 errors.push(("static block".into(), e));
             }
         }
+        match parse_block(tokens, pos) {
+            Ok((block, npos)) => {
+                pos = npos;
+                blocks.push(block);
+                continue;
+            }
+            Err(e) => {
+                errors.push(("block".into(), e));
+            }
+        }
         match parse_thing(tokens, pos) {
             Ok((thing, npos)) => {
                 pos = npos;
@@ -164,6 +177,10 @@ pub fn parse_class_block(
                 errors.push(("class thing".into(), e));
             }
         }
+        if pos == start_pos {
+            eprintln!("No class enty was parsed: {:?}", tokens.get(pos));
+            break;
+        }
         return Err(AstError::AllChildrenFailed {
             parent: "class".into(),
             errors,
@@ -172,6 +189,7 @@ pub fn parse_class_block(
     Ok((
         AstClassBlock {
             static_blocks,
+            blocks,
             variables,
             methods,
             constructors,
@@ -186,11 +204,11 @@ pub fn parse_static_block(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstStaticBlock, usize), AstError> {
-    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let start = tokens.start(pos)?;
     let pos = assert_token(tokens, pos, Token::Static)?;
     let (block, pos) = parse_block(tokens, pos)?;
 
-    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    let end = tokens.end(pos)?;
     Ok((
         AstStaticBlock {
             range: AstRange::from_position_token(start, end),
@@ -204,11 +222,11 @@ pub fn parse_class_constructor(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstClassConstructor, usize), AstError> {
-    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let start = tokens.start(pos)?;
     let (header, pos) = parse_constructor_header(tokens, pos, AstAvailability::Public)?;
     let (block, pos) = parse_block(tokens, pos)?;
 
-    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    let end = tokens.end(pos)?;
     let pos = assert_semicolon(tokens, pos)?;
     Ok((
         AstClassConstructor {
@@ -224,7 +242,7 @@ pub fn parse_class_variable(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(Vec<AstClassVariable>, usize), AstError> {
-    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let start = tokens.start(pos)?;
     let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
     let (avaliability, pos) = parse_avaliability(tokens, pos)?;
     let mut pos = pos;
@@ -295,7 +313,7 @@ fn parse_variable_base(
         pos = npos;
         expression = Some(aexpression);
     }
-    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    let end = tokens.end(pos)?;
     Ok((
         AstClassVariable {
             range: AstRange::from_position_token(start, end),
@@ -315,7 +333,7 @@ pub fn parse_class_method(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstClassMethod, usize), AstError> {
-    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let start = tokens.start(pos)?;
     let (header, pos) = parse_method_header(tokens, pos, AstAvailability::Protected)?;
     let mut block = None;
     let mut pos = pos;
@@ -326,7 +344,7 @@ pub fn parse_class_method(
         pos = npos;
         block = Some(b);
     }
-    let end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+    let end = tokens.end(pos)?;
     Ok((
         AstClassMethod {
             range: AstRange::from_position_token(start, end),

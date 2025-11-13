@@ -33,7 +33,7 @@ pub enum AstError {
     /// Expression was empty
     EmptyExpression(InvalidToken),
     /// End of file reached
-    UnexpectedEOF(SmolStr, u32, u32),
+    UnexpectedEOF(String, u32, u32),
     /// Invalid token in Identifier
     IdentifierEmpty(InvalidToken),
     /// Invalid token in Name
@@ -240,9 +240,11 @@ fn print_helper(content: &str, line: usize, col: usize, msg: SmolStr) {
         true => content.lines().enumerate().skip(line),
     };
     if !is_zero && let Some((number, line)) = lines.next() {
+        let number = number + 1;
         eprintln!("{number} {line}");
     }
     if let Some((number, line)) = lines.next() {
+        let number = number + 1;
         eprintln!("{number} \x1b[93m{line}\x1b[0m");
     }
     let line_digit_len: usize = line.checked_ilog10().unwrap_or(0).try_into().unwrap_or(0);
@@ -250,6 +252,7 @@ fn print_helper(content: &str, line: usize, col: usize, msg: SmolStr) {
     eprintln!("  {spaces}^");
     eprintln!("  {spaces}| {msg}");
     if let Some((number, line)) = lines.next() {
+        let number = number + 1;
         eprintln!("{number}{line}");
     }
 }
@@ -345,6 +348,23 @@ impl InvalidToken {
             line: token.line,
             col: token.col,
         }
+    }
+}
+
+/// Get Start and End PositionToken
+pub trait GetStartEnd {
+    /// Get start PositionToken
+    fn start(&self, pos: usize) -> Result<&PositionToken, AstError>;
+    /// Get end PositionToken
+    fn end(&self, pos: usize) -> Result<&PositionToken, AstError>;
+}
+
+impl GetStartEnd for [PositionToken] {
+    fn start(&self, pos: usize) -> Result<&PositionToken, AstError> {
+        self.get(pos).ok_or(AstError::eof())
+    }
+    fn end(&self, pos: usize) -> Result<&PositionToken, AstError> {
+        self.get(pos.saturating_sub(1)).ok_or(AstError::eof())
     }
 }
 #[cfg(test)]
