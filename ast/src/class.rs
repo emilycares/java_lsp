@@ -117,6 +117,17 @@ pub fn parse_class_block(
                 errors.push(("class semicolon".into(), e));
             }
         }
+
+        match parse_thing(tokens, pos) {
+            Ok((thing, npos)) => {
+                pos = npos;
+                inner.push(thing);
+                continue;
+            }
+            Err(e) => {
+                errors.push(("class thing".into(), e));
+            }
+        }
         match parse_class_variable(tokens, pos) {
             Ok((vars, npos)) => {
                 pos = npos;
@@ -165,16 +176,6 @@ pub fn parse_class_block(
             }
             Err(e) => {
                 errors.push(("block".into(), e));
-            }
-        }
-        match parse_thing(tokens, pos) {
-            Ok((thing, npos)) => {
-                pos = npos;
-                inner.push(thing);
-                continue;
-            }
-            Err(e) => {
-                errors.push(("class thing".into(), e));
             }
         }
         if pos == start_pos {
@@ -266,7 +267,7 @@ pub fn parse_class_variable(
     }
     let mut out = vec![];
     let (jtype, pos) = parse_jtype(tokens, pos)?;
-    let (v, pos) = parse_variable_base(
+    let (v, pos) = parse_class_variable_base(
         tokens,
         start,
         &annotated,
@@ -278,7 +279,7 @@ pub fn parse_class_variable(
     out.push(v);
     let mut pos = pos;
     while let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
-        let (v, npos) = parse_variable_base(
+        let (v, npos) = parse_class_variable_base(
             tokens,
             start,
             &annotated,
@@ -295,7 +296,7 @@ pub fn parse_class_variable(
 
     Ok((out, pos))
 }
-fn parse_variable_base(
+fn parse_class_variable_base(
     tokens: &[PositionToken],
     start: &PositionToken,
     annotated: &[AstAnnotated],
