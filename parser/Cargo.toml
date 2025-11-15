@@ -13,10 +13,10 @@ license.workspace = true
 
 [dependencies]
 ast = { path = "../ast"}
+my_string = { path = "../my_string"}
 classfile-parser.workspace = true
 serde.workspace = true
 itertools.workspace = true
-smol_str.workspace = true
 postcard.workspace = true
 insta.workspace = true
 bitflags.workspace = true

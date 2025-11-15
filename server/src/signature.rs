@@ -5,8 +5,8 @@ use document::Document;
 use lsp_types::{
     Documentation, ParameterInformation, ParameterLabel, SignatureHelp, SignatureInformation,
 };
+use my_string::MyString;
 use parser::dto::{self, Class, ImportUnit};
-use smol_str::SmolStr;
 use variables::{LocalVariable, VariablesError};
 
 #[derive(Debug)]
@@ -23,7 +23,7 @@ pub fn signature_driver(
     document: &Document,
     point: &AstPoint,
     class: &Class,
-    class_map: &DashMap<SmolStr, parser::dto::Class>,
+    class_map: &DashMap<MyString, parser::dto::Class>,
 ) -> Result<SignatureHelp, SignatureError> {
     let call_chain = call_chain::get_call_chain(&document.ast, point);
     let imports = imports::imports(document);
@@ -35,7 +35,7 @@ pub fn get_signature(
     imports: &[ImportUnit],
     vars: &[LocalVariable],
     class: &Class,
-    class_map: &DashMap<SmolStr, parser::dto::Class>,
+    class_map: &DashMap<MyString, parser::dto::Class>,
 ) -> Result<SignatureHelp, SignatureError> {
     let args = get_args(&call_chain);
     let Some(CallItem::ArgumentList {
@@ -132,21 +132,20 @@ fn method_to_signature_information(method: &dto::Method) -> SignatureInformation
 pub mod tests {
     use std::path::PathBuf;
 
+    use super::signature_driver;
     use ast::types::AstPoint;
     use dashmap::DashMap;
     use document::Document;
     use lsp_types::{
         Documentation, ParameterInformation, ParameterLabel, SignatureHelp, SignatureInformation,
     };
+    use my_string::MyString;
     use parser::dto;
     use pretty_assertions::assert_eq;
-    use smol_str::SmolStr;
-
-    use super::signature_driver;
 
     #[test]
     fn signarure_base() {
-        let class_map: DashMap<SmolStr, dto::Class> = DashMap::new();
+        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
         class_map.insert(
             "java.lang.String".into(),
             dto::Class {
@@ -202,7 +201,7 @@ public class Test {
 
     #[test]
     fn signature_multi_name() {
-        let class_map: DashMap<SmolStr, dto::Class> = DashMap::new();
+        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
         class_map.insert(
             "java.lang.String".into(),
             dto::Class {
@@ -295,7 +294,7 @@ public class Test {
 
     #[test]
     fn signature_multi_name_second() {
-        let class_map: DashMap<SmolStr, dto::Class> = DashMap::new();
+        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
         class_map.insert(
             "java.lang.String".into(),
             dto::Class {

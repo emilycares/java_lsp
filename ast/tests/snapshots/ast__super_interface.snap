@@ -194,6 +194,7 @@ AstFile {
                                     col: 33,
                                 },
                             },
+                            annotated: [],
                             name: AstIdentifier {
                                 range: AstRange {
                                     start: AstPoint {

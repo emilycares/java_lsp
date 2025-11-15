@@ -2,8 +2,8 @@ use ast::types::{AstFile, AstPoint};
 use call_chain::{self, CallItem};
 use document::Document;
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
+use my_string::MyString;
 use parser::dto::{self, ImportUnit};
-use smol_str::{SmolStr, ToSmolStr};
 use tyres::TyresError;
 use variables::LocalVariable;
 
@@ -16,9 +16,9 @@ pub enum HoverError {
     CallChainEmpty,
     ParseError(parser::java::ParseJavaError),
     ValidatedItemDoesNotExists,
-    LocalVariableNotFound { name: SmolStr },
+    LocalVariableNotFound { name: MyString },
     Unimlemented,
-    NoClass(SmolStr),
+    NoClass(MyString),
     ArgumentNotFound,
 }
 
@@ -27,7 +27,7 @@ pub fn base(
     point: &AstPoint,
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
-    class_map: &dashmap::DashMap<SmolStr, parser::dto::Class>,
+    class_map: &dashmap::DashMap<MyString, parser::dto::Class>,
 ) -> Result<Hover, HoverError> {
     let ast = &document.ast;
     match class_action(ast, point, lo_va, imports, class_map) {
@@ -38,7 +38,7 @@ pub fn base(
         Err(e) => eprintln!("class action hover error: {e:?}"),
     };
     let Some(class) = class_map.get(&document.class_path) else {
-        return Err(HoverError::NoClass(document.class_path.to_smolstr()));
+        return Err(HoverError::NoClass(document.class_path.to_string()));
     };
 
     let call_chain = call_chain::get_call_chain(ast, point);
@@ -73,7 +73,7 @@ pub fn class_action(
     point: &AstPoint,
     _lo_va: &[LocalVariable],
     imports: &[ImportUnit],
-    class_map: &dashmap::DashMap<SmolStr, parser::dto::Class>,
+    class_map: &dashmap::DashMap<MyString, parser::dto::Class>,
 ) -> Result<(dto::Class, Range), ClassActionError> {
     if let Some(class) = get_class::get_class(ast, point) {
         return match tyres::resolve(&class.name, imports, class_map) {
@@ -91,7 +91,7 @@ pub fn call_chain_hover(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &dto::Class,
-    class_map: &dashmap::DashMap<SmolStr, parser::dto::Class>,
+    class_map: &dashmap::DashMap<MyString, parser::dto::Class>,
 ) -> Result<Hover, HoverError> {
     let (item, relevat) = call_chain::validate(&call_chain, point);
     let Some(el) = call_chain.get(item) else {
@@ -280,8 +280,8 @@ mod tests {
     use ast::types::AstPoint;
     use dashmap::DashMap;
     use document::Document;
+    use my_string::MyString;
     use parser::dto;
-    use smol_str::SmolStr;
 
     use crate::hover::{call_chain_hover, class_action};
 
@@ -345,8 +345,8 @@ public class Test {
         assert!(out.is_ok());
     }
 
-    fn string_class_map() -> DashMap<SmolStr, dto::Class> {
-        let class_map: DashMap<SmolStr, dto::Class> = DashMap::new();
+    fn string_class_map() -> DashMap<MyString, dto::Class> {
+        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
         class_map.insert(
             "java.lang.String".into(),
             dto::Class {

@@ -32,7 +32,7 @@ members = [
     "zip_util",
     "ast",
     "get_class",
-    "loader",
+    "loader", "my_string",
 ]
 exclude = ["bench"]
 resolver = "3"
@@ -76,4 +76,3 @@ phf = { version = "0.13.1", features = ["macros"] }
 rayon = "1.11.0"
 insta = { version = "1.43.1", default-features = false }
 criterion = { version = "0.7.0", features = ["html_reports"] }
-smol_str = { version = "0.3.4", features = ["serde"] }

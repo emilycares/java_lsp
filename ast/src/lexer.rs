@@ -1,6 +1,6 @@
 //! Transform document into a token vector
+use my_string::MyString;
 use phf::phf_map;
-use smol_str::{SmolStr, SmolStrBuilder};
 
 use crate::types::AstPoint;
 
@@ -129,98 +129,98 @@ impl Token {
     }
 
     /// string version of token
-    pub fn to_string(&self) -> SmolStr {
+    pub fn to_string(&self) -> MyString {
         match self {
             Token::Identifier(smol_str) => smol_str.clone(),
             Token::StringLiteral(smol_str) => smol_str.clone(),
             Token::CharLiteral(smol_str) => smol_str.clone(),
             Token::Number(num) => num.to_string().into(),
-            Token::LeftParen => SmolStr::new_inline("("),
-            Token::RightParen => SmolStr::new_inline(")"),
-            Token::Plus => SmolStr::new_inline("+"),
-            Token::Dash => SmolStr::new_inline("-"),
-            Token::Star => SmolStr::new_inline("*"),
-            Token::Dot => SmolStr::new_inline("."),
-            Token::Semicolon => SmolStr::new_inline(";"),
-            Token::Colon => SmolStr::new_inline(":"),
-            Token::Percent => SmolStr::new_inline("%"),
-            Token::Ampersand => SmolStr::new_inline("&"),
-            Token::VerticalBar => SmolStr::new_inline("|"),
-            Token::LeftParenCurly => SmolStr::new_inline("{"),
-            Token::RightParenCurly => SmolStr::new_inline("}"),
-            Token::LeftParenSquare => SmolStr::new_inline("["),
-            Token::RightParenSquare => SmolStr::new_inline("]"),
-            Token::Comma => SmolStr::new_inline(","),
-            Token::If => SmolStr::new_inline("if"),
-            Token::While => SmolStr::new_inline("while"),
-            Token::Package => SmolStr::new_inline("package"),
-            Token::Import => SmolStr::new_inline("import"),
-            Token::Public => SmolStr::new_inline("public"),
-            Token::Private => SmolStr::new_inline("private"),
-            Token::Protected => SmolStr::new_inline("protedted"),
-            Token::Class => SmolStr::new_inline("class"),
-            Token::Interface => SmolStr::new_inline("interface"),
-            Token::Enum => SmolStr::new_inline("enum"),
-            Token::Void => SmolStr::new_inline("void"),
-            Token::Throws => SmolStr::new_inline("throws"),
-            Token::Int => SmolStr::new_inline("int"),
-            Token::Double => SmolStr::new_inline("double"),
-            Token::Float => SmolStr::new_inline("float"),
-            Token::Slash => SmolStr::new_inline("/"),
-            Token::BackSlash => SmolStr::new_inline("\\"),
-            Token::At => SmolStr::new_inline("@"),
-            Token::Le => SmolStr::new_inline("<="),
-            Token::Lt => SmolStr::new_inline("<"),
-            Token::Ge => SmolStr::new_inline(">="),
-            Token::Gt => SmolStr::new_inline(">"),
-            Token::Extends => SmolStr::new_inline("extends"),
-            Token::Implements => SmolStr::new_inline("implements"),
-            Token::True => SmolStr::new_inline("true"),
-            Token::False => SmolStr::new_inline("false"),
-            Token::EqualDouble => SmolStr::new_inline("=="),
-            Token::Equal => SmolStr::new_inline("="),
-            Token::Ne => SmolStr::new_inline("!="),
-            Token::ExclamationMark => SmolStr::new_inline("!"),
-            Token::SingleQuote => SmolStr::new_inline("'"),
-            Token::New => SmolStr::new_inline("new"),
-            Token::Return => SmolStr::new_inline("return"),
-            Token::QuestionMark => SmolStr::new_inline("?"),
-            Token::Char => SmolStr::new_inline("char"),
-            Token::Boolean => SmolStr::new_inline("boolean"),
-            Token::Byte => SmolStr::new_inline("byte"),
-            Token::Short => SmolStr::new_inline("short"),
-            Token::Long => SmolStr::new_inline("long"),
-            Token::Static => SmolStr::new_inline("static"),
-            Token::Final => SmolStr::new_inline("final"),
-            Token::Default => SmolStr::new_inline("default"),
-            Token::Else => SmolStr::new_inline("else"),
-            Token::For => SmolStr::new_inline("for"),
-            Token::Break => SmolStr::new_inline("break"),
-            Token::Continue => SmolStr::new_inline("continue"),
-            Token::Switch => SmolStr::new_inline("swtich"),
-            Token::Case => SmolStr::new_inline("case"),
-            Token::Do => SmolStr::new_inline("do"),
-            Token::Try => SmolStr::new_inline("try"),
-            Token::Catch => SmolStr::new_inline("catch"),
-            Token::Finally => SmolStr::new_inline("finally"),
-            Token::Throw => SmolStr::new_inline("throw"),
-            Token::Yield => SmolStr::new_inline("yield"),
-            Token::Var => SmolStr::new_inline("var"),
-            Token::This => SmolStr::new_inline("this"),
-            Token::Underscore => SmolStr::new_inline("_"),
-            Token::Abstract => SmolStr::new_inline("abstract"),
-            Token::Record => SmolStr::new_inline("record"),
-            Token::Synchronized => SmolStr::new_inline("synchronized"),
-            Token::InstanceOf => SmolStr::new_inline("instanceof"),
-            Token::Volatile => SmolStr::new_inline("volatile"),
-            Token::Transient => SmolStr::new_inline("transient"),
-            Token::Native => SmolStr::new_inline("native"),
-            Token::Caret => SmolStr::new_inline("^"),
-            Token::Tilde => SmolStr::new_inline("~"),
-            Token::Sealed => SmolStr::new_inline("sealed"),
-            Token::Non => SmolStr::new_inline("non"),
-            Token::Permits => SmolStr::new_inline("permits"),
-            Token::Arrow => SmolStr::new_inline("->"),
+            Token::LeftParen => MyString::from("("),
+            Token::RightParen => MyString::from(")"),
+            Token::Plus => MyString::from("+"),
+            Token::Dash => MyString::from("-"),
+            Token::Star => MyString::from("*"),
+            Token::Dot => MyString::from("."),
+            Token::Semicolon => MyString::from(";"),
+            Token::Colon => MyString::from(":"),
+            Token::Percent => MyString::from("%"),
+            Token::Ampersand => MyString::from("&"),
+            Token::VerticalBar => MyString::from("|"),
+            Token::LeftParenCurly => MyString::from("{"),
+            Token::RightParenCurly => MyString::from("}"),
+            Token::LeftParenSquare => MyString::from("["),
+            Token::RightParenSquare => MyString::from("]"),
+            Token::Comma => MyString::from(","),
+            Token::If => MyString::from("if"),
+            Token::While => MyString::from("while"),
+            Token::Package => MyString::from("package"),
+            Token::Import => MyString::from("import"),
+            Token::Public => MyString::from("public"),
+            Token::Private => MyString::from("private"),
+            Token::Protected => MyString::from("protedted"),
+            Token::Class => MyString::from("class"),
+            Token::Interface => MyString::from("interface"),
+            Token::Enum => MyString::from("enum"),
+            Token::Void => MyString::from("void"),
+            Token::Throws => MyString::from("throws"),
+            Token::Int => MyString::from("int"),
+            Token::Double => MyString::from("double"),
+            Token::Float => MyString::from("float"),
+            Token::Slash => MyString::from("/"),
+            Token::BackSlash => MyString::from("\\"),
+            Token::At => MyString::from("@"),
+            Token::Le => MyString::from("<="),
+            Token::Lt => MyString::from("<"),
+            Token::Ge => MyString::from(">="),
+            Token::Gt => MyString::from(">"),
+            Token::Extends => MyString::from("extends"),
+            Token::Implements => MyString::from("implements"),
+            Token::True => MyString::from("true"),
+            Token::False => MyString::from("false"),
+            Token::EqualDouble => MyString::from("=="),
+            Token::Equal => MyString::from("="),
+            Token::Ne => MyString::from("!="),
+            Token::ExclamationMark => MyString::from("!"),
+            Token::SingleQuote => MyString::from("'"),
+            Token::New => MyString::from("new"),
+            Token::Return => MyString::from("return"),
+            Token::QuestionMark => MyString::from("?"),
+            Token::Char => MyString::from("char"),
+            Token::Boolean => MyString::from("boolean"),
+            Token::Byte => MyString::from("byte"),
+            Token::Short => MyString::from("short"),
+            Token::Long => MyString::from("long"),
+            Token::Static => MyString::from("static"),
+            Token::Final => MyString::from("final"),
+            Token::Default => MyString::from("default"),
+            Token::Else => MyString::from("else"),
+            Token::For => MyString::from("for"),
+            Token::Break => MyString::from("break"),
+            Token::Continue => MyString::from("continue"),
+            Token::Switch => MyString::from("swtich"),
+            Token::Case => MyString::from("case"),
+            Token::Do => MyString::from("do"),
+            Token::Try => MyString::from("try"),
+            Token::Catch => MyString::from("catch"),
+            Token::Finally => MyString::from("finally"),
+            Token::Throw => MyString::from("throw"),
+            Token::Yield => MyString::from("yield"),
+            Token::Var => MyString::from("var"),
+            Token::This => MyString::from("this"),
+            Token::Underscore => MyString::from("_"),
+            Token::Abstract => MyString::from("abstract"),
+            Token::Record => MyString::from("record"),
+            Token::Synchronized => MyString::from("synchronized"),
+            Token::InstanceOf => MyString::from("instanceof"),
+            Token::Volatile => MyString::from("volatile"),
+            Token::Transient => MyString::from("transient"),
+            Token::Native => MyString::from("native"),
+            Token::Caret => MyString::from("^"),
+            Token::Tilde => MyString::from("~"),
+            Token::Sealed => MyString::from("sealed"),
+            Token::Non => MyString::from("non"),
+            Token::Permits => MyString::from("permits"),
+            Token::Arrow => MyString::from("->"),
         }
     }
 
@@ -235,13 +235,13 @@ impl Token {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     /// Data
-    Identifier(SmolStr),
+    Identifier(MyString),
     /// Data
-    StringLiteral(SmolStr),
+    StringLiteral(MyString),
     /// \r
-    CharLiteral(SmolStr),
+    CharLiteral(MyString),
     /// 123
-    Number(SmolStr),
+    Number(MyString),
     /// (
     LeftParen,
     /// )
@@ -561,7 +561,20 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                 col += 1;
             }
             '-' => {
-                if let Some('>') = chars.get(index + 1) {
+                if let Some('-') = chars.get(index + 1) {
+                    tokens.push(PositionToken {
+                        token: Token::Dash,
+                        line,
+                        col,
+                    });
+                    tokens.push(PositionToken {
+                        token: Token::Dash,
+                        line,
+                        col,
+                    });
+                    index += 1;
+                    col += 2;
+                } else if let Some('>') = chars.get(index + 1) {
                     tokens.push(PositionToken {
                         token: Token::Arrow,
                         line,
@@ -733,7 +746,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
             }
             '"' => {
                 index += 1;
-                let mut str = SmolStrBuilder::new();
+                let mut str = String::new();
                 let mut multi_line = false;
                 if let Some('"') = chars.get(index)
                     && let Some('"') = chars.get(index + 1)
@@ -780,7 +793,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                     col += 1;
                 }
                 tokens.push(PositionToken {
-                    token: Token::StringLiteral(str.finish()),
+                    token: Token::StringLiteral(str),
                     line,
                     col,
                 });
@@ -788,7 +801,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
             }
             '\'' => {
                 index += 1;
-                let mut char = SmolStrBuilder::new();
+                let mut char = MyString::new();
                 'char_literal: loop {
                     let Some(ch) = chars.get(index) else {
                         break;
@@ -819,7 +832,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                     col += 1;
                 }
                 tokens.push(PositionToken {
-                    token: Token::CharLiteral(char.finish()),
+                    token: Token::CharLiteral(char),
                     line,
                     col,
                 });
@@ -898,7 +911,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                 }
             }
             '0'..='9' => {
-                let mut string = SmolStrBuilder::new();
+                let mut string = MyString::new();
                 loop {
                     let Some(ch) = chars.get(index) else {
                         break;
@@ -910,7 +923,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                     };
                     index += 1;
                 }
-                let string = string.finish();
+                let string = string;
 
                 col += string.len();
                 tokens.push(PositionToken {
@@ -921,7 +934,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                 continue;
             }
             'A'..='Z' | 'a'..='z' | '_' | '$' => {
-                let mut ident = SmolStrBuilder::new();
+                let mut ident = MyString::new();
                 loop {
                     let Some(ch) = chars.get(index) else {
                         break;
@@ -932,7 +945,6 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                     ident.push(*ch);
                     index += 1;
                 }
-                let ident = ident.finish();
                 let len = ident.len();
                 match KEYWORDS.get(&ident) {
                     Some(t) => tokens.push(PositionToken {

@@ -351,6 +351,7 @@ AstFile {
                                                 col: 6,
                                             },
                                         },
+                                        annotated: [],
                                         name: AstIdentifier {
                                             range: AstRange {
                                                 start: AstPoint {
@@ -536,6 +537,7 @@ AstFile {
                                                 col: 19,
                                             },
                                         },
+                                        annotated: [],
                                         name: AstIdentifier {
                                             range: AstRange {
                                                 start: AstPoint {

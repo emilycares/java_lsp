@@ -10097,7 +10097,7 @@ AstFile {
                                                                                                                     },
                                                                                                                 },
                                                                                                                 values: [
-                                                                                                                    AstIdentifier {
+                                                                                                                    AstLambdaParameter {
                                                                                                                         range: AstRange {
                                                                                                                             start: AstPoint {
                                                                                                                                 line: 101,
@@ -10108,7 +10108,20 @@ AstFile {
                                                                                                                                 col: 27,
                                                                                                                             },
                                                                                                                         },
-                                                                                                                        value: "n",
+                                                                                                                        jtype: None,
+                                                                                                                        name: AstIdentifier {
+                                                                                                                            range: AstRange {
+                                                                                                                                start: AstPoint {
+                                                                                                                                    line: 101,
+                                                                                                                                    col: 26,
+                                                                                                                                },
+                                                                                                                                end: AstPoint {
+                                                                                                                                    line: 101,
+                                                                                                                                    col: 27,
+                                                                                                                                },
+                                                                                                                            },
+                                                                                                                            value: "n",
+                                                                                                                        },
                                                                                                                     },
                                                                                                                 ],
                                                                                                             },

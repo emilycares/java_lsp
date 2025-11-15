@@ -4,9 +4,9 @@ use ast::types::AstPoint;
 use call_chain::CallItem;
 use document::{Document, DocumentError};
 use lsp_types::{GotoDefinitionResponse, Location, Uri};
+use my_string::MyString;
 use parser::dto::{self, ImportUnit};
 use position::PositionSymbol;
-use smol_str::SmolStr;
 use tyres::TyresError;
 use variables::LocalVariable;
 
@@ -35,8 +35,8 @@ pub struct DefinitionContext<'a> {
     pub vars: &'a [LocalVariable],
     pub imports: &'a [ImportUnit],
     pub class: &'a dto::Class,
-    pub class_map: &'a dashmap::DashMap<SmolStr, dto::Class>,
-    pub document_map: &'a dashmap::DashMap<SmolStr, Document>,
+    pub class_map: &'a dashmap::DashMap<MyString, dto::Class>,
+    pub document_map: &'a dashmap::DashMap<MyString, Document>,
 }
 
 pub fn class(
@@ -173,7 +173,7 @@ pub fn call_chain_definition(
 
 pub fn get_source_content(
     source: &str,
-    document_map: &dashmap::DashMap<SmolStr, Document>,
+    document_map: &dashmap::DashMap<MyString, Document>,
 ) -> Result<String, DefinitionError> {
     let uri = source_to_uri(source)?;
     match document::read_document_or_open_class(source, "".into(), document_map, uri.as_str()) {
@@ -310,8 +310,8 @@ public class Test {
         let out = call_chain_definition(&call_chain, &context);
         assert!(out.is_err());
     }
-    fn get_class_map() -> DashMap<SmolStr, dto::Class> {
-        let class_map: DashMap<SmolStr, dto::Class> = DashMap::new();
+    fn get_class_map() -> DashMap<MyString, dto::Class> {
+        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
         class_map.insert(
             "org.jboss.logging.Logger".into(),
             dto::Class {

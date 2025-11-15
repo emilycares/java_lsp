@@ -1,5 +1,5 @@
 [package]
-name = "variables"
+name = "my_string"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -10,9 +10,3 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
-parser = {path = "../parser"}
-my_string = { path = "../my_string"}
-ast = {path = "../ast"}
-
-[dev-dependencies]
-insta.workspace = true

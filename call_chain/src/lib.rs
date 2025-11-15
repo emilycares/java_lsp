@@ -8,31 +8,31 @@ use ast::types::{
     AstJTypeKind, AstLambdaRhs, AstNewClass, AstNewRhs, AstPoint, AstRange, AstRecursiveExpression,
     AstSwitchCaseArrowContent, AstThing, AstValue, AstValueNuget, AstValues, AstWhileContent,
 };
-use smol_str::SmolStr;
+use my_string::MyString;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum CallItem {
     MethodCall {
-        name: SmolStr,
+        name: MyString,
         range: AstRange,
     },
     FieldAccess {
-        name: SmolStr,
+        name: MyString,
         range: AstRange,
     },
     Variable {
-        name: SmolStr,
+        name: MyString,
         range: AstRange,
     },
     This {
         range: AstRange,
     },
     Class {
-        name: SmolStr,
+        name: MyString,
         range: AstRange,
     },
     ClassOrVariable {
-        name: SmolStr,
+        name: MyString,
         range: AstRange,
     },
     ArgumentList {

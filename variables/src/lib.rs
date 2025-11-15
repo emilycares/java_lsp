@@ -4,15 +4,15 @@ use ast::types::{
     AstLambda, AstLambdaRhs, AstMethodParamerter, AstPoint, AstRange, AstRecursiveExpression,
     AstSwitch, AstSwitchCaseArrowContent, AstThing, AstTryCatch, AstWhile, AstWhileContent,
 };
+use my_string::MyString;
 use parser::dto;
-use smol_str::SmolStr;
 
 /// variable or function in a ast
 #[derive(Debug, PartialEq, Clone)]
 pub struct LocalVariable {
     pub level: usize,
     pub jtype: dto::JType,
-    pub name: SmolStr,
+    pub name: MyString,
     pub is_fun: bool,
     pub range: AstRange,
 }
@@ -252,7 +252,7 @@ fn lambda(lambda: &AstLambda, point: &AstPoint, level: usize, out: &mut Vec<Loca
     out.extend(lambda.parameters.values.iter().map(|i| LocalVariable {
         level,
         jtype: dto::JType::Void,
-        name: i.value.clone(),
+        name: i.name.value.clone(),
         is_fun: false,
         range: i.range,
     }));

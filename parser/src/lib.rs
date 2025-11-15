@@ -6,12 +6,12 @@ use std::{fmt::Debug, path::Path};
 
 use dto::ClassError;
 use java::ParseJavaError;
-use smol_str::SmolStr;
+use my_string::MyString;
 
 #[derive(Debug, Clone)]
 pub enum SourceDestination {
-    Here(SmolStr),
-    RelativeInFolder(SmolStr),
+    Here(MyString),
+    RelativeInFolder(MyString),
     None,
 }
 
@@ -27,7 +27,7 @@ pub fn update_project_java_file<T: AsRef<Path>>(
 
 pub fn load_class_fs<T>(
     path: T,
-    class_path: SmolStr,
+    class_path: MyString,
     source: SourceDestination,
 ) -> Result<dto::Class, dto::ClassError>
 where

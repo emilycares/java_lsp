@@ -11,8 +11,8 @@ use std::{
 use common::TaskProgress;
 use dashmap::DashMap;
 use futures::{AsyncBufReadExt, StreamExt, TryFutureExt};
+use my_string::MyString;
 use parser::{SourceDestination, dto::ClassFolder};
-use smol_str::SmolStr;
 use tokio::{process::Command, task::JoinSet};
 
 #[cfg(not(target_os = "windows"))]
@@ -36,7 +36,7 @@ pub enum JdkError {
 }
 
 pub async fn load_classes(
-    class_map: &DashMap<SmolStr, parser::dto::Class>,
+    class_map: &DashMap<MyString, parser::dto::Class>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
 ) -> Result<(), JdkError> {
     let (java_path, op_dir) = get_work_dirs().await?;

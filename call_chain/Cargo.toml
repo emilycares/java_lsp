@@ -11,7 +11,7 @@ license.workspace = true
 
 [dependencies]
 ast = { path = "../ast"}
-smol_str.workspace = true
+my_string = { path = "../my_string"}
 
 [dev-dependencies]
 insta.workspace = true

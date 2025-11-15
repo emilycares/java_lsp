@@ -21,7 +21,6 @@ serde_json.workspace = true
 rayon.workspace = true
 parking_lot.workspace = true
 jwalk.workspace = true
-smol_str.workspace = true
 format = { path = "../format"}
 parser = { path = "../parser"}
 maven = { path = "../maven"}
@@ -37,6 +36,7 @@ call_chain = { path = "../call_chain" }
 common = { path = "../common"}
 ast = { path = "../ast"}
 get_class = { path = "../get_class"}
+my_string = { path = "../my_string"}
 
 [dev-dependencies]
 pretty_assertions.workspace = true

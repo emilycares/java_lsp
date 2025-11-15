@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use bitflags::bitflags;
-use smol_str::SmolStr;
+use my_string::MyString;
 
 use crate::lexer::PositionToken;
 
@@ -469,39 +469,39 @@ pub struct AstBlockContinue {
     pub label: Option<AstIdentifier>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AstIdentifier {
     pub range: AstRange,
-    pub value: SmolStr,
+    pub value: MyString,
 }
 
-impl From<AstIdentifier> for String {
+impl From<AstIdentifier> for MyString {
     fn from(value: AstIdentifier) -> Self {
-        value.value.to_string()
+        value.value.into()
     }
 }
 
-impl From<&AstIdentifier> for String {
-    fn from(value: &AstIdentifier) -> Self {
-        value.value.to_string()
-    }
-}
-impl From<AstIdentifier> for SmolStr {
-    fn from(value: AstIdentifier) -> Self {
-        value.value
-    }
-}
-
-impl From<&AstIdentifier> for SmolStr {
+impl From<&AstIdentifier> for MyString {
     fn from(value: &AstIdentifier) -> Self {
         value.value.clone()
     }
 }
+// impl From<AstIdentifier> for MyString {
+//     fn from(value: AstIdentifier) -> Self {
+//         value.value
+//     }
+// }
+
+// impl From<&AstIdentifier> for MyString {
+//     fn from(value: &AstIdentifier) -> Self {
+//         value.value.clone()
+//     }
+// }
 
 #[derive(Debug, Clone)]
 pub struct AstInt {
     pub range: AstRange,
-    pub value: SmolStr,
+    pub value: MyString,
 }
 #[derive(Debug, Clone)]
 pub struct AstDouble {
@@ -577,13 +577,14 @@ impl AstThing {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct AstJType {
     pub range: AstRange,
     pub value: AstJTypeKind,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum AstJTypeKind {
+    #[default]
     Void,
     Byte,
     Char,
@@ -707,7 +708,13 @@ pub enum AstLambdaRhs {
 #[derive(Debug, Default, Clone)]
 pub struct AstLambdaParameters {
     pub range: AstRange,
-    pub values: Vec<AstIdentifier>,
+    pub values: Vec<AstLambdaParameter>,
+}
+#[derive(Debug, Default, Clone)]
+pub struct AstLambdaParameter {
+    pub range: AstRange,
+    pub jtype: Option<AstJType>,
+    pub name: AstIdentifier,
 }
 
 #[derive(Debug, Clone)]
@@ -783,6 +790,7 @@ pub struct AstTypeParameters {
 #[derive(Debug, Clone)]
 pub struct AstTypeParameter {
     pub range: AstRange,
+    pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
     pub supperclass: Option<AstSuperClass>,
 }

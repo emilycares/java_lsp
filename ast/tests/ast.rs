@@ -417,3 +417,32 @@ fn class_block_annotation() {
     let parsed = parsed.unwrap();
     insta::assert_debug_snapshot!(parsed);
 }
+#[test]
+fn lambda_with_types() {
+    let content = r#"(T t, U u) -> after.apply(apply(t, u))"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::None);
+    parsed.print_err(content);
+    let parsed = parsed.unwrap();
+    insta::assert_debug_snapshot!(parsed);
+}
+#[test]
+fn lambda_with_no_parameters() {
+    let content = r#"() -> a"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::None);
+    parsed.print_err(content);
+    let parsed = parsed.unwrap();
+    insta::assert_debug_snapshot!(parsed);
+}
+#[test]
+#[ignore = "dbg"]
+fn jtype_access() {
+    let content = r#"Something.Inner"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_jtype(&tokens, 0);
+    parsed.print_err(content);
+    let parsed = parsed.unwrap();
+    assert_eq!(tokens.len(), parsed.1);
+    insta::assert_debug_snapshot!(parsed);
+}

@@ -6,7 +6,7 @@ use enumeration::parse_enumeration;
 use error::{AstError, ExpectedToken, InvalidToken, assert_semicolon, assert_token};
 use interface::parse_interface;
 use lexer::{PositionToken, Token};
-use smol_str::SmolStrBuilder;
+use my_string::MyString;
 use types::{
     AstAnnotated, AstAvailability, AstBlock, AstBlockAssign, AstBlockBreak, AstBlockContinue,
     AstBlockEntry, AstBlockExpression, AstBlockReturn, AstBlockVariable, AstBlockVariableMutliType,
@@ -25,8 +25,8 @@ use crate::{
     record::parse_record,
     types::{
         AstAnnotatedParameter, AstBlockYield, AstClassAccess, AstConstructorHeader,
-        AstExpressionOrValue, AstForContent, AstGenerics, AstLambdaRhs, AstNewRhs,
-        AstSwitchCaseArrow, AstSwitchCaseArrowContent, AstSwitchCaseArrowDefault,
+        AstExpressionOrValue, AstForContent, AstGenerics, AstLambdaParameter, AstLambdaRhs,
+        AstNewRhs, AstSwitchCaseArrow, AstSwitchCaseArrowContent, AstSwitchCaseArrowDefault,
         AstSynchronizedBlock, AstThingAttributes, AstTypeParameter, AstWhileContent,
     },
 };
@@ -257,16 +257,39 @@ pub fn parse_lambda(
     let start = tokens.start(pos)?;
     let mut pos = pos;
     let parameters;
-    if let Ok((lparams, npos)) = parse_lambda_parameters(tokens, pos) {
-        parameters = lparams;
-        pos = npos;
-    } else {
-        let (n, npos) = parse_name(tokens, pos)?;
-        parameters = AstLambdaParameters {
-            range: n.range,
-            values: vec![n],
+    'params: {
+        let mut errors = vec![];
+        match parse_lambda_parameters(tokens, pos) {
+            Ok((lparams, npos)) => {
+                parameters = lparams;
+                pos = npos;
+                break 'params;
+            }
+            Err(e) => {
+                errors.push(("lambda parameter".into(), e));
+            }
+        }
+        match parse_name(tokens, pos) {
+            Ok((n, npos)) => {
+                parameters = AstLambdaParameters {
+                    range: n.range,
+                    values: vec![AstLambdaParameter {
+                        range: n.range,
+                        jtype: None,
+                        name: n,
+                    }],
+                };
+                pos = npos;
+                break 'params;
+            }
+            Err(e) => {
+                errors.push(("lambda name".into(), e));
+            }
         };
-        pos = npos;
+        return Err(AstError::AllChildrenFailed {
+            parent: "lambda parameters".into(),
+            errors,
+        });
     }
     let mut pos = assert_token(tokens, pos, Token::Arrow)?;
     let mut rhs = AstLambdaRhs::None;
@@ -299,18 +322,43 @@ pub fn parse_lambda_parameters(
     let mut pos = pos;
     let mut values = vec![];
 
-    while let Ok((n, npos)) = parse_name(tokens, pos) {
-        values.push(n);
-
-        pos = npos;
-        if let Ok(npos) = assert_token(tokens, npos, Token::Comma) {
+    loop {
+        if let Ok(npos) = assert_token(tokens, pos, Token::RightParen) {
             pos = npos;
-        } else {
             break;
         }
-    }
+        let mut jtype = None;
+        let start = tokens.start(pos)?;
+        let s = pos;
+        if let Ok((j, npos)) = parse_jtype(tokens, pos) {
+            pos = npos;
+            jtype = Some(j);
+        }
+        let name;
+        match parse_name(tokens, pos) {
+            Ok((n, npos)) => {
+                pos = npos;
+                name = n;
+            }
+            Err(_) => {
+                let (n, npos) = parse_name(tokens, s)?;
+                name = n;
+                jtype = None;
+                pos = npos;
+            }
+        }
+        let end = tokens.end(pos)?;
+        values.push(AstLambdaParameter {
+            range: AstRange::from_position_token(start, end),
+            jtype,
+            name,
+        });
 
-    let pos = assert_token(tokens, pos, Token::RightParen)?;
+        if let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
+            pos = npos;
+            continue;
+        }
+    }
     let end = tokens.end(pos)?;
     Ok((
         AstLambdaParameters {
@@ -905,6 +953,7 @@ pub fn parse_expression(
 
     Ok((e, pos))
 }
+#[inline(always)]
 fn parse_expression_inner(
     tokens: &[PositionToken],
     pos: usize,
@@ -1574,6 +1623,8 @@ pub fn parse_type_parameters(
         }
 
         let start_p = tokens.start(pos)?;
+        let (annotated, npos) = parse_annotated_list(tokens, pos)?;
+        pos = npos;
         let (name, npos) = parse_name(tokens, pos)?;
         pos = npos;
         let mut supperclass = None;
@@ -1584,6 +1635,7 @@ pub fn parse_type_parameters(
         let end_p = tokens.end(pos)?;
         parameters.push(AstTypeParameter {
             range: AstRange::from_position_token(start_p, end_p),
+            annotated,
             name,
             supperclass,
         });
@@ -2545,7 +2597,7 @@ pub fn parse_name(
             value = i.clone();
             pos += 1;
         }
-        Token::Yield | Token::Record => {
+        Token::Yield | Token::Record | Token::Permits => {
             value = start.token.to_string();
             pos += 1;
         }
@@ -2569,7 +2621,7 @@ pub fn parse_name_dot(
     let start = tokens.start(pos)?;
     let init_pos = pos;
     let mut pos = pos;
-    let mut ident = SmolStrBuilder::new();
+    let mut ident = MyString::new();
     loop {
         let Ok(t) = tokens.get(pos).ok_or(AstError::eof()) else {
             break;
@@ -2593,7 +2645,6 @@ pub fn parse_name_dot(
             }
         }
     }
-    let ident = ident.finish();
     if ident.is_empty() {
         let t = tokens.get(pos).ok_or(AstError::eof())?;
         return Err(AstError::IdentifierEmpty(InvalidToken::from(t, pos)));
@@ -2615,7 +2666,7 @@ pub fn parse_name_dot_logical(
     let start = tokens.start(pos)?;
     let init_pos = pos;
     let mut pos = pos;
-    let mut ident = SmolStrBuilder::new();
+    let mut ident = MyString::new();
     let mut first = true;
     loop {
         let Ok(t) = tokens.get(pos).ok_or(AstError::eof()) else {
@@ -2660,7 +2711,6 @@ pub fn parse_name_dot_logical(
             }
         }
     }
-    let ident = ident.finish();
     if ident.is_empty() {
         let t = tokens.get(pos).ok_or(AstError::eof())?;
         return Err(AstError::IdentifierEmpty(InvalidToken::from(t, pos)));
@@ -2715,7 +2765,7 @@ fn parse_identifier(
 ) -> Result<(AstIdentifier, usize), AstError> {
     let start = tokens.start(pos)?;
     let mut pos = pos;
-    let mut ident = SmolStrBuilder::new();
+    let mut ident = MyString::new();
     let mut modded = false;
     loop {
         let t = tokens.get(pos).ok_or(AstError::eof())?;
@@ -2741,7 +2791,7 @@ fn parse_identifier(
     Ok((
         AstIdentifier {
             range: AstRange::from_position_token(start, end),
-            value: ident.finish(),
+            value: ident,
         },
         pos,
     ))

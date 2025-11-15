@@ -8,7 +8,7 @@ use ast::{
         AstThing, AstTypeParameters,
     },
 };
-use smol_str::{SmolStr, SmolStrBuilder};
+use my_string::MyString;
 
 use crate::{
     SourceDestination,
@@ -41,8 +41,8 @@ pub fn load_java_tree(
 ) -> Result<crate::dto::Class, ParseJavaError> {
     let mut methods: Vec<Method> = vec![];
     let mut fields: Vec<Field> = vec![];
-    let class_path_base: SmolStr = (&ast.package).into();
-    let name: SmolStr;
+    let class_path_base: MyString = (&ast.package).into();
+    let name: MyString;
     let mut super_class = dto::SuperClass::None;
     let mut super_interfaces = vec![];
     let imports: Vec<ImportUnit> = ast.imports.imports.iter().map(|i| i.into()).collect();
@@ -93,11 +93,10 @@ pub fn load_java_tree(
         SourceDestination::Here(e) => e.replace("\\", "/").into(),
         SourceDestination::None => "".into(),
     };
-    let mut class_path = SmolStrBuilder::new();
+    let mut class_path = String::new();
     class_path.push_str(&class_path_base);
     class_path.push('.');
     class_path.push_str(&name);
-    let class_path = class_path.finish();
 
     Ok(dto::Class {
         source,
@@ -127,7 +126,7 @@ fn fun_name(ext: &AstExtends, imports: &[ImportUnit]) -> impl Iterator<Item = dt
     })
 }
 
-fn convert_imports(imports: &AstImports, package: SmolStr) -> Vec<ImportUnit> {
+fn convert_imports(imports: &AstImports, package: MyString) -> Vec<ImportUnit> {
     let mut out = vec![ImportUnit::Package(package)];
     out.extend(imports.imports.iter().map(|i| i.into()));
     out

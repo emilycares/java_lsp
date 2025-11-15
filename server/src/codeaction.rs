@@ -7,15 +7,15 @@ use ast::types::{
 use lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, Position, Range, TextEdit, Uri, WorkspaceEdit,
 };
+use my_string::MyString;
 use parser::dto::{self, ImportUnit};
-use smol_str::SmolStr;
 use tyres::TyresError;
 use variables::LocalVariable;
 
 pub struct CodeActionContext<'a> {
     pub point: &'a AstPoint,
     pub imports: &'a [ImportUnit],
-    pub class_map: &'a dashmap::DashMap<SmolStr, parser::dto::Class>,
+    pub class_map: &'a dashmap::DashMap<MyString, parser::dto::Class>,
     pub class: &'a dto::Class,
     pub vars: &'a [LocalVariable],
     pub current_file: &'a Uri,
@@ -351,9 +351,9 @@ pub mod tests {
     use dashmap::DashMap;
     use document::Document;
     use lsp_types::Uri;
+    use my_string::MyString;
     use parser::dto::{self, ImportUnit};
     use pretty_assertions::assert_eq;
-    use smol_str::SmolStr;
 
     use crate::codeaction::replace_with_value_type;
 
@@ -479,8 +479,8 @@ public class Test {
             _ => unreachable!(),
         }
     }
-    fn get_class_map() -> DashMap<SmolStr, dto::Class> {
-        let class_map: DashMap<SmolStr, dto::Class> = DashMap::new();
+    fn get_class_map() -> DashMap<MyString, dto::Class> {
+        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
         class_map.insert(
             "java.lang.String".into(),
             dto::Class {

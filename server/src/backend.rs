@@ -17,11 +17,11 @@ use lsp_types::{
     WorkspaceSymbolParams, WorkspaceSymbolResponse,
     notification::{Notification, Progress, PublishDiagnostics},
 };
+use my_string::MyString;
 use parking_lot::Mutex;
 use parser::{SourceDestination, dto::Class};
 use position::PositionSymbol;
 use rayon::iter::{ParallelBridge, ParallelIterator};
-use smol_str::{SmolStr, ToSmolStr};
 
 use crate::{
     codeaction::{self, CodeActionContext},
@@ -35,9 +35,9 @@ use crate::{
 pub struct Backend {
     pub error_files: DashSet<String>,
     pub project_kind: ProjectKind,
-    pub document_map: DashMap<SmolStr, Document>,
-    pub class_map: Arc<DashMap<SmolStr, Class>>,
-    pub reference_map: Arc<DashMap<SmolStr, Vec<ReferenceUnit>>>,
+    pub document_map: DashMap<MyString, Document>,
+    pub class_map: Arc<DashMap<MyString, Class>>,
+    pub reference_map: Arc<DashMap<MyString, Vec<ReferenceUnit>>>,
     pub client_capabilities: Arc<Option<ClientCapabilities>>,
     pub connection: Arc<Connection>,
 }
@@ -55,7 +55,7 @@ impl Backend {
         }
     }
 
-    fn on_change(&self, uri: SmolStr, changes: Vec<TextDocumentContentChangeEvent>) {
+    fn on_change(&self, uri: MyString, changes: Vec<TextDocumentContentChangeEvent>) {
         let Some(mut document) = self.document_map.get_mut(&uri) else {
             return;
         };
@@ -66,7 +66,8 @@ impl Backend {
         let ipath = params.uri.path().as_str();
         let path = PathBuf::from(ipath);
         let rope = ropey::Rope::from_str(&params.text);
-        let key: SmolStr = params.uri.to_smolstr();
+        let uri = params.uri.as_str();
+        let key: MyString = uri.to_string();
         if let Some(mut document) = self.document_map.get_mut(&key) {
             document.replace_text(rope);
         } else {
@@ -231,8 +232,8 @@ impl Backend {
     pub async fn initialized(
         con: Arc<Connection>,
         project_kind: ProjectKind,
-        class_map: Arc<dashmap::DashMap<SmolStr, parser::dto::Class>>,
-        reference_map: Arc<dashmap::DashMap<SmolStr, Vec<ReferenceUnit>>>,
+        class_map: Arc<dashmap::DashMap<MyString, parser::dto::Class>>,
+        reference_map: Arc<dashmap::DashMap<MyString, Vec<ReferenceUnit>>>,
     ) {
         Backend::progress_start(con.clone(), "Init".to_string());
         {
@@ -321,7 +322,7 @@ impl Backend {
 
     pub fn did_change(&self, params: DidChangeTextDocumentParams) {
         self.on_change(
-            params.text_document.uri.to_smolstr(),
+            params.text_document.uri.as_str().to_string(),
             params.content_changes,
         );
     }
@@ -651,7 +652,7 @@ impl Backend {
                     i.to_string(),
                     document::read_document_or_open_class(
                         &i,
-                        SmolStr::new(""),
+                        MyString::new(),
                         &self.document_map,
                         uri.as_str(),
                     ),
@@ -751,7 +752,7 @@ pub async fn read_forward(
 pub async fn fetch_deps(
     sender: tokio::sync::watch::Sender<TaskProgress>,
     project_kind: ProjectKind,
-    class_map: Arc<dashmap::DashMap<SmolStr, parser::dto::Class>>,
+    class_map: Arc<dashmap::DashMap<MyString, parser::dto::Class>>,
 ) {
     tokio::spawn(async move {
         match project_kind {

@@ -3,8 +3,8 @@ use call_chain::get_call_chain;
 use document::{Document, DocumentError};
 use get_class::FoundClass;
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat};
+use my_string::MyString;
 use parser::dto::{self, ImportUnit};
-use smol_str::SmolStr;
 use variables::LocalVariable;
 
 use crate::codeaction;
@@ -218,7 +218,7 @@ pub fn complete_call_chain(
     vars: &[LocalVariable],
     imports: &[ImportUnit],
     class: &dto::Class,
-    class_map: &dashmap::DashMap<SmolStr, parser::dto::Class>,
+    class_map: &dashmap::DashMap<MyString, parser::dto::Class>,
 ) -> Result<Vec<CompletionItem>, CompletionError> {
     let call_chain = get_call_chain(&document.ast, point);
     match tyres::resolve_call_chain(&call_chain, vars, imports, class, class_map) {
@@ -231,7 +231,7 @@ pub fn classes(
     document: &Document,
     point: &AstPoint,
     imports: &[ImportUnit],
-    class_map: &dashmap::DashMap<SmolStr, parser::dto::Class>,
+    class_map: &dashmap::DashMap<MyString, parser::dto::Class>,
 ) -> Vec<CompletionItem> {
     if point.col < 3 {
         return vec![];
@@ -281,7 +281,7 @@ pub fn classes(
 pub fn static_methods(
     ast: &AstFile,
     imports: &[ImportUnit],
-    class_map: &dashmap::DashMap<SmolStr, parser::dto::Class>,
+    class_map: &dashmap::DashMap<MyString, parser::dto::Class>,
 ) -> Vec<CompletionItem> {
     imports
         .iter()
@@ -317,9 +317,9 @@ mod tests {
         CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat, Position,
         Range, TextEdit,
     };
+    use my_string::MyString;
     use parser::dto::{self, ImportUnit};
     use pretty_assertions::assert_eq;
-    use smol_str::SmolStr;
     use variables::LocalVariable;
 
     use crate::completion::{Snippet, classes, complete_call_chain};
@@ -380,7 +380,7 @@ public class GreetingResource {
             ImportUnit::Class("io.quarkus.qute.TemplateInstance".into()),
             ImportUnit::Class("io.quarkus.qute.Template".into()),
         ];
-        let class_map: DashMap<SmolStr, dto::Class> = DashMap::new();
+        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
         class_map.insert(
             "java.lang.String".into(),
             dto::Class {
@@ -450,7 +450,7 @@ public class Test {
             name: "Test".into(),
             ..Default::default()
         };
-        let class_map: DashMap<SmolStr, dto::Class> = DashMap::new();
+        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
         class_map.insert(
             "java.lang.String".into(),
             dto::Class {
@@ -547,7 +547,7 @@ public class Test {
     #[ignore = "todo"]
     #[test]
     fn class_completion_base() {
-        let class_map: DashMap<SmolStr, dto::Class> = DashMap::new();
+        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
         class_map.insert(
             "java.lang.StringBuilder".into(),
             dto::Class {
@@ -598,7 +598,7 @@ public class Test {
     #[ignore = "todo"]
     #[test]
     fn class_completion_imported() {
-        let class_map: DashMap<SmolStr, dto::Class> = DashMap::new();
+        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
         class_map.insert(
             "java.lang.StringBuilder".into(),
             dto::Class {

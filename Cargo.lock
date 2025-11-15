@@ -80,8 +80,8 @@ dependencies = [
  "bitflags 2.10.0",
  "criterion",
  "insta",
+ "my_string",
  "phf 0.13.1",
- "smol_str",
 ]
 
 [[package]]
@@ -115,15 +115,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "borsh"
-version = "1.5.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad8646f98db542e39fc66e68a20b2144f6a732636df7c2354e74645faaa433ce"
-dependencies = [
- "cfg_aliases",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -147,8 +138,8 @@ version = "0.1.0"
 dependencies = [
  "ast",
  "insta",
+ "my_string",
  "pretty_assertions",
- "smol_str",
 ]
 
 [[package]]
@@ -168,12 +159,6 @@ name = "cfg-if"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
-
-[[package]]
-name = "cfg_aliases"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 
 [[package]]
 name = "chardetng"
@@ -508,10 +493,10 @@ dependencies = [
  "ast",
  "dashmap",
  "lsp-types",
+ "my_string",
  "parser",
  "pretty_assertions",
  "ropey",
- "smol_str",
 ]
 
 [[package]]
@@ -686,10 +671,10 @@ dependencies = [
  "dashmap",
  "itertools 0.14.0",
  "loader",
+ "my_string",
  "nom 8.0.0",
  "parser",
  "pretty_assertions",
- "smol_str",
  "tokio",
 ]
 
@@ -818,9 +803,9 @@ dependencies = [
  "dirs",
  "futures",
  "loader",
+ "my_string",
  "parser",
  "pretty_assertions",
- "smol_str",
  "tokio",
  "zip_util",
 ]
@@ -868,11 +853,11 @@ dependencies = [
  "classfile-parser",
  "itertools 0.14.0",
  "jwalk",
+ "my_string",
  "parser",
  "postcard",
  "rayon",
  "rc-zip-tokio",
- "smol_str",
  "tokio",
 ]
 
@@ -925,10 +910,10 @@ dependencies = [
  "dashmap",
  "dirs",
  "loader",
+ "my_string",
  "nom 8.0.0",
  "parser",
  "pretty_assertions",
- "smol_str",
  "tokio",
  "zip_util",
 ]
@@ -964,6 +949,10 @@ dependencies = [
  "wasi",
  "windows-sys 0.61.2",
 ]
+
+[[package]]
+name = "my_string"
+version = "0.1.0"
 
 [[package]]
 name = "nom"
@@ -1085,10 +1074,10 @@ dependencies = [
  "classfile-parser",
  "insta",
  "itertools 0.14.0",
+ "my_string",
  "postcard",
  "pretty_assertions",
  "serde",
- "smol_str",
 ]
 
 [[package]]
@@ -1481,6 +1470,7 @@ dependencies = [
  "lsp-server",
  "lsp-types",
  "maven",
+ "my_string",
  "parking_lot",
  "parser",
  "position",
@@ -1488,7 +1478,6 @@ dependencies = [
  "rayon",
  "ropey",
  "serde_json",
- "smol_str",
  "tokio",
  "tyres",
  "variables",
@@ -1526,16 +1515,6 @@ name = "smallvec"
 version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
-
-[[package]]
-name = "smol_str"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3498b0a27f93ef1402f20eefacfaa1691272ac4eca1cdc8c596cb0a245d6cbf5"
-dependencies = [
- "borsh",
- "serde_core",
-]
 
 [[package]]
 name = "socket2"
@@ -1686,8 +1665,8 @@ dependencies = [
  "ast",
  "call_chain",
  "dashmap",
+ "my_string",
  "parser",
- "smol_str",
  "variables",
 ]
 
@@ -1709,8 +1688,8 @@ version = "0.1.0"
 dependencies = [
  "ast",
  "insta",
+ "my_string",
  "parser",
- "smol_str",
 ]
 
 [[package]]

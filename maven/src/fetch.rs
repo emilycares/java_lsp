@@ -9,11 +9,11 @@ use std::{
 
 use common::TaskProgress;
 use dashmap::DashMap;
+use my_string::MyString;
 use parser::{
     SourceDestination,
     dto::{Class, ClassFolder},
 };
-use smol_str::SmolStr;
 use tokio::{process::Command, task::JoinSet};
 
 use crate::{
@@ -66,7 +66,7 @@ pub enum MavenFetchError {
 const MAVEN_CFC: &str = ".maven.cfc";
 
 pub async fn fetch_deps(
-    class_map: Arc<DashMap<SmolStr, Class>>,
+    class_map: Arc<DashMap<MyString, Class>>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
     use_cache: bool,
     download: bool,

@@ -3,15 +3,15 @@ use std::{fs, path::PathBuf};
 use ast::{error::PrintErr, types::AstFile};
 use dashmap::{DashMap, mapref::one::RefMut};
 use lsp_types::TextDocumentContentChangeEvent;
+use my_string::MyString;
 use ropey::Rope;
-use smol_str::SmolStr;
 
 pub struct Document {
     pub text: ropey::Rope,
     pub str_data: String,
     pub ast: AstFile,
     pub path: PathBuf,
-    pub class_path: SmolStr,
+    pub class_path: MyString,
 }
 
 #[derive(Debug)]
@@ -29,12 +29,12 @@ impl Document {
         self.reparse(false);
         Ok(())
     }
-    pub fn setup_read(path: PathBuf, class_path: SmolStr) -> Result<Self, DocumentError> {
+    pub fn setup_read(path: PathBuf, class_path: MyString) -> Result<Self, DocumentError> {
         let text = fs::read_to_string(&path).map_err(DocumentError::Io)?;
         let rope = ropey::Rope::from_str(&text);
         Self::setup_rope(&text, path, rope, class_path)
     }
-    pub fn setup(text: &str, path: PathBuf, class_path: SmolStr) -> Result<Self, DocumentError> {
+    pub fn setup(text: &str, path: PathBuf, class_path: MyString) -> Result<Self, DocumentError> {
         let rope = ropey::Rope::from_str(text);
         Self::setup_rope(text, path, rope, class_path)
     }
@@ -43,7 +43,7 @@ impl Document {
         text: &str,
         path: PathBuf,
         rope: Rope,
-        class_path: SmolStr,
+        class_path: MyString,
     ) -> Result<Self, DocumentError> {
         let tokens = ast::lexer::lex(text).map_err(DocumentError::Lexer)?;
         let ast = ast::parse_file(&tokens);
@@ -124,13 +124,13 @@ impl Document {
 
 pub enum ClassSource<'a, D> {
     Owned(D),
-    Ref(RefMut<'a, SmolStr, Document>),
+    Ref(RefMut<'a, MyString, Document>),
     Err(DocumentError),
 }
 pub fn read_document_or_open_class<'a, 'b>(
     source: &'b str,
-    class_path: SmolStr,
-    document_map: &'a DashMap<SmolStr, Document>,
+    class_path: MyString,
+    document_map: &'a DashMap<MyString, Document>,
     uri: &'b str,
 ) -> ClassSource<'a, Document> {
     match document_map.get_mut(uri) {

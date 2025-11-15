@@ -35,6 +35,7 @@ pub fn parse_enumeration(
     let mut inner = vec![];
     let mut end_reached = false;
     loop {
+        errors.clear();
         if let Ok(npos) = assert_token(tokens, pos, Token::Semicolon) {
             pos = npos;
             break;
@@ -44,14 +45,24 @@ pub fn parse_enumeration(
             end_reached = true;
             break;
         };
-        if let Ok((variant, npos)) = parse_enum_variant(tokens, pos) {
-            variants.push(variant);
+        if let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
             pos = npos;
             continue;
         }
-        if let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
-            pos = npos;
+        match parse_enum_variant(tokens, pos) {
+            Ok((variant, npos)) => {
+                variants.push(variant);
+                pos = npos;
+                continue;
+            }
+            Err(e) => {
+                errors.push(("enum_variant".into(), e));
+            }
         }
+        return Err(AstError::AllChildrenFailed {
+            parent: "enum_variant".into(),
+            errors,
+        });
     }
     if !end_reached {
         loop {
@@ -63,6 +74,7 @@ pub fn parse_enumeration(
                 pos = npos;
                 break;
             };
+            let start_pos = pos;
             match parse_class_method(tokens, pos) {
                 Ok((method, npos)) => {
                     methods.push(method);
@@ -112,6 +124,10 @@ pub fn parse_enumeration(
                 Err(e) => {
                     errors.push(("thing".into(), e));
                 }
+            }
+            if pos == start_pos {
+                eprintln!("No enum enty was parsed: {:?}", tokens.get(pos));
+                break;
             }
             return Err(AstError::AllChildrenFailed {
                 parent: "enum".into(),

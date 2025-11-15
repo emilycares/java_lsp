@@ -5,6 +5,7 @@ use std::{
 };
 
 use jwalk::WalkDir;
+use my_string::MyString;
 use parser::{
     SourceDestination,
     class::{self, load_class},
@@ -13,7 +14,6 @@ use parser::{
 };
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
-use smol_str::SmolStr;
 use std::fmt::Debug;
 use tokio::fs::read;
 
@@ -28,7 +28,7 @@ pub enum LoaderError {
 
 pub fn load_class_fs<T>(
     path: T,
-    class_path: SmolStr,
+    class_path: MyString,
     source: SourceDestination,
 ) -> Result<dto::Class, dto::ClassError>
 where

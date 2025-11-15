@@ -2,8 +2,8 @@ use std::fmt::Display;
 
 use ast::types::{AstAvailability, AstImport, AstImportUnit, AstJType, AstJTypeKind};
 use bitflags::bitflags;
+use my_string::MyString;
 use serde::{Deserialize, Serialize};
-use smol_str::SmolStr;
 
 #[derive(Debug)]
 pub enum ClassError {
@@ -34,11 +34,11 @@ impl ClassFolder {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
 pub struct Class {
-    pub class_path: SmolStr,
-    pub source: SmolStr,
+    pub class_path: MyString,
+    pub source: MyString,
     pub access: Access,
     pub imports: Vec<ImportUnit>,
-    pub name: SmolStr,
+    pub name: MyString,
     pub methods: Vec<Method>,
     pub fields: Vec<Field>,
     pub super_class: SuperClass,
@@ -55,18 +55,18 @@ impl Class {
 pub enum SuperClass {
     #[default]
     None,
-    Name(SmolStr),
-    ClassPath(SmolStr),
+    Name(MyString),
+    ClassPath(MyString),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ImportUnit {
-    Package(SmolStr),
-    Class(SmolStr),
-    StaticClass(SmolStr),
-    StaticClassMethod(SmolStr, SmolStr),
-    Prefix(SmolStr),
-    StaticPrefix(SmolStr),
+    Package(MyString),
+    Class(MyString),
+    StaticClass(MyString),
+    StaticClassMethod(MyString, MyString),
+    Prefix(MyString),
+    StaticPrefix(MyString),
 }
 impl ImportUnit {
     pub fn class_path_get_class_name(class_path: &str) -> Option<&str> {
@@ -80,7 +80,7 @@ impl ImportUnit {
             .iter()
             .any(|i| *i == name)
     }
-    pub fn get_imported_class_package(&self, name: &str) -> Option<SmolStr> {
+    pub fn get_imported_class_package(&self, name: &str) -> Option<MyString> {
         match self {
             ImportUnit::Class(class_path) | ImportUnit::StaticClass(class_path) => {
                 if Self::class_path_match_class_name(class_path, name) {
@@ -185,26 +185,26 @@ impl Access {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
 pub struct Method {
     pub access: Access,
-    pub name: SmolStr,
+    pub name: MyString,
     pub parameters: Vec<Parameter>,
     pub throws: Vec<JType>,
     pub ret: JType,
     /// When None then it is in the class
-    pub source: Option<SmolStr>,
+    pub source: Option<MyString>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Field {
     pub access: Access,
-    pub name: SmolStr,
+    pub name: MyString,
     pub jtype: JType,
     /// When None then it is in the class
-    pub source: Option<SmolStr>,
+    pub source: Option<MyString>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Parameter {
-    pub name: Option<SmolStr>,
+    pub name: Option<MyString>,
     pub jtype: JType,
 }
 
@@ -221,10 +221,10 @@ pub enum JType {
     Short,
     Boolean,
     Wildcard,
-    Class(SmolStr),
+    Class(MyString),
     Array(Box<JType>),
-    Generic(SmolStr, Vec<JType>),
-    Parameter(SmolStr),
+    Generic(MyString, Vec<JType>),
+    Parameter(MyString),
     Var,
 }
 impl From<&AstJType> for JType {

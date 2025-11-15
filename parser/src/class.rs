@@ -9,11 +9,11 @@ use classfile_parser::field_info::{FieldAccessFlags, FieldInfo};
 use classfile_parser::method_info::MethodAccessFlags;
 use classfile_parser::{ClassAccessFlags, ClassFile, class_parser};
 use itertools::Itertools;
-use smol_str::SmolStr;
+use my_string::MyString;
 
 pub fn load_class(
     bytes: &[u8],
-    class_path: SmolStr,
+    class_path: MyString,
     source: SourceDestination,
 ) -> Result<dto::Class, dto::ClassError> {
     let res = class_parser(bytes);
@@ -117,7 +117,7 @@ pub fn load_class(
     }
 }
 
-fn lookup_class_name(c: &ClassFile, index: usize) -> Option<SmolStr> {
+fn lookup_class_name(c: &ClassFile, index: usize) -> Option<MyString> {
     match c.const_pool.get(index.saturating_sub(1)) {
         Some(ConstantInfo::Class(class)) => lookup_string(c, class.name_index)
             .expect("Class to have name")
@@ -223,7 +223,7 @@ fn parse_method(
     })
 }
 
-fn parse_used_classes(c: &ClassFile, code_attribute: Option<CodeAttribute>) -> Vec<SmolStr> {
+fn parse_used_classes(c: &ClassFile, code_attribute: Option<CodeAttribute>) -> Vec<MyString> {
     if let Some(code_attribute) = code_attribute {
         let local_variable_table_attributes: Vec<LocalVariableTableAttribute> = code_attribute
             .attributes
@@ -255,7 +255,7 @@ fn parse_used_classes(c: &ClassFile, code_attribute: Option<CodeAttribute>) -> V
     vec![]
 }
 
-fn jtype_class_names(i: JType) -> Vec<SmolStr> {
+fn jtype_class_names(i: JType) -> Vec<MyString> {
     match i {
         JType::Class(class) => vec![class],
         JType::Array(jtype) => jtype_class_names(*jtype),
@@ -354,7 +354,7 @@ fn parse_field_access(method: &FieldInfo) -> dto::Access {
     access
 }
 
-fn lookup_string(c: &ClassFile, index: u16) -> Option<SmolStr> {
+fn lookup_string(c: &ClassFile, index: u16) -> Option<MyString> {
     if index == 0 {
         return None;
     }

@@ -146,7 +146,7 @@ expression: parsed.unwrap()
                                                                         },
                                                                     },
                                                                     values: [
-                                                                        AstIdentifier {
+                                                                        AstLambdaParameter {
                                                                             range: AstRange {
                                                                                 start: AstPoint {
                                                                                     line: 0,
@@ -157,7 +157,20 @@ expression: parsed.unwrap()
                                                                                     col: 19,
                                                                                 },
                                                                             },
-                                                                            value: "n",
+                                                                            jtype: None,
+                                                                            name: AstIdentifier {
+                                                                                range: AstRange {
+                                                                                    start: AstPoint {
+                                                                                        line: 0,
+                                                                                        col: 18,
+                                                                                    },
+                                                                                    end: AstPoint {
+                                                                                        line: 0,
+                                                                                        col: 19,
+                                                                                    },
+                                                                                },
+                                                                                value: "n",
+                                                                            },
                                                                         },
                                                                     ],
                                                                 },

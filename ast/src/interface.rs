@@ -3,12 +3,13 @@ use crate::{
     ExpressionOptions,
     error::{AstError, GetStartEnd, assert_token},
     lexer::{PositionToken, Token},
-    parse_annotated_list, parse_avaliability, parse_block, parse_expression, parse_extends,
-    parse_identifier, parse_jtype, parse_method_header, parse_name, parse_permits, parse_thing,
-    parse_type_parameters,
+    parse_annotated_list, parse_array_type_on_name, parse_avaliability, parse_block,
+    parse_expression, parse_extends, parse_identifier, parse_jtype, parse_method_header,
+    parse_name, parse_permits, parse_thing, parse_type_parameters,
     types::{
         AstAnnotated, AstAvailability, AstInterface, AstInterfaceConstant, AstInterfaceMethod,
-        AstInterfaceMethodDefault, AstRange, AstStaticFinal, AstThing, AstThingAttributes,
+        AstInterfaceMethodDefault, AstJType, AstRange, AstStaticFinal, AstThing,
+        AstThingAttributes,
     },
 };
 
@@ -64,9 +65,18 @@ pub fn parse_interface(
             pos = npos;
             break;
         };
+        match assert_token(tokens, pos, Token::Semicolon) {
+            Ok(npos) => {
+                pos = npos;
+                continue;
+            }
+            Err(e) => {
+                errors.push(("interface semicolon".into(), e));
+            }
+        }
         match parse_interface_constant(tokens, pos) {
             Ok((constant, npos)) => {
-                constants.push(constant);
+                constants.extend(constant);
                 pos = npos;
                 continue;
             }
@@ -134,7 +144,7 @@ pub fn parse_interface(
 pub fn parse_interface_constant(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(AstInterfaceConstant, usize), AstError> {
+) -> Result<(Vec<AstInterfaceConstant>, usize), AstError> {
     let start = tokens.start(pos)?;
     let (annotated, pos) = parse_annotated_list(tokens, pos)?;
     let mut static_final = AstStaticFinal::None;
@@ -150,25 +160,64 @@ pub fn parse_interface_constant(
         pos += 1;
     }
     let (jtype, pos) = parse_jtype(tokens, pos)?;
+    let mut out = vec![];
+
+    let (v, pos) = parse_interface_constant_base(
+        tokens,
+        start,
+        &annotated,
+        avaliability.clone(),
+        static_final.clone(),
+        &jtype,
+        pos,
+    )?;
+    out.push(v);
+    let mut pos = pos;
+    while let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
+        let (v, npos) = parse_interface_constant_base(
+            tokens,
+            start,
+            &annotated,
+            avaliability.clone(),
+            static_final.clone(),
+            &jtype,
+            npos,
+        )?;
+        pos = npos;
+        out.push(v);
+    }
+
+    let pos = assert_token(tokens, pos, Token::Semicolon)?;
+    Ok((out, pos))
+}
+fn parse_interface_constant_base(
+    tokens: &[PositionToken],
+    start: &PositionToken,
+    annotated: &[AstAnnotated],
+    avaliability: AstAvailability,
+    static_final: AstStaticFinal,
+    jtype: &AstJType,
+    pos: usize,
+) -> Result<(AstInterfaceConstant, usize), AstError> {
+    let mut jtype = jtype.clone();
     let (name, pos) = parse_name(tokens, pos)?;
+    let pos = parse_array_type_on_name(tokens, pos, &mut jtype);
     let pos = assert_token(tokens, pos, Token::Equal)?;
     let (expression, pos) = parse_expression(tokens, pos, &ExpressionOptions::None)?;
-    let pos = assert_token(tokens, pos, Token::Semicolon)?;
     let end = tokens.end(pos)?;
     Ok((
         AstInterfaceConstant {
             range: AstRange::from_position_token(start, end),
-            annotated,
-            static_final,
-            avaliability,
-            name,
+            annotated: annotated.to_owned(),
             jtype,
+            name,
+            avaliability,
+            static_final,
             expression,
         },
         pos,
     ))
 }
-
 /// `public static<A> A a(final A arg) {`
 pub fn parse_interface_method(
     tokens: &[PositionToken],

@@ -10,8 +10,8 @@ use std::{
 
 use common::TaskProgress;
 use dashmap::DashMap;
+use my_string::MyString;
 use parser::{SourceDestination, dto::ClassFolder};
-use smol_str::SmolStr;
 use tokio::task::JoinSet;
 
 use crate::tree::GradleTreeError;
@@ -36,7 +36,7 @@ pub(crate) const PATH_GRADLE: &str = "./gradlew.bat";
 const GRADLE_CFC: &str = ".gradle.cfc";
 
 pub async fn fetch_deps(
-    class_map: &DashMap<SmolStr, parser::dto::Class>,
+    class_map: &DashMap<MyString, parser::dto::Class>,
     build_gradle: PathBuf,
     sender: tokio::sync::watch::Sender<TaskProgress>,
 ) -> Result<(), GradleFetchError> {

@@ -1,7 +1,8 @@
 //! Error type and helper
+use my_string::MyString;
+
 use super::lexer::{PositionToken, Token};
 use crate::BlockEntryOptions;
-use smol_str::{SmolStr, format_smolstr};
 use std::panic::Location;
 
 const PRINT_ALL_ERRORS: bool = false;
@@ -33,7 +34,7 @@ pub enum AstError {
     /// Expression was empty
     EmptyExpression(InvalidToken),
     /// End of file reached
-    UnexpectedEOF(String, u32, u32),
+    UnexpectedEOF(MyString, u32, u32),
     /// Invalid token in Identifier
     IdentifierEmpty(InvalidToken),
     /// Invalid token in Name
@@ -43,14 +44,14 @@ pub enum AstError {
     /// All children errored
     AllChildrenFailed {
         /// Description
-        parent: SmolStr,
+        parent: MyString,
         /// Related errors
-        errors: Vec<(SmolStr, AstError)>,
+        errors: Vec<(MyString, AstError)>,
     },
     /// Invalid token in Expression
     InvalidExpression(InvalidToken),
     /// Invalid token in Double
-    InvalidDouble(SmolStr, SmolStr),
+    InvalidDouble(MyString, MyString),
     /// Invalid token in Boolean
     InvalidBoolean(InvalidToken),
     /// Invalid string literal
@@ -65,10 +66,9 @@ impl PrintErr for AstError {
                     content,
                     expected_token.line,
                     expected_token.col,
-                    format_smolstr!(
+                    format!(
                         "Expected token {:?} found: {:?}",
-                        expected_token.expected,
-                        expected_token.found
+                        expected_token.expected, expected_token.found
                     ),
                 );
             }
@@ -77,7 +77,7 @@ impl PrintErr for AstError {
                     content,
                     invalid_token.line,
                     invalid_token.col,
-                    format_smolstr!(
+                    format!(
                         "Invalid Availability token found: {:?} valid onese ar public, private, protected",
                         invalid_token.found
                     ),
@@ -91,7 +91,7 @@ impl PrintErr for AstError {
                     content,
                     invalid_token.line,
                     invalid_token.col,
-                    format_smolstr!(
+                    format!(
                         "Invalid Type token found: {:?} valid onese ar Int, String",
                         invalid_token.found
                     ),
@@ -102,7 +102,7 @@ impl PrintErr for AstError {
                     content,
                     invalid_token.line,
                     invalid_token.col,
-                    format_smolstr!("Identifier empty found: {:?}", invalid_token.found),
+                    format!("Identifier empty found: {:?}", invalid_token.found),
                 );
             }
             AstError::InvalidName(invalid_token) => {
@@ -110,7 +110,7 @@ impl PrintErr for AstError {
                     content,
                     invalid_token.line,
                     invalid_token.col,
-                    format_smolstr!("Token not allowed in name: {:?}", invalid_token.found),
+                    format!("Token not allowed in name: {:?}", invalid_token.found),
                 );
             }
             AstError::InvalidNuget(invalid_token) => {
@@ -118,7 +118,7 @@ impl PrintErr for AstError {
                     content,
                     invalid_token.line,
                     invalid_token.col,
-                    format_smolstr!("Token not allowed in nuget: {:?}", invalid_token.found),
+                    format!("Token not allowed in nuget: {:?}", invalid_token.found),
                 );
             }
             AstError::InvalidExpression(invalid_token) => {
@@ -126,7 +126,7 @@ impl PrintErr for AstError {
                     content,
                     invalid_token.line,
                     invalid_token.col,
-                    format_smolstr!("Token not allowed in expression: {:?}", invalid_token.found),
+                    format!("Token not allowed in expression: {:?}", invalid_token.found),
                 );
             }
             AstError::InvalidDouble(a, b) => {
@@ -137,7 +137,7 @@ impl PrintErr for AstError {
                     content,
                     invalid_token.line,
                     invalid_token.col,
-                    format_smolstr!("Token not allowed in boolean: {:?}", invalid_token.found),
+                    format!("Token not allowed in boolean: {:?}", invalid_token.found),
                 );
             }
             AstError::InvalidString(invalid_token) => {
@@ -145,7 +145,7 @@ impl PrintErr for AstError {
                     content,
                     invalid_token.line,
                     invalid_token.col,
-                    format_smolstr!("Not a string literal: {:?}", invalid_token.found),
+                    format!("Not a string literal: {:?}", invalid_token.found),
                 );
             }
             AstError::AllChildrenFailed { parent, errors } => {
@@ -168,7 +168,7 @@ impl PrintErr for AstError {
                     content,
                     invalid_token.line,
                     invalid_token.col,
-                    format_smolstr!(
+                    format!(
                         "Invalid Type token found: {:?} valid onese ar Int, String",
                         invalid_token.found
                     ),
@@ -179,7 +179,7 @@ impl PrintErr for AstError {
 }
 
 #[allow(unused)]
-fn sort_helper_error(a: &(SmolStr, AstError)) -> usize {
+fn sort_helper_error(a: &(MyString, AstError)) -> usize {
     match &a.1 {
         AstError::ExpectedToken(expected_token) => expected_token.pos,
         AstError::InvalidAvailability(invalid_token) => invalid_token.pos,
@@ -233,7 +233,7 @@ fn get_pos(e: &AstError) -> (usize, usize) {
     }
 }
 
-fn print_helper(content: &str, line: usize, col: usize, msg: SmolStr) {
+fn print_helper(content: &str, line: usize, col: usize, msg: MyString) {
     let is_zero = line == 0;
     let mut lines = match is_zero {
         false => content.lines().enumerate().skip(line - 1),
