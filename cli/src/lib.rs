@@ -20,6 +20,10 @@ pub struct Args {
 pub enum Commands {
     /// Start the lsp server over stdio
     Server,
+    /// Get tokens from file
+    Lex { file: PathBuf },
+    /// Get tokens from file at pos
+    LexPos { file: PathBuf, pos: usize },
     /// Check for errors in file
     AstCheck { file: PathBuf },
     /// Recusivly check a directory for ast for java files
@@ -81,4 +85,15 @@ pub fn ast_check_dir(folder: PathBuf) {
             ast_check(i.into());
         });
     println!("Checked all files.")
+}
+
+pub fn lex(file: PathBuf) {
+    let text = std::fs::read_to_string(&file).unwrap();
+    let tokens = ast::lexer::lex(&text).unwrap();
+    eprintln!("{:?}", tokens);
+}
+pub fn lex_pos(file: PathBuf, pos: usize) {
+    let text = std::fs::read_to_string(&file).unwrap();
+    let tokens = ast::lexer::lex(&text).unwrap();
+    eprintln!("{:?}", tokens[pos]);
 }

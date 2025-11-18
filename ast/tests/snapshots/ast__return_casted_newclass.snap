@@ -15,143 +15,147 @@ expression: parsed
             },
         },
         expression: Expression(
-            Casted(
-                AstCastedExpression {
-                    range: AstRange {
-                        start: AstPoint {
-                            line: 0,
-                            col: 7,
-                        },
-                        end: AstPoint {
-                            line: 0,
-                            col: 40,
-                        },
-                    },
-                    cast: AstJType {
+            [
+                Casted(
+                    AstCastedExpression {
                         range: AstRange {
                             start: AstPoint {
                                 line: 0,
-                                col: 8,
+                                col: 7,
                             },
                             end: AstPoint {
                                 line: 0,
-                                col: 13,
+                                col: 19,
                             },
                         },
-                        value: Array(
-                            AstJType {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 0,
-                                        col: 8,
-                                    },
-                                    end: AstPoint {
-                                        line: 0,
-                                        col: 15,
-                                    },
-                                },
-                                value: Generic(
-                                    AstIdentifier {
-                                        range: AstRange {
-                                            start: AstPoint {
-                                                line: 0,
-                                                col: 8,
-                                            },
-                                            end: AstPoint {
-                                                line: 0,
-                                                col: 13,
-                                            },
-                                        },
-                                        value: "Entry",
-                                    },
-                                    [
-                                        AstJType {
-                                            range: AstRange {
-                                                start: AstPoint {
-                                                    line: 0,
-                                                    col: 14,
-                                                },
-                                                end: AstPoint {
-                                                    line: 0,
-                                                    col: 15,
-                                                },
-                                            },
-                                            value: Class(
-                                                AstIdentifier {
-                                                    range: AstRange {
-                                                        start: AstPoint {
-                                                            line: 0,
-                                                            col: 14,
-                                                        },
-                                                        end: AstPoint {
-                                                            line: 0,
-                                                            col: 15,
-                                                        },
-                                                    },
-                                                    value: "T",
-                                                },
-                                            ),
-                                        },
-                                    ],
-                                ),
-                            },
-                        ),
-                    },
-                    expression: NewClass(
-                        AstNewClass {
+                        cast: AstJType {
                             range: AstRange {
                                 start: AstPoint {
                                     line: 0,
-                                    col: 20,
+                                    col: 8,
                                 },
                                 end: AstPoint {
                                     line: 0,
-                                    col: 40,
+                                    col: 13,
                                 },
                             },
-                            jtype: AstJType {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 0,
-                                        col: 24,
-                                    },
-                                    end: AstPoint {
-                                        line: 0,
-                                        col: 30,
-                                    },
-                                },
-                                value: Generic(
-                                    AstIdentifier {
-                                        range: AstRange {
-                                            start: AstPoint {
-                                                line: 0,
-                                                col: 24,
-                                            },
-                                            end: AstPoint {
-                                                line: 0,
-                                                col: 29,
-                                            },
+                            value: Array(
+                                AstJType {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 0,
+                                            col: 8,
                                         },
-                                        value: "Entry",
+                                        end: AstPoint {
+                                            line: 0,
+                                            col: 15,
+                                        },
                                     },
-                                    [
-                                        AstJType {
+                                    value: Generic(
+                                        AstIdentifier {
                                             range: AstRange {
                                                 start: AstPoint {
                                                     line: 0,
-                                                    col: 30,
+                                                    col: 8,
                                                 },
                                                 end: AstPoint {
                                                     line: 0,
-                                                    col: 30,
+                                                    col: 13,
                                                 },
                                             },
-                                            value: Wildcard,
+                                            value: "Entry",
                                         },
-                                    ],
-                                ),
+                                        [
+                                            AstJType {
+                                                range: AstRange {
+                                                    start: AstPoint {
+                                                        line: 0,
+                                                        col: 14,
+                                                    },
+                                                    end: AstPoint {
+                                                        line: 0,
+                                                        col: 15,
+                                                    },
+                                                },
+                                                value: Class(
+                                                    AstIdentifier {
+                                                        range: AstRange {
+                                                            start: AstPoint {
+                                                                line: 0,
+                                                                col: 14,
+                                                            },
+                                                            end: AstPoint {
+                                                                line: 0,
+                                                                col: 15,
+                                                            },
+                                                        },
+                                                        value: "T",
+                                                    },
+                                                ),
+                                            },
+                                        ],
+                                    ),
+                                },
+                            ),
+                        },
+                    },
+                ),
+                NewClass(
+                    AstNewClass {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 20,
                             },
-                            rhs: ArrayParameters(
+                            end: AstPoint {
+                                line: 0,
+                                col: 40,
+                            },
+                        },
+                        jtype: AstJType {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 24,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 30,
+                                },
+                            },
+                            value: Generic(
+                                AstIdentifier {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 0,
+                                            col: 24,
+                                        },
+                                        end: AstPoint {
+                                            line: 0,
+                                            col: 29,
+                                        },
+                                    },
+                                    value: "Entry",
+                                },
+                                [
+                                    AstJType {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 0,
+                                                col: 30,
+                                            },
+                                            end: AstPoint {
+                                                line: 0,
+                                                col: 30,
+                                            },
+                                        },
+                                        value: Wildcard,
+                                    },
+                                ],
+                            ),
+                        },
+                        rhs: ArrayParameters(
+                            [
                                 [
                                     [
                                         Recursive(
@@ -186,17 +190,15 @@ expression: parsed
                                                 values: None,
                                                 operator: None,
                                                 instance_of: None,
-                                                next: None,
                                             },
                                         ),
                                     ],
                                 ],
-                            ),
-                            next: None,
-                        },
-                    ),
-                },
-            ),
+                            ],
+                        ),
+                    },
+                ),
+            ],
         ),
     },
     18,

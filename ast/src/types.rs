@@ -243,62 +243,13 @@ pub enum AstBlockEntry {
     Yield(AstBlockYield),
     SynchronizedBlock(AstSynchronizedBlock),
     Thing(Box<AstThing>),
-    Block(AstBlock),
+    InlineBlock(AstInlineBlock),
 }
-impl AstBlockEntry {
-    pub fn get_range(&self) -> AstRange {
-        match &self {
-            AstBlockEntry::Return(ast_block_return) => ast_block_return.range,
-            AstBlockEntry::Variable(ast_block_variable) => {
-                if let Some(first) = ast_block_variable.first()
-                    && let Some(last) = ast_block_variable.last()
-                {
-                    return AstRange {
-                        start: first.range.start,
-                        end: last.range.end,
-                    };
-                }
-                AstRange::default()
-            }
-            AstBlockEntry::Expression(ast_block_expression) => ast_block_expression.range,
-            AstBlockEntry::Assign(ast_block_assign) => ast_block_assign.range,
-            AstBlockEntry::If(ast_if) => match ast_if {
-                AstIf::If {
-                    range,
-                    control: _,
-                    control_range: _,
-                    content: _,
-                    el: _,
-                } => *range,
-                AstIf::Else { range, content: _ } => *range,
-            },
-            AstBlockEntry::While(ast_while) => ast_while.range,
-            AstBlockEntry::For(ast_for) => ast_for.range,
-            AstBlockEntry::ForEnhanced(ast_for_enhanced) => ast_for_enhanced.range,
-            AstBlockEntry::Break(ast_block_break) => ast_block_break.range,
-            AstBlockEntry::Continue(ast_block_continue) => ast_block_continue.range,
-            AstBlockEntry::Switch(ast_switch) => ast_switch.range,
-            AstBlockEntry::SwitchCase(ast_switch_case) => ast_switch_case.range,
-            AstBlockEntry::SwitchDefault(ast_switch_default) => ast_switch_default.range,
-            AstBlockEntry::TryCatch(ast_try_catch) => ast_try_catch.range,
-            AstBlockEntry::Throw(ast_throw) => ast_throw.range,
-            AstBlockEntry::SwitchCaseArrow(ast_switch_case_arrow) => ast_switch_case_arrow.range,
-            AstBlockEntry::Yield(ast_block_yield) => ast_block_yield.range,
-            AstBlockEntry::SynchronizedBlock(ast_synchronized_block) => {
-                ast_synchronized_block.range
-            }
-            AstBlockEntry::SwitchCaseArrowDefault(ast_switch_case_arrow_default) => {
-                ast_switch_case_arrow_default.range
-            }
-            AstBlockEntry::Thing(ast_thing) => ast_thing.get_range(),
-            AstBlockEntry::Block(ast_block) => ast_block.range,
-        }
-    }
-}
+
 #[derive(Debug, Clone)]
 pub struct AstWhile {
     pub range: AstRange,
-    pub control: Box<AstRecursiveExpression>,
+    pub control: AstExpression,
     pub content: AstWhileContent,
     pub label: Option<AstIdentifier>,
 }
@@ -314,7 +265,7 @@ pub struct AstFor {
 #[derive(Debug, Clone)]
 pub struct AstSwitch {
     pub range: AstRange,
-    pub check: Box<AstExpression>,
+    pub check: AstExpression,
     pub block: AstBlock,
 }
 #[derive(Debug, Clone)]
@@ -354,7 +305,7 @@ pub struct AstForEnhanced {
 pub enum AstIf {
     If {
         range: AstRange,
-        control: Box<AstExpression>,
+        control: AstExpression,
         control_range: AstRange,
         content: AstIfContent,
         el: Option<Box<AstIf>>,
@@ -409,13 +360,19 @@ pub struct AstTryCatchCase {
 #[derive(Debug, Clone)]
 pub struct AstBlockAssign {
     pub range: AstRange,
-    pub key: Box<AstRecursiveExpression>,
+    pub key: AstExpression,
     pub expression: AstExpression,
 }
 #[derive(Debug, Clone)]
 pub struct AstBlockExpression {
     pub range: AstRange,
     pub value: AstExpression,
+}
+#[derive(Debug, Clone)]
+pub struct AstInlineBlock {
+    pub range: AstRange,
+    pub label: Option<AstIdentifier>,
+    pub block: AstBlock,
 }
 #[derive(Debug, Clone)]
 pub struct AstBlock {
@@ -450,7 +407,7 @@ pub struct AstBlockReturn {
 #[derive(Debug, Clone)]
 pub enum AstExpressionOrValue {
     None,
-    Expression(Box<AstExpression>),
+    Expression(AstExpression),
     Value(AstValue),
 }
 #[derive(Debug, Clone)]
@@ -565,17 +522,6 @@ pub enum AstThing {
     Enumeration(AstEnumeration),
     Annotation(AstAnnotation),
 }
-impl AstThing {
-    pub fn get_range(&self) -> AstRange {
-        match self {
-            AstThing::Class(ast_class) => ast_class.range,
-            AstThing::Record(ast_record) => ast_record.range,
-            AstThing::Interface(ast_interface) => ast_interface.range,
-            AstThing::Enumeration(ast_enumeration) => ast_enumeration.range,
-            AstThing::Annotation(ast_annotation) => ast_annotation.range,
-        }
-    }
-}
 
 #[derive(Debug, Default, Clone)]
 pub struct AstJType {
@@ -621,10 +567,12 @@ pub enum AstValueNuget {
     CharLiteral(AstIdentifier),
     BooleanLiteral(AstBoolean),
 }
+pub type AstExpression = Vec<AstExpressionKind>;
+
 #[derive(Debug, Clone)]
-pub enum AstExpression {
+pub enum AstExpressionKind {
     Casted(AstCastedExpression),
-    Recursive(Box<AstRecursiveExpression>),
+    Recursive(AstRecursiveExpression),
     Lambda(AstLambda),
     InlineSwitch(AstSwitch),
     NewClass(AstNewClass),
@@ -633,20 +581,20 @@ pub enum AstExpression {
     Array(AstValues),
     JType(AstCastedExpression),
 }
-impl AstExpression {
+impl AstExpressionKind {
     pub fn has_content(&self) -> bool {
         match self {
-            AstExpression::Recursive(ast_recursive_expression) => {
+            AstExpressionKind::Recursive(ast_recursive_expression) => {
                 ast_recursive_expression.has_content()
             }
-            AstExpression::Casted(_)
-            | AstExpression::JType(_)
-            | AstExpression::Lambda(_)
-            | AstExpression::InlineSwitch(_)
-            | AstExpression::NewClass(_)
-            | AstExpression::Array(_)
-            | AstExpression::Generics(_)
-            | AstExpression::ClassAccess(_) => true,
+            AstExpressionKind::Casted(_)
+            | AstExpressionKind::JType(_)
+            | AstExpressionKind::Lambda(_)
+            | AstExpressionKind::InlineSwitch(_)
+            | AstExpressionKind::NewClass(_)
+            | AstExpressionKind::Array(_)
+            | AstExpressionKind::Generics(_)
+            | AstExpressionKind::ClassAccess(_) => true,
         }
     }
 }
@@ -654,7 +602,6 @@ impl AstExpression {
 pub struct AstCastedExpression {
     pub range: AstRange,
     pub cast: AstJType,
-    pub expression: Box<AstExpression>,
 }
 #[derive(Debug, Clone)]
 pub struct AstRecursiveExpression {
@@ -663,14 +610,13 @@ pub struct AstRecursiveExpression {
     pub values: Option<AstValues>,
     pub operator: AstExpressionOperator,
     pub instance_of: Option<AstJType>,
-    pub next: Option<Box<AstExpression>>,
 }
 #[derive(Debug, Clone)]
 pub enum AstExpressionIdentifier {
     Identifier(AstIdentifier),
     Nuget(AstValueNuget),
     Value(AstValue),
-    ArrayAccess(Box<AstExpression>),
+    ArrayAccess(AstExpression),
     EmptyArrayAccess,
 }
 
@@ -683,12 +629,8 @@ impl AstRecursiveExpression {
     pub fn has_content(&self) -> bool {
         self.ident.is_some()
             || self.instance_of.is_some()
-            || self.next.is_some()
             || self.values.is_some()
             || self.operator != AstExpressionOperator::None
-            || (matches!(self.operator, AstExpressionOperator::Colon(_)) && self.next.is_some())
-            || (matches!(self.operator, AstExpressionOperator::QuestionMark(_))
-                && self.next.is_some())
     }
 }
 #[derive(Debug, Clone)]
@@ -702,7 +644,7 @@ pub struct AstLambda {
 pub enum AstLambdaRhs {
     None,
     Block(AstBlock),
-    Expr(Box<AstExpression>),
+    Expr(AstExpression),
 }
 
 #[derive(Debug, Default, Clone)]
@@ -722,19 +664,16 @@ pub struct AstNewClass {
     pub range: AstRange,
     pub jtype: AstJType,
     pub rhs: Box<AstNewRhs>,
-    pub next: Option<Box<AstExpression>>,
 }
 #[derive(Debug, Clone)]
 pub struct AstClassAccess {
     pub range: AstRange,
     pub jtype: AstJType,
-    pub next: Option<Box<AstExpression>>,
 }
 #[derive(Debug, Clone)]
 pub struct AstGenerics {
     pub range: AstRange,
     pub jtype: AstJType,
-    pub next: Option<Box<AstExpression>>,
 }
 #[derive(Debug, Clone)]
 pub enum AstNewRhs {

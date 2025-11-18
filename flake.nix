@@ -2,7 +2,7 @@
   description = "java_lsp";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
     flake-utils.url = "github:numtide/flake-utils";
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
@@ -32,7 +32,7 @@
           rustc = msrvToolchain;
         };
 
-        rustToolchain = pkgs.rust-bin.stable."1.89.0".default.override {
+        rustToolchain = pkgs.rust-bin.stable."1.91.1".default.override {
           extensions = [
             "rust-src"
             "rust-analyzer"
@@ -59,7 +59,8 @@
             nativeBuildInputs =
               with pkgs;
               [
-                javaPackages.compiler.temurin-bin.jdk-25
+                jdk24
+                # javaPackages.compiler.temurin-bin.jdk-25
                 lld_21
                 gdb
                 hyperfine

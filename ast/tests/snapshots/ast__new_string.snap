@@ -15,51 +15,52 @@ expression: parsed.unwrap()
             },
         },
         expression: Expression(
-            NewClass(
-                AstNewClass {
-                    range: AstRange {
-                        start: AstPoint {
-                            line: 1,
-                            col: 12,
-                        },
-                        end: AstPoint {
-                            line: 1,
-                            col: 24,
-                        },
-                    },
-                    jtype: AstJType {
+            [
+                NewClass(
+                    AstNewClass {
                         range: AstRange {
                             start: AstPoint {
                                 line: 1,
-                                col: 16,
+                                col: 12,
                             },
                             end: AstPoint {
                                 line: 1,
-                                col: 22,
+                                col: 24,
                             },
                         },
-                        value: Class(
-                            AstIdentifier {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 1,
-                                        col: 16,
-                                    },
-                                    end: AstPoint {
-                                        line: 1,
-                                        col: 22,
-                                    },
+                        jtype: AstJType {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 1,
+                                    col: 16,
                                 },
-                                value: "String",
+                                end: AstPoint {
+                                    line: 1,
+                                    col: 22,
+                                },
                             },
+                            value: Class(
+                                AstIdentifier {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 1,
+                                            col: 16,
+                                        },
+                                        end: AstPoint {
+                                            line: 1,
+                                            col: 22,
+                                        },
+                                    },
+                                    value: "String",
+                                },
+                            ),
+                        },
+                        rhs: Parameters(
+                            [],
                         ),
                     },
-                    rhs: Parameters(
-                        [],
-                    ),
-                    next: None,
-                },
-            ),
+                ),
+            ],
         ),
     },
     6,

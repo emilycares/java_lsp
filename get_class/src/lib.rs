@@ -1,7 +1,7 @@
 use ast::types::{
-    AstBlock, AstBlockEntry, AstExpression, AstExpressionIdentifier, AstExpressionOrValue, AstFile,
-    AstJType, AstJTypeKind, AstLambdaRhs, AstNewRhs, AstPoint, AstRange, AstRecursiveExpression,
-    AstThing,
+    AstBlock, AstBlockEntry, AstExpressionIdentifier, AstExpressionKind, AstExpressionOrValue,
+    AstFile, AstJType, AstJTypeKind, AstLambdaRhs, AstNewRhs, AstPoint, AstRange,
+    AstRecursiveExpression, AstThing,
 };
 pub struct FoundClass {
     pub name: String,
@@ -122,8 +122,8 @@ fn get_class_block(block: &AstBlock, point: &AstPoint) -> Option<FoundClass> {
                     return Some(o);
                 }
             }
-            AstBlockEntry::Block(ast_block) => {
-                if let Some(o) = get_class_block(ast_block, point) {
+            AstBlockEntry::InlineBlock(ast_block) => {
+                if let Some(o) = get_class_block(&ast_block.block, point) {
                     return Some(o);
                 }
             }
@@ -145,25 +145,34 @@ fn get_class_expression_or_value(
     }
 }
 
-fn get_class_expression(ex: &AstExpression, point: &AstPoint) -> Option<FoundClass> {
+fn get_class_expression(
+    ast_expression: &[AstExpressionKind],
+    point: &AstPoint,
+) -> Option<FoundClass> {
+    for e in ast_expression {
+        if let Some(c) = get_class_expression_kind(e, &point) {
+            return Some(c);
+        }
+    }
+    None
+}
+
+fn get_class_expression_kind(ex: &AstExpressionKind, point: &AstPoint) -> Option<FoundClass> {
     match &ex {
-        AstExpression::Casted(ast_casted_expression)
-        | AstExpression::JType(ast_casted_expression) => {
+        AstExpressionKind::Casted(ast_casted_expression)
+        | AstExpressionKind::JType(ast_casted_expression) => {
             if !ast_casted_expression.range.is_in_range(point) {
                 return None;
             }
             if let Some(o) = get_class_jtype(&ast_casted_expression.cast, point) {
                 return Some(o);
             }
-            if let Some(o) = get_class_expression(&ast_casted_expression.expression, point) {
-                return Some(o);
-            }
             None
         }
-        AstExpression::Recursive(ast_recursive_expression) => {
+        AstExpressionKind::Recursive(ast_recursive_expression) => {
             get_class_recursive_expression(ast_recursive_expression, point)
         }
-        AstExpression::Lambda(ast_lambda) => {
+        AstExpressionKind::Lambda(ast_lambda) => {
             if !ast_lambda.range.is_in_range(point) {
                 return None;
             }
@@ -173,8 +182,8 @@ fn get_class_expression(ex: &AstExpression, point: &AstPoint) -> Option<FoundCla
                 AstLambdaRhs::Expr(ast_expression) => get_class_expression(ast_expression, point),
             }
         }
-        AstExpression::InlineSwitch(_ast_switch) => None,
-        AstExpression::NewClass(ast_new_class) => {
+        AstExpressionKind::InlineSwitch(_ast_switch) => None,
+        AstExpressionKind::NewClass(ast_new_class) => {
             if !ast_new_class.range.is_in_range(point) {
                 return None;
             }
@@ -221,19 +230,19 @@ fn get_class_expression(ex: &AstExpression, point: &AstPoint) -> Option<FoundCla
                 }
             }
         }
-        AstExpression::ClassAccess(ast_class_access) => {
+        AstExpressionKind::ClassAccess(ast_class_access) => {
             if let Some(o) = get_class_jtype(&ast_class_access.jtype, point) {
                 return Some(o);
             }
             None
         }
-        AstExpression::Generics(ast_generics) => {
+        AstExpressionKind::Generics(ast_generics) => {
             if let Some(o) = get_class_jtype(&ast_generics.jtype, point) {
                 return Some(o);
             }
             None
         }
-        AstExpression::Array(_ast_values) => todo!(),
+        AstExpressionKind::Array(_ast_values) => todo!(),
     }
 }
 
@@ -257,8 +266,6 @@ fn get_class_recursive_expression(
                     return Some(s);
                 }
             }
-        } else if let Some(next) = &expression.next {
-            return get_class_expression(next, point);
         } else {
             break;
         }

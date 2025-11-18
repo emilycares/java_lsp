@@ -55,45 +55,46 @@ expression: parsed.unwrap()
             ],
         },
         rhs: Expr(
-            Recursive(
-                AstRecursiveExpression {
-                    range: AstRange {
-                        start: AstPoint {
-                            line: 0,
-                            col: 5,
+            [
+                Recursive(
+                    AstRecursiveExpression {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 5,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 9,
+                            },
                         },
-                        end: AstPoint {
-                            line: 0,
-                            col: 9,
-                        },
-                    },
-                    ident: Some(
-                        Value(
-                            Nuget(
-                                BooleanLiteral(
-                                    AstBoolean {
-                                        range: AstRange {
-                                            start: AstPoint {
-                                                line: 0,
-                                                col: 5,
+                        ident: Some(
+                            Value(
+                                Nuget(
+                                    BooleanLiteral(
+                                        AstBoolean {
+                                            range: AstRange {
+                                                start: AstPoint {
+                                                    line: 0,
+                                                    col: 5,
+                                                },
+                                                end: AstPoint {
+                                                    line: 0,
+                                                    col: 9,
+                                                },
                                             },
-                                            end: AstPoint {
-                                                line: 0,
-                                                col: 9,
-                                            },
+                                            value: true,
                                         },
-                                        value: true,
-                                    },
+                                    ),
                                 ),
                             ),
                         ),
-                    ),
-                    values: None,
-                    operator: None,
-                    instance_of: None,
-                    next: None,
-                },
-            ),
+                        values: None,
+                        operator: None,
+                        instance_of: None,
+                    },
+                ),
+            ],
         ),
     },
     3,

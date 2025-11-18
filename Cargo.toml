@@ -69,7 +69,6 @@ jwalk = "0.8.1"
 rc-zip-tokio = "4.2.8"
 dirs = "6.0.0"
 futures = "0.3.31"
-streaming-iterator = "0.1.9"
 itertools = "0.14.0"
 parking_lot = "0.12.3"
 phf = { version = "0.13.1", features = ["macros"] }

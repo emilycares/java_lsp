@@ -13,6 +13,12 @@ async fn main() {
             };
             let _ = server::main();
         }
+        Some(Commands::Lex { file }) => {
+            cli::lex(file);
+        }
+        Some(Commands::LexPos { file, pos }) => {
+            cli::lex_pos(file, pos);
+        }
         Some(Commands::AstCheck { file }) => {
             cli::ast_check(file);
         }

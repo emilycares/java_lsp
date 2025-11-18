@@ -1,8 +1,9 @@
 use ast::types::{
     AstBlock, AstBlockEntry, AstBlockExpression, AstBlockVariable, AstClassMethod, AstExpression,
-    AstFile, AstFor, AstForContent, AstForEnhanced, AstIf, AstIfContent, AstInterfaceConstant,
-    AstLambda, AstLambdaRhs, AstMethodParamerter, AstPoint, AstRange, AstRecursiveExpression,
-    AstSwitch, AstSwitchCaseArrowContent, AstThing, AstTryCatch, AstWhile, AstWhileContent,
+    AstExpressionKind, AstFile, AstFor, AstForContent, AstForEnhanced, AstIf, AstIfContent,
+    AstInterfaceConstant, AstLambda, AstLambdaRhs, AstMethodParamerter, AstPoint, AstRange,
+    AstRecursiveExpression, AstSwitch, AstSwitchCaseArrowContent, AstThing, AstTryCatch, AstWhile,
+    AstWhileContent,
 };
 use my_string::MyString;
 use parser::dto;
@@ -173,7 +174,9 @@ fn get_block_entry_vars(
             switch_case_arrow_content(&ast_switch_case_arrow.content, level, point, out)
         }
         AstBlockEntry::Thing(ast_thing) => get_vars_thing(&ast_thing, point, out, level),
-        AstBlockEntry::Block(ast_block) => get_block_vars(ast_block, point, level, out),
+        AstBlockEntry::InlineBlock(ast_block) => {
+            get_block_vars(&ast_block.block, point, level, out)
+        }
     }
 }
 
@@ -220,31 +223,43 @@ fn recursive_expr(
             .iter()
             .for_each(|i| expression(i, point, level, out));
     }
-
-    if let Some(next) = &expr.next {
-        expression(next, point, level, out);
-    }
 }
 
-fn expression(i: &AstExpression, point: &AstPoint, level: usize, out: &mut Vec<LocalVariable>) {
+fn expression_kind(
+    i: &AstExpressionKind,
+    point: &AstPoint,
+    level: usize,
+    out: &mut Vec<LocalVariable>,
+) {
     match i {
-        AstExpression::Casted(c) => expression(&c.expression, point, level, out),
-        AstExpression::JType(c) => expression(&c.expression, point, level, out),
-        AstExpression::Recursive(ast_recursive_expression) => {
+        AstExpressionKind::Casted(_) => (),
+        AstExpressionKind::JType(_) => (),
+        AstExpressionKind::Recursive(ast_recursive_expression) => {
             recursive_expr(ast_recursive_expression, point, level, out)
         }
-        AstExpression::Lambda(ast_lambda) => {
+        AstExpressionKind::Lambda(ast_lambda) => {
             if ast_lambda.range.is_in_range(point) {
                 return lambda(ast_lambda, point, level, out);
             }
         }
-        AstExpression::InlineSwitch(ast_switch) => {
+        AstExpressionKind::InlineSwitch(ast_switch) => {
             get_block_vars(&ast_switch.block, point, level, out)
         }
-        AstExpression::NewClass(_)
-        | AstExpression::ClassAccess(_)
-        | AstExpression::Generics(_)
-        | AstExpression::Array(_) => (),
+        AstExpressionKind::NewClass(_)
+        | AstExpressionKind::ClassAccess(_)
+        | AstExpressionKind::Generics(_)
+        | AstExpressionKind::Array(_) => (),
+    }
+}
+
+fn expression(
+    expression: &AstExpression,
+    point: &AstPoint,
+    level: usize,
+    out: &mut Vec<LocalVariable>,
+) {
+    for e in expression {
+        expression_kind(e, &point, level, out);
     }
 }
 

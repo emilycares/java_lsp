@@ -3,52 +3,56 @@ source: ast/tests/ast.rs
 expression: ast
 ---
 (
-    AstRecursiveExpression {
-        range: AstRange {
-            start: AstPoint {
-                line: 0,
-                col: 0,
-            },
-            end: AstPoint {
-                line: 0,
-                col: 10,
-            },
-        },
-        ident: Some(
-            Identifier(
-                AstIdentifier {
-                    range: AstRange {
-                        start: AstPoint {
-                            line: 0,
-                            col: 0,
-                        },
-                        end: AstPoint {
-                            line: 0,
-                            col: 7,
-                        },
+    [
+        Recursive(
+            AstRecursiveExpression {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 0,
                     },
-                    value: "numbers",
+                    end: AstPoint {
+                        line: 0,
+                        col: 7,
+                    },
                 },
-            ),
+                ident: Some(
+                    Identifier(
+                        AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 0,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 7,
+                                },
+                            },
+                            value: "numbers",
+                        },
+                    ),
+                ),
+                values: None,
+                operator: None,
+                instance_of: None,
+            },
         ),
-        values: None,
-        operator: None,
-        instance_of: None,
-        next: Some(
-            Recursive(
-                AstRecursiveExpression {
-                    range: AstRange {
-                        start: AstPoint {
-                            line: 0,
-                            col: 7,
-                        },
-                        end: AstPoint {
-                            line: 0,
-                            col: 10,
-                        },
+        Recursive(
+            AstRecursiveExpression {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 7,
                     },
-                    ident: Some(
-                        ArrayAccess(
+                    end: AstPoint {
+                        line: 0,
+                        col: 10,
+                    },
+                },
+                ident: Some(
+                    ArrayAccess(
+                        [
                             Recursive(
                                 AstRecursiveExpression {
                                     range: AstRange {
@@ -85,18 +89,16 @@ expression: ast
                                     values: None,
                                     operator: None,
                                     instance_of: None,
-                                    next: None,
                                 },
                             ),
-                        ),
+                        ],
                     ),
-                    values: None,
-                    operator: None,
-                    instance_of: None,
-                    next: None,
-                },
-            ),
+                ),
+                values: None,
+                operator: None,
+                instance_of: None,
+            },
         ),
-    },
+    ],
     4,
 )

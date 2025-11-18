@@ -204,45 +204,46 @@ AstFile {
                             },
                         ),
                     },
-                    expression: Recursive(
-                        AstRecursiveExpression {
-                            range: AstRange {
-                                start: AstPoint {
-                                    line: 8,
-                                    col: 33,
+                    expression: [
+                        Recursive(
+                            AstRecursiveExpression {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 8,
+                                        col: 33,
+                                    },
+                                    end: AstPoint {
+                                        line: 8,
+                                        col: 34,
+                                    },
                                 },
-                                end: AstPoint {
-                                    line: 8,
-                                    col: 34,
-                                },
-                            },
-                            ident: Some(
-                                Value(
-                                    Nuget(
-                                        StringLiteral(
-                                            AstIdentifier {
-                                                range: AstRange {
-                                                    start: AstPoint {
-                                                        line: 8,
-                                                        col: 33,
+                                ident: Some(
+                                    Value(
+                                        Nuget(
+                                            StringLiteral(
+                                                AstIdentifier {
+                                                    range: AstRange {
+                                                        start: AstPoint {
+                                                            line: 8,
+                                                            col: 33,
+                                                        },
+                                                        end: AstPoint {
+                                                            line: 8,
+                                                            col: 31,
+                                                        },
                                                     },
-                                                    end: AstPoint {
-                                                        line: 8,
-                                                        col: 31,
-                                                    },
+                                                    value: "A",
                                                 },
-                                                value: "A",
-                                            },
+                                            ),
                                         ),
                                     ),
                                 ),
-                            ),
-                            values: None,
-                            operator: None,
-                            instance_of: None,
-                            next: None,
-                        },
-                    ),
+                                values: None,
+                                operator: None,
+                                instance_of: None,
+                            },
+                        ),
+                    ],
                 },
                 AstInterfaceConstant {
                     range: AstRange {
@@ -302,45 +303,46 @@ AstFile {
                             },
                         ),
                     },
-                    expression: Recursive(
-                        AstRecursiveExpression {
-                            range: AstRange {
-                                start: AstPoint {
-                                    line: 9,
-                                    col: 26,
+                    expression: [
+                        Recursive(
+                            AstRecursiveExpression {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 9,
+                                        col: 26,
+                                    },
+                                    end: AstPoint {
+                                        line: 9,
+                                        col: 27,
+                                    },
                                 },
-                                end: AstPoint {
-                                    line: 9,
-                                    col: 27,
-                                },
-                            },
-                            ident: Some(
-                                Value(
-                                    Nuget(
-                                        StringLiteral(
-                                            AstIdentifier {
-                                                range: AstRange {
-                                                    start: AstPoint {
-                                                        line: 9,
-                                                        col: 26,
+                                ident: Some(
+                                    Value(
+                                        Nuget(
+                                            StringLiteral(
+                                                AstIdentifier {
+                                                    range: AstRange {
+                                                        start: AstPoint {
+                                                            line: 9,
+                                                            col: 26,
+                                                        },
+                                                        end: AstPoint {
+                                                            line: 9,
+                                                            col: 24,
+                                                        },
                                                     },
-                                                    end: AstPoint {
-                                                        line: 9,
-                                                        col: 24,
-                                                    },
+                                                    value: "B",
                                                 },
-                                                value: "B",
-                                            },
+                                            ),
                                         ),
                                     ),
                                 ),
-                            ),
-                            values: None,
-                            operator: None,
-                            instance_of: None,
-                            next: None,
-                        },
-                    ),
+                                values: None,
+                                operator: None,
+                                instance_of: None,
+                            },
+                        ),
+                    ],
                 },
                 AstInterfaceConstant {
                     range: AstRange {
@@ -400,45 +402,46 @@ AstFile {
                             },
                         ),
                     },
-                    expression: Recursive(
-                        AstRecursiveExpression {
-                            range: AstRange {
-                                start: AstPoint {
-                                    line: 11,
-                                    col: 26,
+                    expression: [
+                        Recursive(
+                            AstRecursiveExpression {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 11,
+                                        col: 26,
+                                    },
+                                    end: AstPoint {
+                                        line: 11,
+                                        col: 27,
+                                    },
                                 },
-                                end: AstPoint {
-                                    line: 11,
-                                    col: 27,
-                                },
-                            },
-                            ident: Some(
-                                Value(
-                                    Nuget(
-                                        StringLiteral(
-                                            AstIdentifier {
-                                                range: AstRange {
-                                                    start: AstPoint {
-                                                        line: 11,
-                                                        col: 26,
+                                ident: Some(
+                                    Value(
+                                        Nuget(
+                                            StringLiteral(
+                                                AstIdentifier {
+                                                    range: AstRange {
+                                                        start: AstPoint {
+                                                            line: 11,
+                                                            col: 26,
+                                                        },
+                                                        end: AstPoint {
+                                                            line: 11,
+                                                            col: 24,
+                                                        },
                                                     },
-                                                    end: AstPoint {
-                                                        line: 11,
-                                                        col: 24,
-                                                    },
+                                                    value: "C",
                                                 },
-                                                value: "C",
-                                            },
+                                            ),
                                         ),
                                     ),
                                 ),
-                            ),
-                            values: None,
-                            operator: None,
-                            instance_of: None,
-                            next: None,
-                        },
-                    ),
+                                values: None,
+                                operator: None,
+                                instance_of: None,
+                            },
+                        ),
+                    ],
                 },
             ],
             methods: [

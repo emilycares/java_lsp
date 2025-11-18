@@ -3,105 +3,104 @@ source: ast/tests/ast.rs
 expression: parsed.unwrap()
 ---
 (
-    AstRecursiveExpression {
-        range: AstRange {
-            start: AstPoint {
-                line: 0,
-                col: 0,
-            },
-            end: AstPoint {
-                line: 0,
-                col: 6,
-            },
-        },
-        ident: Some(
-            Identifier(
-                AstIdentifier {
-                    range: AstRange {
-                        start: AstPoint {
-                            line: 0,
-                            col: 0,
-                        },
-                        end: AstPoint {
-                            line: 0,
-                            col: 1,
-                        },
+    [
+        Recursive(
+            AstRecursiveExpression {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 0,
                     },
-                    value: "a",
+                    end: AstPoint {
+                        line: 0,
+                        col: 1,
+                    },
                 },
-            ),
+                ident: Some(
+                    Identifier(
+                        AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 0,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 1,
+                                },
+                            },
+                            value: "a",
+                        },
+                    ),
+                ),
+                values: None,
+                operator: None,
+                instance_of: None,
+            },
         ),
-        values: None,
-        operator: None,
-        instance_of: None,
-        next: Some(
-            Recursive(
-                AstRecursiveExpression {
-                    range: AstRange {
+        Recursive(
+            AstRecursiveExpression {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 2,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 4,
+                    },
+                },
+                ident: None,
+                values: None,
+                operator: Equal(
+                    AstRange {
                         start: AstPoint {
                             line: 0,
                             col: 2,
                         },
                         end: AstPoint {
                             line: 0,
-                            col: 6,
+                            col: 4,
                         },
                     },
-                    ident: None,
-                    values: None,
-                    operator: Equal(
-                        AstRange {
-                            start: AstPoint {
-                                line: 0,
-                                col: 2,
+                ),
+                instance_of: None,
+            },
+        ),
+        Recursive(
+            AstRecursiveExpression {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 5,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 6,
+                    },
+                },
+                ident: Some(
+                    Identifier(
+                        AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 5,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 6,
+                                },
                             },
-                            end: AstPoint {
-                                line: 0,
-                                col: 4,
-                            },
+                            value: "b",
                         },
                     ),
-                    instance_of: None,
-                    next: Some(
-                        Recursive(
-                            AstRecursiveExpression {
-                                range: AstRange {
-                                    start: AstPoint {
-                                        line: 0,
-                                        col: 5,
-                                    },
-                                    end: AstPoint {
-                                        line: 0,
-                                        col: 6,
-                                    },
-                                },
-                                ident: Some(
-                                    Identifier(
-                                        AstIdentifier {
-                                            range: AstRange {
-                                                start: AstPoint {
-                                                    line: 0,
-                                                    col: 5,
-                                                },
-                                                end: AstPoint {
-                                                    line: 0,
-                                                    col: 6,
-                                                },
-                                            },
-                                            value: "b",
-                                        },
-                                    ),
-                                ),
-                                values: None,
-                                operator: None,
-                                instance_of: None,
-                                next: None,
-                            },
-                        ),
-                    ),
-                },
-            ),
+                ),
+                values: None,
+                operator: None,
+                instance_of: None,
+            },
         ),
-    },
+    ],
     3,
 )

@@ -145,52 +145,53 @@ expression: parsed
                 ),
             },
             expression: Some(
-                NewClass(
-                    AstNewClass {
-                        range: AstRange {
-                            start: AstPoint {
-                                line: 0,
-                                col: 60,
-                            },
-                            end: AstPoint {
-                                line: 0,
-                                col: 75,
-                            },
-                        },
-                        jtype: AstJType {
+                [
+                    NewClass(
+                        AstNewClass {
                             range: AstRange {
                                 start: AstPoint {
                                     line: 0,
-                                    col: 64,
+                                    col: 60,
                                 },
                                 end: AstPoint {
                                     line: 0,
-                                    col: 72,
+                                    col: 75,
                                 },
                             },
-                            value: Generic(
-                                AstIdentifier {
-                                    range: AstRange {
-                                        start: AstPoint {
-                                            line: 0,
-                                            col: 64,
-                                        },
-                                        end: AstPoint {
-                                            line: 0,
-                                            col: 71,
-                                        },
+                            jtype: AstJType {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 0,
+                                        col: 64,
                                     },
-                                    value: "HashMap",
+                                    end: AstPoint {
+                                        line: 0,
+                                        col: 72,
+                                    },
                                 },
+                                value: Generic(
+                                    AstIdentifier {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 0,
+                                                col: 64,
+                                            },
+                                            end: AstPoint {
+                                                line: 0,
+                                                col: 71,
+                                            },
+                                        },
+                                        value: "HashMap",
+                                    },
+                                    [],
+                                ),
+                            },
+                            rhs: Parameters(
                                 [],
                             ),
                         },
-                        rhs: Parameters(
-                            [],
-                        ),
-                        next: None,
-                    },
-                ),
+                    ),
+                ],
             ),
             static_final: AstStaticFinal(
                 None,

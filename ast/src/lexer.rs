@@ -916,7 +916,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                     let Some(ch) = chars.get(index) else {
                         break;
                     };
-                    if ch.is_ascii_digit() {
+                    if ch.is_ascii_digit() || ch == &'_' {
                         string.push(*ch);
                     } else {
                         break;

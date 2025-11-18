@@ -3,7 +3,7 @@ use ast::error::PrintErr;
 use ast::{
     ExpressionOptions, lexer, parse_block, parse_block_return, parse_block_variable,
     parse_expression, parse_file, parse_for, parse_jtype, parse_lambda, parse_name,
-    parse_name_dot_logical, parse_new_class, parse_recursive_expression, parse_string_literal,
+    parse_name_dot_logical, parse_new_class, parse_string_literal, parse_switch_case_arrow,
 };
 
 #[test]
@@ -98,7 +98,7 @@ fn annotated() {
 fn expression_base() {
     let content = "Logger.getLogger(Test.class)";
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_recursive_expression(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -106,7 +106,7 @@ fn expression_base() {
 fn expression_array_access() {
     let content = "numbers[0]";
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_recursive_expression(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     let ast = parsed.unwrap();
     insta::assert_debug_snapshot!(ast);
@@ -116,7 +116,7 @@ fn expression_array_access() {
 fn expression_multi_array_access() {
     let content = "numbers[0][0][0]";
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_recursive_expression(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     let ast = parsed.unwrap();
     insta::assert_debug_snapshot!(ast);
@@ -127,7 +127,7 @@ fn expression_multi_array_access() {
 fn equasion_method_call() {
     let content = r#""z" + a.getThing()"#;
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_recursive_expression(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -231,7 +231,7 @@ fn lambda_expr() {
 fn lambda_in_expression() {
     let content = "numbers.forEach( (n) -> { System.out.println(n); } )";
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_recursive_expression(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -240,7 +240,7 @@ fn lambda_in_expression() {
 fn equal_expr() {
     let content = "a == b ";
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_recursive_expression(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -278,7 +278,7 @@ fn new_array() {
 fn long_expr() {
     let content = r#"IAFactory.getInstance().getIA("localhost", 1344, SERVICE).support(true)"#;
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_recursive_expression(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -294,7 +294,7 @@ fn cast() {
 fn double_plus() {
     let content = r#"values[i++]"#;
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_recursive_expression(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);
     parsed.print_err(content);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -441,6 +441,16 @@ fn jtype_access() {
     let content = r#"Something.Inner"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_jtype(&tokens, 0);
+    parsed.print_err(content);
+    let parsed = parsed.unwrap();
+    assert_eq!(tokens.len(), parsed.1);
+    insta::assert_debug_snapshot!(parsed);
+}
+#[test]
+fn casted_calculation() {
+    let content = r#"case MILLI_OF_DAY -> (int) (toNanoOfDay() / 1000_000);"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_switch_case_arrow(&tokens, 0);
     parsed.print_err(content);
     let parsed = parsed.unwrap();
     assert_eq!(tokens.len(), parsed.1);
