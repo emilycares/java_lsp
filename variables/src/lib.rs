@@ -173,7 +173,7 @@ fn get_block_entry_vars(
         AstBlockEntry::SwitchCaseArrow(ast_switch_case_arrow) => {
             switch_case_arrow_content(&ast_switch_case_arrow.content, level, point, out)
         }
-        AstBlockEntry::Thing(ast_thing) => get_vars_thing(&ast_thing, point, out, level),
+        AstBlockEntry::Thing(ast_thing) => get_vars_thing(ast_thing, point, out, level),
         AstBlockEntry::InlineBlock(ast_block) => {
             get_block_vars(&ast_block.block, point, level, out)
         }
@@ -239,7 +239,7 @@ fn expression_kind(
         }
         AstExpressionKind::Lambda(ast_lambda) => {
             if ast_lambda.range.is_in_range(point) {
-                return lambda(ast_lambda, point, level, out);
+                lambda(ast_lambda, point, level, out)
             }
         }
         AstExpressionKind::InlineSwitch(ast_switch) => {
@@ -259,7 +259,7 @@ fn expression(
     out: &mut Vec<LocalVariable>,
 ) {
     for e in expression {
-        expression_kind(e, &point, level, out);
+        expression_kind(e, point, level, out);
     }
 }
 
@@ -398,14 +398,14 @@ fn if_vars(ast_if: &AstIf, point: &AstPoint, level: usize, out: &mut Vec<LocalVa
                 return get_block_vars(block, point, level, out);
             }
             if let Some(el) = el.as_ref() {
-                return if_vars(el, point, level, out);
+                if_vars(el, point, level, out)
             }
         }
         AstIf::Else { range, content } => {
             if range.is_in_range(point)
                 && let AstIfContent::Block(block) = content
             {
-                return get_block_vars(block, point, level, out);
+                get_block_vars(block, point, level, out)
             }
         }
     }

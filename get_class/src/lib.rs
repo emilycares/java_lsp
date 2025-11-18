@@ -118,7 +118,7 @@ fn get_class_block(block: &AstBlock, point: &AstPoint) -> Option<FoundClass> {
                 }
             }
             AstBlockEntry::Thing(ast_thing) => {
-                if let Some(o) = thing(&ast_thing, point) {
+                if let Some(o) = thing(ast_thing, point) {
                     return Some(o);
                 }
             }
@@ -150,7 +150,7 @@ fn get_class_expression(
     point: &AstPoint,
 ) -> Option<FoundClass> {
     for e in ast_expression {
-        if let Some(c) = get_class_expression_kind(e, &point) {
+        if let Some(c) = get_class_expression_kind(e, point) {
             return Some(c);
         }
     }

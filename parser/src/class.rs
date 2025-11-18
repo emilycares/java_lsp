@@ -83,8 +83,7 @@ pub fn load_class(
                     e,
                     MAIN_SEPARATOR,
                     &class_path.replace(".", MAIN_SEPARATOR_STR)
-                )
-                .into(),
+                ),
                 SourceDestination::Here(e) => e,
                 SourceDestination::None => "".into(),
             };
@@ -416,7 +415,7 @@ fn parse_field_type(c: Option<char>, chars: &mut std::str::Chars) -> dto::JType 
                 }
                 class_name.push(ch);
             }
-            dto::JType::Class(class_name.replace('/', ".").into())
+            dto::JType::Class(class_name.replace('/', "."))
         }
         '[' => dto::JType::Array(Box::new(parse_field_type(chars.next(), chars))),
         _ => {

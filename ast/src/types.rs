@@ -434,7 +434,7 @@ pub struct AstIdentifier {
 
 impl From<AstIdentifier> for MyString {
     fn from(value: AstIdentifier) -> Self {
-        value.value.into()
+        value.value
     }
 }
 

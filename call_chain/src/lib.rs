@@ -289,7 +289,7 @@ fn cc_block_entry(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIte
         }
         AstBlockEntry::ForEnhanced(ast_for_enhanced) => {
             for v in &ast_for_enhanced.var {
-                return cc_block_variable(v, point, out);
+                cc_block_variable(v, point, out);
             }
             cc_expr(&ast_for_enhanced.rhs, point, false, out);
             if (&ast_for_enhanced.content).is_in_range(point) {
@@ -509,29 +509,25 @@ fn cc_expr(
     has_parent: bool,
     out: &mut Vec<CallItem>,
 ) {
-    for i in 0..ast_expression.len() {
-        let ex = ast_expression.get(i).unwrap();
-        match ex {
-            AstExpressionKind::Recursive(current) => {
-                cc_expr_recursive(&ast_expression[i..], current, point, has_parent, out)
-            }
-            AstExpressionKind::Lambda(ast_lambda) => match &ast_lambda.rhs {
-                AstLambdaRhs::None => (),
-                AstLambdaRhs::Block(ast_block) => cc_block(ast_block, point, out),
-                AstLambdaRhs::Expr(ast_base_expression) => {
-                    cc_expr(ast_base_expression, point, has_parent, out)
-                }
-            },
-            AstExpressionKind::InlineSwitch(_ast_switch) => (),
-            AstExpressionKind::NewClass(ast_new_class) => cc_new_class(ast_new_class, point, out),
-            AstExpressionKind::ClassAccess(ast_class_access) => {
-                cc_class_access(ast_class_access, out)
-            }
-            AstExpressionKind::Generics(_ast_generics) => (),
-            AstExpressionKind::Array(_ast_values) => todo!(),
-            AstExpressionKind::Casted(_) => (),
-            AstExpressionKind::JType(_) => (),
+    let ex = ast_expression.first().unwrap();
+    match ex {
+        AstExpressionKind::Recursive(current) => {
+            cc_expr_recursive(&ast_expression[0..], current, point, has_parent, out)
         }
+        AstExpressionKind::Lambda(ast_lambda) => match &ast_lambda.rhs {
+            AstLambdaRhs::None => (),
+            AstLambdaRhs::Block(ast_block) => cc_block(ast_block, point, out),
+            AstLambdaRhs::Expr(ast_base_expression) => {
+                cc_expr(ast_base_expression, point, has_parent, out)
+            }
+        },
+        AstExpressionKind::InlineSwitch(_ast_switch) => (),
+        AstExpressionKind::NewClass(ast_new_class) => cc_new_class(ast_new_class, point, out),
+        AstExpressionKind::ClassAccess(ast_class_access) => cc_class_access(ast_class_access, out),
+        AstExpressionKind::Generics(_ast_generics) => (),
+        AstExpressionKind::Array(_ast_values) => todo!(),
+        AstExpressionKind::Casted(_) => (),
+        AstExpressionKind::JType(_) => (),
     }
 }
 
@@ -609,8 +605,8 @@ fn cc_expr_recursive(
     has_parent: bool,
     out: &mut Vec<CallItem>,
 ) {
-    if let Some(next) = &ast_expression.iter().nth(1)
-        && let AstExpressionKind::Recursive(next) = &**next
+    if let Some(next) = &ast_expression.get(1)
+        && let AstExpressionKind::Recursive(next) = next
     {
         match &next.operator {
             AstExpressionOperator::Plus(_)
@@ -639,7 +635,7 @@ fn cc_expr_recursive(
 
                     if a < b {
                         let has_args = next.values.is_some();
-                        cc_expr_ident(&ident, has_args, false, point, out);
+                        cc_expr_ident(ident, has_args, false, point, out);
                     } else {
                         cc_expr(&ast_expression[1..], point, false, out);
                     }
@@ -674,6 +670,7 @@ fn cc_expr_recursive(
             }
         }
     } else {
+        dbg!(current);
         if let Some(ident) = &current.ident {
             let has_args = false;
             // if let Some(n) = &ast_expression.next {
@@ -781,7 +778,7 @@ fn cc_expr_ident(
         AstExpressionIdentifier::Nuget(ast_value_nuget) => cc_value_nuget(ast_value_nuget, out),
         AstExpressionIdentifier::Value(ast_value) => cc_value(ast_value, point, out),
         AstExpressionIdentifier::ArrayAccess(arrayaccess) => {
-            cc_expr(&arrayaccess, point, has_parent, out)
+            cc_expr(arrayaccess, point, has_parent, out)
         }
         AstExpressionIdentifier::EmptyArrayAccess => (),
     }

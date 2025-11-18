@@ -239,13 +239,13 @@ impl GetRange for AstExpression {
         if self.is_empty() {
             return AstRange::default();
         }
-        if let Some(first) = self.first() {
-            if let Some(last) = self.last() {
-                return AstRange {
-                    start: first.get_range().start,
-                    end: last.get_range().end,
-                };
-            }
+        if let Some(first) = self.first()
+            && let Some(last) = self.last()
+        {
+            return AstRange {
+                start: first.get_range().start,
+                end: last.get_range().end,
+            };
         }
         AstRange::default()
     }

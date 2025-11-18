@@ -141,7 +141,7 @@ async fn base_load_classes_zip(
 
         let buf = entry.bytes().await.map_err(LoaderError::IO)?;
 
-        match load_class(buf.as_slice(), class_path.into(), source.clone()) {
+        match load_class(buf.as_slice(), class_path, source.clone()) {
             Ok(c) => classes.push(c),
             Err(e) => {
                 eprintln!("Unable to load class: {file_name} {e:?}");
@@ -166,7 +166,7 @@ pub fn load_classes<P: AsRef<Path>>(path: P, source: SourceDestination) -> dto::
                 let class_path = class_path.trim_start_matches(MAIN_SEPARATOR);
                 let class_path = class_path.trim_end_matches(".class");
                 let class_path = class_path.replace(MAIN_SEPARATOR, ".");
-                match load_class_fs(p.as_str(), class_path.into(), source.clone()) {
+                match load_class_fs(p.as_str(), class_path, source.clone()) {
                     Ok(c) => Some(c),
                     Err(e) => {
                         eprintln!("Unable to load class: {p}: {e:?}");

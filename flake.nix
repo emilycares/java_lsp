@@ -60,7 +60,6 @@
               with pkgs;
               [
                 jdk24
-                # javaPackages.compiler.temurin-bin.jdk-25
                 lld_21
                 gdb
                 hyperfine

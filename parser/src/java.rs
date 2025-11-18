@@ -88,9 +88,9 @@ pub fn load_java_tree(
     }
     let source = match source {
         SourceDestination::RelativeInFolder(e) => {
-            format!("{}/{}/{}.java", e, &class_path_base.replace(".", "/"), name).into()
+            format!("{}/{}/{}.java", e, &class_path_base.replace(".", "/"), name)
         }
-        SourceDestination::Here(e) => e.replace("\\", "/").into(),
+        SourceDestination::Here(e) => e.replace("\\", "/"),
         SourceDestination::None => "".into(),
     };
     let mut class_path = String::new();

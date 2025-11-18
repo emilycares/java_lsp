@@ -2376,7 +2376,7 @@ fn parse_if(tokens: &[PositionToken], pos: usize) -> Result<(AstIf, usize), AstE
         match parse_block_entry(tokens, pos) {
             Ok((entry, npos)) => {
                 el = Some(Box::new(AstIf::Else {
-                    range: entry.get_range().clone(),
+                    range: entry.get_range(),
                     content: AstIfContent::BlockEntry(Box::new(entry)),
                 }));
                 pos = npos;
@@ -2984,20 +2984,20 @@ pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, us
     };
     let (mut base, mut pos) = base?;
 
-    if let Ok(npos) = assert_token(tokens, pos, Token::Dot) {
-        if let Ok((inner, npos)) = parse_jtype(tokens, npos) {
-            base = AstJType {
-                range: AstRange {
-                    start: base.range.start,
-                    end: inner.range.end,
-                },
-                value: AstJTypeKind::Access {
-                    base: Box::new(base),
-                    inner: Box::new(inner),
-                },
-            };
-            pos = npos;
-        }
+    if let Ok(npos) = assert_token(tokens, pos, Token::Dot)
+        && let Ok((inner, npos)) = parse_jtype(tokens, npos)
+    {
+        base = AstJType {
+            range: AstRange {
+                start: base.range.start,
+                end: inner.range.end,
+            },
+            value: AstJTypeKind::Access {
+                base: Box::new(base),
+                inner: Box::new(inner),
+            },
+        };
+        pos = npos;
     }
 
     while let Ok(npos) = assert_token(tokens, pos, Token::LeftParenSquare) {
