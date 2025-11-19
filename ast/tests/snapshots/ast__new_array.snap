@@ -36,7 +36,7 @@ expression: parsed.unwrap()
                                 },
                                 end: AstPoint {
                                     line: 1,
-                                    col: 22,
+                                    col: 26,
                                 },
                             },
                             value: Array(
@@ -48,7 +48,7 @@ expression: parsed.unwrap()
                                         },
                                         end: AstPoint {
                                             line: 1,
-                                            col: 22,
+                                            col: 24,
                                         },
                                     },
                                     value: Array(
@@ -171,7 +171,7 @@ expression: parsed.unwrap()
                                                                         },
                                                                         end: AstPoint {
                                                                             line: 3,
-                                                                            col: 26,
+                                                                            col: 28,
                                                                         },
                                                                     },
                                                                     value: Array(

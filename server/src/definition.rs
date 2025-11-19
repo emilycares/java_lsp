@@ -167,6 +167,7 @@ pub fn call_chain_definition(
             }
             Err(DefinitionError::ArgumentNotFound)
         }
+        Some(CallItem::Package { range: _, name: _ }) => todo!(),
         None => Err(DefinitionError::ValidatedItemDoesNotExists),
     }
 }

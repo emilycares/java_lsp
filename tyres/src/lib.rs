@@ -319,6 +319,7 @@ fn call_chain_op(
             }
             resolve_call_chain(prev, lo_va, imports, class, class_map)
         }
+        CallItem::Package { name: _, range: _ } => todo!(),
     }
 }
 

@@ -2831,187 +2831,178 @@ fn parse_comma_seperated_jtype(
 /// String
 /// int
 pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, usize), AstError> {
-    let out_pos = pos + 1;
-    let current = tokens.get(pos).ok_or(AstError::eof())?;
-    let base = match &current.token {
-        Token::Int => Ok((
-            AstJType {
-                value: AstJTypeKind::Int,
-                range: AstRange::from_position_token(current, current),
-            },
-            out_pos,
-        )),
-        Token::Long => Ok((
-            AstJType {
-                value: AstJTypeKind::Long,
-                range: AstRange::from_position_token(current, current),
-            },
-            out_pos,
-        )),
-        Token::Short => Ok((
-            AstJType {
-                value: AstJTypeKind::Short,
-                range: AstRange::from_position_token(current, current),
-            },
-            out_pos,
-        )),
-        Token::Byte => Ok((
-            AstJType {
-                value: AstJTypeKind::Byte,
-                range: AstRange::from_position_token(current, current),
-            },
-            out_pos,
-        )),
-        Token::Char => Ok((
-            AstJType {
-                value: AstJTypeKind::Char,
-                range: AstRange::from_position_token(current, current),
-            },
-            out_pos,
-        )),
-        Token::Double => Ok((
-            AstJType {
-                value: AstJTypeKind::Double,
-                range: AstRange::from_position_token(current, current),
-            },
-            out_pos,
-        )),
-        Token::Float => Ok((
-            AstJType {
-                value: AstJTypeKind::Float,
-                range: AstRange::from_position_token(current, current),
-            },
-            out_pos,
-        )),
-        Token::Boolean => Ok((
-            AstJType {
-                value: AstJTypeKind::Boolean,
-                range: AstRange::from_position_token(current, current),
-            },
-            out_pos,
-        )),
-        Token::Void => Ok((
-            AstJType {
-                value: AstJTypeKind::Void,
-                range: AstRange::from_position_token(current, current),
-            },
-            out_pos,
-        )),
-        Token::QuestionMark => Ok((
-            AstJType {
-                value: AstJTypeKind::Wildcard,
-                range: AstRange::from_position_token(current, current),
-            },
-            out_pos,
-        )),
-        Token::Var => Ok((
-            AstJType {
-                range: AstRange::from_position_token(current, current),
-                value: AstJTypeKind::Var,
-            },
-            out_pos,
-        )),
-        Token::Identifier(ident) => {
-            let token = tokens.get(pos + 1).ok_or(AstError::eof())?;
-            let range = AstRange::from_position_token(current, current);
-            let ident = AstIdentifier {
-                value: ident.clone(),
-                range,
-            };
-            match token.token {
-                Token::Lt => {
-                    let out_pos;
-                    let mut args = vec![];
-                    let mut pos = pos + 2;
-                    loop {
-                        // If there are no type arguments
-                        if let Ok(npos) = assert_token(tokens, pos, Token::Gt) {
-                            out_pos = npos;
-                            break;
-                        }
-                        if let Ok(npos) = assert_token(tokens, pos, Token::QuestionMark) {
-                            let wstart = tokens.get(pos).ok_or(AstError::eof())?;
+    let start = tokens.start(pos)?;
+    let (jtype, pos) = parse_jtype_inner(tokens, pos)?;
 
-                            if let Ok(npos) = assert_token(tokens, npos, Token::Implements) {
-                                pos = npos;
-                                let wend = tokens.get(pos).ok_or(AstError::eof())?;
-                                args.push(AstJType {
-                                    range: AstRange::from_position_token(wstart, wend),
-                                    value: AstJTypeKind::Wildcard,
-                                });
-                            }
-                            if let Ok(npos) = assert_token(tokens, npos, Token::Extends) {
-                                pos = npos;
-                                let wend = tokens.get(pos).ok_or(AstError::eof())?;
-                                args.push(AstJType {
-                                    range: AstRange::from_position_token(wstart, wend),
-                                    value: AstJTypeKind::Wildcard,
-                                });
-                            }
-                        }
-                        let (jtype, npos) = parse_jtype(tokens, pos)?;
-                        pos = npos;
-                        args.push(jtype);
-                        if let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
-                            pos = npos;
-                            continue;
-                        }
-                        if let Ok(npos) = assert_token(tokens, pos, Token::Gt) {
-                            out_pos = npos;
-                            break;
-                        }
-                        pos += 1;
-                    }
-                    let end = tokens.end(pos)?;
-                    Ok((
-                        AstJType {
-                            value: AstJTypeKind::Generic(ident, args),
-                            range: AstRange::from_position_token(current, end),
-                        },
-                        out_pos,
-                    ))
-                }
-                _ => Ok((
-                    AstJType {
-                        value: AstJTypeKind::Class(ident),
-                        range,
-                    },
-                    out_pos,
-                )),
+    let mut validate = &jtype.value;
+    while let AstJTypeKind::Access { base: _, inner } = validate {
+        validate = &inner.value;
+    }
+    if let AstJTypeKind::Package(_) = validate {
+        return Err(AstError::InvalidJtype(InvalidToken::from(start, pos)));
+    }
+
+    Ok((jtype, pos))
+}
+fn parse_jtype_inner(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, usize), AstError> {
+    let start = tokens.start(pos)?;
+    let mut pos = pos;
+    if let Ok((primitive, npos)) = parse_primitive_type(tokens, pos) {
+        pos = npos;
+        let end = tokens.end(pos)?;
+        let mut out = AstJType {
+            range: AstRange::from_position_token(start, end),
+            value: primitive,
+        };
+
+        while let Ok(npos) = assert_token(tokens, pos, Token::LeftParenSquare) {
+            if let Ok(npos) = assert_token(tokens, npos, Token::RightParenSquare) {
+                pos = npos;
+                let end = tokens.end(pos)?;
+                out = AstJType {
+                    range: AstRange::from_position_token(start, end),
+                    value: AstJTypeKind::Array(Box::new(out)),
+                };
+            } else {
+                break;
             }
         }
-        _ => Err(AstError::InvalidJtype(InvalidToken::from(current, pos))),
-    };
-    let (mut base, mut pos) = base?;
-
-    if let Ok(npos) = assert_token(tokens, pos, Token::Dot)
-        && let Ok((inner, npos)) = parse_jtype(tokens, npos)
-    {
-        base = AstJType {
-            range: AstRange {
-                start: base.range.start,
-                end: inner.range.end,
-            },
-            value: AstJTypeKind::Access {
-                base: Box::new(base),
-                inner: Box::new(inner),
-            },
+        return Ok((out, pos));
+    } else if let Ok(current) = tokens.get(pos).ok_or(AstError::eof()) {
+        let mut out = AstJType {
+            range: AstRange::default(),
+            value: AstJTypeKind::Void,
         };
-        pos = npos;
-    }
-
-    while let Ok(npos) = assert_token(tokens, pos, Token::LeftParenSquare) {
-        if let Ok(npos) = assert_token(tokens, npos, Token::RightParenSquare) {
-            pos = npos;
-            base = AstJType {
+        if let Token::Identifier(ident) = &current.token {
+            let ast_identifier = AstIdentifier {
                 range: AstRange::from_position_token(current, current),
-                value: AstJTypeKind::Array(Box::new(base)),
+                value: ident.to_string(),
             };
-        } else {
-            break;
+            pos += 1;
+            let (gereric_argmuants, npos) = parse_jtype_generics(tokens, pos)?;
+            pos = npos;
+            if gereric_argmuants.is_empty() {
+                let first_char = ast_identifier
+                    .value
+                    .chars()
+                    .into_iter()
+                    .next()
+                    .expect("Lexer returned empty identfier");
+                if first_char.is_uppercase() {
+                    out.value = AstJTypeKind::Class(ast_identifier)
+                } else {
+                    out.value = AstJTypeKind::Package(ast_identifier)
+                }
+            } else {
+                out.value = AstJTypeKind::Generic(ast_identifier, gereric_argmuants);
+            }
+            let end = tokens.end(pos)?;
+            out.range = AstRange::from_position_token(start, end);
+
+            while let Ok(npos) = assert_token(tokens, pos, Token::LeftParenSquare) {
+                if let Ok(npos) = assert_token(tokens, npos, Token::RightParenSquare) {
+                    pos = npos;
+                    let end = tokens.end(pos)?;
+                    out = AstJType {
+                        range: AstRange::from_position_token(start, end),
+                        value: AstJTypeKind::Array(Box::new(out)),
+                    };
+                } else {
+                    break;
+                }
+            }
+            let end = tokens.end(pos)?;
+            out.range = AstRange::from_position_token(start, end);
+
+            if let Ok(npos) = assert_token(tokens, pos, Token::Dot)
+                && let Ok((inner, npos)) = parse_jtype(tokens, npos)
+            {
+                out.value = AstJTypeKind::Access {
+                    base: Box::new(AstJType {
+                        range: AstRange::from_position_token(start, end),
+                        value: out.value,
+                    }),
+                    inner: Box::new(inner),
+                };
+                pos = npos;
+                let end = tokens.end(pos)?;
+                out.range = AstRange::from_position_token(start, end);
+            }
+        }
+        if AstJTypeKind::Void == out.value {
+            return Err(AstError::InvalidJtype(InvalidToken::from(start, pos)));
+        }
+        return Ok((out, pos));
+    } else {
+        return Err(AstError::InvalidJtype(InvalidToken::from(start, pos)));
+    }
+}
+
+fn parse_jtype_generics(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(Vec<AstJType>, usize), AstError> {
+    let mut pos = pos;
+    let mut generic_arguments = vec![];
+    if let Ok(npos) = assert_token(tokens, pos, Token::Lt) {
+        pos = npos;
+        loop {
+            if let Ok(npos) = assert_token(tokens, pos, Token::Gt) {
+                pos = npos;
+                break;
+            }
+            if let Ok(npos) = assert_token(tokens, pos, Token::QuestionMark) {
+                pos = npos;
+                let wstart = tokens.get(pos).ok_or(AstError::eof())?;
+
+                if let Ok(npos) = assert_token(tokens, npos, Token::Implements) {
+                    pos = npos;
+                    let wend = tokens.get(pos).ok_or(AstError::eof())?;
+                    generic_arguments.push(AstJType {
+                        range: AstRange::from_position_token(wstart, wend),
+                        value: AstJTypeKind::Wildcard,
+                    });
+                }
+                if let Ok(npos) = assert_token(tokens, npos, Token::Extends) {
+                    pos = npos;
+                    let wend = tokens.get(pos).ok_or(AstError::eof())?;
+                    generic_arguments.push(AstJType {
+                        range: AstRange::from_position_token(wstart, wend),
+                        value: AstJTypeKind::Wildcard,
+                    });
+                }
+            }
+            let (jtype, npos) = parse_jtype(tokens, pos)?;
+            pos = npos;
+            generic_arguments.push(jtype);
+            if let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
+                pos = npos;
+                continue;
+            }
         }
     }
-    Ok((base, pos))
+    return Ok((generic_arguments, pos));
+}
+
+fn parse_primitive_type(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstJTypeKind, usize), AstError> {
+    let current = tokens.get(pos).ok_or(AstError::eof())?;
+    match &current.token {
+        Token::Int => Ok((AstJTypeKind::Int, pos + 1)),
+        Token::Long => Ok((AstJTypeKind::Long, pos + 1)),
+        Token::Short => Ok((AstJTypeKind::Short, pos + 1)),
+        Token::Byte => Ok((AstJTypeKind::Byte, pos + 1)),
+        Token::Char => Ok((AstJTypeKind::Char, pos + 1)),
+        Token::Double => Ok((AstJTypeKind::Double, pos + 1)),
+        Token::Float => Ok((AstJTypeKind::Float, pos + 1)),
+        Token::Boolean => Ok((AstJTypeKind::Boolean, pos + 1)),
+        Token::Void => Ok((AstJTypeKind::Void, pos + 1)),
+        Token::QuestionMark => Ok((AstJTypeKind::Wildcard, pos + 1)),
+        Token::Var => Ok((AstJTypeKind::Var, pos + 1)),
+        _ => Err(AstError::InvalidJtype(InvalidToken::from(current, pos))),
+    }
 }
 
 fn parse_avaliability(

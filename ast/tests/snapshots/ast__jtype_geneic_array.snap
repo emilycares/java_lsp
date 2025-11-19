@@ -11,7 +11,7 @@ expression: parsed
             },
             end: AstPoint {
                 line: 0,
-                col: 5,
+                col: 10,
             },
         },
         value: Array(
@@ -23,7 +23,7 @@ expression: parsed
                     },
                     end: AstPoint {
                         line: 0,
-                        col: 7,
+                        col: 8,
                     },
                 },
                 value: Generic(

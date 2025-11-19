@@ -25,7 +25,7 @@ expression: parsed.unwrap()
                     },
                     end: AstPoint {
                         line: 0,
-                        col: 6,
+                        col: 8,
                     },
                 },
                 value: Array(

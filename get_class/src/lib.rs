@@ -289,6 +289,7 @@ fn get_class_jtype(jtype: &AstJType, point: &AstPoint) -> Option<FoundClass> {
         AstJTypeKind::Boolean => None,
         AstJTypeKind::Wildcard => None,
         AstJTypeKind::Var => None,
+        AstJTypeKind::Package(_) => None,
         AstJTypeKind::Parameter(ast_identifier) | AstJTypeKind::Class(ast_identifier) => {
             if !ast_identifier.range.is_in_range(point) {
                 return None;

@@ -90,12 +90,13 @@ pub fn get_signature(
 
 fn get_args(call_chain: &[CallItem]) -> Option<&CallItem> {
     call_chain.iter().rev().find(|i| match i {
-        CallItem::MethodCall { name: _, range: _ } => false,
-        CallItem::FieldAccess { name: _, range: _ } => false,
-        CallItem::Variable { name: _, range: _ } => false,
-        CallItem::Class { name: _, range: _ } => false,
-        CallItem::ClassOrVariable { name: _, range: _ } => false,
-        CallItem::This { range: _ } => false,
+        CallItem::MethodCall { name: _, range: _ }
+        | CallItem::FieldAccess { name: _, range: _ }
+        | CallItem::Variable { name: _, range: _ }
+        | CallItem::Class { name: _, range: _ }
+        | CallItem::ClassOrVariable { name: _, range: _ }
+        | CallItem::This { range: _ }
+        | CallItem::Package { name: _, range: _ } => false,
         CallItem::ArgumentList {
             prev: _,
             range: _,

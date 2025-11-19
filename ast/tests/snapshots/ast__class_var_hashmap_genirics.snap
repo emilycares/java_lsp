@@ -40,7 +40,7 @@ expression: parsed
                     },
                     end: AstPoint {
                         line: 0,
-                        col: 48,
+                        col: 49,
                     },
                 },
                 value: Generic(
@@ -93,7 +93,7 @@ expression: parsed
                                 },
                                 end: AstPoint {
                                     line: 0,
-                                    col: 47,
+                                    col: 48,
                                 },
                             },
                             value: Generic(
@@ -166,10 +166,10 @@ expression: parsed
                                     },
                                     end: AstPoint {
                                         line: 0,
-                                        col: 72,
+                                        col: 73,
                                     },
                                 },
-                                value: Generic(
+                                value: Class(
                                     AstIdentifier {
                                         range: AstRange {
                                             start: AstPoint {
@@ -183,7 +183,6 @@ expression: parsed
                                         },
                                         value: "HashMap",
                                     },
-                                    [],
                                 ),
                             },
                             rhs: Parameters(

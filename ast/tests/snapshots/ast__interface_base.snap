@@ -167,7 +167,7 @@ AstFile {
                                 },
                                 end: AstPoint {
                                     line: 6,
-                                    col: 16,
+                                    col: 17,
                                 },
                             },
                             value: Generic(
@@ -247,7 +247,7 @@ AstFile {
                                             },
                                             end: AstPoint {
                                                 line: 6,
-                                                col: 50,
+                                                col: 51,
                                             },
                                         },
                                         value: Generic(
@@ -269,7 +269,7 @@ AstFile {
                                                     range: AstRange {
                                                         start: AstPoint {
                                                             line: 6,
-                                                            col: 39,
+                                                            col: 41,
                                                         },
                                                         end: AstPoint {
                                                             line: 6,

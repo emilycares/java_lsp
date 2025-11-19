@@ -436,9 +436,48 @@ fn lambda_with_no_parameters() {
     insta::assert_debug_snapshot!(parsed);
 }
 #[test]
-#[ignore = "dbg"]
 fn jtype_access() {
     let content = r#"Something.Inner"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_jtype(&tokens, 0);
+    parsed.print_err(content);
+    let parsed = parsed.unwrap();
+    assert_eq!(tokens.len(), parsed.1);
+    insta::assert_debug_snapshot!(parsed);
+}
+#[test]
+fn jtype_package() {
+    let content = r#"javax.crypto.interfaces.DHPrivateKey"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_jtype(&tokens, 0);
+    parsed.print_err(content);
+    let parsed = parsed.unwrap();
+    assert_eq!(tokens.len(), parsed.1);
+    insta::assert_debug_snapshot!(parsed);
+}
+#[test]
+fn jtype_int() {
+    let content = r#"int"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_jtype(&tokens, 0);
+    parsed.print_err(content);
+    let parsed = parsed.unwrap();
+    assert_eq!(tokens.len(), parsed.1);
+    insta::assert_debug_snapshot!(parsed);
+}
+#[test]
+fn jtype_int_array() {
+    let content = r#"int[]"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_jtype(&tokens, 0);
+    parsed.print_err(content);
+    let parsed = parsed.unwrap();
+    assert_eq!(tokens.len(), parsed.1);
+    insta::assert_debug_snapshot!(parsed);
+}
+#[test]
+fn jtype_class_generic() {
+    let content = r#"HashMap<String, Integer>"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content);

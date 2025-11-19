@@ -2,6 +2,7 @@
 use crate::types::{
     AstBlockEntry, AstClassMethod, AstExpression, AstExpressionIdentifier, AstExpressionKind,
     AstForContent, AstIf, AstIfContent, AstPoint, AstRange, AstThing, AstValue, AstValueNuget,
+    AstValues,
 };
 
 /// Join two ranges a must be before b
@@ -241,6 +242,22 @@ impl GetRange for AstExpression {
         }
         if let Some(first) = self.first()
             && let Some(last) = self.last()
+        {
+            return AstRange {
+                start: first.get_range().start,
+                end: last.get_range().end,
+            };
+        }
+        AstRange::default()
+    }
+}
+impl GetRange for AstValues {
+    fn get_range(&self) -> AstRange {
+        if self.values.is_empty() {
+            return AstRange::default();
+        }
+        if let Some(first) = self.values.first()
+            && let Some(last) = self.values.last()
         {
             return AstRange {
                 start: first.get_range().start,

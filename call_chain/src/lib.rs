@@ -27,6 +27,10 @@ pub enum CallItem {
     This {
         range: AstRange,
     },
+    Package {
+        name: MyString,
+        range: AstRange,
+    },
     Class {
         name: MyString,
         range: AstRange,
@@ -51,6 +55,7 @@ impl CallItem {
             CallItem::Variable { name: _, range } => range,
             CallItem::This { range } => range,
             CallItem::Class { name: _, range } => range,
+            CallItem::Package { name: _, range } => range,
             CallItem::ClassOrVariable { name: _, range } => range,
             CallItem::ArgumentList {
                 prev: _,
@@ -186,6 +191,7 @@ pub fn validate(call_chain: &[CallItem], point: &AstPoint) -> (usize, Vec<CallIt
             CallItem::This { range } => range.is_in_range(point),
             CallItem::ClassOrVariable { name: _, range } => range.is_in_range(point),
             CallItem::Class { name: _, range } => range.is_in_range(point),
+            CallItem::Package { name: _, range } => range.is_in_range(point),
             CallItem::ArgumentList {
                 prev,
                 range,
@@ -585,6 +591,10 @@ fn cc_jtype(jtype: &AstJType, out: &mut Vec<CallItem>) {
             name: ast_identifier.value.clone(),
             range: jtype.range,
         }),
+        AstJTypeKind::Package(ast_identifier) => out.push(CallItem::Package {
+            name: ast_identifier.value.clone(),
+            range: jtype.range,
+        }),
         AstJTypeKind::Array(ast_jtype) => cc_jtype(ast_jtype, out),
         AstJTypeKind::Generic(ast_identifier, _ast_jtypes) => out.push(CallItem::Class {
             name: ast_identifier.value.clone(),
@@ -670,16 +680,33 @@ fn cc_expr_recursive(
             }
         }
     } else {
-        dbg!(current);
-        if let Some(ident) = &current.ident {
-            let has_args = false;
-            // if let Some(n) = &ast_expression.next {
-            //     has_args = n.values.is_some();
-            // }
-            cc_expr_ident(ident, has_args, has_parent, point, out);
-        }
+        // if let Some(ident) = &current.ident {
+        //     let has_args = false;
+        //     // if let Some(n) = &ast_expression.next {
+        //     //     has_args = n.values.is_some();
+        //     // }
+        //     dbg!(&ident);
+        //     if ident.get_range().is_in_range(values.get_range()) {
+        //         cc_expr_ident(ident, has_args, has_parent, point, out);
+        //     }
+        // }
         if let Some(values) = &current.values {
             cc_arugments(point, out, values);
+        }
+        match (&current.ident, &current.values) {
+            (None, None) => (),
+            (None, Some(values)) => {
+                cc_arugments(point, out, values);
+            }
+            (Some(ident), None) => {
+                cc_expr_ident(ident, false, has_parent, point, out);
+            }
+            (Some(ident), Some(values)) => {
+                if ident.get_range().is_contained_in(&values.get_range()) {
+                    cc_expr_ident(ident, false, has_parent, point, out);
+                }
+                cc_arugments(point, out, values);
+            }
         }
     }
 }

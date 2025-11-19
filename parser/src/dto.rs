@@ -241,6 +241,7 @@ impl From<&AstJType> for JType {
             AstJTypeKind::Boolean => JType::Boolean,
             AstJTypeKind::Wildcard => JType::Wildcard,
             AstJTypeKind::Class(ast_identifier) => JType::Class(ast_identifier.into()),
+            AstJTypeKind::Package(ast_identifier) => JType::Class(ast_identifier.into()),
             AstJTypeKind::Array(ast_jtype) => JType::Array(Box::new(ast_jtype.as_ref().into())),
             AstJTypeKind::Generic(ast_identifier, ast_jtypes) => JType::Generic(
                 ast_identifier.into(),
@@ -248,32 +249,30 @@ impl From<&AstJType> for JType {
             ),
             AstJTypeKind::Parameter(ast_identifier) => JType::Parameter(ast_identifier.into()),
             AstJTypeKind::Var => JType::Var,
-            AstJTypeKind::Access { base: _, inner: _ } => todo!(),
-        }
-    }
-}
-impl From<AstJType> for JType {
-    fn from(value: AstJType) -> Self {
-        match value.value {
-            AstJTypeKind::Void => JType::Void,
-            AstJTypeKind::Byte => JType::Byte,
-            AstJTypeKind::Char => JType::Char,
-            AstJTypeKind::Double => JType::Double,
-            AstJTypeKind::Float => JType::Float,
-            AstJTypeKind::Int => JType::Int,
-            AstJTypeKind::Long => JType::Long,
-            AstJTypeKind::Short => JType::Short,
-            AstJTypeKind::Boolean => JType::Boolean,
-            AstJTypeKind::Wildcard => JType::Wildcard,
-            AstJTypeKind::Class(ast_identifier) => JType::Class(ast_identifier.into()),
-            AstJTypeKind::Array(ast_jtype) => JType::Array(Box::new(ast_jtype.as_ref().into())),
-            AstJTypeKind::Generic(ast_identifier, ast_jtypes) => JType::Generic(
-                ast_identifier.into(),
-                ast_jtypes.iter().map(|i| i.into()).collect(),
-            ),
-            AstJTypeKind::Parameter(ast_identifier) => JType::Parameter(ast_identifier.into()),
-            AstJTypeKind::Var => Self::Var,
-            AstJTypeKind::Access { base: _, inner: _ } => todo!(),
+            AstJTypeKind::Access { base, inner } => {
+                let mut out = JType::Void;
+                if let AstJTypeKind::Package(p) = &base.value {
+                    match &inner.value {
+                        AstJTypeKind::Package(ast_identifier)
+                        | AstJTypeKind::Class(ast_identifier) => {
+                            out = JType::Class(format!("{}.{}", p.value, ast_identifier.value));
+                        }
+                        AstJTypeKind::Array(a) => out = JType::from(a.as_ref()),
+                        AstJTypeKind::Generic(ast_identifier, ast_jtypes) => {
+                            out = JType::Generic(
+                                format!("{}.{}", p.value, ast_identifier.value),
+                                ast_jtypes.iter().map(|i| i.into()).collect(),
+                            )
+                        }
+                        _ => (),
+                    }
+                }
+
+                // if let AstJTypeKind::Class(outer_class) = &base.value {
+                //     out = JType::Class(format!("{}.{}", outer_class.value, outer_class.value));
+                // }
+                out
+            }
         }
     }
 }

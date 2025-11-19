@@ -1136,7 +1136,7 @@ AstFile {
                                 },
                                 end: AstPoint {
                                     line: 12,
-                                    col: 13,
+                                    col: 14,
                                 },
                             },
                             value: Generic(
@@ -1398,7 +1398,7 @@ AstFile {
                                 },
                                 end: AstPoint {
                                     line: 13,
-                                    col: 17,
+                                    col: 18,
                                 },
                             },
                             value: Generic(
@@ -1596,7 +1596,7 @@ AstFile {
                                                 },
                                                 end: AstPoint {
                                                     line: 14,
-                                                    col: 32,
+                                                    col: 34,
                                                 },
                                             },
                                             value: Array(

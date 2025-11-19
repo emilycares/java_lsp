@@ -20,13 +20,10 @@ impl AstRange {
     }
 
     pub fn is_in_range(&self, point: &AstPoint) -> bool {
-        let start = &self.start;
-        let end = &self.end;
-
-        if point >= start && point <= end {
-            return true;
-        }
-        false
+        point >= &self.start && point <= &self.end
+    }
+    pub fn is_contained_in(&self, other: &AstRange) -> bool {
+        self.start >= other.start && self.end <= other.end
     }
     pub fn is_after_range(&self, point: &AstPoint) -> bool {
         let after = AstPoint {
@@ -426,7 +423,7 @@ pub struct AstBlockContinue {
     pub label: Option<AstIdentifier>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct AstIdentifier {
     pub range: AstRange,
     pub value: MyString,
@@ -523,12 +520,12 @@ pub enum AstThing {
     Annotation(AstAnnotation),
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct AstJType {
     pub range: AstRange,
     pub value: AstJTypeKind,
 }
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub enum AstJTypeKind {
     #[default]
     Void,
@@ -541,6 +538,7 @@ pub enum AstJTypeKind {
     Short,
     Boolean,
     Wildcard,
+    Package(AstIdentifier),
     Class(AstIdentifier),
     Array(Box<AstJType>),
     Generic(AstIdentifier, Vec<AstJType>),

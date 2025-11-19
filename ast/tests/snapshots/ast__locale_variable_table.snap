@@ -131,7 +131,7 @@ AstFile {
                                 },
                                 end: AstPoint {
                                     line: 4,
-                                    col: 24,
+                                    col: 25,
                                 },
                             },
                             value: Generic(
@@ -201,10 +201,10 @@ AstFile {
                                                 },
                                                 end: AstPoint {
                                                     line: 4,
-                                                    col: 42,
+                                                    col: 43,
                                                 },
                                             },
-                                            value: Generic(
+                                            value: Class(
                                                 AstIdentifier {
                                                     range: AstRange {
                                                         start: AstPoint {
@@ -218,7 +218,6 @@ AstFile {
                                                     },
                                                     value: "HashSet",
                                                 },
-                                                [],
                                             ),
                                         },
                                         rhs: Parameters(
@@ -338,7 +337,7 @@ AstFile {
                                                         },
                                                         end: AstPoint {
                                                             line: 7,
-                                                            col: 27,
+                                                            col: 28,
                                                         },
                                                     },
                                                     value: Generic(
@@ -448,10 +447,10 @@ AstFile {
                                                                         },
                                                                         end: AstPoint {
                                                                             line: 7,
-                                                                            col: 45,
+                                                                            col: 46,
                                                                         },
                                                                     },
-                                                                    value: Generic(
+                                                                    value: Class(
                                                                         AstIdentifier {
                                                                             range: AstRange {
                                                                                 start: AstPoint {
@@ -465,7 +464,6 @@ AstFile {
                                                                             },
                                                                             value: "HashMap",
                                                                         },
-                                                                        [],
                                                                     ),
                                                                 },
                                                                 rhs: Parameters(

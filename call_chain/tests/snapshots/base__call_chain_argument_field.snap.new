@@ -1,5 +1,6 @@
 ---
 source: call_chain/tests/base.rs
+assertion_line: 445
 expression: out
 ---
 [
@@ -8,7 +9,7 @@ expression: out
             ArgumentList {
                 prev: [
                     ClassOrVariable {
-                        name: "local",
+                        name: "a",
                         range: AstRange {
                             start: AstPoint {
                                 line: 5,
@@ -16,7 +17,7 @@ expression: out
                             },
                             end: AstPoint {
                                 line: 5,
-                                col: 13,
+                                col: 9,
                             },
                         },
                     },
@@ -25,11 +26,11 @@ expression: out
                         range: AstRange {
                             start: AstPoint {
                                 line: 5,
-                                col: 14,
+                                col: 10,
                             },
                             end: AstPoint {
                                 line: 5,
-                                col: 20,
+                                col: 16,
                             },
                         },
                     },
@@ -40,15 +41,28 @@ expression: out
                 filled_params: [
                     [
                         ClassOrVariable {
-                            name: "local",
+                            name: "b",
                             range: AstRange {
                                 start: AstPoint {
                                     line: 5,
-                                    col: 21,
+                                    col: 17,
                                 },
                                 end: AstPoint {
                                     line: 5,
-                                    col: 26,
+                                    col: 18,
+                                },
+                            },
+                        },
+                        FieldAccess {
+                            name: "a",
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 5,
+                                    col: 19,
+                                },
+                                end: AstPoint {
+                                    line: 5,
+                                    col: 20,
                                 },
                             },
                         },
@@ -57,24 +71,37 @@ expression: out
                 range: AstRange {
                     start: AstPoint {
                         line: 5,
-                        col: 20,
+                        col: 16,
                     },
                     end: AstPoint {
                         line: 5,
-                        col: 29,
+                        col: 23,
                     },
                 },
             },
             ClassOrVariable {
-                name: "local",
+                name: "b",
                 range: AstRange {
                     start: AstPoint {
                         line: 5,
-                        col: 21,
+                        col: 17,
                     },
                     end: AstPoint {
                         line: 5,
-                        col: 26,
+                        col: 18,
+                    },
+                },
+            },
+            FieldAccess {
+                name: "a",
+                range: AstRange {
+                    start: AstPoint {
+                        line: 5,
+                        col: 19,
+                    },
+                    end: AstPoint {
+                        line: 5,
+                        col: 20,
                     },
                 },
             },
@@ -85,15 +112,28 @@ expression: out
         filled_params: [
             [
                 ClassOrVariable {
-                    name: "local",
+                    name: "b",
                     range: AstRange {
                         start: AstPoint {
                             line: 5,
-                            col: 21,
+                            col: 17,
                         },
                         end: AstPoint {
                             line: 5,
-                            col: 26,
+                            col: 18,
+                        },
+                    },
+                },
+                FieldAccess {
+                    name: "a",
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 5,
+                            col: 19,
+                        },
+                        end: AstPoint {
+                            line: 5,
+                            col: 20,
                         },
                     },
                 },
@@ -102,24 +142,37 @@ expression: out
         range: AstRange {
             start: AstPoint {
                 line: 5,
-                col: 20,
+                col: 16,
             },
             end: AstPoint {
                 line: 5,
-                col: 29,
+                col: 23,
             },
         },
     },
     ClassOrVariable {
-        name: "local",
+        name: "b",
         range: AstRange {
             start: AstPoint {
                 line: 5,
-                col: 21,
+                col: 17,
             },
             end: AstPoint {
                 line: 5,
-                col: 26,
+                col: 18,
+            },
+        },
+    },
+    FieldAccess {
+        name: "a",
+        range: AstRange {
+            start: AstPoint {
+                line: 5,
+                col: 19,
+            },
+            end: AstPoint {
+                line: 5,
+                col: 20,
             },
         },
     },

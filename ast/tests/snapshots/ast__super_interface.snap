@@ -335,7 +335,7 @@ AstFile {
                                 },
                                 end: AstPoint {
                                     line: 9,
-                                    col: 20,
+                                    col: 21,
                                 },
                             },
                             value: Generic(
