@@ -1,0 +1,78 @@
+---
+source: ast/tests/ast.rs
+expression: parsed
+---
+(
+    AstJType {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 19,
+            },
+        },
+        value: Generic(
+            AstIdentifier {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 0,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 9,
+                    },
+                },
+                value: "Predicate",
+            },
+            [
+                AstJType {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 0,
+                            col: 10,
+                        },
+                        end: AstPoint {
+                            line: 0,
+                            col: 18,
+                        },
+                    },
+                    value: Generic(
+                        AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 10,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 15,
+                                },
+                            },
+                            value: "Class",
+                        },
+                        [
+                            AstJType {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 0,
+                                        col: 16,
+                                    },
+                                    end: AstPoint {
+                                        line: 0,
+                                        col: 18,
+                                    },
+                                },
+                                value: Wildcard,
+                            },
+                        ],
+                    ),
+                },
+            ],
+        ),
+    },
+    7,
+)

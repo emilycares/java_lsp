@@ -225,7 +225,8 @@ fn parse_annotated_list(
     }
     Ok((out, pos))
 }
-fn parse_annotated(
+/// @Overwrite
+pub fn parse_annotated(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstAnnotated, usize), AstError> {
@@ -1049,7 +1050,7 @@ pub fn parse_recursive_expression(
         Token::Semicolon => {
             return Err(AstError::InvalidExpression(InvalidToken::from(start, pos)));
         }
-        Token::Identifier(_) | Token::Class | Token::This | Token::New => {
+        Token::Identifier(_) | Token::Class | Token::This | Token::New | Token::Super => {
             let (id, npos) = parse_expression_lhs(tokens, pos)?;
             pos = npos;
             out.ident = Some(AstExpressionIdentifier::Identifier(id));
@@ -1150,6 +1151,16 @@ fn parse_expression_lhs(
                     AstIdentifier {
                         range: AstRange::from_position_token(start, start),
                         value: "new".into(),
+                    },
+                    pos + 1,
+                ))
+            }
+            Token::Super => {
+                let start = tokens.start(pos)?;
+                Ok((
+                    AstIdentifier {
+                        range: AstRange::from_position_token(start, start),
+                        value: "super".into(),
                     },
                     pos + 1,
                 ))
@@ -2575,7 +2586,7 @@ pub fn parse_name(
             value = i.clone();
             pos += 1;
         }
-        Token::Yield | Token::Record | Token::Permits => {
+        Token::Yield | Token::Record | Token::Permits | Token::Super | Token::Sealed => {
             value = start.token.to_string();
             pos += 1;
         }
@@ -2656,10 +2667,8 @@ pub fn parse_name_dot_logical(
                     first = false;
                     ident.push_str(id);
                     pos += 1;
-                } else if tokens.get(pos + 1).ok_or(AstError::eof()).map(|i| &i.token)
+                } else if tokens.get(pos - 1).ok_or(AstError::eof()).map(|i| &i.token)
                     == Ok(&Token::Dot)
-                    || tokens.get(pos - 1).ok_or(AstError::eof()).map(|i| &i.token)
-                        == Ok(&Token::Dot)
                 {
                     ident.push_str(id);
                     pos += 1;
@@ -2952,33 +2961,34 @@ fn parse_jtype_generics(
                 break;
             }
             if let Ok(npos) = assert_token(tokens, pos, Token::QuestionMark) {
+                let start = tokens.get(pos).ok_or(AstError::eof())?;
                 pos = npos;
-                let wstart = tokens.get(pos).ok_or(AstError::eof())?;
 
                 if let Ok(npos) = assert_token(tokens, npos, Token::Implements) {
                     pos = npos;
-                    let wend = tokens.get(pos).ok_or(AstError::eof())?;
-                    generic_arguments.push(AstJType {
-                        range: AstRange::from_position_token(wstart, wend),
-                        value: AstJTypeKind::Wildcard,
-                    });
-                }
-                if let Ok(npos) = assert_token(tokens, npos, Token::Extends) {
+                } else if let Ok(npos) = assert_token(tokens, npos, Token::Extends) {
                     pos = npos;
-                    let wend = tokens.get(pos).ok_or(AstError::eof())?;
-                    generic_arguments.push(AstJType {
-                        range: AstRange::from_position_token(wstart, wend),
-                        value: AstJTypeKind::Wildcard,
-                    });
+                } else if let Ok(npos) = assert_token(tokens, npos, Token::Super) {
+                    pos = npos;
                 }
+                let end = tokens.get(pos).ok_or(AstError::eof())?;
+                generic_arguments.push(AstJType {
+                    range: AstRange::from_position_token(start, end),
+                    value: AstJTypeKind::Wildcard,
+                });
+                continue;
             }
-            let (jtype, npos) = parse_jtype(tokens, pos)?;
-            pos = npos;
-            generic_arguments.push(jtype);
+            if let Ok((jtype, npos)) = parse_jtype(tokens, pos) {
+                pos = npos;
+                generic_arguments.push(jtype);
+                continue;
+            }
             if let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
                 pos = npos;
                 continue;
             }
+            let start = tokens.start(pos)?;
+            return Err(AstError::InvalidJtype(InvalidToken::from(start, pos)));
         }
     }
     return Ok((generic_arguments, pos));

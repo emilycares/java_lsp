@@ -122,6 +122,7 @@ impl Token {
             | Token::Sealed
             | Token::Non
             | Token::Permits
+            | Token::Super
             | Token::If => KEYWORDS
                 .entries()
                 .find(|i| i.1 == self)
@@ -229,6 +230,7 @@ impl fmt::Display for Token {
             Token::Non => write!(f, "non"),
             Token::Permits => write!(f, "permits"),
             Token::Arrow => write!(f, "->"),
+            Token::Super => write!(f, "super"),
         }
     }
 }
@@ -416,6 +418,8 @@ pub enum Token {
     Permits,
     /// ->
     Arrow,
+    /// super
+    Super,
 }
 
 /// Error during lex function
@@ -479,6 +483,7 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
     "sealed" => Token::Sealed,
     "non" => Token::Non,
     "permits" => Token::Permits,
+    "super" => Token::Super,
 };
 
 /// Output token vec for document

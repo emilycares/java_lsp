@@ -269,7 +269,7 @@ AstFile {
                                                     range: AstRange {
                                                         start: AstPoint {
                                                             line: 6,
-                                                            col: 41,
+                                                            col: 39,
                                                         },
                                                         end: AstPoint {
                                                             line: 6,

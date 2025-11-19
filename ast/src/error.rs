@@ -5,7 +5,7 @@ use super::lexer::{PositionToken, Token};
 use crate::BlockEntryOptions;
 use std::panic::Location;
 
-const PRINT_ALL_ERRORS: bool = false;
+const PRINT_ALL_ERRORS: bool = true;
 
 /// Fancy log ast error
 pub trait PrintErr {

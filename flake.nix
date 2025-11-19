@@ -81,7 +81,7 @@
             nativeBuildInputs =
               with pkgs;
               [
-                javaPackages.compiler.temurin-bin.jdk-25
+                jdk24
               ]
               ++ [
                 self.checks.${system}.java_lsp

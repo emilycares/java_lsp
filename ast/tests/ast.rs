@@ -1,9 +1,10 @@
 use ast::class::{parse_class_block, parse_class_method, parse_class_variable};
 use ast::error::PrintErr;
 use ast::{
-    ExpressionOptions, lexer, parse_block, parse_block_return, parse_block_variable,
-    parse_expression, parse_file, parse_for, parse_jtype, parse_lambda, parse_name,
-    parse_name_dot_logical, parse_new_class, parse_string_literal, parse_switch_case_arrow,
+    ExpressionOptions, lexer, parse_annotated, parse_block, parse_block_return,
+    parse_block_variable, parse_expression, parse_file, parse_for, parse_jtype, parse_lambda,
+    parse_name, parse_name_dot_logical, parse_new_class, parse_string_literal,
+    parse_switch_case_arrow,
 };
 
 #[test]
@@ -486,6 +487,16 @@ fn jtype_class_generic() {
     insta::assert_debug_snapshot!(parsed);
 }
 #[test]
+fn jtype_class_generic_generic() {
+    let content = r#"Predicate<Class<?>>"#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_jtype(&tokens, 0);
+    parsed.print_err(content);
+    let parsed = parsed.unwrap();
+    assert_eq!(tokens.len(), parsed.1);
+    insta::assert_debug_snapshot!(parsed);
+}
+#[test]
 fn casted_calculation() {
     let content = r#"case MILLI_OF_DAY -> (int) (toNanoOfDay() / 1000_000);"#;
     let tokens = lexer::lex(content).unwrap();
@@ -493,5 +504,15 @@ fn casted_calculation() {
     parsed.print_err(content);
     let parsed = parsed.unwrap();
     assert_eq!(tokens.len(), parsed.1);
+    insta::assert_debug_snapshot!(parsed);
+}
+#[test]
+fn name_dot_logical() {
+    let content = r#"@Overwrite Other."#;
+    let tokens = lexer::lex(content).unwrap();
+    let parsed = parse_annotated(&tokens, 0);
+    parsed.print_err(content);
+    let parsed = parsed.unwrap();
+    // assert_eq!(tokens.len(), parsed.1);
     insta::assert_debug_snapshot!(parsed);
 }
