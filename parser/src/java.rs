@@ -5,7 +5,7 @@ use ast::{
     types::{
         AstAnnotationField, AstClassMethod, AstClassVariable, AstExtends, AstFile, AstImports,
         AstInterfaceConstant, AstInterfaceMethod, AstInterfaceMethodDefault, AstJTypeKind,
-        AstThing, AstTypeParameters,
+        AstSuperClass, AstThing, AstTypeParameters,
     },
 };
 use my_string::MyString;
@@ -51,12 +51,13 @@ pub fn load_java_tree(
             name = class.name.value.clone();
             methods.extend(class.block.methods.iter().map(convert_class_method));
             fields.extend(class.block.variables.iter().map(convert_class_field));
-            super_class = match &class.superclass {
-                ast::types::AstSuperClass::None => dto::SuperClass::None,
-                ast::types::AstSuperClass::Name(ast_identifier) => {
+            //TDOO: Handle others
+            super_class = match &class.superclass.first() {
+                None | Some(AstSuperClass::None) => dto::SuperClass::None,
+                Some(AstSuperClass::Name(ast_identifier)) => {
                     dto::SuperClass::Name(ast_identifier.into())
                 }
-                ast::types::AstSuperClass::ClassPath(ast_identifier) => {
+                Some(AstSuperClass::ClassPath(ast_identifier)) => {
                     dto::SuperClass::ClassPath(ast_identifier.into())
                 }
             };

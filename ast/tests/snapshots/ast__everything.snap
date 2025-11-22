@@ -62,7 +62,7 @@ AstFile {
                 value: "Everything",
             },
             type_parameters: None,
-            superclass: None,
+            superclass: [],
             implements: [],
             permits: [],
             block: AstClassBlock {

@@ -90,21 +90,23 @@ AstFile {
                 value: "Super",
             },
             type_parameters: None,
-            superclass: Name(
-                AstIdentifier {
-                    range: AstRange {
-                        start: AstPoint {
-                            line: 4,
-                            col: 27,
+            superclass: [
+                Name(
+                    AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 4,
+                                col: 27,
+                            },
+                            end: AstPoint {
+                                line: 4,
+                                col: 38,
+                            },
                         },
-                        end: AstPoint {
-                            line: 4,
-                            col: 38,
-                        },
+                        value: "IOException",
                     },
-                    value: "IOException",
-                },
-            ),
+                ),
+            ],
             implements: [],
             permits: [],
             block: AstClassBlock {

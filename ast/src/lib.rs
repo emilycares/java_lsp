@@ -2790,16 +2790,32 @@ fn parse_identifier(
 fn parse_superclass(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(AstSuperClass, usize), AstError> {
+) -> Result<(Vec<AstSuperClass>, usize), AstError> {
     let Ok(pos) = assert_token(tokens, pos, Token::Extends) else {
-        return Ok((AstSuperClass::None, pos));
+        return Ok((vec![], pos));
     };
+    let (sp, pos) = parse_supper_class_inner(tokens, pos)?;
+    let mut pos = pos;
+    let mut out = vec![sp];
+    while let Ok(npos) = assert_token(tokens, pos, Token::Ampersand) {
+        if let Ok((sp, npos)) = parse_supper_class_inner(tokens, npos) {
+            out.push(sp);
+            pos = npos;
+        }
+    }
+
+    Ok((out, pos))
+}
+
+fn parse_supper_class_inner(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstSuperClass, usize), AstError> {
     let (jtype, pos) = parse_jtype(tokens, pos)?;
     let sp = match jtype.value {
         AstJTypeKind::Class(c) | AstJTypeKind::Generic(c, _) => AstSuperClass::Name(c),
         _ => AstSuperClass::None,
     };
-
     Ok((sp, pos))
 }
 

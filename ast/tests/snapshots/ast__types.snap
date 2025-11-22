@@ -62,7 +62,7 @@ AstFile {
                 value: "Types",
             },
             type_parameters: None,
-            superclass: None,
+            superclass: [],
             implements: [],
             permits: [],
             block: AstClassBlock {
@@ -1521,7 +1521,7 @@ AstFile {
                             },
                             end: AstPoint {
                                 line: 14,
-                                col: 43,
+                                col: 44,
                             },
                         },
                         header: AstMethodHeader {
@@ -1660,7 +1660,7 @@ AstFile {
                                     },
                                     end: AstPoint {
                                         line: 14,
-                                        col: 43,
+                                        col: 44,
                                     },
                                 },
                                 entries: [],

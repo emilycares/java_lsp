@@ -63,7 +63,7 @@ AstFile {
             },
             implements: [],
             permits: [],
-            superclass: None,
+            superclass: [],
             variants: [
                 AstEnumerationVariant {
                     range: AstRange {

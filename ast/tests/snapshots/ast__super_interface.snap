@@ -209,7 +209,7 @@ AstFile {
                                 value: "E",
                             },
                             supperclass: Some(
-                                None,
+                                [],
                             ),
                         },
                     ],

@@ -102,7 +102,7 @@ pub struct AstClass {
     pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
     pub type_parameters: Option<AstTypeParameters>,
-    pub superclass: AstSuperClass,
+    pub superclass: Vec<AstSuperClass>,
     pub implements: Vec<AstJType>,
     pub permits: Vec<AstJType>,
     pub block: AstClassBlock,
@@ -116,7 +116,7 @@ pub struct AstRecord {
     pub name: AstIdentifier,
     pub type_parameters: Option<AstTypeParameters>,
     pub record_entries: AstRecordEntries,
-    pub superclass: AstSuperClass,
+    pub superclass: Vec<AstSuperClass>,
     pub implements: Vec<AstJType>,
     pub block: AstClassBlock,
 }
@@ -729,7 +729,7 @@ pub struct AstTypeParameter {
     pub range: AstRange,
     pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
-    pub supperclass: Option<AstSuperClass>,
+    pub supperclass: Option<Vec<AstSuperClass>>,
 }
 #[derive(Debug, Clone)]
 pub struct AstExtends {
@@ -769,7 +769,7 @@ pub struct AstEnumeration {
     pub name: AstIdentifier,
     pub implements: Vec<AstJType>,
     pub permits: Vec<AstJType>,
-    pub superclass: AstSuperClass,
+    pub superclass: Vec<AstSuperClass>,
     pub variants: Vec<AstEnumerationVariant>,
     pub methods: Vec<AstClassMethod>,
     pub variables: Vec<AstClassVariable>,

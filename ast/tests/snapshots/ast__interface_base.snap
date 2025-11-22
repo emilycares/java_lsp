@@ -366,7 +366,7 @@ AstFile {
                                             value: "U",
                                         },
                                         supperclass: Some(
-                                            None,
+                                            [],
                                         ),
                                     },
                                 ],
@@ -552,7 +552,7 @@ AstFile {
                                             value: "A",
                                         },
                                         supperclass: Some(
-                                            None,
+                                            [],
                                         ),
                                     },
                                 ],

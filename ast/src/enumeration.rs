@@ -9,7 +9,8 @@ use crate::{
     parse_expression_parameters, parse_identifier, parse_thing,
     types::{
         AstAnnotated, AstAvailability, AstClassConstructor, AstClassMethod, AstClassVariable,
-        AstEnumerationVariant, AstRange, AstStaticBlock, AstThing, AstThingAttributes,
+        AstEnumeration, AstEnumerationVariant, AstRange, AstStaticBlock, AstThing,
+        AstThingAttributes,
     },
 };
 
@@ -81,9 +82,8 @@ pub fn parse_enumeration(
             errors,
         });
     }
-    dbg!(tokens.get(pos));
-    if !end_reached {
-        if let Ok(npos) = parse_enum_members(
+    if !end_reached
+        && let Ok(npos) = parse_enum_members(
             tokens,
             pos,
             false,
@@ -92,9 +92,9 @@ pub fn parse_enumeration(
             &mut constructors,
             &mut static_blocks,
             &mut inner,
-        ) {
-            pos = npos;
-        }
+        )
+    {
+        pos = npos;
     }
     if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
         pos = npos;
@@ -102,7 +102,7 @@ pub fn parse_enumeration(
     let pos = assert_semicolon(tokens, pos)?;
     let end = tokens.end(pos)?;
     Ok((
-        AstThing::Enumeration(crate::types::AstEnumeration {
+        AstThing::Enumeration(AstEnumeration {
             range: AstRange::from_position_token(start, end),
             avaliability,
             attributes,

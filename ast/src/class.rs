@@ -54,8 +54,8 @@ pub fn parse_class(
 pub fn parse_implemnets_extends_permits(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(AstSuperClass, Vec<AstJType>, Vec<AstJType>, usize), AstError> {
-    let mut superclass = AstSuperClass::None;
+) -> Result<(Vec<AstSuperClass>, Vec<AstJType>, Vec<AstJType>, usize), AstError> {
+    let mut superclass = vec![];
     let mut implements = vec![];
     let mut permits = vec![];
     let mut pos = pos;
@@ -64,7 +64,7 @@ pub fn parse_implemnets_extends_permits(
         match token.token {
             Token::Extends => {
                 let (s, npos) = parse_superclass(tokens, pos)?;
-                superclass = s;
+                superclass.extend(s);
                 pos = npos;
                 continue;
             }

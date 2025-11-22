@@ -62,7 +62,7 @@ AstFile {
                 value: "Syntax",
             },
             type_parameters: None,
-            superclass: None,
+            superclass: [],
             implements: [],
             permits: [],
             block: AstClassBlock {
