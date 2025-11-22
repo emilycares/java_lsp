@@ -759,7 +759,7 @@ public class Test {
                 name: "String".into(),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 8 },
-                    end: AstPoint { line: 4, col: 25 },
+                    end: AstPoint { line: 4, col: 20 },
                 }
             },
             CallItem::MethodCall {

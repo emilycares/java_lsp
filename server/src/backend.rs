@@ -59,7 +59,7 @@ impl Backend {
         let Some(mut document) = self.document_map.get_mut(&uri) else {
             return;
         };
-        document.apply_text_changes(&changes);
+        document.apply_text_changes(&changes).unwrap();
     }
 
     fn on_open(&self, params: TextDocumentItem) {
@@ -69,7 +69,7 @@ impl Backend {
         let uri = params.uri.as_str();
         let key: MyString = uri.to_string();
         if let Some(mut document) = self.document_map.get_mut(&key) {
-            document.replace_text(rope);
+            document.replace_text(rope).unwrap();
         } else {
             match parser::java::load_java(params.text.as_bytes(), SourceDestination::None) {
                 Ok(class) => {
@@ -740,7 +740,7 @@ pub async fn read_forward(
                     con,
                     task,
                     i.message.clone(),
-                    Some(i.persentage.try_into().unwrap()),
+                    i.persentage.try_into().ok(),
                 );
             }
         }

@@ -1,4 +1,7 @@
 #![deny(missing_docs)]
+#![deny(warnings)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::redundant_clone)]
 //! A java ast
 use annotation::parse_annotation;
 use class::parse_class;
@@ -2876,7 +2879,7 @@ fn parse_jtype_inner(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, 
                 break;
             }
         }
-        return Ok((out, pos));
+        Ok((out, pos))
     } else if let Ok(current) = tokens.get(pos).ok_or(AstError::eof()) {
         let mut out = AstJType {
             range: AstRange::default(),
@@ -2894,7 +2897,6 @@ fn parse_jtype_inner(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, 
                 let first_char = ast_identifier
                     .value
                     .chars()
-                    .into_iter()
                     .next()
                     .expect("Lexer returned empty identfier");
                 if first_char.is_uppercase() {
@@ -2941,9 +2943,9 @@ fn parse_jtype_inner(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, 
         if AstJTypeKind::Void == out.value {
             return Err(AstError::InvalidJtype(InvalidToken::from(start, pos)));
         }
-        return Ok((out, pos));
+        Ok((out, pos))
     } else {
-        return Err(AstError::InvalidJtype(InvalidToken::from(start, pos)));
+        Err(AstError::InvalidJtype(InvalidToken::from(start, pos)))
     }
 }
 
@@ -2991,7 +2993,7 @@ fn parse_jtype_generics(
             return Err(AstError::InvalidJtype(InvalidToken::from(start, pos)));
         }
     }
-    return Ok((generic_arguments, pos));
+    Ok((generic_arguments, pos))
 }
 
 fn parse_primitive_type(

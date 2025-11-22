@@ -17,7 +17,7 @@ Class {
     methods: [],
     fields: [],
     super_class: Name(
-        "a",
+        "AThing",
     ),
     super_interfaces: [],
 }

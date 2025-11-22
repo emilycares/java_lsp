@@ -1,3 +1,6 @@
+#![deny(warnings)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::redundant_clone)]
 use std::cmp::{self, max, min};
 
 use ast::range::{AstInRange, GetRange, add_ranges};
@@ -515,11 +518,15 @@ fn cc_expr(
     has_parent: bool,
     out: &mut Vec<CallItem>,
 ) {
-    let ex = ast_expression.first().unwrap();
+    let Some(ex) = ast_expression.first() else {
+        return;
+    };
+    if let AstExpressionKind::Recursive(current) = ex {
+        cc_expr_recursive(&ast_expression[0..], current, point, has_parent, out);
+        return;
+    }
     match ex {
-        AstExpressionKind::Recursive(current) => {
-            cc_expr_recursive(&ast_expression[0..], current, point, has_parent, out)
-        }
+        AstExpressionKind::Recursive(_) => {}
         AstExpressionKind::Lambda(ast_lambda) => match &ast_lambda.rhs {
             AstLambdaRhs::None => (),
             AstLambdaRhs::Block(ast_block) => cc_block(ast_block, point, out),
@@ -530,10 +537,13 @@ fn cc_expr(
         AstExpressionKind::InlineSwitch(_ast_switch) => (),
         AstExpressionKind::NewClass(ast_new_class) => cc_new_class(ast_new_class, point, out),
         AstExpressionKind::ClassAccess(ast_class_access) => cc_class_access(ast_class_access, out),
-        AstExpressionKind::Generics(_ast_generics) => (),
-        AstExpressionKind::Array(_ast_values) => todo!(),
-        AstExpressionKind::Casted(_) => (),
+        AstExpressionKind::Array(ast_values) => cc_array(ast_values, point, out),
+        AstExpressionKind::Generics(_ast_generics) => todo!(),
+        AstExpressionKind::Casted(_) => todo!(),
         AstExpressionKind::JType(_) => (),
+    }
+    if ast_expression.len() > 1 {
+        cc_expr(&ast_expression[1..], point, has_parent, out);
     }
 }
 
@@ -680,19 +690,6 @@ fn cc_expr_recursive(
             }
         }
     } else {
-        // if let Some(ident) = &current.ident {
-        //     let has_args = false;
-        //     // if let Some(n) = &ast_expression.next {
-        //     //     has_args = n.values.is_some();
-        //     // }
-        //     dbg!(&ident);
-        //     if ident.get_range().is_in_range(values.get_range()) {
-        //         cc_expr_ident(ident, has_args, has_parent, point, out);
-        //     }
-        // }
-        if let Some(values) = &current.values {
-            cc_arugments(point, out, values);
-        }
         match (&current.ident, &current.values) {
             (None, None) => (),
             (None, Some(values)) => {
@@ -712,34 +709,35 @@ fn cc_expr_recursive(
 }
 
 fn cc_arugments(point: &AstPoint, out: &mut Vec<CallItem>, values: &AstValues) {
-    if values.range.is_in_range(point) {
-        let active_param = get_active_param(values, point);
-        let mut filled_params: Vec<Vec<CallItem>> = values
-            .values
-            .iter()
-            .map(|i| {
-                let mut out = vec![];
-                cc_expr(i, point, false, &mut out);
-                out
-            })
-            .collect();
+    if !values.range.is_in_range(point) {
+        return;
+    }
+    let active_param = get_active_param(values, point);
+    let mut filled_params: Vec<Vec<CallItem>> = values
+        .values
+        .iter()
+        .map(|i| {
+            let mut out = vec![];
+            cc_expr(i, point, false, &mut out);
+            out
+        })
+        .collect();
 
-        if filled_params.is_empty() {
-            filled_params.push(vec![]);
-        }
-        let selected_arg = filled_params.get(active_param).cloned();
-        let args = CallItem::ArgumentList {
-            prev: out.clone(),
-            active_param: Some(active_param),
-            filled_params,
-            range: values.range,
-        };
-        out.clear();
+    if filled_params.is_empty() {
+        filled_params.push(vec![]);
+    }
+    let selected_arg = filled_params.get(active_param).cloned();
+    let args = CallItem::ArgumentList {
+        prev: out.clone(),
+        active_param: Some(active_param),
+        filled_params,
+        range: values.range,
+    };
+    out.clear();
 
-        out.push(args);
-        if let Some(sel) = selected_arg {
-            out.extend(sel);
-        }
+    out.push(args);
+    if let Some(sel) = selected_arg {
+        out.extend(sel);
     }
 }
 

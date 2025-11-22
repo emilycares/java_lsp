@@ -84,7 +84,7 @@ pub async fn fetch_deps(
     }
 
     if download {
-        download_sources(&sender).await;
+        download_sources(&sender).await?;
     }
     let tree = tree::load().map_err(MavenFetchError::Tree)?;
     let m2 = Arc::new(get_maven_m2_folder()?);
@@ -158,7 +158,9 @@ pub async fn fetch_deps(
     Ok(())
 }
 
-async fn download_sources(sender: &tokio::sync::watch::Sender<TaskProgress>) {
+async fn download_sources(
+    sender: &tokio::sync::watch::Sender<TaskProgress>,
+) -> Result<(), MavenFetchError> {
     let _ = sender.send(TaskProgress {
         persentage: 0,
         error: false,
@@ -168,7 +170,7 @@ async fn download_sources(sender: &tokio::sync::watch::Sender<TaskProgress>) {
     let mut e = Command::new(EXECUTABLE_MAVEN);
     let e = e.args(["dependency:resolve", "-Dclassifier=sources"]);
     let e = overwrite_settings_xml_tokio(e);
-    let e = e.output().await.unwrap();
+    let e = e.output().await.map_err(MavenFetchError::IO)?;
     let error = String::from_utf8_lossy(&e.stderr).to_string();
     if !error.is_empty() {
         let _ = sender.send(TaskProgress {
@@ -182,6 +184,7 @@ async fn download_sources(sender: &tokio::sync::watch::Sender<TaskProgress>) {
         error: false,
         message: "Downloading sources Done".to_string(),
     });
+    Ok(())
 }
 
 fn get_maven_m2_folder() -> Result<PathBuf, MavenFetchError> {

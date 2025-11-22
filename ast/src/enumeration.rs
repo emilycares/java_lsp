@@ -8,8 +8,8 @@ use crate::{
     lexer::{PositionToken, Token},
     parse_expression_parameters, parse_identifier, parse_thing,
     types::{
-        AstAnnotated, AstAvailability, AstEnumerationVariant, AstRange, AstThing,
-        AstThingAttributes,
+        AstAnnotated, AstAvailability, AstClassConstructor, AstClassMethod, AstClassVariable,
+        AstEnumerationVariant, AstRange, AstStaticBlock, AstThing, AstThingAttributes,
     },
 };
 
@@ -36,27 +36,44 @@ pub fn parse_enumeration(
     let mut end_reached = false;
     loop {
         errors.clear();
-        if let Ok(npos) = assert_token(tokens, pos, Token::Semicolon) {
-            pos = npos;
-            break;
-        };
-        if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
-            pos = npos;
-            end_reached = true;
-            break;
-        };
-        if let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
-            pos = npos;
-            continue;
-        }
         match parse_enum_variant(tokens, pos) {
             Ok((variant, npos)) => {
                 variants.push(variant);
                 pos = npos;
-                continue;
             }
             Err(e) => {
                 errors.push(("enum_variant".into(), e));
+            }
+        }
+        if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
+            pos = npos;
+            end_reached = true;
+            break;
+        }
+        if let Ok(npos) = assert_token(tokens, pos, Token::Semicolon) {
+            pos = npos;
+            break;
+        }
+        if let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
+            pos = npos;
+            continue;
+        } else {
+            match parse_enum_members(
+                tokens,
+                pos,
+                true,
+                &mut methods,
+                &mut variables,
+                &mut constructors,
+                &mut static_blocks,
+                &mut inner,
+            ) {
+                Ok(npos) => {
+                    let npos = assert_token(tokens, npos, Token::Comma)?;
+                    pos = npos;
+                    continue;
+                }
+                Err(e) => errors.push(("enum_members before comma".into(), e)),
             }
         }
         return Err(AstError::AllChildrenFailed {
@@ -64,76 +81,23 @@ pub fn parse_enumeration(
             errors,
         });
     }
+    dbg!(tokens.get(pos));
     if !end_reached {
-        loop {
-            errors.clear();
-            if tokens.get(pos).is_none() {
-                break;
-            }
-            if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
-                pos = npos;
-                break;
-            };
-            let start_pos = pos;
-            match parse_class_method(tokens, pos) {
-                Ok((method, npos)) => {
-                    methods.push(method);
-                    pos = npos;
-                    continue;
-                }
-                Err(e) => {
-                    errors.push(("enum_method".into(), e));
-                }
-            }
-            match parse_class_constructor(tokens, pos) {
-                Ok((constructor, npos)) => {
-                    constructors.push(constructor);
-                    pos = npos;
-                    continue;
-                }
-                Err(e) => {
-                    errors.push(("enum_constructor".into(), e));
-                }
-            }
-            match parse_class_variable(tokens, pos) {
-                Ok((vars, npos)) => {
-                    variables.extend(vars);
-                    pos = npos;
-                    continue;
-                }
-                Err(e) => {
-                    errors.push(("enum_variable".into(), e));
-                }
-            }
-            match parse_static_block(tokens, pos) {
-                Ok((static_block, npos)) => {
-                    pos = npos;
-                    static_blocks.push(static_block);
-                    continue;
-                }
-                Err(e) => {
-                    errors.push(("static block".into(), e));
-                }
-            }
-            match parse_thing(tokens, pos) {
-                Ok((thing, npos)) => {
-                    pos = npos;
-                    inner.push(thing);
-                    continue;
-                }
-                Err(e) => {
-                    errors.push(("thing".into(), e));
-                }
-            }
-            if pos == start_pos {
-                eprintln!("No enum enty was parsed: {:?}", tokens.get(pos));
-                break;
-            }
-            return Err(AstError::AllChildrenFailed {
-                parent: "enum".into(),
-                errors,
-            });
+        if let Ok(npos) = parse_enum_members(
+            tokens,
+            pos,
+            false,
+            &mut methods,
+            &mut variables,
+            &mut constructors,
+            &mut static_blocks,
+            &mut inner,
+        ) {
+            pos = npos;
         }
+    }
+    if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
+        pos = npos;
     }
     let pos = assert_semicolon(tokens, pos)?;
     let end = tokens.end(pos)?;
@@ -156,6 +120,91 @@ pub fn parse_enumeration(
         }),
         pos,
     ))
+}
+
+fn parse_enum_members(
+    tokens: &[PositionToken],
+    pos: usize,
+    braces: bool,
+    methods: &mut Vec<AstClassMethod>,
+    variables: &mut Vec<AstClassVariable>,
+    constructors: &mut Vec<AstClassConstructor>,
+    static_blocks: &mut Vec<AstStaticBlock>,
+    inner: &mut Vec<AstThing>,
+) -> Result<usize, AstError> {
+    let mut pos = pos;
+    if braces {
+        let npos = assert_token(tokens, pos, Token::LeftParenCurly)?;
+        pos = npos;
+    }
+    let mut errors = vec![];
+    loop {
+        errors.clear();
+        if tokens.get(pos).is_none() {
+            break;
+        }
+        if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
+            if braces {
+                pos = npos;
+            }
+            break;
+        };
+        match parse_class_method(tokens, pos) {
+            Ok((method, npos)) => {
+                methods.push(method);
+                pos = npos;
+                continue;
+            }
+            Err(e) => {
+                errors.push(("enum_method".into(), e));
+            }
+        }
+        match parse_class_constructor(tokens, pos) {
+            Ok((constructor, npos)) => {
+                constructors.push(constructor);
+                pos = npos;
+                continue;
+            }
+            Err(e) => {
+                errors.push(("enum_constructor".into(), e));
+            }
+        }
+        match parse_class_variable(tokens, pos) {
+            Ok((vars, npos)) => {
+                variables.extend(vars);
+                pos = npos;
+                continue;
+            }
+            Err(e) => {
+                errors.push(("enum_variable".into(), e));
+            }
+        }
+        match parse_static_block(tokens, pos) {
+            Ok((static_block, npos)) => {
+                pos = npos;
+                static_blocks.push(static_block);
+                continue;
+            }
+            Err(e) => {
+                errors.push(("static block".into(), e));
+            }
+        }
+        match parse_thing(tokens, pos) {
+            Ok((thing, npos)) => {
+                pos = npos;
+                inner.push(thing);
+                continue;
+            }
+            Err(e) => {
+                errors.push(("thing".into(), e));
+            }
+        }
+        return Err(AstError::AllChildrenFailed {
+            parent: "enum".into(),
+            errors,
+        });
+    }
+    Ok(pos)
 }
 /// `A`
 /// `A("a")`

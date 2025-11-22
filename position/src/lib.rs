@@ -1,3 +1,6 @@
+#![deny(warnings)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::redundant_clone)]
 use std::str::Utf8Error;
 
 use ast::types::{AstFile, AstRange, AstThing};

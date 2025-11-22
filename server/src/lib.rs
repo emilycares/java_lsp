@@ -1,3 +1,6 @@
+#![deny(warnings)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::redundant_clone)]
 mod backend;
 mod codeaction;
 pub mod completion;
@@ -63,7 +66,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
         }
     };
     let params: InitializeParams =
-        serde_json::from_value(initialization_params.clone()).unwrap_or_default();
+        serde_json::from_value(initialization_params).unwrap_or_default();
     main_loop(backend, params)?;
     io_threads.join()?;
 

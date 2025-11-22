@@ -1,3 +1,6 @@
+#![deny(warnings)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::redundant_clone)]
 use std::{fs::canonicalize, path::PathBuf, time::Instant};
 
 use ast::error::PrintErr;
@@ -71,7 +74,7 @@ pub fn ast_check(file: PathBuf) {
     }
 }
 pub fn ast_check_dir(folder: PathBuf) {
-    jwalk::WalkDir::new(canonicalize(folder).unwrap())
+    jwalk::WalkDir::new(canonicalize(folder).expect("Cannonicalize fail"))
         // Check in the same order always
         .sort(true)
         .into_iter()
@@ -88,12 +91,12 @@ pub fn ast_check_dir(folder: PathBuf) {
 }
 
 pub fn lex(file: PathBuf) {
-    let text = std::fs::read_to_string(&file).unwrap();
-    let tokens = ast::lexer::lex(&text).unwrap();
+    let text = std::fs::read_to_string(&file).expect("File shoul exist");
+    let tokens = ast::lexer::lex(&text).expect("Ok to crach if fail");
     eprintln!("{:?}", tokens);
 }
 pub fn lex_pos(file: PathBuf, pos: usize) {
-    let text = std::fs::read_to_string(&file).unwrap();
-    let tokens = ast::lexer::lex(&text).unwrap();
+    let text = std::fs::read_to_string(&file).expect("File shoul exist");
+    let tokens = ast::lexer::lex(&text).expect("Ok to crach if fail");
     eprintln!("{:?}", tokens[pos]);
 }

@@ -1,3 +1,6 @@
+#![deny(warnings)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::redundant_clone)]
 use std::{path::PathBuf, process::Command};
 
 use config::{CONFIG, FormatterConfig};

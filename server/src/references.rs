@@ -297,7 +297,7 @@ fn get_implicit_imports(
         })
         .map(|k| (k.clone(), class_map.get(k)))
         .filter(|(_, class)| class.is_some())
-        .map(|(k, class)| (k, class.unwrap()))
+        .map(|(k, class)| (k, class.expect("Is some is checked in line before")))
         // Prefilter already parsed data before parsing file with treesitter
         .filter(|(_k, lclass)| {
             lclass.imports.iter().any(|i| match i {

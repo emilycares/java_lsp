@@ -202,6 +202,21 @@ fn parse_interface_constant_base(
     let mut jtype = jtype.clone();
     let (name, pos) = parse_name(tokens, pos)?;
     let pos = parse_array_type_on_name(tokens, pos, &mut jtype);
+    if assert_token(tokens, pos, Token::Semicolon).is_ok() {
+        let end = tokens.end(pos)?;
+        return Ok((
+            AstInterfaceConstant {
+                range: AstRange::from_position_token(start, end),
+                annotated: annotated.to_owned(),
+                jtype,
+                name,
+                avaliability,
+                static_final,
+                expression: None,
+            },
+            pos,
+        ));
+    }
     let pos = assert_token(tokens, pos, Token::Equal)?;
     let (expression, pos) = parse_expression(tokens, pos, &ExpressionOptions::None)?;
     let end = tokens.end(pos)?;
@@ -213,7 +228,7 @@ fn parse_interface_constant_base(
             name,
             avaliability,
             static_final,
-            expression,
+            expression: Some(expression),
         },
         pos,
     ))

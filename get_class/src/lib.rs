@@ -1,3 +1,6 @@
+#![deny(warnings)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::redundant_clone)]
 use ast::types::{
     AstBlock, AstBlockEntry, AstExpressionIdentifier, AstExpressionKind, AstExpressionOrValue,
     AstFile, AstJType, AstJTypeKind, AstLambdaRhs, AstNewRhs, AstPoint, AstRange,

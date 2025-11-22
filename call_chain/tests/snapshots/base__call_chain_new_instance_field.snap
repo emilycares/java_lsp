@@ -12,7 +12,7 @@ expression: out
             },
             end: AstPoint {
                 line: 4,
-                col: 23,
+                col: 20,
             },
         },
     },

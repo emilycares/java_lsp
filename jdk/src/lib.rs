@@ -1,3 +1,6 @@
+#![deny(warnings)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::redundant_clone)]
 use std::{
     env,
     fs::{self, remove_file},
@@ -175,7 +178,7 @@ async fn load_jmods(
         }
     }
 
-    let mut handles = JoinSet::<Option<ClassFolder>>::new();
+    let mut handles = JoinSet::<Result<ClassFolder, JdkError>>::new();
     let source_dir = Arc::new(source_dir);
     let completed_number = Arc::new(AtomicUsize::new(0));
     let sender = Arc::new(sender);
@@ -213,8 +216,7 @@ async fn load_jmods(
                                 ),
                             )
                             .map_err(JdkError::ParserLoader)
-                            .await
-                            .unwrap();
+                            .await;
                             let a = completed_number.fetch_add(1, Ordering::Relaxed);
                             let _ = sender.send(TaskProgress {
                                 persentage: (100 * a) / (tasks_number + 1),
@@ -222,7 +224,7 @@ async fn load_jmods(
                                 message: format!("Loaded classes of jmod: {}", jmod_display),
                             });
 
-                            Some(classes)
+                            classes
                         });
                     }
                 }
@@ -231,12 +233,16 @@ async fn load_jmods(
     }
 
     let done = handles.join_all().await;
+    let mut classes = vec![];
 
-    let class_folder = ClassFolder {
-        classes: done.into_iter().flatten().flat_map(|i| i.classes).collect(),
-    };
+    for r in done.into_iter() {
+        match r {
+            Ok(c) => classes.extend(c.classes),
+            Err(e) => return Err(e),
+        }
+    }
 
-    Ok(class_folder)
+    Ok(ClassFolder { classes })
 }
 
 async fn unzip_to_dir(dir: &Path, zip: &PathBuf) -> Result<(), JdkError> {

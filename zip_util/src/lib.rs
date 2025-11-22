@@ -1,3 +1,6 @@
+#![deny(warnings)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::redundant_clone)]
 use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
 use std::{
     fs::File,

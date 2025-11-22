@@ -744,7 +744,7 @@ pub struct AstInterfaceConstant {
     pub avaliability: AstAvailability,
     pub name: AstIdentifier,
     pub jtype: AstJType,
-    pub expression: AstExpression,
+    pub expression: Option<AstExpression>,
 }
 #[derive(Debug, Clone)]
 pub struct AstInterfaceMethod {

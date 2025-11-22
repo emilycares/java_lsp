@@ -1,3 +1,6 @@
+#![deny(warnings)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::redundant_clone)]
 use std::{fs, path::PathBuf};
 
 use ast::{error::PrintErr, types::AstFile};
@@ -26,7 +29,7 @@ impl Document {
         let text = fs::read_to_string(&self.path).map_err(DocumentError::Io)?;
         self.text = ropey::Rope::from_str(&text);
         self.str_data = text;
-        self.reparse(false);
+        self.reparse(false)?;
         Ok(())
     }
     pub fn setup_read(path: PathBuf, class_path: MyString) -> Result<Self, DocumentError> {
@@ -66,12 +69,16 @@ impl Document {
         self.as_str().as_bytes()
     }
 
-    pub fn replace_text(&mut self, text: Rope) {
+    pub fn replace_text(&mut self, text: Rope) -> Result<(), DocumentError> {
         self.text = text;
-        self.reparse(true);
+        self.reparse(true)?;
+        Ok(())
     }
 
-    pub fn apply_text_changes(&mut self, changes: &Vec<TextDocumentContentChangeEvent>) {
+    pub fn apply_text_changes(
+        &mut self,
+        changes: &Vec<TextDocumentContentChangeEvent>,
+    ) -> Result<(), DocumentError> {
         for change in changes {
             if let Some(range) = change.range {
                 let sp = range.start;
@@ -108,17 +115,19 @@ impl Document {
                 self.text = Rope::from_str(&change.text);
             }
         }
-        self.reparse(true);
+        self.reparse(true)?;
+        Ok(())
     }
-    fn reparse(&mut self, update_str: bool) {
+    fn reparse(&mut self, update_str: bool) -> Result<(), DocumentError> {
         if update_str {
             self.str_data = self.text.to_string();
         }
-        let tokens = ast::lexer::lex(&self.str_data).unwrap();
+        let tokens = ast::lexer::lex(&self.str_data).map_err(DocumentError::Lexer)?;
         let ast = ast::parse_file(&tokens);
         ast.print_err(&self.str_data);
-        let ast = ast.unwrap();
+        let ast = ast.map_err(DocumentError::Ast)?;
         self.ast = ast;
+        Ok(())
     }
 }
 

@@ -1,3 +1,6 @@
+#![deny(warnings)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::redundant_clone)]
 use ast::types::{
     AstBlock, AstBlockEntry, AstBlockExpression, AstBlockVariable, AstClassMethod, AstExpression,
     AstExpressionKind, AstFile, AstFor, AstForContent, AstForEnhanced, AstIf, AstIfContent,
@@ -23,7 +26,7 @@ impl LocalVariable {
         let jtype: dto::JType = (&v.jtype).into();
         LocalVariable {
             level,
-            jtype: jtype.clone(),
+            jtype,
             name: v.name.value.clone(),
             is_fun: false,
             range: v.range,
@@ -419,7 +422,7 @@ fn get_class_variables(
         LocalVariable {
             range: i.range,
             level,
-            jtype: jtype.clone(),
+            jtype,
             name: i.name.value.clone(),
             is_fun: false,
         }

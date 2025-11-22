@@ -178,7 +178,7 @@ pub fn get_source_content(
 ) -> Result<String, DefinitionError> {
     let uri = source_to_uri(source)?;
     match document::read_document_or_open_class(source, "".into(), document_map, uri.as_str()) {
-        document::ClassSource::Owned(d) => Ok(d.str_data.clone()),
+        document::ClassSource::Owned(d) => Ok(d.str_data),
 
         document::ClassSource::Ref(d) => Ok(d.str_data.clone()),
         document::ClassSource::Err(e) => Err(DefinitionError::Document(e)),

@@ -284,7 +284,9 @@ fn check_type_parameters(
 
 #[cfg(test)]
 pub mod tests {
-    use crate::SourceDestination;
+    use ast::error::PrintErr;
+
+    use crate::{SourceDestination, java::ParseJavaError};
 
     use super::load_java;
 
@@ -301,12 +303,15 @@ pub mod tests {
     fn super_class() {
         let content = r#"
 package a.test;
-public class Test extends a { }
+public class Test extends AThing { }
         "#;
         let result = load_java(
             content.as_bytes(),
             SourceDestination::Here("/path/to/source/Test.java".into()),
         );
+        if let Err(ParseJavaError::Ast(e)) = &result {
+            e.print_err(content);
+        }
         insta::assert_debug_snapshot!(result.unwrap());
     }
 
