@@ -1,6 +1,7 @@
 #![deny(warnings)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
+use std::time::Instant;
 use std::{fs::canonicalize, path::PathBuf};
 
 use ast::error::PrintErr;
@@ -72,7 +73,7 @@ pub fn ast_check(file: &PathBuf, num: usize) {
 }
 
 fn lex_and_ast(file: &PathBuf, text: String, num: usize) {
-    // eprintln!("[{num}]Here: {:?}", file);
+    eprintln!("[{num}]Here: {:?}", file);
     match ast::lexer::lex(&text) {
         Ok(tokens) => {
             // let lex_time = before_lex.elapsed();
@@ -100,7 +101,7 @@ fn lex_and_ast(file: &PathBuf, text: String, num: usize) {
 #[cfg(not(target_os = "windows"))]
 pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
     let mut count = 0;
-    let time = std::time::Instant::now();
+    let time = Instant::now();
     for i in jwalk::WalkDir::new(canonicalize(folder).expect("Cannonicalize fail"))
         // Check in the same order always
         .sort(true)
@@ -129,7 +130,7 @@ pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
 #[cfg(not(target_os = "windows"))]
 pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<&str>) -> Result<(), CheckError> {
     let mut count = 0;
-    let time = std::time::Instant::now();
+    let time = Instant::now();
     for i in jwalk::WalkDir::new(canonicalize(folder).expect("Cannonicalize fail"))
         // Check in the same order always
         .sort(true)
@@ -184,12 +185,8 @@ fn visit_java_fies(
             } else {
                 if let Some(e) = entry.extension() {
                     if e == "java" {
-                        if !(entry.ends_with("module-info.java")
-                            || entry.ends_with("package-info.java"))
-                        {
-                            index += 1;
-                            cb(&entry, index);
-                        }
+                        index += 1;
+                        cb(&entry, index);
                     }
                 }
             }
@@ -200,12 +197,33 @@ fn visit_java_fies(
 }
 #[cfg(target_os = "windows")]
 pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
+    let time = Instant::now();
     visit_java_fies(
         canonicalize(folder).expect("Cannonicalize fail").as_path(),
         0,
         &|i, index| ast_check(i, index),
     )?;
-    println!("Checked all files.");
+    println!("Checked all files. in: {:.2?}", time.elapsed());
+    Ok(())
+}
+#[cfg(target_os = "windows")]
+pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<&str>) -> Result<(), CheckError> {
+    let time = Instant::now();
+    visit_java_fies(
+        canonicalize(folder).expect("Cannonicalize fail").as_path(),
+        0,
+        &|i, index| {
+            if let Some(s) = i.to_str() {
+                for ig in &ignore {
+                    if s.contains(ig) {
+                        return;
+                    }
+                }
+            }
+            ast_check(i, index)
+        },
+    )?;
+    println!("Checked all files. in: {:.2?}", time.elapsed());
     Ok(())
 }
 
