@@ -70,7 +70,7 @@ impl Backend {
         let uri = params.uri.as_str();
         let key: MyString = uri.to_string();
         if let Some(mut document) = self.document_map.get_mut(&key) {
-        // TODO: Handle error
+            // TODO: Handle error
             let _ = document.replace_text(rope);
         } else {
             match parser::java::load_java(params.text.as_bytes(), SourceDestination::None) {

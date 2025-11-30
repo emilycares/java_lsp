@@ -1,7 +1,7 @@
 #![deny(warnings)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
-use std::{fs::canonicalize, path::PathBuf, time::Instant};
+use std::{fs::canonicalize, path::PathBuf};
 
 use ast::error::PrintErr;
 use clap::{Parser, Subcommand};
@@ -100,7 +100,7 @@ fn lex_and_ast(file: &PathBuf, text: String, num: usize) {
 #[cfg(not(target_os = "windows"))]
 pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
     let mut count = 0;
-    let time = Instant::now();
+    let time = std::time::Instant::now();
     for i in jwalk::WalkDir::new(canonicalize(folder).expect("Cannonicalize fail"))
         // Check in the same order always
         .sort(true)
@@ -129,7 +129,7 @@ pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
 #[cfg(not(target_os = "windows"))]
 pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<&str>) -> Result<(), CheckError> {
     let mut count = 0;
-    let time = Instant::now();
+    let time = std::time::Instant::now();
     for i in jwalk::WalkDir::new(canonicalize(folder).expect("Cannonicalize fail"))
         // Check in the same order always
         .sort(true)
