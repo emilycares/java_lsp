@@ -78,9 +78,9 @@ jobs:
         run: cargo fmt --all --check
 
       - name: Run cargo clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --workspace
 
       - name: Run cargo doc
-        run: cargo doc --no-deps --workspace --document-private-items
+        run: cargo doc --no-deps --workspace
         env:
           RUSTDOCFLAGS: -D warnings

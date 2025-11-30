@@ -180,15 +180,13 @@ fn visit_java_fies(
         let mut index = index;
         for entry in read_dir.iter() {
             if entry.is_dir() {
-                let nindex = visit_java_fies(&entry, index, cb)?;
+                let nindex = visit_java_fies(entry, index, cb)?;
                 index = nindex;
-            } else {
-                if let Some(e) = entry.extension() {
-                    if e == "java" {
-                        index += 1;
-                        cb(&entry, index);
-                    }
-                }
+            } else if let Some(e) = entry.extension()
+                && e == "java"
+            {
+                index += 1;
+                cb(entry, index);
             }
         }
         return Ok(index);

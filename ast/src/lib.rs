@@ -1081,7 +1081,7 @@ pub fn parse_class_access(
 pub enum ExpressionOptions {
     /// Default expression
     None,
-    /// Don't parse '<exp> ? <expr> : expr'
+    /// Don't parse 'exp ? expr : expr'
     /// QuestionMark and Colon will not be parsed as operators
     NoInlineIf,
     /// Don't parse labdas
