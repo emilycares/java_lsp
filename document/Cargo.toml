@@ -13,9 +13,9 @@ license.workspace = true
 lsp-types.workspace = true
 ropey.workspace = true
 dashmap.workspace = true
-tree-sitter.workspace = true
-tree-sitter-util = { path = "../tree-sitter-util"}
+ast = { path = "../ast"}
 parser = { path = "../parser"}
+my_string = { path = "../my_string"}
 
 [dev-dependencies]
 pretty_assertions.workspace = true

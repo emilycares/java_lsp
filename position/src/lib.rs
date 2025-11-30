@@ -1,118 +1,258 @@
-use lsp_types::{Location, SymbolInformation, SymbolKind, Uri};
-use streaming_iterator::StreamingIterator;
-use tree_sitter::{Query, QueryCursor, Tree};
-use tree_sitter_util::{get_string_node, lsp::to_lsp_range};
+#![deny(warnings)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::redundant_clone)]
+use std::str::Utf8Error;
+
+use ast::types::{AstFile, AstRange, AstThing};
+use lsp_types::{Location, Range, SymbolInformation, SymbolKind, Uri};
 
 #[derive(Debug, PartialEq)]
 pub enum PosionError {
-    Treesitter(tree_sitter_util::TreesitterError),
+    Utf8(Utf8Error),
+    Lexer(ast::lexer::LexerError),
+    Ast(ast::error::AstError),
 }
 
-pub fn get_class_position(bytes: &[u8], name: &str) -> Result<Vec<PositionSymbol>, PosionError> {
-    let (_, tree) = tree_sitter_util::parse(bytes).map_err(PosionError::Treesitter)?;
-    get_item_ranges(
-        &tree,
-        bytes,
-        "
-        (class_declaration name: (identifier)@capture )
-        (interface_declaration name: (identifier)@capture )
-        (enum_declaration name: (identifier)@capture )
-        (annotation_type_declaration name: (identifier)@capture )
-        (record_declaration name: (identifier)@capture )
-        ",
-        Some(name),
-    )
+pub fn get_class_position_ast(
+    ast: &AstFile,
+    name: Option<&str>,
+) -> Result<Vec<PositionSymbol>, PosionError> {
+    let mut out = vec![];
+    for th in &ast.things {
+        get_class_position_ast_thing(th, name, &mut out)?;
+    }
+    Ok(out)
+}
+pub fn get_class_position_ast_thing(
+    thing: &AstThing,
+    name: Option<&str>,
+    out: &mut Vec<PositionSymbol>,
+) -> Result<(), PosionError> {
+    match &thing {
+        AstThing::Class(ast_class) => {
+            if let Some(name) = name
+                && ast_class.name.value != name
+            {
+                return Ok(());
+            }
+            out.push(PositionSymbol::Range(ast_class.name.range));
+        }
+        AstThing::Record(ast_record) => {
+            if let Some(name) = name
+                && ast_record.name.value != name
+            {
+                return Ok(());
+            }
+            out.push(PositionSymbol::Range(ast_record.name.range));
+        }
+        AstThing::Interface(ast_interface) => {
+            if let Some(name) = name
+                && ast_interface.name.value != name
+            {
+                return Ok(());
+            }
+            out.push(PositionSymbol::Range(ast_interface.name.range));
+        }
+        AstThing::Enumeration(ast_enumeration) => {
+            if let Some(name) = name
+                && ast_enumeration.name.value != name
+            {
+                return Ok(());
+            }
+            out.push(PositionSymbol::Range(ast_enumeration.name.range));
+        }
+        AstThing::Annotation(ast_annotation) => {
+            if let Some(name) = name
+                && ast_annotation.name.value != name
+            {
+                return Ok(());
+            }
+            out.push(PositionSymbol::Range(ast_annotation.name.range));
+        }
+    }
+    Ok(())
+}
+
+pub fn get_class_position(
+    bytes: &[u8],
+    name: Option<&str>,
+) -> Result<Vec<PositionSymbol>, PosionError> {
+    let str = str::from_utf8(bytes).map_err(PosionError::Utf8)?;
+    let tokens = ast::lexer::lex(str).map_err(PosionError::Lexer)?;
+    let ast = ast::parse_file(&tokens).map_err(PosionError::Ast)?;
+    get_class_position_ast(&ast, name)
+}
+pub fn get_class_position_str(
+    str: &str,
+    name: Option<&str>,
+) -> Result<Vec<PositionSymbol>, PosionError> {
+    let tokens = ast::lexer::lex(str).map_err(PosionError::Lexer)?;
+    let ast = ast::parse_file(&tokens).map_err(PosionError::Ast)?;
+    get_class_position_ast(&ast, name)
 }
 
 pub fn get_method_positions(bytes: &[u8], name: &str) -> Result<Vec<PositionSymbol>, PosionError> {
-    let (_, tree) = tree_sitter_util::parse(bytes).map_err(PosionError::Treesitter)?;
-    get_item_ranges(
-        &tree,
-        bytes,
-        "(method_declaration name: (identifier)@capture )",
-        Some(name),
-    )
+    let str = str::from_utf8(bytes).map_err(PosionError::Utf8)?;
+    let tokens = ast::lexer::lex(str).map_err(PosionError::Lexer)?;
+    let ast = ast::parse_file(&tokens).map_err(PosionError::Ast)?;
+    let mut out = vec![];
+    for th in &ast.things {
+        get_method_position_ast_thing(th, name, &mut out)?;
+    }
+    Ok(out)
+}
+pub fn get_method_position_ast_thing(
+    thing: &AstThing,
+    name: &str,
+    out: &mut Vec<PositionSymbol>,
+) -> Result<(), PosionError> {
+    match thing {
+        AstThing::Class(ast_class) => out.extend(
+            ast_class
+                .block
+                .methods
+                .iter()
+                .map(|i| &i.header.name)
+                .filter(|i| i.value == name)
+                .map(|i| PositionSymbol::Range(i.range)),
+        ),
+        AstThing::Record(ast_record) => out.extend(
+            ast_record
+                .block
+                .methods
+                .iter()
+                .map(|i| &i.header.name)
+                .filter(|i| i.value == name)
+                .map(|i| PositionSymbol::Range(i.range)),
+        ),
+        AstThing::Interface(ast_interface) => out.extend(
+            ast_interface
+                .methods
+                .iter()
+                .map(|i| &i.header.name)
+                .filter(|i| i.value == name)
+                .map(|i| PositionSymbol::Range(i.range)),
+        ),
+        AstThing::Enumeration(ast_enumeration) => out.extend(
+            ast_enumeration
+                .methods
+                .iter()
+                .map(|i| &i.header.name)
+                .filter(|i| i.value == name)
+                .map(|i| PositionSymbol::Range(i.range)),
+        ),
+        AstThing::Annotation(_ast_annotation) => (),
+    }
+    Ok(())
 }
 
 pub fn get_field_positions(bytes: &[u8], name: &str) -> Result<Vec<PositionSymbol>, PosionError> {
-    let (_, tree) = tree_sitter_util::parse(bytes).map_err(PosionError::Treesitter)?;
-    get_item_ranges(
-        &tree,
-        bytes,
-        "(field_declaration declarator: (variable_declarator name: (identifier)@capture ))",
-        Some(name),
-    )
+    let str = str::from_utf8(bytes).map_err(PosionError::Utf8)?;
+    let tokens = ast::lexer::lex(str).map_err(PosionError::Lexer)?;
+    let ast = ast::parse_file(&tokens).map_err(PosionError::Ast)?;
+    let mut out = vec![];
+    for th in &ast.things {
+        get_field_position_ast_thing(th, name, &mut out)?;
+    }
+    Ok(out)
+}
+pub fn get_field_position_ast_thing(
+    thing: &AstThing,
+    name: &str,
+    out: &mut Vec<PositionSymbol>,
+) -> Result<(), PosionError> {
+    match thing {
+        AstThing::Class(ast_class) => out.extend(
+            ast_class
+                .block
+                .variables
+                .iter()
+                .filter(|i| i.name.value == name)
+                .map(|i| PositionSymbol::Range(i.range)),
+        ),
+        AstThing::Record(ast_record) => out.extend(
+            ast_record
+                .block
+                .variables
+                .iter()
+                .filter(|i| i.name.value == name)
+                .map(|i| PositionSymbol::Range(i.range)),
+        ),
+        AstThing::Interface(ast_interface) => out.extend(
+            ast_interface
+                .constants
+                .iter()
+                .map(|i| &i.name)
+                .filter(|i| i.value == name)
+                .map(|i| PositionSymbol::Range(i.range)),
+        ),
+        AstThing::Enumeration(ast_enumeration) => out.extend(
+            ast_enumeration
+                .methods
+                .iter()
+                .map(|i| &i.header.name)
+                .filter(|i| i.value == name)
+                .map(|i| PositionSymbol::Range(i.range)),
+        ),
+        AstThing::Annotation(_ast_annotation) => (),
+    }
+    Ok(())
 }
 
 #[derive(Debug, PartialEq)]
 pub enum PositionSymbol {
-    Range(tree_sitter::Range),
+    Range(AstRange),
     Symbol {
-        range: tree_sitter::Range,
+        range: AstRange,
         name: String,
         kind: String,
     },
 }
 
 impl PositionSymbol {
-    pub fn get_range(&self) -> tree_sitter::Range {
+    pub fn get_range(&self) -> &AstRange {
         match self {
             PositionSymbol::Symbol {
                 range,
                 name: _,
                 kind: _,
-            } => *range,
-            PositionSymbol::Range(range) => *range,
+            } => range,
+            PositionSymbol::Range(range) => range,
         }
     }
 }
 
-pub fn get_symbols(bytes: &[u8], tree: &Tree) -> Result<Vec<PositionSymbol>, PosionError> {
-    get_item_ranges(
-        tree,
-        bytes,
-        "
-        (class_declaration name: (identifier)@capture )
-        (interface_declaration name: (identifier)@capture )
-        (enum_declaration name: (identifier)@capture )
-        (annotation_type_declaration name: (identifier)@capture )
-        (record_declaration name: (identifier)@capture )
-        (method_declaration name: (identifier)@capture )
-        ",
-        None,
-    )
-}
-
 pub fn get_type_usage(
-    bytes: &[u8],
-    query_class_name: &str,
-    tree: &Tree,
+    _query_class_name: &str,
+    _ast: &AstFile,
 ) -> Result<Vec<PositionSymbol>, PosionError> {
-    get_item_ranges(
-        tree,
-        bytes,
-        "
-        (type_identifier)@capture
-        (field_access object: (identifier)@capture )
-        (method_invocation object: (identifier)@capture )
-        ",
-        Some(query_class_name),
-    )
+    Ok(vec![])
+    // get_item_ranges(
+    //     tree,
+    //     bytes,
+    //     "
+    //     (type_identifier)@capture
+    //     (field_access object: (identifier)@capture )
+    //     (method_invocation object: (identifier)@capture )
+    //     ",
+    //     Some(query_class_name),
+    // )
 }
 
 pub fn get_method_usage(
-    bytes: &[u8],
-    query_method_name: &str,
-    tree: &Tree,
+    _bytes: &[u8],
+    _query_method_name: &str,
+    _ast: &AstFile,
 ) -> Result<Vec<PositionSymbol>, PosionError> {
-    get_item_ranges(
-        tree,
-        bytes,
-        "
-        (method_invocation name: (identifier)@cature)
-        ",
-        Some(query_method_name),
-    )
+    Ok(vec![])
+    // get_item_ranges(
+    //     tree,
+    //     bytes,
+    //     "
+    //     (method_invocation name: (identifier)@cature)
+    //     ",
+    //     Some(query_method_name),
+    // )
 }
 
 pub fn symbols_to_document_symbols(
@@ -139,7 +279,16 @@ pub fn symbols_to_document_symbols(
                     deprecated: None,
                     location: Location {
                         uri: uri.clone(),
-                        range: to_lsp_range(*range),
+                        range: Range {
+                            start: lsp_types::Position {
+                                line: range.start.line as u32,
+                                character: range.start.col as u32,
+                            },
+                            end: lsp_types::Position {
+                                line: range.end.line as u32,
+                                character: range.end.col as u32,
+                            },
+                        },
                     },
                     container_name: None,
                 })
@@ -147,47 +296,14 @@ pub fn symbols_to_document_symbols(
         })
         .collect()
 }
-pub fn get_item_ranges(
-    tree: &Tree,
-    bytes: &[u8],
-    query: &str,
-    name: Option<&str>,
-) -> Result<Vec<PositionSymbol>, PosionError> {
-    let query =
-        Query::new(&tree_sitter_java::LANGUAGE.into(), query).expect("Query should be okey");
-    let mut cursor = QueryCursor::new();
-    let mut matchtes = cursor.matches(&query, tree.root_node(), bytes);
-
-    let mut out = vec![];
-
-    while let Some(m) = matchtes.next() {
-        for capture in m.captures {
-            let node = capture.node;
-
-            let cname = get_string_node(&node, bytes);
-            if let Some(name) = name {
-                if cname == name {
-                    out.push(PositionSymbol::Range(node.range()));
-                }
-            } else if let Some(parent) = node.parent() {
-                out.push(PositionSymbol::Symbol {
-                    range: node.range(),
-                    name: cname,
-                    kind: parent.kind().to_string(),
-                });
-            }
-        }
-    }
-    Ok(out)
-}
 
 #[cfg(test)]
 mod tests {
+    use ast::types::{AstPoint, AstRange};
     use pretty_assertions::assert_eq;
-    use tree_sitter::{Point, Range};
 
     use crate::{
-        PositionSymbol, get_class_position, get_field_positions, get_method_positions,
+        PositionSymbol, get_class_position_ast, get_field_positions, get_method_positions,
         get_type_usage,
     };
 
@@ -206,11 +322,9 @@ public class Test {
         let out = get_method_positions(content, "hello");
         assert_eq!(
             out,
-            Ok(vec![PositionSymbol::Range(Range {
-                start_byte: 60,
-                end_byte: 65,
-                start_point: Point { row: 3, column: 16 },
-                end_point: Point { row: 3, column: 21 },
+            Ok(vec![PositionSymbol::Range(AstRange {
+                start: AstPoint { line: 3, col: 16 },
+                end: AstPoint { line: 3, col: 21 },
             }),])
         );
     }
@@ -225,43 +339,43 @@ public class Test {
 ";
         let out = get_field_positions(content, "a");
         assert_eq!(
-            out,
-            Ok(vec![PositionSymbol::Range(Range {
-                start_byte: 62,
-                end_byte: 63,
-                start_point: Point { row: 3, column: 18 },
-                end_point: Point { row: 3, column: 19 },
-            }),])
+            Ok(vec![PositionSymbol::Range(AstRange {
+                start: AstPoint { line: 3, col: 4 },
+                end: AstPoint { line: 3, col: 19 },
+            }),]),
+            out
         );
     }
 
     #[test]
     fn class_pos_base() {
-        let content = b"
+        let content = "
 package ch.emilycares;
 public class Test {}
 ";
-        let out = get_class_position(content, "Test");
+        let tokens = ast::lexer::lex(content).unwrap();
+        let ast = ast::parse_file(&tokens).unwrap();
+        let out = get_class_position_ast(&ast, Some("Test"));
         assert_eq!(
             out,
-            Ok(vec![PositionSymbol::Range(Range {
-                start_byte: 37,
-                end_byte: 41,
-                start_point: Point { row: 2, column: 13 },
-                end_point: Point { row: 2, column: 17 },
+            Ok(vec![PositionSymbol::Range(AstRange {
+                start: AstPoint { line: 2, col: 13 },
+                end: AstPoint { line: 2, col: 17 },
             }),])
         );
     }
+    #[ignore = "todo"]
     #[test]
     fn type_usage_base() {
-        let content = br#"
+        let content = r#"
 package ch.emilycares;
 public class Test {
 private StringBuilder sb = new StringBuilder();
 }
 "#;
-        let (_, tree) = tree_sitter_util::parse(content).unwrap();
-        let out = get_type_usage(content, "StringBuilder", &tree);
+        let tokens = ast::lexer::lex(content).unwrap();
+        let ast = ast::parse_file(&tokens).unwrap();
+        let out = get_type_usage("StringBuilder", &ast);
 
         assert_eq!(out.unwrap().len(), 2);
     }

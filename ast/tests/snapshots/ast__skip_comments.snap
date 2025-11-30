@@ -1,0 +1,237 @@
+---
+source: ast/tests/ast.rs
+expression: parsed.unwrap()
+---
+AstFile {
+    package: Some(
+        AstPackage {
+            range: AstRange {
+                start: AstPoint {
+                    line: 1,
+                    col: 0,
+                },
+                end: AstPoint {
+                    line: 1,
+                    col: 22,
+                },
+            },
+            annotated: [],
+            name: AstIdentifier {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 1,
+                        col: 8,
+                    },
+                    end: AstPoint {
+                        line: 1,
+                        col: 21,
+                    },
+                },
+                value: "ch.emilycares",
+            },
+        },
+    ),
+    imports: Some(
+        AstImports {
+            range: AstRange {
+                start: AstPoint {
+                    line: 3,
+                    col: 0,
+                },
+                end: AstPoint {
+                    line: 1,
+                    col: 22,
+                },
+            },
+            imports: [],
+        },
+    ),
+    things: [
+        Class(
+            AstClass {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 3,
+                        col: 13,
+                    },
+                    end: AstPoint {
+                        line: 13,
+                        col: 1,
+                    },
+                },
+                avaliability: AstAvailability(
+                    Public,
+                ),
+                attributes: AstThingAttributes(
+                    0x0,
+                ),
+                annotated: [],
+                name: AstIdentifier {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 3,
+                            col: 13,
+                        },
+                        end: AstPoint {
+                            line: 3,
+                            col: 23,
+                        },
+                    },
+                    value: "Everything",
+                },
+                type_parameters: None,
+                superclass: [],
+                implements: [],
+                permits: [],
+                block: AstClassBlock {
+                    variables: [
+                        AstClassVariable {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 5,
+                                    col: 4,
+                                },
+                                end: AstPoint {
+                                    line: 5,
+                                    col: 29,
+                                },
+                            },
+                            avaliability: AstAvailability(
+                                Public,
+                            ),
+                            annotated: [],
+                            name: AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 5,
+                                        col: 15,
+                                    },
+                                    end: AstPoint {
+                                        line: 5,
+                                        col: 29,
+                                    },
+                                },
+                                value: "publicproperty",
+                            },
+                            jtype: AstJType {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 5,
+                                        col: 11,
+                                    },
+                                    end: AstPoint {
+                                        line: 5,
+                                        col: 14,
+                                    },
+                                },
+                                value: Int,
+                            },
+                            expression: None,
+                            volatile_transient: AstVolatileTranient(
+                                0x0,
+                            ),
+                        },
+                        AstClassVariable {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 7,
+                                    col: 4,
+                                },
+                                end: AstPoint {
+                                    line: 7,
+                                    col: 31,
+                                },
+                            },
+                            avaliability: AstAvailability(
+                                Private,
+                            ),
+                            annotated: [],
+                            name: AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 7,
+                                        col: 16,
+                                    },
+                                    end: AstPoint {
+                                        line: 7,
+                                        col: 31,
+                                    },
+                                },
+                                value: "privateproperty",
+                            },
+                            jtype: AstJType {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 7,
+                                        col: 12,
+                                    },
+                                    end: AstPoint {
+                                        line: 7,
+                                        col: 15,
+                                    },
+                                },
+                                value: Int,
+                            },
+                            expression: None,
+                            volatile_transient: AstVolatileTranient(
+                                0x0,
+                            ),
+                        },
+                        AstClassVariable {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 12,
+                                    col: 4,
+                                },
+                                end: AstPoint {
+                                    line: 12,
+                                    col: 31,
+                                },
+                            },
+                            avaliability: AstAvailability(
+                                Private,
+                            ),
+                            annotated: [],
+                            name: AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 12,
+                                        col: 16,
+                                    },
+                                    end: AstPoint {
+                                        line: 12,
+                                        col: 31,
+                                    },
+                                },
+                                value: "privateproperty",
+                            },
+                            jtype: AstJType {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 12,
+                                        col: 12,
+                                    },
+                                    end: AstPoint {
+                                        line: 12,
+                                        col: 15,
+                                    },
+                                },
+                                value: Int,
+                            },
+                            expression: None,
+                            volatile_transient: AstVolatileTranient(
+                                0x0,
+                            ),
+                        },
+                    ],
+                    methods: [],
+                    constructors: [],
+                    static_blocks: [],
+                    inner: [],
+                    blocks: [],
+                },
+            },
+        ),
+    ],
+    modules: [],
+}

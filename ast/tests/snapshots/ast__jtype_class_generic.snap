@@ -1,0 +1,90 @@
+---
+source: ast/tests/ast.rs
+expression: parsed
+---
+(
+    AstJType {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 24,
+            },
+        },
+        value: Generic(
+            AstIdentifier {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 0,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 7,
+                    },
+                },
+                value: "HashMap",
+            },
+            [
+                AstJType {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 0,
+                            col: 8,
+                        },
+                        end: AstPoint {
+                            line: 0,
+                            col: 14,
+                        },
+                    },
+                    value: Class(
+                        AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 8,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 14,
+                                },
+                            },
+                            value: "String",
+                        },
+                    ),
+                },
+                AstJType {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 0,
+                            col: 16,
+                        },
+                        end: AstPoint {
+                            line: 0,
+                            col: 23,
+                        },
+                    },
+                    value: Class(
+                        AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 16,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 23,
+                                },
+                            },
+                            value: "Integer",
+                        },
+                    ),
+                },
+            ],
+        ),
+    },
+    6,
+)

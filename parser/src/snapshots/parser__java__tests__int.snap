@@ -1,0 +1,30 @@
+---
+source: parser/src/java.rs
+expression: result.unwrap()
+---
+Class {
+    class_path: "a.test.Test",
+    source: "/path/to/source/a/test/Test.java",
+    access: Access(
+        0x0,
+    ),
+    imports: [
+        Package(
+            "a.test",
+        ),
+        Class(
+            "jakarta.inject.Inject",
+        ),
+        Class(
+            "jakarta.ws.rs.GET",
+        ),
+        Class(
+            "jakarta.ws.rs.Path",
+        ),
+    ],
+    name: "Test",
+    methods: [],
+    fields: [],
+    super_class: None,
+    super_interfaces: [],
+}

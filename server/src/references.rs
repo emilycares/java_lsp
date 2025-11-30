@@ -1,25 +1,31 @@
 use std::{
     fs::{self},
     hash::Hash,
+    str::Utf8Error,
 };
 
+use ast::types::{AstFile, AstPoint};
 use call_chain::CallItem;
 use document::{ClassSource, Document, DocumentError};
 use lsp_types::Location;
+use my_string::MyString;
 use parser::dto::{self, Class, ImportUnit};
 use position::PositionSymbol;
 use rayon::iter::{IntoParallelRefIterator, ParallelBridge, ParallelIterator};
-use tree_sitter::Point;
-use tree_sitter_util::lsp::to_lsp_range;
 use variables::LocalVariable;
 
-use crate::definition::{self};
+use crate::{
+    codeaction::to_lsp_range,
+    definition::{self},
+};
 
 #[derive(Debug)]
 pub enum ReferencesError {
-    IoRead(String, std::io::Error),
+    IoRead(MyString, std::io::Error),
+    Utf8(Utf8Error),
+    Lexer(ast::lexer::LexerError),
+    Ast(ast::error::AstError),
     Position(position::PosionError),
-    Treesitter(tree_sitter_util::TreesitterError),
     FindClassnameInClasspath(String),
     Tyres(tyres::TyresError),
     ValidatedItemDoesNotExists,
@@ -30,24 +36,24 @@ pub enum ReferencesError {
 
 #[derive(Debug)]
 pub enum ReferenceUnit {
-    Class(String),
-    StaticClass(String),
+    Class(MyString),
+    StaticClass(MyString),
 }
 #[derive(Debug)]
 pub struct ReferencePosition(PositionSymbol);
 
 pub struct ReferencesContext<'a> {
-    pub point: &'a Point,
+    pub point: &'a AstPoint,
     pub imports: &'a [ImportUnit],
-    pub class_map: &'a dashmap::DashMap<String, parser::dto::Class>,
+    pub class_map: &'a dashmap::DashMap<MyString, parser::dto::Class>,
     pub class: &'a dto::Class,
     pub vars: &'a [LocalVariable],
 }
 
 pub fn class_path(
     class_path: &str,
-    reference_map: &dashmap::DashMap<String, Vec<ReferenceUnit>>,
-    class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
+    reference_map: &dashmap::DashMap<MyString, Vec<ReferenceUnit>>,
+    class_map: &dashmap::DashMap<MyString, parser::dto::Class>,
 ) -> Option<Vec<Location>> {
     if let Some(crefs) = reference_map.get(class_path) {
         let refs = crefs
@@ -58,7 +64,8 @@ pub fn class_path(
             })
             .filter_map(|lookup| {
                 let refs = get_position_refrences(&lookup, class_path, None).ok()?;
-                Some((lookup, refs.first().map(|i| i.0.get_range())?))
+                let a = refs.first().map(|i| i.0.get_range());
+                a.map(|a| (lookup, *a))
             })
             .filter_map(
                 |(lookup, range)| match definition::class_to_uri(lookup.value()) {
@@ -71,7 +78,7 @@ pub fn class_path(
             )
             .map(|(i, range)| Location {
                 uri: i,
-                range: to_lsp_range(range),
+                range: to_lsp_range(&range),
             })
             .collect();
         return Some(refs);
@@ -82,8 +89,8 @@ pub fn class_path(
 pub fn call_chain_references(
     call_chain: &[CallItem],
     context: &ReferencesContext,
-    reference_map: &dashmap::DashMap<String, Vec<ReferenceUnit>>,
-    document_map: &dashmap::DashMap<String, Document>,
+    reference_map: &dashmap::DashMap<MyString, Vec<ReferenceUnit>>,
+    document_map: &dashmap::DashMap<MyString, Document>,
 ) -> Result<Vec<Location>, ReferencesError> {
     let (item, relevat) = call_chain::validate(call_chain, context.point);
 
@@ -131,15 +138,10 @@ pub fn call_chain_references(
             filled_params,
             range: _,
         }) => {
-            if let Some(active_param) = active_param {
-                if let Some(current_param) = filled_params.get(*active_param) {
-                    return call_chain_references(
-                        current_param,
-                        context,
-                        reference_map,
-                        document_map,
-                    );
-                }
+            if let Some(active_param) = active_param
+                && let Some(current_param) = filled_params.get(*active_param)
+            {
+                return call_chain_references(current_param, context, reference_map, document_map);
             }
             Err(ReferencesError::ArgumentNotFound)
         }
@@ -151,30 +153,30 @@ pub fn call_chain_references(
 fn method_references(
     class: &Class,
     query_method_name: &str,
-    document_map: &dashmap::DashMap<String, Document>,
+    document_map: &dashmap::DashMap<MyString, Document>,
 ) -> Result<Vec<ReferencePosition>, ReferencesError> {
     let uri = definition::source_to_uri(&class.source).map_err(|e| {
         eprintln!("Got into defintion error: {e:?}");
         ReferencesError::Definition
     })?;
-    let uri = uri.to_string();
+    let uri = uri.as_str();
     let doc = document::read_document_or_open_class(
         &class.source,
         class.class_path.clone(),
         document_map,
-        &uri,
+        uri,
     );
     match doc {
         ClassSource::Owned(doc) => {
-            let o = match position::get_method_usage(doc.as_bytes(), query_method_name, &doc.tree) {
+            let o = match position::get_method_usage(doc.as_bytes(), query_method_name, &doc.ast) {
                 Err(e) => Err(ReferencesError::Position(e))?,
                 Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
             };
-            document_map.insert(uri, doc);
+            document_map.insert(uri.into(), doc);
             o
         }
         ClassSource::Ref(doc) => {
-            match position::get_method_usage(doc.as_bytes(), query_method_name, &doc.tree) {
+            match position::get_method_usage(doc.as_bytes(), query_method_name, &doc.ast) {
                 Err(e) => Err(ReferencesError::Position(e))?,
                 Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
             }
@@ -185,8 +187,8 @@ fn method_references(
 
 pub fn init_refernece_map(
     project_classes: &[Class],
-    class_map: &dashmap::DashMap<std::string::String, parser::dto::Class>,
-    reference_map: &dashmap::DashMap<String, Vec<ReferenceUnit>>,
+    class_map: &dashmap::DashMap<MyString, parser::dto::Class>,
+    reference_map: &dashmap::DashMap<MyString, Vec<ReferenceUnit>>,
 ) -> Result<(), ReferencesError> {
     project_classes.par_iter().for_each(|class| {
         let _ = reference_update_class(class, class_map, reference_map);
@@ -196,8 +198,8 @@ pub fn init_refernece_map(
 
 pub fn reference_update_class(
     class: &Class,
-    class_map: &dashmap::DashMap<String, Class>,
-    reference_map: &dashmap::DashMap<String, Vec<ReferenceUnit>>,
+    class_map: &dashmap::DashMap<MyString, Class>,
+    reference_map: &dashmap::DashMap<MyString, Vec<ReferenceUnit>>,
 ) -> Result<(), ReferencesError> {
     let class_path = class.class_path.clone();
     for import in &class.imports {
@@ -228,33 +230,33 @@ pub fn reference_update_class(
 fn get_position_refrences(
     class: &Class,
     query_class_path: &str,
-    tree_bytes: Option<(&tree_sitter::Tree, &[u8])>,
+    ast: Option<&AstFile>,
 ) -> Result<Vec<ReferencePosition>, ReferencesError> {
     let Some(query_class_name) = ImportUnit::class_path_get_class_name(query_class_path) else {
         return Err(ReferencesError::FindClassnameInClasspath(
             query_class_path.to_string(),
         ));
     };
-    if let Some((tree, bytes)) = tree_bytes {
-        pos_refs_helper(tree, bytes, query_class_name)
+    if let Some(ast) = ast {
+        pos_refs_helper(ast, query_class_name)
     } else {
         match fs::read(&class.source) {
             Err(e) => Err(ReferencesError::IoRead(class.source.clone(), e)),
             Ok(bytes) => {
-                let (_, tree) =
-                    tree_sitter_util::parse(&bytes).map_err(ReferencesError::Treesitter)?;
-                pos_refs_helper(&tree, &bytes, query_class_name)
+                let str = str::from_utf8(&bytes).map_err(ReferencesError::Utf8)?;
+                let tokens = ast::lexer::lex(str).map_err(ReferencesError::Lexer)?;
+                let ast = ast::parse_file(&tokens).map_err(ReferencesError::Ast)?;
+                pos_refs_helper(&ast, query_class_name)
             }
         }
     }
 }
 
 fn pos_refs_helper(
-    tree: &tree_sitter::Tree,
-    bytes: &[u8],
+    ast: &AstFile,
     query_class_name: &str,
 ) -> Result<Vec<ReferencePosition>, ReferencesError> {
-    match position::get_type_usage(bytes, query_class_name, tree) {
+    match position::get_type_usage(query_class_name, ast) {
         Err(e) => Err(ReferencesError::Position(e))?,
         Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
     }
@@ -278,10 +280,10 @@ where
 }
 
 fn get_implicit_imports(
-    class_map: &dashmap::DashMap<String, Class>,
+    class_map: &dashmap::DashMap<MyString, Class>,
     class: &Class,
-    package: &String,
-) -> Vec<String> {
+    package: &MyString,
+) -> Vec<MyString> {
     class_map
         .clone()
         .into_read_only()
@@ -293,11 +295,9 @@ fn get_implicit_imports(
             }
             false
         })
-        .map(|a| a.to_string())
-        .map(|k| (k.clone(), class_map.get(&k)))
+        .map(|k| (k.clone(), class_map.get(k)))
         .filter(|(_, class)| class.is_some())
-        .map(|(k, class)| (k, class.unwrap()))
-        // Prefilter already parsed data before parsing file with treesitter
+        .map(|(k, class)| (k, class.expect("Is some is checked in line before")))
         .filter(|(_k, lclass)| {
             lclass.imports.iter().any(|i| match i {
                 ImportUnit::Class(lclasspath) => {

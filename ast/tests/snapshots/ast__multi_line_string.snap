@@ -1,0 +1,22 @@
+---
+source: ast/tests/ast.rs
+expression: parsed.unwrap()
+---
+(
+    StringLiteral(
+        AstIdentifier {
+            range: AstRange {
+                start: AstPoint {
+                    line: 1,
+                    col: 72,
+                },
+                end: AstPoint {
+                    line: 1,
+                    col: 136,
+                },
+            },
+            value: "\n        Here is a muilti\n        line\n        string\"\"\n        ",
+        },
+    ),
+    1,
+)

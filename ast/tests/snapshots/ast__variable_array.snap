@@ -1,0 +1,254 @@
+---
+source: ast/tests/ast.rs
+expression: parsed.unwrap()
+snapshot_kind: text
+---
+(
+    [
+        AstBlockVariable {
+            range: AstRange {
+                start: AstPoint {
+                    line: 0,
+                    col: 0,
+                },
+                end: AstPoint {
+                    line: 0,
+                    col: 49,
+                },
+            },
+            fin: false,
+            annotated: [],
+            jtype: AstJType {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 0,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 8,
+                    },
+                },
+                value: Array(
+                    AstJType {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 0,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 6,
+                            },
+                        },
+                        value: Class(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 0,
+                                        col: 0,
+                                    },
+                                    end: AstPoint {
+                                        line: 0,
+                                        col: 6,
+                                    },
+                                },
+                                value: "String",
+                            },
+                        ),
+                    },
+                ),
+            },
+            name: AstIdentifier {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 9,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 13,
+                    },
+                },
+                value: "cars",
+            },
+            value: Some(
+                [
+                    Array(
+                        AstValues {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 16,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 49,
+                                },
+                            },
+                            values: [
+                                [
+                                    Recursive(
+                                        AstRecursiveExpression {
+                                            range: AstRange {
+                                                start: AstPoint {
+                                                    line: 0,
+                                                    col: 23,
+                                                },
+                                                end: AstPoint {
+                                                    line: 0,
+                                                    col: 28,
+                                                },
+                                            },
+                                            ident: Some(
+                                                Value(
+                                                    Nuget(
+                                                        StringLiteral(
+                                                            AstIdentifier {
+                                                                range: AstRange {
+                                                                    start: AstPoint {
+                                                                        line: 0,
+                                                                        col: 23,
+                                                                    },
+                                                                    end: AstPoint {
+                                                                        line: 0,
+                                                                        col: 17,
+                                                                    },
+                                                                },
+                                                                value: "Volvo",
+                                                            },
+                                                        ),
+                                                    ),
+                                                ),
+                                            ),
+                                            values: None,
+                                            operator: None,
+                                        },
+                                    ),
+                                ],
+                                [
+                                    Recursive(
+                                        AstRecursiveExpression {
+                                            range: AstRange {
+                                                start: AstPoint {
+                                                    line: 0,
+                                                    col: 30,
+                                                },
+                                                end: AstPoint {
+                                                    line: 0,
+                                                    col: 33,
+                                                },
+                                            },
+                                            ident: Some(
+                                                Value(
+                                                    Nuget(
+                                                        StringLiteral(
+                                                            AstIdentifier {
+                                                                range: AstRange {
+                                                                    start: AstPoint {
+                                                                        line: 0,
+                                                                        col: 30,
+                                                                    },
+                                                                    end: AstPoint {
+                                                                        line: 0,
+                                                                        col: 25,
+                                                                    },
+                                                                },
+                                                                value: "BMW",
+                                                            },
+                                                        ),
+                                                    ),
+                                                ),
+                                            ),
+                                            values: None,
+                                            operator: None,
+                                        },
+                                    ),
+                                ],
+                                [
+                                    Recursive(
+                                        AstRecursiveExpression {
+                                            range: AstRange {
+                                                start: AstPoint {
+                                                    line: 0,
+                                                    col: 38,
+                                                },
+                                                end: AstPoint {
+                                                    line: 0,
+                                                    col: 42,
+                                                },
+                                            },
+                                            ident: Some(
+                                                Value(
+                                                    Nuget(
+                                                        StringLiteral(
+                                                            AstIdentifier {
+                                                                range: AstRange {
+                                                                    start: AstPoint {
+                                                                        line: 0,
+                                                                        col: 38,
+                                                                    },
+                                                                    end: AstPoint {
+                                                                        line: 0,
+                                                                        col: 32,
+                                                                    },
+                                                                },
+                                                                value: "Ford",
+                                                            },
+                                                        ),
+                                                    ),
+                                                ),
+                                            ),
+                                            values: None,
+                                            operator: None,
+                                        },
+                                    ),
+                                ],
+                                [
+                                    Recursive(
+                                        AstRecursiveExpression {
+                                            range: AstRange {
+                                                start: AstPoint {
+                                                    line: 0,
+                                                    col: 47,
+                                                },
+                                                end: AstPoint {
+                                                    line: 0,
+                                                    col: 52,
+                                                },
+                                            },
+                                            ident: Some(
+                                                Value(
+                                                    Nuget(
+                                                        StringLiteral(
+                                                            AstIdentifier {
+                                                                range: AstRange {
+                                                                    start: AstPoint {
+                                                                        line: 0,
+                                                                        col: 47,
+                                                                    },
+                                                                    end: AstPoint {
+                                                                        line: 0,
+                                                                        col: 40,
+                                                                    },
+                                                                },
+                                                                value: "Mazda",
+                                                            },
+                                                        ),
+                                                    ),
+                                                ),
+                                            ),
+                                            values: None,
+                                            operator: None,
+                                        },
+                                    ),
+                                ],
+                            ],
+                        },
+                    ),
+                ],
+            ),
+        },
+    ],
+    15,
+)

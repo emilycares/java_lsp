@@ -1,0 +1,129 @@
+---
+source: ast/tests/ast.rs
+expression: parsed.unwrap()
+snapshot_kind: text
+---
+(
+    AstNewClass {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 21,
+            },
+        },
+        jtype: AstJType {
+            range: AstRange {
+                start: AstPoint {
+                    line: 0,
+                    col: 4,
+                },
+                end: AstPoint {
+                    line: 0,
+                    col: 10,
+                },
+            },
+            value: Array(
+                AstJType {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 0,
+                            col: 4,
+                        },
+                        end: AstPoint {
+                            line: 0,
+                            col: 8,
+                        },
+                    },
+                    value: Byte,
+                },
+            ),
+        },
+        rhs: Array(
+            AstValues {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 11,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 21,
+                    },
+                },
+                values: [
+                    [
+                        Casted(
+                            AstCastedExpression {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 0,
+                                        col: 12,
+                                    },
+                                    end: AstPoint {
+                                        line: 0,
+                                        col: 18,
+                                    },
+                                },
+                                cast: AstJType {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 0,
+                                            col: 13,
+                                        },
+                                        end: AstPoint {
+                                            line: 0,
+                                            col: 17,
+                                        },
+                                    },
+                                    value: Byte,
+                                },
+                            },
+                        ),
+                        Recursive(
+                            AstRecursiveExpression {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 0,
+                                        col: 19,
+                                    },
+                                    end: AstPoint {
+                                        line: 0,
+                                        col: 20,
+                                    },
+                                },
+                                ident: Some(
+                                    Value(
+                                        Nuget(
+                                            CharLiteral(
+                                                AstIdentifier {
+                                                    range: AstRange {
+                                                        start: AstPoint {
+                                                            line: 0,
+                                                            col: 19,
+                                                        },
+                                                        end: AstPoint {
+                                                            line: 0,
+                                                            col: 18,
+                                                        },
+                                                    },
+                                                    value: "a",
+                                                },
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                                values: None,
+                                operator: None,
+                            },
+                        ),
+                    ],
+                ],
+            },
+        ),
+    },
+    10,
+)

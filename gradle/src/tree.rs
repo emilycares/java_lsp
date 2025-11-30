@@ -64,16 +64,15 @@ fn parse_tree(inp: String) -> Vec<Dependency> {
                     .replace("(n)", "")
                     .replace("(c)", "");
                 let mut spl = line.splitn(3, ":");
-                if let Some(group_id) = spl.next() {
-                    if let Some(artivact_id) = spl.next() {
-                        if let Some(version) = spl.next() {
-                            out.push(Dependency {
-                                group_id: group_id.trim_start_matches("-").to_string(),
-                                artivact_id: artivact_id.trim_start_matches("-").to_string(),
-                                version: version.trim_start_matches("-").to_string(),
-                            })
-                        }
-                    }
+                if let Some(group_id) = spl.next()
+                    && let Some(artivact_id) = spl.next()
+                    && let Some(version) = spl.next()
+                {
+                    out.push(Dependency {
+                        group_id: group_id.trim_start_matches("-").to_string(),
+                        artivact_id: artivact_id.trim_start_matches("-").to_string(),
+                        version: version.trim_start_matches("-").to_string(),
+                    })
                 }
             }
         }

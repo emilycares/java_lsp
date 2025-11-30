@@ -1,0 +1,101 @@
+---
+source: ast/tests/ast.rs
+expression: parsed.unwrap()
+snapshot_kind: text
+---
+(
+    AstLambda {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 9,
+            },
+        },
+        parameters: AstLambdaParameters {
+            range: AstRange {
+                start: AstPoint {
+                    line: 0,
+                    col: 0,
+                },
+                end: AstPoint {
+                    line: 0,
+                    col: 1,
+                },
+            },
+            values: [
+                AstLambdaParameter {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 0,
+                            col: 0,
+                        },
+                        end: AstPoint {
+                            line: 0,
+                            col: 1,
+                        },
+                    },
+                    jtype: None,
+                    name: AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 0,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 1,
+                            },
+                        },
+                        value: "n",
+                    },
+                },
+            ],
+        },
+        rhs: Expr(
+            [
+                Recursive(
+                    AstRecursiveExpression {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 5,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 9,
+                            },
+                        },
+                        ident: Some(
+                            Value(
+                                Nuget(
+                                    BooleanLiteral(
+                                        AstBoolean {
+                                            range: AstRange {
+                                                start: AstPoint {
+                                                    line: 0,
+                                                    col: 5,
+                                                },
+                                                end: AstPoint {
+                                                    line: 0,
+                                                    col: 9,
+                                                },
+                                            },
+                                            value: true,
+                                        },
+                                    ),
+                                ),
+                            ),
+                        ),
+                        values: None,
+                        operator: None,
+                    },
+                ),
+            ],
+        ),
+    },
+    3,
+)

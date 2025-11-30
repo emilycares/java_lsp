@@ -11,8 +11,8 @@ license.workspace = true
 
 [dependencies]
 phf.workspace = true
-smol_str.workspace = true
-
+bitflags.workspace = true
+my_string = { path = "../my_string"}
 
 [dev-dependencies]
 insta.workspace = true

@@ -11,8 +11,8 @@ license.workspace = true
 
 [dependencies]
 dashmap.workspace = true
-tree-sitter.workspace = true
 parser = { path = "../parser"}
 call_chain = { path = "../call_chain"}
 variables = { path = "../variables"}
-tree-sitter-util = { path = "../tree-sitter-util"}
+ast = { path = "../ast"}
+my_string = { path = "../my_string"}

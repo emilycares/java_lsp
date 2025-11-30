@@ -1,0 +1,40 @@
+---
+source: variables/src/lib.rs
+expression: out
+---
+[
+    LocalVariable {
+        level: 2,
+        jtype: Void,
+        name: "ioStuff",
+        is_fun: true,
+        range: AstRange {
+            start: AstPoint {
+                line: 3,
+                col: 4,
+            },
+            end: AstPoint {
+                line: 8,
+                col: 5,
+            },
+        },
+    },
+    LocalVariable {
+        level: 4,
+        jtype: Class(
+            "IOException",
+        ),
+        name: "eoeoeoeooe",
+        is_fun: false,
+        range: AstRange {
+            start: AstPoint {
+                line: 5,
+                col: 17,
+            },
+            end: AstPoint {
+                line: 5,
+                col: 39,
+            },
+        },
+    },
+]

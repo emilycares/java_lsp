@@ -1,0 +1,55 @@
+---
+source: parser/src/java.rs
+expression: result.unwrap()
+snapshot_kind: text
+---
+Class {
+    class_path: "a.test.Test",
+    source: "/path/to/source/Test.java",
+    access: Access(
+        0x0,
+    ),
+    imports: [
+        Package(
+            "a.test",
+        ),
+    ],
+    name: "Test",
+    methods: [
+        Method {
+            access: Access(
+                Public | Protected | Static,
+            ),
+            name: "add",
+            parameters: [
+                Parameter {
+                    name: Some(
+                        "list",
+                    ),
+                    jtype: Generic(
+                        "Collection",
+                        [
+                            Parameter(
+                                "T",
+                            ),
+                        ],
+                    ),
+                },
+                Parameter {
+                    name: Some(
+                        "item",
+                    ),
+                    jtype: Parameter(
+                        "T",
+                    ),
+                },
+            ],
+            throws: [],
+            ret: Int,
+            source: None,
+        },
+    ],
+    fields: [],
+    super_class: None,
+    super_interfaces: [],
+}

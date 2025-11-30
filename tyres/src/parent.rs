@@ -1,9 +1,10 @@
 use std::ops::Deref;
 
 use dashmap::DashMap;
+use my_string::MyString;
 use parser::dto::{Class, SuperClass};
 
-pub fn inclued_parent(class: Class, class_map: &DashMap<String, Class>) -> Class {
+pub fn inclued_parent(class: Class, class_map: &DashMap<MyString, Class>) -> Class {
     let mut s: Vec<Class> = vec![];
 
     populate_super_class(&class, class_map, &mut s);
@@ -29,7 +30,7 @@ pub fn inclued_parent(class: Class, class_map: &DashMap<String, Class>) -> Class
     class
 }
 
-fn populate_super_class(class: &Class, class_map: &DashMap<String, Class>, s: &mut Vec<Class>) {
+fn populate_super_class(class: &Class, class_map: &DashMap<MyString, Class>, s: &mut Vec<Class>) {
     let parent = load_parent(&class.super_class, class_map);
     if let Some(p) = parent {
         populate_super_class(&p, class_map, s);
@@ -39,7 +40,7 @@ fn populate_super_class(class: &Class, class_map: &DashMap<String, Class>, s: &m
 
 fn populate_super_interfaces(
     class: &Class,
-    class_map: &DashMap<String, Class>,
+    class_map: &DashMap<MyString, Class>,
     s: &mut Vec<Class>,
 ) {
     for super_interface in &class.super_interfaces {
@@ -71,12 +72,15 @@ fn overlay_class(b: Class, c: &Class) -> Class {
     out
 }
 
-fn load_parent(super_class: &SuperClass, class_map: &DashMap<String, Class>) -> Option<Class> {
+fn load_parent(super_class: &SuperClass, class_map: &DashMap<MyString, Class>) -> Option<Class> {
     match super_class {
         SuperClass::None => None,
-        SuperClass::Name(n) => class_map
-            .get(&format!("java.util.{}", n))
-            .map(|p| p.deref().to_owned()),
+        SuperClass::Name(n) => {
+            let mut key = MyString::new();
+            key.push_str("java.util.");
+            key.push_str(n);
+            class_map.get(&key).map(|p| p.deref().to_owned())
+        }
         SuperClass::ClassPath(class_path) => {
             class_map.get(class_path).map(|p| p.deref().to_owned())
         }

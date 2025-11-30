@@ -1,0 +1,155 @@
+---
+source: ast/tests/ast.rs
+expression: parsed
+---
+(
+    AstNewClass {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 1,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 34,
+            },
+        },
+        jtype: AstJType {
+            range: AstRange {
+                start: AstPoint {
+                    line: 0,
+                    col: 5,
+                },
+                end: AstPoint {
+                    line: 0,
+                    col: 16,
+                },
+            },
+            value: Class(
+                AstIdentifier {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 0,
+                            col: 5,
+                        },
+                        end: AstPoint {
+                            line: 0,
+                            col: 16,
+                        },
+                    },
+                    value: "HandleTable",
+                },
+            ),
+        },
+        rhs: Parameters(
+            [
+                [
+                    Recursive(
+                        AstRecursiveExpression {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 19,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 21,
+                                },
+                            },
+                            ident: Some(
+                                Value(
+                                    Nuget(
+                                        Int(
+                                            AstInt {
+                                                range: AstRange {
+                                                    start: AstPoint {
+                                                        line: 0,
+                                                        col: 19,
+                                                    },
+                                                    end: AstPoint {
+                                                        line: 0,
+                                                        col: 21,
+                                                    },
+                                                },
+                                                value: "10",
+                                            },
+                                        ),
+                                    ),
+                                ),
+                            ),
+                            values: None,
+                            operator: None,
+                        },
+                    ),
+                ],
+                [
+                    Casted(
+                        AstCastedExpression {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 21,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 28,
+                                },
+                            },
+                            cast: AstJType {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 0,
+                                        col: 22,
+                                    },
+                                    end: AstPoint {
+                                        line: 0,
+                                        col: 27,
+                                    },
+                                },
+                                value: Float,
+                            },
+                        },
+                    ),
+                    Recursive(
+                        AstRecursiveExpression {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 30,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 35,
+                                },
+                            },
+                            ident: Some(
+                                Value(
+                                    Nuget(
+                                        Float(
+                                            AstDouble {
+                                                range: AstRange {
+                                                    start: AstPoint {
+                                                        line: 0,
+                                                        col: 30,
+                                                    },
+                                                    end: AstPoint {
+                                                        line: 0,
+                                                        col: 31,
+                                                    },
+                                                },
+                                                value: "3.00",
+                                            },
+                                        ),
+                                    ),
+                                ),
+                            ),
+                            values: None,
+                            operator: None,
+                        },
+                    ),
+                ],
+            ],
+        ),
+    },
+    12,
+)

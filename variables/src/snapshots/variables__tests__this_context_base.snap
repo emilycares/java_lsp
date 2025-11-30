@@ -1,0 +1,128 @@
+---
+source: variables/src/lib.rs
+expression: out
+---
+[
+    LocalVariable {
+        level: 1,
+        jtype: Class(
+            "String",
+        ),
+        name: "hello",
+        is_fun: false,
+        range: AstRange {
+            start: AstPoint {
+                line: 5,
+                col: 4,
+            },
+            end: AstPoint {
+                line: 5,
+                col: 16,
+            },
+        },
+    },
+    LocalVariable {
+        level: 1,
+        jtype: Class(
+            "String",
+        ),
+        name: "se",
+        is_fun: false,
+        range: AstRange {
+            start: AstPoint {
+                line: 6,
+                col: 4,
+            },
+            end: AstPoint {
+                line: 6,
+                col: 13,
+            },
+        },
+    },
+    LocalVariable {
+        level: 1,
+        jtype: Class(
+            "String",
+        ),
+        name: "other",
+        is_fun: false,
+        range: AstRange {
+            start: AstPoint {
+                line: 8,
+                col: 4,
+            },
+            end: AstPoint {
+                line: 8,
+                col: 28,
+            },
+        },
+    },
+    LocalVariable {
+        level: 2,
+        jtype: Void,
+        name: "hello",
+        is_fun: true,
+        range: AstRange {
+            start: AstPoint {
+                line: 10,
+                col: 4,
+            },
+            end: AstPoint {
+                line: 15,
+                col: 5,
+            },
+        },
+    },
+    LocalVariable {
+        level: 2,
+        jtype: Class(
+            "String",
+        ),
+        name: "a",
+        is_fun: false,
+        range: AstRange {
+            start: AstPoint {
+                line: 10,
+                col: 22,
+            },
+            end: AstPoint {
+                line: 10,
+                col: 30,
+            },
+        },
+    },
+    LocalVariable {
+        level: 3,
+        jtype: Class(
+            "String",
+        ),
+        name: "local",
+        is_fun: false,
+        range: AstRange {
+            start: AstPoint {
+                line: 11,
+                col: 8,
+            },
+            end: AstPoint {
+                line: 11,
+                col: 24,
+            },
+        },
+    },
+    LocalVariable {
+        level: 3,
+        jtype: Var,
+        name: "lo",
+        is_fun: false,
+        range: AstRange {
+            start: AstPoint {
+                line: 13,
+                col: 8,
+            },
+            end: AstPoint {
+                line: 13,
+                col: 17,
+            },
+        },
+    },
+]

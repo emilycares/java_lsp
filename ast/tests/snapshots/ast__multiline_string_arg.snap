@@ -1,0 +1,264 @@
+---
+source: ast/tests/ast.rs
+expression: parsed
+snapshot_kind: text
+---
+(
+    AstBlock {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 2,
+                col: 43,
+            },
+        },
+        entries: [
+            Expression(
+                AstBlockExpression {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 1,
+                            col: 24,
+                        },
+                        end: AstPoint {
+                            line: 1,
+                            col: 512,
+                        },
+                    },
+                    value: [
+                        Recursive(
+                            AstRecursiveExpression {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 1,
+                                        col: 24,
+                                    },
+                                    end: AstPoint {
+                                        line: 1,
+                                        col: 30,
+                                    },
+                                },
+                                ident: Some(
+                                    Identifier(
+                                        AstIdentifier {
+                                            range: AstRange {
+                                                start: AstPoint {
+                                                    line: 1,
+                                                    col: 24,
+                                                },
+                                                end: AstPoint {
+                                                    line: 1,
+                                                    col: 30,
+                                                },
+                                            },
+                                            value: "System",
+                                        },
+                                    ),
+                                ),
+                                values: None,
+                                operator: None,
+                            },
+                        ),
+                        Recursive(
+                            AstRecursiveExpression {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 1,
+                                        col: 30,
+                                    },
+                                    end: AstPoint {
+                                        line: 1,
+                                        col: 31,
+                                    },
+                                },
+                                ident: None,
+                                values: None,
+                                operator: Dot(
+                                    AstRange {
+                                        start: AstPoint {
+                                            line: 1,
+                                            col: 30,
+                                        },
+                                        end: AstPoint {
+                                            line: 1,
+                                            col: 31,
+                                        },
+                                    },
+                                ),
+                            },
+                        ),
+                        Recursive(
+                            AstRecursiveExpression {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 1,
+                                        col: 31,
+                                    },
+                                    end: AstPoint {
+                                        line: 1,
+                                        col: 34,
+                                    },
+                                },
+                                ident: Some(
+                                    Identifier(
+                                        AstIdentifier {
+                                            range: AstRange {
+                                                start: AstPoint {
+                                                    line: 1,
+                                                    col: 31,
+                                                },
+                                                end: AstPoint {
+                                                    line: 1,
+                                                    col: 34,
+                                                },
+                                            },
+                                            value: "err",
+                                        },
+                                    ),
+                                ),
+                                values: None,
+                                operator: None,
+                            },
+                        ),
+                        Recursive(
+                            AstRecursiveExpression {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 1,
+                                        col: 34,
+                                    },
+                                    end: AstPoint {
+                                        line: 1,
+                                        col: 35,
+                                    },
+                                },
+                                ident: None,
+                                values: None,
+                                operator: Dot(
+                                    AstRange {
+                                        start: AstPoint {
+                                            line: 1,
+                                            col: 34,
+                                        },
+                                        end: AstPoint {
+                                            line: 1,
+                                            col: 35,
+                                        },
+                                    },
+                                ),
+                            },
+                        ),
+                        Recursive(
+                            AstRecursiveExpression {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 1,
+                                        col: 35,
+                                    },
+                                    end: AstPoint {
+                                        line: 1,
+                                        col: 42,
+                                    },
+                                },
+                                ident: Some(
+                                    Identifier(
+                                        AstIdentifier {
+                                            range: AstRange {
+                                                start: AstPoint {
+                                                    line: 1,
+                                                    col: 35,
+                                                },
+                                                end: AstPoint {
+                                                    line: 1,
+                                                    col: 42,
+                                                },
+                                            },
+                                            value: "println",
+                                        },
+                                    ),
+                                ),
+                                values: None,
+                                operator: None,
+                            },
+                        ),
+                        Recursive(
+                            AstRecursiveExpression {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 1,
+                                        col: 42,
+                                    },
+                                    end: AstPoint {
+                                        line: 1,
+                                        col: 511,
+                                    },
+                                },
+                                ident: None,
+                                values: Some(
+                                    AstValues {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 1,
+                                                col: 42,
+                                            },
+                                            end: AstPoint {
+                                                line: 1,
+                                                col: 511,
+                                            },
+                                        },
+                                        values: [
+                                            [
+                                                Recursive(
+                                                    AstRecursiveExpression {
+                                                        range: AstRange {
+                                                            start: AstPoint {
+                                                                line: 1,
+                                                                col: 509,
+                                                            },
+                                                            end: AstPoint {
+                                                                line: 1,
+                                                                col: 973,
+                                                            },
+                                                        },
+                                                        ident: Some(
+                                                            Value(
+                                                                Nuget(
+                                                                    StringLiteral(
+                                                                        AstIdentifier {
+                                                                            range: AstRange {
+                                                                                start: AstPoint {
+                                                                                    line: 1,
+                                                                                    col: 509,
+                                                                                },
+                                                                                end: AstPoint {
+                                                                                    line: 1,
+                                                                                    col: 43,
+                                                                                },
+                                                                            },
+                                                                            value: "\n                                          The VFORK launch mechanism has been deprecated for being dangerous.\n                                          It will be removed in a future java version. Either remove the\n                                          jdk.lang.Process.launchMechanism property (preferred) or use FORK mode\n                                          instead (-Djdk.lang.Process.launchMechanism=FORK).\n                                          ",
+                                                                        },
+                                                                    ),
+                                                                ),
+                                                            ),
+                                                        ),
+                                                        values: None,
+                                                        operator: None,
+                                                    },
+                                                ),
+                                            ],
+                                        ],
+                                    },
+                                ),
+                                operator: None,
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ],
+    },
+    11,
+)

@@ -9,14 +9,16 @@ use std::{
 
 use common::TaskProgress;
 use dashmap::DashMap;
+use my_string::MyString;
 use parser::{
+    SourceDestination,
     dto::{Class, ClassFolder},
-    loader::SourceDestination,
 };
 use tokio::{process::Command, task::JoinSet};
 
 use crate::{
     EXECUTABLE_MAVEN,
+    config::overwrite_settings_xml_tokio,
     tree::{self, Pom},
 };
 
@@ -57,21 +59,21 @@ pub enum MavenFetchError {
     NoHomeFound,
     Tree(tree::MavenTreeError),
     NoClassPath,
-    ParserLoader(parser::loader::ParserLoaderError),
+    ParserLoader(loader::LoaderError),
     NoM2Folder,
     IO(std::io::Error),
 }
 const MAVEN_CFC: &str = ".maven.cfc";
 
 pub async fn fetch_deps(
-    class_map: Arc<DashMap<String, Class>>,
+    class_map: Arc<DashMap<MyString, Class>>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
     use_cache: bool,
     download: bool,
 ) -> Result<(), MavenFetchError> {
     let path = Path::new(&MAVEN_CFC);
     if use_cache && path.exists() {
-        if let Ok(classes) = parser::loader::load_class_folder(path) {
+        if let Ok(classes) = loader::load_class_folder(path) {
             for class in classes.classes {
                 class_map.insert(class.class_path.clone(), class);
             }
@@ -82,12 +84,12 @@ pub async fn fetch_deps(
     }
 
     if download {
-        download_sources(&sender).await;
+        download_sources(&sender).await?;
     }
     let tree = tree::load().map_err(MavenFetchError::Tree)?;
     let m2 = Arc::new(get_maven_m2_folder()?);
 
-    let tasks_number = tree.deps.len();
+    let tasks_number = tree.deps.len() + 1;
     let mut handles = JoinSet::<Option<ClassFolder>>::new();
     let completed_number = Arc::new(AtomicUsize::new(0));
     let sender = Arc::new(sender);
@@ -102,11 +104,7 @@ pub async fn fetch_deps(
         let mut source_dir = source_jar.clone();
         source_dir.set_file_name("");
         source_dir = source_dir.join("source");
-        let source_dir_string = source_dir
-            .as_path()
-            .to_str()
-            .unwrap_or_default()
-            .to_string();
+        let source_dir_string = source_dir.as_path().to_str().unwrap_or_default().into();
 
         if !source_dir.exists() {
             handles.spawn(async move {
@@ -122,17 +120,16 @@ pub async fn fetch_deps(
             let sender = sender.clone();
             let classes_jar = pom_classes_jar(&dep, &m2);
 
-            match parser::loader::load_classes_jar(
+            match loader::load_classes_jar(
                 classes_jar,
                 SourceDestination::RelativeInFolder(source_dir_string),
-                None,
             )
             .await
             {
                 Ok(classes) => {
                     let a = completed_number.fetch_add(1, Ordering::Relaxed);
                     let _ = sender.send(TaskProgress {
-                        persentage: (100 * a) / tasks_number,
+                        persentage: (100 * a) / (tasks_number + 1),
                         error: false,
                         message: dep.artivact_id,
                     });
@@ -152,7 +149,7 @@ pub async fn fetch_deps(
         classes: done.into_iter().flatten().flat_map(|i| i.classes).collect(),
     };
 
-    if let Err(e) = parser::loader::save_class_folder(MAVEN_CFC, &maven_class_folder) {
+    if let Err(e) = loader::save_class_folder(MAVEN_CFC, &maven_class_folder) {
         eprintln!("Failed to save {MAVEN_CFC} because: {e:?}");
     };
     for class in maven_class_folder.classes {
@@ -161,18 +158,19 @@ pub async fn fetch_deps(
     Ok(())
 }
 
-async fn download_sources(sender: &tokio::sync::watch::Sender<TaskProgress>) {
+async fn download_sources(
+    sender: &tokio::sync::watch::Sender<TaskProgress>,
+) -> Result<(), MavenFetchError> {
     let _ = sender.send(TaskProgress {
         persentage: 0,
         error: false,
         message: "Downloading sources ...".to_string(),
     });
     // mvn dependency:resolve -Dclassifier=sources
-    let e = Command::new(EXECUTABLE_MAVEN)
-        .args(["dependency:resolve", "-Dclassifier=sources"])
-        .output()
-        .await
-        .unwrap();
+    let mut e = Command::new(EXECUTABLE_MAVEN);
+    let e = e.args(["dependency:resolve", "-Dclassifier=sources"]);
+    let e = overwrite_settings_xml_tokio(e);
+    let e = e.output().await.map_err(MavenFetchError::IO)?;
     let error = String::from_utf8_lossy(&e.stderr).to_string();
     if !error.is_empty() {
         let _ = sender.send(TaskProgress {
@@ -186,6 +184,7 @@ async fn download_sources(sender: &tokio::sync::watch::Sender<TaskProgress>) {
         error: false,
         message: "Downloading sources Done".to_string(),
     });
+    Ok(())
 }
 
 fn get_maven_m2_folder() -> Result<PathBuf, MavenFetchError> {

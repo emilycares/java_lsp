@@ -1,7 +1,6 @@
 ---
 source: ast/src/lexer.rs
 expression: tokens
-snapshot_kind: text
 ---
 [
     PositionToken {
@@ -288,10 +287,10 @@ snapshot_kind: text
     },
     PositionToken {
         token: Number(
-            0,
+            "0",
         ),
         line: 20,
-        col: 15,
+        col: 16,
     },
     PositionToken {
         token: Semicolon,

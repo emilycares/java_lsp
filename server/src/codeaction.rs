@@ -1,21 +1,21 @@
 use std::collections::HashMap;
 
+use ast::types::{
+    AstBlockEntry, AstBlockVariable, AstFile, AstForContent, AstIf, AstIfContent, AstPoint,
+    AstRange, AstThing, AstWhileContent,
+};
 use lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, Position, Range, TextEdit, Uri, WorkspaceEdit,
 };
-use parser::{
-    dto::{self, ImportUnit},
-    java::parse_jtype,
-};
-use tree_sitter::{Point, Tree};
-use tree_sitter_util::{CommentSkiper, lsp::to_lsp_position};
+use my_string::MyString;
+use parser::dto::{self, ImportUnit};
 use tyres::TyresError;
 use variables::LocalVariable;
 
 pub struct CodeActionContext<'a> {
-    pub point: &'a Point,
+    pub point: &'a AstPoint,
     pub imports: &'a [ImportUnit],
-    pub class_map: &'a dashmap::DashMap<String, parser::dto::Class>,
+    pub class_map: &'a dashmap::DashMap<MyString, parser::dto::Class>,
     pub class: &'a dto::Class,
     pub vars: &'a [LocalVariable],
     pub current_file: &'a Uri,
@@ -30,30 +30,77 @@ pub enum CodeActionError {
 }
 
 pub fn replace_with_value_type(
-    tree: &tree_sitter::Tree,
-    bytes: &[u8],
+    ast: &AstFile,
     context: &CodeActionContext,
 ) -> Result<Option<CodeActionOrCommand>, CodeActionError> {
-    let Ok(node) =
-        tree_sitter_util::digg_until_kind(tree, *context.point, "local_variable_declaration")
-    else {
-        return Ok(None);
+    let mut classvar = None;
+    let mut blockvar = None;
+    for thing in &ast.things {
+        match thing {
+            AstThing::Class(ast_class) => {
+                let cvars = ast_class
+                    .block
+                    .variables
+                    .iter()
+                    .find(|i| i.range.is_in_range(context.point));
+                if let Some(v) = cvars {
+                    classvar = Some(v);
+                } else {
+                    let bvars = ast_class.block.methods.iter().find_map(|i| {
+                        if let Some(block) = &i.block {
+                            return find_var_block(block, context.point);
+                        }
+                        None
+                    });
+
+                    if let Some(v) = bvars {
+                        blockvar = Some(v);
+                    }
+                }
+            }
+            AstThing::Record(ast_record) => {
+                let cvars = ast_record
+                    .block
+                    .variables
+                    .iter()
+                    .find(|i| i.range.is_in_range(context.point));
+                if let Some(v) = cvars {
+                    classvar = Some(v);
+                } else {
+                    let bvars = ast_record.block.methods.iter().find_map(|i| {
+                        if let Some(block) = &i.block {
+                            return find_var_block(block, context.point);
+                        }
+                        None
+                    });
+                    if let Some(v) = bvars {
+                        blockvar = Some(v);
+                    }
+                }
+            }
+            AstThing::Interface(_ast_interface) => todo!(),
+            AstThing::Enumeration(_ast_enumeration) => todo!(),
+            AstThing::Annotation(_ast_annotation) => todo!(),
+        }
+    }
+    let point;
+    let current_type = match (classvar, blockvar) {
+        (None, None) => return Ok(None),
+        (None, Some(b)) => {
+            point = b.range.end;
+            &b.jtype
+        }
+        (Some(c), None) => {
+            point = c.range.end;
+            &c.jtype
+        }
+        (Some(_), Some(b)) => {
+            point = b.range.end;
+            &b.jtype
+        }
     };
-    let mut cursor = node.walk();
-    cursor.first_child();
-    let current_type_range = cursor.node().range();
-    let current_type =
-        parse_jtype(&cursor.node(), bytes, &vec![]).map_err(CodeActionError::ParseJava)?;
-    cursor.sibling();
-    cursor.first_child();
-    cursor.sibling();
-    cursor.sibling();
-    let mut point = cursor.node().range().end_point;
-    point.column -= 1;
     // value here
-    let Some(call_chain) = call_chain::get_call_chain(tree, bytes, &point) else {
-        return Err(CodeActionError::NoCallCain);
-    };
+    let call_chain = call_chain::get_call_chain(ast, &point);
     let value_resolve_state = tyres::resolve_call_chain_value(
         &call_chain,
         context.vars,
@@ -63,15 +110,15 @@ pub fn replace_with_value_type(
     )
     .map_err(CodeActionError::Tyres)?;
 
-    if current_type != value_resolve_state.jtype {
+    if &value_resolve_state.jtype != current_type {
         // Required by lsp types
         #[allow(clippy::mutable_key_type)]
         let mut changes = HashMap::new();
         changes.insert(
             context.current_file.to_owned(),
             vec![TextEdit {
-                range: tree_sitter_util::lsp::to_lsp_range(current_type_range),
-                new_text: value_resolve_state.class.name.clone(),
+                range: to_lsp_range(&current_type.range),
+                new_text: value_resolve_state.class.name.to_string(),
             }],
         );
         let action = CodeActionOrCommand::CodeAction(CodeAction {
@@ -89,42 +136,214 @@ pub fn replace_with_value_type(
     Ok(None)
 }
 
-pub fn import_jtype(
-    tree: &Tree,
-    bytes: &[u8],
-    context: &CodeActionContext,
-) -> Option<Vec<CodeActionOrCommand>> {
-    if let Ok(n) = tree_sitter_util::get_node_at_point(tree, *context.point) {
-        if n.kind() == "type_identifier" {
-            if let Ok(jtype) = n.utf8_text(bytes) {
-                if !tyres::is_imported_class_name(jtype, context.imports, context.class_map) {
-                    let i = tyres::resolve_import(jtype, context.class_map)
-                        .iter()
-                        .map(|a| import_to_code_action(context.current_file, a, tree))
-                        .collect();
-                    return Some(i);
+pub fn to_lsp_range(range: &AstRange) -> Range {
+    Range {
+        start: Position {
+            line: range.start.line as u32,
+            character: range.start.col as u32,
+        },
+        end: Position {
+            line: range.end.line as u32,
+            character: range.end.col as u32,
+        },
+    }
+}
+
+fn find_var_block<'a>(
+    block: &'a ast::types::AstBlock,
+    point: &'a AstPoint,
+) -> Option<&'a AstBlockVariable> {
+    block
+        .entries
+        .iter()
+        .find_map(|i| find_var_block_entry(point, i))
+}
+
+fn find_var_block_entry<'a>(
+    point: &'a AstPoint,
+    i: &'a AstBlockEntry,
+) -> Option<&'a AstBlockVariable> {
+    match i {
+        AstBlockEntry::Return(_ast_block_return) => None,
+        AstBlockEntry::Assert(_ast_block_return) => None,
+        AstBlockEntry::Variable(ast_block_variable) => {
+            for v in ast_block_variable {
+                if v.range.is_in_range(point) {
+                    return Some(v);
                 }
             }
+            None
         }
+        AstBlockEntry::Expression(_ast_block_expression) => None,
+        AstBlockEntry::Assign(_ast_block_assign) => None,
+        AstBlockEntry::If(ast_if) => match ast_if {
+            AstIf::If {
+                range,
+                control: _,
+                control_range: _,
+                content,
+            } => {
+                if range.is_in_range(point) {
+                    return match content {
+                        AstIfContent::Block(ast_block) => find_var_block(ast_block, point),
+                        AstIfContent::BlockEntry(ast_block_entry) => {
+                            find_var_block_entry(point, ast_block_entry)
+                        }
+                    };
+                }
+                None
+            }
+            AstIf::Else { range, content } => {
+                if range.is_in_range(point) {
+                    return match content {
+                        AstIfContent::Block(ast_block) => find_var_block(ast_block, point),
+                        AstIfContent::BlockEntry(ast_block_entry) => {
+                            find_var_block_entry(point, ast_block_entry)
+                        }
+                    };
+                }
+                None
+            }
+            AstIf::ElseIf {
+                range,
+                control: _,
+                control_range: _,
+                content,
+            } => {
+                if range.is_in_range(point) {
+                    return match content {
+                        AstIfContent::Block(ast_block) => find_var_block(ast_block, point),
+                        AstIfContent::BlockEntry(ast_block_entry) => {
+                            find_var_block_entry(point, ast_block_entry)
+                        }
+                    };
+                }
+                None
+            }
+        },
+        AstBlockEntry::While(ast_while) => {
+            if ast_while.range.is_in_range(point) {
+                return match &ast_while.content {
+                    AstWhileContent::Block(ast_block) => find_var_block(ast_block, point),
+                    AstWhileContent::BlockEntry(ast_block_entry) => {
+                        find_var_block_entry(point, ast_block_entry)
+                    }
+                    AstWhileContent::None => None,
+                };
+            }
+            None
+        }
+        AstBlockEntry::For(ast_for) => {
+            if ast_for.range.is_in_range(point) {
+                return find_var_for_content(&ast_for.content, point);
+            }
+            None
+        }
+        AstBlockEntry::ForEnhanced(ast_for_enhanced) => {
+            if ast_for_enhanced.range.is_in_range(point) {
+                return find_var_for_content(&ast_for_enhanced.content, point);
+            }
+            None
+        }
+        AstBlockEntry::Break(_ast_block_break) => None,
+        AstBlockEntry::Continue(_ast_block_continue) => None,
+        AstBlockEntry::Switch(ast_switch) => {
+            if ast_switch.range.is_in_range(point) {
+                return find_var_block(&ast_switch.block, point);
+            }
+            None
+        }
+        AstBlockEntry::SwitchCase(_ast_switch_case) => None,
+        AstBlockEntry::SwitchDefault(_ast_switch_default) => None,
+        AstBlockEntry::TryCatch(ast_try_catch) => {
+            if ast_try_catch.range.is_in_range(point) {
+                if ast_try_catch.block.range.is_in_range(point) {
+                    return find_var_block(&ast_try_catch.block, point);
+                }
+                if let Some(b) = &ast_try_catch.resources_block {
+                    return find_var_block(b, point);
+                }
+                if let Some(b) = &ast_try_catch.finally_block {
+                    return find_var_block(b, point);
+                }
+                if let Some(b) = ast_try_catch
+                    .cases
+                    .iter()
+                    .find(|i| i.range.is_in_range(point))
+                {
+                    return find_var_block(&b.block, point);
+                }
+            }
+            None
+        }
+        AstBlockEntry::Throw(_ast_throw) => None,
+        AstBlockEntry::SwitchCaseArrowValues(_ast_switch_case_arrow) => None,
+        AstBlockEntry::Yield(_ast_block_yield) => None,
+        AstBlockEntry::SynchronizedBlock(_ast_synchronized_block) => todo!(),
+        AstBlockEntry::SwitchCaseArrowDefault(_ast_switch_case_arrow_default) => todo!(),
+        AstBlockEntry::Thing(_ast_thing) => todo!(),
+        AstBlockEntry::InlineBlock(ast_block) => find_var_block(&ast_block.block, point),
+        AstBlockEntry::Semicolon(_ast_range) => None,
+        AstBlockEntry::SwitchCaseArrowType(_ast_switch_case_arrow_type) => todo!(),
+    }
+}
+
+fn find_var_for_content<'a>(
+    content: &'a AstForContent,
+    point: &'a AstPoint,
+) -> Option<&'a AstBlockVariable> {
+    match content {
+        AstForContent::Block(ast_block) => find_var_block(ast_block, point),
+        AstForContent::BlockEntry(ast_block_entry) => find_var_block_entry(point, ast_block_entry),
+        AstForContent::None => None,
+    }
+}
+
+pub fn import_jtype(
+    ast: &AstFile,
+    context: &CodeActionContext,
+) -> Option<Vec<CodeActionOrCommand>> {
+    if let Some(class) = get_class::get_class(ast, context.point)
+        && !tyres::is_imported_class_name(&class.name, context.imports, context.class_map)
+    {
+        let i = tyres::resolve_import(&class.name, context.class_map)
+            .iter()
+            .map(|a| import_to_code_action(context.current_file, a, ast))
+            .collect();
+        return Some(i);
     }
     None
 }
 
-pub fn get_import_position(tree: &Tree) -> Option<Position> {
-    let mut cursor = tree.walk();
-    cursor.first_child();
-    cursor.sibling();
-    if cursor.node().kind() == "import_declaration" {
-        return Some(to_lsp_position(cursor.node().end_position()));
+pub fn get_import_position(ast: &AstFile) -> Option<Position> {
+    if let Some(imports) = &ast.imports {
+        // After last import
+        let end = imports.range.end;
+        Some(Position {
+            line: (end.line as u32) + 1,
+            character: 0,
+        })
+    } else if let Some(package) = &ast.package {
+        // After package
+        let end = package.range.end;
+        Some(Position {
+            line: (end.line as u32) + 1,
+            character: 0,
+        })
+    } else {
+        // First line
+        Some(Position {
+            line: 0,
+            character: 0,
+        })
     }
-    None
 }
-pub fn import_text_edit(classpath: &str, tree: &Tree) -> Vec<TextEdit> {
+pub fn import_text_edit(classpath: &str, ast: &AstFile) -> Vec<TextEdit> {
     let mut pos = Position {
         line: 2,
         character: 0,
     };
-    if let Some(npos) = get_import_position(tree) {
+    if let Some(npos) = get_import_position(ast) {
         pos = npos;
     }
 
@@ -133,15 +352,17 @@ pub fn import_text_edit(classpath: &str, tree: &Tree) -> Vec<TextEdit> {
         new_text: format!("\nimport {};", classpath),
     }]
 }
+
+#[allow(unused)]
 pub fn import_to_code_action(
     current_file: &Uri,
     classpath: &str,
-    tree: &Tree,
+    ast: &AstFile,
 ) -> CodeActionOrCommand {
     // Required by lsp types
     #[allow(clippy::mutable_key_type)]
     let mut changes = HashMap::new();
-    changes.insert(current_file.to_owned(), import_text_edit(classpath, tree));
+    changes.insert(current_file.to_owned(), import_text_edit(classpath, ast));
     CodeActionOrCommand::CodeAction(CodeAction {
         kind: Some(CodeActionKind::QUICKFIX),
         title: format!("Import {}", classpath),
@@ -156,12 +377,13 @@ pub fn import_to_code_action(
 pub mod tests {
     use std::{path::PathBuf, str::FromStr};
 
+    use ast::types::AstPoint;
     use dashmap::DashMap;
     use document::Document;
     use lsp_types::Uri;
+    use my_string::MyString;
     use parser::dto::{self, ImportUnit};
     use pretty_assertions::assert_eq;
-    use tree_sitter::Point;
 
     use crate::codeaction::replace_with_value_type;
 
@@ -177,30 +399,26 @@ public class Test {
     }
 }
         "#;
-        let point = Point::new(4, 10);
+        let point = AstPoint::new(4, 10);
         let doc = Document::setup(
             content,
             PathBuf::from_str("./").unwrap(),
-            "ch.emilycares.Test".to_string(),
+            "ch.emilycares.Test".into(),
         )
         .unwrap();
         let imports = vec![];
-        let class = parser::java::load_java_tree(
-            content.as_bytes(),
-            parser::loader::SourceDestination::None,
-            &doc.tree,
-        )
-        .unwrap();
+        let class =
+            parser::java::load_java_tree(&doc.ast, parser::SourceDestination::None).unwrap();
         let uri = Uri::from_str("file:///a").unwrap();
         let context = CodeActionContext {
             point: &point,
             imports: &imports,
             class_map: &get_class_map(),
             class: &class,
-            vars: &variables::get_vars(&doc, &point).unwrap(),
+            vars: &variables::get_vars(&doc.ast, &point).unwrap(),
             current_file: &uri,
         };
-        let out = replace_with_value_type(&doc.tree, content.as_bytes(), &context);
+        let out = replace_with_value_type(&doc.ast, &context);
         let result = out.unwrap().unwrap();
         match result {
             lsp_types::CodeActionOrCommand::CodeAction(code_action) => {
@@ -220,30 +438,26 @@ public class Test {
     }
 }
         "#;
-        let point = Point::new(4, 10);
+        let point = AstPoint::new(4, 10);
         let doc = Document::setup(
             content,
             PathBuf::from_str("./").unwrap(),
-            "ch.emilycares.Test".to_string(),
+            "ch.emilycares.Test".into(),
         )
         .unwrap();
-        let imports = vec![ImportUnit::Class("java.io.FileInputStream".to_string())];
-        let class = parser::java::load_java_tree(
-            content.as_bytes(),
-            parser::loader::SourceDestination::None,
-            &doc.tree,
-        )
-        .unwrap();
+        let imports = vec![ImportUnit::Class("java.io.FileInputStream".into())];
+        let class =
+            parser::java::load_java_tree(&doc.ast, parser::SourceDestination::None).unwrap();
         let uri = Uri::from_str("file:///a").unwrap();
         let context = CodeActionContext {
             point: &point,
             imports: &imports,
             class_map: &get_class_map(),
             class: &class,
-            vars: &variables::get_vars(&doc, &point).unwrap(),
+            vars: &variables::get_vars(&doc.ast, &point).unwrap(),
             current_file: &uri,
         };
-        let out = replace_with_value_type(&doc.tree, content.as_bytes(), &context);
+        let out = replace_with_value_type(&doc.ast, &context);
         let result = out.unwrap().unwrap();
         match result {
             lsp_types::CodeActionOrCommand::CodeAction(code_action) => {
@@ -267,30 +481,26 @@ public class Test {
     }
 }
         "#;
-        let point = Point::new(5, 10);
+        let point = AstPoint::new(5, 10);
         let doc = Document::setup(
             content,
             PathBuf::from_str("./").unwrap(),
-            "ch.emilycares.Test".to_string(),
+            "ch.emilycares.Test".into(),
         )
         .unwrap();
         let imports = vec![];
-        let class = parser::java::load_java_tree(
-            content.as_bytes(),
-            parser::loader::SourceDestination::None,
-            &doc.tree,
-        )
-        .unwrap();
+        let class =
+            parser::java::load_java_tree(&doc.ast, parser::SourceDestination::None).unwrap();
         let uri = Uri::from_str("file:///a").unwrap();
         let context = CodeActionContext {
             point: &point,
             imports: &imports,
             class_map: &get_class_map(),
             class: &class,
-            vars: &variables::get_vars(&doc, &point).unwrap(),
+            vars: &variables::get_vars(&doc.ast, &point).unwrap(),
             current_file: &uri,
         };
-        let out = replace_with_value_type(&doc.tree, content.as_bytes(), &context);
+        let out = replace_with_value_type(&doc.ast, &context);
         let result = out.unwrap().unwrap();
         match result {
             lsp_types::CodeActionOrCommand::CodeAction(code_action) => {
@@ -299,16 +509,16 @@ public class Test {
             _ => unreachable!(),
         }
     }
-    fn get_class_map() -> DashMap<String, dto::Class> {
-        let class_map: DashMap<String, dto::Class> = DashMap::new();
+    fn get_class_map() -> DashMap<MyString, dto::Class> {
+        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
         class_map.insert(
-            "java.lang.String".to_string(),
+            "java.lang.String".into(),
             dto::Class {
-                access: vec![dto::Access::Public],
-                name: "String".to_string(),
+                access: dto::Access::Public,
+                name: "String".into(),
                 methods: vec![dto::Method {
-                    access: vec![dto::Access::Public],
-                    name: "length".to_string(),
+                    access: dto::Access::Public,
+                    name: "length".into(),
                     ret: dto::JType::Int,
                     ..Default::default()
                 }],
@@ -316,10 +526,10 @@ public class Test {
             },
         );
         class_map.insert(
-            "java.io.FileInputStream".to_string(),
+            "java.io.FileInputStream".into(),
             dto::Class {
-                access: vec![dto::Access::Public],
-                name: "FileInputStream".to_string(),
+                access: dto::Access::Public,
+                name: "FileInputStream".into(),
                 methods: vec![],
                 ..Default::default()
             },

@@ -1,6 +1,9 @@
+use ast::{
+    error::PrintErr,
+    types::{AstPoint, AstRange},
+};
 use call_chain::{CallItem, get_call_chain};
 use pretty_assertions::assert_eq;
-use tree_sitter::{Point, Range};
 
 #[test]
 fn call_chain_base() {
@@ -17,21 +20,13 @@ public class Test {
     }
 }
         ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens);
+    ast.print_err(content);
+    let ast = ast.unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(8, 24));
-    assert_eq!(
-        out,
-        Some(vec![CallItem::ClassOrVariable {
-            name: "local".to_string(),
-            range: Range {
-                start_byte: 125,
-                end_byte: 130,
-                start_point: Point { row: 8, column: 17 },
-                end_point: Point { row: 8, column: 22 }
-            }
-        }])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(8, 24));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -45,74 +40,38 @@ public class Test {
     }
 }
         ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens);
+    ast.print_err(content);
+    let ast = ast.unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 11));
-    assert_eq!(
-        out,
-        Some(vec![CallItem::ClassOrVariable {
-            name: "a".to_string(),
-            range: Range {
-                start_byte: 86,
-                end_byte: 87,
-                start_point: Point { row: 4, column: 8 },
-                end_point: Point { row: 4, column: 9 }
-            }
-        }])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(4, 11));
+    insta::assert_debug_snapshot!(out);
 }
 
-pub const SYMBOL_METHOD: &str = "
+pub const SYMBOL_METHOD: &str = r#"
 package ch.emilycares;
 
 public class Test {
 
     public void hello() {
-        String local = \"\";
+        String local = "";
 
-        var lo = local.concat(\"hehe\"). 
+        var lo = local.concat("hehe"). 
         return;
     }
 }
-        ";
+        "#;
 
 #[test]
-fn call_chain_method() {
-    let (_, tree) = tree_sitter_util::parse(SYMBOL_METHOD).unwrap();
+fn call_chain_method_a() {
+    let tokens = ast::lexer::lex(SYMBOL_METHOD).unwrap();
+    let ast = ast::parse_file(&tokens);
+    ast.print_err(SYMBOL_METHOD);
+    let ast = ast.unwrap();
 
-    let out = get_call_chain(&tree, SYMBOL_METHOD.as_bytes(), &Point::new(8, 40));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ClassOrVariable {
-                name: "local".to_string(),
-                range: Range {
-                    start_byte: 117,
-                    end_byte: 122,
-                    start_point: Point { row: 8, column: 17 },
-                    end_point: Point { row: 8, column: 22 },
-                }
-            },
-            CallItem::MethodCall {
-                name: "concat".to_string(),
-                range: Range {
-                    start_byte: 123,
-                    end_byte: 129,
-                    start_point: Point { row: 8, column: 23 },
-                    end_point: Point { row: 8, column: 29 }
-                },
-            },
-            CallItem::FieldAccess {
-                name: "return".to_string(),
-                range: Range {
-                    start_byte: 148,
-                    end_byte: 154,
-                    start_point: Point { row: 9, column: 8 },
-                    end_point: Point { row: 9, column: 14 },
-                }
-            }
-        ])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(8, 40));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -126,25 +85,17 @@ public class Test {
     }
 }
 "#;
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens);
+    ast.print_err(content);
+    let ast = ast.unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 19));
-    assert_eq!(
-        out,
-        Some(vec![CallItem::Class {
-            name: "String".to_string(),
-            range: Range {
-                start_byte: 108,
-                end_byte: 110,
-                start_point: Point { row: 5, column: 15 },
-                end_point: Point { row: 5, column: 17 },
-            }
-        }])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(5, 19));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
-fn call_chain_field() {
+fn call_chain_field_base() {
     let content = "
 package ch.emilycares;
 public class Test {
@@ -155,32 +106,11 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 26));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ClassOrVariable {
-                name: "local".to_string(),
-                range: Range {
-                    start_byte: 113,
-                    end_byte: 118,
-                    start_point: Point { row: 5, column: 17 },
-                    end_point: Point { row: 5, column: 22 },
-                }
-            },
-            CallItem::FieldAccess {
-                name: "a".to_string(),
-                range: Range {
-                    start_byte: 119,
-                    end_byte: 120,
-                    start_point: Point { row: 5, column: 23 },
-                    end_point: Point { row: 5, column: 24 },
-                }
-            }
-        ])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(5, 26));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -195,32 +125,11 @@ public class GreetingResource {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 24));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ClassOrVariable {
-                name: "a".to_string(),
-                range: Range {
-                    start_byte: 106,
-                    end_byte: 107,
-                    start_point: Point { row: 5, column: 8 },
-                    end_point: Point { row: 5, column: 9 },
-                }
-            },
-            CallItem::MethodCall {
-                name: "concat".to_string(),
-                range: Range {
-                    start_byte: 108,
-                    end_byte: 114,
-                    start_point: Point { row: 5, column: 10 },
-                    end_point: Point { row: 5, column: 16 }
-                }
-            }
-        ])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(5, 24));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -234,42 +143,12 @@ public class GreetingResource {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
     // the cursor is on the concat method_call
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 14));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ClassOrVariable {
-                name: "a".to_string(),
-                range: Range {
-                    start_byte: 92,
-                    end_byte: 93,
-                    start_point: Point { row: 4, column: 8 },
-                    end_point: Point { row: 4, column: 9 },
-                }
-            },
-            CallItem::MethodCall {
-                name: "concat".to_string(),
-                range: Range {
-                    start_byte: 94,
-                    end_byte: 100,
-                    start_point: Point { row: 4, column: 10 },
-                    end_point: Point { row: 4, column: 16 }
-                }
-            },
-            CallItem::MethodCall {
-                name: "other".to_string(),
-                range: Range {
-                    start_byte: 105,
-                    end_byte: 110,
-                    start_point: Point { row: 4, column: 21 },
-                    end_point: Point { row: 4, column: 26 }
-                }
-            }
-        ])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(4, 14));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -284,41 +163,11 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 30));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ClassOrVariable {
-                name: "local".to_string(),
-                range: Range {
-                    start_byte: 113,
-                    end_byte: 118,
-                    start_point: Point { row: 5, column: 17 },
-                    end_point: Point { row: 5, column: 22 }
-                }
-            },
-            CallItem::FieldAccess {
-                name: "a".to_string(),
-                range: Range {
-                    start_byte: 119,
-                    end_byte: 120,
-                    start_point: Point { row: 5, column: 23 },
-                    end_point: Point { row: 5, column: 24 }
-                },
-            },
-            CallItem::MethodCall {
-                name: "b".to_string(),
-                range: Range {
-                    start_byte: 121,
-                    end_byte: 122,
-                    start_point: Point { row: 5, column: 25 },
-                    end_point: Point { row: 5, column: 26 }
-                }
-            },
-        ])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(5, 30));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -333,41 +182,11 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 30));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ClassOrVariable {
-                name: "local".to_string(),
-                range: Range {
-                    start_byte: 113,
-                    end_byte: 118,
-                    start_point: Point { row: 5, column: 17 },
-                    end_point: Point { row: 5, column: 22 },
-                }
-            },
-            CallItem::MethodCall {
-                name: "a".to_string(),
-                range: Range {
-                    start_byte: 119,
-                    end_byte: 120,
-                    start_point: Point { row: 5, column: 23 },
-                    end_point: Point { row: 5, column: 24 },
-                }
-            },
-            CallItem::FieldAccess {
-                name: "b".to_string(),
-                range: Range {
-                    start_byte: 123,
-                    end_byte: 124,
-                    start_point: Point { row: 5, column: 27 },
-                    end_point: Point { row: 5, column: 28 },
-                }
-            }
-        ])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(5, 30));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -382,21 +201,11 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 23));
-    assert_eq!(
-        out,
-        Some(vec![CallItem::ClassOrVariable {
-            name: "local".to_string(),
-            range: Range {
-                start_byte: 113,
-                end_byte: 118,
-                start_point: Point { row: 5, column: 17 },
-                end_point: Point { row: 5, column: 22 },
-            }
-        }])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(5, 23));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -411,41 +220,11 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 28));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ClassOrVariable {
-                name: "local".to_string(),
-                range: Range {
-                    start_byte: 112,
-                    end_byte: 117,
-                    start_point: Point { row: 5, column: 16 },
-                    end_point: Point { row: 5, column: 21 },
-                }
-            },
-            CallItem::MethodCall {
-                name: "a".to_string(),
-                range: Range {
-                    start_byte: 118,
-                    end_byte: 119,
-                    start_point: Point { row: 5, column: 22 },
-                    end_point: Point { row: 5, column: 23 },
-                }
-            },
-            CallItem::FieldAccess {
-                name: "c".to_string(),
-                range: Range {
-                    start_byte: 122,
-                    end_byte: 123,
-                    start_point: Point { row: 5, column: 26 },
-                    end_point: Point { row: 5, column: 27 },
-                }
-            },
-        ])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(5, 28));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -460,41 +239,11 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 28));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ClassOrVariable {
-                name: "local".to_string(),
-                range: Range {
-                    start_byte: 112,
-                    end_byte: 117,
-                    start_point: Point { row: 5, column: 16 },
-                    end_point: Point { row: 5, column: 21 }
-                }
-            },
-            CallItem::FieldAccess {
-                name: "a".to_string(),
-                range: Range {
-                    start_byte: 118,
-                    end_byte: 119,
-                    start_point: Point { row: 5, column: 22 },
-                    end_point: Point { row: 5, column: 23 },
-                }
-            },
-            CallItem::MethodCall {
-                name: "c".to_string(),
-                range: Range {
-                    start_byte: 120,
-                    end_byte: 121,
-                    start_point: Point { row: 5, column: 24 },
-                    end_point: Point { row: 5, column: 25 },
-                }
-            },
-        ])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(5, 28));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -509,41 +258,11 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 20));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ClassOrVariable {
-                name: "local".to_string(),
-                range: Range {
-                    start_byte: 104,
-                    end_byte: 109,
-                    start_point: Point { row: 5, column: 8 },
-                    end_point: Point { row: 5, column: 13 },
-                }
-            },
-            CallItem::FieldAccess {
-                name: "a".to_string(),
-                range: Range {
-                    start_byte: 110,
-                    end_byte: 111,
-                    start_point: Point { row: 5, column: 14 },
-                    end_point: Point { row: 5, column: 15 },
-                }
-            },
-            CallItem::MethodCall {
-                name: "c".to_string(),
-                range: Range {
-                    start_byte: 112,
-                    end_byte: 113,
-                    start_point: Point { row: 5, column: 16 },
-                    end_point: Point { row: 5, column: 17 },
-                }
-            },
-        ])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(5, 20));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -558,21 +277,11 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 16));
-    assert_eq!(
-        out,
-        Some(vec![CallItem::ClassOrVariable {
-            name: "String".to_string(),
-            range: Range {
-                start_byte: 104,
-                end_byte: 110,
-                start_point: Point { row: 5, column: 8 },
-                end_point: Point { row: 5, column: 14 },
-            }
-        },])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(5, 16));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -587,25 +296,15 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 28));
-    assert_eq!(
-        out,
-        Some(vec![CallItem::ClassOrVariable {
-            name: "String".to_string(),
-            range: Range {
-                start_byte: 116,
-                end_byte: 122,
-                start_point: Point { row: 5, column: 20 },
-                end_point: Point { row: 5, column: 26 },
-            }
-        },])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(5, 28));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
-fn call_chain_argument() {
+fn call_chain_argument_base() {
     let content = "
 package ch.emilycares;
 public class Test {
@@ -616,46 +315,15 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 22));
-    assert_eq!(
-        out,
-        Some(vec![CallItem::ArgumentList {
-            prev: vec![
-                CallItem::ClassOrVariable {
-                    name: "local".to_string(),
-                    range: Range {
-                        start_byte: 104,
-                        end_byte: 109,
-                        start_point: Point { row: 5, column: 8 },
-                        end_point: Point { row: 5, column: 13 },
-                    },
-                },
-                CallItem::MethodCall {
-                    name: "concat".to_string(),
-                    range: Range {
-                        start_byte: 110,
-                        end_byte: 116,
-                        start_point: Point { row: 5, column: 14 },
-                        end_point: Point { row: 5, column: 20 },
-                    },
-                },
-            ],
-            range: Range {
-                start_byte: 116,
-                end_byte: 119,
-                start_point: Point { row: 5, column: 20 },
-                end_point: Point { row: 5, column: 23 },
-            },
-            filled_params: vec![vec![]],
-            active_param: Some(0)
-        },],)
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(5, 22));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
-fn call_chain_argument_var() {
+fn call_chain_argument_var_base() {
     let content = "
 package ch.emilycares;
 public class Test {
@@ -666,61 +334,11 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 27));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ArgumentList {
-                prev: vec![
-                    CallItem::ClassOrVariable {
-                        name: "local".to_string(),
-                        range: Range {
-                            start_byte: 104,
-                            end_byte: 109,
-                            start_point: Point { row: 5, column: 8 },
-                            end_point: Point { row: 5, column: 13 },
-                        },
-                    },
-                    CallItem::MethodCall {
-                        name: "concat".to_string(),
-                        range: Range {
-                            start_byte: 110,
-                            end_byte: 116,
-                            start_point: Point { row: 5, column: 14 },
-                            end_point: Point { row: 5, column: 20 },
-                        },
-                    },
-                ],
-                range: Range {
-                    start_byte: 116,
-                    end_byte: 125,
-                    start_point: Point { row: 5, column: 20 },
-                    end_point: Point { row: 5, column: 29 },
-                },
-                filled_params: vec![vec![CallItem::ClassOrVariable {
-                    name: "local".to_string(),
-                    range: Range {
-                        start_byte: 117,
-                        end_byte: 122,
-                        start_point: Point { row: 5, column: 21 },
-                        end_point: Point { row: 5, column: 26 }
-                    }
-                }]],
-                active_param: Some(0),
-            },
-            CallItem::ClassOrVariable {
-                name: "local".to_string(),
-                range: Range {
-                    start_byte: 117,
-                    end_byte: 122,
-                    start_point: Point { row: 5, column: 21 },
-                    end_point: Point { row: 5, column: 26 }
-                }
-            }
-        ])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(5, 27));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -735,65 +353,15 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 27));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ArgumentList {
-                prev: vec![
-                    CallItem::ClassOrVariable {
-                        name: "local".to_string(),
-                        range: Range {
-                            start_byte: 104,
-                            end_byte: 109,
-                            start_point: Point { row: 5, column: 8 },
-                            end_point: Point { row: 5, column: 13 },
-                        },
-                    },
-                    CallItem::MethodCall {
-                        name: "concat".to_string(),
-                        range: Range {
-                            start_byte: 110,
-                            end_byte: 116,
-                            start_point: Point { row: 5, column: 14 },
-                            end_point: Point { row: 5, column: 20 },
-                        },
-                    },
-                ],
-                range: Range {
-                    start_byte: 116,
-                    end_byte: 124,
-                    start_point: Point { row: 5, column: 20 },
-                    end_point: Point { row: 5, column: 28 },
-                },
-                filled_params: vec![vec![CallItem::ClassOrVariable {
-                    name: "local".to_string(),
-                    range: Range {
-                        start_byte: 117,
-                        end_byte: 122,
-                        start_point: Point { row: 5, column: 21 },
-                        end_point: Point { row: 5, column: 26 }
-                    }
-                }]],
-                active_param: Some(0)
-            },
-            CallItem::ClassOrVariable {
-                name: "local".to_string(),
-                range: Range {
-                    start_byte: 117,
-                    end_byte: 122,
-                    start_point: Point { row: 5, column: 21 },
-                    end_point: Point { row: 5, column: 26 }
-                }
-            }
-        ])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(5, 27));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
-fn call_chain_argument_second_var() {
+fn call_chain_argument_second_var_base() {
     let content = "
 package ch.emilycares;
 public class Test {
@@ -804,10 +372,11 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 23));
-    match out.clone().unwrap().first().unwrap() {
+    let out = get_call_chain(&ast, &AstPoint::new(5, 23));
+    match out.clone().first().unwrap() {
         CallItem::ArgumentList {
             prev: _,
             active_param,
@@ -816,69 +385,7 @@ public class Test {
         } => assert_eq!(active_param, &Some(1)),
         _ => unreachable!(),
     };
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ArgumentList {
-                prev: vec![
-                    CallItem::ClassOrVariable {
-                        name: "a".to_string(),
-                        range: Range {
-                            start_byte: 104,
-                            end_byte: 105,
-                            start_point: Point { row: 5, column: 8 },
-                            end_point: Point { row: 5, column: 9 },
-                        },
-                    },
-                    CallItem::MethodCall {
-                        name: "concat".to_string(),
-                        range: Range {
-                            start_byte: 106,
-                            end_byte: 112,
-                            start_point: Point { row: 5, column: 10 },
-                            end_point: Point { row: 5, column: 16 },
-                        },
-                    },
-                ],
-                range: Range {
-                    start_byte: 112,
-                    end_byte: 120,
-                    start_point: Point { row: 5, column: 16 },
-                    end_point: Point { row: 5, column: 24 },
-                },
-                filled_params: vec![
-                    vec![CallItem::ClassOrVariable {
-                        name: "b".to_string(),
-                        range: Range {
-                            start_byte: 113,
-                            end_byte: 114,
-                            start_point: Point { row: 5, column: 17 },
-                            end_point: Point { row: 5, column: 18 },
-                        },
-                    }],
-                    vec![CallItem::ClassOrVariable {
-                        name: "c".to_string(),
-                        range: Range {
-                            start_byte: 116,
-                            end_byte: 117,
-                            start_point: Point { row: 5, column: 20 },
-                            end_point: Point { row: 5, column: 21 },
-                        },
-                    }]
-                ],
-                active_param: Some(1)
-            },
-            CallItem::ClassOrVariable {
-                name: "c".to_string(),
-                range: Range {
-                    start_byte: 116,
-                    end_byte: 117,
-                    start_point: Point { row: 5, column: 20 },
-                    end_point: Point { row: 5, column: 21 },
-                }
-            }
-        ])
-    );
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -893,72 +400,11 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 19));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ArgumentList {
-                prev: vec![
-                    CallItem::ClassOrVariable {
-                        name: "a".to_string(),
-                        range: Range {
-                            start_byte: 104,
-                            end_byte: 105,
-                            start_point: Point { row: 5, column: 8 },
-                            end_point: Point { row: 5, column: 9 },
-                        },
-                    },
-                    CallItem::MethodCall {
-                        name: "concat".to_string(),
-                        range: Range {
-                            start_byte: 106,
-                            end_byte: 112,
-                            start_point: Point { row: 5, column: 10 },
-                            end_point: Point { row: 5, column: 16 },
-                        },
-                    },
-                ],
-                range: Range {
-                    start_byte: 112,
-                    end_byte: 119,
-                    start_point: Point { row: 5, column: 16 },
-                    end_point: Point { row: 5, column: 23 },
-                },
-                filled_params: vec![
-                    vec![CallItem::ClassOrVariable {
-                        name: "b".to_string(),
-                        range: Range {
-                            start_byte: 113,
-                            end_byte: 114,
-                            start_point: Point { row: 5, column: 17 },
-                            end_point: Point { row: 5, column: 18 },
-                        }
-                    }],
-                    vec![CallItem::ClassOrVariable {
-                        name: "c".to_string(),
-                        range: Range {
-                            start_byte: 117,
-                            end_byte: 118,
-                            start_point: Point { row: 5, column: 21 },
-                            end_point: Point { row: 5, column: 22 },
-                        }
-                    }],
-                ],
-                active_param: Some(0)
-            },
-            CallItem::ClassOrVariable {
-                name: "b".to_string(),
-                range: Range {
-                    start_byte: 113,
-                    end_byte: 114,
-                    start_point: Point { row: 5, column: 17 },
-                    end_point: Point { row: 5, column: 18 },
-                }
-            }
-        ])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(5, 19));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -973,72 +419,11 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 22));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ArgumentList {
-                prev: vec![
-                    CallItem::ClassOrVariable {
-                        name: "a".to_string(),
-                        range: Range {
-                            start_byte: 104,
-                            end_byte: 105,
-                            start_point: Point { row: 5, column: 8 },
-                            end_point: Point { row: 5, column: 9 },
-                        },
-                    },
-                    CallItem::MethodCall {
-                        name: "concat".to_string(),
-                        range: Range {
-                            start_byte: 106,
-                            end_byte: 112,
-                            start_point: Point { row: 5, column: 10 },
-                            end_point: Point { row: 5, column: 16 },
-                        },
-                    },
-                ],
-                range: Range {
-                    start_byte: 112,
-                    end_byte: 119,
-                    start_point: Point { row: 5, column: 16 },
-                    end_point: Point { row: 5, column: 23 },
-                },
-                filled_params: vec![
-                    vec![CallItem::ClassOrVariable {
-                        name: "b".to_string(),
-                        range: Range {
-                            start_byte: 113,
-                            end_byte: 114,
-                            start_point: Point { row: 5, column: 17 },
-                            end_point: Point { row: 5, column: 18 },
-                        }
-                    }],
-                    vec![CallItem::ClassOrVariable {
-                        name: "c".to_string(),
-                        range: Range {
-                            start_byte: 116,
-                            end_byte: 117,
-                            start_point: Point { row: 5, column: 20 },
-                            end_point: Point { row: 5, column: 21 },
-                        }
-                    }]
-                ],
-                active_param: Some(1)
-            },
-            CallItem::ClassOrVariable {
-                name: "c".to_string(),
-                range: Range {
-                    start_byte: 116,
-                    end_byte: 117,
-                    start_point: Point { row: 5, column: 20 },
-                    end_point: Point { row: 5, column: 21 },
-                }
-            }
-        ])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(5, 22));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -1053,81 +438,11 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 22));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ArgumentList {
-                prev: vec![
-                    CallItem::ClassOrVariable {
-                        name: "a".to_string(),
-                        range: Range {
-                            start_byte: 104,
-                            end_byte: 105,
-                            start_point: Point { row: 5, column: 8 },
-                            end_point: Point { row: 5, column: 9 },
-                        },
-                    },
-                    CallItem::MethodCall {
-                        name: "concat".to_string(),
-                        range: Range {
-                            start_byte: 106,
-                            end_byte: 112,
-                            start_point: Point { row: 5, column: 10 },
-                            end_point: Point { row: 5, column: 16 },
-                        },
-                    },
-                ],
-                range: Range {
-                    start_byte: 112,
-                    end_byte: 119,
-                    start_point: Point { row: 5, column: 16 },
-                    end_point: Point { row: 5, column: 23 },
-                },
-                filled_params: vec![vec![
-                    CallItem::ClassOrVariable {
-                        name: "b".to_string(),
-                        range: Range {
-                            start_byte: 113,
-                            end_byte: 114,
-                            start_point: Point { row: 5, column: 17 },
-                            end_point: Point { row: 5, column: 18 },
-                        }
-                    },
-                    CallItem::FieldAccess {
-                        name: "a".to_string(),
-                        range: Range {
-                            start_byte: 115,
-                            end_byte: 116,
-                            start_point: Point { row: 5, column: 19 },
-                            end_point: Point { row: 5, column: 20 }
-                        },
-                    },
-                ]],
-                active_param: Some(0)
-            },
-            CallItem::ClassOrVariable {
-                name: "b".to_string(),
-                range: Range {
-                    start_byte: 113,
-                    end_byte: 114,
-                    start_point: Point { row: 5, column: 17 },
-                    end_point: Point { row: 5, column: 18 },
-                }
-            },
-            CallItem::FieldAccess {
-                name: "a".to_string(),
-                range: Range {
-                    start_byte: 115,
-                    end_byte: 116,
-                    start_point: Point { row: 5, column: 19 },
-                    end_point: Point { row: 5, column: 20 }
-                },
-            },
-        ])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(5, 22));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -1136,75 +451,16 @@ fn call_chain_argument_calc() {
 package ch.emilycares;
 public class Test {
     public void hello() {
-        concat("a" + a.getThing());
+        concat("z" + a.getThing());
         return;
     }
 }
 "#;
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 28));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::ArgumentList {
-                prev: vec![CallItem::MethodCall {
-                    name: "concat".to_string(),
-                    range: Range {
-                        start_byte: 78,
-                        end_byte: 84,
-                        start_point: Point { row: 4, column: 8 },
-                        end_point: Point { row: 4, column: 14 }
-                    },
-                },],
-                filled_params: vec![vec![
-                    CallItem::ClassOrVariable {
-                        name: "a".to_string(),
-                        range: Range {
-                            start_byte: 91,
-                            end_byte: 92,
-                            start_point: Point { row: 4, column: 21 },
-                            end_point: Point { row: 4, column: 22 },
-                        }
-                    },
-                    CallItem::MethodCall {
-                        name: "getThing".to_string(),
-                        range: Range {
-                            start_byte: 93,
-                            end_byte: 101,
-                            start_point: Point { row: 4, column: 23 },
-                            end_point: Point { row: 4, column: 31 }
-                        },
-                    },
-                ]],
-                active_param: Some(0),
-                range: Range {
-                    start_byte: 84,
-                    end_byte: 104,
-                    start_point: Point { row: 4, column: 14 },
-                    end_point: Point { row: 4, column: 34 },
-                },
-            },
-            CallItem::ClassOrVariable {
-                name: "a".to_string(),
-                range: Range {
-                    start_byte: 91,
-                    end_byte: 92,
-                    start_point: Point { row: 4, column: 21 },
-                    end_point: Point { row: 4, column: 22 },
-                }
-            },
-            CallItem::MethodCall {
-                name: "getThing".to_string(),
-                range: Range {
-                    start_byte: 93,
-                    end_byte: 101,
-                    start_point: Point { row: 4, column: 23 },
-                    end_point: Point { row: 4, column: 31 }
-                },
-            },
-        ])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(4, 28));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -1218,41 +474,36 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 18));
+    let out = get_call_chain(&ast, &AstPoint::new(4, 18));
     assert_eq!(
         out,
-        Some(vec![CallItem::ArgumentList {
+        vec![CallItem::ArgumentList {
             prev: vec![
                 CallItem::ClassOrVariable {
-                    name: "a".to_string(),
-                    range: Range {
-                        start_byte: 78,
-                        end_byte: 79,
-                        start_point: Point { row: 4, column: 8 },
-                        end_point: Point { row: 4, column: 9 },
+                    name: "a".into(),
+                    range: AstRange {
+                        start: AstPoint { line: 4, col: 8 },
+                        end: AstPoint { line: 4, col: 9 },
                     },
                 },
                 CallItem::MethodCall {
-                    name: "concat".to_string(),
-                    range: Range {
-                        start_byte: 80,
-                        end_byte: 86,
-                        start_point: Point { row: 4, column: 10 },
-                        end_point: Point { row: 4, column: 16 },
+                    name: "concat".into(),
+                    range: AstRange {
+                        start: AstPoint { line: 4, col: 10 },
+                        end: AstPoint { line: 4, col: 16 },
                     },
                 }
             ],
-            range: Range {
-                start_byte: 86,
-                end_byte: 89,
-                start_point: Point { row: 4, column: 16 },
-                end_point: Point { row: 4, column: 19 },
+            range: AstRange {
+                start: AstPoint { line: 4, col: 16 },
+                end: AstPoint { line: 4, col: 19 },
             },
             filled_params: vec![vec![]],
             active_param: Some(0)
-        }])
+        }]
     );
 }
 
@@ -1268,85 +519,72 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(5, 23));
+    let out = get_call_chain(&ast, &AstPoint::new(5, 23));
     assert_eq!(
         out,
-        Some(vec![
+        vec![
             CallItem::ArgumentList {
                 prev: vec![
                     CallItem::ClassOrVariable {
-                        name: "a".to_string(),
-                        range: Range {
-                            start_byte: 104,
-                            end_byte: 105,
-                            start_point: Point { row: 5, column: 8 },
-                            end_point: Point { row: 5, column: 9 },
+                        name: "a".into(),
+                        range: AstRange {
+                            start: AstPoint { line: 5, col: 8 },
+                            end: AstPoint { line: 5, col: 9 },
                         },
                     },
                     CallItem::MethodCall {
-                        name: "concat".to_string(),
-                        range: Range {
-                            start_byte: 106,
-                            end_byte: 112,
-                            start_point: Point { row: 5, column: 10 },
-                            end_point: Point { row: 5, column: 16 },
+                        name: "concat".into(),
+                        range: AstRange {
+                            start: AstPoint { line: 5, col: 10 },
+                            end: AstPoint { line: 5, col: 16 },
                         },
                     },
                 ],
-                range: Range {
-                    start_byte: 112,
-                    end_byte: 120,
-                    start_point: Point { row: 5, column: 16 },
-                    end_point: Point { row: 5, column: 24 },
+                range: AstRange {
+                    start: AstPoint { line: 5, col: 16 },
+                    end: AstPoint { line: 5, col: 24 },
                 },
                 filled_params: vec![vec![
                     CallItem::ClassOrVariable {
-                        name: "b".to_string(),
-                        range: Range {
-                            start_byte: 113,
-                            end_byte: 114,
-                            start_point: Point { row: 5, column: 17 },
-                            end_point: Point { row: 5, column: 18 }
+                        name: "b".into(),
+                        range: AstRange {
+                            start: AstPoint { line: 5, col: 17 },
+                            end: AstPoint { line: 5, col: 18 }
                         }
                     },
                     CallItem::MethodCall {
-                        name: "a".to_string(),
-                        range: Range {
-                            start_byte: 115,
-                            end_byte: 116,
-                            start_point: Point { row: 5, column: 19 },
-                            end_point: Point { row: 5, column: 20 },
+                        name: "a".into(),
+                        range: AstRange {
+                            start: AstPoint { line: 5, col: 19 },
+                            end: AstPoint { line: 5, col: 20 },
                         }
                     },
                 ]],
                 active_param: Some(0)
             },
             CallItem::ClassOrVariable {
-                name: "b".to_string(),
-                range: Range {
-                    start_byte: 113,
-                    end_byte: 114,
-                    start_point: Point { row: 5, column: 17 },
-                    end_point: Point { row: 5, column: 18 }
+                name: "b".into(),
+                range: AstRange {
+                    start: AstPoint { line: 5, col: 17 },
+                    end: AstPoint { line: 5, col: 18 }
                 }
             },
             CallItem::MethodCall {
-                name: "a".to_string(),
-                range: Range {
-                    start_byte: 115,
-                    end_byte: 116,
-                    start_point: Point { row: 5, column: 19 },
-                    end_point: Point { row: 5, column: 20 },
+                name: "a".into(),
+                range: AstRange {
+                    start: AstPoint { line: 5, col: 19 },
+                    end: AstPoint { line: 5, col: 20 },
                 }
             },
-        ])
+        ]
     );
 }
 
 #[test]
-fn call_chain_if() {
+fn call_chain_if_base() {
     let content = "
 package ch.emilycares;
 public class Test {
@@ -1357,20 +595,21 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens);
+    ast.print_err(content);
+    let ast = ast.unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 14));
+    let out = get_call_chain(&ast, &AstPoint::new(4, 14));
     assert_eq!(
         out,
-        Some(vec![CallItem::ClassOrVariable {
-            name: "a".to_string(),
-            range: Range {
-                start_byte: 82,
-                end_byte: 83,
-                start_point: Point { row: 4, column: 12 },
-                end_point: Point { row: 4, column: 13 },
+        vec![CallItem::ClassOrVariable {
+            name: "a".into(),
+            range: AstRange {
+                start: AstPoint { line: 4, col: 12 },
+                end: AstPoint { line: 4, col: 13 },
             }
-        }])
+        }]
     );
 }
 
@@ -1386,21 +625,13 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens);
+    ast.print_err(content);
+    let ast = ast.unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 19));
-    assert_eq!(
-        out,
-        Some(vec![CallItem::ClassOrVariable {
-            name: "b".to_string(),
-            range: Range {
-                start_byte: 87,
-                end_byte: 88,
-                start_point: Point { row: 4, column: 17 },
-                end_point: Point { row: 4, column: 18 },
-            }
-        },])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(4, 19));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -1413,20 +644,19 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 18));
+    let out = get_call_chain(&ast, &AstPoint::new(4, 18));
     assert_eq!(
         out,
-        Some(vec![CallItem::ClassOrVariable {
-            name: "a".to_string(),
-            range: Range {
-                start_byte: 85,
-                end_byte: 86,
-                start_point: Point { row: 4, column: 15 },
-                end_point: Point { row: 4, column: 16 }
+        vec![CallItem::ClassOrVariable {
+            name: "a".into(),
+            range: AstRange {
+                start: AstPoint { line: 4, col: 15 },
+                end: AstPoint { line: 4, col: 16 }
             }
-        },])
+        },]
     );
 }
 
@@ -1440,36 +670,33 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 22));
+    let out = get_call_chain(&ast, &AstPoint::new(4, 22));
     assert_eq!(
         out,
-        Some(vec![
+        vec![
             CallItem::ClassOrVariable {
-                name: "a".to_string(),
-                range: Range {
-                    start_byte: 85,
-                    end_byte: 86,
-                    start_point: Point { row: 4, column: 15 },
-                    end_point: Point { row: 4, column: 16 },
+                name: "a".into(),
+                range: AstRange {
+                    start: AstPoint { line: 4, col: 15 },
+                    end: AstPoint { line: 4, col: 16 },
                 }
             },
             CallItem::MethodCall {
-                name: "b".to_string(),
-                range: Range {
-                    start_byte: 87,
-                    end_byte: 88,
-                    start_point: Point { row: 4, column: 17 },
-                    end_point: Point { row: 4, column: 18 },
+                name: "b".into(),
+                range: AstRange {
+                    start: AstPoint { line: 4, col: 17 },
+                    end: AstPoint { line: 4, col: 18 },
                 }
             }
-        ])
+        ]
     );
 }
 
 #[test]
-fn call_chain_new_instance() {
+fn call_chain_new_instance_base() {
     let content = "
 package ch.emilycares;
 public class Test {
@@ -1479,21 +706,13 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens);
+    ast.print_err(content);
+    let ast = ast.unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 22));
-    assert_eq!(
-        out,
-        Some(vec![CallItem::Class {
-            name: "String".to_string(),
-            range: Range {
-                start_byte: 82,
-                end_byte: 88,
-                start_point: Point { row: 4, column: 12 },
-                end_point: Point { row: 4, column: 18 }
-            }
-        }])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(4, 22));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -1507,32 +726,13 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens);
+    ast.print_err(content);
+    let ast = ast.unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 22));
-    assert_eq!(
-        out,
-        Some(vec![
-            CallItem::Class {
-                name: "String".to_string(),
-                range: Range {
-                    start_byte: 82,
-                    end_byte: 88,
-                    start_point: Point { row: 4, column: 12 },
-                    end_point: Point { row: 4, column: 18 },
-                }
-            },
-            CallItem::FieldAccess {
-                name: "a".to_string(),
-                range: Range {
-                    start_byte: 91,
-                    end_byte: 92,
-                    start_point: Point { row: 4, column: 21 },
-                    end_point: Point { row: 4, column: 22 },
-                }
-            }
-        ])
-    );
+    let out = get_call_chain(&ast, &AstPoint::new(4, 22));
+    insta::assert_debug_snapshot!(out);
 }
 
 #[test]
@@ -1546,31 +746,30 @@ public class Test {
     }
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens);
+    ast.print_err(content);
+    let ast = ast.unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 25));
+    let out = get_call_chain(&ast, &AstPoint::new(4, 25));
     assert_eq!(
         out,
-        Some(vec![
+        vec![
             CallItem::Class {
-                name: "String".to_string(),
-                range: Range {
-                    start_byte: 82,
-                    end_byte: 88,
-                    start_point: Point { row: 4, column: 12 },
-                    end_point: Point { row: 4, column: 18 },
+                name: "String".into(),
+                range: AstRange {
+                    start: AstPoint { line: 4, col: 8 },
+                    end: AstPoint { line: 4, col: 20 },
                 }
             },
             CallItem::MethodCall {
-                name: "a".to_string(),
-                range: Range {
-                    start_byte: 91,
-                    end_byte: 92,
-                    start_point: Point { row: 4, column: 21 },
-                    end_point: Point { row: 4, column: 22 },
+                name: "a".into(),
+                range: AstRange {
+                    start: AstPoint { line: 4, col: 21 },
+                    end: AstPoint { line: 4, col: 22 },
                 }
             }
-        ])
+        ]
     );
 }
 
@@ -1582,31 +781,28 @@ public class Test {
     private static Logger LOG = Logger.getLogger(Test.class);
 }
 ";
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(3, 43));
+    let out = get_call_chain(&ast, &AstPoint::new(3, 43));
     assert_eq!(
         out,
-        Some(vec![
+        vec![
             CallItem::ClassOrVariable {
-                name: "Logger".to_string(),
-                range: Range {
-                    start_byte: 76,
-                    end_byte: 82,
-                    start_point: Point { row: 3, column: 32 },
-                    end_point: Point { row: 3, column: 38 },
+                name: "Logger".into(),
+                range: AstRange {
+                    start: AstPoint { line: 3, col: 32 },
+                    end: AstPoint { line: 3, col: 38 },
                 }
             },
             CallItem::MethodCall {
-                name: "getLogger".to_string(),
-                range: Range {
-                    start_byte: 83,
-                    end_byte: 92,
-                    start_point: Point { row: 3, column: 39 },
-                    end_point: Point { row: 3, column: 48 },
+                name: "getLogger".into(),
+                range: AstRange {
+                    start: AstPoint { line: 3, col: 39 },
+                    end: AstPoint { line: 3, col: 48 },
                 }
             }
-        ])
+        ]
     );
 }
 
@@ -1622,31 +818,30 @@ public class Test {
     }
 }
 "#;
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens);
+    ast.print_err(content);
+    let ast = ast.unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 27));
+    let out = get_call_chain(&ast, &AstPoint::new(4, 27));
     assert_eq!(
         out,
-        Some(vec![
+        vec![
             CallItem::ClassOrVariable {
-                name: "MediaType".to_string(),
-                range: Range {
-                    start_byte: 89,
-                    end_byte: 98,
-                    start_point: Point { row: 4, column: 14 },
-                    end_point: Point { row: 4, column: 23 },
+                name: "MediaType".into(),
+                range: AstRange {
+                    start: AstPoint { line: 4, col: 14 },
+                    end: AstPoint { line: 4, col: 23 },
                 }
             },
             CallItem::FieldAccess {
-                name: "TEXT_PLAIN".to_string(),
-                range: Range {
-                    start_byte: 99,
-                    end_byte: 109,
-                    start_point: Point { row: 4, column: 24 },
-                    end_point: Point { row: 4, column: 34 },
+                name: "TEXT_PLAIN".into(),
+                range: AstRange {
+                    start: AstPoint { line: 4, col: 24 },
+                    end: AstPoint { line: 4, col: 34 },
                 }
             }
-        ])
+        ]
     );
 }
 
@@ -1660,39 +855,36 @@ public class Test {
     }
 }
 "#;
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens);
+    ast.print_err(content);
+    let ast = ast.unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 27));
+    let out = get_call_chain(&ast, &AstPoint::new(4, 27));
     assert_eq!(
         out,
-        Some(vec![
+        vec![
             CallItem::This {
-                range: Range {
-                    start_byte: 85,
-                    end_byte: 89,
-                    start_point: Point { row: 4, column: 13 },
-                    end_point: Point { row: 4, column: 17 }
+                range: AstRange {
+                    start: AstPoint { line: 4, col: 13 },
+                    end: AstPoint { line: 4, col: 17 }
                 }
             },
             CallItem::FieldAccess {
-                name: "a".to_string(),
-                range: Range {
-                    start_byte: 90,
-                    end_byte: 91,
-                    start_point: Point { row: 4, column: 18 },
-                    end_point: Point { row: 4, column: 19 }
+                name: "a".into(),
+                range: AstRange {
+                    start: AstPoint { line: 4, col: 18 },
+                    end: AstPoint { line: 4, col: 19 }
                 }
             },
             CallItem::MethodCall {
-                name: "toString".to_string(),
-                range: Range {
-                    start_byte: 92,
-                    end_byte: 100,
-                    start_point: Point { row: 4, column: 20 },
-                    end_point: Point { row: 4, column: 28 }
+                name: "toString".into(),
+                range: AstRange {
+                    start: AstPoint { line: 4, col: 20 },
+                    end: AstPoint { line: 4, col: 28 }
                 }
             }
-        ])
+        ]
     );
 }
 
@@ -1707,29 +899,26 @@ public class Test {
     }
 }
 "#;
-    let (_, tree) = tree_sitter_util::parse(content).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
 
-    let out = get_call_chain(&tree, content.as_bytes(), &Point::new(4, 13));
+    let out = get_call_chain(&ast, &AstPoint::new(4, 15));
     assert_eq!(
         out,
-        Some(vec![
+        vec![
             CallItem::This {
-                range: Range {
-                    start_byte: 78,
-                    end_byte: 82,
-                    start_point: Point { row: 4, column: 6 },
-                    end_point: Point { row: 4, column: 10 }
+                range: AstRange {
+                    start: AstPoint { line: 4, col: 6 },
+                    end: AstPoint { line: 4, col: 10 }
                 }
             },
             CallItem::FieldAccess {
-                name: "asd".to_string(),
-                range: Range {
-                    start_byte: 83,
-                    end_byte: 86,
-                    start_point: Point { row: 4, column: 11 },
-                    end_point: Point { row: 4, column: 14 }
+                name: "asd".into(),
+                range: AstRange {
+                    start: AstPoint { line: 4, col: 11 },
+                    end: AstPoint { line: 4, col: 14 }
                 }
             },
-        ])
+        ]
     );
 }

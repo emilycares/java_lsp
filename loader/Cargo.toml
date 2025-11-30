@@ -1,0 +1,21 @@
+[package]
+name = "loader"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+documentation.workspace = true
+readme.workspace = true
+license.workspace = true
+
+[dependencies]
+parser = { path = "../parser"}
+my_string = { path = "../my_string"}
+classfile-parser.workspace = true
+jwalk.workspace = true
+rc-zip-tokio.workspace = true
+itertools.workspace = true
+postcard.workspace = true
+rayon.workspace = true
+tokio.workspace = true

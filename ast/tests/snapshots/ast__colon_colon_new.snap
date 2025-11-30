@@ -1,0 +1,61 @@
+---
+source: ast/tests/ast.rs
+expression: parsed
+---
+(
+    [
+        Recursive(
+            AstRecursiveExpression {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 0,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 4,
+                    },
+                },
+                ident: Some(
+                    Identifier(
+                        AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 0,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 4,
+                                },
+                            },
+                            value: "byte",
+                        },
+                    ),
+                ),
+                values: None,
+                operator: None,
+            },
+        ),
+        Recursive(
+            AstRecursiveExpression {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 4,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 6,
+                    },
+                },
+                ident: Some(
+                    EmptyArrayAccess,
+                ),
+                values: None,
+                operator: None,
+            },
+        ),
+    ],
+    3,
+)

@@ -1,0 +1,60 @@
+---
+source: variables/src/lib.rs
+expression: out
+---
+[
+    LocalVariable {
+        level: 2,
+        jtype: Class(
+            "String",
+        ),
+        name: "options",
+        is_fun: true,
+        range: AstRange {
+            start: AstPoint {
+                line: 3,
+                col: 4,
+            },
+            end: AstPoint {
+                line: 7,
+                col: 5,
+            },
+        },
+    },
+    LocalVariable {
+        level: 2,
+        jtype: Class(
+            "String",
+        ),
+        name: "outer",
+        is_fun: false,
+        range: AstRange {
+            start: AstPoint {
+                line: 4,
+                col: 26,
+            },
+            end: AstPoint {
+                line: 4,
+                col: 44,
+            },
+        },
+    },
+    LocalVariable {
+        level: 3,
+        jtype: Class(
+            "String",
+        ),
+        name: "inner",
+        is_fun: false,
+        range: AstRange {
+            start: AstPoint {
+                line: 5,
+                col: 6,
+            },
+            end: AstPoint {
+                line: 5,
+                col: 22,
+            },
+        },
+    },
+]

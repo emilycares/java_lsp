@@ -1,0 +1,126 @@
+---
+source: ast/tests/ast.rs
+expression: parsed.unwrap()
+---
+(
+    AstLambda {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 16,
+            },
+        },
+        parameters: AstLambdaParameters {
+            range: AstRange {
+                start: AstPoint {
+                    line: 0,
+                    col: 0,
+                },
+                end: AstPoint {
+                    line: 0,
+                    col: 9,
+                },
+            },
+            values: [
+                AstLambdaParameter {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 0,
+                            col: 1,
+                        },
+                        end: AstPoint {
+                            line: 0,
+                            col: 2,
+                        },
+                    },
+                    jtype: None,
+                    name: AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 1,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 2,
+                            },
+                        },
+                        value: "a",
+                    },
+                },
+                AstLambdaParameter {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 0,
+                            col: 4,
+                        },
+                        end: AstPoint {
+                            line: 0,
+                            col: 5,
+                        },
+                    },
+                    jtype: None,
+                    name: AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 4,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 5,
+                            },
+                        },
+                        value: "b",
+                    },
+                },
+                AstLambdaParameter {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 0,
+                            col: 7,
+                        },
+                        end: AstPoint {
+                            line: 0,
+                            col: 8,
+                        },
+                    },
+                    jtype: None,
+                    name: AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 7,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 8,
+                            },
+                        },
+                        value: "c",
+                    },
+                },
+            ],
+        },
+        rhs: Block(
+            AstBlock {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 13,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 16,
+                    },
+                },
+                entries: [],
+            },
+        ),
+    },
+    10,
+)

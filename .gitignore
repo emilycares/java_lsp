@@ -7,3 +7,6 @@ perf.data
 perf.data.old
 bench/target
 .direnv
+.vscode
+result
+.vs

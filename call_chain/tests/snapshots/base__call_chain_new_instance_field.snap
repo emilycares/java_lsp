@@ -1,0 +1,32 @@
+---
+source: call_chain/tests/base.rs
+expression: out
+---
+[
+    Class {
+        name: "String",
+        range: AstRange {
+            start: AstPoint {
+                line: 4,
+                col: 8,
+            },
+            end: AstPoint {
+                line: 4,
+                col: 20,
+            },
+        },
+    },
+    FieldAccess {
+        name: "a",
+        range: AstRange {
+            start: AstPoint {
+                line: 4,
+                col: 21,
+            },
+            end: AstPoint {
+                line: 4,
+                col: 22,
+            },
+        },
+    },
+]

@@ -1,16 +1,19 @@
 use std::str::FromStr;
 
+use ast::types::AstPoint;
 use call_chain::CallItem;
 use document::{Document, DocumentError};
 use lsp_types::{GotoDefinitionResponse, Location, Uri};
+use my_string::MyString;
 use parser::dto::{self, ImportUnit};
 use position::PositionSymbol;
-use tree_sitter::Point;
-use tree_sitter_util::lsp::to_lsp_range;
 use tyres::TyresError;
 use variables::LocalVariable;
 
-use crate::hover::{ClassActionError, class_action};
+use crate::{
+    codeaction::to_lsp_range,
+    hover::{ClassActionError, class_action},
+};
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -28,32 +31,29 @@ pub enum DefinitionError {
 }
 pub struct DefinitionContext<'a> {
     pub document_uri: Uri,
-    pub point: &'a Point,
+    pub point: &'a AstPoint,
     pub vars: &'a [LocalVariable],
     pub imports: &'a [ImportUnit],
     pub class: &'a dto::Class,
-    pub class_map: &'a dashmap::DashMap<String, dto::Class>,
-    pub document_map: &'a dashmap::DashMap<String, Document>,
+    pub class_map: &'a dashmap::DashMap<MyString, dto::Class>,
+    pub document_map: &'a dashmap::DashMap<MyString, Document>,
 }
 
 pub fn class(
     document: &Document,
     context: &DefinitionContext,
 ) -> Result<GotoDefinitionResponse, DefinitionError> {
-    let tree = &document.tree;
-    let bytes = document.as_bytes();
+    let ast = &document.ast;
 
     match class_action(
-        tree,
-        bytes,
+        ast,
         context.point,
         context.vars,
         context.imports,
         context.class_map,
     ) {
         Ok((class, _range)) => {
-            let source_file = get_source_content(&class.source, context.document_map)?;
-            let ranges = position::get_class_position(source_file.as_bytes(), &class.name)
+            let ranges = position::get_class_position_ast(ast, Some(&class.name))
                 .map_err(DefinitionError::Position)?;
             let uri = class_to_uri(&class)?;
             Ok(go_to_definition_range(uri, ranges))
@@ -79,6 +79,20 @@ pub fn call_chain_definition(
     )
     .map_err(DefinitionError::Tyres)?;
     match relevat.get(item) {
+        Some(CallItem::This { range: _ }) => {
+            let uri = source_to_uri(&resolve_state.class.source)?;
+            let content = get_source_content(&resolve_state.class.source, context.document_map)?;
+            let ranges = position::get_class_position_str(&content, None)
+                .map_err(DefinitionError::Position)?;
+            Ok(go_to_definition_range(uri, ranges))
+        }
+        Some(CallItem::Class { name, range: _ }) => {
+            let uri = source_to_uri(&resolve_state.class.source)?;
+            let content = get_source_content(&resolve_state.class.source, context.document_map)?;
+            let ranges = position::get_class_position_str(&content, Some(name))
+                .map_err(DefinitionError::Position)?;
+            Ok(go_to_definition_range(uri, ranges))
+        }
         Some(CallItem::MethodCall { name, range: _ }) => {
             let source_file = match resolve_state
                 .class
@@ -122,12 +136,12 @@ pub fn call_chain_definition(
                 .map(|v| v.range)
             else {
                 return Err(DefinitionError::LocalVariableNotFound {
-                    name: name.to_owned(),
+                    name: name.to_string(),
                 });
             };
             Ok(GotoDefinitionResponse::Scalar(Location {
                 uri: context.document_uri.clone(),
-                range: to_lsp_range(range),
+                range: to_lsp_range(&range),
             }))
         }
         Some(CallItem::ClassOrVariable { name, range: _ }) => {
@@ -146,26 +160,25 @@ pub fn call_chain_definition(
             filled_params,
             range: _,
         }) => {
-            if let Some(active_param) = active_param {
-                if let Some(current_param) = filled_params.get(*active_param) {
-                    return call_chain_definition(current_param, context);
-                }
+            if let Some(active_param) = active_param
+                && let Some(current_param) = filled_params.get(*active_param)
+            {
+                return call_chain_definition(current_param, context);
             }
             Err(DefinitionError::ArgumentNotFound)
         }
-        Some(a) => unimplemented!("call_chain_definition {a:?}"),
+        Some(CallItem::Package { range: _, name: _ }) => todo!(),
         None => Err(DefinitionError::ValidatedItemDoesNotExists),
     }
 }
 
 pub fn get_source_content(
     source: &str,
-    document_map: &dashmap::DashMap<String, Document>,
+    document_map: &dashmap::DashMap<MyString, Document>,
 ) -> Result<String, DefinitionError> {
     let uri = source_to_uri(source)?;
-    match document::read_document_or_open_class(source, "".to_string(), document_map, uri.as_str())
-    {
-        document::ClassSource::Owned(d) => Ok(d.str_data.clone()),
+    match document::read_document_or_open_class(source, "".into(), document_map, uri.as_str()) {
+        document::ClassSource::Owned(d) => Ok(d.str_data),
 
         document::ClassSource::Ref(d) => Ok(d.str_data.clone()),
         document::ClassSource::Err(e) => Err(DefinitionError::Document(e)),
@@ -216,7 +229,6 @@ mod tests {
     use std::path::PathBuf;
 
     use dashmap::DashMap;
-    use parser::loader::SourceDestination;
 
     use super::*;
 
@@ -233,20 +245,19 @@ public class Test {
     }
 }
         "#;
-        let point = Point::new(6, 16);
-        let bytes = content.as_bytes();
+        let point = AstPoint::new(6, 16);
         let document = Document::setup(
             content,
             PathBuf::from_str("/Test.java").unwrap(),
-            "ch.emilycares.Test".to_string(),
+            "ch.emilycares.Test".into(),
         )
         .unwrap();
         let document_uri = Uri::from_str("file:///Test.java").unwrap();
         let class =
-            parser::java::load_java_tree(bytes, SourceDestination::None, &document.tree).unwrap();
-        let vars = variables::get_vars(&document, &point).unwrap();
+            parser::java::load_java_tree(&document.ast, parser::SourceDestination::None).unwrap();
+        let vars = variables::get_vars(&document.ast, &point).unwrap();
         let imports = imports::imports(&document);
-        let call_chain = call_chain::get_call_chain(&document.tree, bytes, &point).unwrap();
+        let call_chain = call_chain::get_call_chain(&document.ast, &point);
         let context = DefinitionContext {
             document_uri,
             point: &point,
@@ -275,20 +286,19 @@ public class Test {
     }
 }
         "#;
-        let point = Point::new(8, 24);
-        let bytes = content.as_bytes();
+        let point = AstPoint::new(8, 24);
         let document = Document::setup(
             content,
             PathBuf::from_str("/Test.java").unwrap(),
-            "ch.emilycares.Test".to_string(),
+            "ch.emilycares.Test".into(),
         )
         .unwrap();
         let document_uri = Uri::from_str("file:///Test.java").unwrap();
         let class =
-            parser::java::load_java_tree(bytes, SourceDestination::None, &document.tree).unwrap();
-        let vars = variables::get_vars(&document, &point).unwrap();
+            parser::java::load_java_tree(&document.ast, parser::SourceDestination::None).unwrap();
+        let vars = variables::get_vars(&document.ast, &point).unwrap();
         let imports = imports::imports(&document);
-        let call_chain = call_chain::get_call_chain(&document.tree, bytes, &point).unwrap();
+        let call_chain = call_chain::get_call_chain(&document.ast, &point);
         let context = DefinitionContext {
             document_uri,
             point: &point,
@@ -301,17 +311,17 @@ public class Test {
         let out = call_chain_definition(&call_chain, &context);
         assert!(out.is_err());
     }
-    fn get_class_map() -> DashMap<String, dto::Class> {
-        let class_map: DashMap<String, dto::Class> = DashMap::new();
+    fn get_class_map() -> DashMap<MyString, dto::Class> {
+        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
         class_map.insert(
-            "org.jboss.logging.Logger".to_string(),
+            "org.jboss.logging.Logger".into(),
             dto::Class {
-                source: "/Logger.java".to_string(),
-                access: vec![dto::Access::Public],
-                name: "Logger".to_string(),
+                source: "/Logger.java".into(),
+                access: dto::Access::Public,
+                name: "Logger".into(),
                 methods: vec![dto::Method {
-                    access: vec![dto::Access::Public],
-                    name: "info".to_string(),
+                    access: dto::Access::Public,
+                    name: "info".into(),
                     ret: dto::JType::Void,
                     ..Default::default()
                 }],
@@ -319,43 +329,43 @@ public class Test {
             },
         );
         class_map.insert(
-            "java.util.List".to_string(),
+            "java.util.List".into(),
             dto::Class {
-                source: "/List.java".to_string(),
-                access: vec![dto::Access::Public],
-                name: "List".to_string(),
+                source: "/List.java".into(),
+                access: dto::Access::Public,
+                name: "List".into(),
                 methods: vec![dto::Method {
-                    access: vec![dto::Access::Public],
-                    name: "stream".to_string(),
-                    ret: dto::JType::Class("java.util.stream.Stream".to_string()),
+                    access: dto::Access::Public,
+                    name: "stream".into(),
+                    ret: dto::JType::Class("java.util.stream.Stream".into()),
                     ..Default::default()
                 }],
                 ..Default::default()
             },
         );
         class_map.insert(
-            "java.util.stream.Stream".to_string(),
+            "java.util.stream.Stream".into(),
             dto::Class {
-                source: "/Stream.java".to_string(),
-                access: vec![dto::Access::Public],
-                name: "Stream".to_string(),
+                source: "/Stream.java".into(),
+                access: dto::Access::Public,
+                name: "Stream".into(),
                 methods: vec![dto::Method {
-                    access: vec![dto::Access::Public],
-                    name: "map".to_string(),
-                    ret: dto::JType::Class("java.util.stream.Stream".to_string()),
+                    access: dto::Access::Public,
+                    name: "map".into(),
+                    ret: dto::JType::Class("java.util.stream.Stream".into()),
                     ..Default::default()
                 }],
                 ..Default::default()
             },
         );
         class_map.insert(
-            "java.lang.String".to_string(),
+            "java.lang.String".into(),
             dto::Class {
-                access: vec![dto::Access::Public],
-                name: "String".to_string(),
+                access: dto::Access::Public,
+                name: "String".into(),
                 methods: vec![dto::Method {
-                    access: vec![dto::Access::Public],
-                    name: "length".to_string(),
+                    access: dto::Access::Public,
+                    name: "length".into(),
                     ret: dto::JType::Int,
                     ..Default::default()
                 }],

@@ -1,0 +1,102 @@
+---
+source: ast/tests/ast.rs
+expression: ast
+snapshot_kind: text
+---
+(
+    [
+        Recursive(
+            AstRecursiveExpression {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 0,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 7,
+                    },
+                },
+                ident: Some(
+                    Identifier(
+                        AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 0,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 7,
+                                },
+                            },
+                            value: "numbers",
+                        },
+                    ),
+                ),
+                values: None,
+                operator: None,
+            },
+        ),
+        Recursive(
+            AstRecursiveExpression {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 7,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 10,
+                    },
+                },
+                ident: Some(
+                    ArrayAccess(
+                        [
+                            Recursive(
+                                AstRecursiveExpression {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 0,
+                                            col: 9,
+                                        },
+                                        end: AstPoint {
+                                            line: 0,
+                                            col: 10,
+                                        },
+                                    },
+                                    ident: Some(
+                                        Value(
+                                            Nuget(
+                                                Int(
+                                                    AstInt {
+                                                        range: AstRange {
+                                                            start: AstPoint {
+                                                                line: 0,
+                                                                col: 9,
+                                                            },
+                                                            end: AstPoint {
+                                                                line: 0,
+                                                                col: 10,
+                                                            },
+                                                        },
+                                                        value: "0",
+                                                    },
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                    values: None,
+                                    operator: None,
+                                },
+                            ),
+                        ],
+                    ),
+                ),
+                values: None,
+                operator: None,
+            },
+        ),
+    ],
+    4,
+)

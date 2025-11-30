@@ -1,3 +1,6 @@
+#![deny(warnings)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::redundant_clone)]
 use std::process::Command;
 
 use nom::{
@@ -87,7 +90,7 @@ src/main/java/org/acme/GreetingResource.java:15: error: > or ',' expected
                                              ^
 1 error
           ";
-        let out = parse_compile_errors(input).unwrap();
+        let out = parse_compile_errors(input).expect("test");
         assert_eq!(
             out.1,
             vec![
@@ -110,7 +113,7 @@ src/main/java/org/acme/GreetingResource.java:15: error: > or ',' expected
     #[test]
     fn parse_compile_errors_real() {
         let input = "/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java:16: error: > or ',' expected\n\tvar hash = new HashMap<String, String();\n\t                                     ^\n1 error\n";
-        let out = parse_compile_errors(input).unwrap();
+        let out = parse_compile_errors(input).expect("test");
         assert_eq!(out.1, vec![
             CompileError {
                 path: "/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java".to_string(),

@@ -1,0 +1,75 @@
+---
+source: ast/tests/ast.rs
+expression: parsed
+---
+(
+    AstJType {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 15,
+            },
+        },
+        value: Access {
+            base: AstJType {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 0,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 9,
+                    },
+                },
+                value: Class(
+                    AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 0,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 9,
+                            },
+                        },
+                        value: "Something",
+                    },
+                ),
+            },
+            inner: AstJType {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 10,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 15,
+                    },
+                },
+                value: Class(
+                    AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 10,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 15,
+                            },
+                        },
+                        value: "Inner",
+                    },
+                ),
+            },
+        },
+    },
+    3,
+)

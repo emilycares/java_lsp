@@ -1,7 +1,7 @@
 use std::path::{MAIN_SEPARATOR, MAIN_SEPARATOR_STR};
 
+use crate::SourceDestination;
 use crate::dto::{self, ClassError, ImportUnit, JType, Parameter};
-use crate::loader::SourceDestination;
 use classfile_parser::attribute_info::{AttributeInfo, CodeAttribute};
 use classfile_parser::code_attribute::LocalVariableTableAttribute;
 use classfile_parser::constant_info::ConstantInfo;
@@ -9,10 +9,11 @@ use classfile_parser::field_info::{FieldAccessFlags, FieldInfo};
 use classfile_parser::method_info::MethodAccessFlags;
 use classfile_parser::{ClassAccessFlags, ClassFile, class_parser};
 use itertools::Itertools;
+use my_string::MyString;
 
 pub fn load_class(
     bytes: &[u8],
-    class_path: String,
+    class_path: MyString,
     source: SourceDestination,
 ) -> Result<dto::Class, dto::ClassError> {
     let res = class_parser(bytes);
@@ -64,8 +65,10 @@ pub fn load_class(
                 .collect();
 
             let name = lookup_class_name(&c, c.this_class.into()).expect("Class should have name");
-            let package = class_path.trim_end_matches(&name).trim_end_matches(".");
-            let mut imports = vec![ImportUnit::Package(package.to_string())];
+            let package = class_path
+                .trim_end_matches(name.as_str())
+                .trim_end_matches(".");
+            let mut imports = vec![ImportUnit::Package(package.into())];
             imports.extend(
                 used_classes
                     .into_iter()
@@ -82,7 +85,7 @@ pub fn load_class(
                     &class_path.replace(".", MAIN_SEPARATOR_STR)
                 ),
                 SourceDestination::Here(e) => e,
-                SourceDestination::None => "".to_string(),
+                SourceDestination::None => "".into(),
             };
             let super_interfaces: Vec<_> = c
                 .interfaces
@@ -113,13 +116,13 @@ pub fn load_class(
     }
 }
 
-fn lookup_class_name(c: &ClassFile, index: usize) -> Option<String> {
+fn lookup_class_name(c: &ClassFile, index: usize) -> Option<MyString> {
     match c.const_pool.get(index.saturating_sub(1)) {
         Some(ConstantInfo::Class(class)) => lookup_string(c, class.name_index)
             .expect("Class to have name")
             .split("/")
             .last()
-            .map(|a| a.to_string()),
+            .map(|a| a.into()),
         _ => None,
     }
 }
@@ -202,7 +205,7 @@ fn parse_method(
                 })
                 .filter_map(|name| {
                     if let Some((_, name)) = name.rsplit_once("/") {
-                        return Some(name.to_string());
+                        return Some(name.into());
                     }
                     None
                 })
@@ -219,7 +222,7 @@ fn parse_method(
     })
 }
 
-fn parse_used_classes(c: &ClassFile, code_attribute: Option<CodeAttribute>) -> Vec<String> {
+fn parse_used_classes(c: &ClassFile, code_attribute: Option<CodeAttribute>) -> Vec<MyString> {
     if let Some(code_attribute) = code_attribute {
         let local_variable_table_attributes: Vec<LocalVariableTableAttribute> = code_attribute
             .attributes
@@ -251,16 +254,11 @@ fn parse_used_classes(c: &ClassFile, code_attribute: Option<CodeAttribute>) -> V
     vec![]
 }
 
-fn jtype_class_names(i: JType) -> Vec<String> {
+fn jtype_class_names(i: JType) -> Vec<MyString> {
     match i {
         JType::Class(class) => vec![class],
         JType::Array(jtype) => jtype_class_names(*jtype),
-        JType::Generic(class, jtypes) => {
-            let mut out = vec![class];
-            let e: Vec<String> = jtypes.into_iter().flat_map(jtype_class_names).collect();
-            out.extend(e);
-            out
-        }
+        JType::Generic(_class, jtypes) => jtypes.into_iter().flat_map(jtype_class_names).collect(),
         _ => vec![],
     }
 }
@@ -280,88 +278,88 @@ fn parse_code_attribute(c: &ClassFile, attributes: &[AttributeInfo]) -> Option<C
         .map(|i| i.1)
 }
 
-fn parse_class_access(flags: ClassAccessFlags) -> Vec<dto::Access> {
-    let mut access = vec![];
+fn parse_class_access(flags: ClassAccessFlags) -> dto::Access {
+    let mut access = dto::Access::empty();
     if flags == ClassAccessFlags::PUBLIC {
-        access.push(dto::Access::Public);
+        access.insert(dto::Access::Public);
     }
     if flags == ClassAccessFlags::FINAL {
-        access.push(dto::Access::Final);
+        access.insert(dto::Access::Final);
     }
     if flags == ClassAccessFlags::SUPER {
-        access.push(dto::Access::Super);
+        access.insert(dto::Access::Super);
     }
     if flags == ClassAccessFlags::INTERFACE {
-        access.push(dto::Access::Interface);
+        access.insert(dto::Access::Interface);
     }
     if flags == ClassAccessFlags::SYNTHETIC {
-        access.push(dto::Access::Synthetic);
+        access.insert(dto::Access::Synthetic);
     }
     if flags == ClassAccessFlags::ANNOTATION {
-        access.push(dto::Access::Annotation);
+        access.insert(dto::Access::Annotation);
     }
     if flags == ClassAccessFlags::ENUM {
-        access.push(dto::Access::Enum);
+        access.insert(dto::Access::Enum);
     }
     access
 }
 
-fn parse_method_access(method: &classfile_parser::method_info::MethodInfo) -> Vec<dto::Access> {
-    let mut access = vec![];
+fn parse_method_access(method: &classfile_parser::method_info::MethodInfo) -> dto::Access {
+    let mut access = dto::Access::empty();
     if method.access_flags == MethodAccessFlags::PUBLIC {
-        access.push(dto::Access::Public);
+        access.insert(dto::Access::Public);
     }
     if method.access_flags == MethodAccessFlags::PRIVATE {
-        access.push(dto::Access::Private);
+        access.insert(dto::Access::Private);
     }
     if method.access_flags == MethodAccessFlags::PROTECTED {
-        access.push(dto::Access::Protected);
+        access.insert(dto::Access::Protected);
     }
     if method.access_flags == MethodAccessFlags::STATIC {
-        access.push(dto::Access::Static);
+        access.insert(dto::Access::Static);
     }
     if method.access_flags == MethodAccessFlags::FINAL {
-        access.push(dto::Access::Final);
+        access.insert(dto::Access::Final);
     }
     if method.access_flags == MethodAccessFlags::ABSTRACT {
-        access.push(dto::Access::Abstract);
+        access.insert(dto::Access::Abstract);
     }
     if method.access_flags == MethodAccessFlags::SYNTHETIC {
-        access.push(dto::Access::Synthetic);
+        access.insert(dto::Access::Synthetic);
     }
     access
 }
 
-fn parse_field_access(method: &FieldInfo) -> Vec<dto::Access> {
-    let mut access = vec![];
+fn parse_field_access(method: &FieldInfo) -> dto::Access {
+    let mut access = dto::Access::empty();
     if method.access_flags == FieldAccessFlags::PUBLIC {
-        access.push(dto::Access::Public);
+        access.insert(dto::Access::Public);
     }
     if method.access_flags == FieldAccessFlags::PRIVATE {
-        access.push(dto::Access::Private);
+        access.insert(dto::Access::Private);
     }
     if method.access_flags == FieldAccessFlags::PROTECTED {
-        access.push(dto::Access::Protected);
+        access.insert(dto::Access::Protected);
     }
     if method.access_flags == FieldAccessFlags::STATIC {
-        access.push(dto::Access::Static);
+        access.insert(dto::Access::Static);
     }
     if method.access_flags == FieldAccessFlags::FINAL {
-        access.push(dto::Access::Final);
+        access.insert(dto::Access::Final);
     }
     if method.access_flags == FieldAccessFlags::SYNTHETIC {
-        access.push(dto::Access::Synthetic);
+        access.insert(dto::Access::Synthetic);
     }
     access
 }
 
-fn lookup_string(c: &ClassFile, index: u16) -> Option<String> {
+fn lookup_string(c: &ClassFile, index: u16) -> Option<MyString> {
     if index == 0 {
         return None;
     }
     let con = &c.const_pool[(index - 1) as usize];
     match con {
-        ConstantInfo::Utf8(utf8) => Some(utf8.utf8_string.clone()),
+        ConstantInfo::Utf8(utf8) => Some((&utf8.utf8_string).into()),
         _ => None,
     }
 }
@@ -429,143 +427,66 @@ fn parse_field_type(c: Option<char>, chars: &mut std::str::Chars) -> dto::JType 
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        class::load_class,
-        dto::{self, ImportUnit, SuperClass},
-        loader::SourceDestination,
-    };
-    use pretty_assertions::assert_eq;
+    use crate::{SourceDestination, class::load_class};
 
+    #[cfg(not(windows))]
     #[test]
     fn relative_source() {
         let result = load_class(
             include_bytes!("../test/Everything.class"),
-            "ch.emilycares.Everything".to_string(),
-            SourceDestination::RelativeInFolder("/source".to_string()),
-        )
-        .unwrap();
-        assert!(result.source.starts_with("/source"));
-        assert!(result.source.ends_with("Everything.java"));
+            "ch.emilycares.Everything".into(),
+            SourceDestination::RelativeInFolder("/source".into()),
+        );
+        insta::assert_debug_snapshot!(result.unwrap());
     }
 
     #[test]
     fn everything() {
         let result = load_class(
             include_bytes!("../test/Everything.class"),
-            "ch.emilycares.Everything".to_string(),
+            "ch.emilycares.Everything".into(),
             SourceDestination::None,
         );
 
-        assert_eq!(crate::tests::everything_data(), result.unwrap());
+        insta::assert_debug_snapshot!(result.unwrap());
     }
     #[test]
     fn super_base() {
         let result = load_class(
             include_bytes!("../test/Super.class"),
-            "ch.emilycares.Super".to_string(),
+            "ch.emilycares.Super".into(),
             SourceDestination::None,
         );
 
-        assert_eq!(crate::tests::super_data(), result.unwrap());
+        insta::assert_debug_snapshot!(result.unwrap());
     }
     #[test]
     fn thrower() {
         let result = load_class(
             include_bytes!("../test/Thrower.class"),
-            "ch.emilycares.Thrower".to_string(),
-            SourceDestination::Here("/path/to/source/Thrower.java".to_string()),
+            "ch.emilycares.Thrower".into(),
+            SourceDestination::Here("/path/to/source/Thrower.java".into()),
         );
-
-        let mut check = crate::java::tests::thrower_data();
-        check.imports = vec![ImportUnit::Package("ch.emilycares".to_string())];
-        assert_eq!(check, result.unwrap());
+        insta::assert_debug_snapshot!(result.unwrap());
     }
     #[test]
     fn super_interfaces() {
         let result = load_class(
             include_bytes!("../test/SuperInterface.class"),
-            "ch.emilycares.SuperInterface".to_string(),
+            "ch.emilycares.SuperInterface".into(),
             SourceDestination::None,
-        )
-        .unwrap();
-        assert_eq!(
-            result,
-            dto::Class {
-                imports: vec![
-                    ImportUnit::Package("ch.emilycares".to_string()),
-                    ImportUnit::Class("java.util.stream.Stream".to_string())
-                ],
-                class_path: "ch.emilycares.SuperInterface".to_string(),
-                name: "SuperInterface".to_string(),
-                super_interfaces: vec![
-                    SuperClass::Name("Collection".to_string()),
-                    SuperClass::Name("List".to_string())
-                ],
-                methods: vec![dto::Method {
-                    access: vec![dto::Access::Public],
-                    name: "stream".to_string(),
-                    parameters: vec![],
-                    ret: dto::JType::Class("java.util.stream.Stream".to_string()),
-                    throws: vec![],
-                    source: None,
-                },],
-                ..Default::default()
-            }
-        )
+        );
+
+        insta::assert_debug_snapshot!(result.unwrap());
     }
     #[test]
     fn variables() {
         let result = load_class(
             include_bytes!("../test/LocalVariableTable.class"),
-            "ch.emilycares.LocalVariableTable".to_string(),
+            "ch.emilycares.LocalVariableTable".into(),
             SourceDestination::None,
         );
 
-        assert_eq!(
-            dto::Class {
-                class_path: "ch.emilycares.LocalVariableTable".to_string(),
-                name: "LocalVariableTable".to_string(),
-                imports: vec![
-                    ImportUnit::Package("ch.emilycares".to_string()),
-                    ImportUnit::Class("java.util.HashMap".to_string()),
-                    ImportUnit::Class("java.util.HashSet".to_string())
-                ],
-                methods: vec![
-                    dto::Method {
-                        access: vec![dto::Access::Public],
-                        name: "hereIsCode".to_string(),
-                        parameters: vec![],
-                        ret: dto::JType::Void,
-                        throws: vec![],
-                        source: None,
-                    },
-                    dto::Method {
-                        access: vec![dto::Access::Public],
-                        name: "hereIsCode".to_string(),
-                        parameters: vec![
-                            dto::Parameter {
-                                name: Some("a".to_string()),
-                                jtype: dto::JType::Int
-                            },
-                            dto::Parameter {
-                                name: Some("b".to_string()),
-                                jtype: dto::JType::Int
-                            }
-                        ],
-                        ret: dto::JType::Int,
-                        throws: vec![],
-                        source: None,
-                    },
-                ],
-                fields: vec![dto::Field {
-                    access: vec![dto::Access::Private],
-                    name: "a".to_string(),
-                    jtype: dto::JType::Class("java.util.HashSet".to_string()),
-                    source: None,
-                },],
-                ..Default::default()
-            },
-            result.unwrap()
-        );
+        insta::assert_debug_snapshot!(result.unwrap());
     }
 }

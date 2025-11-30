@@ -1,0 +1,52 @@
+---
+source: ast/tests/ast.rs
+expression: parsed
+---
+(
+    AstFor {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 1,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 15,
+            },
+        },
+        vars: [],
+        check: [],
+        changes: [],
+        content: Block(
+            AstBlock {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 13,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 15,
+                    },
+                },
+                entries: [],
+            },
+        ),
+        label: Some(
+            AstIdentifier {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 1,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 2,
+                    },
+                },
+                value: "l",
+            },
+        ),
+    },
+    9,
+)

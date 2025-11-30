@@ -1,6 +1,6 @@
 use std::{process::Command, str::FromStr};
 
-use crate::EXECUTABLE_MAVEN;
+use crate::{EXECUTABLE_MAVEN, config::overwrite_settings_xml};
 
 #[derive(Debug)]
 pub enum MavenTreeError {
@@ -44,13 +44,10 @@ fn parser(cut: String) -> Result<Dependency, MavenTreeError> {
 
 fn get_cli_output() -> Result<String, MavenTreeError> {
     // mvn dependency:tree -DoutputType=dot
-    let output = Command::new(EXECUTABLE_MAVEN)
-        .arg("dependency:tree")
-        .arg("-DoutputType=dot")
-        // .arg("-b")
-        .output()
-        .map_err(MavenTreeError::Cli)?;
-    dbg!(String::from_utf8_lossy(&output.stderr).to_string());
+    let mut output = Command::new(EXECUTABLE_MAVEN);
+    let output = output.arg("dependency:tree").arg("-DoutputType=dot");
+    let output = overwrite_settings_xml(output);
+    let output = output.output().map_err(MavenTreeError::Cli)?;
 
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }

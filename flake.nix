@@ -2,93 +2,101 @@
   description = "java_lsp";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
+    flake-utils.url = "github:numtide/flake-utils";
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = {
-    self,
-    nixpkgs,
-    rust-overlay,
-    ...
-  }: let
-    inherit (nixpkgs) lib;
-    systems = [
-      "x86_64-linux"
-      "aarch64-linux"
-      "x86_64-darwin"
-      "aarch64-darwin"
-    ];
-    eachSystem = lib.genAttrs systems;
-    pkgsFor = eachSystem (system:
-      import nixpkgs {
-        localSystem.system = system;
-        overlays = [(import rust-overlay) self.overlays.java_lsp];
-      });
-  in {
-    packages = eachSystem (system: {
-      inherit (pkgsFor.${system}) java_lsp;
-      /*
-      The default java_lsp build. Uses the latest stable Rust toolchain, and unstable
-      nixpkgs.
-
-      The build inputs can be overridden with the following:
-
-      packages.${system}.default.override { rustPlatform = newPlatform; };
-
-      Overriding a derivation attribute can be done as well:
-
-      packages.${system}.default.overrideAttrs { buildType = "debug"; };
-      */
-      default = self.packages.${system}.java_lsp;
-    });
-    checks =
-      lib.mapAttrs (system: pkgs: let
-        # Get java_lsp's MSRV toolchain to build with by default.
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+      rust-overlay,
+      ...
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
+      let
+        inherit (nixpkgs) lib;
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [ rust-overlay.overlays.default ];
+        };
         msrvToolchain = pkgs.pkgsBuildHost.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
         msrvPlatform = pkgs.makeRustPlatform {
           cargo = msrvToolchain;
           rustc = msrvToolchain;
         };
-      in {
-        java_lsp = self.packages.${system}.java_lsp.override {
-          rustPlatform = msrvPlatform;
+
+        rustToolchain = pkgs.rust-bin.stable."1.91.1".default.override {
+          extensions = [
+            "rust-src"
+            "rust-analyzer"
+            "rustfmt"
+          ];
         };
-      })
-      pkgsFor;
-
-    # Devshell behavior is preserved.
-    devShells =
-      lib.mapAttrs (system: pkgs: {
-        default = pkgs.mkShell {
-          nativeBuildInputs = with pkgs;
-            [
-              lld
-              hyperfine
-              cargo-flamegraph
-              cargo-nextest
-              cargo-insta
-            ]
-            ++ (lib.optional (stdenv.isx86_64 && stdenv.isLinux) cargo-tarpaulin)
-            ++ (lib.optional stdenv.isLinux lldb)
-            ++ (lib.optional stdenv.isDarwin darwin.apple_sdk.frameworks.CoreFoundation);
-          shellHook = ''
-            export RUST_BACKTRACE="1"
-            export RUSTFLAGS="''${RUSTFLAGS:-""}"
-          '';
+      in
+      {
+        packages = {
+          java_lsp = pkgs.callPackage ./default.nix { inherit lib; };
+          default = self.packages.${system}.java_lsp;
         };
-      })
-      pkgsFor;
+        checks = {
+          java_lsp = self.packages.${system}.java_lsp.override {
+            rustPlatform = msrvPlatform;
+          };
+        };
 
-    overlays = {
-      java_lsp = final: prev: {
-        java_lsp = final.callPackage ./default.nix {inherit lib;};
-      };
+        devShells = {
+          default = pkgs.mkShell {
+            buildInputs = [
+              rustToolchain
+            ];
+            nativeBuildInputs =
+              with pkgs;
+              [
+                javaPackages.compiler.openjdk25
+                lld_21
+                gdb
+                hyperfine
+                cargo-flamegraph
+                cargo-nextest
+                cargo-insta
+                just
+              ]
+              ++ (lib.optional (stdenv.isx86_64 && stdenv.isLinux) cargo-tarpaulin)
+              ++ (lib.optional stdenv.isLinux lldb)
+              ++ (lib.optional stdenv.isDarwin darwin.apple_sdk.frameworks.CoreFoundation);
+            shellHook = ''
+              export RUST_BACKTRACE="1"
+              export RUSTFLAGS="''${RUSTFLAGS:-""}"
+            '';
+          };
+          check_jdk = pkgs.mkShell {
+            inputsFrom = [ ];
 
-      default = self.overlays.java_lsp;
-    };
-  };
+            nativeBuildInputs =
+              with pkgs;
+              [
+                javaPackages.compiler.openjdk25
+              ]
+              ++ [
+                self.checks.${system}.java_lsp
+              ];
+          };
+        };
+
+        overlays = {
+          java_lsp = final: prev: {
+            java_lsp = final.callPackage ./default.nix { inherit lib; };
+          };
+
+          default = self.overlays.java_lsp;
+        };
+      }
+    );
 }

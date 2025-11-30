@@ -1,0 +1,74 @@
+---
+source: ast/tests/ast.rs
+expression: parsed.unwrap()
+---
+(
+    AstLambda {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 8,
+            },
+        },
+        parameters: AstLambdaParameters {
+            range: AstRange {
+                start: AstPoint {
+                    line: 0,
+                    col: 0,
+                },
+                end: AstPoint {
+                    line: 0,
+                    col: 1,
+                },
+            },
+            values: [
+                AstLambdaParameter {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 0,
+                            col: 0,
+                        },
+                        end: AstPoint {
+                            line: 0,
+                            col: 1,
+                        },
+                    },
+                    jtype: None,
+                    name: AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 0,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 1,
+                            },
+                        },
+                        value: "n",
+                    },
+                },
+            ],
+        },
+        rhs: Block(
+            AstBlock {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 5,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 8,
+                    },
+                },
+                entries: [],
+            },
+        ),
+    },
+    4,
+)

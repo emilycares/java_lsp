@@ -10,7 +10,8 @@ use std::{
 
 use common::TaskProgress;
 use dashmap::DashMap;
-use parser::{dto::ClassFolder, loader::SourceDestination};
+use my_string::MyString;
+use parser::{SourceDestination, dto::ClassFolder};
 use tokio::task::JoinSet;
 
 use crate::tree::GradleTreeError;
@@ -35,13 +36,13 @@ pub(crate) const PATH_GRADLE: &str = "./gradlew.bat";
 const GRADLE_CFC: &str = ".gradle.cfc";
 
 pub async fn fetch_deps(
-    class_map: &DashMap<std::string::String, parser::dto::Class>,
+    class_map: &DashMap<MyString, parser::dto::Class>,
     build_gradle: PathBuf,
     sender: tokio::sync::watch::Sender<TaskProgress>,
 ) -> Result<(), GradleFetchError> {
     let path = Path::new(&GRADLE_CFC);
     if path.exists() {
-        if let Ok(classes) = parser::loader::load_class_folder(path) {
+        if let Ok(classes) = loader::load_class_folder(path) {
             for class in classes.classes {
                 class_map.insert(class.class_path.clone(), class);
             }
@@ -57,17 +58,17 @@ pub async fn fetch_deps(
         let jars: Vec<PathBuf> = o
             .filter_map(|i| i.ok())
             .filter(|i| {
-                if let Ok(ft) = i.file_type() {
-                    if ft.is_file() {
-                        return true;
-                    }
+                if let Ok(ft) = i.file_type()
+                    && ft.is_file()
+                {
+                    return true;
                 }
                 false
             })
             .filter(|i| i.file_name().to_string_lossy().ends_with(".jar"))
             .map(|i| i.path())
             .collect();
-        let tasks_number = jars.len();
+        let tasks_number = jars.len() + 1;
         let completed_number = Arc::new(AtomicUsize::new(0));
 
         for jar in jars {
@@ -80,11 +81,11 @@ pub async fn fetch_deps(
 
             let current_name = jar.display().to_string();
             handles.spawn(async move {
-                match parser::loader::load_classes_jar(jar, SourceDestination::None, None).await {
+                match loader::load_classes_jar(jar, SourceDestination::None).await {
                     Ok(classes) => {
                         let a = completed_number.fetch_add(1, Ordering::Relaxed);
                         let _ = sender.send(TaskProgress {
-                            persentage: (100 * a) / tasks_number,
+                            persentage: (100 * a) / (tasks_number + 1),
                             error: false,
                             message: current_name,
                         });
@@ -104,7 +105,7 @@ pub async fn fetch_deps(
     let gradle_class_folder = ClassFolder {
         classes: done.into_iter().flatten().flat_map(|i| i.classes).collect(),
     };
-    if let Err(e) = parser::loader::save_class_folder(GRADLE_CFC, &gradle_class_folder) {
+    if let Err(e) = loader::save_class_folder(GRADLE_CFC, &gradle_class_folder) {
         eprintln!("Failed to save {GRADLE_CFC} because: {e:?}");
     };
     for class in gradle_class_folder.classes {

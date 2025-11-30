@@ -1,0 +1,77 @@
+---
+source: ast/tests/ast.rs
+expression: parsed
+---
+(
+    AstJType {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 10,
+            },
+        },
+        value: Array(
+            AstJType {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 0,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 8,
+                    },
+                },
+                value: Generic(
+                    AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 0,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 5,
+                            },
+                        },
+                        value: "Entry",
+                    },
+                    [
+                        AstJType {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 6,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 7,
+                                },
+                            },
+                            value: Class(
+                                AstIdentifier {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 0,
+                                            col: 6,
+                                        },
+                                        end: AstPoint {
+                                            line: 0,
+                                            col: 7,
+                                        },
+                                    },
+                                    value: "T",
+                                },
+                            ),
+                        },
+                    ],
+                ),
+            },
+        ),
+    },
+    6,
+)

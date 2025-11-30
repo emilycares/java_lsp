@@ -1,0 +1,193 @@
+#![deny(warnings)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::redundant_clone)]
+use std::{
+    fs::{self, OpenOptions},
+    io::Write,
+    path::{MAIN_SEPARATOR, Path, PathBuf},
+};
+
+use jwalk::WalkDir;
+use my_string::MyString;
+use parser::{
+    SourceDestination,
+    class::{self, load_class},
+    dto::{self, Class, ClassError, ClassFolder},
+    java::{self, ParseJavaError},
+};
+use rayon::iter::{ParallelBridge, ParallelIterator};
+use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
+use std::fmt::Debug;
+use tokio::fs::read;
+
+#[derive(Debug)]
+pub enum LoaderError {
+    IO(std::io::Error),
+    Zip(rc_zip_tokio::rc_zip::error::Error),
+    SkipBytesStart(std::io::Error),
+    InvalidJmod(std::io::Error),
+    Postcard(postcard::Error),
+}
+
+pub fn load_class_fs<T>(
+    path: T,
+    class_path: MyString,
+    source: SourceDestination,
+) -> Result<dto::Class, dto::ClassError>
+where
+    T: AsRef<Path> + Debug,
+{
+    let bytes = std::fs::read(path).map_err(ClassError::IO)?;
+    class::load_class(&bytes, class_path, source)
+}
+
+pub fn load_java_fs<T>(path: T, source: SourceDestination) -> Result<dto::Class, ParseJavaError>
+where
+    T: AsRef<Path> + Debug,
+{
+    let bytes = std::fs::read(path).map_err(ParseJavaError::Io)?;
+    java::load_java(&bytes, source)
+}
+
+pub fn save_class_folder<P: AsRef<Path>>(
+    path: P,
+    class_folder: &dto::ClassFolder,
+) -> Result<(), LoaderError> {
+    if class_folder.classes.is_empty() {
+        return Ok(());
+    }
+    let mut file = OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .write(true)
+        .open(path)
+        .map_err(LoaderError::IO)?;
+    let data = postcard::to_allocvec(class_folder).map_err(LoaderError::Postcard)?;
+
+    let _ = file.write_all(&data);
+    Ok(())
+}
+
+pub fn load_class_folder<P: AsRef<Path>>(path: P) -> Result<dto::ClassFolder, LoaderError> {
+    let data = fs::read(path).map_err(LoaderError::IO)?;
+    let out = postcard::from_bytes(&data).map_err(LoaderError::Postcard)?;
+
+    Ok(out)
+}
+
+pub fn get_java_files_from_folder<P: AsRef<Path>>(path: P) -> Vec<String> {
+    get_files(&path, ".java")
+}
+
+pub async fn load_java_files(folder: PathBuf) -> Vec<Class> {
+    WalkDir::new(folder)
+        .into_iter()
+        .par_bridge()
+        .filter_map(|a| a.ok())
+        .filter(|e| !e.file_type().is_dir())
+        .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
+        .filter(|e| e.ends_with(".java"))
+        .filter_map(
+            |p| match load_java_fs(p.as_str(), SourceDestination::Here((&p).into())) {
+                Ok(c) => Some(c),
+                Err(e) => {
+                    eprintln!("Unable to load java: {p}: {e:?}");
+                    None
+                }
+            },
+        )
+        .collect::<Vec<_>>()
+}
+
+pub async fn load_classes_jar<P: AsRef<Path>>(
+    path: P,
+    source: SourceDestination,
+) -> Result<dto::ClassFolder, LoaderError> {
+    let buf = read(path).await.map_err(LoaderError::IO)?;
+
+    base_load_classes_zip(source, buf).await
+}
+pub async fn load_classes_jmod<P: AsRef<Path>>(
+    path: P,
+    source: SourceDestination,
+) -> Result<dto::ClassFolder, LoaderError> {
+    let mut buf = read(path).await.map_err(LoaderError::IO)?;
+    buf.drain(0..4);
+
+    base_load_classes_zip(source, buf).await
+}
+
+async fn base_load_classes_zip(
+    source: SourceDestination,
+    buf: Vec<u8>,
+) -> Result<ClassFolder, LoaderError> {
+    let zip = buf.read_zip().await.map_err(LoaderError::Zip)?;
+    let mut classes = vec![];
+
+    for entry in zip.entries() {
+        if matches!(entry.kind(), EntryKind::Directory) {
+            continue;
+        }
+        let Some(file_name) = entry.sanitized_name().map(|i| i.to_string()) else {
+            continue;
+        };
+        if !file_name.ends_with(".class") {
+            continue;
+        }
+        if file_name.ends_with("module-info.class") {
+            continue;
+        }
+
+        let class_path = file_name.trim_start_matches("/");
+        let class_path = class_path.trim_end_matches(".class");
+        let class_path = class_path.replace("/", ".");
+
+        let buf = entry.bytes().await.map_err(LoaderError::IO)?;
+
+        match load_class(buf.as_slice(), class_path, source.clone()) {
+            Ok(c) => classes.push(c),
+            Err(e) => {
+                eprintln!("Unable to load class: {file_name} {e:?}");
+            }
+        }
+    }
+
+    Ok(ClassFolder { classes })
+}
+
+pub fn load_classes<P: AsRef<Path>>(path: P, source: SourceDestination) -> dto::ClassFolder {
+    let Some(str_path) = &path.as_ref().to_str() else {
+        eprintln!("load_classes failed could not make path into str");
+        return dto::ClassFolder::default();
+    };
+    dto::ClassFolder {
+        classes: get_files(&path, ".class")
+            .into_iter()
+            .filter(|p| !p.ends_with("module-info.class"))
+            .filter_map(|p| {
+                let class_path = &p.trim_start_matches(str_path);
+                let class_path = class_path.trim_start_matches(MAIN_SEPARATOR);
+                let class_path = class_path.trim_end_matches(".class");
+                let class_path = class_path.replace(MAIN_SEPARATOR, ".");
+                match load_class_fs(p.as_str(), class_path, source.clone()) {
+                    Ok(c) => Some(c),
+                    Err(e) => {
+                        eprintln!("Unable to load class: {p}: {e:?}");
+                        None
+                    }
+                }
+            })
+            .collect(),
+    }
+}
+
+fn get_files<P: AsRef<Path>>(dir: P, ending: &str) -> Vec<String> {
+    WalkDir::new(dir)
+        .into_iter()
+        .par_bridge()
+        .filter_map(|a| a.ok())
+        .filter(|e| !e.file_type().is_dir())
+        .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
+        .filter(|e| e.ends_with(ending))
+        .collect::<Vec<_>>()
+}

@@ -17,8 +17,6 @@ lsp-server.workspace = true
 lsp-types.workspace = true
 dashmap.workspace = true
 ropey.workspace = true
-tree-sitter.workspace = true
-tree-sitter-java.workspace = true
 serde_json.workspace = true
 rayon.workspace = true
 parking_lot.workspace = true
@@ -36,7 +34,9 @@ jdk = { path = "../jdk"}
 compile = { path = "../compile"}
 call_chain = { path = "../call_chain" }
 common = { path = "../common"}
-tree-sitter-util = { path = "../tree-sitter-util" }
+ast = { path = "../ast"}
+get_class = { path = "../get_class"}
+my_string = { path = "../my_string"}
 
 [dev-dependencies]
 pretty_assertions.workspace = true

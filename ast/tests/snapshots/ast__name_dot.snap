@@ -1,0 +1,20 @@
+---
+source: ast/tests/ast.rs
+expression: parsed
+---
+(
+    AstIdentifier {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 12,
+            },
+        },
+        value: "Thing1.other",
+    },
+    3,
+)

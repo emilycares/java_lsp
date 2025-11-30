@@ -1,0 +1,67 @@
+---
+source: ast/tests/ast.rs
+expression: parsed.unwrap()
+---
+(
+    AstBlockReturn {
+        range: AstRange {
+            start: AstPoint {
+                line: 1,
+                col: 5,
+            },
+            end: AstPoint {
+                line: 1,
+                col: 25,
+            },
+        },
+        expression: Expression(
+            [
+                NewClass(
+                    AstNewClass {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 1,
+                                col: 12,
+                            },
+                            end: AstPoint {
+                                line: 1,
+                                col: 24,
+                            },
+                        },
+                        jtype: AstJType {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 1,
+                                    col: 16,
+                                },
+                                end: AstPoint {
+                                    line: 1,
+                                    col: 22,
+                                },
+                            },
+                            value: Class(
+                                AstIdentifier {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 1,
+                                            col: 16,
+                                        },
+                                        end: AstPoint {
+                                            line: 1,
+                                            col: 22,
+                                        },
+                                    },
+                                    value: "String",
+                                },
+                            ),
+                        },
+                        rhs: Parameters(
+                            [],
+                        ),
+                    },
+                ),
+            ],
+        ),
+    },
+    6,
+)

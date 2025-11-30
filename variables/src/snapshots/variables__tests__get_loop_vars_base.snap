@@ -1,0 +1,127 @@
+---
+source: variables/src/lib.rs
+expression: out
+---
+[
+    LocalVariable {
+        level: 2,
+        jtype: Void,
+        name: "hello",
+        is_fun: true,
+        range: AstRange {
+            start: AstPoint {
+                line: 3,
+                col: 4,
+            },
+            end: AstPoint {
+                line: 14,
+                col: 5,
+            },
+        },
+    },
+    LocalVariable {
+        level: 3,
+        jtype: Generic(
+            "List",
+            [
+                Class(
+                    "String",
+                ),
+            ],
+        ),
+        name: "names",
+        is_fun: false,
+        range: AstRange {
+            start: AstPoint {
+                line: 4,
+                col: 8,
+            },
+            end: AstPoint {
+                line: 4,
+                col: 46,
+            },
+        },
+    },
+    LocalVariable {
+        level: 4,
+        jtype: Int,
+        name: "i",
+        is_fun: false,
+        range: AstRange {
+            start: AstPoint {
+                line: 5,
+                col: 13,
+            },
+            end: AstPoint {
+                line: 5,
+                col: 23,
+            },
+        },
+    },
+    LocalVariable {
+        level: 6,
+        jtype: Class(
+            "String",
+        ),
+        name: "name",
+        is_fun: false,
+        range: AstRange {
+            start: AstPoint {
+                line: 6,
+                col: 15,
+            },
+            end: AstPoint {
+                line: 6,
+                col: 26,
+            },
+        },
+    },
+    LocalVariable {
+        level: 7,
+        jtype: Void,
+        name: "n",
+        is_fun: false,
+        range: AstRange {
+            start: AstPoint {
+                line: 7,
+                col: 32,
+            },
+            end: AstPoint {
+                line: 7,
+                col: 33,
+            },
+        },
+    },
+    LocalVariable {
+        level: 7,
+        jtype: Void,
+        name: "m",
+        is_fun: false,
+        range: AstRange {
+            start: AstPoint {
+                line: 7,
+                col: 35,
+            },
+            end: AstPoint {
+                line: 7,
+                col: 36,
+            },
+        },
+    },
+    LocalVariable {
+        level: 8,
+        jtype: Void,
+        name: "c",
+        is_fun: false,
+        range: AstRange {
+            start: AstPoint {
+                line: 8,
+                col: 48,
+            },
+            end: AstPoint {
+                line: 8,
+                col: 49,
+            },
+        },
+    },
+]

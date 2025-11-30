@@ -1,0 +1,142 @@
+---
+source: ast/tests/ast.rs
+expression: parsed.unwrap()
+---
+AstFile {
+    package: Some(
+        AstPackage {
+            range: AstRange {
+                start: AstPoint {
+                    line: 0,
+                    col: 0,
+                },
+                end: AstPoint {
+                    line: 0,
+                    col: 22,
+                },
+            },
+            annotated: [],
+            name: AstIdentifier {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 8,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 21,
+                    },
+                },
+                value: "ch.emilycares",
+            },
+        },
+    ),
+    imports: Some(
+        AstImports {
+            range: AstRange {
+                start: AstPoint {
+                    line: 2,
+                    col: 0,
+                },
+                end: AstPoint {
+                    line: 2,
+                    col: 27,
+                },
+            },
+            imports: [
+                AstImport {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 2,
+                            col: 0,
+                        },
+                        end: AstPoint {
+                            line: 2,
+                            col: 27,
+                        },
+                    },
+                    unit: Class(
+                        AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 2,
+                                    col: 7,
+                                },
+                                end: AstPoint {
+                                    line: 2,
+                                    col: 26,
+                                },
+                            },
+                            value: "java.io.IOException",
+                        },
+                    ),
+                },
+            ],
+        },
+    ),
+    things: [
+        Class(
+            AstClass {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 4,
+                        col: 13,
+                    },
+                    end: AstPoint {
+                        line: 5,
+                        col: 1,
+                    },
+                },
+                avaliability: AstAvailability(
+                    Public,
+                ),
+                attributes: AstThingAttributes(
+                    0x0,
+                ),
+                annotated: [],
+                name: AstIdentifier {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 4,
+                            col: 13,
+                        },
+                        end: AstPoint {
+                            line: 4,
+                            col: 18,
+                        },
+                    },
+                    value: "Super",
+                },
+                type_parameters: None,
+                superclass: [
+                    Name(
+                        AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 4,
+                                    col: 27,
+                                },
+                                end: AstPoint {
+                                    line: 4,
+                                    col: 38,
+                                },
+                            },
+                            value: "IOException",
+                        },
+                    ),
+                ],
+                implements: [],
+                permits: [],
+                block: AstClassBlock {
+                    variables: [],
+                    methods: [],
+                    constructors: [],
+                    static_blocks: [],
+                    inner: [],
+                    blocks: [],
+                },
+            },
+        ),
+    ],
+    modules: [],
+}

@@ -12,18 +12,14 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tree-sitter-util = { path = "../tree-sitter-util"}
+ast = { path = "../ast"}
+my_string = { path = "../my_string"}
 classfile-parser.workspace = true
-tree-sitter.workspace = true
-tree-sitter-java.workspace = true
-jwalk.workspace = true
-rayon.workspace = true
-postcard.workspace = true
 serde.workspace = true
 itertools.workspace = true
-rc-zip-tokio.workspace = true
-tokio.workspace = true
-phf.workspace = true
+postcard.workspace = true
+insta.workspace = true
+bitflags.workspace = true
 
 [dev-dependencies]
 pretty_assertions.workspace = true

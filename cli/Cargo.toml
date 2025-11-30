@@ -11,3 +11,7 @@ license.workspace = true
 
 [dependencies]
 clap.workspace = true
+jwalk.workspace = true
+tokio.workspace = true
+ast = { path = "../ast"}
+

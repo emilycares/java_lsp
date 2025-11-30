@@ -1,0 +1,79 @@
+---
+source: call_chain/tests/base.rs
+expression: out
+---
+[
+    ArgumentList {
+        prev: [
+            ClassOrVariable {
+                name: "local",
+                range: AstRange {
+                    start: AstPoint {
+                        line: 5,
+                        col: 8,
+                    },
+                    end: AstPoint {
+                        line: 5,
+                        col: 13,
+                    },
+                },
+            },
+            MethodCall {
+                name: "concat",
+                range: AstRange {
+                    start: AstPoint {
+                        line: 5,
+                        col: 14,
+                    },
+                    end: AstPoint {
+                        line: 5,
+                        col: 20,
+                    },
+                },
+            },
+        ],
+        active_param: Some(
+            0,
+        ),
+        filled_params: [
+            [
+                ClassOrVariable {
+                    name: "local",
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 5,
+                            col: 21,
+                        },
+                        end: AstPoint {
+                            line: 5,
+                            col: 26,
+                        },
+                    },
+                },
+            ],
+        ],
+        range: AstRange {
+            start: AstPoint {
+                line: 5,
+                col: 20,
+            },
+            end: AstPoint {
+                line: 5,
+                col: 28,
+            },
+        },
+    },
+    ClassOrVariable {
+        name: "local",
+        range: AstRange {
+            start: AstPoint {
+                line: 5,
+                col: 21,
+            },
+            end: AstPoint {
+                line: 5,
+                col: 26,
+            },
+        },
+    },
+]

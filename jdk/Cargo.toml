@@ -14,7 +14,9 @@ dashmap.workspace = true
 futures.workspace = true
 tokio.workspace = true
 dirs.workspace = true
+my_string = { path = "../my_string"}
 parser = { path = "../parser" }
+loader = {path = "../loader"}
 zip_util = { path = "../zip_util" }
 common = { path = "../common" }
 

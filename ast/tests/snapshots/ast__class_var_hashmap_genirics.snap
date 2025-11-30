@@ -1,0 +1,202 @@
+---
+source: ast/tests/ast.rs
+expression: parsed
+---
+(
+    [
+        AstClassVariable {
+            range: AstRange {
+                start: AstPoint {
+                    line: 0,
+                    col: 0,
+                },
+                end: AstPoint {
+                    line: 0,
+                    col: 75,
+                },
+            },
+            avaliability: AstAvailability(
+                Private,
+            ),
+            annotated: [],
+            name: AstIdentifier {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 50,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 57,
+                    },
+                },
+                value: "pdStore",
+            },
+            jtype: AstJType {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 8,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 49,
+                    },
+                },
+                value: Generic(
+                    AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 8,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 15,
+                            },
+                        },
+                        value: "HashMap",
+                    },
+                    [
+                        AstJType {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 16,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 22,
+                                },
+                            },
+                            value: Class(
+                                AstIdentifier {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 0,
+                                            col: 16,
+                                        },
+                                        end: AstPoint {
+                                            line: 0,
+                                            col: 22,
+                                        },
+                                    },
+                                    value: "String",
+                                },
+                            ),
+                        },
+                        AstJType {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 24,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 48,
+                                },
+                            },
+                            value: Generic(
+                                AstIdentifier {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 0,
+                                            col: 24,
+                                        },
+                                        end: AstPoint {
+                                            line: 0,
+                                            col: 28,
+                                        },
+                                    },
+                                    value: "List",
+                                },
+                                [
+                                    AstJType {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 0,
+                                                col: 29,
+                                            },
+                                            end: AstPoint {
+                                                line: 0,
+                                                col: 47,
+                                            },
+                                        },
+                                        value: Class(
+                                            AstIdentifier {
+                                                range: AstRange {
+                                                    start: AstPoint {
+                                                        line: 0,
+                                                        col: 29,
+                                                    },
+                                                    end: AstPoint {
+                                                        line: 0,
+                                                        col: 47,
+                                                    },
+                                                },
+                                                value: "PropertyDescriptor",
+                                            },
+                                        ),
+                                    },
+                                ],
+                            ),
+                        },
+                    ],
+                ),
+            },
+            expression: Some(
+                [
+                    NewClass(
+                        AstNewClass {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 60,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 75,
+                                },
+                            },
+                            jtype: AstJType {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 0,
+                                        col: 64,
+                                    },
+                                    end: AstPoint {
+                                        line: 0,
+                                        col: 73,
+                                    },
+                                },
+                                value: Generic(
+                                    AstIdentifier {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 0,
+                                                col: 64,
+                                            },
+                                            end: AstPoint {
+                                                line: 0,
+                                                col: 71,
+                                            },
+                                        },
+                                        value: "HashMap",
+                                    },
+                                    [],
+                                ),
+                            },
+                            rhs: Parameters(
+                                [],
+                            ),
+                        },
+                    ),
+                ],
+            ),
+            volatile_transient: AstVolatileTranient(
+                0x0,
+            ),
+        },
+    ],
+    19,
+)

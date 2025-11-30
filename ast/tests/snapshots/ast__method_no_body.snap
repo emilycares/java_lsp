@@ -1,0 +1,147 @@
+---
+source: ast/tests/ast.rs
+expression: parsed
+---
+(
+    AstClassMethod {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 40,
+            },
+        },
+        header: AstMethodHeader {
+            range: AstRange {
+                start: AstPoint {
+                    line: 0,
+                    col: 0,
+                },
+                end: AstPoint {
+                    line: 0,
+                    col: 39,
+                },
+            },
+            avaliability: AstAvailability(
+                Protected | Abstract,
+            ),
+            name: AstIdentifier {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 21,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 27,
+                    },
+                },
+                value: "create",
+            },
+            jtype: AstJType {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 19,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 20,
+                    },
+                },
+                value: Class(
+                    AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 19,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 20,
+                            },
+                        },
+                        value: "T",
+                    },
+                ),
+            },
+            parameters: AstMethodParamerters {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 27,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 39,
+                    },
+                },
+                parameters: [
+                    AstMethodParamerter {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 28,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 38,
+                            },
+                        },
+                        annotated: [],
+                        jtype: AstJType {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 28,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 34,
+                                },
+                            },
+                            value: Class(
+                                AstIdentifier {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 0,
+                                            col: 28,
+                                        },
+                                        end: AstPoint {
+                                            line: 0,
+                                            col: 34,
+                                        },
+                                    },
+                                    value: "Object",
+                                },
+                            ),
+                        },
+                        name: AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 35,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 38,
+                                },
+                            },
+                            value: "key",
+                        },
+                        fin: false,
+                        variatic: false,
+                    },
+                ],
+            },
+            throws: None,
+            type_parameters: None,
+            annotated: [],
+        },
+        block: None,
+    },
+    9,
+)

@@ -1,0 +1,64 @@
+---
+source: parser/src/java.rs
+expression: result.unwrap()
+snapshot_kind: text
+---
+Class {
+    class_path: "ch.emilycares.Thrower",
+    source: "/path/to/source/Thrower.java",
+    access: Access(
+        0x0,
+    ),
+    imports: [
+        Package(
+            "ch.emilycares",
+        ),
+        Class(
+            "java.io.IOException",
+        ),
+    ],
+    name: "Thrower",
+    methods: [
+        Method {
+            access: Access(
+                Public | Protected,
+            ),
+            name: "ioThrower",
+            parameters: [],
+            throws: [
+                Class(
+                    "IOException",
+                ),
+            ],
+            ret: Void,
+            source: None,
+        },
+        Method {
+            access: Access(
+                Public | Protected,
+            ),
+            name: "ioThrower",
+            parameters: [
+                Parameter {
+                    name: Some(
+                        "a",
+                    ),
+                    jtype: Int,
+                },
+            ],
+            throws: [
+                Class(
+                    "IOException",
+                ),
+                Class(
+                    "IOException",
+                ),
+            ],
+            ret: Void,
+            source: None,
+        },
+    ],
+    fields: [],
+    super_class: None,
+    super_interfaces: [],
+}

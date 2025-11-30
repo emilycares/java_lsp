@@ -1,0 +1,157 @@
+---
+source: ast/tests/ast.rs
+expression: parsed
+---
+(
+    AstJType {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 36,
+            },
+        },
+        value: Access {
+            base: AstJType {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 0,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 5,
+                    },
+                },
+                value: Class(
+                    AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 0,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 5,
+                            },
+                        },
+                        value: "javax",
+                    },
+                ),
+            },
+            inner: AstJType {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 6,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 36,
+                    },
+                },
+                value: Access {
+                    base: AstJType {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 6,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 12,
+                            },
+                        },
+                        value: Class(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 0,
+                                        col: 6,
+                                    },
+                                    end: AstPoint {
+                                        line: 0,
+                                        col: 12,
+                                    },
+                                },
+                                value: "crypto",
+                            },
+                        ),
+                    },
+                    inner: AstJType {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 13,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 36,
+                            },
+                        },
+                        value: Access {
+                            base: AstJType {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 0,
+                                        col: 13,
+                                    },
+                                    end: AstPoint {
+                                        line: 0,
+                                        col: 23,
+                                    },
+                                },
+                                value: Class(
+                                    AstIdentifier {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 0,
+                                                col: 13,
+                                            },
+                                            end: AstPoint {
+                                                line: 0,
+                                                col: 23,
+                                            },
+                                        },
+                                        value: "interfaces",
+                                    },
+                                ),
+                            },
+                            inner: AstJType {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 0,
+                                        col: 24,
+                                    },
+                                    end: AstPoint {
+                                        line: 0,
+                                        col: 36,
+                                    },
+                                },
+                                value: Class(
+                                    AstIdentifier {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 0,
+                                                col: 24,
+                                            },
+                                            end: AstPoint {
+                                                line: 0,
+                                                col: 36,
+                                            },
+                                        },
+                                        value: "DHPrivateKey",
+                                    },
+                                ),
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    },
+    7,
+)

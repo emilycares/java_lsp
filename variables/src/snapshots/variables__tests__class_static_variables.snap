@@ -1,0 +1,24 @@
+---
+source: variables/src/lib.rs
+expression: out
+---
+[
+    LocalVariable {
+        level: 1,
+        jtype: Class(
+            "Logger",
+        ),
+        name: "logger",
+        is_fun: false,
+        range: AstRange {
+            start: AstPoint {
+                line: 3,
+                col: 4,
+            },
+            end: AstPoint {
+                line: 3,
+                col: 69,
+            },
+        },
+    },
+]

@@ -284,9 +284,7 @@ expression: tokens
         col: 60,
     },
     PositionToken {
-        token: Identifier(
-            "default",
-        ),
+        token: Default,
         line: 9,
         col: 4,
     },

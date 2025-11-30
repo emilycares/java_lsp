@@ -1,0 +1,26 @@
+name: ast-check-jdk
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build and ast-check-jdk
+    runs-on: ubuntu-latest
+    if: github.repository == 'emilycares/java_lsp'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: MyAlbum/purge-cache@v2
+      - uses: nixbuild/nix-quick-install-action@v34
+      - name: Restore and save Nix store
+        uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: build-${{ runner.os }}-${{ hashFiles('Cargo.lock', '**/Cargo.toml', 'flake.nix', 'flake.lock', 'rust-toolchain.toml') }}
+          purge: true
+          purge-prefixes: build-${{ runner.os }}-
+          purge-created: 0
+          purge-primary-key: never
+          gc-max-store-size: 5G
+      - run: nix develop .#check_jdk --command bash -c "java_lsp ast-check-jdk"

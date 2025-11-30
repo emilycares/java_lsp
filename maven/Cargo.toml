@@ -16,8 +16,10 @@ nom.workspace = true
 dashmap.workspace = true
 dirs.workspace = true
 tokio.workspace = true
+my_string = { path = "../my_string"}
 common = { path = "../common" }
-parser = { path = "../parser" }
+parser = {path = "../parser"}
+loader = {path = "../loader"}
 zip_util = { path = "../zip_util" }
 
 [dev-dependencies]

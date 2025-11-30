@@ -1,0 +1,134 @@
+---
+source: parser/src/java.rs
+expression: result.unwrap()
+snapshot_kind: text
+---
+Class {
+    class_path: "ch.emilycares.Everything",
+    source: "",
+    access: Access(
+        0x0,
+    ),
+    imports: [
+        Package(
+            "ch.emilycares",
+        ),
+    ],
+    name: "Everything",
+    methods: [
+        Method {
+            access: Access(
+                Protected,
+            ),
+            name: "method",
+            parameters: [],
+            throws: [],
+            ret: Void,
+            source: None,
+        },
+        Method {
+            access: Access(
+                Public | Protected,
+            ),
+            name: "public_method",
+            parameters: [],
+            throws: [],
+            ret: Void,
+            source: None,
+        },
+        Method {
+            access: Access(
+                Private | Protected,
+            ),
+            name: "private_method",
+            parameters: [],
+            throws: [],
+            ret: Void,
+            source: None,
+        },
+        Method {
+            access: Access(
+                Protected,
+            ),
+            name: "out",
+            parameters: [],
+            throws: [],
+            ret: Int,
+            source: None,
+        },
+        Method {
+            access: Access(
+                Protected,
+            ),
+            name: "add",
+            parameters: [
+                Parameter {
+                    name: Some(
+                        "a",
+                    ),
+                    jtype: Int,
+                },
+                Parameter {
+                    name: Some(
+                        "b",
+                    ),
+                    jtype: Int,
+                },
+            ],
+            throws: [],
+            ret: Int,
+            source: None,
+        },
+        Method {
+            access: Access(
+                Protected | Static,
+            ),
+            name: "sadd",
+            parameters: [
+                Parameter {
+                    name: Some(
+                        "a",
+                    ),
+                    jtype: Int,
+                },
+                Parameter {
+                    name: Some(
+                        "b",
+                    ),
+                    jtype: Int,
+                },
+            ],
+            throws: [],
+            ret: Int,
+            source: None,
+        },
+    ],
+    fields: [
+        Field {
+            access: Access(
+                Public,
+            ),
+            name: "noprop",
+            jtype: Int,
+            source: None,
+        },
+        Field {
+            access: Access(
+                Public,
+            ),
+            name: "publicproperty",
+            jtype: Int,
+            source: None,
+        },
+        Field {
+            access: Access(
+                Private,
+            ),
+            name: "privateproperty",
+            jtype: Int,
+            source: None,
+        },
+    ],
+    super_class: None,
+    super_interfaces: [],
+}

@@ -1,0 +1,34 @@
+---
+source: ast/tests/ast.rs
+expression: parsed
+---
+(
+    AstJType {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 5,
+            },
+        },
+        value: Array(
+            AstJType {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 0,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 3,
+                    },
+                },
+                value: Int,
+            },
+        ),
+    },
+    3,
+)

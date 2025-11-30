@@ -1,0 +1,20 @@
+---
+source: ast/tests/ast.rs
+expression: parsed.unwrap()
+---
+(
+    AstIdentifier {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 13,
+            },
+        },
+        value: "Logger3m3m3m3",
+    },
+    1,
+)

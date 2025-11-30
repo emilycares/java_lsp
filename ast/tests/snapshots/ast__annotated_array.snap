@@ -1,0 +1,135 @@
+---
+source: ast/tests/ast.rs
+expression: parsed
+snapshot_kind: text
+---
+(
+    AstAnnotated {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 44,
+            },
+        },
+        name: AstIdentifier {
+            range: AstRange {
+                start: AstPoint {
+                    line: 0,
+                    col: 1,
+                },
+                end: AstPoint {
+                    line: 0,
+                    col: 17,
+                },
+            },
+            value: "SuppressWarnings",
+        },
+        parameters: Parameter(
+            [
+                Expression(
+                    [
+                        Array(
+                            AstValues {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 0,
+                                        col: 18,
+                                    },
+                                    end: AstPoint {
+                                        line: 0,
+                                        col: 43,
+                                    },
+                                },
+                                values: [
+                                    [
+                                        Recursive(
+                                            AstRecursiveExpression {
+                                                range: AstRange {
+                                                    start: AstPoint {
+                                                        line: 0,
+                                                        col: 29,
+                                                    },
+                                                    end: AstPoint {
+                                                        line: 0,
+                                                        col: 38,
+                                                    },
+                                                },
+                                                ident: Some(
+                                                    Value(
+                                                        Nuget(
+                                                            StringLiteral(
+                                                                AstIdentifier {
+                                                                    range: AstRange {
+                                                                        start: AstPoint {
+                                                                            line: 0,
+                                                                            col: 29,
+                                                                        },
+                                                                        end: AstPoint {
+                                                                            line: 0,
+                                                                            col: 19,
+                                                                        },
+                                                                    },
+                                                                    value: "unchecked",
+                                                                },
+                                                            ),
+                                                        ),
+                                                    ),
+                                                ),
+                                                values: None,
+                                                operator: None,
+                                            },
+                                        ),
+                                    ],
+                                    [
+                                        Recursive(
+                                            AstRecursiveExpression {
+                                                range: AstRange {
+                                                    start: AstPoint {
+                                                        line: 0,
+                                                        col: 41,
+                                                    },
+                                                    end: AstPoint {
+                                                        line: 0,
+                                                        col: 49,
+                                                    },
+                                                },
+                                                ident: Some(
+                                                    Value(
+                                                        Nuget(
+                                                            StringLiteral(
+                                                                AstIdentifier {
+                                                                    range: AstRange {
+                                                                        start: AstPoint {
+                                                                            line: 0,
+                                                                            col: 41,
+                                                                        },
+                                                                        end: AstPoint {
+                                                                            line: 0,
+                                                                            col: 31,
+                                                                        },
+                                                                    },
+                                                                    value: "rawtypes",
+                                                                },
+                                                            ),
+                                                        ),
+                                                    ),
+                                                ),
+                                                values: None,
+                                                operator: None,
+                                            },
+                                        ),
+                                    ],
+                                ],
+                            },
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    },
+    9,
+)

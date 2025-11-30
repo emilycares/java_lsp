@@ -1,462 +1,458 @@
-use document::Document;
-use parser::{
-    dto,
-    java::{ParseJavaError, parse_jtype},
+#![deny(warnings)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::redundant_clone)]
+use ast::types::{
+    AstBlock, AstBlockEntry, AstBlockExpression, AstBlockVariable, AstClassMethod, AstExpression,
+    AstExpressionKind, AstFile, AstFor, AstForContent, AstForEnhanced, AstIf, AstIfContent,
+    AstInterfaceConstant, AstLambda, AstLambdaRhs, AstMethodParamerter, AstPoint, AstRange,
+    AstRecursiveExpression, AstSwitch, AstSwitchCaseArrowContent, AstThing, AstTryCatch, AstWhile,
+    AstWhileContent,
 };
-use tree_sitter::{Node, Point, Range};
-use tree_sitter_util::{CommentSkiper, get_string};
+use my_string::MyString;
+use parser::dto;
 
-/// document::Documentut a variable or function in a Document
+/// variable or function in a ast
 #[derive(Debug, PartialEq, Clone)]
 pub struct LocalVariable {
     pub level: usize,
     pub jtype: dto::JType,
-    pub name: String,
+    pub name: MyString,
     pub is_fun: bool,
-    pub range: Range,
+    pub range: AstRange,
+}
+
+impl LocalVariable {
+    pub fn from_block_variable(v: &AstBlockVariable, level: usize) -> Self {
+        let jtype: dto::JType = (&v.jtype).into();
+        LocalVariable {
+            level,
+            jtype,
+            name: v.name.value.clone(),
+            is_fun: false,
+            range: v.range,
+        }
+    }
+    pub fn from_class_method(i: &AstClassMethod, level: usize) -> Self {
+        LocalVariable {
+            level,
+            jtype: (&i.header.jtype).into(),
+            name: (&i.header.name).into(),
+            is_fun: true,
+            range: i.range,
+        }
+    }
+
+    fn from_method_parameter(parameter: &AstMethodParamerter, level: usize) -> LocalVariable {
+        LocalVariable {
+            level,
+            jtype: (&parameter.jtype).into(),
+            name: (&parameter.name).into(),
+            is_fun: false,
+            range: parameter.range,
+        }
+    }
 }
 
 #[derive(Debug)]
-pub enum VariablesError {
-    Parse(ParseJavaError),
-}
+pub enum VariablesError {}
 
-/// Get Local Variables and Functions of the current Document
-pub fn get_vars(document: &Document, point: &Point) -> Result<Vec<LocalVariable>, VariablesError> {
-    let tree = &document.tree;
-    let bytes = document.as_bytes();
-
-    let mut cursor = tree.walk();
-    let mut level = 0;
+/// Get Local Variables and Functions of the current ast
+pub fn get_vars(ast: &AstFile, point: &AstPoint) -> Result<Vec<LocalVariable>, VariablesError> {
     let mut out: Vec<LocalVariable> = vec![];
-    loop {
-        match cursor.node().kind() {
-            "class_declaration" => {}
-            "method_declaration" => {
-                get_method_vars(tree, cursor.node(), bytes, &mut out, level)?;
-            }
-            "class_body" => {
-                get_class_vars(tree, cursor.node(), bytes, &mut out, level)?;
-            }
-            "for_statement" => {
-                cursor.first_child();
-                cursor.sibling();
-                cursor.sibling();
-                parse_local_variable_declaration(&mut cursor, bytes, level, &mut out)?;
-                cursor.parent();
-            }
-            // for (String a : list) {
-            "enhanced_for_statement" => {
-                cursor.first_child();
-                cursor.sibling();
-                cursor.sibling();
-                let ty = cursor.node();
-                cursor.sibling();
-                let name = get_string(&cursor, bytes);
-                let var = parse_variable(level, &ty, name, cursor.node().range(), bytes)?;
-                out.push(var);
-                cursor.parent();
-            }
-            "lambda_expression" => {
-                get_lambda_vars(&mut cursor, bytes, level, &mut out);
-            }
-            _ => {}
-        }
-
-        let n = cursor.goto_first_child_for_point(*point);
-        level += 1;
-        if n.is_none() {
-            break;
-        }
-        if level >= 200 {
-            break;
-        }
+    let level = 0;
+    for th in &ast.things {
+        get_vars_thing(th, point, &mut out, level);
     }
 
+    // let n = cursor.goto_first_child_for_point(*point);
     Ok(out)
 }
 
-fn get_lambda_vars(
-    cursor: &mut tree_sitter::TreeCursor<'_>,
-    bytes: &[u8],
-    level: usize,
-    out: &mut Vec<LocalVariable>,
-) {
-    cursor.first_child();
-    match cursor.node().kind() {
-        "identifier" => {
-            let name = get_string(&*cursor, bytes);
-            out.push(LocalVariable {
-                level,
-                jtype: dto::JType::Void,
-                name,
-                is_fun: false,
-                range: cursor.node().range(),
-            });
+fn get_vars_thing(thing: &AstThing, point: &AstPoint, out: &mut Vec<LocalVariable>, level: usize) {
+    match &thing {
+        AstThing::Class(ast_class) => {
+            let level = level + 1;
+            out.extend(get_class_variables(&ast_class.block.variables, level));
+            get_class_methods(&ast_class.block.methods, point, level, out);
         }
-        "inferred_parameters" => {
-            cursor.first_child();
-            cursor.sibling();
-            let name = get_string(&*cursor, bytes);
-            out.push(LocalVariable {
-                level,
-                jtype: dto::JType::Void,
-                name,
-                is_fun: false,
-                range: cursor.node().range(),
-            });
-            cursor.sibling();
-            while cursor.node().kind() == "," {
-                cursor.sibling();
-                let name = get_string(&*cursor, bytes);
-
-                out.push(LocalVariable {
-                    level,
-                    jtype: dto::JType::Void,
-                    name,
-                    is_fun: false,
-                    range: cursor.node().range(),
-                });
-            }
-            cursor.parent();
+        AstThing::Record(ast_record) => {
+            let level = level + 1;
+            out.extend(get_class_variables(&ast_record.block.variables, level));
+            get_class_methods(&ast_record.block.methods, point, level, out);
         }
-        _ => {}
+        AstThing::Interface(ast_interface) => {
+            let level = level + 1;
+            out.extend(get_interface_constats(&ast_interface.constants, level));
+        }
+        AstThing::Enumeration(_) => (),
+        AstThing::Annotation(_) => (),
     }
-    cursor.parent();
 }
 
-/// Get all vars of class
-fn get_class_vars(
-    tree: &tree_sitter::Tree,
-    start_node: tree_sitter::Node,
-    bytes: &[u8],
-    out: &mut Vec<LocalVariable>,
+fn get_interface_constats(
+    contants: &[AstInterfaceConstant],
     level: usize,
-) -> Result<(), VariablesError> {
-    let mut cursor = tree.walk();
-    cursor.reset(start_node);
-    cursor.first_child();
-    cursor.first_child();
-    'class: loop {
-        match cursor.node().kind() {
-            "field_declaration" => {
-                cursor.first_child();
-                if cursor.node().kind() == "modifiers" {
-                    cursor.sibling();
-                }
-                let ty = cursor.node();
-                cursor.sibling();
-                cursor.first_child();
-                let name = get_string(&cursor, bytes);
-                let var = parse_variable(level, &ty, name, cursor.node().range(), bytes)?;
-                out.push(var);
-
-                cursor.parent();
-                cursor.parent();
-            }
-            "method_declaration" => {
-                cursor.first_child();
-                if cursor.node().kind() == "modifiers" {
-                    cursor.sibling();
-                }
-                let ty = cursor.node();
-                cursor.sibling();
-                let name = get_string(&cursor, bytes);
-                out.push(LocalVariable {
-                    level,
-                    jtype: parse_jtype(&ty, bytes, &vec![]).map_err(VariablesError::Parse)?,
-                    name,
-                    is_fun: true,
-                    range: cursor.node().range(),
-                });
-
-                cursor.parent();
-            }
-            "{" | "}" => {}
-            _ => {}
-        }
-        if !cursor.sibling() {
-            break 'class;
-        }
-    }
-    Ok(())
-}
-
-fn parse_variable(
-    level: usize,
-    ty: &Node,
-    name: String,
-    range: Range,
-    bytes: &[u8],
-) -> Result<LocalVariable, VariablesError> {
-    Ok(LocalVariable {
+) -> impl Iterator<Item = LocalVariable> {
+    contants.iter().map(move |i| LocalVariable {
         level,
-        jtype: parse_jtype(ty, bytes, &vec![]).map_err(VariablesError::Parse)?,
-        name,
+        jtype: (&i.jtype).into(),
+        name: (&i.name).into(),
         is_fun: false,
-        range,
+        range: i.range,
     })
 }
 
-/// Get all vars of method
-fn get_method_vars(
-    tree: &tree_sitter::Tree,
-    start_node: tree_sitter::Node,
-    bytes: &[u8],
-    out: &mut Vec<LocalVariable>,
+fn get_class_methods(
+    methods: &[AstClassMethod],
+    point: &AstPoint,
     level: usize,
-) -> Result<(), VariablesError> {
-    let mut cursor = tree.walk();
-    cursor.reset(start_node);
-    cursor.first_child();
-    if cursor.node().kind() == "modifiers" {
-        cursor.sibling();
+    out: &mut Vec<LocalVariable>,
+) {
+    let level = level + 1;
+
+    for method in methods {
+        out.push(LocalVariable::from_class_method(method, level));
+        if method.range.is_in_range(point) {
+            out.extend(
+                method
+                    .header
+                    .parameters
+                    .parameters
+                    .iter()
+                    .map(move |i| LocalVariable::from_method_parameter(i, level)),
+            );
+            if let Some(block) = &method.block {
+                get_block_vars(block, point, level, out);
+            }
+        }
     }
-    cursor.sibling();
-    cursor.sibling();
-    if cursor.node().kind() == "formal_parameters" {
-        cursor.first_child();
-        while cursor.sibling() {
-            if cursor.node().kind() != "formal_parameter" {
-                continue;
+}
+
+fn get_block_vars(block: &AstBlock, point: &AstPoint, level: usize, out: &mut Vec<LocalVariable>) {
+    let level = level + 1;
+    if !block.range.is_in_range(point) {
+        return;
+    }
+    block
+        .entries
+        .iter()
+        .for_each(|i| get_block_entry_vars(point, level, i, out));
+}
+
+fn get_block_entry_vars(
+    point: &AstPoint,
+    level: usize,
+    block_entry: &AstBlockEntry,
+    out: &mut Vec<LocalVariable>,
+) {
+    match block_entry {
+        AstBlockEntry::Return(_)
+        | AstBlockEntry::Break(_)
+        | AstBlockEntry::Continue(_)
+        | AstBlockEntry::Throw(_)
+        | AstBlockEntry::SwitchCase(_)
+        | AstBlockEntry::SwitchDefault(_)
+        | AstBlockEntry::Yield(_)
+        | AstBlockEntry::Assert(_)
+        | AstBlockEntry::Assign(_) => (),
+        AstBlockEntry::Variable(i) => {
+            out.extend(
+                i.iter()
+                    .map(|i| LocalVariable::from_block_variable(i, level)),
+            );
+        }
+        AstBlockEntry::Expression(ast_expression) => block_expr(ast_expression, point, level, out),
+        AstBlockEntry::If(ast_if) => if_vars(ast_if, point, level, out),
+        AstBlockEntry::While(ast_while) => while_vars(ast_while, point, level, out),
+        AstBlockEntry::For(ast_for) => for_vars(ast_for, point, level, out),
+        AstBlockEntry::ForEnhanced(ast_for_enhanced) => {
+            for_enanced_vars(ast_for_enhanced, point, level, out);
+        }
+        AstBlockEntry::Switch(ast_switch) => switch_vars(ast_switch, point, level, out),
+        AstBlockEntry::TryCatch(ast_try_catch) => try_catch_vars(ast_try_catch, point, level, out),
+        AstBlockEntry::SynchronizedBlock(ast_synchronized_block) => {
+            get_block_vars(&ast_synchronized_block.block, point, level, out)
+        }
+        AstBlockEntry::SwitchCaseArrowDefault(ast_switch_case_arrow_default) => {
+            switch_case_arrow_content(&ast_switch_case_arrow_default.content, level, point, out)
+        }
+        AstBlockEntry::SwitchCaseArrowValues(ast_switch_case_arrow) => {
+            switch_case_arrow_content(&ast_switch_case_arrow.content, level, point, out)
+        }
+        AstBlockEntry::Thing(ast_thing) => get_vars_thing(ast_thing, point, out, level),
+        AstBlockEntry::InlineBlock(ast_block) => {
+            get_block_vars(&ast_block.block, point, level, out)
+        }
+        AstBlockEntry::Semicolon(_ast_range) => (),
+        AstBlockEntry::SwitchCaseArrowType(ast_switch_case_arrow_type) => {
+            switch_case_arrow_content(&ast_switch_case_arrow_type.content, level, point, out)
+        }
+    }
+}
+
+fn switch_case_arrow_content(
+    content: &AstSwitchCaseArrowContent,
+    level: usize,
+    point: &AstPoint,
+    out: &mut Vec<LocalVariable>,
+) {
+    match content {
+        AstSwitchCaseArrowContent::Block(ast_block) => get_block_vars(ast_block, point, level, out),
+        AstSwitchCaseArrowContent::Entry(ast_block_entry) => {
+            get_block_entry_vars(point, level, ast_block_entry, out)
+        }
+    }
+}
+
+fn block_expr(
+    ast_expression: &AstBlockExpression,
+    point: &AstPoint,
+    level: usize,
+    out: &mut Vec<LocalVariable>,
+) {
+    if !ast_expression.range.is_in_range(point) {
+        return;
+    }
+
+    expression(&ast_expression.value, point, level, out);
+}
+
+fn recursive_expr(
+    expr: &AstRecursiveExpression,
+    point: &AstPoint,
+    level: usize,
+    out: &mut Vec<LocalVariable>,
+) {
+    if !expr.range.is_in_range(point) {
+        return;
+    }
+    if let Some(v) = &expr.values
+        && !v.values.is_empty()
+    {
+        v.values
+            .iter()
+            .for_each(|i| expression(i, point, level, out));
+    }
+}
+
+fn expression_kind(
+    i: &AstExpressionKind,
+    point: &AstPoint,
+    level: usize,
+    out: &mut Vec<LocalVariable>,
+) {
+    match i {
+        AstExpressionKind::Recursive(ast_recursive_expression) => {
+            recursive_expr(ast_recursive_expression, point, level, out)
+        }
+        AstExpressionKind::Lambda(ast_lambda) => {
+            if ast_lambda.range.is_in_range(point) {
+                lambda(ast_lambda, point, level, out)
             }
-            cursor.first_child();
-            if cursor.node().kind() == "modifiers" {
-                cursor.sibling();
-            }
-            let ty = cursor.node();
-            cursor.sibling();
-            let name = get_string(&cursor, bytes);
-            out.push(parse_variable(
+        }
+        AstExpressionKind::InlineSwitch(ast_switch) => {
+            get_block_vars(&ast_switch.block, point, level, out)
+        }
+        AstExpressionKind::NewClass(_)
+        | AstExpressionKind::ClassAccess(_)
+        | AstExpressionKind::Generics(_)
+        | AstExpressionKind::InstanceOf(_)
+        | AstExpressionKind::JType(_)
+        | AstExpressionKind::Casted(_)
+        | AstExpressionKind::Array(_) => (),
+    }
+}
+
+fn expression(
+    expression: &AstExpression,
+    point: &AstPoint,
+    level: usize,
+    out: &mut Vec<LocalVariable>,
+) {
+    for e in expression {
+        expression_kind(e, point, level, out);
+    }
+}
+
+fn lambda(lambda: &AstLambda, point: &AstPoint, level: usize, out: &mut Vec<LocalVariable>) {
+    out.extend(lambda.parameters.values.iter().map(|i| LocalVariable {
+        level,
+        jtype: dto::JType::Void,
+        name: i.name.value.clone(),
+        is_fun: false,
+        range: i.range,
+    }));
+
+    match &lambda.rhs {
+        AstLambdaRhs::None => (),
+        AstLambdaRhs::Block(ast_block) => get_block_vars(ast_block, point, level, out),
+        AstLambdaRhs::Expr(ast_base_expression) => {
+            expression(ast_base_expression, point, level, out)
+        }
+    }
+}
+
+fn try_catch_vars(
+    ast_try_catch: &AstTryCatch,
+    point: &AstPoint,
+    level: usize,
+    out: &mut Vec<LocalVariable>,
+) {
+    if !ast_try_catch.range.is_in_range(point) {
+        return;
+    }
+    let level = level + 1;
+    if let Some(resources) = &ast_try_catch.resources_block {
+        get_block_vars(resources, point, level, out)
+    }
+    get_block_vars(&ast_try_catch.block, point, level, out);
+    if let Some(case) = ast_try_catch
+        .cases
+        .iter()
+        .find(|i| i.block.range.is_in_range(point))
+    {
+        for ty in &case.variable.jtypes {
+            out.push(LocalVariable {
                 level,
-                &ty,
-                name,
-                cursor.node().range(),
-                bytes,
-            )?);
-            cursor.parent();
+                jtype: ty.into(),
+                name: case.variable.name.value.clone(),
+                is_fun: false,
+                range: case.variable.range,
+            });
         }
-        cursor.parent();
+        get_block_vars(&case.block, point, level, out);
     }
-    cursor.sibling();
-    if cursor.node().kind() == "throws" {
-        cursor.sibling();
+    if let Some(finally_block) = &ast_try_catch.finally_block {
+        get_block_vars(finally_block, point, level, out);
     }
-    parse_block(bytes, out, level, &mut cursor)?;
-    Ok(())
 }
 
-fn parse_block(
-    bytes: &[u8],
-    out: &mut Vec<LocalVariable>,
+fn switch_vars(
+    ast_for_enhanced: &AstSwitch,
+    point: &AstPoint,
     level: usize,
-    cursor: &mut tree_sitter::TreeCursor<'_>,
-) -> Result<(), VariablesError> {
-    cursor.first_child();
-    'method: loop {
-        match cursor.node().kind() {
-            "local_variable_declaration" => {
-                parse_local_variable_declaration(cursor, bytes, level, out)?;
-            }
-            "try_statement" => {
-                parse_try_statement(cursor, bytes, level, out)?;
-            }
-            "try_with_resources_statement" => {
-                parse_try_with_resources_statement(cursor, bytes, level, out)?;
-            }
-            "{" | "}" => {}
-            _ => {}
-        }
-        if !cursor.sibling() {
-            break 'method;
-        }
+    out: &mut Vec<LocalVariable>,
+) {
+    if !ast_for_enhanced.range.is_in_range(point) {
+        return;
     }
-    cursor.parent();
-    Ok(())
-}
-
-fn parse_try_with_resources_statement(
-    cursor: &mut tree_sitter::TreeCursor<'_>,
-    bytes: &[u8],
-    level: usize,
-    out: &mut Vec<LocalVariable>,
-) -> Result<(), VariablesError> {
     let level = level + 1;
-    cursor.first_child();
-    cursor.sibling();
-    // resource
-    cursor.first_child();
-    cursor.sibling();
+    get_block_vars(&ast_for_enhanced.block, point, level, out);
+}
 
-    'resource: loop {
-        match cursor.node().kind() {
-            "resource" => {
-                parse_resource(cursor, bytes, out, level)?;
-            }
-            ";" | ")" => {}
-            _ => {}
+fn for_enanced_vars(
+    ast_for_enhanced: &AstForEnhanced,
+    point: &AstPoint,
+    level: usize,
+    out: &mut Vec<LocalVariable>,
+) {
+    if !ast_for_enhanced.range.is_in_range(point) {
+        return;
+    }
+    let level = level + 1;
+    out.extend(
+        ast_for_enhanced
+            .var
+            .iter()
+            .map(|i| LocalVariable::from_block_variable(i, level)),
+    );
+    for_content_vars(&ast_for_enhanced.content, point, level, out);
+}
+
+fn for_content_vars(
+    content: &AstForContent,
+    point: &AstPoint,
+    level: usize,
+    out: &mut Vec<LocalVariable>,
+) {
+    match content {
+        AstForContent::Block(ast_block) => get_block_vars(ast_block, point, level, out),
+        AstForContent::BlockEntry(ast_block_entry) => {
+            get_block_entry_vars(point, level, ast_block_entry, out)
         }
-        if !cursor.sibling() {
-            break 'resource;
+        AstForContent::None => (),
+    }
+}
+
+fn for_vars(ast_for: &AstFor, point: &AstPoint, level: usize, out: &mut Vec<LocalVariable>) {
+    if !ast_for.range.is_in_range(point) {
+        return;
+    }
+    let level = level + 1;
+    for v in &ast_for.vars {
+        get_block_entry_vars(point, level, v, out);
+    }
+    for_content_vars(&ast_for.content, point, level, out);
+}
+fn while_vars(ast_while: &AstWhile, point: &AstPoint, level: usize, out: &mut Vec<LocalVariable>) {
+    if !ast_while.range.is_in_range(point) {
+        return;
+    }
+    let level = level + 1;
+    if let AstWhileContent::Block(b) = &ast_while.content {
+        get_block_vars(b, point, level, out);
+    }
+}
+fn if_vars(ast_if: &AstIf, point: &AstPoint, level: usize, out: &mut Vec<LocalVariable>) {
+    let level = level + 1;
+    match ast_if {
+        AstIf::If {
+            range,
+            control: _,
+            control_range: _,
+            content,
+        } => {
+            if range.is_in_range(point)
+                && let AstIfContent::Block(block) = content
+            {
+                get_block_vars(block, point, level, out)
+            }
+        }
+        AstIf::Else { range, content } => {
+            if range.is_in_range(point)
+                && let AstIfContent::Block(block) = content
+            {
+                get_block_vars(block, point, level, out)
+            }
+        }
+        AstIf::ElseIf {
+            range,
+            control: _,
+            control_range: _,
+            content,
+        } => {
+            if range.is_in_range(point)
+                && let AstIfContent::Block(block) = content
+            {
+                get_block_vars(block, point, level, out)
+            }
         }
     }
-
-    cursor.parent();
-    // end resource
-    cursor.sibling();
-    parse_block(bytes, out, level, cursor)?;
-    cursor.sibling();
-    parse_try_content(cursor, bytes, out, level)?;
-    cursor.parent();
-    Ok(())
 }
-
-fn parse_try_content(
-    cursor: &mut tree_sitter::TreeCursor<'_>,
-    bytes: &[u8],
-    out: &mut Vec<LocalVariable>,
+fn get_class_variables(
+    variables: &[ast::types::AstClassVariable],
     level: usize,
-) -> Result<(), VariablesError> {
-    'try_st: loop {
-        match cursor.node().kind() {
-            "catch_clause" => {
-                parse_catch(cursor, bytes, out, level)?;
-            }
-            "finally_clause" => {
-                parse_finally(cursor, bytes, out, level)?;
-            }
-            e => {
-                eprintln!("{e}")
-            }
+) -> impl Iterator<Item = LocalVariable> {
+    variables.iter().map(move |i| {
+        let jtype: dto::JType = (&i.jtype).into();
+        LocalVariable {
+            range: i.range,
+            level,
+            jtype,
+            name: i.name.value.clone(),
+            is_fun: false,
         }
-        if !cursor.sibling() {
-            break 'try_st;
-        }
-    }
-    Ok(())
-}
-
-fn parse_resource(
-    cursor: &mut tree_sitter::TreeCursor<'_>,
-    bytes: &[u8],
-    out: &mut Vec<LocalVariable>,
-    level: usize,
-) -> Result<(), VariablesError> {
-    cursor.first_child();
-    let ty = cursor.node();
-    cursor.sibling();
-    let name = get_string(cursor, bytes);
-    out.push(LocalVariable {
-        level,
-        jtype: parse_jtype(&ty, bytes, &vec![]).map_err(VariablesError::Parse)?,
-        name,
-        is_fun: false,
-        range: cursor.node().range(),
-    });
-    cursor.goto_parent();
-    Ok(())
-}
-
-fn parse_try_statement(
-    cursor: &mut tree_sitter::TreeCursor<'_>,
-    bytes: &[u8],
-    level: usize,
-    out: &mut Vec<LocalVariable>,
-) -> Result<(), VariablesError> {
-    let level = level + 1;
-    cursor.first_child();
-    cursor.sibling();
-    parse_block(bytes, out, level, cursor)?;
-    cursor.sibling();
-    parse_try_content(cursor, bytes, out, level)?;
-    cursor.parent();
-    Ok(())
-}
-
-fn parse_finally(
-    cursor: &mut tree_sitter::TreeCursor<'_>,
-    bytes: &[u8],
-    out: &mut Vec<LocalVariable>,
-    level: usize,
-) -> Result<(), VariablesError> {
-    let level = level + 1;
-    cursor.first_child();
-    cursor.sibling();
-    parse_block(bytes, out, level, cursor)?;
-    cursor.parent();
-    Ok(())
-}
-
-fn parse_catch(
-    cursor: &mut tree_sitter::TreeCursor<'_>,
-    bytes: &[u8],
-    out: &mut Vec<LocalVariable>,
-    level: usize,
-) -> Result<(), VariablesError> {
-    cursor.first_child();
-    cursor.sibling();
-    cursor.sibling();
-    cursor.first_child();
-    cursor.first_child();
-
-    let ty = cursor.node();
-
-    cursor.parent();
-    cursor.sibling();
-    let name = get_string(cursor, bytes);
-    out.push(LocalVariable {
-        level,
-        jtype: parse_jtype(&ty, bytes, &vec![]).map_err(VariablesError::Parse)?,
-        name,
-        is_fun: false,
-        range: cursor.node().range(),
-    });
-    cursor.parent();
-
-    cursor.sibling();
-    cursor.sibling();
-    let level = level + 1;
-    parse_block(bytes, out, level, cursor)?;
-    cursor.parent();
-    Ok(())
-}
-
-fn parse_local_variable_declaration(
-    cursor: &mut tree_sitter::TreeCursor<'_>,
-    bytes: &[u8],
-    level: usize,
-    out: &mut Vec<LocalVariable>,
-) -> Result<(), VariablesError> {
-    cursor.first_child();
-    if cursor.node().kind() == "modifiers" {
-        cursor.sibling();
-    }
-    let ty = cursor.node();
-    cursor.sibling();
-    cursor.first_child();
-    let name = get_string(&*cursor, bytes);
-    let range = cursor.node().range();
-    cursor.sibling();
-    let var = parse_variable(level, &ty, name, range, bytes)?;
-    out.push(var);
-    cursor.parent();
-    cursor.parent();
-    Ok(())
+    })
 }
 
 #[cfg(test)]
 pub mod tests {
-    use std::path::PathBuf;
+    use ast::{error::PrintErr, types::AstPoint};
 
-    use document::Document;
-    use parser::dto;
-    use pretty_assertions::assert_eq;
-    use tree_sitter::{Point, Range};
-
-    use crate::{LocalVariable, get_vars};
+    use crate::get_vars;
 
     #[test]
-    fn this_context() {
+    fn this_context_base() {
         let content = "
 package ch.emilycares;
 
@@ -475,122 +471,11 @@ public class Test {
     }
 }
         ";
-        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
+        let ast = ast::parse_file(&tokens).unwrap();
 
-        let out = get_vars(&doc, &Point::new(12, 17)).unwrap();
-        assert_eq!(
-            out,
-            vec![
-                LocalVariable {
-                    level: 2,
-                    jtype: dto::JType::Class("String".to_owned()),
-                    name: "hello".to_owned(),
-                    is_fun: false,
-                    range: tree_sitter::Range {
-                        start_byte: 57,
-                        end_byte: 62,
-                        start_point: Point { row: 5, column: 11 },
-                        end_point: Point { row: 5, column: 16 },
-                    },
-                },
-                LocalVariable {
-                    level: 2,
-                    jtype: dto::JType::Class("String".to_owned()),
-                    name: "se".to_owned(),
-                    is_fun: false,
-                    range: tree_sitter::Range {
-                        start_byte: 75,
-                        end_byte: 77,
-                        start_point: Point { row: 6, column: 11 },
-                        end_point: Point { row: 6, column: 13 },
-                    },
-                },
-                LocalVariable {
-                    level: 2,
-                    jtype: dto::JType::Class("String".to_owned()),
-                    name: "other".to_owned(),
-                    is_fun: false,
-                    range: tree_sitter::Range {
-                        start_byte: 99,
-                        end_byte: 104,
-                        start_point: Point { row: 8, column: 19 },
-                        end_point: Point { row: 8, column: 24 },
-                    },
-                },
-                LocalVariable {
-                    level: 2,
-                    jtype: dto::JType::Void,
-                    name: "hello".to_owned(),
-                    is_fun: true,
-                    range: tree_sitter::Range {
-                        start_byte: 128,
-                        end_byte: 133,
-                        start_point: Point {
-                            row: 10,
-                            column: 16,
-                        },
-                        end_point: Point {
-                            row: 10,
-                            column: 21,
-                        },
-                    },
-                },
-                LocalVariable {
-                    level: 3,
-                    jtype: dto::JType::Class("String".to_owned()),
-                    name: "a".to_owned(),
-                    is_fun: false,
-                    range: tree_sitter::Range {
-                        start_byte: 141,
-                        end_byte: 142,
-                        start_point: Point {
-                            row: 10,
-                            column: 29,
-                        },
-                        end_point: Point {
-                            row: 10,
-                            column: 30,
-                        },
-                    },
-                },
-                LocalVariable {
-                    level: 3,
-                    jtype: dto::JType::Class("String".to_owned()),
-                    name: "local".to_owned(),
-                    is_fun: false,
-                    range: tree_sitter::Range {
-                        start_byte: 161,
-                        end_byte: 166,
-                        start_point: Point {
-                            row: 11,
-                            column: 15,
-                        },
-                        end_point: Point {
-                            row: 11,
-                            column: 20,
-                        },
-                    },
-                },
-                LocalVariable {
-                    level: 3,
-                    jtype: dto::JType::Class("var".to_owned()),
-                    name: "lo".to_owned(),
-                    is_fun: false,
-                    range: tree_sitter::Range {
-                        start_byte: 186,
-                        end_byte: 188,
-                        start_point: Point {
-                            row: 13,
-                            column: 12,
-                        },
-                        end_point: Point {
-                            row: 13,
-                            column: 14,
-                        },
-                    },
-                },
-            ]
-        );
+        let out = get_vars(&ast, &AstPoint::new(12, 17)).unwrap();
+        insta::assert_debug_snapshot!(out);
     }
 
     #[test]
@@ -602,24 +487,11 @@ public class Test {
      
 }
         ";
-        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
+        let ast = ast::parse_file(&tokens).unwrap();
 
-        let out = get_vars(&doc, &Point::new(4, 6)).unwrap();
-        assert_eq!(
-            out,
-            vec![LocalVariable {
-                level: 2,
-                jtype: dto::JType::Class("Logger".to_string()),
-                name: "logger".to_string(),
-                is_fun: false,
-                range: Range {
-                    start_byte: 70,
-                    end_byte: 76,
-                    start_point: Point { row: 3, column: 26 },
-                    end_point: Point { row: 3, column: 32 },
-                },
-            },]
-        );
+        let out = get_vars(&ast, &AstPoint::new(4, 6)).unwrap();
+        insta::assert_debug_snapshot!(out);
     }
 
     #[test]
@@ -642,122 +514,13 @@ public class Test {
     }
 }
         ";
-        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
+        let ast = ast::parse_file(&tokens);
+        ast.print_err(content);
+        let ast = ast.unwrap();
 
-        let out = get_vars(&doc, &Point::new(12, 17)).unwrap();
-        assert_eq!(
-            out,
-            vec![
-                LocalVariable {
-                    level: 2,
-                    jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_owned()))),
-                    name: "hello".to_owned(),
-                    is_fun: false,
-                    range: tree_sitter::Range {
-                        start_byte: 59,
-                        end_byte: 64,
-                        start_point: Point { row: 5, column: 13 },
-                        end_point: Point { row: 5, column: 18 },
-                    },
-                },
-                LocalVariable {
-                    level: 2,
-                    jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_owned()))),
-                    name: "se".to_owned(),
-                    is_fun: false,
-                    range: tree_sitter::Range {
-                        start_byte: 79,
-                        end_byte: 81,
-                        start_point: Point { row: 6, column: 13 },
-                        end_point: Point { row: 6, column: 15 },
-                    },
-                },
-                LocalVariable {
-                    level: 2,
-                    jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_owned()))),
-                    name: "other".to_owned(),
-                    is_fun: false,
-                    range: tree_sitter::Range {
-                        start_byte: 105,
-                        end_byte: 110,
-                        start_point: Point { row: 8, column: 21 },
-                        end_point: Point { row: 8, column: 26 },
-                    },
-                },
-                LocalVariable {
-                    level: 2,
-                    jtype: dto::JType::Void,
-                    name: "hello".to_owned(),
-                    is_fun: true,
-                    range: tree_sitter::Range {
-                        start_byte: 134,
-                        end_byte: 139,
-                        start_point: Point {
-                            row: 10,
-                            column: 16,
-                        },
-                        end_point: Point {
-                            row: 10,
-                            column: 21,
-                        },
-                    },
-                },
-                LocalVariable {
-                    level: 3,
-                    jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_owned()))),
-                    name: "a".to_owned(),
-                    is_fun: false,
-                    range: tree_sitter::Range {
-                        start_byte: 149,
-                        end_byte: 150,
-                        start_point: Point {
-                            row: 10,
-                            column: 31,
-                        },
-                        end_point: Point {
-                            row: 10,
-                            column: 32,
-                        },
-                    },
-                },
-                LocalVariable {
-                    level: 3,
-                    jtype: dto::JType::Array(Box::new(dto::JType::Class("String".to_owned()))),
-                    name: "local".to_owned(),
-                    is_fun: false,
-                    range: tree_sitter::Range {
-                        start_byte: 171,
-                        end_byte: 176,
-                        start_point: Point {
-                            row: 11,
-                            column: 17,
-                        },
-                        end_point: Point {
-                            row: 11,
-                            column: 22,
-                        },
-                    },
-                },
-                LocalVariable {
-                    level: 3,
-                    jtype: dto::JType::Class("var".to_owned()),
-                    name: "lo".to_owned(),
-                    is_fun: false,
-                    range: tree_sitter::Range {
-                        start_byte: 196,
-                        end_byte: 198,
-                        start_point: Point {
-                            row: 13,
-                            column: 12,
-                        },
-                        end_point: Point {
-                            row: 13,
-                            column: 14,
-                        },
-                    },
-                },
-            ]
-        );
+        let out = get_vars(&ast, &AstPoint::new(12, 17)).unwrap();
+        insta::assert_debug_snapshot!(out);
     }
 
     #[test]
@@ -779,101 +542,11 @@ public class Test {
     }
 }
         ";
-        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
+        let ast = ast::parse_file(&tokens).unwrap();
 
-        let out = get_vars(&doc, &Point::new(8, 54)).unwrap();
-        assert_eq!(
-            out,
-            vec![
-                LocalVariable {
-                    level: 2,
-                    jtype: dto::JType::Void,
-                    name: "hello".to_string(),
-                    is_fun: true,
-                    range: tree_sitter::Range {
-                        start_byte: 60,
-                        end_byte: 65,
-                        start_point: Point { row: 3, column: 16 },
-                        end_point: Point { row: 3, column: 21 },
-                    },
-                },
-                LocalVariable {
-                    level: 3,
-                    jtype: dto::JType::Generic(
-                        "List".to_owned(),
-                        vec![dto::JType::Class("String".to_string())]
-                    ),
-                    name: "names".to_string(),
-                    is_fun: false,
-                    range: tree_sitter::Range {
-                        start_byte: 91,
-                        end_byte: 96,
-                        start_point: Point { row: 4, column: 21 },
-                        end_point: Point { row: 4, column: 26 },
-                    },
-                },
-                LocalVariable {
-                    level: 5,
-                    jtype: dto::JType::Int,
-                    name: "i".to_string(),
-                    is_fun: false,
-                    range: tree_sitter::Range {
-                        start_byte: 135,
-                        end_byte: 136,
-                        start_point: Point { row: 5, column: 17 },
-                        end_point: Point { row: 5, column: 18 },
-                    },
-                },
-                LocalVariable {
-                    level: 7,
-                    jtype: dto::JType::Class("String".to_owned(),),
-                    name: "name".to_string(),
-                    is_fun: false,
-                    range: tree_sitter::Range {
-                        start_byte: 178,
-                        end_byte: 182,
-                        start_point: Point { row: 6, column: 22 },
-                        end_point: Point { row: 6, column: 26 },
-                    },
-                },
-                LocalVariable {
-                    level: 12,
-                    jtype: dto::JType::Void,
-                    name: "n".to_string(),
-                    is_fun: false,
-                    range: tree_sitter::Range {
-                        start_byte: 226,
-                        end_byte: 227,
-                        start_point: Point { row: 7, column: 32 },
-                        end_point: Point { row: 7, column: 33 },
-                    },
-                },
-                LocalVariable {
-                    level: 12,
-                    jtype: dto::JType::Void,
-                    name: "m".to_string(),
-                    is_fun: false,
-                    range: tree_sitter::Range {
-                        start_byte: 229,
-                        end_byte: 230,
-                        start_point: Point { row: 7, column: 35 },
-                        end_point: Point { row: 7, column: 36 },
-                    },
-                },
-                LocalVariable {
-                    level: 17,
-                    jtype: dto::JType::Void,
-                    name: "c".to_string(),
-                    is_fun: false,
-                    range: tree_sitter::Range {
-                        start_byte: 285,
-                        end_byte: 286,
-                        start_point: Point { row: 8, column: 48 },
-                        end_point: Point { row: 8, column: 49 },
-                    },
-                },
-            ]
-        );
+        let out = get_vars(&ast, &AstPoint::new(8, 54)).unwrap();
+        insta::assert_debug_snapshot!(out);
     }
 
     #[test]
@@ -912,272 +585,11 @@ public class Test {
     }
 }
         "#;
-        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
+        let ast = ast::parse_file(&tokens).unwrap();
 
-        let out = get_vars(&doc, &Point::new(8, 54)).unwrap();
-        assert_eq!(
-            out,
-            vec![
-                LocalVariable {
-                    level: 2,
-                    jtype: dto::JType::Void,
-                    name: "hello".to_string(),
-                    is_fun: true,
-                    range: tree_sitter::Range {
-                        start_byte: 60,
-                        end_byte: 65,
-                        start_point: Point { row: 3, column: 16 },
-                        end_point: Point { row: 3, column: 21 },
-                    },
-                },
-                LocalVariable {
-                    level: 4,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "fast1".to_string(),
-                    is_fun: false,
-                    range: Range {
-                        start_byte: 103,
-                        end_byte: 108,
-                        start_point: Point { row: 5, column: 19 },
-                        end_point: Point { row: 5, column: 24 },
-                    },
-                },
-                LocalVariable {
-                    level: 4,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "second1".to_string(),
-                    is_fun: false,
-                    range: Range {
-                        start_byte: 135,
-                        end_byte: 142,
-                        start_point: Point { row: 6, column: 19 },
-                        end_point: Point { row: 6, column: 26 },
-                    },
-                },
-                LocalVariable {
-                    level: 4,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "ty1".to_string(),
-                    is_fun: false,
-                    range: Range {
-                        start_byte: 180,
-                        end_byte: 183,
-                        start_point: Point { row: 8, column: 19 },
-                        end_point: Point { row: 8, column: 22 },
-                    },
-                },
-                LocalVariable {
-                    level: 4,
-                    jtype: dto::JType::Class("IOException".to_string()),
-                    name: "eio1".to_string(),
-                    is_fun: false,
-                    range: Range {
-                        start_byte: 220,
-                        end_byte: 224,
-                        start_point: Point { row: 9, column: 29 },
-                        end_point: Point { row: 9, column: 33 },
-                    },
-                },
-                LocalVariable {
-                    level: 5,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "ca1".to_string(),
-                    is_fun: false,
-                    range: Range {
-                        start_byte: 247,
-                        end_byte: 250,
-                        start_point: Point {
-                            row: 10,
-                            column: 19
-                        },
-                        end_point: Point {
-                            row: 10,
-                            column: 22
-                        },
-                    },
-                },
-                LocalVariable {
-                    level: 5,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "fin".to_string(),
-                    is_fun: false,
-                    range: Range {
-                        start_byte: 297,
-                        end_byte: 300,
-                        start_point: Point {
-                            row: 12,
-                            column: 19
-                        },
-                        end_point: Point {
-                            row: 12,
-                            column: 22
-                        },
-                    },
-                },
-                LocalVariable {
-                    level: 4,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "some2".to_string(),
-                    is_fun: false,
-                    range: Range {
-                        start_byte: 352,
-                        end_byte: 357,
-                        start_point: Point {
-                            row: 16,
-                            column: 19,
-                        },
-                        end_point: Point {
-                            row: 16,
-                            column: 24,
-                        },
-                    },
-                },
-                LocalVariable {
-                    level: 4,
-                    jtype: dto::JType::Class("Exception".to_string()),
-                    name: "e2".to_string(),
-                    is_fun: false,
-                    range: Range {
-                        start_byte: 392,
-                        end_byte: 394,
-                        start_point: Point {
-                            row: 17,
-                            column: 27,
-                        },
-                        end_point: Point {
-                            row: 17,
-                            column: 29,
-                        },
-                    },
-                },
-                LocalVariable {
-                    level: 5,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "other2".to_string(),
-                    is_fun: false,
-                    range: Range {
-                        start_byte: 417,
-                        end_byte: 423,
-                        start_point: Point {
-                            row: 18,
-                            column: 19,
-                        },
-                        end_point: Point {
-                            row: 18,
-                            column: 25,
-                        },
-                    },
-                },
-                LocalVariable {
-                    level: 4,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "some3".to_string(),
-                    is_fun: false,
-                    range: Range {
-                        start_byte: 475,
-                        end_byte: 480,
-                        start_point: Point {
-                            row: 22,
-                            column: 19,
-                        },
-                        end_point: Point {
-                            row: 22,
-                            column: 24,
-                        },
-                    },
-                },
-                LocalVariable {
-                    level: 4,
-                    jtype: dto::JType::Class("Exception".to_string()),
-                    name: "e3".to_string(),
-                    is_fun: false,
-                    range: Range {
-                        start_byte: 529,
-                        end_byte: 531,
-                        start_point: Point {
-                            row: 23,
-                            column: 41,
-                        },
-                        end_point: Point {
-                            row: 23,
-                            column: 43,
-                        },
-                    },
-                },
-                LocalVariable {
-                    level: 5,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "other3".to_string(),
-                    is_fun: false,
-                    range: Range {
-                        start_byte: 554,
-                        end_byte: 560,
-                        start_point: Point {
-                            row: 24,
-                            column: 19,
-                        },
-                        end_point: Point {
-                            row: 24,
-                            column: 25,
-                        },
-                    },
-                },
-                LocalVariable {
-                    level: 4,
-                    jtype: dto::JType::Class("IOException".to_string()),
-                    name: "e3".to_string(),
-                    is_fun: false,
-                    range: Range {
-                        start_byte: 597,
-                        end_byte: 599,
-                        start_point: Point {
-                            row: 25,
-                            column: 29,
-                        },
-                        end_point: Point {
-                            row: 25,
-                            column: 31,
-                        },
-                    },
-                },
-                LocalVariable {
-                    level: 5,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "other3".to_string(),
-                    is_fun: false,
-                    range: Range {
-                        start_byte: 622,
-                        end_byte: 628,
-                        start_point: Point {
-                            row: 26,
-                            column: 19,
-                        },
-                        end_point: Point {
-                            row: 26,
-                            column: 25,
-                        },
-                    },
-                },
-                LocalVariable {
-                    level: 5,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "fin3".to_string(),
-                    is_fun: false,
-                    range: Range {
-                        start_byte: 675,
-                        end_byte: 679,
-                        start_point: Point {
-                            row: 28,
-                            column: 19,
-                        },
-                        end_point: Point {
-                            row: 28,
-                            column: 23,
-                        },
-                    },
-                },
-            ]
-        );
+        let out = get_vars(&ast, &AstPoint::new(8, 54)).unwrap();
+        insta::assert_debug_snapshot!(out);
     }
     #[test]
     fn get_catch_val_with_throws_method() {
@@ -1192,38 +604,11 @@ public class Test {
     }
 }
         "#;
-        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
+        let ast = ast::parse_file(&tokens).unwrap();
 
-        let out = get_vars(&doc, &Point::new(6, 46)).unwrap();
-        assert_eq!(
-            out,
-            vec![
-                LocalVariable {
-                    level: 2,
-                    jtype: dto::JType::Void,
-                    name: "ioStuff".to_string(),
-                    is_fun: true,
-                    range: tree_sitter::Range {
-                        start_byte: 63,
-                        end_byte: 70,
-                        start_point: Point { row: 3, column: 19 },
-                        end_point: Point { row: 3, column: 26 },
-                    },
-                },
-                LocalVariable {
-                    level: 4,
-                    jtype: dto::JType::Class("IOException".to_string()),
-                    name: "eoeoeoeooe".to_string(),
-                    is_fun: false,
-                    range: Range {
-                        start_byte: 137,
-                        end_byte: 147,
-                        start_point: Point { row: 5, column: 29 },
-                        end_point: Point { row: 5, column: 39 },
-                    },
-                },
-            ]
-        );
+        let out = get_vars(&ast, &AstPoint::new(6, 46)).unwrap();
+        insta::assert_debug_snapshot!(out);
     }
 
     #[test]
@@ -1238,49 +623,10 @@ public class Test {
     }
 }
         "#;
-        let doc = Document::setup(content, PathBuf::new(), "".to_string()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
+        let ast = ast::parse_file(&tokens).unwrap();
 
-        let out = get_vars(&doc, &Point::new(5, 22)).unwrap();
-        assert_eq!(
-            out,
-            vec![
-                LocalVariable {
-                    level: 2,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "options".to_string(),
-                    is_fun: true,
-                    range: tree_sitter::Range {
-                        start_byte: 76,
-                        end_byte: 83,
-                        start_point: Point { row: 4, column: 18 },
-                        end_point: Point { row: 4, column: 25 },
-                    },
-                },
-                LocalVariable {
-                    level: 3,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "outer".to_string(),
-                    is_fun: false,
-                    range: Range {
-                        start_byte: 97,
-                        end_byte: 102,
-                        start_point: Point { row: 4, column: 39 },
-                        end_point: Point { row: 4, column: 44 },
-                    },
-                },
-                LocalVariable {
-                    level: 3,
-                    jtype: dto::JType::Class("String".to_string()),
-                    name: "inner".to_string(),
-                    is_fun: false,
-                    range: Range {
-                        start_byte: 119,
-                        end_byte: 124,
-                        start_point: Point { row: 5, column: 13 },
-                        end_point: Point { row: 5, column: 18 },
-                    },
-                },
-            ]
-        );
+        let out = get_vars(&ast, &AstPoint::new(5, 22)).unwrap();
+        insta::assert_debug_snapshot!(out);
     }
 }

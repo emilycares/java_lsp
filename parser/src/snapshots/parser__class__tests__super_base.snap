@@ -1,0 +1,23 @@
+---
+source: parser/src/class.rs
+expression: result.unwrap()
+---
+Class {
+    class_path: "ch.emilycares.Super",
+    source: "",
+    access: Access(
+        0x0,
+    ),
+    imports: [
+        Package(
+            "ch.emilycares",
+        ),
+    ],
+    name: "Super",
+    methods: [],
+    fields: [],
+    super_class: Name(
+        "IOException",
+    ),
+    super_interfaces: [],
+}
