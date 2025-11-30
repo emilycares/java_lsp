@@ -31,7 +31,7 @@ pub fn parse_interface(
     }
     let mut permits = vec![];
     loop {
-        let token = tokens.get(pos).ok_or(AstError::eof())?;
+        let token = tokens.get(pos).ok_or_else(AstError::eof)?;
         match token.token {
             Token::Extends => {
                 let (s, npos) = parse_extends(tokens, pos)?;
@@ -61,7 +61,7 @@ pub fn parse_interface(
         if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
             pos = npos;
             break;
-        };
+        }
         match assert_token(tokens, pos, Token::Semicolon) {
             Ok(npos) => {
                 pos = npos;
@@ -147,7 +147,7 @@ pub fn parse_interface_constant(
     let mut avaliability = AstAvailability::empty();
     let mut pos = pos;
     loop {
-        let t = tokens.get(pos).ok_or(AstError::eof())?;
+        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
             Token::Public => avaliability |= AstAvailability::Public,
             Token::Private => avaliability |= AstAvailability::Private,
@@ -263,7 +263,7 @@ pub fn parse_interface_method_impl(
     let mut avaliability = AstAvailability::empty();
     let mut pos = pos;
     loop {
-        let t = tokens.get(pos).ok_or(AstError::eof())?;
+        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
             Token::Public => avaliability |= AstAvailability::Public,
             Token::Private => avaliability |= AstAvailability::Private,

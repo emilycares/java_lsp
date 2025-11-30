@@ -50,39 +50,35 @@ pub fn parse_enumeration(
             pos = npos;
             end_reached = true;
             break;
-        }
-        if let Ok(npos) = assert_token(tokens, pos, Token::Semicolon) {
+        } else if let Ok(npos) = assert_token(tokens, pos, Token::Semicolon) {
             pos = npos;
             break;
-        }
-        if let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
+        } else if let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
             pos = npos;
             continue;
-        } else {
-            match parse_enum_members(
-                tokens,
-                pos,
-                true,
-                &mut methods,
-                &mut variables,
-                &mut constructors,
-                &mut static_blocks,
-                &mut inner,
-            ) {
-                Ok(npos) => {
-                    if let Ok(npos) = assert_token(tokens, npos, Token::Semicolon) {
-                        pos = npos;
-                        break;
-                    } else if let Ok(npos) = assert_token(tokens, npos, Token::Comma) {
-                        pos = npos;
-                        continue;
-                    } else {
-                        pos = npos;
-                        continue;
-                    }
+        }
+        match parse_enum_members(
+            tokens,
+            pos,
+            true,
+            &mut methods,
+            &mut variables,
+            &mut constructors,
+            &mut static_blocks,
+            &mut inner,
+        ) {
+            Ok(npos) => {
+                if let Ok(npos) = assert_token(tokens, npos, Token::Semicolon) {
+                    pos = npos;
+                    break;
+                } else if let Ok(npos) = assert_token(tokens, npos, Token::Comma) {
+                    pos = npos;
+                    continue;
                 }
-                Err(e) => errors.push(("enum_members before comma".into(), e)),
+                pos = npos;
+                continue;
             }
+            Err(e) => errors.push(("enum_members before comma".into(), e)),
         }
         return Err(AstError::AllChildrenFailed {
             parent: "enum_variant".into(),
@@ -155,7 +151,7 @@ fn parse_enum_members(
                 pos = npos;
             }
             break;
-        };
+        }
         match parse_class_method(tokens, pos) {
             Ok((method, npos)) => {
                 methods.push(method);

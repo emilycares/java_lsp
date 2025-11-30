@@ -8,13 +8,14 @@ use my_string::MyString;
 
 use crate::lexer::PositionToken;
 
-#[derive(Debug, PartialEq, Default, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Default, Clone, Copy)]
 pub struct AstRange {
     pub start: AstPoint,
     pub end: AstPoint,
 }
 
 impl AstRange {
+    #[must_use]
     pub fn from_position_token(start: &PositionToken, end: &PositionToken) -> Self {
         Self {
             start: start.start_point(),
@@ -22,12 +23,15 @@ impl AstRange {
         }
     }
 
+    #[must_use]
     pub fn is_in_range(&self, point: &AstPoint) -> bool {
         point >= &self.start && point <= &self.end
     }
-    pub fn is_contained_in(&self, other: &AstRange) -> bool {
+    #[must_use]
+    pub fn is_contained_in(&self, other: &Self) -> bool {
         self.start >= other.start && self.end <= other.end
     }
+    #[must_use]
     pub fn is_after_range(&self, point: &AstPoint) -> bool {
         let after = AstPoint {
             line: self.end.line,
@@ -37,14 +41,15 @@ impl AstRange {
     }
 }
 
-#[derive(Debug, PartialEq, Default, Clone, Copy, PartialOrd)]
+#[derive(Debug, PartialEq, Eq, Default, Clone, Copy, PartialOrd)]
 pub struct AstPoint {
     pub line: usize,
     pub col: usize,
 }
 
 impl AstPoint {
-    pub fn new(line: usize, col: usize) -> Self {
+    #[must_use]
+    pub const fn new(line: usize, col: usize) -> Self {
         Self { line, col }
     }
 }
@@ -85,23 +90,23 @@ pub enum AstImportUnit {
 bitflags! {
    #[derive(Debug, Clone)]
    pub struct AstThingAttributes: u8 {
-        const Sealed       = 0b00000001;
-        const NonSealed    = 0b00000010;
+        const Sealed       = 0b0000_0001;
+        const NonSealed    = 0b0000_0010;
     }
 }
 
 bitflags! {
    #[derive(Debug, Clone)]
    pub struct AstAvailability: u16 {
-        const Public       = 0b0000000000000001;
-        const Synchronized = 0b0000000000000010;
-        const Final        = 0b0000000000000100;
-        const Static       = 0b0000000000001000;
-        const Private      = 0b0000000000010000;
-        const Protected    = 0b0000000000100000;
-        const Abstract     = 0b0000000001000000;
-        const Native       = 0b0000000010000000;
-        const StaticFp     = 0b0000000100000000;
+        const Public       = 0b0000_0000_0000_0001;
+        const Synchronized = 0b0000_0000_0000_0010;
+        const Final        = 0b0000_0000_0000_0100;
+        const Static       = 0b0000_0000_0000_1000;
+        const Private      = 0b0000_0000_0001_0000;
+        const Protected    = 0b0000_0000_0010_0000;
+        const Abstract     = 0b0000_0000_0100_0000;
+        const Native       = 0b0000_0000_1000_0000;
+        const StaticFp     = 0b0000_0001_0000_0000;
     }
 }
 #[derive(Debug, Clone)]
@@ -142,8 +147,8 @@ pub struct AstModuleRequires {
 bitflags! {
    #[derive(Debug, Clone)]
    pub struct AstModuleRequiresFlags: u8 {
-        const Transitive   = 0b00000001;
-        const Static       = 0b00000010;
+        const Transitive   = 0b0000_0001;
+        const Static       = 0b0000_0010;
     }
 }
 #[derive(Debug, Clone)]
@@ -201,10 +206,10 @@ pub struct AstClassBlock {
     pub blocks: Vec<AstBlock>,
 }
 bitflags! {
-   #[derive(PartialEq, Debug, Clone)]
+   #[derive(PartialEq, Eq, Debug, Clone)]
    pub struct AstVolatileTranient: u8 {
-     const Volatile  = 0b00000001;
-     const Transient = 0b00000010;
+     const Volatile  = 0b0000_0001;
+     const Transient = 0b0000_0010;
    }
 }
 
@@ -511,7 +516,7 @@ pub struct AstBlockContinue {
     pub label: Option<AstIdentifier>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AstIdentifier {
     pub range: AstRange,
     pub value: MyString,
@@ -657,13 +662,14 @@ pub enum AstJTypeKind {
     },
 }
 impl AstJTypeKind {
+    #[must_use]
     pub fn is_array(&self) -> bool {
         let mut c = self;
-        while let AstJTypeKind::Access { base: _, inner } = &c {
+        while let Self::Access { base: _, inner } = &c {
             c = &inner.value;
         }
 
-        if let AstJTypeKind::Array(_) = c {
+        if let Self::Array(_) = c {
             return true;
         }
         false
@@ -672,23 +678,23 @@ impl AstJTypeKind {
 impl fmt::Display for AstJTypeKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AstJTypeKind::Void => write!(f, "void"),
-            AstJTypeKind::Byte => write!(f, "byte"),
-            AstJTypeKind::Char => write!(f, "char"),
-            AstJTypeKind::Double => write!(f, "double"),
-            AstJTypeKind::Float => write!(f, "float"),
-            AstJTypeKind::Int => write!(f, "int"),
-            AstJTypeKind::Long => write!(f, "long"),
-            AstJTypeKind::Short => write!(f, "short"),
-            AstJTypeKind::Boolean => write!(f, "boolean"),
-            AstJTypeKind::Wildcard => write!(f, "?"),
-            AstJTypeKind::Var => write!(f, "var"),
-            AstJTypeKind::Class(ast_identifier) => write!(f, "{}", ast_identifier.value),
-            AstJTypeKind::Array(ast_jtype) => {
+            Self::Void => write!(f, "void"),
+            Self::Byte => write!(f, "byte"),
+            Self::Char => write!(f, "char"),
+            Self::Double => write!(f, "double"),
+            Self::Float => write!(f, "float"),
+            Self::Int => write!(f, "int"),
+            Self::Long => write!(f, "long"),
+            Self::Short => write!(f, "short"),
+            Self::Boolean => write!(f, "boolean"),
+            Self::Wildcard => write!(f, "?"),
+            Self::Var => write!(f, "var"),
+            Self::Class(ast_identifier) => write!(f, "{}", ast_identifier.value),
+            Self::Array(ast_jtype) => {
                 std::fmt::Display::fmt(&ast_jtype.value, f)?;
                 write!(f, "[]")
             }
-            AstJTypeKind::Generic(ast_identifier, ast_jtypes) => {
+            Self::Generic(ast_identifier, ast_jtypes) => {
                 write!(f, "{}", ast_identifier.value)?;
                 write!(f, "<")?;
                 for t in ast_jtypes {
@@ -698,8 +704,8 @@ impl fmt::Display for AstJTypeKind {
 
                 write!(f, ">")
             }
-            AstJTypeKind::Parameter(p) => write!(f, "<{}>", p.value),
-            AstJTypeKind::Access { base, inner } => {
+            Self::Parameter(p) => write!(f, "<{}>", p.value),
+            Self::Access { base, inner } => {
                 fmt::Display::fmt(&base.value, f)?;
                 write!(f, ".")?;
                 fmt::Display::fmt(&inner.value, f)
@@ -740,20 +746,19 @@ pub enum AstExpressionKind {
     InstanceOf(AstInstanceOf),
 }
 impl AstExpressionKind {
+    #[must_use]
     pub fn has_content(&self) -> bool {
         match self {
-            AstExpressionKind::Recursive(ast_recursive_expression) => {
-                ast_recursive_expression.has_content()
-            }
-            AstExpressionKind::Casted(_)
-            | AstExpressionKind::JType(_)
-            | AstExpressionKind::Lambda(_)
-            | AstExpressionKind::InlineSwitch(_)
-            | AstExpressionKind::NewClass(_)
-            | AstExpressionKind::Array(_)
-            | AstExpressionKind::Generics(_)
-            | AstExpressionKind::InstanceOf(_)
-            | AstExpressionKind::ClassAccess(_) => true,
+            Self::Recursive(ast_recursive_expression) => ast_recursive_expression.has_content(),
+            Self::Casted(_)
+            | Self::JType(_)
+            | Self::Lambda(_)
+            | Self::InlineSwitch(_)
+            | Self::NewClass(_)
+            | Self::Array(_)
+            | Self::Generics(_)
+            | Self::InstanceOf(_)
+            | Self::ClassAccess(_) => true,
         }
     }
 }
@@ -801,6 +806,7 @@ pub enum AstExpresssionOrAnnotated {
     Annotated(AstAnnotated),
 }
 impl AstRecursiveExpression {
+    #[must_use]
     pub fn has_content(&self) -> bool {
         self.ident.is_some()
             || self.values.is_some()
@@ -865,7 +871,7 @@ pub struct AstBoolean {
     pub value: bool,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum AstExpressionOperator {
     None,
     Plus(AstRange),

@@ -1,7 +1,12 @@
 #![deny(missing_docs)]
 #![deny(warnings)]
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
+#![deny(clippy::enum_glob_use)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::too_many_lines)]
 //! A java ast
 use annotation::parse_annotation;
 use class::parse_class;
@@ -226,7 +231,7 @@ pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, us
     let mut avaliability = AstAvailability::empty();
     let mut attributes = AstThingAttributes::empty();
     loop {
-        let t = tokens.get(pos).ok_or(AstError::eof())?;
+        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
             Token::Public => avaliability |= AstAvailability::Public,
             Token::Private => avaliability |= AstAvailability::Private,
@@ -245,41 +250,23 @@ pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, us
                     continue;
                 }
             }
-            // Token::At => {
-            //     match parse_annotated_list(tokens, pos) {
-            //         Ok((an, npos)) => {
-            //             pos = npos;
-            //             annotated.extend(an);
-            //         }
-            //         Err(e) => return Err(e),
-            //     }
-            //     continue;
-            // }
             _ => break,
         }
         pos += 1;
     }
-    match tokens.get(pos) {
-        Some(t) => {
-            let pos = pos + 1;
-            match t.token {
-                Token::Class => parse_class(tokens, pos, avaliability, attributes, annotated),
-                Token::Record => parse_record(tokens, pos, avaliability, attributes, annotated),
-                Token::Interface => {
-                    parse_interface(tokens, pos, avaliability, attributes, annotated)
-                }
-                Token::Enum => parse_enumeration(tokens, pos, avaliability, attributes, annotated),
-                Token::AtInterface => {
-                    parse_annotation(tokens, pos, avaliability, attributes, annotated)
-                }
-                _ => Err(AstError::ExpectedToken(ExpectedToken::from(
-                    t,
-                    pos,
-                    Token::Class,
-                ))),
-            }
-        }
-        None => Err(AstError::eof()),
+    let t = tokens.get(pos).ok_or_else(AstError::eof)?;
+    let pos = pos + 1;
+    match t.token {
+        Token::Class => parse_class(tokens, pos, avaliability, attributes, annotated),
+        Token::Record => parse_record(tokens, pos, avaliability, attributes, annotated),
+        Token::Interface => parse_interface(tokens, pos, avaliability, attributes, annotated),
+        Token::Enum => parse_enumeration(tokens, pos, avaliability, attributes, annotated),
+        Token::AtInterface => parse_annotation(tokens, pos, avaliability, attributes, annotated),
+        _ => Err(AstError::ExpectedToken(ExpectedToken::from(
+            t,
+            pos,
+            Token::Class,
+        ))),
     }
 }
 
@@ -427,16 +414,15 @@ pub fn parse_lambda_parameters(
             pos = npos;
             jtype = Some(j);
         }
-        let name;
-        if let Ok((n, npos)) = parse_name(tokens, pos) {
+        let name = if let Ok((n, npos)) = parse_name(tokens, pos) {
             pos = npos;
-            name = n;
+            n
         } else {
             let (n, npos) = parse_name(tokens, s)?;
-            name = n;
             jtype = None;
             pos = npos;
-        }
+            n
+        };
         let end = tokens.end(pos)?;
         values.push(AstLambdaParameter {
             range: AstRange::from_position_token(start, end),
@@ -515,7 +501,7 @@ fn parse_array_with_annotated(
                 continue;
             }
             Err(e) => errors.push(("expression".into(), e)),
-        };
+        }
         match parse_annotated(tokens, pos) {
             Ok((an, npos)) => {
                 pos = npos;
@@ -523,7 +509,7 @@ fn parse_array_with_annotated(
                 continue;
             }
             Err(e) => errors.push(("annotated".into(), e)),
-        };
+        }
         return Err(AstError::AllChildrenFailed {
             parent: "array with annotated".into(),
             errors,
@@ -570,11 +556,11 @@ fn parse_value_nuget(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, 
         )),
         Token::Number(num) => {
             if let Ok(pos) = assert_token(tokens, pos + 1, Token::Dot) {
-                let current = tokens.get(pos).ok_or(AstError::eof())?;
+                let current = tokens.get(pos).ok_or_else(AstError::eof)?;
                 if let Token::Number(n) = &current.token {
                     let value = format!("{num}.{n}");
                     let pos = pos + 1;
-                    let current = tokens.get(pos).ok_or(AstError::eof())?;
+                    let current = tokens.get(pos).ok_or_else(AstError::eof)?;
                     match &current.token {
                         Token::Identifier(val) if val == "d" => {
                             return Ok((
@@ -910,7 +896,7 @@ fn parse_annotated_parameters(
                 Err(e) => {
                     errors.push(("named expression".into(), e));
                 }
-            };
+            }
         }
         match parse_expression(tokens, pos, &ExpressionOptions::None) {
             Ok((expression, npos)) => {
@@ -1077,12 +1063,12 @@ pub fn parse_class_access(
     ))
 }
 /// Options for expression parsing
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ExpressionOptions {
     /// Default expression
     None,
     /// Don't parse 'exp ? expr : expr'
-    /// QuestionMark and Colon will not be parsed as operators
+    /// `QuestionMark` and Colon will not be parsed as operators
     NoInlineIf,
     /// Don't parse labdas
     NoLambda,
@@ -1192,7 +1178,7 @@ fn parse_instnceof(
     let mut availability = AstAvailability::empty();
     let mut pos = pos;
     loop {
-        let t = tokens.get(pos).ok_or(AstError::eof())?;
+        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
             Token::Final => availability |= AstAvailability::Final,
             Token::At => {
@@ -1209,7 +1195,6 @@ fn parse_instnceof(
         }
         pos += 1;
     }
-    let (annotated, pos) = parse_annotated_list(tokens, pos)?;
     let (jtype, pos) = parse_jtype(tokens, pos)?;
     let end = tokens.end(pos)?;
     Ok((
@@ -1281,10 +1266,10 @@ pub fn parse_recursive_expression(
             pos = npos;
         }
         Token::LeftParen => {
-            let values_start = tokens.get(pos).ok_or(AstError::eof())?;
+            let values_start = tokens.get(pos).ok_or_else(AstError::eof)?;
             let (vals, npos) = parse_expression_parameters(tokens, pos)?;
             pos = npos;
-            let values_end = tokens.get(pos - 1).ok_or(AstError::eof())?;
+            let values_end = tokens.get(pos - 1).ok_or_else(AstError::eof)?;
             out.values = Some(types::AstValues {
                 range: AstRange::from_position_token(values_start, values_end),
                 values: vals,
@@ -1387,11 +1372,10 @@ fn parse_block_variable_no_semicolon(
     let start = tokens.start(pos)?;
     let (annotated, pos) = parse_annotated_list(tokens, pos)?;
     let mut pos = pos;
-    let mut fin = false;
-    if let Ok(npos) = assert_token(tokens, pos, Token::Final) {
+    let fin = assert_token(tokens, pos, Token::Final).is_ok_and(|npos| {
         pos = npos;
-        fin = true;
-    }
+        true
+    });
     let mut out = vec![];
     let (jtype, pos) = parse_jtype(tokens, pos)?;
     let (v, pos) = parse_variable_base(tokens, start, &annotated, fin, &jtype, pos)?;
@@ -1449,7 +1433,7 @@ fn parse_block_variable_multi_type_no_semicolon(
     let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
     let mut pos = pos;
     loop {
-        let t = tokens.get(pos).ok_or(AstError::eof())?;
+        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
             Token::Final => fin = true,
             Token::At => {
@@ -1529,11 +1513,13 @@ fn parse_block_yield(
     let start = tokens.start(pos)?;
     let pos = assert_token(tokens, pos, Token::Yield)?;
     let mut pos = pos;
-    let mut expression = AstExpressionOrValue::None;
-    if let Ok((nexpression, npos)) = parse_expression(tokens, pos, &ExpressionOptions::None) {
-        pos = npos;
-        expression = AstExpressionOrValue::Expression(nexpression);
-    }
+    let expression =
+        if let Ok((nexpression, npos)) = parse_expression(tokens, pos, &ExpressionOptions::None) {
+            pos = npos;
+            AstExpressionOrValue::Expression(nexpression)
+        } else {
+            AstExpressionOrValue::None
+        };
     let pos = assert_token(tokens, pos, Token::Semicolon)?;
     let end = tokens.end(pos)?;
     Ok((
@@ -1660,7 +1646,7 @@ fn parse_method_header(
     let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
     let mut pos = pos;
     loop {
-        let t = tokens.get(pos).ok_or(AstError::eof())?;
+        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
             Token::Public => avaliability |= AstAvailability::Public,
             Token::Private => avaliability |= AstAvailability::Private,
@@ -1684,7 +1670,7 @@ fn parse_method_header(
     if let Ok((type_params, npos)) = parse_type_parameters(tokens, pos) {
         type_parameters = Some(type_params);
         pos = npos;
-    };
+    }
 
     let (jtype, pos) = parse_jtype(tokens, pos)?;
     let (name, pos) = parse_name(tokens, pos)?;
@@ -1744,7 +1730,7 @@ fn parse_constructor_header(
     let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
     let mut pos = pos;
     loop {
-        let t = tokens.get(pos).ok_or(AstError::eof())?;
+        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
             Token::Public => avaliability |= AstAvailability::Public,
             Token::Private => avaliability |= AstAvailability::Private,
@@ -1796,7 +1782,7 @@ fn parse_throws_declaration(
 ) -> Result<(AstThrowsDeclaration, usize), AstError> {
     let start = tokens.start(pos)?;
     let pos = assert_token(tokens, pos, Token::Throws)?;
-    let (parameters, pos) = parse_type_list(tokens, pos)?;
+    let (parameters, pos) = parse_type_list(tokens, pos);
     let end = tokens.end(pos)?;
     Ok((
         AstThrowsDeclaration {
@@ -1862,7 +1848,7 @@ pub fn parse_type_parameters(
 fn parse_extends(tokens: &[PositionToken], pos: usize) -> Result<(AstExtends, usize), AstError> {
     let start = tokens.start(pos)?;
     let pos = assert_token(tokens, pos, Token::Extends)?;
-    let (parameters, pos) = parse_type_list(tokens, pos)?;
+    let (parameters, pos) = parse_type_list(tokens, pos);
     let end = tokens.end(pos)?;
     Ok((
         AstExtends {
@@ -1873,10 +1859,7 @@ fn parse_extends(tokens: &[PositionToken], pos: usize) -> Result<(AstExtends, us
     ))
 }
 
-fn parse_type_list(
-    tokens: &[PositionToken],
-    pos: usize,
-) -> Result<(Vec<AstJType>, usize), AstError> {
+fn parse_type_list(tokens: &[PositionToken], pos: usize) -> (Vec<AstJType>, usize) {
     let mut pos = pos;
     let mut parameters = vec![];
     while let Ok((name, npos)) = parse_jtype(tokens, pos) {
@@ -1886,7 +1869,7 @@ fn parse_type_list(
             pos = npos;
         }
     }
-    Ok((parameters, pos))
+    (parameters, pos)
 }
 
 /// { statements; }
@@ -1935,7 +1918,7 @@ fn parse_block_brackets(
 }
 
 /// Options for expression parsing
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum BlockEntryOptions {
     /// Default expression
     None,
@@ -3023,7 +3006,8 @@ fn parse_method_paramerter(
 }
 
 /// If token can be identifier
-pub fn can_be_ident(token: &Token) -> bool {
+#[must_use]
+pub const fn can_be_ident(token: &Token) -> bool {
     matches!(
         token,
         Token::Yield
@@ -3097,7 +3081,7 @@ pub fn parse_name_dot(
     let mut pos = pos;
     let mut ident = MyString::new();
     loop {
-        let Ok(t) = tokens.get(pos).ok_or(AstError::eof()) else {
+        let Ok(t) = tokens.get(pos).ok_or_else(AstError::eof) else {
             break;
         };
         match &t.token {
@@ -3115,7 +3099,7 @@ pub fn parse_name_dot(
             }
             _ => {
                 if pos == init_pos
-                    && let Ok(t) = tokens.get(pos).ok_or(AstError::eof())
+                    && let Ok(t) = tokens.get(pos).ok_or_else(AstError::eof)
                 {
                     return Err(AstError::InvalidName(InvalidToken::from(t, pos)));
                 }
@@ -3124,7 +3108,7 @@ pub fn parse_name_dot(
         }
     }
     if ident.is_empty() {
-        let t = tokens.get(pos).ok_or(AstError::eof())?;
+        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         return Err(AstError::IdentifierEmpty(InvalidToken::from(t, pos)));
     }
     let end = tokens.end(pos)?;
@@ -3146,7 +3130,7 @@ pub fn parse_name_dot_logical(
     let mut ident = MyString::new();
     let mut first = true;
     loop {
-        let Ok(t) = tokens.get(pos).ok_or(AstError::eof()) else {
+        let Ok(t) = tokens.get(pos).ok_or_else(AstError::eof) else {
             break;
         };
         match &t.token {
@@ -3155,7 +3139,10 @@ pub fn parse_name_dot_logical(
                     first = false;
                     ident.push_str(id);
                     pos += 1;
-                } else if tokens.get(pos - 1).ok_or(AstError::eof()).map(|i| &i.token)
+                } else if tokens
+                    .get(pos - 1)
+                    .ok_or_else(AstError::eof)
+                    .map(|i| &i.token)
                     == Ok(&Token::Dot)
                 {
                     ident.push_str(id);
@@ -3169,7 +3156,10 @@ pub fn parse_name_dot_logical(
                     first = false;
                     ident.push_str(&t.token.to_string());
                     pos += 1;
-                } else if tokens.get(pos - 1).ok_or(AstError::eof()).map(|i| &i.token)
+                } else if tokens
+                    .get(pos - 1)
+                    .ok_or_else(AstError::eof)
+                    .map(|i| &i.token)
                     == Ok(&Token::Dot)
                 {
                     ident.push_str(&t.token.to_string());
@@ -3200,7 +3190,7 @@ pub fn parse_name_dot_logical(
         }
     }
     if ident.is_empty() {
-        let t = tokens.get(pos).ok_or(AstError::eof())?;
+        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         return Err(AstError::IdentifierEmpty(InvalidToken::from(t, pos)));
     }
     let end = tokens.end(pos)?;
@@ -3220,20 +3210,20 @@ pub fn parse_name_single(
     let start = tokens.start(pos)?;
     let mut pos = pos;
     let mut ident = None;
-    let t = tokens.get(pos).ok_or(AstError::eof())?;
+    let t = tokens.get(pos).ok_or_else(AstError::eof)?;
     match &t.token {
         Token::Identifier(id) => {
             ident = Some(id);
             pos += 1;
         }
         _ => {
-            if let Ok(t) = tokens.get(pos).ok_or(AstError::eof()) {
+            if let Ok(t) = tokens.get(pos).ok_or_else(AstError::eof) {
                 return Err(AstError::InvalidName(InvalidToken::from(t, pos)));
             }
         }
     }
     let Some(ident) = ident else {
-        let t = tokens.get(pos).ok_or(AstError::eof())?;
+        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         return Err(AstError::IdentifierEmpty(InvalidToken::from(t, pos)));
     };
     let end = tokens.end(pos)?;
@@ -3256,7 +3246,7 @@ fn parse_identifier(
     let mut ident = MyString::new();
     let mut modded = false;
     loop {
-        let t = tokens.get(pos).ok_or(AstError::eof())?;
+        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match &t.token {
             Token::Identifier(id) => {
                 modded = true;
@@ -3272,7 +3262,7 @@ fn parse_identifier(
         }
     }
     if !modded {
-        let t = tokens.get(pos).ok_or(AstError::eof())?;
+        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         return Err(AstError::IdentifierEmpty(InvalidToken::from(t, pos)));
     }
     let end = tokens.end(pos)?;
@@ -3385,7 +3375,7 @@ pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, us
             }
         }
         Ok((out, pos))
-    } else if let Ok(current) = tokens.get(pos).ok_or(AstError::eof()) {
+    } else if let Ok(current) = tokens.get(pos).ok_or_else(AstError::eof) {
         let mut out = AstJType {
             range: AstRange::default(),
             value: AstJTypeKind::Void,
@@ -3465,7 +3455,7 @@ fn parse_jtype_generics(
             break;
         }
         if let Ok(npos) = assert_token(tokens, pos, Token::QuestionMark) {
-            let start = tokens.get(pos).ok_or(AstError::eof())?;
+            let start = tokens.get(pos).ok_or_else(AstError::eof)?;
             pos = npos;
 
             if let Ok(npos) = assert_token(tokens, npos, Token::Implements) {
@@ -3475,7 +3465,7 @@ fn parse_jtype_generics(
             } else if let Ok(npos) = assert_token(tokens, npos, Token::Super) {
                 pos = npos;
             }
-            let end = tokens.get(pos).ok_or(AstError::eof())?;
+            let end = tokens.get(pos).ok_or_else(AstError::eof)?;
             generic_arguments.push(AstJType {
                 range: AstRange::from_position_token(start, end),
                 value: AstJTypeKind::Wildcard,
@@ -3504,7 +3494,7 @@ fn parse_primitive_type(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstJTypeKind, usize), AstError> {
-    let current = tokens.get(pos).ok_or(AstError::eof())?;
+    let current = tokens.get(pos).ok_or_else(AstError::eof)?;
     match &current.token {
         Token::Int => Ok((AstJTypeKind::Int, pos + 1)),
         Token::Long => Ok((AstJTypeKind::Long, pos + 1)),

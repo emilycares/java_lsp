@@ -23,11 +23,12 @@ pub fn parse_class(
 ) -> Result<(AstThing, usize), AstError> {
     let start = tokens.start(pos)?;
     let (name, pos) = parse_name(tokens, pos)?;
-    let mut type_parameters = None;
     let mut pos = pos;
-    if let Ok((type_params, npos)) = parse_type_parameters(tokens, pos) {
-        type_parameters = Some(type_params);
+    let type_parameters = if let Ok((type_params, npos)) = parse_type_parameters(tokens, pos) {
         pos = npos;
+        Some(type_params)
+    } else {
+        None
     };
     let (superclass, implements, permits, pos) = parse_implemnets_extends_permits(tokens, pos)?;
     let (block, pos) = parse_class_block(tokens, pos)?;
@@ -62,7 +63,7 @@ pub fn parse_implemnets_extends_permits(
     let mut permits = vec![];
     let mut pos = pos;
     loop {
-        let token = tokens.get(pos).ok_or(AstError::eof())?;
+        let token = tokens.get(pos).ok_or_else(AstError::eof)?;
         match token.token {
             Token::Extends => {
                 let (s, npos) = parse_superclass(tokens, pos)?;
@@ -104,7 +105,7 @@ pub fn parse_class_block(
         if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
             pos = npos;
             break;
-        };
+        }
         errors.clear();
         match assert_token(tokens, pos, Token::Semicolon) {
             Ok(npos) => {
@@ -183,12 +184,12 @@ pub fn parse_class_block(
     }
     Ok((
         AstClassBlock {
-            static_blocks,
-            blocks,
             variables,
             methods,
             constructors,
+            static_blocks,
             inner,
+            blocks,
         },
         pos,
     ))
@@ -244,7 +245,7 @@ pub fn parse_class_variable(
     let mut pos = pos;
     let mut volatile_transient = AstVolatileTranient::empty();
     loop {
-        let t = tokens.get(pos).ok_or(AstError::eof())?;
+        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
             Token::Public => avaliability |= AstAvailability::Public,
             Token::Private => avaliability |= AstAvailability::Private,
@@ -306,12 +307,13 @@ fn parse_class_variable_base(
     let mut jtype = jtype.clone();
     let (name, pos) = parse_name(tokens, pos)?;
     let mut pos = parse_array_type_on_name(tokens, pos, &mut jtype);
-    let mut expression = None;
-    if let Ok(npos) = assert_token(tokens, pos, Token::Equal) {
+    let expression = if let Ok(npos) = assert_token(tokens, pos, Token::Equal) {
         let (aexpression, npos) = parse_expression(tokens, npos, &ExpressionOptions::None)?;
         pos = npos;
-        expression = Some(aexpression);
-    }
+        Some(aexpression)
+    } else {
+        None
+    };
     let end = tokens.end(pos)?;
     Ok((
         AstClassVariable {

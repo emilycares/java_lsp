@@ -25,7 +25,7 @@ pub fn parse_record(
     if let Ok((type_params, npos)) = parse_type_parameters(tokens, pos) {
         type_parameters = Some(type_params);
         pos = npos;
-    };
+    }
     let (record_entries, pos) = parse_record_entires(tokens, pos)?;
     let (implements, pos) = parse_implements(tokens, pos)?;
     let (superclass, pos) = parse_superclass(tokens, pos)?;

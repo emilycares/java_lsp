@@ -7,7 +7,7 @@ use phf::phf_map;
 use crate::types::AstPoint;
 
 /// Position in document
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct PositionToken {
     /// Data
     pub token: Token,
@@ -18,13 +18,15 @@ pub struct PositionToken {
 }
 impl PositionToken {
     /// Start point of Token
-    pub fn start_point(&self) -> AstPoint {
+    #[must_use]
+    pub const fn start_point(&self) -> AstPoint {
         AstPoint {
             line: self.line,
             col: self.col,
         }
     }
     /// End point of Token
+    #[must_use]
     pub fn end_point(&self) -> AstPoint {
         AstPoint {
             line: self.line,
@@ -35,114 +37,111 @@ impl PositionToken {
 
 impl Token {
     /// Length of token
+    #[must_use]
     pub fn len(&self) -> usize {
         match self {
-            Token::Identifier(i) => i.len(),
-            Token::StringLiteral(i) => i.len(),
-            Token::CharLiteral(i) => i.len(),
-            Token::Number(n) => n.to_string().len(),
-            Token::HexLiteral(n) => n.to_string().len() + 2,
-            Token::BinaryLiteral(n) => n.to_string().len() + 2,
-            Token::AtInterface => 11,
-            Token::LeftParen
-            | Token::RightParen
-            | Token::Plus
-            | Token::Dash
-            | Token::Star
-            | Token::Dot
-            | Token::Colon
-            | Token::Semicolon
-            | Token::Percent
-            | Token::Ampersand
-            | Token::VerticalBar
-            | Token::LeftParenCurly
-            | Token::RightParenCurly
+            Self::Identifier(i) | Self::StringLiteral(i) | Self::CharLiteral(i) => i.len(),
+            Self::Number(n) => n.len(),
+            Self::HexLiteral(n) | Self::BinaryLiteral(n) => n.len() + 2,
+            Self::AtInterface => 11,
+            Self::LeftParen
+            | Self::RightParen
+            | Self::Plus
+            | Self::Dash
+            | Self::Star
+            | Self::Dot
+            | Self::Colon
+            | Self::Semicolon
+            | Self::Percent
+            | Self::Ampersand
+            | Self::VerticalBar
+            | Self::LeftParenCurly
+            | Self::RightParenCurly
             | Self::LeftParenSquare
             | Self::RightParenSquare
-            | Token::Comma
-            | Token::Slash
-            | Token::BackSlash
-            | Token::At
-            | Token::Lt
-            | Token::Gt
-            | Token::Equal
-            | Token::ExclamationMark
-            | Token::Underscore
-            | Token::Caret
-            | Token::Tilde
-            | Token::SingleQuote => 1,
-            Token::EqualDouble | Token::Le | Token::Ge | Token::Ne | Token::Arrow => 2,
-            Token::While
-            | Token::Package
-            | Token::Import
-            | Token::Public
-            | Token::Private
-            | Token::Protected
-            | Token::Class
-            | Token::Interface
-            | Token::Enum
-            | Token::Void
-            | Token::Throws
-            | Token::Int
-            | Token::Double
-            | Token::Extends
-            | Token::Implements
-            | Token::True
-            | Token::False
-            | Token::Float
-            | Token::New
-            | Token::Return
-            | Token::QuestionMark
-            | Token::Char
-            | Token::Boolean
-            | Token::Byte
-            | Token::Short
-            | Token::Long
-            | Token::Static
-            | Token::Final
-            | Token::Default
-            | Token::Else
-            | Token::For
-            | Token::Break
-            | Token::Continue
-            | Token::Switch
-            | Token::Case
-            | Token::Do
-            | Token::Try
-            | Token::Catch
-            | Token::Finally
-            | Token::Throw
-            | Token::Yield
-            | Token::Var
-            | Token::This
-            | Token::Abstract
-            | Token::Record
-            | Token::Synchronized
-            | Token::InstanceOf
-            | Token::Volatile
-            | Token::Transient
-            | Token::Native
-            | Token::Sealed
-            | Token::Non
-            | Token::Permits
-            | Token::Super
-            | Token::StrictFp
-            | Token::Module
-            | Token::Exports
-            | Token::To
-            | Token::Uses
-            | Token::Assert
-            | Token::Provides
-            | Token::With
-            | Token::Requires
-            | Token::Transitive
-            | Token::Opens
-            | Token::Open
-            | Token::If => KEYWORDS
+            | Self::Comma
+            | Self::Slash
+            | Self::BackSlash
+            | Self::At
+            | Self::Lt
+            | Self::Gt
+            | Self::Equal
+            | Self::ExclamationMark
+            | Self::Underscore
+            | Self::Caret
+            | Self::Tilde
+            | Self::SingleQuote => 1,
+            Self::EqualDouble | Self::Le | Self::Ge | Self::Ne | Self::Arrow => 2,
+            Self::While
+            | Self::Package
+            | Self::Import
+            | Self::Public
+            | Self::Private
+            | Self::Protected
+            | Self::Class
+            | Self::Interface
+            | Self::Enum
+            | Self::Void
+            | Self::Throws
+            | Self::Int
+            | Self::Double
+            | Self::Extends
+            | Self::Implements
+            | Self::True
+            | Self::False
+            | Self::Float
+            | Self::New
+            | Self::Return
+            | Self::QuestionMark
+            | Self::Char
+            | Self::Boolean
+            | Self::Byte
+            | Self::Short
+            | Self::Long
+            | Self::Static
+            | Self::Final
+            | Self::Default
+            | Self::Else
+            | Self::For
+            | Self::Break
+            | Self::Continue
+            | Self::Switch
+            | Self::Case
+            | Self::Do
+            | Self::Try
+            | Self::Catch
+            | Self::Finally
+            | Self::Throw
+            | Self::Yield
+            | Self::Var
+            | Self::This
+            | Self::Abstract
+            | Self::Record
+            | Self::Synchronized
+            | Self::InstanceOf
+            | Self::Volatile
+            | Self::Transient
+            | Self::Native
+            | Self::Sealed
+            | Self::Non
+            | Self::Permits
+            | Self::Super
+            | Self::StrictFp
+            | Self::Module
+            | Self::Exports
+            | Self::To
+            | Self::Uses
+            | Self::Assert
+            | Self::Provides
+            | Self::With
+            | Self::Requires
+            | Self::Transitive
+            | Self::Opens
+            | Self::Open
+            | Self::If => KEYWORDS
                 .entries()
                 .find(|i| i.1 == self)
-                .map(|i| i.0.len())
-                .unwrap_or(0),
+                .map_or(0, |i| i.0.len()),
         }
     }
 
@@ -155,118 +154,120 @@ impl Token {
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Token::Identifier(s) => write!(f, "{}", s),
-            Token::StringLiteral(s) => write!(f, "{}", s),
-            Token::CharLiteral(s) => write!(f, "{}", s),
-            Token::Number(num) => write!(f, "{}", num),
-            Token::HexLiteral(num) => write!(f, "0x{}", num),
-            Token::BinaryLiteral(num) => write!(f, "0b{}", num),
-            Token::LeftParen => write!(f, "("),
-            Token::RightParen => write!(f, ")"),
-            Token::Plus => write!(f, "+"),
-            Token::Dash => write!(f, "-"),
-            Token::Star => write!(f, "*"),
-            Token::Dot => write!(f, "."),
-            Token::Semicolon => write!(f, ";"),
-            Token::Colon => write!(f, ":"),
-            Token::Percent => write!(f, "%"),
-            Token::Ampersand => write!(f, "&"),
-            Token::VerticalBar => write!(f, "|"),
-            Token::LeftParenCurly => write!(f, "{{"),
-            Token::RightParenCurly => write!(f, "}}"),
-            Token::LeftParenSquare => write!(f, "["),
-            Token::RightParenSquare => write!(f, "]"),
-            Token::Comma => write!(f, ","),
-            Token::If => write!(f, "if"),
-            Token::While => write!(f, "while"),
-            Token::Package => write!(f, "package"),
-            Token::Import => write!(f, "import"),
-            Token::Public => write!(f, "public"),
-            Token::Private => write!(f, "private"),
-            Token::Protected => write!(f, "protedted"),
-            Token::Class => write!(f, "class"),
-            Token::Interface => write!(f, "interface"),
-            Token::Enum => write!(f, "enum"),
-            Token::Void => write!(f, "void"),
-            Token::Throws => write!(f, "throws"),
-            Token::Int => write!(f, "int"),
-            Token::Double => write!(f, "double"),
-            Token::Float => write!(f, "float"),
-            Token::Slash => write!(f, "/"),
-            Token::BackSlash => write!(f, "\\"),
-            Token::At => write!(f, "@"),
-            Token::Le => write!(f, "<="),
-            Token::Lt => write!(f, "<"),
-            Token::Ge => write!(f, ">="),
-            Token::Gt => write!(f, ">"),
-            Token::Extends => write!(f, "extends"),
-            Token::Implements => write!(f, "implements"),
-            Token::True => write!(f, "true"),
-            Token::False => write!(f, "false"),
-            Token::EqualDouble => write!(f, "=="),
-            Token::Equal => write!(f, "="),
-            Token::Ne => write!(f, "!="),
-            Token::ExclamationMark => write!(f, "!"),
-            Token::SingleQuote => write!(f, "'"),
-            Token::New => write!(f, "new"),
-            Token::Return => write!(f, "return"),
-            Token::QuestionMark => write!(f, "?"),
-            Token::Char => write!(f, "char"),
-            Token::Boolean => write!(f, "boolean"),
-            Token::Byte => write!(f, "byte"),
-            Token::Short => write!(f, "short"),
-            Token::Long => write!(f, "long"),
-            Token::Static => write!(f, "static"),
-            Token::Final => write!(f, "final"),
-            Token::Default => write!(f, "default"),
-            Token::Else => write!(f, "else"),
-            Token::For => write!(f, "for"),
-            Token::Break => write!(f, "break"),
-            Token::Continue => write!(f, "continue"),
-            Token::Switch => write!(f, "swtich"),
-            Token::Case => write!(f, "case"),
-            Token::Do => write!(f, "do"),
-            Token::Try => write!(f, "try"),
-            Token::Catch => write!(f, "catch"),
-            Token::Finally => write!(f, "finally"),
-            Token::Throw => write!(f, "throw"),
-            Token::Yield => write!(f, "yield"),
-            Token::Var => write!(f, "var"),
-            Token::This => write!(f, "this"),
-            Token::Underscore => write!(f, "_"),
-            Token::Abstract => write!(f, "abstract"),
-            Token::Record => write!(f, "record"),
-            Token::Synchronized => write!(f, "synchronized"),
-            Token::InstanceOf => write!(f, "instanceof"),
-            Token::Volatile => write!(f, "volatile"),
-            Token::Transient => write!(f, "transient"),
-            Token::Native => write!(f, "native"),
-            Token::Caret => write!(f, "^"),
-            Token::Tilde => write!(f, "~"),
-            Token::Sealed => write!(f, "sealed"),
-            Token::Non => write!(f, "non"),
-            Token::Permits => write!(f, "permits"),
-            Token::Arrow => write!(f, "->"),
-            Token::Super => write!(f, "super"),
-            Token::StrictFp => write!(f, "staticfp"),
-            Token::AtInterface => write!(f, "@interface"),
-            Token::Module => write!(f, "module"),
-            Token::Exports => write!(f, "exports"),
-            Token::To => write!(f, "to"),
-            Token::Uses => write!(f, "uses"),
-            Token::Assert => write!(f, "assert"),
-            Token::Provides => write!(f, "provides"),
-            Token::With => write!(f, "with"),
-            Token::Requires => write!(f, "requires"),
-            Token::Transitive => write!(f, "transitive"),
-            Token::Opens => write!(f, "opens"),
-            Token::Open => write!(f, "open"),
+            Self::Number(s)
+            | Self::Identifier(s)
+            | Self::StringLiteral(s)
+            | Self::CharLiteral(s) => {
+                write!(f, "{s}")
+            }
+            Self::HexLiteral(num) => write!(f, "0x{num}"),
+            Self::BinaryLiteral(num) => write!(f, "0b{num}"),
+            Self::LeftParen => write!(f, "("),
+            Self::RightParen => write!(f, ")"),
+            Self::Plus => write!(f, "+"),
+            Self::Dash => write!(f, "-"),
+            Self::Star => write!(f, "*"),
+            Self::Dot => write!(f, "."),
+            Self::Semicolon => write!(f, ";"),
+            Self::Colon => write!(f, ":"),
+            Self::Percent => write!(f, "%"),
+            Self::Ampersand => write!(f, "&"),
+            Self::VerticalBar => write!(f, "|"),
+            Self::LeftParenCurly => write!(f, "{{"),
+            Self::RightParenCurly => write!(f, "}}"),
+            Self::LeftParenSquare => write!(f, "["),
+            Self::RightParenSquare => write!(f, "]"),
+            Self::Comma => write!(f, ","),
+            Self::If => write!(f, "if"),
+            Self::While => write!(f, "while"),
+            Self::Package => write!(f, "package"),
+            Self::Import => write!(f, "import"),
+            Self::Public => write!(f, "public"),
+            Self::Private => write!(f, "private"),
+            Self::Protected => write!(f, "protedted"),
+            Self::Class => write!(f, "class"),
+            Self::Interface => write!(f, "interface"),
+            Self::Enum => write!(f, "enum"),
+            Self::Void => write!(f, "void"),
+            Self::Throws => write!(f, "throws"),
+            Self::Int => write!(f, "int"),
+            Self::Double => write!(f, "double"),
+            Self::Float => write!(f, "float"),
+            Self::Slash => write!(f, "/"),
+            Self::BackSlash => write!(f, "\\"),
+            Self::At => write!(f, "@"),
+            Self::Le => write!(f, "<="),
+            Self::Lt => write!(f, "<"),
+            Self::Ge => write!(f, ">="),
+            Self::Gt => write!(f, ">"),
+            Self::Extends => write!(f, "extends"),
+            Self::Implements => write!(f, "implements"),
+            Self::True => write!(f, "true"),
+            Self::False => write!(f, "false"),
+            Self::EqualDouble => write!(f, "=="),
+            Self::Equal => write!(f, "="),
+            Self::Ne => write!(f, "!="),
+            Self::ExclamationMark => write!(f, "!"),
+            Self::SingleQuote => write!(f, "'"),
+            Self::New => write!(f, "new"),
+            Self::Return => write!(f, "return"),
+            Self::QuestionMark => write!(f, "?"),
+            Self::Char => write!(f, "char"),
+            Self::Boolean => write!(f, "boolean"),
+            Self::Byte => write!(f, "byte"),
+            Self::Short => write!(f, "short"),
+            Self::Long => write!(f, "long"),
+            Self::Static => write!(f, "static"),
+            Self::Final => write!(f, "final"),
+            Self::Default => write!(f, "default"),
+            Self::Else => write!(f, "else"),
+            Self::For => write!(f, "for"),
+            Self::Break => write!(f, "break"),
+            Self::Continue => write!(f, "continue"),
+            Self::Switch => write!(f, "swtich"),
+            Self::Case => write!(f, "case"),
+            Self::Do => write!(f, "do"),
+            Self::Try => write!(f, "try"),
+            Self::Catch => write!(f, "catch"),
+            Self::Finally => write!(f, "finally"),
+            Self::Throw => write!(f, "throw"),
+            Self::Yield => write!(f, "yield"),
+            Self::Var => write!(f, "var"),
+            Self::This => write!(f, "this"),
+            Self::Underscore => write!(f, "_"),
+            Self::Abstract => write!(f, "abstract"),
+            Self::Record => write!(f, "record"),
+            Self::Synchronized => write!(f, "synchronized"),
+            Self::InstanceOf => write!(f, "instanceof"),
+            Self::Volatile => write!(f, "volatile"),
+            Self::Transient => write!(f, "transient"),
+            Self::Native => write!(f, "native"),
+            Self::Caret => write!(f, "^"),
+            Self::Tilde => write!(f, "~"),
+            Self::Sealed => write!(f, "sealed"),
+            Self::Non => write!(f, "non"),
+            Self::Permits => write!(f, "permits"),
+            Self::Arrow => write!(f, "->"),
+            Self::Super => write!(f, "super"),
+            Self::StrictFp => write!(f, "staticfp"),
+            Self::AtInterface => write!(f, "@interface"),
+            Self::Module => write!(f, "module"),
+            Self::Exports => write!(f, "exports"),
+            Self::To => write!(f, "to"),
+            Self::Uses => write!(f, "uses"),
+            Self::Assert => write!(f, "assert"),
+            Self::Provides => write!(f, "provides"),
+            Self::With => write!(f, "with"),
+            Self::Requires => write!(f, "requires"),
+            Self::Transitive => write!(f, "transitive"),
+            Self::Opens => write!(f, "opens"),
+            Self::Open => write!(f, "open"),
         }
     }
 }
 
 /// Tokens of document
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Token {
     /// Data
     Identifier(MyString),
@@ -483,7 +484,7 @@ pub enum Token {
 }
 
 /// Error during lex function
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum LexerError {
     /// Not implmented
     UnknwonChar(char),
@@ -640,7 +641,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                 col += 1;
             }
             '-' => {
-                if let Some('-') = chars.get(index + 1) {
+                if matches!(chars.get(index + 1), Some('-')) {
                     tokens.push(PositionToken {
                         token: Token::Dash,
                         line,
@@ -653,7 +654,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                     });
                     index += 1;
                     col += 2;
-                } else if let Some('>') = chars.get(index + 1) {
+                } else if matches!(chars.get(index + 1), Some('>')) {
                     tokens.push(PositionToken {
                         token: Token::Arrow,
                         line,
@@ -839,8 +840,8 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                 index += 1;
                 let mut str = String::new();
                 let mut multi_line = false;
-                if let Some('"') = chars.get(index)
-                    && let Some('"') = chars.get(index + 1)
+                if matches!(chars.get(index), Some('"'))
+                    && matches!(chars.get(index + 1), Some('"'))
                 {
                     multi_line = true;
                     index += 2;
@@ -871,8 +872,8 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                         if !multi_line {
                             col += 1;
                             break 'string_literal;
-                        } else if let Some('"') = chars.get(index + 1)
-                            && let Some('"') = chars.get(index + 2)
+                        } else if matches!(chars.get(index + 1), Some('"'))
+                            && matches!(chars.get(index + 2), Some('"'))
                         {
                             index += 2;
                             col += 2;
@@ -930,7 +931,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                 col += 1;
             }
             '=' => {
-                if let Some('=') = chars.get(index + 1) {
+                if matches!(chars.get(index + 1), Some('=')) {
                     tokens.push(PositionToken {
                         token: Token::EqualDouble,
                         line,
@@ -945,10 +946,10 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                         line,
                         col,
                     });
-                };
+                }
             }
             '!' => {
-                if let Some('=') = chars.get(index + 1) {
+                if matches!(chars.get(index + 1), Some('=')) {
                     tokens.push(PositionToken {
                         token: Token::Ne,
                         line,
@@ -963,10 +964,10 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                         col,
                     });
                     col += 1;
-                };
+                }
             }
             '<' => {
-                if let Some('=') = chars.get(index + 1) {
+                if matches!(chars.get(index + 1), Some('=')) {
                     tokens.push(PositionToken {
                         token: Token::Le,
                         line,
@@ -981,10 +982,10 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                         col,
                     });
                     col += 1;
-                };
+                }
             }
             '>' => {
-                if let Some('=') = chars.get(index + 1) {
+                if matches!(chars.get(index + 1), Some('=')) {
                     tokens.push(PositionToken {
                         token: Token::Ge,
                         line,
@@ -1002,9 +1003,9 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                 }
             }
             '0'..='9' => {
-                if let Some('0') = chars.get(index) {
+                if matches!(chars.get(index + 1), Some('0')) {
                     match chars.get(index + 1) {
-                        Some('x') | Some('X') => {
+                        Some('x' | 'X') => {
                             index += 2;
                             let mut string = MyString::new();
                             loop {
@@ -1021,7 +1022,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                                     index += 1;
                                 } else {
                                     break;
-                                };
+                                }
                             }
                             col += string.len();
                             tokens.push(PositionToken {
@@ -1031,7 +1032,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                             });
                             continue;
                         }
-                        Some('b') | Some('B') => {
+                        Some('b' | 'B') => {
                             index += 2;
                             let mut string = MyString::new();
                             loop {
@@ -1043,7 +1044,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                                     index += 1;
                                 } else {
                                     break;
-                                };
+                                }
                             }
                             col += string.len();
                             tokens.push(PositionToken {
@@ -1065,7 +1066,7 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                         string.push(*ch);
                     } else {
                         break;
-                    };
+                    }
                     index += 1;
                 }
 

@@ -11,7 +11,7 @@ use crate::{
     },
 };
 
-/// @interface Overwrite
+/// `@interface Overwrite`
 pub fn parse_annotation(
     tokens: &[PositionToken],
     pos: usize,
@@ -72,18 +72,18 @@ pub fn parse_annotation(
     ))
 }
 
-/// String[] value();
-/// String[] value() default 1;
+/// `String[] value()`;
+/// `String[] value() default 1`;
 pub fn parse_annotation_field(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstAnnotationField, usize), AstError> {
-    let start = tokens.get(pos).ok_or(AstError::eof())?;
+    let start = tokens.get(pos).ok_or_else(AstError::eof)?;
     let mut avaliability = AstAvailability::empty();
     let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
     let mut pos = pos;
     loop {
-        let t = tokens.get(pos).ok_or(AstError::eof())?;
+        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
             Token::Public => avaliability |= AstAvailability::Public,
             Token::Private => avaliability |= AstAvailability::Private,

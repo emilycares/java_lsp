@@ -27,8 +27,6 @@ impl<T> PrintErr for Result<T, AstError> {
 pub enum AstError {
     /// Other token found than expected
     ExpectedToken(ExpectedToken),
-    /// Invalid token in Availabilty
-    InvalidAvailability(InvalidToken),
     /// Invalid token in `JType`
     InvalidJtype(InvalidToken),
     /// Expression was empty
@@ -48,10 +46,6 @@ pub enum AstError {
         /// Related errors
         errors: Vec<(MyString, AstError)>,
     },
-    /// Invalid token in Expression
-    InvalidExpression(InvalidToken),
-    /// Invalid token in Double
-    InvalidDouble(MyString, MyString),
     /// Invalid token in Boolean
     InvalidBoolean(InvalidToken),
     /// Invalid string literal
@@ -61,7 +55,7 @@ pub enum AstError {
 impl PrintErr for AstError {
     fn print_err(&self, content: &str) {
         match self {
-            AstError::ExpectedToken(expected_token) => {
+            Self::ExpectedToken(expected_token) => {
                 print_helper(
                     content,
                     expected_token.line,
@@ -72,21 +66,10 @@ impl PrintErr for AstError {
                     ),
                 );
             }
-            AstError::InvalidAvailability(invalid_token) => {
-                print_helper(
-                    content,
-                    invalid_token.line,
-                    invalid_token.col,
-                    &format!(
-                        "Invalid Availability token found: {:?} valid onese ar public, private, protected",
-                        invalid_token.found
-                    ),
-                );
-            }
-            AstError::UnexpectedEOF(file, line, col) => {
+            Self::UnexpectedEOF(file, line, col) => {
                 eprintln!("Unexpected end of File: {file}:{line}:{col}");
             }
-            AstError::InvalidJtype(invalid_token) => {
+            Self::InvalidJtype(invalid_token) => {
                 print_helper(
                     content,
                     invalid_token.line,
@@ -97,7 +80,7 @@ impl PrintErr for AstError {
                     ),
                 );
             }
-            AstError::IdentifierEmpty(invalid_token) => {
+            Self::IdentifierEmpty(invalid_token) => {
                 print_helper(
                     content,
                     invalid_token.line,
@@ -105,7 +88,7 @@ impl PrintErr for AstError {
                     &format!("Identifier empty found: {:?}", invalid_token.found),
                 );
             }
-            AstError::InvalidName(invalid_token) => {
+            Self::InvalidName(invalid_token) => {
                 print_helper(
                     content,
                     invalid_token.line,
@@ -113,7 +96,7 @@ impl PrintErr for AstError {
                     &format!("Token not allowed in name: {:?}", invalid_token.found),
                 );
             }
-            AstError::InvalidNuget(invalid_token) => {
+            Self::InvalidNuget(invalid_token) => {
                 print_helper(
                     content,
                     invalid_token.line,
@@ -121,18 +104,7 @@ impl PrintErr for AstError {
                     &format!("Token not allowed in nuget: {:?}", invalid_token.found),
                 );
             }
-            AstError::InvalidExpression(invalid_token) => {
-                print_helper(
-                    content,
-                    invalid_token.line,
-                    invalid_token.col,
-                    &format!("Token not allowed in expression: {:?}", invalid_token.found),
-                );
-            }
-            AstError::InvalidDouble(a, b) => {
-                eprintln!("Invalid double {a}.{b}");
-            }
-            AstError::InvalidBoolean(invalid_token) => {
+            Self::InvalidBoolean(invalid_token) => {
                 print_helper(
                     content,
                     invalid_token.line,
@@ -140,7 +112,7 @@ impl PrintErr for AstError {
                     &format!("Token not allowed in boolean: {:?}", invalid_token.found),
                 );
             }
-            AstError::InvalidString(invalid_token) => {
+            Self::InvalidString(invalid_token) => {
                 print_helper(
                     content,
                     invalid_token.line,
@@ -148,7 +120,7 @@ impl PrintErr for AstError {
                     &format!("Not a string literal: {:?}", invalid_token.found),
                 );
             }
-            AstError::AllChildrenFailed { parent, errors } => {
+            Self::AllChildrenFailed { parent, errors } => {
                 if PRINT_ALL_ERRORS {
                     eprintln!("{parent}");
                     for e in errors {
@@ -163,7 +135,7 @@ impl PrintErr for AstError {
                     e.1.1.print_err(content);
                 }
             }
-            AstError::EmptyExpression(invalid_token) => print_helper(
+            Self::EmptyExpression(invalid_token) => print_helper(
                 content,
                 invalid_token.line,
                 invalid_token.col,
@@ -177,24 +149,21 @@ impl PrintErr for AstError {
 }
 
 #[allow(unused)]
-fn sort_helper_error(a: &(MyString, AstError)) -> usize {
+const fn sort_helper_error(a: &(MyString, AstError)) -> usize {
     match &a.1 {
         AstError::ExpectedToken(expected_token) => expected_token.pos,
-        AstError::InvalidAvailability(invalid_token)
-        | AstError::InvalidJtype(invalid_token)
+        AstError::InvalidJtype(invalid_token)
         | AstError::EmptyExpression(invalid_token)
         | AstError::IdentifierEmpty(invalid_token)
         | AstError::InvalidName(invalid_token)
         | AstError::InvalidNuget(invalid_token)
-        | AstError::InvalidExpression(invalid_token)
         | AstError::InvalidBoolean(invalid_token)
         | AstError::InvalidString(invalid_token) => invalid_token.pos,
         AstError::UnexpectedEOF(_, _, _)
         | AstError::AllChildrenFailed {
             parent: _,
             errors: _,
-        }
-        | AstError::InvalidDouble(_, _) => 1000,
+        } => 1000,
     }
 }
 impl AstError {
@@ -217,16 +186,13 @@ fn get_pos(e: &AstError) -> (usize, usize) {
             {
                 return (min.0, max.1);
             }
-            todo!("No errors in errors")
+            (0, 0)
         }
-        AstError::InvalidDouble(_, _) => (10_000_000, 10_000_000),
-        AstError::InvalidAvailability(invalid_token)
-        | AstError::InvalidJtype(invalid_token)
+        AstError::InvalidJtype(invalid_token)
         | AstError::EmptyExpression(invalid_token)
         | AstError::IdentifierEmpty(invalid_token)
         | AstError::InvalidName(invalid_token)
         | AstError::InvalidNuget(invalid_token)
-        | AstError::InvalidExpression(invalid_token)
         | AstError::InvalidBoolean(invalid_token)
         | AstError::InvalidString(invalid_token) => (invalid_token.pos, invalid_token.pos),
     }
@@ -270,7 +236,7 @@ pub fn assert_token(
     if pos > tokens.len() {
         return Err(AstError::eof());
     }
-    let t = tokens.get(pos).ok_or(AstError::eof())?;
+    let t = tokens.get(pos).ok_or_else(AstError::eof)?;
     if t.token != expected {
         return Err(AstError::ExpectedToken(ExpectedToken::from(
             t, pos, expected,
@@ -302,7 +268,7 @@ pub fn assert_semicolon(tokens: &[PositionToken], pos: usize) -> Result<usize, A
 }
 
 /// Error for expected token
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ExpectedToken {
     /// The expected token
     pub expected: Token,
@@ -331,7 +297,7 @@ impl ExpectedToken {
 }
 
 /// Token is invalid
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct InvalidToken {
     /// But was
     pub found: Token,
@@ -358,20 +324,20 @@ impl InvalidToken {
 
 /// Get Start and End `PositionToken`
 pub trait GetStartEnd {
-    /// Get start PositionToken
+    /// Get start `PositionToken`
     #[track_caller]
     fn start(&self, pos: usize) -> Result<&PositionToken, AstError>;
-    /// Get end PositionToken
+    /// Get end `PositionToken`
     #[track_caller]
     fn end(&self, pos: usize) -> Result<&PositionToken, AstError>;
 }
 
 impl GetStartEnd for [PositionToken] {
     fn start(&self, pos: usize) -> Result<&PositionToken, AstError> {
-        self.get(pos).ok_or(AstError::eof())
+        self.get(pos).ok_or_else(AstError::eof)
     }
     fn end(&self, pos: usize) -> Result<&PositionToken, AstError> {
-        self.get(pos.saturating_sub(1)).ok_or(AstError::eof())
+        self.get(pos.saturating_sub(1)).ok_or_else(AstError::eof)
     }
 }
 #[cfg(test)]

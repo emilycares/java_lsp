@@ -6,8 +6,9 @@ use crate::types::{
 };
 
 /// Join two ranges a must be before b
+#[must_use]
 pub fn add_ranges(a: AstRange, b: AstRange) -> AstRange {
-    assert!(a.end < b.start);
+    debug_assert!(a.end < b.start);
     AstRange {
         start: a.start,
         end: b.end,
@@ -133,9 +134,9 @@ impl AstInRange for &AstIf {
                 control: _,
                 control_range: _,
                 content: _,
-            } => range.is_in_range(point),
-            AstIf::Else { range, content: _ } => range.is_in_range(point),
-            AstIf::ElseIf {
+            }
+            | AstIf::Else { range, content: _ }
+            | AstIf::ElseIf {
                 range,
                 control: _,
                 control_range: _,
@@ -184,10 +185,11 @@ impl AstInRange for &AstValueNuget {
             AstValueNuget::Int(ast_number) => ast_number.range.is_in_range(point),
             AstValueNuget::HexLiteral(h) => h.range.is_in_range(point),
             AstValueNuget::BinaryLiteral(b) => b.range.is_in_range(point),
-            AstValueNuget::Double(ast_double) => ast_double.range.is_in_range(point),
-            AstValueNuget::Float(ast_double) => ast_double.range.is_in_range(point),
-            AstValueNuget::StringLiteral(ast_identifier) => ast_identifier.range.is_in_range(point),
-            AstValueNuget::CharLiteral(ast_identifier) => ast_identifier.range.is_in_range(point),
+            AstValueNuget::Double(ast_double) | AstValueNuget::Float(ast_double) => {
+                ast_double.range.is_in_range(point)
+            }
+            AstValueNuget::StringLiteral(ast_identifier)
+            | AstValueNuget::CharLiteral(ast_identifier) => ast_identifier.range.is_in_range(point),
             AstValueNuget::BooleanLiteral(ast_boolean) => ast_boolean.range.is_in_range(point),
         }
     }
@@ -198,10 +200,11 @@ impl GetRange for &AstValueNuget {
             AstValueNuget::Int(ast_number) => ast_number.range,
             AstValueNuget::HexLiteral(h) => h.range,
             AstValueNuget::BinaryLiteral(b) => b.range,
-            AstValueNuget::Double(ast_double) => ast_double.range,
-            AstValueNuget::Float(ast_double) => ast_double.range,
-            AstValueNuget::StringLiteral(ast_identifier) => ast_identifier.range,
-            AstValueNuget::CharLiteral(ast_identifier) => ast_identifier.range,
+            AstValueNuget::Double(ast_double) | AstValueNuget::Float(ast_double) => {
+                ast_double.range
+            }
+            AstValueNuget::StringLiteral(ast_identifier)
+            | AstValueNuget::CharLiteral(ast_identifier) => ast_identifier.range,
             AstValueNuget::BooleanLiteral(ast_boolean) => ast_boolean.range,
         }
     }
@@ -212,12 +215,11 @@ impl AstAfterRange for &AstValueNuget {
             AstValueNuget::Int(ast_number) => ast_number.range.is_after_range(point),
             AstValueNuget::HexLiteral(h) => h.range.is_after_range(point),
             AstValueNuget::BinaryLiteral(b) => b.range.is_after_range(point),
-            AstValueNuget::Double(ast_double) => ast_double.range.is_after_range(point),
-            AstValueNuget::Float(ast_double) => ast_double.range.is_after_range(point),
-            AstValueNuget::StringLiteral(ast_identifier) => {
-                ast_identifier.range.is_after_range(point)
+            AstValueNuget::Double(ast_double) | AstValueNuget::Float(ast_double) => {
+                ast_double.range.is_after_range(point)
             }
-            AstValueNuget::CharLiteral(ast_identifier) => {
+            AstValueNuget::StringLiteral(ast_identifier)
+            | AstValueNuget::CharLiteral(ast_identifier) => {
                 ast_identifier.range.is_after_range(point)
             }
             AstValueNuget::BooleanLiteral(ast_boolean) => ast_boolean.range.is_after_range(point),
@@ -227,8 +229,8 @@ impl AstAfterRange for &AstValueNuget {
 impl GetRange for AstBlockEntry {
     fn get_range(&self) -> AstRange {
         match &self {
-            AstBlockEntry::Return(ast_block_return) => ast_block_return.range,
-            AstBlockEntry::Variable(ast_block_variable) => {
+            Self::Return(ast_block_return) => ast_block_return.range,
+            Self::Variable(ast_block_variable) => {
                 if let Some(first) = ast_block_variable.first()
                     && let Some(last) = ast_block_variable.last()
                 {
@@ -239,76 +241,73 @@ impl GetRange for AstBlockEntry {
                 }
                 AstRange::default()
             }
-            AstBlockEntry::Expression(ast_block_expression) => ast_block_expression.range,
-            AstBlockEntry::Assign(ast_block_assign) => ast_block_assign.range,
-            AstBlockEntry::If(ast_if) => match ast_if {
+            Self::Expression(ast_block_expression) => ast_block_expression.range,
+            Self::Assign(ast_block_assign) => ast_block_assign.range,
+            Self::If(ast_if) => match ast_if {
                 AstIf::If {
                     range,
                     control: _,
                     control_range: _,
                     content: _,
-                } => *range,
-                AstIf::Else { range, content: _ } => *range,
-                AstIf::ElseIf {
+                }
+                | AstIf::Else { range, content: _ }
+                | AstIf::ElseIf {
                     range,
                     control: _,
                     control_range: _,
                     content: _,
                 } => *range,
             },
-            AstBlockEntry::While(ast_while) => ast_while.range,
-            AstBlockEntry::For(ast_for) => ast_for.range,
-            AstBlockEntry::ForEnhanced(ast_for_enhanced) => ast_for_enhanced.range,
-            AstBlockEntry::Break(ast_block_break) => ast_block_break.range,
-            AstBlockEntry::Continue(ast_block_continue) => ast_block_continue.range,
-            AstBlockEntry::Switch(ast_switch) => ast_switch.range,
-            AstBlockEntry::SwitchCase(ast_switch_case) => ast_switch_case.range,
-            AstBlockEntry::SwitchDefault(ast_switch_default) => ast_switch_default.range,
-            AstBlockEntry::TryCatch(ast_try_catch) => ast_try_catch.range,
-            AstBlockEntry::Throw(ast_throw) => ast_throw.range,
-            AstBlockEntry::SwitchCaseArrowValues(ast_switch_case_arrow) => {
-                ast_switch_case_arrow.range
-            }
-            AstBlockEntry::Yield(ast_block_yield) => ast_block_yield.range,
-            AstBlockEntry::SynchronizedBlock(ast_synchronized_block) => {
-                ast_synchronized_block.range
-            }
-            AstBlockEntry::SwitchCaseArrowDefault(ast_switch_case_arrow_default) => {
+            Self::While(ast_while) => ast_while.range,
+            Self::For(ast_for) => ast_for.range,
+            Self::ForEnhanced(ast_for_enhanced) => ast_for_enhanced.range,
+            Self::Break(ast_block_break) => ast_block_break.range,
+            Self::Continue(ast_block_continue) => ast_block_continue.range,
+            Self::Switch(ast_switch) => ast_switch.range,
+            Self::SwitchCase(ast_switch_case) => ast_switch_case.range,
+            Self::SwitchDefault(ast_switch_default) => ast_switch_default.range,
+            Self::TryCatch(ast_try_catch) => ast_try_catch.range,
+            Self::Throw(ast_throw) => ast_throw.range,
+            Self::SwitchCaseArrowValues(ast_switch_case_arrow) => ast_switch_case_arrow.range,
+            Self::Yield(ast_block_yield) => ast_block_yield.range,
+            Self::SynchronizedBlock(ast_synchronized_block) => ast_synchronized_block.range,
+            Self::SwitchCaseArrowDefault(ast_switch_case_arrow_default) => {
                 ast_switch_case_arrow_default.range
             }
-            AstBlockEntry::Thing(ast_thing) => ast_thing.get_range(),
-            AstBlockEntry::InlineBlock(ast_block) => ast_block.range,
-            AstBlockEntry::Semicolon(ast_range) => *ast_range,
-            AstBlockEntry::SwitchCaseArrowType(ast_switch_case_arrow_type) => {
+            Self::Thing(ast_thing) => ast_thing.get_range(),
+            Self::InlineBlock(ast_block) => ast_block.range,
+            Self::Semicolon(ast_range) => *ast_range,
+            Self::SwitchCaseArrowType(ast_switch_case_arrow_type) => {
                 ast_switch_case_arrow_type.range
             }
-            AstBlockEntry::Assert(ast_block_assert) => ast_block_assert.range,
+            Self::Assert(ast_block_assert) => ast_block_assert.range,
         }
     }
 }
 impl GetRange for AstThing {
     fn get_range(&self) -> AstRange {
         match self {
-            AstThing::Class(ast_class) => ast_class.range,
-            AstThing::Record(ast_record) => ast_record.range,
-            AstThing::Interface(ast_interface) => ast_interface.range,
-            AstThing::Enumeration(ast_enumeration) => ast_enumeration.range,
-            AstThing::Annotation(ast_annotation) => ast_annotation.range,
+            Self::Class(ast_class) => ast_class.range,
+            Self::Record(ast_record) => ast_record.range,
+            Self::Interface(ast_interface) => ast_interface.range,
+            Self::Enumeration(ast_enumeration) => ast_enumeration.range,
+            Self::Annotation(ast_annotation) => ast_annotation.range,
         }
     }
 }
 impl GetRange for AstValue {
-    fn get_range(self: &AstValue) -> AstRange {
+    fn get_range(&self) -> AstRange {
         match self {
-            AstValue::Variable(ast_identifier) => ast_identifier.range,
-            AstValue::Nuget(ast_value_nuget) => match ast_value_nuget {
+            Self::Variable(ast_identifier) => ast_identifier.range,
+            Self::Nuget(ast_value_nuget) => match ast_value_nuget {
                 AstValueNuget::Int(ast_int) => ast_int.range,
                 AstValueNuget::HexLiteral(h) => h.range,
                 AstValueNuget::BinaryLiteral(b) => b.range,
-                AstValueNuget::Double(ast_double) => ast_double.range,
-                AstValueNuget::Float(ast_double) => ast_double.range,
-                AstValueNuget::StringLiteral(ast_identifier) => ast_identifier.range,
-                AstValueNuget::CharLiteral(ast_identifier) => ast_identifier.range,
+                AstValueNuget::Double(ast_double) | AstValueNuget::Float(ast_double) => {
+                    ast_double.range
+                }
+                AstValueNuget::StringLiteral(ast_identifier)
+                | AstValueNuget::CharLiteral(ast_identifier) => ast_identifier.range,
                 AstValueNuget::BooleanLiteral(ast_boolean) => ast_boolean.range,
             },
         }
@@ -347,31 +346,30 @@ impl GetRange for AstValues {
     }
 }
 impl GetRange for AstExpressionKind {
-    fn get_range(self: &AstExpressionKind) -> AstRange {
+    fn get_range(&self) -> AstRange {
         match self {
-            AstExpressionKind::Casted(ast_casted_expression) => ast_casted_expression.range,
-            AstExpressionKind::JType(ast_casted_expression) => ast_casted_expression.range,
-            AstExpressionKind::Recursive(ast_recursive_expression) => {
-                ast_recursive_expression.range
+            Self::Casted(ast_casted_expression) | Self::JType(ast_casted_expression) => {
+                ast_casted_expression.range
             }
-            AstExpressionKind::Lambda(ast_lambda) => ast_lambda.range,
-            AstExpressionKind::InlineSwitch(ast_switch) => ast_switch.range,
-            AstExpressionKind::NewClass(ast_new_class) => ast_new_class.range,
-            AstExpressionKind::ClassAccess(ast_class_access) => ast_class_access.range,
-            AstExpressionKind::Generics(ast_generics) => ast_generics.range,
-            AstExpressionKind::Array(ast_values) => ast_values.range,
-            AstExpressionKind::InstanceOf(ast_instance_of) => ast_instance_of.range,
+            Self::Recursive(ast_recursive_expression) => ast_recursive_expression.range,
+            Self::Lambda(ast_lambda) => ast_lambda.range,
+            Self::InlineSwitch(ast_switch) => ast_switch.range,
+            Self::NewClass(ast_new_class) => ast_new_class.range,
+            Self::ClassAccess(ast_class_access) => ast_class_access.range,
+            Self::Generics(ast_generics) => ast_generics.range,
+            Self::Array(ast_values) => ast_values.range,
+            Self::InstanceOf(ast_instance_of) => ast_instance_of.range,
         }
     }
 }
 impl GetRange for AstExpressionIdentifier {
-    fn get_range(self: &AstExpressionIdentifier) -> AstRange {
+    fn get_range(&self) -> AstRange {
         match &self {
-            AstExpressionIdentifier::Identifier(ast_identifier) => ast_identifier.range,
-            AstExpressionIdentifier::Nuget(ast_value_nuget) => ast_value_nuget.get_range(),
-            AstExpressionIdentifier::Value(ast_value) => ast_value.get_range(),
-            AstExpressionIdentifier::ArrayAccess(expr) => expr.get_range(),
-            AstExpressionIdentifier::EmptyArrayAccess => AstRange::default(),
+            Self::Identifier(ast_identifier) => ast_identifier.range,
+            Self::Nuget(ast_value_nuget) => ast_value_nuget.get_range(),
+            Self::Value(ast_value) => ast_value.get_range(),
+            Self::ArrayAccess(expr) => expr.get_range(),
+            Self::EmptyArrayAccess => AstRange::default(),
         }
     }
 }

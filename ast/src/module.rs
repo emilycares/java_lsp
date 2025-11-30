@@ -35,7 +35,7 @@ pub fn parse_module(tokens: &[PositionToken], pos: usize) -> Result<(AstModule, 
         if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
             pos = npos;
             break;
-        };
+        }
         errors.clear();
         match parse_exports(tokens, pos) {
             Ok((ex, npos)) => {
@@ -183,7 +183,7 @@ fn parse_requires(
     let mut pos = assert_token(tokens, pos, Token::Requires)?;
     let mut flags = AstModuleRequiresFlags::empty();
     loop {
-        let t = tokens.get(pos).ok_or(AstError::eof())?;
+        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
             Token::Transitive => flags |= AstModuleRequiresFlags::Transitive,
             Token::Static => flags |= AstModuleRequiresFlags::Static,
