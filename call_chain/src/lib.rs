@@ -201,6 +201,13 @@ fn cc_annotated_parameter(
             AstAnnotatedParameter::Annotated(ast_annotated) => {
                 cc_annotated_single(ast_annotated, point, out)
             }
+            AstAnnotatedParameter::NamedArray {
+                range: _,
+                name: _,
+                values,
+            } => {
+                cc_array_with_annotated(values, point, out);
+            }
         }
     }
 }

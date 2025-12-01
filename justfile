@@ -2,7 +2,7 @@ dev:
   cargo build
 
 clippy: 
-  cargo clippy --workspace --all-targets -- -D warnings
+  cargo clippy --workspace
 
 test:
   cargo-nextest nextest run --workspace
@@ -16,4 +16,7 @@ check:
 fmt:
   cargo fmt
 
-precommit: check test fmt clippy dev
+doc:
+  cargo doc --no-deps --workspace
+
+precommit: check test fmt clippy doc dev

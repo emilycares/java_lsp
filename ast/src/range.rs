@@ -384,6 +384,11 @@ impl GetRange for &AstAnnotatedParameter {
                 expression,
             } => expression.get_range(),
             AstAnnotatedParameter::Annotated(ast_annotated) => ast_annotated.range,
+            AstAnnotatedParameter::NamedArray {
+                range,
+                name: _,
+                values: _,
+            } => *range,
         }
     }
 }

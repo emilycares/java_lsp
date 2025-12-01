@@ -50,7 +50,7 @@ impl Document {
     ) -> Result<Self, DocumentError> {
         let tokens = ast::lexer::lex(text).map_err(DocumentError::Lexer)?;
         let ast = ast::parse_file(&tokens);
-        ast.print_err(text);
+        ast.print_err(text, &tokens);
         let ast = ast.map_err(DocumentError::Ast)?;
         Ok(Self {
             text: rope,
@@ -124,7 +124,7 @@ impl Document {
         }
         let tokens = ast::lexer::lex(&self.str_data).map_err(DocumentError::Lexer)?;
         let ast = ast::parse_file(&tokens);
-        ast.print_err(&self.str_data);
+        ast.print_err(&self.str_data, &tokens);
         let ast = ast.map_err(DocumentError::Ast)?;
         self.ast = ast;
         Ok(())

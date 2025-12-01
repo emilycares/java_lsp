@@ -516,7 +516,7 @@ public class Test {
         ";
         let tokens = ast::lexer::lex(content).unwrap();
         let ast = ast::parse_file(&tokens);
-        ast.print_err(content);
+        ast.print_err(content, &tokens);
         let ast = ast.unwrap();
 
         let out = get_vars(&ast, &AstPoint::new(12, 17)).unwrap();

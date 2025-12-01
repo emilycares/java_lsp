@@ -76,3 +76,4 @@ phf = { version = "0.13.1", features = ["macros"] }
 rayon = "1.11.0"
 insta = { version = "1.43.1", default-features = false }
 criterion = { version = "0.7.0", features = ["html_reports"] }
+memmap2 = "0.9.9"

@@ -263,7 +263,6 @@ pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, us
         Token::Enum => parse_enumeration(tokens, pos, avaliability, attributes, annotated),
         Token::AtInterface => parse_annotation(tokens, pos, avaliability, attributes, annotated),
         _ => Err(AstError::ExpectedToken(ExpectedToken::from(
-            t,
             pos,
             Token::Class,
         ))),
@@ -309,12 +308,32 @@ pub fn parse_annotated(
     let (name, pos) = parse_name_dot_logical(tokens, pos)?;
     let mut parameters = AstAnnotatedParameterKind::None;
     let mut pos = pos;
-    if let Ok((params, npos)) = parse_annotated_parameters(tokens, pos) {
-        parameters = AstAnnotatedParameterKind::Parameter(params);
-        pos = npos;
-    } else if let Ok((array, npos)) = parse_annotated_array(tokens, pos) {
-        parameters = AstAnnotatedParameterKind::Array(array);
-        pos = npos;
+    let mut errors = vec![];
+    if assert_token(tokens, pos, Token::LeftParen).is_ok() {
+        'parmeters: {
+            match parse_annotated_parameters(tokens, pos) {
+                Ok((params, npos)) => {
+                    parameters = AstAnnotatedParameterKind::Parameter(params);
+                    pos = npos;
+                    break 'parmeters;
+                }
+                Err(e) => errors.push(("parameters".into(), e)),
+            }
+            match parse_annotated_array(tokens, pos) {
+                Ok((array, npos)) => {
+                    parameters = AstAnnotatedParameterKind::Array(array);
+                    pos = npos;
+                    break 'parmeters;
+                }
+                Err(e) => errors.push(("array".into(), e)),
+            }
+            if errors.len() == 2 {
+                return Err(AstError::AllChildrenFailed {
+                    parent: "annotated".into(),
+                    errors,
+                });
+            }
+        }
     }
     let end = tokens.end(pos)?;
     Ok((
@@ -494,14 +513,6 @@ fn parse_array_with_annotated(
             pos = npos;
             continue;
         }
-        match parse_expression(tokens, pos, expression_options) {
-            Ok((value, npos)) => {
-                pos = npos;
-                values.push(AstExpresssionOrAnnotated::Expression(value));
-                continue;
-            }
-            Err(e) => errors.push(("expression".into(), e)),
-        }
         match parse_annotated(tokens, pos) {
             Ok((an, npos)) => {
                 pos = npos;
@@ -509,6 +520,14 @@ fn parse_array_with_annotated(
                 continue;
             }
             Err(e) => errors.push(("annotated".into(), e)),
+        }
+        match parse_expression(tokens, pos, expression_options) {
+            Ok((value, npos)) => {
+                pos = npos;
+                values.push(AstExpresssionOrAnnotated::Expression(value));
+                continue;
+            }
+            Err(e) => errors.push(("expression".into(), e)),
         }
         return Err(AstError::AllChildrenFailed {
             parent: "array with annotated".into(),
@@ -626,7 +645,7 @@ fn parse_value_nuget(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, 
         }
         Token::True => parse_boolean_literal_input(tokens, pos, true),
         Token::False => parse_boolean_literal_input(tokens, pos, false),
-        _ => Err(AstError::InvalidNuget(InvalidToken::from(start, pos))),
+        _ => Err(AstError::InvalidNuget(InvalidToken::from(pos))),
     }
 }
 
@@ -653,7 +672,7 @@ fn parse_boolean_literal(
     let value = match start.token {
         Token::True => true,
         Token::False => false,
-        _ => return Err(AstError::InvalidBoolean(InvalidToken::from(start, pos))),
+        _ => return Err(AstError::InvalidBoolean(InvalidToken::from(pos))),
     };
     Ok((
         AstValue::Nuget(AstValueNuget::BooleanLiteral(AstBoolean {
@@ -680,7 +699,7 @@ pub fn parse_string_literal(
                 pos + 1,
             ))
         }
-        _ => Err(AstError::InvalidString(InvalidToken::from(start, pos))),
+        _ => Err(AstError::InvalidString(InvalidToken::from(pos))),
     }
 }
 /// `'\r`
@@ -700,7 +719,7 @@ pub fn parse_char_literal(
                 pos + 1,
             ))
         }
-        _ => Err(AstError::InvalidString(InvalidToken::from(start, pos))),
+        _ => Err(AstError::InvalidString(InvalidToken::from(pos))),
     }
 }
 
@@ -788,7 +807,7 @@ fn parse_value_operator_options(
                     pos + 1,
                 ));
             }
-            Err(AstError::InvalidNuget(InvalidToken::from(start, pos)))
+            Err(AstError::InvalidNuget(InvalidToken::from(pos)))
         }
         Token::ExclamationMark if expression_options != &ExpressionOptions::NoInlineIf => Ok((
             AstExpressionOperator::ExclemationMark(AstRange::from_position_token(start, start)),
@@ -846,7 +865,7 @@ fn parse_value_operator_options(
             AstExpressionOperator::Caret(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
-        _ => Err(AstError::InvalidNuget(InvalidToken::from(start, pos))),
+        _ => Err(AstError::InvalidNuget(InvalidToken::from(pos))),
     }
 }
 
@@ -882,6 +901,19 @@ fn parse_annotated_parameters(
         if let Ok((name, npos)) = parse_name(tokens, pos)
             && let Ok(npos) = assert_token(tokens, npos, Token::Equal)
         {
+            match parse_array_with_annotated(tokens, pos, &ExpressionOptions::None) {
+                Ok((an, npos)) => {
+                    pos = npos;
+                    let end_named = tokens.end(pos)?;
+                    out.push(AstAnnotatedParameter::NamedArray {
+                        range: AstRange::from_position_token(start_named, end_named),
+                        name,
+                        values: an,
+                    });
+                    continue;
+                }
+                Err(e) => errors.push(("annotated".into(), e)),
+            }
             match parse_expression(tokens, npos, &ExpressionOptions::None) {
                 Ok((expression, npos)) => {
                     pos = npos;
@@ -1104,8 +1136,7 @@ pub fn parse_expression(
         }
     }
     if out.is_empty() {
-        let token = tokens.start(pos)?;
-        return Err(AstError::EmptyExpression(InvalidToken::from(token, pos)));
+        return Err(AstError::EmptyExpression(InvalidToken::from(pos)));
     }
 
     Ok((out, pos))
@@ -1116,9 +1147,31 @@ fn parse_expression_inner(
     expression_options: &ExpressionOptions,
 ) -> Result<(AstExpressionKind, usize), AstError> {
     let mut errors = vec![];
-    match parse_array(tokens, pos, expression_options) {
-        Ok((v, pos)) => return Ok((AstExpressionKind::Array(v), pos)),
-        Err(e) => errors.push(("array".into(), e)),
+    let current = tokens.start(pos)?;
+    match &current.token {
+        Token::LeftParenCurly => match parse_array(tokens, pos, expression_options) {
+            Ok((v, pos)) => return Ok((AstExpressionKind::Array(v), pos)),
+            Err(e) => errors.push(("array".into(), e)),
+        },
+        Token::Switch => match parse_switch(tokens, pos, expression_options) {
+            Ok((casted, pos)) => {
+                return Ok((AstExpressionKind::InlineSwitch(casted), pos));
+            }
+            Err(e) => errors.push(("inline switch".into(), e)),
+        },
+        Token::New => match parse_new_class(tokens, pos, expression_options) {
+            Ok((new, pos)) => return Ok((AstExpressionKind::NewClass(new), pos)),
+            Err(e) => errors.push(("new class".into(), e)),
+        },
+        Token::Lt => match parse_jtype_generics(tokens, pos) {
+            Ok((a, pos)) => return Ok((AstExpressionKind::Generics(a), pos)),
+            Err(e) => errors.push(("type generics".into(), e)),
+        },
+        Token::InstanceOf => match parse_instnceof(tokens, pos) {
+            Ok((a, pos)) => return Ok((AstExpressionKind::InstanceOf(a), pos)),
+            Err(e) => errors.push(("instanceof".into(), e)),
+        },
+        _ => (),
     }
     if expression_options != &ExpressionOptions::NoLambda {
         match parse_lambda(tokens, pos, expression_options) {
@@ -1128,33 +1181,16 @@ fn parse_expression_inner(
             Err(e) => errors.push(("lambda".into(), e)),
         }
     }
-    match parse_switch(tokens, pos, expression_options) {
-        Ok((casted, pos)) => {
-            return Ok((AstExpressionKind::InlineSwitch(casted), pos));
-        }
-        Err(e) => errors.push(("inline switch".into(), e)),
-    }
+
     match parse_casted_expression(tokens, pos) {
         Ok((casted, pos)) => {
             return Ok((AstExpressionKind::Casted(casted), pos));
         }
         Err(e) => errors.push(("casted".into(), e)),
     }
-    match parse_new_class(tokens, pos, expression_options) {
-        Ok((new, pos)) => return Ok((AstExpressionKind::NewClass(new), pos)),
-        Err(e) => errors.push(("new class".into(), e)),
-    }
     match parse_class_access(tokens, pos) {
         Ok((a, pos)) => return Ok((AstExpressionKind::ClassAccess(a), pos)),
         Err(e) => errors.push(("class access".into(), e)),
-    }
-    match parse_jtype_generics(tokens, pos) {
-        Ok((a, pos)) => return Ok((AstExpressionKind::Generics(a), pos)),
-        Err(e) => errors.push(("type generics".into(), e)),
-    }
-    match parse_instnceof(tokens, pos) {
-        Ok((a, pos)) => return Ok((AstExpressionKind::InstanceOf(a), pos)),
-        Err(e) => errors.push(("instanceof".into(), e)),
     }
     match parse_recursive_expression(tokens, pos, expression_options) {
         Ok((recursive, pos)) => {
@@ -1312,8 +1348,8 @@ fn parse_expression_lhs(
 ) -> Result<(AstIdentifier, usize), AstError> {
     match parse_name(tokens, pos) {
         Ok((ident, npos)) => Ok((ident, npos)),
-        Err(AstError::InvalidName(e)) => match e.found {
-            Token::Class => {
+        Err(AstError::InvalidName(e)) => match tokens.get(e.0).map(|i: &PositionToken| &i.token) {
+            Some(Token::Class) => {
                 let start = tokens.start(pos)?;
                 Ok((
                     AstIdentifier {
@@ -1323,7 +1359,7 @@ fn parse_expression_lhs(
                     pos + 1,
                 ))
             }
-            Token::This => {
+            Some(Token::This) => {
                 let start = tokens.start(pos)?;
                 Ok((
                     AstIdentifier {
@@ -1333,7 +1369,7 @@ fn parse_expression_lhs(
                     pos + 1,
                 ))
             }
-            Token::New => {
+            Some(Token::New) => {
                 let start = tokens.start(pos)?;
                 Ok((
                     AstIdentifier {
@@ -1949,6 +1985,108 @@ fn parse_block_entry_options(
             errors.push(("semicolon".into(), e));
         }
     }
+    let current = tokens.start(pos)?;
+    match &current.token {
+        Token::Return => match parse_block_return(tokens, pos) {
+            Ok((nret, pos)) => {
+                return Ok((AstBlockEntry::Return(nret), pos));
+            }
+            Err(e) => {
+                errors.push(("block return".into(), e));
+            }
+        },
+        Token::Yield => match parse_block_yield(tokens, pos) {
+            Ok((nret, pos)) => {
+                return Ok((AstBlockEntry::Yield(nret), pos));
+            }
+            Err(e) => {
+                errors.push(("block yield".into(), e));
+            }
+        },
+        Token::Break => match parse_block_break(tokens, pos) {
+            Ok((nret, pos)) => {
+                return Ok((AstBlockEntry::Break(nret), pos));
+            }
+            Err(e) => {
+                errors.push(("block break".into(), e));
+            }
+        },
+        Token::Assert => match parse_block_assert(tokens, pos) {
+            Ok((nret, pos)) => {
+                return Ok((AstBlockEntry::Assert(nret), pos));
+            }
+            Err(e) => {
+                errors.push(("block assert".into(), e));
+            }
+        },
+        Token::Continue => match parse_block_continue(tokens, pos) {
+            Ok((nret, pos)) => {
+                return Ok((AstBlockEntry::Continue(nret), pos));
+            }
+            Err(e) => {
+                errors.push(("block continue".into(), e));
+            }
+        },
+        Token::If => match parse_if(tokens, pos) {
+            Ok((nret, pos)) => {
+                return Ok((AstBlockEntry::If(nret), pos));
+            }
+            Err(e) => {
+                errors.push(("block if".into(), e));
+            }
+        },
+        Token::Switch => match parse_switch(tokens, pos, &ExpressionOptions::None) {
+            Ok((nret, pos)) => {
+                return Ok((AstBlockEntry::Switch(nret), pos));
+            }
+            Err(e) => {
+                errors.push(("block switch".into(), e));
+            }
+        },
+        Token::Try => match parse_try_catch(tokens, pos) {
+            Ok((nret, pos)) => {
+                return Ok((AstBlockEntry::TryCatch(nret), pos));
+            }
+            Err(e) => {
+                errors.push(("block try catch".into(), e));
+            }
+        },
+        Token::Throw => match parse_throw(tokens, pos) {
+            Ok((nret, pos)) => {
+                return Ok((AstBlockEntry::Throw(nret), pos));
+            }
+            Err(e) => {
+                errors.push(("block throw".into(), e));
+            }
+        },
+        Token::Synchronized => match parse_synchronised_block(tokens, pos) {
+            Ok((synchronized_block, pos)) => {
+                return Ok((AstBlockEntry::SynchronizedBlock(synchronized_block), pos));
+            }
+            Err(e) => {
+                errors.push(("static block".into(), e));
+            }
+        },
+        Token::Else => {
+            match parse_else_if(tokens, pos) {
+                Ok((nret, pos)) => {
+                    return Ok((AstBlockEntry::If(nret), pos));
+                }
+                Err(e) => {
+                    errors.push(("block if".into(), e));
+                }
+            }
+            match parse_else(tokens, pos) {
+                Ok((nret, pos)) => {
+                    return Ok((AstBlockEntry::If(nret), pos));
+                }
+                Err(e) => {
+                    errors.push(("block if".into(), e));
+                }
+            }
+        }
+        _ => {}
+    }
     match parse_inline_block(tokens, pos) {
         Ok((block, pos)) => {
             return Ok((AstBlockEntry::InlineBlock(block), pos));
@@ -1963,70 +2101,6 @@ fn parse_block_entry_options(
         }
         Err(e) => {
             errors.push(("block variable".into(), e));
-        }
-    }
-    match parse_block_return(tokens, pos) {
-        Ok((nret, pos)) => {
-            return Ok((AstBlockEntry::Return(nret), pos));
-        }
-        Err(e) => {
-            errors.push(("block return".into(), e));
-        }
-    }
-    match parse_block_yield(tokens, pos) {
-        Ok((nret, pos)) => {
-            return Ok((AstBlockEntry::Yield(nret), pos));
-        }
-        Err(e) => {
-            errors.push(("block yield".into(), e));
-        }
-    }
-    match parse_block_break(tokens, pos) {
-        Ok((nret, pos)) => {
-            return Ok((AstBlockEntry::Break(nret), pos));
-        }
-        Err(e) => {
-            errors.push(("block break".into(), e));
-        }
-    }
-    match parse_block_assert(tokens, pos) {
-        Ok((nret, pos)) => {
-            return Ok((AstBlockEntry::Assert(nret), pos));
-        }
-        Err(e) => {
-            errors.push(("block assert".into(), e));
-        }
-    }
-    match parse_block_continue(tokens, pos) {
-        Ok((nret, pos)) => {
-            return Ok((AstBlockEntry::Continue(nret), pos));
-        }
-        Err(e) => {
-            errors.push(("block continue".into(), e));
-        }
-    }
-    match parse_if(tokens, pos) {
-        Ok((nret, pos)) => {
-            return Ok((AstBlockEntry::If(nret), pos));
-        }
-        Err(e) => {
-            errors.push(("block if".into(), e));
-        }
-    }
-    match parse_else_if(tokens, pos) {
-        Ok((nret, pos)) => {
-            return Ok((AstBlockEntry::If(nret), pos));
-        }
-        Err(e) => {
-            errors.push(("block if".into(), e));
-        }
-    }
-    match parse_else(tokens, pos) {
-        Ok((nret, pos)) => {
-            return Ok((AstBlockEntry::If(nret), pos));
-        }
-        Err(e) => {
-            errors.push(("block if".into(), e));
         }
     }
     match parse_while(tokens, pos) {
@@ -2059,14 +2133,6 @@ fn parse_block_entry_options(
         }
         Err(e) => {
             errors.push(("block for enhanced".into(), e));
-        }
-    }
-    match parse_switch(tokens, pos, &ExpressionOptions::None) {
-        Ok((nret, pos)) => {
-            return Ok((AstBlockEntry::Switch(nret), pos));
-        }
-        Err(e) => {
-            errors.push(("block switch".into(), e));
         }
     }
     match parse_switch_case(tokens, pos) {
@@ -2107,30 +2173,6 @@ fn parse_block_entry_options(
         }
         Err(e) => {
             errors.push(("block switch case arrow".into(), e));
-        }
-    }
-    match parse_try_catch(tokens, pos) {
-        Ok((nret, pos)) => {
-            return Ok((AstBlockEntry::TryCatch(nret), pos));
-        }
-        Err(e) => {
-            errors.push(("block try catch".into(), e));
-        }
-    }
-    match parse_throw(tokens, pos) {
-        Ok((nret, pos)) => {
-            return Ok((AstBlockEntry::Throw(nret), pos));
-        }
-        Err(e) => {
-            errors.push(("block throw".into(), e));
-        }
-    }
-    match parse_synchronised_block(tokens, pos) {
-        Ok((synchronized_block, pos)) => {
-            return Ok((AstBlockEntry::SynchronizedBlock(synchronized_block), pos));
-        }
-        Err(e) => {
-            errors.push(("static block".into(), e));
         }
     }
     match parse_block_assign(tokens, pos, block_entry_options) {
@@ -3058,7 +3100,7 @@ pub fn parse_name(
             pos += 1;
         }
         _ => {
-            return Err(AstError::InvalidName(InvalidToken::from(start, pos)));
+            return Err(AstError::InvalidName(InvalidToken::from(pos)));
         }
     }
     let end = tokens.end(pos)?;
@@ -3098,18 +3140,15 @@ pub fn parse_name_dot(
                 pos += 1;
             }
             _ => {
-                if pos == init_pos
-                    && let Ok(t) = tokens.get(pos).ok_or_else(AstError::eof)
-                {
-                    return Err(AstError::InvalidName(InvalidToken::from(t, pos)));
+                if pos == init_pos {
+                    return Err(AstError::InvalidName(InvalidToken::from(pos)));
                 }
                 break;
             }
         }
     }
     if ident.is_empty() {
-        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
-        return Err(AstError::IdentifierEmpty(InvalidToken::from(t, pos)));
+        return Err(AstError::IdentifierEmpty(InvalidToken::from(pos)));
     }
     let end = tokens.end(pos)?;
     Ok((
@@ -3190,8 +3229,7 @@ pub fn parse_name_dot_logical(
         }
     }
     if ident.is_empty() {
-        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
-        return Err(AstError::IdentifierEmpty(InvalidToken::from(t, pos)));
+        return Err(AstError::IdentifierEmpty(InvalidToken::from(pos)));
     }
     let end = tokens.end(pos)?;
     Ok((
@@ -3217,14 +3255,13 @@ pub fn parse_name_single(
             pos += 1;
         }
         _ => {
-            if let Ok(t) = tokens.get(pos).ok_or_else(AstError::eof) {
-                return Err(AstError::InvalidName(InvalidToken::from(t, pos)));
+            if tokens.get(pos).is_some() {
+                return Err(AstError::InvalidName(InvalidToken::from(pos)));
             }
         }
     }
     let Some(ident) = ident else {
-        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
-        return Err(AstError::IdentifierEmpty(InvalidToken::from(t, pos)));
+        return Err(AstError::IdentifierEmpty(InvalidToken::from(pos)));
     };
     let end = tokens.end(pos)?;
     Ok((
@@ -3262,8 +3299,7 @@ fn parse_identifier(
         }
     }
     if !modded {
-        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
-        return Err(AstError::IdentifierEmpty(InvalidToken::from(t, pos)));
+        return Err(AstError::IdentifierEmpty(InvalidToken::from(pos)));
     }
     let end = tokens.end(pos)?;
     Ok((
@@ -3430,11 +3466,11 @@ pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, us
             }
         }
         if AstJTypeKind::Void == out.value {
-            return Err(AstError::InvalidJtype(InvalidToken::from(start, pos)));
+            return Err(AstError::InvalidJtype(InvalidToken::from(pos)));
         }
         Ok((out, pos))
     } else {
-        Err(AstError::InvalidJtype(InvalidToken::from(start, pos)))
+        Err(AstError::InvalidJtype(InvalidToken::from(pos)))
     }
 }
 
@@ -3507,6 +3543,6 @@ fn parse_primitive_type(
         Token::Void => Ok((AstJTypeKind::Void, pos + 1)),
         Token::QuestionMark => Ok((AstJTypeKind::Wildcard, pos + 1)),
         Token::Var => Ok((AstJTypeKind::Var, pos + 1)),
-        _ => Err(AstError::InvalidJtype(InvalidToken::from(current, pos))),
+        _ => Err(AstError::InvalidJtype(InvalidToken::from(pos))),
     }
 }

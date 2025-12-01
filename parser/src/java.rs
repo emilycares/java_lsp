@@ -295,9 +295,7 @@ fn check_type_parameters(
 
 #[cfg(test)]
 pub mod tests {
-    use ast::error::PrintErr;
-
-    use crate::{SourceDestination, java::ParseJavaError};
+    use crate::SourceDestination;
 
     use super::load_java;
 
@@ -320,9 +318,6 @@ public class Test extends AThing { }
             content.as_bytes(),
             SourceDestination::Here("/path/to/source/Test.java".into()),
         );
-        if let Err(ParseJavaError::Ast(e)) = &result {
-            e.print_err(content);
-        }
         insta::assert_debug_snapshot!(result.unwrap());
     }
 

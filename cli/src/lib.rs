@@ -6,7 +6,6 @@ use std::{fs::canonicalize, path::PathBuf};
 
 use ast::error::PrintErr;
 use clap::{Parser, Subcommand};
-use tokio::fs::read_to_string;
 
 #[derive(Debug)]
 pub enum CheckError {
@@ -47,10 +46,9 @@ pub enum Commands {
 }
 
 pub async fn ast_check_async(file: PathBuf, num: usize) {
-    match read_to_string(&file).await {
+    match tokio::fs::read_to_string(&file).await {
         Ok(text) => {
-            // let before_lex = Instant::now();
-            lex_and_ast(&file, text, num);
+            lex_and_ast(&file, &text, num);
         }
         Err(e) => {
             eprintln!("unable to open file: {:?}", e);
@@ -58,37 +56,47 @@ pub async fn ast_check_async(file: PathBuf, num: usize) {
         }
     }
 }
-pub fn ast_check(file: &PathBuf, num: usize) {
-    match std::fs::read_to_string(file) {
-        Ok(text) => {
-            // let before_lex = Instant::now();
-            lex_and_ast(file, text, num);
+pub async fn ast_check(path: PathBuf, num: usize) {
+    use std::{fs::File, str::from_utf8};
+
+    match File::open(&path) {
+        Ok(file) => {
+            let mmap = unsafe { memmap2::Mmap::map(&file) };
+            match mmap {
+                Ok(mmap) => {
+                    mmap.advise(memmap2::Advice::Sequential)
+                        .expect("memmap advice to be accepted");
+                    match from_utf8(&mmap[..]) {
+                        Ok(text) => {
+                            lex_and_ast(&path, text, num);
+                        }
+                        Err(e) => {
+                            eprintln!("invalid utf8: {:?}", e);
+                            std::process::exit(3);
+                        }
+                    };
+                }
+                Err(e) => {
+                    eprintln!("unable to memmap: {:?}", e);
+                    std::process::exit(2);
+                }
+            };
         }
         Err(e) => {
-            eprintln!("[{num}]Here: {:?}", file);
             eprintln!("unable to open file: {:?}", e);
             std::process::exit(1);
         }
-    }
+    };
 }
 
-fn lex_and_ast(file: &PathBuf, text: String, num: usize) {
-    eprintln!("[{num}]Here: {:?}", file);
-    match ast::lexer::lex(&text) {
+fn lex_and_ast(file: &PathBuf, text: &str, num: usize) {
+    // eprintln!("[{num}]Here: {:?}", file);
+    match ast::lexer::lex(text) {
         Ok(tokens) => {
-            // let lex_time = before_lex.elapsed();
-
-            // print!(
-            //     "[{num}]Timings: [lexer: {:.2?}, tokens_len: {}]",
-            //     lex_time,
-            //     tokens.len()
-            // );
-            // let before_ast = Instant::now();
             let ast = ast::parse_file(&tokens);
-            // let ast_time = before_ast.elapsed();
             if ast.is_err() {
                 eprintln!("[{num}]Here: {:?}", file);
-                ast.print_err(&text);
+                ast.print_err(text, &tokens);
                 std::process::exit(3);
             }
         }
@@ -122,7 +130,7 @@ pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
         .enumerate()
     {
         count += 1;
-        ast_check_async(i.1, i.0).await;
+        ast_check(i.1, i.0).await;
     }
     println!("Checked all files. {count}, in: {:.2?}", time.elapsed());
     Ok(())
@@ -158,7 +166,7 @@ pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<&str>) -> Result<
         .enumerate()
     {
         count += 1;
-        ast_check_async(i.1, i.0).await;
+        ast_check(i.1, i.0).await;
     }
     println!("Checked all files. {count}, in: {:.2?}", time.elapsed());
     Ok(())

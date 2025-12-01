@@ -975,4 +975,9 @@ pub enum AstAnnotatedParameter {
         expression: AstExpression,
     },
     Annotated(AstAnnotated),
+    NamedArray {
+        range: AstRange,
+        name: AstIdentifier,
+        values: AstValuesWithAnnotated,
+    },
 }
