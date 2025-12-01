@@ -22,7 +22,7 @@ async fn main() {
             cli::lex_pos(file, pos);
         }
         Some(Commands::AstCheck { file }) => {
-            cli::ast_check(file, 0).await;
+            cli::ast_check(&file, 0);
         }
         Some(Commands::AstCheckDir { folder, ignore }) => {
             if let Some(ignore) = ignore {

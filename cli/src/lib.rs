@@ -56,7 +56,7 @@ pub async fn ast_check_async(file: PathBuf, num: usize) {
         }
     }
 }
-pub async fn ast_check(path: PathBuf, num: usize) {
+pub fn ast_check(path: &PathBuf, num: usize) {
     use std::{fs::File, str::from_utf8};
 
     match File::open(&path) {
@@ -64,6 +64,7 @@ pub async fn ast_check(path: PathBuf, num: usize) {
             let mmap = unsafe { memmap2::Mmap::map(&file) };
             match mmap {
                 Ok(mmap) => {
+                    #[cfg(unix)]
                     mmap.advise(memmap2::Advice::Sequential)
                         .expect("memmap advice to be accepted");
                     match from_utf8(&mmap[..]) {
@@ -130,7 +131,7 @@ pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
         .enumerate()
     {
         count += 1;
-        ast_check(i.1, i.0).await;
+        ast_check(&i.1, i.0);
     }
     println!("Checked all files. {count}, in: {:.2?}", time.elapsed());
     Ok(())
@@ -166,7 +167,7 @@ pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<&str>) -> Result<
         .enumerate()
     {
         count += 1;
-        ast_check(i.1, i.0).await;
+        ast_check(&i.1, i.0);
     }
     println!("Checked all files. {count}, in: {:.2?}", time.elapsed());
     Ok(())
