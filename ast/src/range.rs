@@ -355,7 +355,6 @@ impl GetRange for AstExpressionKind {
             Self::Lambda(ast_lambda) => ast_lambda.range,
             Self::InlineSwitch(ast_switch) => ast_switch.range,
             Self::NewClass(ast_new_class) => ast_new_class.range,
-            Self::ClassAccess(ast_class_access) => ast_class_access.range,
             Self::Generics(ast_generics) => ast_generics.range,
             Self::Array(ast_values) => ast_values.range,
             Self::InstanceOf(ast_instance_of) => ast_instance_of.range,

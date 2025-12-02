@@ -125,9 +125,6 @@ pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
             }
             false
         })
-        // .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
-        // .filter(|e| !e.ends_with("module-info.java"))
-        // .filter(|e| !e.ends_with("package-info.java"))
         .enumerate()
     {
         count += 1;
@@ -161,9 +158,6 @@ pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<&str>) -> Result<
             }
             false
         })
-        // .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
-        // .filter(|e| !e.ends_with("module-info.java"))
-        // .filter(|e| !e.ends_with("package-info.java"))
         .enumerate()
     {
         count += 1;

@@ -33,6 +33,7 @@
         };
 
         rustToolchain = pkgs.rust-bin.stable."1.91.1".default.override {
+          # rustToolchain = pkgs.rust-bin.nightly."2025-11-02".default.override {
           extensions = [
             "rust-src"
             "rust-analyzer"

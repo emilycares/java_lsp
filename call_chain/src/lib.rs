@@ -6,7 +6,7 @@ use std::cmp::{self, max, min};
 use ast::range::{AstInRange, GetRange, add_ranges};
 use ast::types::{
     AstAnnotated, AstAnnotatedParameter, AstAnnotatedParameterKind, AstBlock, AstBlockEntry,
-    AstBlockVariable, AstCastedExpression, AstClassAccess, AstClassBlock, AstExpressionIdentifier,
+    AstBlockVariable, AstCastedExpression, AstClassBlock, AstExpressionIdentifier,
     AstExpressionKind, AstExpressionOperator, AstExpressionOrDefault, AstExpressionOrValue,
     AstExpresssionOrAnnotated, AstFile, AstForContent, AstIdentifier, AstIf, AstIfContent,
     AstJType, AstJTypeKind, AstLambdaRhs, AstNewClass, AstNewRhs, AstPoint, AstRange,
@@ -615,7 +615,6 @@ fn cc_expr(
         },
         AstExpressionKind::InlineSwitch(_ast_switch) => (),
         AstExpressionKind::NewClass(ast_new_class) => cc_new_class(ast_new_class, point, out),
-        AstExpressionKind::ClassAccess(ast_class_access) => cc_class_access(ast_class_access, out),
         AstExpressionKind::Array(ast_values) => cc_array(ast_values, point, out),
         AstExpressionKind::Generics(ast_generics) => {
             for j in &ast_generics.jtypes {
@@ -627,10 +626,6 @@ fn cc_expr(
         AstExpressionKind::InstanceOf(ast_instance_of) => cc_jtype(&ast_instance_of.jtype, out),
     }
     cc_expr(&ast_expression[1..], point, has_parent, out);
-}
-
-fn cc_class_access(ast_class_access: &AstClassAccess, out: &mut Vec<CallItem>) {
-    cc_jtype(&ast_class_access.jtype, out)
 }
 
 fn cc_jtype(jtype: &AstJType, out: &mut Vec<CallItem>) {
@@ -716,7 +711,6 @@ fn cc_expr_recursive(
                 AstExpressionKind::Lambda(_)
                 | AstExpressionKind::InlineSwitch(_)
                 | AstExpressionKind::NewClass(_)
-                | AstExpressionKind::ClassAccess(_)
                 | AstExpressionKind::Generics(_)
                 | AstExpressionKind::Array(_)
                 | AstExpressionKind::InstanceOf(_)

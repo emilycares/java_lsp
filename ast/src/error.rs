@@ -3,7 +3,6 @@ use my_string::MyString;
 
 use super::lexer::{PositionToken, Token};
 use crate::BlockEntryOptions;
-use std::panic::Location;
 
 const PRINT_ALL_ERRORS: bool = false;
 
@@ -31,7 +30,7 @@ pub enum AstError {
     /// Expression was empty
     EmptyExpression(InvalidToken),
     /// End of file reached
-    UnexpectedEOF(MyString, u32, u32),
+    UnexpectedEOF,
     /// Invalid token in Identifier
     IdentifierEmpty(InvalidToken),
     /// Invalid token in Name
@@ -64,13 +63,16 @@ impl PrintErr for AstError {
                     found.col,
                     &format!(
                         "Expected token {:?} found: {:?}",
-                        expected_token.expected, found
+                        expected_token.expected, found.token
                     ),
                 );
             }
-            Self::UnexpectedEOF(file, line, col) => {
-                eprintln!("Unexpected end of File: {file}:{line}:{col}");
+            Self::UnexpectedEOF => {
+                eprintln!("Unexpected end of File");
             }
+            // Self::UnexpectedEOF(file, line, col) => {
+            //     eprintln!("Unexpected end of File: {file}:{line}:{col}");
+            // }
             Self::InvalidJtype(invalid_token) => {
                 let found = tokens
                     .get(invalid_token.0)
@@ -181,7 +183,7 @@ const fn sort_helper_error(a: &(MyString, AstError)) -> usize {
         | AstError::InvalidNuget(invalid_token)
         | AstError::InvalidBoolean(invalid_token)
         | AstError::InvalidString(invalid_token) => invalid_token.0,
-        AstError::UnexpectedEOF(_, _, _)
+        AstError::UnexpectedEOF
         | AstError::AllChildrenFailed {
             parent: _,
             errors: _,
@@ -192,15 +194,17 @@ impl AstError {
     /// Generate eof error
     #[must_use]
     #[track_caller]
+    #[inline]
     pub fn eof() -> Self {
-        let loc = Location::caller();
-        Self::UnexpectedEOF(loc.file().into(), loc.line(), loc.column())
+        // let loc = Location::caller();
+        Self::UnexpectedEOF
+        // Self::UnexpectedEOF(loc.file().into(), loc.line(), loc.column())
     }
 }
 fn get_pos(e: &AstError) -> (usize, usize) {
     match e {
         AstError::ExpectedToken(expected_token) => (expected_token.pos, expected_token.pos),
-        AstError::UnexpectedEOF(_, _, _) => (10_000_000, 10_000_000),
+        AstError::UnexpectedEOF => (10_000_000, 10_000_000),
         AstError::AllChildrenFailed { parent: _, errors } => {
             let poses = errors.iter().map(|i| &i.1).map(get_pos);
             if let Some(min) = poses.clone().min()
@@ -250,14 +254,12 @@ fn print_helper(content: &str, line: usize, col: usize, msg: &str) {
 /// # Errors
 /// When token does not match expected
 #[track_caller]
+#[inline(always)]
 pub fn assert_token(
     tokens: &[PositionToken],
     pos: usize,
     expected: Token,
 ) -> Result<usize, AstError> {
-    if pos > tokens.len() {
-        return Err(AstError::eof());
-    }
     let t = tokens.get(pos).ok_or_else(AstError::eof)?;
     if t.token != expected {
         return Err(AstError::ExpectedToken(ExpectedToken::from(pos, expected)));
@@ -327,9 +329,11 @@ pub trait GetStartEnd {
 }
 
 impl GetStartEnd for [PositionToken] {
+    #[inline]
     fn start(&self, pos: usize) -> Result<&PositionToken, AstError> {
         self.get(pos).ok_or_else(AstError::eof)
     }
+    #[inline]
     fn end(&self, pos: usize) -> Result<&PositionToken, AstError> {
         self.get(pos.saturating_sub(1)).ok_or_else(AstError::eof)
     }

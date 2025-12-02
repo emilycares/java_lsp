@@ -265,6 +265,7 @@ dependencies = [
  "clap",
  "jwalk",
  "memmap2",
+ "rayon",
  "tokio",
 ]
 
@@ -855,6 +856,7 @@ dependencies = [
  "classfile-parser",
  "itertools 0.14.0",
  "jwalk",
+ "memmap2",
  "my_string",
  "parser",
  "postcard",

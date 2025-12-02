@@ -197,11 +197,7 @@ async fn load_jmods(
                         continue;
                     }
                     let jmod = jmod.path();
-                    if let Some(jmod_name) = jmod
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .map(|n| n.to_string())
-                    {
+                    if let Some(jmod_name) = jmod.file_name().and_then(|n| n.to_str()) {
                         let jmod_display = jmod_name.trim_end_matches(".jmod").to_owned();
 
                         handles.spawn(async move {

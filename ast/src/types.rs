@@ -739,7 +739,6 @@ pub enum AstExpressionKind {
     Lambda(AstLambda),
     InlineSwitch(AstSwitch),
     NewClass(AstNewClass),
-    ClassAccess(AstClassAccess),
     Generics(AstGenerics),
     Array(AstValues),
     JType(AstCastedExpression),
@@ -757,8 +756,7 @@ impl AstExpressionKind {
             | Self::NewClass(_)
             | Self::Array(_)
             | Self::Generics(_)
-            | Self::InstanceOf(_)
-            | Self::ClassAccess(_) => true,
+            | Self::InstanceOf(_) => true,
         }
     }
 }
@@ -844,11 +842,6 @@ pub struct AstNewClass {
     pub range: AstRange,
     pub jtype: AstJType,
     pub rhs: Box<AstNewRhs>,
-}
-#[derive(Debug, Clone)]
-pub struct AstClassAccess {
-    pub range: AstRange,
-    pub jtype: AstJType,
 }
 #[derive(Debug, Clone)]
 pub struct AstGenerics {

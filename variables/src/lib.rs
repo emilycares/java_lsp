@@ -254,7 +254,6 @@ fn expression_kind(
             get_block_vars(&ast_switch.block, point, level, out)
         }
         AstExpressionKind::NewClass(_)
-        | AstExpressionKind::ClassAccess(_)
         | AstExpressionKind::Generics(_)
         | AstExpressionKind::InstanceOf(_)
         | AstExpressionKind::JType(_)

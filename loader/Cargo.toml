@@ -19,3 +19,4 @@ itertools.workspace = true
 postcard.workspace = true
 rayon.workspace = true
 tokio.workspace = true
+memmap2.workspace = true

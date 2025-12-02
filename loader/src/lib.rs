@@ -2,7 +2,7 @@
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
 use std::{
-    fs::{self, OpenOptions},
+    fs::{File, OpenOptions},
     io::Write,
     path::{MAIN_SEPARATOR, Path, PathBuf},
 };
@@ -37,16 +37,21 @@ pub fn load_class_fs<T>(
 where
     T: AsRef<Path> + Debug,
 {
-    let bytes = std::fs::read(path).map_err(ClassError::IO)?;
-    class::load_class(&bytes, class_path, source)
+    let file = File::open(path).map_err(ClassError::IO)?;
+    let mmap = unsafe { memmap2::Mmap::map(&file) }.map_err(ClassError::IO)?;
+    class::load_class(&mmap[..], class_path, source)
 }
 
 pub fn load_java_fs<T>(path: T, source: SourceDestination) -> Result<dto::Class, ParseJavaError>
 where
     T: AsRef<Path> + Debug,
 {
-    let bytes = std::fs::read(path).map_err(ParseJavaError::Io)?;
-    java::load_java(&bytes, source)
+    let file = File::open(path).map_err(ParseJavaError::Io)?;
+    let mmap = unsafe { memmap2::Mmap::map(&file) }.map_err(ParseJavaError::Io)?;
+    #[cfg(unix)]
+    mmap.advise(memmap2::Advice::Sequential)
+        .expect("memmap advice to be accepted");
+    java::load_java(&mmap[..], source)
 }
 
 pub fn save_class_folder<P: AsRef<Path>>(
@@ -69,8 +74,9 @@ pub fn save_class_folder<P: AsRef<Path>>(
 }
 
 pub fn load_class_folder<P: AsRef<Path>>(path: P) -> Result<dto::ClassFolder, LoaderError> {
-    let data = fs::read(path).map_err(LoaderError::IO)?;
-    let out = postcard::from_bytes(&data).map_err(LoaderError::Postcard)?;
+    let file = File::open(path).map_err(LoaderError::IO)?;
+    let mmap = unsafe { memmap2::Mmap::map(&file) }.map_err(LoaderError::IO)?;
+    let out = postcard::from_bytes(&mmap[..]).map_err(LoaderError::Postcard)?;
 
     Ok(out)
 }
@@ -128,7 +134,7 @@ async fn base_load_classes_zip(
         if matches!(entry.kind(), EntryKind::Directory) {
             continue;
         }
-        let Some(file_name) = entry.sanitized_name().map(|i| i.to_string()) else {
+        let Some(file_name) = entry.sanitized_name() else {
             continue;
         };
         if !file_name.ends_with(".class") {

@@ -255,12 +255,6 @@ fn get_class_expression_kind(ex: &AstExpressionKind, point: &AstPoint) -> Option
                 }
             }
         }
-        AstExpressionKind::ClassAccess(ast_class_access) => {
-            if let Some(o) = get_class_jtype(&ast_class_access.jtype, point) {
-                return Some(o);
-            }
-            None
-        }
         AstExpressionKind::Generics(ast_generics) => {
             for j in &ast_generics.jtypes {
                 if let Some(o) = get_class_jtype(j, point) {

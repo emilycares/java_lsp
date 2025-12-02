@@ -34,13 +34,12 @@ use crate::{
     record::parse_record,
     types::{
         AstAnnotatedParameter, AstAnnotatedParameterKind, AstBinaryLiteral, AstBlockAssert,
-        AstBlockYield, AstClassAccess, AstConstructorHeader, AstExpressionKind,
-        AstExpressionOrDefault, AstExpressionOrValue, AstExpresssionOrAnnotated, AstForContent,
-        AstGenerics, AstHexLiteral, AstInlineBlock, AstInstanceOf, AstLambdaParameter,
-        AstLambdaRhs, AstNewRhs, AstPackage, AstSwitchCaseArrowContent, AstSwitchCaseArrowDefault,
-        AstSwitchCaseArrowType, AstSwitchCaseArrowValues, AstSwitchCaseArrowVar, AstSwitchDefault,
-        AstSynchronizedBlock, AstThingAttributes, AstTypeParameter, AstValuesWithAnnotated,
-        AstWhileContent,
+        AstBlockYield, AstConstructorHeader, AstExpressionKind, AstExpressionOrDefault,
+        AstExpressionOrValue, AstExpresssionOrAnnotated, AstForContent, AstGenerics, AstHexLiteral,
+        AstInlineBlock, AstInstanceOf, AstLambdaParameter, AstLambdaRhs, AstNewRhs, AstPackage,
+        AstSwitchCaseArrowContent, AstSwitchCaseArrowDefault, AstSwitchCaseArrowType,
+        AstSwitchCaseArrowValues, AstSwitchCaseArrowVar, AstSwitchDefault, AstSynchronizedBlock,
+        AstThingAttributes, AstTypeParameter, AstValuesWithAnnotated, AstWhileContent,
     },
 };
 
@@ -1075,25 +1074,6 @@ pub fn parse_new_class(
         pos,
     ))
 }
-/// `byte.class`
-/// `String.class`
-pub fn parse_class_access(
-    tokens: &[PositionToken],
-    pos: usize,
-) -> Result<(AstClassAccess, usize), AstError> {
-    let start = tokens.start(pos)?;
-    let (jtype, pos) = parse_jtype(tokens, pos)?;
-    let pos = assert_token(tokens, pos, Token::Dot)?;
-    let pos = assert_token(tokens, pos, Token::Class)?;
-    let end = tokens.end(pos)?;
-    Ok((
-        AstClassAccess {
-            range: AstRange::from_position_token(start, end),
-            jtype,
-        },
-        pos,
-    ))
-}
 /// Options for expression parsing
 #[derive(Debug, PartialEq, Eq)]
 pub enum ExpressionOptions {
@@ -1187,10 +1167,6 @@ fn parse_expression_inner(
             return Ok((AstExpressionKind::Casted(casted), pos));
         }
         Err(e) => errors.push(("casted".into(), e)),
-    }
-    match parse_class_access(tokens, pos) {
-        Ok((a, pos)) => return Ok((AstExpressionKind::ClassAccess(a), pos)),
-        Err(e) => errors.push(("class access".into(), e)),
     }
     match parse_recursive_expression(tokens, pos, expression_options) {
         Ok((recursive, pos)) => {
@@ -1972,21 +1948,16 @@ fn parse_block_entry_options(
     pos: usize,
     block_entry_options: &BlockEntryOptions,
 ) -> Result<(AstBlockEntry, usize), AstError> {
+    let current = tokens.start(pos)?;
     let mut errors = vec![];
-    match assert_token(tokens, pos, Token::Semicolon) {
-        Ok(pos) => {
+    match &current.token {
+        Token::Semicolon => {
             let start = tokens.start(pos - 1)?;
             return Ok((
                 AstBlockEntry::Semicolon(AstRange::from_position_token(start, start)),
-                pos,
+                pos + 1,
             ));
         }
-        Err(e) => {
-            errors.push(("semicolon".into(), e));
-        }
-    }
-    let current = tokens.start(pos)?;
-    match &current.token {
         Token::Return => match parse_block_return(tokens, pos) {
             Ok((nret, pos)) => {
                 return Ok((AstBlockEntry::Return(nret), pos));
@@ -3067,6 +3038,7 @@ pub const fn can_be_ident(token: &Token) -> bool {
             | Token::Float
             | Token::Boolean
             | Token::Var
+            | Token::Void
             | Token::Non
             | Token::Module
             | Token::Exports
@@ -3079,6 +3051,7 @@ pub const fn can_be_ident(token: &Token) -> bool {
             | Token::Transitive
             | Token::Opens
             | Token::Open
+            | Token::Class
     )
 }
 

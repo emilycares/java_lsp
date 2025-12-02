@@ -107,14 +107,33 @@ pub fn parse_class_block(
             break;
         }
         errors.clear();
-        match assert_token(tokens, pos, Token::Semicolon) {
-            Ok(npos) => {
-                pos = npos;
+        let current = tokens.start(pos)?;
+        match &current.token {
+            Token::Semicolon => {
+                pos += 1;
                 continue;
             }
-            Err(e) => {
-                errors.push(("class semicolon".into(), e));
-            }
+            Token::Static => match parse_static_block(tokens, pos) {
+                Ok((static_block, npos)) => {
+                    pos = npos;
+                    static_blocks.push(static_block);
+                    continue;
+                }
+                Err(e) => {
+                    errors.push(("static block".into(), e));
+                }
+            },
+            Token::LeftParenCurly => match parse_block(tokens, pos) {
+                Ok((block, npos)) => {
+                    pos = npos;
+                    blocks.push(block);
+                    continue;
+                }
+                Err(e) => {
+                    errors.push(("block".into(), e));
+                }
+            },
+            _ => (),
         }
 
         match parse_thing(tokens, pos) {
@@ -155,26 +174,6 @@ pub fn parse_class_block(
             }
             Err(e) => {
                 errors.push(("class constructor".into(), e));
-            }
-        }
-        match parse_static_block(tokens, pos) {
-            Ok((static_block, npos)) => {
-                pos = npos;
-                static_blocks.push(static_block);
-                continue;
-            }
-            Err(e) => {
-                errors.push(("static block".into(), e));
-            }
-        }
-        match parse_block(tokens, pos) {
-            Ok((block, npos)) => {
-                pos = npos;
-                blocks.push(block);
-                continue;
-            }
-            Err(e) => {
-                errors.push(("block".into(), e));
             }
         }
         return Err(AstError::AllChildrenFailed {
