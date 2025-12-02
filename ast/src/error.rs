@@ -195,7 +195,7 @@ impl AstError {
     #[must_use]
     #[track_caller]
     #[inline]
-    pub fn eof() -> Self {
+    pub const fn eof() -> Self {
         // let loc = Location::caller();
         Self::UnexpectedEOF
         // Self::UnexpectedEOF(loc.file().into(), loc.line(), loc.column())
@@ -254,7 +254,7 @@ fn print_helper(content: &str, line: usize, col: usize, msg: &str) {
 /// # Errors
 /// When token does not match expected
 #[track_caller]
-#[inline(always)]
+#[inline]
 pub fn assert_token(
     tokens: &[PositionToken],
     pos: usize,

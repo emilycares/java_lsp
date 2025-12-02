@@ -850,6 +850,10 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                     let Some(ch) = chars.get(index) else {
                         break;
                     };
+                    if *ch == '\r' {
+                        index += 1;
+                        continue;
+                    }
                     if *ch == '\\' {
                         let Some(peek) = chars.get(index + 1) else {
                             break;

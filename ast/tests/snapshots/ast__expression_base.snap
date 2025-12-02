@@ -1,7 +1,6 @@
 ---
 source: ast/tests/ast.rs
 expression: parsed.unwrap()
-snapshot_kind: text
 ---
 (
     [
@@ -126,8 +125,8 @@ snapshot_kind: text
                         },
                         values: [
                             [
-                                ClassAccess(
-                                    AstClassAccess {
+                                Recursive(
+                                    AstRecursiveExpression {
                                         range: AstRange {
                                             start: AstPoint {
                                                 line: 0,
@@ -135,21 +134,11 @@ snapshot_kind: text
                                             },
                                             end: AstPoint {
                                                 line: 0,
-                                                col: 27,
+                                                col: 21,
                                             },
                                         },
-                                        jtype: AstJType {
-                                            range: AstRange {
-                                                start: AstPoint {
-                                                    line: 0,
-                                                    col: 17,
-                                                },
-                                                end: AstPoint {
-                                                    line: 0,
-                                                    col: 21,
-                                                },
-                                            },
-                                            value: Class(
+                                        ident: Some(
+                                            Identifier(
                                                 AstIdentifier {
                                                     range: AstRange {
                                                         start: AstPoint {
@@ -164,7 +153,70 @@ snapshot_kind: text
                                                     value: "Test",
                                                 },
                                             ),
+                                        ),
+                                        values: None,
+                                        operator: None,
+                                    },
+                                ),
+                                Recursive(
+                                    AstRecursiveExpression {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 0,
+                                                col: 21,
+                                            },
+                                            end: AstPoint {
+                                                line: 0,
+                                                col: 22,
+                                            },
                                         },
+                                        ident: None,
+                                        values: None,
+                                        operator: Dot(
+                                            AstRange {
+                                                start: AstPoint {
+                                                    line: 0,
+                                                    col: 21,
+                                                },
+                                                end: AstPoint {
+                                                    line: 0,
+                                                    col: 22,
+                                                },
+                                            },
+                                        ),
+                                    },
+                                ),
+                                Recursive(
+                                    AstRecursiveExpression {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 0,
+                                                col: 22,
+                                            },
+                                            end: AstPoint {
+                                                line: 0,
+                                                col: 27,
+                                            },
+                                        },
+                                        ident: Some(
+                                            Identifier(
+                                                AstIdentifier {
+                                                    range: AstRange {
+                                                        start: AstPoint {
+                                                            line: 0,
+                                                            col: 22,
+                                                        },
+                                                        end: AstPoint {
+                                                            line: 0,
+                                                            col: 27,
+                                                        },
+                                                    },
+                                                    value: "class",
+                                                },
+                                            ),
+                                        ),
+                                        values: None,
+                                        operator: None,
                                     },
                                 ),
                             ],

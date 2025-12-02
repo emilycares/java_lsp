@@ -59,7 +59,7 @@ pub async fn ast_check_async(file: PathBuf, num: usize) {
 pub fn ast_check(path: &PathBuf, num: usize) {
     use std::{fs::File, str::from_utf8};
 
-    match File::open(&path) {
+    match File::open(path) {
         Ok(file) => {
             let mmap = unsafe { memmap2::Mmap::map(&file) };
             match mmap {
@@ -69,7 +69,7 @@ pub fn ast_check(path: &PathBuf, num: usize) {
                         .expect("memmap advice to be accepted");
                     match from_utf8(&mmap[..]) {
                         Ok(text) => {
-                            lex_and_ast(&path, text, num);
+                            lex_and_ast(path, text, num);
                         }
                         Err(e) => {
                             eprintln!("invalid utf8: {:?}", e);
