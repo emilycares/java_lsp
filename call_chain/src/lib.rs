@@ -32,10 +32,6 @@ pub enum CallItem {
     This {
         range: AstRange,
     },
-    Package {
-        name: MyString,
-        range: AstRange,
-    },
     Class {
         name: MyString,
         range: AstRange,
@@ -60,7 +56,6 @@ impl CallItem {
             CallItem::Variable { name: _, range } => range,
             CallItem::This { range } => range,
             CallItem::Class { name: _, range } => range,
-            CallItem::Package { name: _, range } => range,
             CallItem::ClassOrVariable { name: _, range } => range,
             CallItem::ArgumentList {
                 prev: _,
@@ -223,7 +218,6 @@ pub fn validate(call_chain: &[CallItem], point: &AstPoint) -> (usize, Vec<CallIt
             CallItem::This { range } => range.is_in_range(point),
             CallItem::ClassOrVariable { name: _, range } => range.is_in_range(point),
             CallItem::Class { name: _, range } => range.is_in_range(point),
-            CallItem::Package { name: _, range } => range.is_in_range(point),
             CallItem::ArgumentList {
                 prev,
                 range,

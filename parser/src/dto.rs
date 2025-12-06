@@ -226,6 +226,10 @@ pub enum JType {
     Generic(MyString, Vec<JType>),
     Parameter(MyString),
     Var,
+    Access {
+        base: Box<JType>,
+        inner: Box<JType>,
+    },
 }
 impl From<&AstJType> for JType {
     fn from(value: &AstJType) -> Self {
@@ -248,7 +252,10 @@ impl From<&AstJType> for JType {
             ),
             AstJTypeKind::Parameter(ast_identifier) => JType::Parameter(ast_identifier.into()),
             AstJTypeKind::Var => JType::Var,
-            AstJTypeKind::Access { base: _, inner: _ } => todo!(),
+            AstJTypeKind::Access { base, inner } => JType::Access {
+                base: Box::new((&**base).into()),
+                inner: Box::new((&**inner).into()),
+            },
         }
     }
 }
@@ -283,6 +290,9 @@ impl Display for JType {
             }
             JType::Parameter(p) => write!(f, "<{}>", p),
             JType::Var => write!(f, "var"),
+            JType::Access { base, inner } => {
+                write!(f, "{}.{}", **base, **inner)
+            }
         }
     }
 }

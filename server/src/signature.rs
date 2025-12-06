@@ -95,8 +95,7 @@ fn get_args(call_chain: &[CallItem]) -> Option<&CallItem> {
         | CallItem::Variable { name: _, range: _ }
         | CallItem::Class { name: _, range: _ }
         | CallItem::ClassOrVariable { name: _, range: _ }
-        | CallItem::This { range: _ }
-        | CallItem::Package { name: _, range: _ } => false,
+        | CallItem::This { range: _ } => false,
         CallItem::ArgumentList {
             prev: _,
             range: _,

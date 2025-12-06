@@ -256,7 +256,7 @@ fn pos_refs_helper(
     ast: &AstFile,
     query_class_name: &str,
 ) -> Result<Vec<ReferencePosition>, ReferencesError> {
-    match position::get_type_usage(query_class_name, ast) {
+    match position::get_class_position_ast(ast, Some(query_class_name)) {
         Err(e) => Err(ReferencesError::Position(e))?,
         Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
     }

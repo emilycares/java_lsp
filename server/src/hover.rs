@@ -188,7 +188,6 @@ pub fn call_chain_hover(
             Err(HoverError::ArgumentNotFound)
         }
         CallItem::This { range: _ } => Err(HoverError::Unimlemented),
-        CallItem::Package { name: _, range: _ } => Err(HoverError::Unimlemented),
     }
 }
 

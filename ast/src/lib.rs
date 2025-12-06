@@ -226,7 +226,7 @@ fn parse_import(tokens: &[PositionToken], pos: usize) -> Result<(AstImport, usiz
 ///`  public class Everything { ...`
 ///`  public interface Constants { ...`
 pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, usize), AstError> {
-    let (annotated, mut pos) = parse_annotated_list(tokens, pos)?;
+    let (mut annotated, mut pos) = parse_annotated_list(tokens, pos)?;
     let mut avaliability = AstAvailability::empty();
     let mut attributes = AstThingAttributes::empty();
     loop {
@@ -248,6 +248,12 @@ pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, us
                     pos = npos;
                     continue;
                 }
+            }
+            Token::At => {
+                let (annotated_after, npos) = parse_annotated_list(tokens, pos)?;
+                pos = npos;
+                annotated.extend(annotated_after);
+                continue;
             }
             _ => break,
         }
@@ -900,7 +906,7 @@ fn parse_annotated_parameters(
         if let Ok((name, npos)) = parse_name(tokens, pos)
             && let Ok(npos) = assert_token(tokens, npos, Token::Equal)
         {
-            match parse_array_with_annotated(tokens, pos, &ExpressionOptions::None) {
+            match parse_array_with_annotated(tokens, npos, &ExpressionOptions::None) {
                 Ok((an, npos)) => {
                     pos = npos;
                     let end_named = tokens.end(pos)?;
@@ -3379,6 +3385,10 @@ pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, us
                     range: AstRange::from_position_token(start, end),
                     value: AstJTypeKind::Array(Box::new(out)),
                 };
+                if let Ok((anno, npos)) = parse_annotated_list(tokens, pos) {
+                    annotated.extend(anno);
+                    pos = npos;
+                }
             } else {
                 break;
             }
@@ -3416,6 +3426,10 @@ pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, us
                         range: AstRange::from_position_token(start, end),
                         value: AstJTypeKind::Array(Box::new(out)),
                     };
+                    if let Ok((anno, npos)) = parse_annotated_list(tokens, pos) {
+                        annotated.extend(anno);
+                        pos = npos;
+                    }
                 } else {
                     break;
                 }

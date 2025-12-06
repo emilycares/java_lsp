@@ -97,27 +97,27 @@ pub fn is_imported<'a>(
 }
 
 pub fn resolve(
-    jtype: &str,
+    class_name: &str,
     imports: &[ImportUnit],
     class_map: &DashMap<MyString, parser::dto::Class>,
 ) -> Result<ResolveState, TyresError> {
-    eprintln!("resolve: {jtype}");
+    eprintln!("resolve: {class_name}");
 
-    if jtype.contains('.') {
-        let Some(imported_class) = class_map.get(jtype) else {
+    if class_name.contains('.') {
+        let Some(imported_class) = class_map.get(class_name) else {
             return Err(TyresError::ClassNotFound {
-                class_path: jtype.into(),
+                class_path: class_name.into(),
             });
         };
         return Ok(ResolveState {
-            jtype: JType::Class(jtype.into()),
+            jtype: JType::Class(class_name.into()),
             class: parent::inclued_parent(imported_class.deref().to_owned(), class_map),
         });
     }
 
     let mut lang_class_key = MyString::new();
     lang_class_key.push_str("java.lang.");
-    lang_class_key.push_str(jtype);
+    lang_class_key.push_str(class_name);
     let lang_class_key = lang_class_key;
     if let Some(lang_class) = class_map.get(&lang_class_key) {
         return Ok(ResolveState {
@@ -126,7 +126,7 @@ pub fn resolve(
         });
     }
 
-    let import_result = is_imported(jtype, imports, class_map);
+    let import_result = is_imported(class_name, imports, class_map);
     match import_result {
         Some(ImportResult::Class(c)) | Some(ImportResult::StaticClass(c)) => {
             let Some(imported_class) = class_map.get(&c) else {
@@ -137,7 +137,7 @@ pub fn resolve(
                 class: parent::inclued_parent(imported_class.deref().to_owned(), class_map),
             })
         }
-        None => Err(TyresError::NotImported(jtype.into())),
+        None => Err(TyresError::NotImported(class_name.into())),
     }
 }
 
@@ -322,7 +322,6 @@ fn call_chain_op(
             }
             resolve_call_chain(prev, lo_va, imports, class, class_map)
         }
-        CallItem::Package { name: _, range: _ } => todo!(),
     }
 }
 
@@ -437,5 +436,18 @@ pub fn resolve_jtype(
             })
         }
         JType::Var => Err(TyresError::CheckValue),
+        JType::Access { base, inner } => {
+            let query = format!("{}${}", &base, &inner);
+            let Some(out) = class_map.get(&query) else {
+                return Err(TyresError::ClassNotFound { class_path: query });
+            };
+            Ok(ResolveState {
+                class: out.deref().to_owned(),
+                jtype: JType::Access {
+                    base: base.clone(),
+                    inner: inner.clone(),
+                },
+            })
+        }
     }
 }
