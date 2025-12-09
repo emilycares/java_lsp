@@ -1,6 +1,10 @@
 #![deny(warnings)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::too_many_lines)]
 use std::process::Command;
 
 use nom::{
@@ -16,7 +20,7 @@ use nom::{
     multi::many0_count,
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct CompileError {
     pub path: String,
     pub message: String,
@@ -24,6 +28,7 @@ pub struct CompileError {
     pub col: usize,
 }
 
+#[must_use]
 pub fn compile_java_file(file_path: &str, classpath: &str) -> Option<Vec<CompileError>> {
     // Compile the Java file using `javac` with the generated classpath
     let out = Command::new("javac")
@@ -54,7 +59,7 @@ fn parse_error(input: &str) -> IResult<&str, CompileError> {
     Ok((
         input,
         CompileError {
-            path: format!("{}.java", path),
+            path: format!("{path}.java"),
             message: msg.to_string(),
             row: row.parse().unwrap_or_default(),
             col,

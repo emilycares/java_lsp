@@ -15,6 +15,7 @@ use rayon::iter::{IntoParallelRefIterator, ParallelBridge, ParallelIterator};
 use variables::LocalVariable;
 
 use crate::{
+    codeaction::ToLspRangeError,
     codeaction::to_lsp_range,
     definition::{self},
 };
@@ -32,6 +33,7 @@ pub enum ReferencesError {
     ArgumentNotFound,
     Definition,
     Document(DocumentError),
+    ToLspRange(ToLspRangeError),
 }
 
 #[derive(Debug)]
@@ -50,6 +52,7 @@ pub struct ReferencesContext<'a> {
     pub vars: &'a [LocalVariable],
 }
 
+#[must_use]
 pub fn class_path(
     class_path: &str,
     reference_map: &dashmap::DashMap<MyString, Vec<ReferenceUnit>>,
@@ -59,8 +62,7 @@ pub fn class_path(
         let refs = crefs
             .iter()
             .filter_map(|i| match i {
-                ReferenceUnit::Class(s) => class_map.get(s),
-                ReferenceUnit::StaticClass(s) => class_map.get(s),
+                ReferenceUnit::Class(s) | ReferenceUnit::StaticClass(s) => class_map.get(s),
             })
             .filter_map(|lookup| {
                 let refs = get_position_refrences(&lookup, class_path, None).ok()?;
@@ -76,9 +78,9 @@ pub fn class_path(
                     }
                 },
             )
-            .map(|(i, range)| Location {
-                uri: i,
-                range: to_lsp_range(&range),
+            .filter_map(|(i, range)| {
+                let range = to_lsp_range(&range).ok()?;
+                Some(Location { uri: i, range })
             })
             .collect();
         return Some(refs);
@@ -110,8 +112,9 @@ pub fn call_chain_references(
                 let used_in = used_in.value();
                 for ref_unit in used_in {
                     let Some(class) = (match ref_unit {
-                        ReferenceUnit::Class(c) => context.class_map.get(c),
-                        ReferenceUnit::StaticClass(c) => context.class_map.get(c),
+                        ReferenceUnit::Class(c) | ReferenceUnit::StaticClass(c) => {
+                            context.class_map.get(c)
+                        }
                     }) else {
                         continue;
                     };
@@ -120,11 +123,12 @@ pub fn call_chain_references(
                         eprintln!("Got into defintion error: {e:?}");
                         ReferencesError::Definition
                     })?;
-                    locations.extend(
-                        method_refs
-                            .iter()
-                            .map(|i| Location::new(uri.clone(), to_lsp_range(i.0.get_range()))),
-                    );
+                    for i in method_refs {
+                        let r =
+                            to_lsp_range(i.0.get_range()).map_err(ReferencesError::ToLspRange)?;
+                        let loc = Location::new(uri.clone(), r);
+                        locations.push(loc);
+                    }
                 }
             }
             Ok(locations)
@@ -220,8 +224,7 @@ pub fn reference_update_class(
                 let insert = vec![ReferenceUnit::StaticClass(class.class_path.clone())];
                 insert_or_extend(reference_map, s, insert);
             }
-            ImportUnit::StaticClassMethod(_, _) => (),
-            ImportUnit::StaticPrefix(_) => (),
+            ImportUnit::StaticClassMethod(_, _) | ImportUnit::StaticPrefix(_) => (),
         }
     }
     Ok(())
@@ -267,15 +270,12 @@ where
     K: Eq + Hash + Clone,
     V: Extend<A> + IntoIterator<Item = A>,
 {
-    match out.contains_key(key) {
-        true => {
-            if let Some(mut a) = out.get_mut(key) {
-                a.extend(insert);
-            }
+    if out.contains_key(key) {
+        if let Some(mut a) = out.get_mut(key) {
+            a.extend(insert);
         }
-        false => {
-            out.insert(key.clone(), insert);
-        }
+    } else {
+        out.insert(key.clone(), insert);
     }
 }
 
@@ -290,7 +290,7 @@ fn get_implicit_imports(
         .keys()
         .par_bridge()
         .filter(|c| {
-            if let Some((c_package, _)) = c.rsplit_once(".") {
+            if let Some((c_package, _)) = c.rsplit_once('.') {
                 return c_package == package;
             }
             false

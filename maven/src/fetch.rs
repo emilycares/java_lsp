@@ -78,9 +78,8 @@ pub async fn fetch_deps(
                 class_map.insert(class.class_path.clone(), class);
             }
             return Ok(());
-        } else {
-            remove_file(path).map_err(MavenFetchError::IO)?
         }
+        remove_file(path).map_err(MavenFetchError::IO)?;
     }
 
     if download {
@@ -109,7 +108,7 @@ pub async fn fetch_deps(
         if !source_dir.exists() {
             handles.spawn(async move {
                 match zip_util::extract_jar(&source_jar, &source_dir).await {
-                    Ok(_) => (),
+                    Ok(()) => (),
                     Err(e) => eprintln!("unable to extract jar {e:?}"),
                 }
                 None
@@ -151,7 +150,7 @@ pub async fn fetch_deps(
 
     if let Err(e) = loader::save_class_folder(MAVEN_CFC, &maven_class_folder) {
         eprintln!("Failed to save {MAVEN_CFC} because: {e:?}");
-    };
+    }
     for class in maven_class_folder.classes {
         class_map.insert(class.class_path.clone(), class);
     }
@@ -199,21 +198,24 @@ fn get_maven_m2_folder() -> Result<PathBuf, MavenFetchError> {
     Ok(m2)
 }
 
+#[must_use]
 pub fn pom_classes_jar(pom: &Pom, m2: &Path) -> PathBuf {
     get_pom_m2_classifier_path(pom, m2, None)
 }
+#[must_use]
 pub fn pom_sources_jar(pom: &Pom, m2: &Path) -> PathBuf {
     get_pom_m2_classifier_path(pom, m2, Some("sources"))
 }
+#[must_use]
 pub fn pom_javadoc_jar(pom: &Pom, m2: &Path) -> PathBuf {
     get_pom_m2_classifier_path(pom, m2, Some("javadoc"))
 }
 
 fn get_pom_m2_classifier_path(pom: &Pom, m2: &Path, classifier: Option<&str>) -> PathBuf {
-    let group_parts = pom.group_id.split(".");
+    let group_parts = pom.group_id.split('.');
     let mut p = m2.join("repository");
     for gp in group_parts {
-        p = p.join(gp)
+        p = p.join(gp);
     }
     p = p
         .join(&pom.artivact_id)

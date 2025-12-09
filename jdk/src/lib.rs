@@ -1,6 +1,10 @@
 #![deny(warnings)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::too_many_lines)]
 use std::{
     env,
     fs::{self, remove_file},
@@ -51,14 +55,13 @@ pub async fn load_classes(
                 class_map.insert(class.class_path.clone(), class);
             }
             return Ok(());
-        } else {
-            remove_file(&cache_path).map_err(JdkError::IO)?
         }
+        remove_file(&cache_path).map_err(JdkError::IO)?;
     }
     let class_folder = load_jdk(java_path, &op_dir, sender).await?;
     if let Err(e) = loader::save_class_folder(cache_path, &class_folder) {
         eprintln!("Failed to save {JDK_CFC} because: {e:?}");
-    };
+    }
     for class in class_folder.classes {
         class_map.insert(class.class_path.clone(), class);
     }
@@ -67,16 +70,14 @@ pub async fn load_classes(
 
 fn java_executable_location() -> Option<PathBuf> {
     if let Some(paths) = env::var_os("PATH") {
-        return env::split_paths(&paths)
-            .filter_map(|dir| {
-                let full_path = dir.join(EXECUTABLE_JAVA);
-                if full_path.is_file() {
-                    Some(full_path)
-                } else {
-                    None
-                }
-            })
-            .next();
+        return env::split_paths(&paths).find_map(|dir| {
+            let full_path = dir.join(EXECUTABLE_JAVA);
+            if full_path.is_file() {
+                Some(full_path)
+            } else {
+                None
+            }
+        });
     }
     None
 }
@@ -96,7 +97,7 @@ pub async fn load_jdk(
     if jmod_executable.exists() {
         return load_jmods(java_path, op_dir, sender).await;
     }
-    eprintln!("There is no jmod in your jdk: {java_path:?}");
+    eprintln!("There is no jmod in your jdk: {}", java_path.display());
     load_old(java_path, op_dir).await
 }
 
@@ -217,7 +218,7 @@ async fn load_jmods(
                             let _ = sender.send(TaskProgress {
                                 persentage: (100 * a) / (tasks_number + 1),
                                 error: false,
-                                message: format!("Loaded classes of jmod: {}", jmod_display),
+                                message: format!("Loaded classes of jmod: {jmod_display}"),
                             });
 
                             classes
@@ -231,7 +232,7 @@ async fn load_jmods(
     let done = handles.join_all().await;
     let mut classes = vec![];
 
-    for r in done.into_iter() {
+    for r in done {
         match r {
             Ok(c) => classes.extend(c.classes),
             Err(e) => return Err(e),
@@ -243,7 +244,7 @@ async fn load_jmods(
 
 async fn unzip_to_dir(dir: &Path, zip: &PathBuf) -> Result<(), JdkError> {
     if !zip.exists() {
-        return Err(JdkError::Unzip(zip.to_str().map(|i| i.to_owned())));
+        return Err(JdkError::Unzip(zip.to_str().map(ToOwned::to_owned)));
     }
     if !dir.exists() {
         zip_util::extract_jar(zip, dir)
@@ -268,7 +269,7 @@ pub async fn get_work_dirs() -> Result<(PathBuf, PathBuf), JdkError> {
     if let Some(java_folder_name) = java_folder.file_name()
         && let Some(java_folder_name) = java_folder_name.to_str()
     {
-        let jdk_name = format!("{}_{}", java_folder_name, version);
+        let jdk_name = format!("{java_folder_name}_{version}");
         let op_dir = opdir(jdk_name);
 
         return Ok((java_path, op_dir));

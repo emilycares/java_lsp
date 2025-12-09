@@ -41,21 +41,20 @@ pub fn load_java_tree(
 ) -> Result<crate::dto::Class, ParseJavaError> {
     let mut methods: Vec<Method> = vec![];
     let mut fields: Vec<Field> = vec![];
-    let mut class_path_base: MyString = MyString::new();
-    if let Some(p) = &ast.package {
-        class_path_base = (&p.name).into();
-    }
+    let class_path_base: MyString = ast
+        .package
+        .as_ref()
+        .map_or_else(MyString::new, |p| (&p.name).into());
     let mut name: MyString = String::new();
     let mut super_class = dto::SuperClass::None;
     let mut super_interfaces = vec![];
-    let imports: Vec<ImportUnit> = match &ast.imports {
-        Some(imports) => imports.imports.iter().map(|i| i.into()).collect(),
-        None => vec![],
-    };
+    let imports: Vec<ImportUnit> = ast.imports.as_ref().map_or_else(Vec::new, |imports| {
+        imports.imports.iter().map(Into::into).collect()
+    });
     if let Some(thing) = ast.things.first() {
         match thing {
             AstThing::Class(class) => {
-                name = class.name.value.clone();
+                name.clone_from(&class.name.value);
                 methods.extend(class.block.methods.iter().map(convert_class_method));
                 fields.extend(class.block.variables.iter().map(convert_class_field));
                 //TDOO: Handle others
@@ -63,9 +62,6 @@ pub fn load_java_tree(
                     None | Some(AstSuperClass::None) => dto::SuperClass::None,
                     Some(AstSuperClass::Name(ast_identifier)) => {
                         dto::SuperClass::Name(ast_identifier.into())
-                    }
-                    Some(AstSuperClass::ClassPath(ast_identifier)) => {
-                        dto::SuperClass::ClassPath(ast_identifier.into())
                     }
                 };
             }
@@ -97,10 +93,10 @@ pub fn load_java_tree(
     }
     let source = match source {
         SourceDestination::RelativeInFolder(e) => {
-            format!("{}/{}/{}.java", e, &class_path_base.replace(".", "/"), name)
+            format!("{}/{}/{}.java", e, &class_path_base.replace('.', "/"), name)
         }
-        SourceDestination::Here(e) => e.replace("\\", "/"),
-        SourceDestination::None => "".into(),
+        SourceDestination::Here(e) => e.replace('\\', "/"),
+        SourceDestination::None => String::new(),
     };
     let mut class_path = String::new();
     class_path.push_str(&class_path_base);
@@ -113,7 +109,7 @@ pub fn load_java_tree(
         access: Access::empty(),
         super_class,
         super_interfaces,
-        imports: convert_imports(&ast.imports, class_path_base),
+        imports: convert_imports(ast.imports.as_ref(), class_path_base),
         name,
         methods,
         fields,
@@ -123,22 +119,22 @@ pub fn load_java_tree(
 fn fun_name(ext: &AstExtends, imports: &[ImportUnit]) -> impl Iterator<Item = dto::SuperClass> {
     ext.parameters.iter().filter_map(|i| {
         if let AstJTypeKind::Class(c) = &i.value {
-            return match imports
+            return imports
                 .iter()
                 .find_map(|i| i.get_imported_class_package(&c.value))
-            {
-                Some(class_path) => Some(dto::SuperClass::ClassPath(class_path)),
-                None => Some(dto::SuperClass::Name(c.into())),
-            };
+                .map_or_else(
+                    || Some(dto::SuperClass::Name(c.into())),
+                    |class_path| Some(dto::SuperClass::ClassPath(class_path)),
+                );
         }
         None
     })
 }
 
-fn convert_imports(imports: &Option<AstImports>, package: MyString) -> Vec<ImportUnit> {
+fn convert_imports(imports: Option<&AstImports>, package: MyString) -> Vec<ImportUnit> {
     let mut out = vec![ImportUnit::Package(package)];
     if let Some(imports) = imports {
-        out.extend(imports.imports.iter().map(|i| i.into()));
+        out.extend(imports.imports.iter().map(Into::into));
     }
     out
 }
@@ -152,19 +148,20 @@ fn convert_class_method(m: &AstClassMethod) -> Method {
         .iter()
         .map(|p| dto::Parameter {
             name: Some((&p.name).into()),
-            jtype: check_type_parameters(&p.jtype, &m.header.type_parameters),
+            jtype: check_type_parameters(&p.jtype, m.header.type_parameters.as_ref()),
         })
         .collect();
-    let mut throws = vec![];
-    if let Some(t) = &m.header.throws {
-        throws = t.parameters.iter().map(|i| i.into()).collect();
-    }
+    let throws = m
+        .header
+        .throws
+        .as_ref()
+        .map_or_else(Vec::new, |t| t.parameters.iter().map(Into::into).collect());
     Method {
         access,
         name: (&m.header.name).into(),
         parameters,
         throws,
-        ret: check_type_parameters(&m.header.jtype, &m.header.type_parameters),
+        ret: check_type_parameters(&m.header.jtype, m.header.type_parameters.as_ref()),
         source: None,
     }
 }
@@ -177,23 +174,21 @@ fn convert_interface_method(m: &AstInterfaceMethod) -> Method {
         .iter()
         .map(|p| dto::Parameter {
             name: Some((&p.name).into()),
-            jtype: check_type_parameters(&p.jtype, &m.header.type_parameters),
+            jtype: check_type_parameters(&p.jtype, m.header.type_parameters.as_ref()),
         })
         .collect();
-    let mut throws = vec![];
-    if let Some(t) = &m.header.throws {
-        throws = t
-            .parameters
+    let throws = m.header.throws.as_ref().map_or_else(Vec::new, |t| {
+        t.parameters
             .iter()
-            .map(|i| check_type_parameters(i, &m.header.type_parameters))
-            .collect();
-    }
+            .map(|i| check_type_parameters(i, m.header.type_parameters.as_ref()))
+            .collect()
+    });
     Method {
         access,
         name: (&m.header.name).into(),
         parameters,
         throws,
-        ret: check_type_parameters(&m.header.jtype, &m.header.type_parameters),
+        ret: check_type_parameters(&m.header.jtype, m.header.type_parameters.as_ref()),
         source: None,
     }
 }
@@ -206,23 +201,21 @@ fn convert_interface_default_method(m: &AstInterfaceMethodDefault) -> Method {
         .iter()
         .map(|p| dto::Parameter {
             name: Some((&p.name).into()),
-            jtype: check_type_parameters(&p.jtype, &m.header.type_parameters),
+            jtype: check_type_parameters(&p.jtype, m.header.type_parameters.as_ref()),
         })
         .collect();
-    let mut throws = vec![];
-    if let Some(t) = &m.header.throws {
-        throws = t
-            .parameters
+    let throws = m.header.throws.as_ref().map_or_else(Vec::new, |t| {
+        t.parameters
             .iter()
-            .map(|i| check_type_parameters(i, &m.header.type_parameters))
-            .collect();
-    }
+            .map(|i| check_type_parameters(i, m.header.type_parameters.as_ref()))
+            .collect()
+    });
     Method {
         access,
         name: (&m.header.name).into(),
         parameters,
         throws,
-        ret: check_type_parameters(&m.header.jtype, &m.header.type_parameters),
+        ret: check_type_parameters(&m.header.jtype, m.header.type_parameters.as_ref()),
         source: None,
     }
 }
@@ -257,7 +250,7 @@ fn convert_class_field(c: &AstClassVariable) -> dto::Field {
 
 fn check_type_parameters(
     jtype: &ast::types::AstJType,
-    type_parameters: &Option<AstTypeParameters>,
+    type_parameters: Option<&AstTypeParameters>,
 ) -> dto::JType {
     let jtype: dto::JType = jtype.into();
     let Some(type_parameters) = type_parameters else {

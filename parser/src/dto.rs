@@ -23,10 +23,6 @@ pub struct ClassFolder {
 }
 
 impl ClassFolder {
-    pub fn new(classes: Vec<Class>) -> Self {
-        Self { classes }
-    }
-
     pub fn append(&mut self, other: Self) {
         self.classes.extend(other.classes);
     }
@@ -45,13 +41,14 @@ pub struct Class {
     pub super_interfaces: Vec<SuperClass>,
 }
 impl Class {
+    #[must_use]
     pub fn no_imports(mut self) -> Self {
         self.imports = vec![];
         self
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone, Default)]
 pub enum SuperClass {
     #[default]
     None,
@@ -69,20 +66,23 @@ pub enum ImportUnit {
     StaticPrefix(MyString),
 }
 impl ImportUnit {
+    #[must_use]
     pub fn class_path_get_class_name(class_path: &str) -> Option<&str> {
-        if let Some((_, c)) = class_path.rsplit_once(".") {
+        if let Some((_, c)) = class_path.rsplit_once('.') {
             return Some(c);
         }
         None
     }
+    #[must_use]
     pub fn class_path_match_class_name(class_path: &str, name: &str) -> bool {
-        ImportUnit::class_path_get_class_name(class_path)
+        Self::class_path_get_class_name(class_path)
             .iter()
             .any(|i| *i == name)
     }
+    #[must_use]
     pub fn get_imported_class_package(&self, name: &str) -> Option<MyString> {
         match self {
-            ImportUnit::Class(class_path) | ImportUnit::StaticClass(class_path) => {
+            Self::Class(class_path) | Self::StaticClass(class_path) => {
                 if Self::class_path_match_class_name(class_path, name) {
                     return Some(class_path.clone());
                 }
@@ -96,12 +96,12 @@ impl ImportUnit {
 impl From<AstImport> for ImportUnit {
     fn from(value: AstImport) -> Self {
         match value.unit {
-            AstImportUnit::Class(ast_identifier) => ImportUnit::Class(ast_identifier.into()),
+            AstImportUnit::Class(ast_identifier) => Self::Class(ast_identifier.into()),
             AstImportUnit::StaticClass(ast_identifier) => Self::StaticClass(ast_identifier.into()),
             AstImportUnit::StaticClassMethod(ast_identifier, ast_identifier1) => {
                 Self::StaticClassMethod(ast_identifier.into(), ast_identifier1.into())
             }
-            AstImportUnit::Prefix(ast_identifier) => ImportUnit::Prefix(ast_identifier.into()),
+            AstImportUnit::Prefix(ast_identifier) => Self::Prefix(ast_identifier.into()),
             AstImportUnit::StaticPrefix(ast_identifier) => {
                 Self::StaticPrefix(ast_identifier.into())
             }
@@ -112,12 +112,12 @@ impl From<AstImport> for ImportUnit {
 impl From<&AstImport> for ImportUnit {
     fn from(value: &AstImport) -> Self {
         match &value.unit {
-            AstImportUnit::Class(ast_identifier) => ImportUnit::Class(ast_identifier.into()),
+            AstImportUnit::Class(ast_identifier) => Self::Class(ast_identifier.into()),
             AstImportUnit::StaticClass(ast_identifier) => Self::StaticClass(ast_identifier.into()),
             AstImportUnit::StaticClassMethod(ast_identifier, ast_identifier1) => {
                 Self::StaticClassMethod(ast_identifier.into(), ast_identifier1.into())
             }
-            AstImportUnit::Prefix(ast_identifier) => ImportUnit::Prefix(ast_identifier.into()),
+            AstImportUnit::Prefix(ast_identifier) => Self::Prefix(ast_identifier.into()),
             AstImportUnit::StaticPrefix(ast_identifier) => {
                 Self::StaticPrefix(ast_identifier.into())
             }
@@ -125,43 +125,44 @@ impl From<&AstImport> for ImportUnit {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub enum SourceKind {
     Jdk(String),
     Maven(String),
 }
 
 bitflags! {
-   #[derive(Serialize, Deserialize, Clone, PartialEq, Debug, Default)]
+   #[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Debug, Default)]
    pub struct Access: u16 {
-     const Public       = 0b0000000000000001;
-     const Private      = 0b0000000000000010;
-     const Protected    = 0b0000000000000100;
-     const Static       = 0b0000000000001000;
-     const Final        = 0b0000000000100000;
-     const Super        = 0b0000000001000000;
-     const Volatile     = 0b0000000010000000;
-     const Transient    = 0b0000000100000000;
-     const Synthetic    = 0b0000001000000000;
-     const Annotation   = 0b0000010000000000;
-     const Enum         = 0b0000100000000000;
-     const Interface    = 0b0001000000000000;
-     const Abstract     = 0b0010000000000000;
-     const Synchronized = 0b0100000000000000;
+     const Public       = 0b0000_0000_0000_0001;
+     const Private      = 0b0000_0000_0000_0010;
+     const Protected    = 0b0000_0000_0000_0100;
+     const Static       = 0b0000_0000_0000_1000;
+     const Final        = 0b0000_0000_0010_0000;
+     const Super        = 0b0000_0000_0100_0000;
+     const Volatile     = 0b0000_0000_1000_0000;
+     const Transient    = 0b0000_0001_0000_0000;
+     const Synthetic    = 0b0000_0010_0000_0000;
+     const Annotation   = 0b0000_0100_0000_0000;
+     const Enum         = 0b0000_1000_0000_0000;
+     const Interface    = 0b0001_0000_0000_0000;
+     const Abstract     = 0b0010_0000_0000_0000;
+     const Synchronized = 0b0100_0000_0000_0000;
    }
 }
 impl Access {
-    pub fn from(value: &AstAvailability, def: Access) -> Self {
-        let mut out = Access::empty();
+    #[must_use]
+    pub fn from(value: &AstAvailability, def: Self) -> Self {
+        let mut out = Self::empty();
 
         if value.contains(AstAvailability::Public) {
-            out.insert(Access::Public);
+            out.insert(Self::Public);
         }
         if value.contains(AstAvailability::Private) {
-            out.insert(Access::Private);
+            out.insert(Self::Private);
         }
         if value.contains(AstAvailability::Protected) {
-            out.insert(Access::Protected);
+            out.insert(Self::Protected);
         }
         if !value.intersects(
             AstAvailability::Public | AstAvailability::Private | AstAvailability::Protected,
@@ -170,13 +171,13 @@ impl Access {
         }
 
         if value.contains(AstAvailability::Synchronized) {
-            out.insert(Access::Synchronized);
+            out.insert(Self::Synchronized);
         }
         if value.contains(AstAvailability::Final) {
-            out.insert(Access::Final);
+            out.insert(Self::Final);
         }
         if value.contains(AstAvailability::Static) {
-            out.insert(Access::Static);
+            out.insert(Self::Static);
         }
         out
     }
@@ -234,25 +235,25 @@ pub enum JType {
 impl From<&AstJType> for JType {
     fn from(value: &AstJType) -> Self {
         match &value.value {
-            AstJTypeKind::Void => JType::Void,
-            AstJTypeKind::Byte => JType::Byte,
-            AstJTypeKind::Char => JType::Char,
-            AstJTypeKind::Double => JType::Double,
-            AstJTypeKind::Float => JType::Float,
-            AstJTypeKind::Int => JType::Int,
-            AstJTypeKind::Long => JType::Long,
-            AstJTypeKind::Short => JType::Short,
-            AstJTypeKind::Boolean => JType::Boolean,
-            AstJTypeKind::Wildcard => JType::Wildcard,
-            AstJTypeKind::Class(ast_identifier) => JType::Class(ast_identifier.into()),
-            AstJTypeKind::Array(ast_jtype) => JType::Array(Box::new(ast_jtype.as_ref().into())),
-            AstJTypeKind::Generic(ast_identifier, ast_jtypes) => JType::Generic(
+            AstJTypeKind::Void => Self::Void,
+            AstJTypeKind::Byte => Self::Byte,
+            AstJTypeKind::Char => Self::Char,
+            AstJTypeKind::Double => Self::Double,
+            AstJTypeKind::Float => Self::Float,
+            AstJTypeKind::Int => Self::Int,
+            AstJTypeKind::Long => Self::Long,
+            AstJTypeKind::Short => Self::Short,
+            AstJTypeKind::Boolean => Self::Boolean,
+            AstJTypeKind::Wildcard => Self::Wildcard,
+            AstJTypeKind::Class(ast_identifier) => Self::Class(ast_identifier.into()),
+            AstJTypeKind::Array(ast_jtype) => Self::Array(Box::new(ast_jtype.as_ref().into())),
+            AstJTypeKind::Generic(ast_identifier, ast_jtypes) => Self::Generic(
                 ast_identifier.into(),
-                ast_jtypes.iter().map(|i| i.into()).collect(),
+                ast_jtypes.iter().map(Into::into).collect(),
             ),
-            AstJTypeKind::Parameter(ast_identifier) => JType::Parameter(ast_identifier.into()),
-            AstJTypeKind::Var => JType::Var,
-            AstJTypeKind::Access { base, inner } => JType::Access {
+            AstJTypeKind::Parameter(ast_identifier) => Self::Parameter(ast_identifier.into()),
+            AstJTypeKind::Var => Self::Var,
+            AstJTypeKind::Access { base, inner } => Self::Access {
                 base: Box::new((&**base).into()),
                 inner: Box::new((&**inner).into()),
             },
@@ -263,34 +264,34 @@ impl From<&AstJType> for JType {
 impl Display for JType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            JType::Void => write!(f, "void"),
-            JType::Byte => write!(f, "byte"),
-            JType::Char => write!(f, "char"),
-            JType::Double => write!(f, "double"),
-            JType::Float => write!(f, "float"),
-            JType::Int => write!(f, "int"),
-            JType::Long => write!(f, "long"),
-            JType::Short => write!(f, "short"),
-            JType::Boolean => write!(f, "boolean"),
-            JType::Wildcard => write!(f, "?"),
-            JType::Class(c) => {
+            Self::Void => write!(f, "void"),
+            Self::Byte => write!(f, "byte"),
+            Self::Char => write!(f, "char"),
+            Self::Double => write!(f, "double"),
+            Self::Float => write!(f, "float"),
+            Self::Int => write!(f, "int"),
+            Self::Long => write!(f, "long"),
+            Self::Short => write!(f, "short"),
+            Self::Boolean => write!(f, "boolean"),
+            Self::Wildcard => write!(f, "?"),
+            Self::Class(c) => {
                 if c.starts_with("java.lang.") {
                     return write!(f, "{}", c.trim_start_matches("java.lang."));
                 }
-                write!(f, "{}", c)
+                write!(f, "{c}")
             }
-            JType::Array(i) => write!(f, "{}[]", i),
-            JType::Generic(class, vec) => {
+            Self::Array(i) => write!(f, "{i}[]"),
+            Self::Generic(class, vec) => {
                 let v = vec
                     .iter()
-                    .map(|i| format!("{}", i))
+                    .map(|i| format!("{i}"))
                     .collect::<Vec<_>>()
                     .join(", ");
-                write!(f, "{}<{}>", class, v)
+                write!(f, "{class}<{v}>")
             }
-            JType::Parameter(p) => write!(f, "<{}>", p),
-            JType::Var => write!(f, "var"),
-            JType::Access { base, inner } => {
+            Self::Parameter(p) => write!(f, "<{p}>"),
+            Self::Var => write!(f, "var"),
+            Self::Access { base, inner } => {
                 write!(f, "{}.{}", **base, **inner)
             }
         }
@@ -299,7 +300,7 @@ impl Display for JType {
 
 impl PartialEq<AstJType> for JType {
     fn eq(&self, other: &AstJType) -> bool {
-        Into::<JType>::into(other) == *self
+        Into::<Self>::into(other) == *self
     }
 }
 

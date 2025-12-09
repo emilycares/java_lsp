@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, num::TryFromIntError};
 
 use ast::types::{
     AstBlockEntry, AstBlockVariable, AstFile, AstForContent, AstIf, AstIfContent, AstPoint,
@@ -27,6 +27,8 @@ pub enum CodeActionError {
     NoCallCain,
     ParseJava(parser::java::ParseJavaError),
     Tyres(TyresError),
+    Int(TryFromIntError),
+    ToLspRange(ToLspRangeError),
 }
 
 pub fn replace_with_value_type(
@@ -86,17 +88,13 @@ pub fn replace_with_value_type(
     let point;
     let current_type = match (classvar, blockvar) {
         (None, None) => return Ok(None),
-        (None, Some(b)) => {
+        (None | Some(_), Some(b)) => {
             point = b.range.end;
             &b.jtype
         }
         (Some(c), None) => {
             point = c.range.end;
             &c.jtype
-        }
-        (Some(_), Some(b)) => {
-            point = b.range.end;
-            &b.jtype
         }
     };
     // value here
@@ -114,11 +112,12 @@ pub fn replace_with_value_type(
         // Required by lsp types
         #[allow(clippy::mutable_key_type)]
         let mut changes = HashMap::new();
+        let range = to_lsp_range(&current_type.range).map_err(CodeActionError::ToLspRange)?;
         changes.insert(
             context.current_file.to_owned(),
             vec![TextEdit {
-                range: to_lsp_range(&current_type.range),
-                new_text: value_resolve_state.class.name.to_string(),
+                range,
+                new_text: value_resolve_state.class.name.clone(),
             }],
         );
         let action = CodeActionOrCommand::CodeAction(CodeAction {
@@ -136,17 +135,26 @@ pub fn replace_with_value_type(
     Ok(None)
 }
 
-pub fn to_lsp_range(range: &AstRange) -> Range {
-    Range {
+#[derive(Debug)]
+pub enum ToLspRangeError {
+    Int(TryFromIntError),
+}
+pub fn to_lsp_range(range: &AstRange) -> Result<Range, ToLspRangeError> {
+    let sl = u32::try_from(range.start.line).map_err(ToLspRangeError::Int)?;
+    let sc = u32::try_from(range.start.col).map_err(ToLspRangeError::Int)?;
+    let el = u32::try_from(range.end.line).map_err(ToLspRangeError::Int)?;
+    let ec = u32::try_from(range.end.col).map_err(ToLspRangeError::Int)?;
+
+    Ok(Range {
         start: Position {
-            line: range.start.line as u32,
-            character: range.start.col as u32,
+            line: sl,
+            character: sc,
         },
         end: Position {
-            line: range.end.line as u32,
-            character: range.end.col as u32,
+            line: el,
+            character: ec,
         },
-    }
+    })
 }
 
 fn find_var_block<'a>(
@@ -177,34 +185,14 @@ fn find_var_block_entry<'a>(
         AstBlockEntry::Expression(_ast_block_expression) => None,
         AstBlockEntry::Assign(_ast_block_assign) => None,
         AstBlockEntry::If(ast_if) => match ast_if {
-            AstIf::If {
+            AstIf::ElseIf {
                 range,
                 control: _,
                 control_range: _,
                 content,
-            } => {
-                if range.is_in_range(point) {
-                    return match content {
-                        AstIfContent::Block(ast_block) => find_var_block(ast_block, point),
-                        AstIfContent::BlockEntry(ast_block_entry) => {
-                            find_var_block_entry(point, ast_block_entry)
-                        }
-                    };
-                }
-                None
             }
-            AstIf::Else { range, content } => {
-                if range.is_in_range(point) {
-                    return match content {
-                        AstIfContent::Block(ast_block) => find_var_block(ast_block, point),
-                        AstIfContent::BlockEntry(ast_block_entry) => {
-                            find_var_block_entry(point, ast_block_entry)
-                        }
-                    };
-                }
-                None
-            }
-            AstIf::ElseIf {
+            | AstIf::Else { range, content }
+            | AstIf::If {
                 range,
                 control: _,
                 control_range: _,
@@ -315,41 +303,43 @@ pub fn import_jtype(
     None
 }
 
-pub fn get_import_position(ast: &AstFile) -> Option<Position> {
+pub fn get_import_position(ast: &AstFile) -> Result<Position, CodeActionError> {
     if let Some(imports) = &ast.imports {
         // After last import
         let end = imports.range.end;
-        Some(Position {
-            line: (end.line as u32) + 1,
+        let line = u32::try_from(end.line).map_err(CodeActionError::Int)?;
+        Ok(Position {
+            line: line + 1,
             character: 0,
         })
     } else if let Some(package) = &ast.package {
         // After package
         let end = package.range.end;
-        Some(Position {
-            line: (end.line as u32) + 1,
+        let line = u32::try_from(end.line).map_err(CodeActionError::Int)?;
+        Ok(Position {
+            line: line + 1,
             character: 0,
         })
     } else {
         // First line
-        Some(Position {
+        Ok(Position {
             line: 0,
             character: 0,
         })
     }
 }
 pub fn import_text_edit(classpath: &str, ast: &AstFile) -> Vec<TextEdit> {
-    let mut pos = Position {
-        line: 2,
-        character: 0,
-    };
-    if let Some(npos) = get_import_position(ast) {
-        pos = npos;
-    }
+    let pos = get_import_position(ast).map_or(
+        Position {
+            line: 2,
+            character: 0,
+        },
+        |i| i,
+    );
 
     vec![TextEdit {
         range: Range::new(pos, pos),
-        new_text: format!("\nimport {};", classpath),
+        new_text: format!("\nimport {classpath};"),
     }]
 }
 
@@ -365,7 +355,7 @@ pub fn import_to_code_action(
     changes.insert(current_file.to_owned(), import_text_edit(classpath, ast));
     CodeActionOrCommand::CodeAction(CodeAction {
         kind: Some(CodeActionKind::QUICKFIX),
-        title: format!("Import {}", classpath),
+        title: format!("Import {classpath}"),
         edit: Some(WorkspaceEdit {
             changes: Some(changes),
             ..Default::default()

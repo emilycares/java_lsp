@@ -262,7 +262,7 @@ pub fn assert_token(
 ) -> Result<usize, AstError> {
     let t = tokens.get(pos).ok_or_else(AstError::eof)?;
     if t.token != expected {
-        return Err(AstError::ExpectedToken(ExpectedToken::from(pos, expected)));
+        return Err(AstError::ExpectedToken(ExpectedToken { expected, pos }));
     }
     Ok(pos + 1)
 }
@@ -298,25 +298,9 @@ pub struct ExpectedToken {
     pub pos: usize,
 }
 
-impl ExpectedToken {
-    /// constructor
-    #[must_use]
-    pub const fn from(pos: usize, expected: Token) -> Self {
-        Self { expected, pos }
-    }
-}
-
 /// Token is invalid
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct InvalidToken(pub usize);
-
-impl InvalidToken {
-    /// constructor
-    #[must_use]
-    pub const fn from(pos: usize) -> Self {
-        Self(pos)
-    }
-}
 
 /// Get Start and End `PositionToken`
 pub trait GetStartEnd {

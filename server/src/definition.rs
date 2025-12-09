@@ -11,7 +11,7 @@ use tyres::TyresError;
 use variables::LocalVariable;
 
 use crate::{
-    codeaction::to_lsp_range,
+    codeaction::{ToLspRangeError, to_lsp_range},
     hover::{ClassActionError, class_action},
 };
 
@@ -28,6 +28,7 @@ pub enum DefinitionError {
     Position(position::PosionError),
     ArgumentNotFound,
     Document(DocumentError),
+    ToLspRange(ToLspRangeError),
 }
 pub struct DefinitionContext<'a> {
     pub document_uri: Uri,
@@ -56,7 +57,7 @@ pub fn class(
             let ranges = position::get_class_position_ast(ast, Some(&class.name))
                 .map_err(DefinitionError::Position)?;
             let uri = class_to_uri(&class)?;
-            Ok(go_to_definition_range(uri, ranges))
+            Ok(go_to_definition_range(uri, &ranges)?)
         }
         Err(e) => Err(DefinitionError::ClassActon(e)),
     }
@@ -81,17 +82,17 @@ pub fn call_chain_definition(
     match relevat.get(item) {
         Some(CallItem::This { range: _ }) => {
             let uri = source_to_uri(&resolve_state.class.source)?;
-            let content = get_source_content(&resolve_state.class.source, context.document_map)?;
-            let ranges = position::get_class_position_str(&content, None)
+            let source = get_source_content(&resolve_state.class.source, context.document_map)?;
+            let ranges = position::get_class_position_str(&source, None)
                 .map_err(DefinitionError::Position)?;
-            Ok(go_to_definition_range(uri, ranges))
+            Ok(go_to_definition_range(uri, &ranges)?)
         }
         Some(CallItem::Class { name, range: _ }) => {
             let uri = source_to_uri(&resolve_state.class.source)?;
-            let content = get_source_content(&resolve_state.class.source, context.document_map)?;
-            let ranges = position::get_class_position_str(&content, Some(name))
+            let source = get_source_content(&resolve_state.class.source, context.document_map)?;
+            let ranges = position::get_class_position_str(&source, Some(name))
                 .map_err(DefinitionError::Position)?;
-            Ok(go_to_definition_range(uri, ranges))
+            Ok(go_to_definition_range(uri, &ranges)?)
         }
         Some(CallItem::MethodCall { name, range: _ }) => {
             let source_file = match resolve_state
@@ -105,11 +106,11 @@ pub fn call_chain_definition(
                 None => resolve_state.class.source,
             };
 
-            let content = get_source_content(&source_file, context.document_map)?;
-            let ranges = position::get_method_positions(content.as_bytes(), name)
+            let source = get_source_content(&source_file, context.document_map)?;
+            let ranges = position::get_method_positions(source.as_bytes(), name)
                 .map_err(DefinitionError::Position)?;
             let uri = source_to_uri(&source_file)?;
-            Ok(go_to_definition_range(uri, ranges))
+            Ok(go_to_definition_range(uri, &ranges)?)
         }
         Some(CallItem::FieldAccess { name, range: _ }) => {
             let source_file = match resolve_state
@@ -122,11 +123,11 @@ pub fn call_chain_definition(
                 Some(method_source) => method_source,
                 None => resolve_state.class.source,
             };
-            let content = get_source_content(&source_file, context.document_map)?;
-            let ranges = position::get_field_positions(content.as_bytes(), name)
+            let source = get_source_content(&source_file, context.document_map)?;
+            let ranges = position::get_field_positions(source.as_bytes(), name)
                 .map_err(DefinitionError::Position)?;
             let uri = source_to_uri(&source_file)?;
-            Ok(go_to_definition_range(uri, ranges))
+            Ok(go_to_definition_range(uri, &ranges)?)
         }
         Some(CallItem::Variable { name, range: _ }) => {
             let Some(range) = context
@@ -135,13 +136,12 @@ pub fn call_chain_definition(
                 .find(|n| n.name == *name)
                 .map(|v| v.range)
             else {
-                return Err(DefinitionError::LocalVariableNotFound {
-                    name: name.to_string(),
-                });
+                return Err(DefinitionError::LocalVariableNotFound { name: name.clone() });
             };
+            let range = to_lsp_range(&range).map_err(DefinitionError::ToLspRange)?;
             Ok(GotoDefinitionResponse::Scalar(Location {
                 uri: context.document_uri.clone(),
-                range: to_lsp_range(&range),
+                range,
             }))
         }
         Some(CallItem::ClassOrVariable { name, range: _ }) => {
@@ -152,7 +152,10 @@ pub fn call_chain_definition(
                 .map(|v| PositionSymbol::Range(v.range))
                 .collect();
 
-            Ok(go_to_definition_range(context.document_uri.clone(), ranges))
+            Ok(go_to_definition_range(
+                context.document_uri.clone(),
+                &ranges,
+            )?)
         }
         Some(CallItem::ArgumentList {
             prev: _,
@@ -176,7 +179,7 @@ pub fn get_source_content(
     document_map: &dashmap::DashMap<MyString, Document>,
 ) -> Result<String, DefinitionError> {
     let uri = source_to_uri(source)?;
-    match document::read_document_or_open_class(source, "".into(), document_map, uri.as_str()) {
+    match document::read_document_or_open_class(source, String::new(), document_map, uri.as_str()) {
         document::ClassSource::Owned(d) => Ok(d.str_data),
 
         document::ClassSource::Ref(d) => Ok(d.str_data.clone()),
@@ -188,7 +191,7 @@ pub fn class_to_uri(class: &dto::Class) -> Result<Uri, DefinitionError> {
     source_to_uri(&class.source)
 }
 pub fn source_to_uri(source: &str) -> Result<Uri, DefinitionError> {
-    let str_uri = format!("file:///{}", source.replace("\\", "/"));
+    let str_uri = format!("file:///{}", source.replace('\\', "/"));
     let uri = Uri::from_str(&str_uri);
     match uri {
         Ok(uri) => Ok(uri),
@@ -199,26 +202,30 @@ pub fn source_to_uri(source: &str) -> Result<Uri, DefinitionError> {
     }
 }
 
-fn go_to_definition_range(uri: Uri, ranges: Vec<PositionSymbol>) -> GotoDefinitionResponse {
+fn go_to_definition_range(
+    uri: Uri,
+    ranges: &[PositionSymbol],
+) -> Result<GotoDefinitionResponse, DefinitionError> {
     match ranges.len() {
-        0 => GotoDefinitionResponse::Scalar(Location {
+        0 => Ok(GotoDefinitionResponse::Scalar(Location {
             uri,
             range: lsp_types::Range::default(),
-        }),
-        1 => GotoDefinitionResponse::Scalar(Location {
+        })),
+        1 => Ok(GotoDefinitionResponse::Scalar(Location {
             uri,
-            range: to_lsp_range(ranges.first().expect("Length is 1").get_range()),
-        }),
+            range: to_lsp_range(ranges.first().expect("Length is 1").get_range())
+                .map_err(DefinitionError::ToLspRange)?,
+        })),
         2.. => {
             let locations = ranges
                 .iter()
-                .map(|r| to_lsp_range(r.get_range()))
+                .filter_map(|r| to_lsp_range(r.get_range()).ok())
                 .map(|r| Location {
                     uri: uri.clone(),
                     range: r,
                 })
                 .collect();
-            GotoDefinitionResponse::Array(locations)
+            Ok(GotoDefinitionResponse::Array(locations))
         }
     }
 }

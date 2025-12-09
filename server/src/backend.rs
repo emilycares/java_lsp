@@ -55,15 +55,15 @@ impl Backend {
         }
     }
 
-    fn on_change(&self, uri: MyString, changes: Vec<TextDocumentContentChangeEvent>) {
-        let Some(mut document) = self.document_map.get_mut(&uri) else {
+    fn on_change(&self, uri: &str, changes: &[TextDocumentContentChangeEvent]) {
+        let Some(mut document) = self.document_map.get_mut(uri) else {
             return;
         };
         // TODO: Handle error
-        let _ = document.apply_text_changes(&changes);
+        let _ = document.apply_text_changes(changes);
     }
 
-    fn on_open(&self, params: TextDocumentItem) {
+    fn on_open(&self, params: &TextDocumentItem) {
         let ipath = params.uri.path().as_str();
         let path = PathBuf::from(ipath);
         let rope = ropey::Rope::from_str(&params.text);
@@ -89,7 +89,7 @@ impl Backend {
         }
     }
 
-    fn send_dianostic(con: Arc<Connection>, uri: Uri, diagnostics: Vec<Diagnostic>) {
+    fn send_dianostic(con: &Arc<Connection>, uri: Uri, diagnostics: Vec<Diagnostic>) {
         if let Ok(params) = serde_json::to_value(PublishDiagnosticsParams {
             uri,
             diagnostics,
@@ -104,8 +104,8 @@ impl Backend {
         }
     }
 
-    fn progress_start(con: Arc<Connection>, task: String) {
-        eprintln!("Start progress on: {}", task);
+    fn progress_start(con: &Arc<Connection>, task: String) {
+        eprintln!("Start progress on: {task}");
         if let Ok(params) = serde_json::to_value(ProgressParams {
             token: ProgressToken::String(task.clone()),
             value: ProgressParamsValue::WorkDone(WorkDoneProgress::Begin(WorkDoneProgressBegin {
@@ -123,20 +123,20 @@ impl Backend {
                 }));
         }
     }
-    fn global_error(_con: Arc<Connection>, message: String) {
-        eprintln!("Error: {}", message);
+    fn global_error(_con: Arc<Connection>, message: &str) {
+        eprintln!("Error: {message}");
     }
     fn progress_update_persentage_a(
-        con: Arc<Connection>,
+        con: &Arc<Connection>,
         task: String,
         message: String,
         percentage: Option<u32>,
     ) {
-        Backend::progress_update_persentage(con, task, message, percentage);
+        Self::progress_update_persentage(con, task, message, percentage);
     }
 
     fn progress_update_persentage(
-        con: Arc<Connection>,
+        con: &Arc<Connection>,
         task: String,
         message: String,
         percentage: Option<u32>,
@@ -161,8 +161,8 @@ impl Backend {
         }
     }
 
-    fn progress_end(con: Arc<Connection>, task: String) {
-        eprintln!("End progress on: {}", task);
+    fn progress_end(con: &Arc<Connection>, task: String) {
+        eprintln!("End progress on: {task}");
         if let Ok(params) = serde_json::to_value(ProgressParams {
             token: ProgressToken::String(task),
             value: ProgressParamsValue::WorkDone(WorkDoneProgress::End(WorkDoneProgressEnd {
@@ -206,7 +206,7 @@ impl Backend {
             if let Some(list) = emap.get_mut(&e.path) {
                 list.push(e);
             } else {
-                emap.insert(e.path.to_owned(), vec![e]);
+                emap.insert(e.path.clone(), vec![e]);
             }
         }
 
@@ -214,18 +214,20 @@ impl Backend {
             let Some(path) = path.get(..) else {
                 continue;
             };
-            if let Ok(uri) = Uri::from_str(&format!("file:///{}", path)) {
+            if let Ok(uri) = Uri::from_str(&format!("file:///{path}")) {
                 if let Some(errs) = emap.get(path) {
                     let errs: Vec<Diagnostic> = errs
                         .iter()
                         .map(|e| {
-                            let p = Position::new(e.row as u32 - 1, e.col as u32);
+                            let r = u32::try_from(e.row).unwrap_or_default();
+                            let c = u32::try_from(e.col).unwrap_or_default();
+                            let p = Position::new(r - 1, c);
                             Diagnostic::new_simple(Range::new(p, p), e.message.clone())
                         })
                         .collect();
-                    Backend::send_dianostic(self.connection.clone(), uri, errs);
+                    Self::send_dianostic(&self.connection.clone(), uri, errs);
                 } else {
-                    Backend::send_dianostic(self.connection.clone(), uri, vec![]);
+                    Self::send_dianostic(&self.connection.clone(), uri, vec![]);
                 }
             }
         }
@@ -237,7 +239,7 @@ impl Backend {
         class_map: Arc<dashmap::DashMap<MyString, parser::dto::Class>>,
         reference_map: Arc<dashmap::DashMap<MyString, Vec<ReferenceUnit>>>,
     ) {
-        Backend::progress_start(con.clone(), "Init".to_string());
+        Self::progress_start(&con.clone(), "Init".to_string());
         {
             let task = "Load jdk".to_string();
             let (sender, reciever) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
@@ -247,17 +249,17 @@ impl Backend {
             });
             let reciever = Arc::new(Mutex::new(reciever));
 
-            Backend::progress_start(con.clone(), task.clone());
+            Self::progress_start(&con.clone(), task.clone());
             tokio::select! {
-                _ = read_forward(reciever, con.clone(), task.clone())  => {},
+                () = read_forward(reciever, con.clone(), task.clone())  => {},
                 _ = jdk::load_classes(&class_map, sender) => {}
             }
-            Backend::progress_end(con.clone(), task);
+            Self::progress_end(&con.clone(), task);
         }
 
         if project_kind != ProjectKind::Unknown {
-            let task = format!("Load {} dependencies", project_kind);
-            Backend::progress_start(con.clone(), task.clone());
+            let task = format!("Load {project_kind} dependencies");
+            Self::progress_start(&con.clone(), task.clone());
             let (sender, reciever) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
                 persentage: 0,
                 error: false,
@@ -266,40 +268,40 @@ impl Backend {
             let reciever = Arc::new(Mutex::new(reciever));
 
             tokio::select! {
-                _ = read_forward(reciever, con.clone(), task.clone())  => {},
-                _ = fetch_deps(sender, project_kind.clone(), class_map.clone()) => {}
+                () = read_forward(reciever, con.clone(), task.clone())  => {},
+                () = fetch_deps(sender, project_kind.clone(), class_map.clone()) => {}
             }
-            Backend::progress_end(con.clone(), task);
+            Self::progress_end(&con.clone(), task);
         }
 
         {
             let task = "Load project files".to_string();
-            Backend::progress_start(con.clone(), task.clone());
-            Backend::progress_update_persentage(
-                con.clone(),
+            Self::progress_start(&con.clone(), task.clone());
+            Self::progress_update_persentage(
+                &con.clone(),
                 task.clone(),
                 "Load project paths".to_string(),
                 None,
             );
             let project_classes = match project_kind {
-                ProjectKind::Maven => maven::project::load_project_folders().await,
+                ProjectKind::Maven => maven::project::load_project_folders(),
                 ProjectKind::Gradle {
                     path_build_gradle: _,
-                } => gradle::project::load_project_folders().await,
+                } => gradle::project::load_project_folders(),
                 ProjectKind::Unknown => vec![],
             };
-            Backend::progress_update_persentage(
-                con.clone(),
+            Self::progress_update_persentage(
+                &con.clone(),
                 task.clone(),
                 "Initializing reference map".to_string(),
                 None,
             );
             match references::init_refernece_map(&project_classes, &class_map, &reference_map) {
-                Ok(_) => (),
+                Ok(()) => (),
                 Err(e) => eprintln!("Got reference error: {e:?}"),
             }
-            Backend::progress_update_persentage(
-                con.clone(),
+            Self::progress_update_persentage(
+                &con.clone(),
                 task.clone(),
                 "Populating class map".to_string(),
                 None,
@@ -307,14 +309,14 @@ impl Backend {
             for class in project_classes {
                 class_map.insert(class.class_path.clone(), class);
             }
-            Backend::progress_end(con.clone(), task);
+            Self::progress_end(&con.clone(), task);
         }
 
-        Backend::progress_end(con, "Init".to_string());
+        Self::progress_end(&con, "Init".to_string());
     }
 
     pub fn did_open(&self, params: DidOpenTextDocumentParams) {
-        self.on_open(TextDocumentItem {
+        self.on_open(&TextDocumentItem {
             uri: params.text_document.uri,
             text: params.text_document.text,
             version: params.text_document.version,
@@ -322,14 +324,11 @@ impl Backend {
         });
     }
 
-    pub fn did_change(&self, params: DidChangeTextDocumentParams) {
-        self.on_change(
-            params.text_document.uri.as_str().to_string(),
-            params.content_changes,
-        );
+    pub fn did_change(&self, params: &DidChangeTextDocumentParams) {
+        self.on_change(params.text_document.uri.as_str(), &params.content_changes);
     }
 
-    pub fn did_save(&self, params: DidSaveTextDocumentParams) {
+    pub fn did_save(&self, params: &DidSaveTextDocumentParams) {
         let path = params.text_document.uri.path();
         // The path on windows should not look like this: /C:/asdas remove the leading slash
 
@@ -350,9 +349,9 @@ impl Backend {
                     &self.class_map,
                     &self.reference_map,
                 ) {
-                    Ok(_) => {}
+                    Ok(()) => {}
                     Err(e) => eprintln!("Got reference error: {e:?}"),
-                };
+                }
                 self.class_map.insert(class_path, class);
             }
             Err(e) => eprintln!("Save file parse error {e:?}"),
@@ -397,9 +396,10 @@ impl Backend {
             return None;
         }
 
+        let lines = u32::try_from(lines).unwrap_or_default();
         // self.connection.
         Some(vec![TextEdit::new(
-            Range::new(Position::new(0, 0), Position::new((lines - 1) as u32, 0)),
+            Range::new(Position::new(0, 0), Position::new(lines - 1, 0)),
             document.str_data.clone(),
         )])
     }
@@ -623,7 +623,7 @@ impl Backend {
         let symbols = position::get_class_position_ast(&document.ast, None);
         match symbols {
             Ok(symbols) => {
-                let symbols = position::symbols_to_document_symbols(symbols, uri);
+                let symbols = position::symbols_to_document_symbols(&symbols, &uri);
                 Some(DocumentSymbolResponse::Flat(symbols))
             }
             Err(e) => {
@@ -642,16 +642,21 @@ impl Backend {
         let symbols = jwalk::WalkDir::new(current_dir.join("src"))
             .into_iter()
             .par_bridge()
-            .filter_map(|a| a.ok())
+            .filter_map(Result::ok)
             .filter(|e| !e.file_type().is_dir())
-            .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
-            .filter(|e| e.ends_with(".java"))
+            .filter(|i| {
+                i.path()
+                    .extension()
+                    .filter(|i| i.eq_ignore_ascii_case("java"))
+                    .is_some()
+            })
+            .filter_map(|e| e.path().to_str().map(ToString::to_string))
             .filter_map(|i| {
                 let Ok(uri) = source_to_uri(&i) else {
                     return None;
                 };
                 Some((
-                    i.to_string(),
+                    i.clone(),
                     document::read_document_or_open_class(
                         &i,
                         MyString::new(),
@@ -691,7 +696,7 @@ impl Backend {
             })
             .filter_map(|(path, symbols)| {
                 let uri = Uri::from_str(&format!("file:///{path}")).ok()?;
-                Some(position::symbols_to_document_symbols(symbols, uri))
+                Some(position::symbols_to_document_symbols(&symbols, &uri))
             })
             .flatten()
             .collect();
@@ -725,21 +730,21 @@ pub async fn read_forward(
     con: Arc<Connection>,
     task: String,
 ) {
+    #![allow(clippy::nursery)]
     tokio::spawn(async move {
-        let ex = &mut rx.lock();
-
+        let mut i = rx.lock();
         loop {
-            let i = ex.borrow_and_update();
+            let i = i.borrow_and_update();
             if !i.has_changed() {
                 continue;
             }
             let task = task.clone();
             let con = con.clone();
             if i.error {
-                Backend::global_error(con, i.message.clone());
+                Backend::global_error(con, &i.message);
             } else {
                 Backend::progress_update_persentage_a(
-                    con,
+                    &con,
                     task,
                     i.message.clone(),
                     i.persentage.try_into().ok(),
@@ -760,7 +765,7 @@ pub async fn fetch_deps(
         match project_kind {
             ProjectKind::Maven => {
                 match maven::fetch::fetch_deps(class_map, sender, true, true).await {
-                    Ok(_) => (),
+                    Ok(()) => (),
                     Err(e) => {
                         eprintln!("Got error while loading maven project: {e:?}");
                     }
@@ -769,7 +774,7 @@ pub async fn fetch_deps(
             ProjectKind::Gradle {
                 path_build_gradle: path,
             } => match gradle::fetch::fetch_deps(&class_map, path, sender).await {
-                Ok(_) => (),
+                Ok(()) => (),
                 Err(e) => {
                     eprintln!("Got error while loading gradle project: {e:?}");
                 }

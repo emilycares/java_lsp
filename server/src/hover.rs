@@ -7,7 +7,7 @@ use parser::dto::{self, ImportUnit};
 use tyres::TyresError;
 use variables::LocalVariable;
 
-use crate::codeaction::to_lsp_range;
+use crate::codeaction::{ToLspRangeError, to_lsp_range};
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -20,6 +20,7 @@ pub enum HoverError {
     Unimlemented,
     NoClass(MyString),
     ArgumentNotFound,
+    ToLspRange(ToLspRangeError),
 }
 
 pub fn base(
@@ -32,20 +33,20 @@ pub fn base(
     let ast = &document.ast;
     match class_action(ast, point, lo_va, imports, class_map) {
         Ok((class, range)) => {
-            return Ok(class_to_hover(class, range));
+            return Ok(class_to_hover(&class, range));
         }
         Err(ClassActionError::NotFound) => {}
         Err(e) => eprintln!("class action hover error: {e:?}"),
-    };
+    }
     let Some(class) = class_map.get(&document.class_path) else {
-        return Err(HoverError::NoClass(document.class_path.to_string()));
+        return Err(HoverError::NoClass(document.class_path.clone()));
     };
 
     let call_chain = call_chain::get_call_chain(ast, point);
 
     call_chain_hover(
         document,
-        call_chain,
+        &call_chain,
         point,
         lo_va,
         imports,
@@ -55,7 +56,7 @@ pub fn base(
 }
 
 #[allow(dead_code)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum ClassActionError {
     /// No class for actions found
     NotFound,
@@ -66,6 +67,7 @@ pub enum ClassActionError {
         tyres_error: tyres::TyresError,
     },
     VariableFound,
+    ToLspRange(ToLspRangeError),
 }
 
 pub fn class_action(
@@ -76,8 +78,9 @@ pub fn class_action(
     class_map: &dashmap::DashMap<MyString, parser::dto::Class>,
 ) -> Result<(dto::Class, Range), ClassActionError> {
     if let Some(class) = get_class::get_class(ast, point) {
+        let range = to_lsp_range(&class.range).map_err(ClassActionError::ToLspRange)?;
         return match tyres::resolve(&class.name, imports, class_map) {
-            Ok(resolve_state) => Ok((resolve_state.class, to_lsp_range(&class.range))),
+            Ok(resolve_state) => Ok((resolve_state.class, range)),
             Err(tyres_error) => Err(ClassActionError::Tyres { tyres_error }),
         };
     }
@@ -86,14 +89,14 @@ pub fn class_action(
 
 pub fn call_chain_hover(
     document: &Document,
-    call_chain: Vec<CallItem>,
+    call_chain: &[CallItem],
     point: &AstPoint,
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &dto::Class,
     class_map: &dashmap::DashMap<MyString, parser::dto::Class>,
 ) -> Result<Hover, HoverError> {
-    let (item, relevat) = call_chain::validate(&call_chain, point);
+    let (item, relevat) = call_chain::validate(call_chain, point);
     let Some(el) = call_chain.get(item) else {
         return Err(HoverError::ValidatedItemDoesNotExists);
     };
@@ -111,27 +114,32 @@ pub fn call_chain_hover(
                 .into_iter()
                 .filter(|m| m.name == *name)
                 .collect();
-            Ok(methods_to_hover(&methods, to_lsp_range(range)))
+            let range = to_lsp_range(range).map_err(HoverError::ToLspRange)?;
+            Ok(methods_to_hover(&methods, range))
         }
         CallItem::FieldAccess { name, range } => {
             let Some(method) = resolve_state.class.fields.iter().find(|m| m.name == *name) else {
                 return Err(HoverError::LocalVariableNotFound { name: name.clone() });
             };
-            Ok(field_to_hover(method, to_lsp_range(range)))
+            let range = to_lsp_range(range).map_err(HoverError::ToLspRange)?;
+            Ok(field_to_hover(method, range))
         }
         CallItem::Variable { name, range } => {
             let Some(var) = lo_va.iter().find(|v| v.name == *name) else {
                 return Err(HoverError::LocalVariableNotFound { name: name.clone() });
             };
-            Ok(variables_to_hover(vec![var], to_lsp_range(range)))
+            let range = to_lsp_range(range).map_err(HoverError::ToLspRange)?;
+            Ok(variables_to_hover(&[var], range))
         }
         CallItem::Class { name: _, range } => {
-            Ok(class_to_hover(resolve_state.class, to_lsp_range(range)))
+            let range = to_lsp_range(range).map_err(HoverError::ToLspRange)?;
+            Ok(class_to_hover(&resolve_state.class, range))
         }
         CallItem::ClassOrVariable { name, range } => {
             let vars: Vec<_> = lo_va.iter().filter(|v| v.name == *name).collect();
+            let range = to_lsp_range(range).map_err(HoverError::ToLspRange)?;
             if vars.is_empty() {
-                return Ok(class_to_hover(resolve_state.class, to_lsp_range(range)));
+                return Ok(class_to_hover(&resolve_state.class, range));
             }
             match parser::load_java(document.as_bytes(), parser::SourceDestination::None) {
                 Err(e) => Err(HoverError::ParseError(e)),
@@ -159,9 +167,9 @@ pub fn call_chain_hover(
                     Ok(Hover {
                         contents: HoverContents::Markup(MarkupContent {
                             kind: MarkupKind::Markdown,
-                            value: format!("{}\n{}\n{}", vars, fields, methods),
+                            value: format!("{vars}\n{fields}\n{methods}"),
                         }),
-                        range: Some(to_lsp_range(range)),
+                        range: Some(range),
                     })
                 }
             }
@@ -177,7 +185,7 @@ pub fn call_chain_hover(
             {
                 return call_chain_hover(
                     document,
-                    current_param.clone(),
+                    current_param,
                     point,
                     lo_va,
                     imports,
@@ -199,9 +207,11 @@ fn format_method(m: &dto::Method) -> String {
     let parameters = m
         .parameters
         .iter()
-        .map(|p| match p.name.as_deref() {
-            Some(name) => format!("{} {}", p.jtype, name),
-            None => format!("{}", p.jtype),
+        .map(|p| {
+            p.name.as_ref().map_or_else(
+                || format!("{}", p.jtype),
+                |name| format!("{} {}", p.jtype, name),
+            )
         })
         .collect::<Vec<_>>()
         .join(", ");
@@ -211,19 +221,19 @@ fn format_method(m: &dto::Method) -> String {
     let throws = m
         .throws
         .iter()
-        .map(|p| format!("{}", p))
+        .map(|p| format!("{p}"))
         .collect::<Vec<_>>()
         .join(", ");
     format!("{} {}({}) throws {}", m.ret, m.name, parameters, throws)
 }
 
-fn variables_to_hover(vars: Vec<&LocalVariable>, range: Range) -> Hover {
+fn variables_to_hover(vars: &[&LocalVariable], range: Range) -> Hover {
     Hover {
         contents: HoverContents::Markup(MarkupContent {
             kind: MarkupKind::Markdown,
             value: vars
                 .iter()
-                .map(format_varible_hover)
+                .map(|i| format_varible_hover(i))
                 .collect::<Vec<_>>()
                 .join("\n"),
         }),
@@ -231,7 +241,7 @@ fn variables_to_hover(vars: Vec<&LocalVariable>, range: Range) -> Hover {
     }
 }
 
-fn format_varible_hover(var: &&LocalVariable) -> String {
+fn format_varible_hover(var: &LocalVariable) -> String {
     if var.is_fun {
         return format!("{} {}()", var.jtype, var.name);
     }
@@ -262,7 +272,7 @@ fn methods_to_hover(methods: &[dto::Method], range: Range) -> Hover {
     }
 }
 
-fn class_to_hover(class: dto::Class, range: Range) -> Hover {
+fn class_to_hover(class: &dto::Class, range: Range) -> Hover {
     let methods: Vec<_> = class.methods.iter().map(format_method).collect();
     Hover {
         contents: HoverContents::Markup(MarkupContent {
@@ -341,7 +351,15 @@ public class Test {
         let vars = variables::get_vars(&doc.ast, &point).unwrap();
 
         let chain = call_chain::get_call_chain(&doc.ast, &point);
-        let out = call_chain_hover(&doc, chain, &point, &vars, &[], &class, &string_class_map());
+        let out = call_chain_hover(
+            &doc,
+            &chain,
+            &point,
+            &vars,
+            &[],
+            &class,
+            &string_class_map(),
+        );
         assert!(out.is_ok());
     }
 

@@ -28,16 +28,16 @@ pub fn signature_driver(
     let call_chain = call_chain::get_call_chain(&document.ast, point);
     let imports = imports::imports(document);
     let vars = variables::get_vars(&document.ast, point).map_err(SignatureError::Variables)?;
-    get_signature(call_chain, &imports, &vars, class, class_map)
+    get_signature(&call_chain, &imports, &vars, class, class_map)
 }
 pub fn get_signature(
-    call_chain: Vec<CallItem>,
+    call_chain: &[CallItem],
     imports: &[ImportUnit],
     vars: &[LocalVariable],
     class: &Class,
     class_map: &DashMap<MyString, parser::dto::Class>,
 ) -> Result<SignatureHelp, SignatureError> {
-    let args = get_args(&call_chain);
+    let args = get_args(call_chain);
     let Some(CallItem::ArgumentList {
         prev,
         range: _,
@@ -109,19 +109,21 @@ fn method_to_signature_information(method: &dto::Method) -> SignatureInformation
     let parameters: Vec<ParameterInformation> = method
         .parameters
         .iter()
-        .map(|p| match &p.name {
-            Some(name) => ParameterInformation {
-                label: ParameterLabel::Simple(p.jtype.to_string()),
-                documentation: Some(Documentation::String(name.to_string())),
-            },
-            None => ParameterInformation {
-                label: ParameterLabel::Simple(p.jtype.to_string()),
-                documentation: None,
-            },
+        .map(|p| {
+            p.name.as_ref().map_or_else(
+                || ParameterInformation {
+                    label: ParameterLabel::Simple(p.jtype.to_string()),
+                    documentation: None,
+                },
+                |name| ParameterInformation {
+                    label: ParameterLabel::Simple(p.jtype.to_string()),
+                    documentation: Some(Documentation::String(name.clone())),
+                },
+            )
         })
         .collect();
     SignatureInformation {
-        label: method.name.to_string(),
+        label: method.name.clone(),
         documentation: Some(Documentation::String(method.ret.to_string())),
         parameters: Some(parameters),
         active_parameter: None,

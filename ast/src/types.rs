@@ -570,7 +570,6 @@ pub struct AstDouble {
 pub enum AstSuperClass {
     None,
     Name(AstIdentifier),
-    ClassPath(AstIdentifier),
 }
 #[derive(Debug, Clone)]
 /// Usage of a Annotation

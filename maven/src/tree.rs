@@ -10,25 +10,25 @@ pub enum MavenTreeError {
 
 pub fn load() -> Result<Dependency, MavenTreeError> {
     let log: String = get_cli_output()?;
-    let cut: String = cut_output(log);
+    let cut: String = cut_output(&log);
 
-    parser(cut)
+    parser(&cut)
 }
 
-fn parser(cut: String) -> Result<Dependency, MavenTreeError> {
+fn parser(cut: &str) -> Result<Dependency, MavenTreeError> {
     let mut out: Vec<Pom> = vec![];
     for line in cut.lines() {
         let line = line.trim_start_matches("[INFO]").trim();
         let Some((_, line)) = line.split_once("-> \"") else {
             continue;
         };
-        let mut spl = line.split(":");
+        let mut spl = line.split(':');
         let group_id = spl.next().unwrap_or_default().to_string();
         let artivact_id = spl.next().unwrap_or_default().to_string();
         spl.next();
         let version = spl.next().unwrap_or_default().to_string();
         let scope = spl.next().unwrap_or_default();
-        let Some((scope, _)) = scope.split_once("\"") else {
+        let Some((scope, _)) = scope.split_once('\"') else {
             continue;
         };
         let scope: DependencyScope = scope.parse()?;
@@ -52,7 +52,7 @@ fn get_cli_output() -> Result<String, MavenTreeError> {
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
-fn cut_output(inp: String) -> String {
+fn cut_output(inp: &str) -> String {
     let mut out = String::new();
 
     let mut capture = false;
@@ -75,12 +75,12 @@ fn cut_output(inp: String) -> String {
     out
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct Dependency {
     pub deps: Vec<Pom>,
 }
 
-#[derive(PartialEq, Debug, Default)]
+#[derive(PartialEq, Eq, Debug, Default)]
 pub struct Pom {
     pub group_id: String,
     pub artivact_id: String,
@@ -89,7 +89,7 @@ pub struct Pom {
 }
 
 /// <https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html#dependency-scope>
-#[derive(Default, PartialEq, Debug)]
+#[derive(Default, PartialEq, Eq, Debug)]
 pub enum DependencyScope {
     #[default]
     Compile,
@@ -114,7 +114,7 @@ impl FromStr for DependencyScope {
             "system" => Ok(Self::System),
             "import" => Ok(Self::Import),
             other => {
-                eprintln!("Other dep scope: {}", other);
+                eprintln!("Other dep scope: {other}");
                 Err(MavenTreeError::UnknownDependencyScope)
             }
         }
@@ -131,7 +131,7 @@ mod tests {
     fn cut_basic() {
         let inp = include_str!("../tests/tverify.bacic.txt");
 
-        let out = cut_output(inp.to_string());
+        let out = cut_output(inp);
 
         assert!(!out.contains("Building getting-started"));
         assert!(!out.contains("BUILD SUCCESS"));
@@ -140,8 +140,8 @@ mod tests {
     #[test]
     fn parse_diagram() {
         let inp = include_str!("../tests/tverify.bacic.txt");
-        let cut = cut_output(inp.to_string());
-        let out = parser(cut);
+        let cut = cut_output(inp);
+        let out = parser(&cut);
         let out = out.unwrap();
         assert_eq!(
             out,
@@ -1373,7 +1373,7 @@ mod tests {
     #[test]
     fn parse_diagram_with_tab() {
         let inp = include_str!("../tests/tverify-tap.bacic.txt");
-        let out = parser(inp.to_string());
+        let out = parser(inp);
         let out = out.unwrap();
         assert_eq!(
             out,

@@ -1,6 +1,10 @@
 #![deny(warnings)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::too_many_lines)]
 mod parent;
 
 use std::ops::Deref;
@@ -34,6 +38,7 @@ pub struct ResolveState {
     pub jtype: JType,
 }
 
+#[must_use]
 pub fn is_imported_class_name(
     jtype: &str,
     imports: &[ImportUnit],
@@ -48,6 +53,7 @@ pub enum ImportResult {
     StaticClass(MyString),
 }
 
+#[must_use]
 pub fn is_imported<'a>(
     jtype: &'a str,
     imports: &'a [ImportUnit],
@@ -128,7 +134,7 @@ pub fn resolve(
 
     let import_result = is_imported(class_name, imports, class_map);
     match import_result {
-        Some(ImportResult::Class(c)) | Some(ImportResult::StaticClass(c)) => {
+        Some(ImportResult::Class(c) | ImportResult::StaticClass(c)) => {
             let Some(imported_class) = class_map.get(&c) else {
                 return Err(TyresError::ClassNotFound { class_path: c });
             };
@@ -141,6 +147,7 @@ pub fn resolve(
     }
 }
 
+#[must_use]
 pub fn resolve_import(
     jtype: &str,
     class_map: &DashMap<MyString, parser::dto::Class>,
@@ -157,7 +164,7 @@ pub fn resolve_class_key(
         .into_read_only()
         .keys()
         .filter(infl)
-        .map(|a| a.to_string())
+        .map(ToString::to_string)
         .collect::<Vec<String>>()
 }
 
@@ -169,9 +176,9 @@ pub fn resolve_var(
     resolve_jtype(&extend.jtype, imports, class_map)
 }
 
-#[allow(dead_code)]
+#[must_use]
 pub fn resolve_params(
-    params: Vec<Vec<CallItem>>,
+    params: &[Vec<CallItem>],
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
@@ -200,12 +207,14 @@ pub fn resolve_call_chain(
             ops.push(op);
         }
     }
-    match ops.last() {
-        Some(last) => Ok(last.clone()),
-        None => Err(TyresError::CallChainInvalid(
-            call_chain.iter().map(Clone::clone).collect(),
-        )),
-    }
+    ops.last().map_or_else(
+        || {
+            Err(TyresError::CallChainInvalid(
+                call_chain.iter().map(Clone::clone).collect(),
+            ))
+        },
+        |last| Ok(last.clone()),
+    )
 }
 pub fn resolve_call_chain_value(
     call_chain: &[CallItem],
@@ -224,12 +233,14 @@ pub fn resolve_call_chain_value(
             ops.push(op);
         }
     }
-    match ops.last() {
-        Some(last) => Ok(last.clone()),
-        None => Err(TyresError::CallChainInvalid(
-            call_chain.iter().map(Clone::clone).collect(),
-        )),
-    }
+    ops.last().map_or_else(
+        || {
+            Err(TyresError::CallChainInvalid(
+                call_chain.iter().map(Clone::clone).collect(),
+            ))
+        },
+        |last| Ok(last.clone()),
+    )
 }
 pub fn resolve_call_chain_to_point(
     call_chain: &[CallItem],
@@ -252,12 +263,14 @@ pub fn resolve_call_chain_to_point(
             ops.push(op);
         }
     }
-    match ops.last() {
-        Some(last) => Ok(last.clone()),
-        None => Err(TyresError::CallChainInvalid(
-            call_chain.iter().map(Clone::clone).collect(),
-        )),
-    }
+    ops.last().map_or_else(
+        || {
+            Err(TyresError::CallChainInvalid(
+                call_chain.iter().map(Clone::clone).collect(),
+            ))
+        },
+        |last| Ok(last.clone()),
+    )
 }
 
 fn call_chain_op(

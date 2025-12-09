@@ -12,6 +12,7 @@ async fn main() {
         Some(Commands::Server) | None => {
             unsafe {
                 std::env::set_var("RUST_BACKTRACE", "1");
+                // std::env::set_var("RUST_LOG=lsp_server", "debug");
             };
             let _ = server::main();
         }

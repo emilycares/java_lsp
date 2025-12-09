@@ -4,9 +4,10 @@ use compile::{CompileError, parse_compile_errors};
 
 use crate::fetch::PATH_GRADLE;
 
+#[must_use]
 pub fn compile_java() -> Option<Vec<CompileError>> {
     if let Some(log) = run_compile_java()
-        && let Some(value) = cut_and_parse(log)
+        && let Some(value) = cut_and_parse(&log)
     {
         return Some(value);
     }
@@ -14,12 +15,14 @@ pub fn compile_java() -> Option<Vec<CompileError>> {
     None
 }
 
-fn cut_and_parse(log: String) -> Option<Vec<CompileError>> {
+#[must_use]
+fn cut_and_parse(log: &str) -> Option<Vec<CompileError>> {
     let log = cut_log(log);
     parse_compile_errors(&log).ok().map(|e| e.1)
 }
 
-pub fn cut_log(inp: String) -> String {
+#[must_use]
+pub fn cut_log(inp: &str) -> String {
     let mut out = String::new();
 
     for line in inp.lines() {
@@ -53,7 +56,7 @@ mod tests {
     #[test]
     fn gradle_compile() {
         let inp = include_str!("../tests/compile_basic.txt");
-        let out = cut_and_parse(inp.to_owned());
+        let out = cut_and_parse(inp);
         assert_eq!(
             out,
             Some(vec![

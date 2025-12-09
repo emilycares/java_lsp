@@ -8,6 +8,7 @@ use std::{
 use crate::{EXECUTABLE_MAVEN, config::overwrite_settings_xml};
 const CLASSPATH_FILE: &str = "target/classpath.txt";
 
+#[must_use]
 pub fn generate_classpath() -> Option<String> {
     if Path::new(&CLASSPATH_FILE).exists() {
         let classpath = read_to_string(CLASSPATH_FILE).ok()?;

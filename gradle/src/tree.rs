@@ -7,7 +7,7 @@ pub enum GradleTreeError {
     CliFailed(std::io::Error),
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Dependency {
     pub group_id: String,
     pub artivact_id: String,
@@ -16,7 +16,7 @@ pub struct Dependency {
 
 pub fn load() -> Result<Vec<Dependency>, GradleTreeError> {
     let log: String = get_cli_output()?;
-    let out = parse_tree(log);
+    let out = parse_tree(&log);
     Ok(out)
 }
 
@@ -34,13 +34,13 @@ fn get_cli_output() -> Result<String, GradleTreeError> {
     }
 }
 
-fn parse_tree(inp: String) -> Vec<Dependency> {
+fn parse_tree(inp: &str) -> Vec<Dependency> {
     let mut out = vec![];
 
     let mut capture = false;
 
     for line in inp.lines() {
-        if line.contains(" - ") && line.ends_with(".") {
+        if line.contains(" - ") && line.ends_with('.') {
             capture = true;
         }
 
@@ -51,28 +51,25 @@ fn parse_tree(inp: String) -> Vec<Dependency> {
         if capture {
             if line.contains(" - ")
                 || line.is_empty()
-                || !line.contains("-")
+                || !line.contains('-')
                 || line.starts_with("No dependencies")
             {
             } else {
                 let line = line
-                    .replace("\\", "")
-                    .replace(" ", "")
-                    .replace("+", "")
-                    .replace("|", "")
+                    .replace(['\\', ' ', '+', '|'], "")
                     .replace("(*)", "")
                     .replace("(n)", "")
                     .replace("(c)", "");
-                let mut spl = line.splitn(3, ":");
+                let mut spl = line.splitn(3, ':');
                 if let Some(group_id) = spl.next()
                     && let Some(artivact_id) = spl.next()
                     && let Some(version) = spl.next()
                 {
                     out.push(Dependency {
-                        group_id: group_id.trim_start_matches("-").to_string(),
-                        artivact_id: artivact_id.trim_start_matches("-").to_string(),
-                        version: version.trim_start_matches("-").to_string(),
-                    })
+                        group_id: group_id.trim_start_matches('-').to_string(),
+                        artivact_id: artivact_id.trim_start_matches('-').to_string(),
+                        version: version.trim_start_matches('-').to_string(),
+                    });
                 }
             }
         }
@@ -90,7 +87,7 @@ mod tests {
     #[test]
     fn parse_diagram() {
         let inp = include_str!("../tests/dependencies_report.txt");
-        let out = parse_tree(inp.to_owned());
+        let out = parse_tree(inp);
         assert_eq!(
             out,
             vec![

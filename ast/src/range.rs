@@ -1,8 +1,9 @@
 //! Range type and methods
 use crate::types::{
-    AstAnnotatedParameter, AstAnnotation, AstBlockEntry, AstClass, AstClassMethod, AstEnumeration,
-    AstExpression, AstExpressionIdentifier, AstExpressionKind, AstForContent, AstIf, AstIfContent,
-    AstInterface, AstPoint, AstRange, AstRecord, AstThing, AstValue, AstValueNuget, AstValues,
+    AstAnnotated, AstAnnotatedParameter, AstAnnotation, AstBlockEntry, AstClass, AstClassMethod,
+    AstEnumeration, AstExpression, AstExpressionIdentifier, AstExpressionKind, AstForContent,
+    AstIf, AstIfContent, AstInterface, AstPoint, AstRange, AstRecord, AstSuperClass, AstThing,
+    AstValue, AstValueNuget, AstValues,
 };
 
 /// Join two ranges a must be before b
@@ -388,6 +389,30 @@ impl GetRange for &AstAnnotatedParameter {
                 name: _,
                 values: _,
             } => *range,
+        }
+    }
+}
+impl AstInRange for &[AstAnnotated] {
+    fn is_in_range(&self, point: &AstPoint) -> bool {
+        let Some(first) = self.first().map(|i| i.range) else {
+            return false;
+        };
+        if self.len() == 1 {
+            return first.is_in_range(point);
+        }
+        let Some(last) = self.last().map(|i| i.range) else {
+            return false;
+        };
+        let range = add_ranges(first, last);
+        range.is_in_range(point)
+    }
+}
+
+impl AstInRange for AstSuperClass {
+    fn is_in_range(&self, point: &AstPoint) -> bool {
+        match self {
+            Self::None => false,
+            Self::Name(ast_identifier) => ast_identifier.range.is_in_range(point),
         }
     }
 }

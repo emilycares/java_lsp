@@ -1,6 +1,10 @@
 #![deny(warnings)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::too_many_lines)]
 use std::{
     fs::{File, OpenOptions},
     io::Write,
@@ -50,7 +54,7 @@ where
     let mmap = unsafe { memmap2::Mmap::map(&file) }.map_err(ParseJavaError::Io)?;
     #[cfg(unix)]
     mmap.advise(memmap2::Advice::Sequential)
-        .expect("memmap advice to be accepted");
+        .map_err(ParseJavaError::Io)?;
     java::load_java(&mmap[..], source)
 }
 
@@ -85,14 +89,14 @@ pub fn get_java_files_from_folder<P: AsRef<Path>>(path: P) -> Vec<String> {
     get_files(&path, ".java")
 }
 
-pub async fn load_java_files(folder: PathBuf) -> Vec<Class> {
+pub fn load_java_files(folder: PathBuf) -> Vec<Class> {
     WalkDir::new(folder)
         .into_iter()
         .par_bridge()
-        .filter_map(|a| a.ok())
+        .filter_map(Result::ok)
         .filter(|e| !e.file_type().is_dir())
-        .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
-        .filter(|e| e.ends_with(".java"))
+        .filter_map(|e| e.path().to_str().map(ToString::to_string))
+        .filter(|e| e.eq_ignore_ascii_case(".java"))
         .filter_map(
             |p| match load_java_fs(p.as_str(), SourceDestination::Here((&p).into())) {
                 Ok(c) => Some(c),
@@ -137,16 +141,19 @@ async fn base_load_classes_zip(
         let Some(file_name) = entry.sanitized_name() else {
             continue;
         };
-        if !file_name.ends_with(".class") {
+        if !Path::new(file_name)
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("class"))
+        {
             continue;
         }
         if file_name.ends_with("module-info.class") {
             continue;
         }
 
-        let class_path = file_name.trim_start_matches("/");
+        let class_path = file_name.trim_start_matches('/');
         let class_path = class_path.trim_end_matches(".class");
-        let class_path = class_path.replace("/", ".");
+        let class_path = class_path.replace('/', ".");
 
         let buf = entry.bytes().await.map_err(LoaderError::IO)?;
 
@@ -161,7 +168,7 @@ async fn base_load_classes_zip(
     Ok(ClassFolder { classes })
 }
 
-pub fn load_classes<P: AsRef<Path>>(path: P, source: SourceDestination) -> dto::ClassFolder {
+pub fn load_classes<P: AsRef<Path>>(path: P, source: &SourceDestination) -> dto::ClassFolder {
     let Some(str_path) = &path.as_ref().to_str() else {
         eprintln!("load_classes failed could not make path into str");
         return dto::ClassFolder::default();
@@ -191,9 +198,9 @@ fn get_files<P: AsRef<Path>>(dir: P, ending: &str) -> Vec<String> {
     WalkDir::new(dir)
         .into_iter()
         .par_bridge()
-        .filter_map(|a| a.ok())
+        .filter_map(Result::ok)
         .filter(|e| !e.file_type().is_dir())
-        .filter_map(|e| e.path().to_str().map(|s| s.to_string()))
+        .filter_map(|e| e.path().to_str().map(ToString::to_string))
         .filter(|e| e.ends_with(ending))
         .collect::<Vec<_>>()
 }

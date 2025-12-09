@@ -16,113 +16,108 @@ pub fn load_class(
     class_path: MyString,
     source: SourceDestination,
 ) -> Result<dto::Class, dto::ClassError> {
-    let res = class_parser(bytes);
-    match res {
-        Result::Ok((_, c)) => {
-            let code_attribute = parse_code_attribute(&c, &c.attributes);
-            let mut used_classes = parse_used_classes(&c, code_attribute);
+    let (_, c) = class_parser(bytes).map_err(|_| ClassError::ParseError)?;
+    let code_attribute = parse_code_attribute(&c, &c.attributes);
+    let mut used_classes = parse_used_classes(&c, code_attribute);
 
-            let methods: Vec<_> = c
-                .methods
-                .iter()
-                .filter_map(|method| {
-                    let code_attribute = parse_code_attribute(&c, &method.attributes);
-                    used_classes.extend(parse_used_classes(&c, code_attribute));
+    let methods: Vec<_> = c
+        .methods
+        .iter()
+        .filter_map(|method| {
+            let code_attribute = parse_code_attribute(&c, &method.attributes);
+            used_classes.extend(parse_used_classes(&c, code_attribute));
 
-                    let method = parse_method(&c, method);
-                    if let Some(ref m) = method {
-                        used_classes.extend(
-                            m.parameters
-                                .iter()
-                                .filter(|i| {
-                                    matches!(
-                                        i.jtype,
-                                        JType::Class(_) | JType::Array(_) | JType::Generic(_, _)
-                                    )
-                                })
-                                .flat_map(|i| jtype_class_names(i.jtype.clone())),
-                        );
-                        used_classes.extend(jtype_class_names(m.ret.clone()));
-                    }
-                    method
-                })
-                .filter(|m| m.name != "<init>")
-                //.filter(|f| !f.access.contains(&dto::Access::Private))
-                .collect();
-            let fields: Vec<_> = c
-                .fields
-                .iter()
-                .filter_map(|field| {
-                    let field = parse_field(&c, field);
+            let method = parse_method(&c, method);
+            if let Some(ref m) = method {
+                used_classes.extend(
+                    m.parameters
+                        .iter()
+                        .filter(|i| {
+                            matches!(
+                                i.jtype,
+                                JType::Class(_) | JType::Array(_) | JType::Generic(_, _)
+                            )
+                        })
+                        .flat_map(|i| jtype_class_names(i.jtype.clone())),
+                );
+                used_classes.extend(jtype_class_names(m.ret.clone()));
+            }
+            method
+        })
+        .filter(|m| m.name != "<init>")
+        //.filter(|f| !f.access.contains(&dto::Access::Private))
+        .collect();
+    let fields: Vec<_> = c
+        .fields
+        .iter()
+        .filter_map(|field| {
+            let field = parse_field(&c, field);
 
-                    if let Some(ref f) = field {
-                        used_classes.extend(jtype_class_names(f.jtype.clone()));
-                    }
+            if let Some(ref f) = field {
+                used_classes.extend(jtype_class_names(f.jtype.clone()));
+            }
 
-                    field
-                })
-                //.filter(|f| !f.access.contains(&dto::Access::Private))
-                .collect();
+            field
+        })
+        //.filter(|f| !f.access.contains(&dto::Access::Private))
+        .collect();
 
-            let name = lookup_class_name(&c, c.this_class.into()).expect("Class should have name");
-            let package = class_path
-                .trim_end_matches(name.as_str())
-                .trim_end_matches(".");
-            let mut imports = vec![ImportUnit::Package(package.into())];
-            imports.extend(
-                used_classes
-                    .into_iter()
-                    .filter(|i| *i != class_path)
-                    .unique()
-                    .map(ImportUnit::Class),
-            );
+    let name = lookup_class_name(&c, c.this_class.into()).ok_or(ClassError::UnknownClassName)?;
+    let package = class_path
+        .trim_end_matches(name.as_str())
+        .trim_end_matches('.');
+    let mut imports = vec![ImportUnit::Package(package.into())];
+    imports.extend(
+        used_classes
+            .into_iter()
+            .filter(|i| *i != class_path)
+            .unique()
+            .map(ImportUnit::Class),
+    );
 
-            let source = match source {
-                SourceDestination::RelativeInFolder(e) => format!(
-                    "{}{}{}.java",
-                    e,
-                    MAIN_SEPARATOR,
-                    &class_path.replace(".", MAIN_SEPARATOR_STR)
-                ),
-                SourceDestination::Here(e) => e,
-                SourceDestination::None => "".into(),
-            };
-            let super_interfaces: Vec<_> = c
-                .interfaces
-                .iter()
-                .map(|index| match lookup_class_name(&c, *index as usize) {
-                    Some(c) => dto::SuperClass::Name(c),
-                    None => dto::SuperClass::None,
-                })
-                .collect();
+    let source = match source {
+        SourceDestination::RelativeInFolder(e) => format!(
+            "{}{}{}.java",
+            e,
+            MAIN_SEPARATOR,
+            &class_path.replace('.', MAIN_SEPARATOR_STR)
+        ),
+        SourceDestination::Here(e) => e,
+        SourceDestination::None => String::new(),
+    };
+    let super_interfaces: Vec<_> = c
+        .interfaces
+        .iter()
+        .map(|index| {
+            lookup_class_name(&c, *index as usize)
+                .map_or(dto::SuperClass::None, dto::SuperClass::Name)
+        })
+        .collect();
 
-            Ok(dto::Class {
-                source,
-                class_path,
-                super_interfaces,
-                super_class: match lookup_class_name(&c, c.super_class.into()) {
-                    Some(c) if c == "Object" => dto::SuperClass::None,
-                    Some(c) => dto::SuperClass::Name(c),
-                    None => dto::SuperClass::None,
-                },
-                imports,
-                access: parse_class_access(c.access_flags),
-                name,
-                methods,
-                fields,
-            })
-        }
-        _ => Err(ClassError::ParseError),
-    }
+    Ok(dto::Class {
+        source,
+        class_path,
+        super_interfaces,
+        super_class: match lookup_class_name(&c, c.super_class.into()) {
+            Some(c) if c == "Object" => dto::SuperClass::None,
+            Some(c) => dto::SuperClass::Name(c),
+            None => dto::SuperClass::None,
+        },
+        imports,
+        access: parse_class_access(c.access_flags),
+        name,
+        methods,
+        fields,
+    })
 }
 
 fn lookup_class_name(c: &ClassFile, index: usize) -> Option<MyString> {
     match c.const_pool.get(index.saturating_sub(1)) {
         Some(ConstantInfo::Class(class)) => lookup_string(c, class.name_index)
             .expect("Class to have name")
-            .split("/")
-            .last()
-            .map(|a| a.into()),
+            .split('/')
+            .next_back()
+            .map(Into::into),
         _ => None,
     }
 }
@@ -131,7 +126,7 @@ fn parse_field(c: &ClassFile, field: &FieldInfo) -> Option<dto::Field> {
     Some(dto::Field {
         access: parse_field_access(field),
         name: lookup_string(c, field.name_index)?,
-        jtype: parse_field_descriptor(&lookup_string(c, field.descriptor_index)?)?,
+        jtype: parse_field_descriptor(&lookup_string(c, field.descriptor_index)?),
         source: None,
     })
 }
@@ -204,7 +199,7 @@ fn parse_method(
                     _ => None,
                 })
                 .filter_map(|name| {
-                    if let Some((_, name)) = name.rsplit_once("/") {
+                    if let Some((_, name)) = name.rsplit_once('/') {
                         return Some(name.into());
                     }
                     None
@@ -244,7 +239,7 @@ fn parse_used_classes(c: &ClassFile, code_attribute: Option<CodeAttribute>) -> V
             .iter()
             .flat_map(|i| &i.items)
             .filter_map(|i| lookup_string(c, i.descriptor_index))
-            .filter_map(|i| parse_field_descriptor(&i))
+            .map(|i| parse_field_descriptor(&i))
             .collect();
         return types
             .iter()
@@ -387,10 +382,10 @@ fn parse_method_descriptor(descriptor: &str) -> (Vec<dto::JType>, dto::JType) {
         _ => (vec![], dto::JType::Void),
     }
 }
-fn parse_field_descriptor(descriptor: &str) -> Option<dto::JType> {
+fn parse_field_descriptor(descriptor: &str) -> dto::JType {
     let mut chars = descriptor.chars();
     let current = chars.next();
-    Some(parse_field_type(current, &mut chars))
+    parse_field_type(current, &mut chars)
 }
 
 fn parse_field_type(c: Option<char>, chars: &mut std::str::Chars) -> dto::JType {

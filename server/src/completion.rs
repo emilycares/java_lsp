@@ -15,18 +15,20 @@ pub enum CompletionError {
     Document(DocumentError),
 }
 
-/// Convert list LocalVariable to CompletionItem
+/// Convert list `LocalVariable` to `CompletionItem`
+#[must_use]
 pub fn complete_vars(vars: &[LocalVariable]) -> Vec<CompletionItem> {
     vars.iter()
         .map(|a| CompletionItem {
-            label: a.name.to_string(),
+            label: a.name.clone(),
             label_details: Some(CompletionItemLabelDetails {
                 detail: Some(a.jtype.to_string()),
                 ..Default::default()
             }),
-            kind: match a.is_fun {
-                true => Some(CompletionItemKind::FUNCTION),
-                false => Some(CompletionItemKind::VARIABLE),
+            kind: if a.is_fun {
+                Some(CompletionItemKind::FUNCTION)
+            } else {
+                Some(CompletionItemKind::VARIABLE)
             },
             ..Default::default()
         })
@@ -34,6 +36,7 @@ pub fn complete_vars(vars: &[LocalVariable]) -> Vec<CompletionItem> {
 }
 
 /// Preview class with the description of methods
+#[must_use]
 pub fn class_describe(val: &dto::Class, ast: Option<&AstFile>) -> CompletionItem {
     let methods: Vec<_> = val
         .methods
@@ -50,15 +53,12 @@ pub fn class_describe(val: &dto::Class, ast: Option<&AstFile>) -> CompletionItem
         })
         .collect();
 
-    let mut addi = None;
-
-    if let Some(ast) = ast {
-        addi = Some(codeaction::import_text_edit(&val.class_path, ast));
-    }
-
+    let addi = ast
+        .as_ref()
+        .map(|ast| codeaction::import_text_edit(&val.class_path, ast));
     let detail = format!("package {};\n{}", val.class_path, methods.join(", "));
     CompletionItem {
-        label: val.name.to_string(),
+        label: val.name.clone(),
         detail: Some(detail),
         kind: Some(CompletionItemKind::CLASS),
         additional_text_edits: addi,
@@ -67,6 +67,7 @@ pub fn class_describe(val: &dto::Class, ast: Option<&AstFile>) -> CompletionItem
 }
 
 /// Unpack class as completion items with methods and fields
+#[must_use]
 pub fn class_unpack(
     val: &dto::Class,
     imports: &[ImportUnit],
@@ -103,7 +104,7 @@ pub fn class_unpack(
                 i.access.contains(parser::dto::Access::Public)
             })
             .map(|f| CompletionItem {
-                label: f.name.to_string(),
+                label: f.name.clone(),
                 label_details: Some(CompletionItemLabelDetails {
                     detail: Some(f.jtype.to_string()),
                     ..Default::default()
@@ -122,15 +123,17 @@ fn complete_method(m: &dto::Method, imports: &[ImportUnit], ast: &AstFile) -> Co
     let params_detail: Vec<String> = m
         .parameters
         .iter()
-        .map(|p| match &p.name {
-            Some(name) => format!("{} {}", p.jtype, name),
-            None => p.jtype.to_string(),
+        .map(|p| {
+            p.name.as_ref().map_or_else(
+                || p.jtype.to_string(),
+                |name| format!("{} {}", p.jtype, name),
+            )
         })
         .collect();
 
     match method_snippet(m) {
         Snippet::Simple(snippet) => CompletionItem {
-            label: m.name.to_string(),
+            label: m.name.clone(),
             label_details: Some(CompletionItemLabelDetails {
                 detail: Some(format!("{} ({})", m.ret, params_detail.join(", "))),
                 ..Default::default()
@@ -141,15 +144,16 @@ fn complete_method(m: &dto::Method, imports: &[ImportUnit], ast: &AstFile) -> Co
             ..Default::default()
         },
         Snippet::Import { snippet, import } => {
-            let mut additional_text_edits = None;
-            if !imports.contains(&import)
+            let additional_text_edits = if !imports.contains(&import)
                 && let ImportUnit::Class(class_path) = import
             {
-                additional_text_edits = Some(codeaction::import_text_edit(&class_path, ast));
+                Some(codeaction::import_text_edit(&class_path, ast))
+            } else {
+                None
             };
 
             CompletionItem {
-                label: m.name.to_string(),
+                label: m.name.clone(),
                 label_details: Some(CompletionItemLabelDetails {
                     detail: Some(format!("{} ({})", m.ret, params_detail.join(", "))),
                     ..Default::default()
@@ -177,7 +181,7 @@ fn method_snippet(m: &dto::Method) -> Snippet {
     let mut i = 1;
     for p in &m.parameters {
         let type_representation = type_to_snippet(&mut import, p);
-        params_snippet.push_str(format!("${{{}:{}}}", i, type_representation).as_str());
+        params_snippet.push_str(format!("${{{i}:{type_representation}}}").as_str());
         i += 1;
         if i <= p_len {
             params_snippet.push_str(", ");
@@ -198,8 +202,7 @@ fn type_to_snippet(import: &mut Option<ImportUnit>, p: &dto::Parameter) -> Strin
                 *import = Some(ImportUnit::Class("java.util.stream.Collectors".into()));
                 "Collectors.toList()".to_string()
             }
-            "java.util.function.Function" => "i -> i".to_string(),
-            "java.util.function.Consumer" => "i -> i".to_string(),
+            "java.util.function.Function" | "java.util.function.Consumer" => "i -> i".to_string(),
             "java.util.function.Predicate" => "i -> true".to_string(),
             "java.util.function.BiFunction" => "(a, b) -> i".to_string(),
             "java.util.function.BiComsumer" => "(i, consumer) -> i".to_string(),
@@ -227,6 +230,7 @@ pub fn complete_call_chain(
     }
 }
 
+#[must_use]
 pub fn classes(
     document: &Document,
     point: &AstPoint,
@@ -246,15 +250,14 @@ pub fn classes(
             imports
                 .iter()
                 .filter_map(|imp| match imp {
-                    ImportUnit::Class(c) => Some(c),
-                    ImportUnit::StaticClass(c) => Some(c),
-                    ImportUnit::StaticClassMethod(_, _) => None,
-                    ImportUnit::Prefix(_) => None,
-                    ImportUnit::StaticPrefix(_) => None,
-                    ImportUnit::Package(_) => None,
+                    ImportUnit::Class(c) | ImportUnit::StaticClass(c) => Some(c),
+                    ImportUnit::StaticClassMethod(_, _)
+                    | ImportUnit::Prefix(_)
+                    | ImportUnit::StaticPrefix(_)
+                    | ImportUnit::Package(_) => None,
                 })
                 .filter(|c| {
-                    let Some((_, cname)) = c.rsplit_once(".") else {
+                    let Some((_, cname)) = c.rsplit_once('.') else {
                         return false;
                     };
                     cname.starts_with(&text)
@@ -266,7 +269,7 @@ pub fn classes(
             class_map
                 .iter()
                 .filter(|c| c.name.starts_with(&text))
-                .filter(|i| !i.name.contains("&"))
+                .filter(|i| !i.name.contains('&'))
                 .filter(|v| {
                     let class_path = v.value().class_path.as_str();
                     !imports::is_imported(imports, class_path)
@@ -278,6 +281,7 @@ pub fn classes(
     out
 }
 
+#[must_use]
 pub fn static_methods(
     ast: &AstFile,
     imports: &[ImportUnit],
@@ -286,21 +290,21 @@ pub fn static_methods(
     imports
         .iter()
         .flat_map(|c| match c {
-            ImportUnit::Class(_) => vec![],
-            ImportUnit::StaticClass(_) => vec![],
+            ImportUnit::Prefix(_)
+            | ImportUnit::Package(_)
+            | ImportUnit::Class(_)
+            | ImportUnit::StaticClass(_) => vec![],
             ImportUnit::StaticClassMethod(c, m) => class_map
                 .get(c)
                 .into_iter()
                 .flat_map(|class| class.methods.clone())
                 .filter(|f| f.name == *m)
                 .collect(),
-            ImportUnit::Prefix(_) => vec![],
             ImportUnit::StaticPrefix(c) => class_map
                 .get(c)
                 .into_iter()
                 .flat_map(|class| class.methods.clone())
                 .collect(),
-            ImportUnit::Package(_) => vec![],
         })
         .map(|m| complete_method(&m, imports, ast))
         .collect()

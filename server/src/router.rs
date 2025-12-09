@@ -15,12 +15,15 @@ use lsp_server::{Message, Response};
 
 use crate::backend::Backend;
 
-pub fn route(backend: Backend) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    for msg in &backend.connection.receiver {
+pub fn route(backend: &Backend) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    loop {
+        let Ok(msg) = backend.connection.receiver.recv() else {
+            break;
+        };
         match msg {
             Message::Request(req) => {
                 if backend.connection.handle_shutdown(&req)? {
-                    return Ok(());
+                    break;
                 }
 
                 match req.method.as_str() {
@@ -130,32 +133,30 @@ pub fn route(backend: Backend) -> Result<(), Box<dyn std::error::Error + Send + 
             Message::Response(resp) => {
                 eprintln!("got response: {resp:?}");
             }
-            Message::Notification(not) => {
-                match not.method.as_str() {
-                    DidOpenTextDocument::METHOD => {
-                        if let Ok(params) =
-                            serde_json::from_value::<DidOpenTextDocumentParams>(not.params)
-                        {
-                            backend.did_open(params);
-                        }
+            Message::Notification(not) => match not.method.as_str() {
+                DidOpenTextDocument::METHOD => {
+                    if let Ok(params) =
+                        serde_json::from_value::<DidOpenTextDocumentParams>(not.params)
+                    {
+                        backend.did_open(params);
                     }
-                    DidChangeTextDocument::METHOD => {
-                        if let Ok(params) =
-                            serde_json::from_value::<DidChangeTextDocumentParams>(not.params)
-                        {
-                            backend.did_change(params);
-                        }
+                }
+                DidChangeTextDocument::METHOD => {
+                    if let Ok(params) =
+                        serde_json::from_value::<DidChangeTextDocumentParams>(not.params)
+                    {
+                        backend.did_change(&params);
                     }
-                    DidSaveTextDocument::METHOD => {
-                        if let Ok(params) =
-                            serde_json::from_value::<DidSaveTextDocumentParams>(not.params)
-                        {
-                            backend.did_save(params);
-                        }
+                }
+                DidSaveTextDocument::METHOD => {
+                    if let Ok(params) =
+                        serde_json::from_value::<DidSaveTextDocumentParams>(not.params)
+                    {
+                        backend.did_save(&params);
                     }
-                    _ => {}
-                };
-            }
+                }
+                _ => {}
+            },
         }
     }
     Ok(())

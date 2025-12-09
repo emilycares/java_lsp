@@ -1,5 +1,5 @@
 use std::{
-    fs::{self, remove_file},
+    fs::{self, File, remove_file},
     path::{Path, PathBuf},
     process::Command,
     sync::{
@@ -26,6 +26,8 @@ pub enum GradleFetchError {
     StatusCode,
     StatusCodeErrMessageNotutf8,
     IO(std::io::Error),
+    NoGradlew(std::io::Error),
+    GradlewNotExecutable,
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -34,6 +36,10 @@ pub(crate) const PATH_GRADLE: &str = "./gradlew";
 pub(crate) const PATH_GRADLE: &str = "./gradlew.bat";
 
 const GRADLE_CFC: &str = ".gradle.cfc";
+
+// https://github.com/gradle/gradle/issues/20460
+// https://www.javathinking.com/blog/how-do-i-print-out-the-java-classpath-in-gradle/
+// https://github.com/dansomething/gradle-classpath
 
 pub async fn fetch_deps(
     class_map: &DashMap<MyString, parser::dto::Class>,
@@ -47,16 +53,17 @@ pub async fn fetch_deps(
                 class_map.insert(class.class_path.clone(), class);
             }
             return Ok(());
-        } else {
-            remove_file(path).map_err(GradleFetchError::IO)?
         }
+        remove_file(path).map_err(GradleFetchError::IO)?;
     }
 
-    let unpack_folder = copy_classpath(build_gradle)?;
+    check_gradlew_executable_permission()?;
+
+    let unpack_folder = copy_classpath(&build_gradle)?;
     let mut handles = JoinSet::<Option<ClassFolder>>::new();
     if let Ok(o) = fs::read_dir(unpack_folder) {
         let jars: Vec<PathBuf> = o
-            .filter_map(|i| i.ok())
+            .filter_map(Result::ok)
             .filter(|i| {
                 if let Ok(ft) = i.file_type()
                     && ft.is_file()
@@ -73,7 +80,7 @@ pub async fn fetch_deps(
 
         for jar in jars {
             if !jar.exists() {
-                eprintln!("jar does not exist {jar:?}");
+                eprintln!("jar does not exist {}", jar.display());
                 continue;
             }
             let completed_number = completed_number.clone();
@@ -107,7 +114,7 @@ pub async fn fetch_deps(
     };
     if let Err(e) = loader::save_class_folder(GRADLE_CFC, &gradle_class_folder) {
         eprintln!("Failed to save {GRADLE_CFC} because: {e:?}");
-    };
+    }
     for class in gradle_class_folder.classes {
         class_map.insert(class.class_path.clone(), class);
     }
@@ -142,32 +149,33 @@ task classpath(type: Copy) {
     into "$buildDir/classpath"
 }
 "#;
-fn copy_classpath(build_gradle: PathBuf) -> Result<PathBuf, GradleFetchError> {
-    let script = match build_gradle.ends_with(".kts") {
-        true => unimplemented!("No support yet for build.gradle.kts"),
-        false => UNPACK_DEPENCENCIES_TASK_GROOVY,
+fn copy_classpath(build_gradle: &PathBuf) -> Result<PathBuf, GradleFetchError> {
+    let script = if build_gradle.ends_with(".kts") {
+        unimplemented!("No support yet for build.gradle.kts");
+    } else {
+        UNPACK_DEPENCENCIES_TASK_GROOVY
     };
-    match fs::read_to_string(&build_gradle) {
+    match fs::read_to_string(build_gradle) {
         Err(e) => Err(GradleFetchError::CouldNotReadBuildGradle(e)),
         Ok(gradle_content) => {
             if !gradle_content.contains(script) {
-                write_build_gradle(&build_gradle, format!("{}\n{}", gradle_content, script))?;
+                write_build_gradle(build_gradle, format!("{gradle_content}\n{script}"))?;
             }
             let out = match Command::new(PATH_GRADLE).arg("classpath").output() {
                 Err(e) => Err(GradleFetchError::GradlewExecFailed(e)),
                 Ok(output) => match output.status.code() {
-                    Some(1) => match std::str::from_utf8(&output.stderr) {
-                        Ok(stderr) => {
-                            eprintln!("Got error from gradle: \n {}", stderr);
+                    Some(1) => std::str::from_utf8(&output.stderr).map_or(
+                        Err(GradleFetchError::StatusCodeErrMessageNotutf8),
+                        |stderr| {
+                            eprintln!("Got error from gradle: \n {stderr}");
                             Err(GradleFetchError::StatusCode)
-                        }
-                        Err(_) => Err(GradleFetchError::StatusCodeErrMessageNotutf8),
-                    },
+                        },
+                    ),
                     Some(_) => Ok(PathBuf::from("./build/classpath")),
                     None => todo!(),
                 },
             };
-            write_build_gradle(&build_gradle, gradle_content)?;
+            write_build_gradle(build_gradle, gradle_content)?;
 
             out
         }
@@ -180,6 +188,21 @@ fn write_build_gradle(
 ) -> Result<(), GradleFetchError> {
     match fs::write(build_gradle, gradle_content) {
         Err(e) => Err(GradleFetchError::CouldNotModifyBuildGradle(e)),
-        Ok(_) => Ok(()),
+        Ok(()) => Ok(()),
     }
+}
+
+/// When gradlew is not executable stop
+fn check_gradlew_executable_permission() -> Result<(), GradleFetchError> {
+    let f = File::open(PATH_GRADLE).map_err(GradleFetchError::NoGradlew)?;
+    let meta = f.metadata().map_err(GradleFetchError::NoGradlew)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode_exec = meta.permissions().mode() & 0o111 != 0;
+        if !mode_exec {
+            return Err(GradleFetchError::GradlewNotExecutable);
+        }
+    }
+    Ok(())
 }

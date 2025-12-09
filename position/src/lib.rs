@@ -1,7 +1,11 @@
 #![deny(warnings)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
-use std::str::Utf8Error;
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::too_many_lines)]
+use std::{num::TryFromIntError, str::Utf8Error};
 
 use ast::types::{AstFile, AstRange, AstThing};
 use lsp_types::{Location, Range, SymbolInformation, SymbolKind, Uri};
@@ -11,6 +15,7 @@ pub enum PosionError {
     Utf8(Utf8Error),
     Lexer(ast::lexer::LexerError),
     Ast(ast::error::AstError),
+    Int(TryFromIntError),
 }
 
 pub fn get_class_position_ast(
@@ -199,7 +204,7 @@ pub fn get_field_position_ast_thing(
     Ok(())
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum PositionSymbol {
     Range(AstRange),
     Symbol {
@@ -210,19 +215,20 @@ pub enum PositionSymbol {
 }
 
 impl PositionSymbol {
-    pub fn get_range(&self) -> &AstRange {
+    #[must_use]
+    pub const fn get_range(&self) -> &AstRange {
         match self {
-            PositionSymbol::Symbol {
+            Self::Symbol {
                 range,
                 name: _,
                 kind: _,
-            } => range,
-            PositionSymbol::Range(range) => range,
+            }
+            | Self::Range(range) => range,
         }
     }
 }
 
-pub fn get_type_usage(
+pub const fn get_type_usage(
     _query_class_name: &str,
     _ast: &AstFile,
 ) -> Result<Vec<PositionSymbol>, PosionError> {
@@ -239,7 +245,7 @@ pub fn get_type_usage(
     // )
 }
 
-pub fn get_method_usage(
+pub const fn get_method_usage(
     _bytes: &[u8],
     _query_method_name: &str,
     _ast: &AstFile,
@@ -256,23 +262,21 @@ pub fn get_method_usage(
 }
 
 pub fn symbols_to_document_symbols(
-    symbols: Vec<PositionSymbol>,
-    uri: Uri,
+    symbols: &[PositionSymbol],
+    uri: &Uri,
 ) -> Vec<SymbolInformation> {
     symbols
         .iter()
         .filter_map(|r| match r {
             PositionSymbol::Range(_) => None,
-            PositionSymbol::Symbol { range, name, kind } =>
-            {
+            PositionSymbol::Symbol { range, name, kind } => {
                 #[allow(deprecated)]
                 Some(SymbolInformation {
-                    name: name.to_string(),
+                    name: name.clone(),
                     kind: match kind.as_str() {
-                        "formal_parameter" => SymbolKind::FIELD,
-                        "variable_declarator" => SymbolKind::FIELD,
                         "method_declaration" => SymbolKind::METHOD,
                         "class_declaration" => SymbolKind::CLASS,
+                        // also "formal_parameter" | "variable_declarator"  => SymbolKind::FIELD,
                         _ => SymbolKind::FIELD,
                     },
                     tags: Some(vec![]),
@@ -281,12 +285,12 @@ pub fn symbols_to_document_symbols(
                         uri: uri.clone(),
                         range: Range {
                             start: lsp_types::Position {
-                                line: range.start.line as u32,
-                                character: range.start.col as u32,
+                                line: u32::try_from(range.start.line).ok()?,
+                                character: u32::try_from(range.start.col).ok()?,
                             },
                             end: lsp_types::Position {
-                                line: range.end.line as u32,
-                                character: range.end.col as u32,
+                                line: u32::try_from(range.end.line).ok()?,
+                                character: u32::try_from(range.end.col).ok()?,
                             },
                         },
                     },

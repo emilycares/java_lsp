@@ -267,10 +267,10 @@ pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, us
         Token::Interface => parse_interface(tokens, pos, avaliability, attributes, annotated),
         Token::Enum => parse_enumeration(tokens, pos, avaliability, attributes, annotated),
         Token::AtInterface => parse_annotation(tokens, pos, avaliability, attributes, annotated),
-        _ => Err(AstError::ExpectedToken(ExpectedToken::from(
+        _ => Err(AstError::ExpectedToken(ExpectedToken {
             pos,
-            Token::Class,
-        ))),
+            expected: Token::Class,
+        })),
     }
 }
 
@@ -650,7 +650,7 @@ fn parse_value_nuget(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, 
         }
         Token::True => parse_boolean_literal_input(tokens, pos, true),
         Token::False => parse_boolean_literal_input(tokens, pos, false),
-        _ => Err(AstError::InvalidNuget(InvalidToken::from(pos))),
+        _ => Err(AstError::InvalidNuget(InvalidToken(pos))),
     }
 }
 
@@ -677,7 +677,7 @@ fn parse_boolean_literal(
     let value = match start.token {
         Token::True => true,
         Token::False => false,
-        _ => return Err(AstError::InvalidBoolean(InvalidToken::from(pos))),
+        _ => return Err(AstError::InvalidBoolean(InvalidToken(pos))),
     };
     Ok((
         AstValue::Nuget(AstValueNuget::BooleanLiteral(AstBoolean {
@@ -704,7 +704,7 @@ pub fn parse_string_literal(
                 pos + 1,
             ))
         }
-        _ => Err(AstError::InvalidString(InvalidToken::from(pos))),
+        _ => Err(AstError::InvalidString(InvalidToken(pos))),
     }
 }
 /// `'\r`
@@ -724,7 +724,7 @@ pub fn parse_char_literal(
                 pos + 1,
             ))
         }
-        _ => Err(AstError::InvalidString(InvalidToken::from(pos))),
+        _ => Err(AstError::InvalidString(InvalidToken(pos))),
     }
 }
 
@@ -812,7 +812,7 @@ fn parse_value_operator_options(
                     pos + 1,
                 ));
             }
-            Err(AstError::InvalidNuget(InvalidToken::from(pos)))
+            Err(AstError::InvalidNuget(InvalidToken(pos)))
         }
         Token::ExclamationMark if expression_options != &ExpressionOptions::NoInlineIf => Ok((
             AstExpressionOperator::ExclemationMark(AstRange::from_position_token(start, start)),
@@ -870,7 +870,7 @@ fn parse_value_operator_options(
             AstExpressionOperator::Caret(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
-        _ => Err(AstError::InvalidNuget(InvalidToken::from(pos))),
+        _ => Err(AstError::InvalidNuget(InvalidToken(pos))),
     }
 }
 
@@ -1122,7 +1122,7 @@ pub fn parse_expression(
         }
     }
     if out.is_empty() {
-        return Err(AstError::EmptyExpression(InvalidToken::from(pos)));
+        return Err(AstError::EmptyExpression(InvalidToken(pos)));
     }
 
     Ok((out, pos))
@@ -3079,7 +3079,7 @@ pub fn parse_name(
             pos += 1;
         }
         _ => {
-            return Err(AstError::InvalidName(InvalidToken::from(pos)));
+            return Err(AstError::InvalidName(InvalidToken(pos)));
         }
     }
     let end = tokens.end(pos)?;
@@ -3120,14 +3120,14 @@ pub fn parse_name_dot(
             }
             _ => {
                 if pos == init_pos {
-                    return Err(AstError::InvalidName(InvalidToken::from(pos)));
+                    return Err(AstError::InvalidName(InvalidToken(pos)));
                 }
                 break;
             }
         }
     }
     if ident.is_empty() {
-        return Err(AstError::IdentifierEmpty(InvalidToken::from(pos)));
+        return Err(AstError::IdentifierEmpty(InvalidToken(pos)));
     }
     let end = tokens.end(pos)?;
     Ok((
@@ -3208,7 +3208,7 @@ pub fn parse_name_dot_logical(
         }
     }
     if ident.is_empty() {
-        return Err(AstError::IdentifierEmpty(InvalidToken::from(pos)));
+        return Err(AstError::IdentifierEmpty(InvalidToken(pos)));
     }
     let end = tokens.end(pos)?;
     Ok((
@@ -3235,12 +3235,12 @@ pub fn parse_name_single(
         }
         _ => {
             if tokens.get(pos).is_some() {
-                return Err(AstError::InvalidName(InvalidToken::from(pos)));
+                return Err(AstError::InvalidName(InvalidToken(pos)));
             }
         }
     }
     let Some(ident) = ident else {
-        return Err(AstError::IdentifierEmpty(InvalidToken::from(pos)));
+        return Err(AstError::IdentifierEmpty(InvalidToken(pos)));
     };
     let end = tokens.end(pos)?;
     Ok((
@@ -3278,7 +3278,7 @@ fn parse_identifier(
         }
     }
     if !modded {
-        return Err(AstError::IdentifierEmpty(InvalidToken::from(pos)));
+        return Err(AstError::IdentifierEmpty(InvalidToken(pos)));
     }
     let end = tokens.end(pos)?;
     Ok((
@@ -3426,10 +3426,10 @@ pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, us
                         range: AstRange::from_position_token(start, end),
                         value: AstJTypeKind::Array(Box::new(out)),
                     };
-                    if let Ok((anno, npos)) = parse_annotated_list(tokens, pos) {
-                        annotated.extend(anno);
-                        pos = npos;
-                    }
+                    // if let Ok((anno, npos)) = parse_annotated_list(tokens, pos) {
+                    //     annotated.extend(anno);
+                    //     pos = npos;
+                    // }
                 } else {
                     break;
                 }
@@ -3453,11 +3453,11 @@ pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, us
             }
         }
         if AstJTypeKind::Void == out.value {
-            return Err(AstError::InvalidJtype(InvalidToken::from(pos)));
+            return Err(AstError::InvalidJtype(InvalidToken(pos)));
         }
         Ok((out, pos))
     } else {
-        Err(AstError::InvalidJtype(InvalidToken::from(pos)))
+        Err(AstError::InvalidJtype(InvalidToken(pos)))
     }
 }
 
@@ -3530,6 +3530,6 @@ fn parse_primitive_type(
         Token::Void => Ok((AstJTypeKind::Void, pos + 1)),
         Token::QuestionMark => Ok((AstJTypeKind::Wildcard, pos + 1)),
         Token::Var => Ok((AstJTypeKind::Var, pos + 1)),
-        _ => Err(AstError::InvalidJtype(InvalidToken::from(pos))),
+        _ => Err(AstError::InvalidJtype(InvalidToken(pos))),
     }
 }

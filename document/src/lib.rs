@@ -1,6 +1,10 @@
 #![deny(warnings)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::too_many_lines)]
 use std::{fs, path::PathBuf};
 
 use ast::{error::PrintErr, types::AstFile};
@@ -61,10 +65,12 @@ impl Document {
         })
     }
 
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.str_data
     }
 
+    #[must_use]
     pub fn as_bytes(&self) -> &[u8] {
         self.as_str().as_bytes()
     }
@@ -77,7 +83,7 @@ impl Document {
 
     pub fn apply_text_changes(
         &mut self,
-        changes: &Vec<TextDocumentContentChangeEvent>,
+        changes: &[TextDocumentContentChangeEvent],
     ) -> Result<(), DocumentError> {
         for change in changes {
             if let Some(range) = change.range {
@@ -136,17 +142,18 @@ pub enum ClassSource<'a, D> {
     Ref(RefMut<'a, MyString, Document>),
     Err(DocumentError),
 }
+#[must_use]
 pub fn read_document_or_open_class<'a, 'b>(
     source: &'b str,
     class_path: MyString,
     document_map: &'a DashMap<MyString, Document>,
     uri: &'b str,
 ) -> ClassSource<'a, Document> {
-    match document_map.get_mut(uri) {
-        Some(d) => ClassSource::Ref(d),
-        None => match Document::setup_read(PathBuf::from(source), class_path) {
+    document_map.get_mut(uri).map_or_else(
+        || match Document::setup_read(PathBuf::from(source), class_path) {
             Ok(doc) => ClassSource::Owned(doc),
             Err(e) => ClassSource::Err(e),
         },
-    }
+        ClassSource::Ref,
+    )
 }

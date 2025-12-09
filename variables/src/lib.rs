@@ -1,6 +1,10 @@
 #![deny(warnings)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::too_many_lines)]
 use ast::types::{
     AstBlock, AstBlockEntry, AstBlockExpression, AstBlockVariable, AstClassMethod, AstExpression,
     AstExpressionKind, AstFile, AstFor, AstForContent, AstForEnhanced, AstIf, AstIfContent,
@@ -22,9 +26,10 @@ pub struct LocalVariable {
 }
 
 impl LocalVariable {
+    #[must_use]
     pub fn from_block_variable(v: &AstBlockVariable, level: usize) -> Self {
         let jtype: dto::JType = (&v.jtype).into();
-        LocalVariable {
+        Self {
             level,
             jtype,
             name: v.name.value.clone(),
@@ -32,8 +37,9 @@ impl LocalVariable {
             range: v.range,
         }
     }
+    #[must_use]
     pub fn from_class_method(i: &AstClassMethod, level: usize) -> Self {
-        LocalVariable {
+        Self {
             level,
             jtype: (&i.header.jtype).into(),
             name: (&i.header.name).into(),
@@ -42,8 +48,8 @@ impl LocalVariable {
         }
     }
 
-    fn from_method_parameter(parameter: &AstMethodParamerter, level: usize) -> LocalVariable {
-        LocalVariable {
+    fn from_method_parameter(parameter: &AstMethodParamerter, level: usize) -> Self {
+        Self {
             level,
             jtype: (&parameter.jtype).into(),
             name: (&parameter.name).into(),
@@ -84,8 +90,7 @@ fn get_vars_thing(thing: &AstThing, point: &AstPoint, out: &mut Vec<LocalVariabl
             let level = level + 1;
             out.extend(get_interface_constats(&ast_interface.constants, level));
         }
-        AstThing::Enumeration(_) => (),
-        AstThing::Annotation(_) => (),
+        AstThing::Enumeration(_) | AstThing::Annotation(_) => (),
     }
 }
 
@@ -171,21 +176,21 @@ fn get_block_entry_vars(
         AstBlockEntry::Switch(ast_switch) => switch_vars(ast_switch, point, level, out),
         AstBlockEntry::TryCatch(ast_try_catch) => try_catch_vars(ast_try_catch, point, level, out),
         AstBlockEntry::SynchronizedBlock(ast_synchronized_block) => {
-            get_block_vars(&ast_synchronized_block.block, point, level, out)
+            get_block_vars(&ast_synchronized_block.block, point, level, out);
         }
         AstBlockEntry::SwitchCaseArrowDefault(ast_switch_case_arrow_default) => {
-            switch_case_arrow_content(&ast_switch_case_arrow_default.content, level, point, out)
+            switch_case_arrow_content(&ast_switch_case_arrow_default.content, level, point, out);
         }
         AstBlockEntry::SwitchCaseArrowValues(ast_switch_case_arrow) => {
-            switch_case_arrow_content(&ast_switch_case_arrow.content, level, point, out)
+            switch_case_arrow_content(&ast_switch_case_arrow.content, level, point, out);
         }
         AstBlockEntry::Thing(ast_thing) => get_vars_thing(ast_thing, point, out, level),
         AstBlockEntry::InlineBlock(ast_block) => {
-            get_block_vars(&ast_block.block, point, level, out)
+            get_block_vars(&ast_block.block, point, level, out);
         }
         AstBlockEntry::Semicolon(_ast_range) => (),
         AstBlockEntry::SwitchCaseArrowType(ast_switch_case_arrow_type) => {
-            switch_case_arrow_content(&ast_switch_case_arrow_type.content, level, point, out)
+            switch_case_arrow_content(&ast_switch_case_arrow_type.content, level, point, out);
         }
     }
 }
@@ -199,7 +204,7 @@ fn switch_case_arrow_content(
     match content {
         AstSwitchCaseArrowContent::Block(ast_block) => get_block_vars(ast_block, point, level, out),
         AstSwitchCaseArrowContent::Entry(ast_block_entry) => {
-            get_block_entry_vars(point, level, ast_block_entry, out)
+            get_block_entry_vars(point, level, ast_block_entry, out);
         }
     }
 }
@@ -243,15 +248,15 @@ fn expression_kind(
 ) {
     match i {
         AstExpressionKind::Recursive(ast_recursive_expression) => {
-            recursive_expr(ast_recursive_expression, point, level, out)
+            recursive_expr(ast_recursive_expression, point, level, out);
         }
         AstExpressionKind::Lambda(ast_lambda) => {
             if ast_lambda.range.is_in_range(point) {
-                lambda(ast_lambda, point, level, out)
+                lambda(ast_lambda, point, level, out);
             }
         }
         AstExpressionKind::InlineSwitch(ast_switch) => {
-            get_block_vars(&ast_switch.block, point, level, out)
+            get_block_vars(&ast_switch.block, point, level, out);
         }
         AstExpressionKind::NewClass(_)
         | AstExpressionKind::Generics(_)
@@ -286,7 +291,7 @@ fn lambda(lambda: &AstLambda, point: &AstPoint, level: usize, out: &mut Vec<Loca
         AstLambdaRhs::None => (),
         AstLambdaRhs::Block(ast_block) => get_block_vars(ast_block, point, level, out),
         AstLambdaRhs::Expr(ast_base_expression) => {
-            expression(ast_base_expression, point, level, out)
+            expression(ast_base_expression, point, level, out);
         }
     }
 }
@@ -302,7 +307,7 @@ fn try_catch_vars(
     }
     let level = level + 1;
     if let Some(resources) = &ast_try_catch.resources_block {
-        get_block_vars(resources, point, level, out)
+        get_block_vars(resources, point, level, out);
     }
     get_block_vars(&ast_try_catch.block, point, level, out);
     if let Some(case) = ast_try_catch
@@ -367,7 +372,7 @@ fn for_content_vars(
     match content {
         AstForContent::Block(ast_block) => get_block_vars(ast_block, point, level, out),
         AstForContent::BlockEntry(ast_block_entry) => {
-            get_block_entry_vars(point, level, ast_block_entry, out)
+            get_block_entry_vars(point, level, ast_block_entry, out);
         }
         AstForContent::None => (),
     }
@@ -395,35 +400,23 @@ fn while_vars(ast_while: &AstWhile, point: &AstPoint, level: usize, out: &mut Ve
 fn if_vars(ast_if: &AstIf, point: &AstPoint, level: usize, out: &mut Vec<LocalVariable>) {
     let level = level + 1;
     match ast_if {
-        AstIf::If {
-            range,
-            control: _,
-            control_range: _,
-            content,
-        } => {
-            if range.is_in_range(point)
-                && let AstIfContent::Block(block) = content
-            {
-                get_block_vars(block, point, level, out)
-            }
-        }
-        AstIf::Else { range, content } => {
-            if range.is_in_range(point)
-                && let AstIfContent::Block(block) = content
-            {
-                get_block_vars(block, point, level, out)
-            }
-        }
         AstIf::ElseIf {
             range,
             control: _,
             control_range: _,
             content,
-        } => {
+        }
+        | AstIf::If {
+            range,
+            control: _,
+            control_range: _,
+            content,
+        }
+        | AstIf::Else { range, content } => {
             if range.is_in_range(point)
                 && let AstIfContent::Block(block) = content
             {
-                get_block_vars(block, point, level, out)
+                get_block_vars(block, point, level, out);
             }
         }
     }

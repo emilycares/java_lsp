@@ -1,6 +1,10 @@
 #![deny(warnings)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::too_many_lines)]
 use ast::{
     range::AstInRange,
     types::{
@@ -15,6 +19,7 @@ pub struct FoundClass {
 }
 
 /// Get class name under cursor
+#[must_use]
 pub fn get_class(ast: &AstFile, point: &AstPoint) -> Option<FoundClass> {
     things(&ast.things, point)
 }
@@ -305,23 +310,23 @@ fn get_class_jtype(jtype: &AstJType, point: &AstPoint) -> Option<FoundClass> {
         return None;
     }
     match &jtype.value {
-        AstJTypeKind::Void => None,
-        AstJTypeKind::Byte => None,
-        AstJTypeKind::Char => None,
-        AstJTypeKind::Double => None,
-        AstJTypeKind::Float => None,
-        AstJTypeKind::Int => None,
-        AstJTypeKind::Long => None,
-        AstJTypeKind::Short => None,
-        AstJTypeKind::Boolean => None,
-        AstJTypeKind::Wildcard => None,
-        AstJTypeKind::Var => None,
+        AstJTypeKind::Void
+        | AstJTypeKind::Byte
+        | AstJTypeKind::Char
+        | AstJTypeKind::Double
+        | AstJTypeKind::Float
+        | AstJTypeKind::Int
+        | AstJTypeKind::Long
+        | AstJTypeKind::Short
+        | AstJTypeKind::Boolean
+        | AstJTypeKind::Wildcard
+        | AstJTypeKind::Var => None,
         AstJTypeKind::Parameter(ast_identifier) | AstJTypeKind::Class(ast_identifier) => {
             if !ast_identifier.range.is_in_range(point) {
                 return None;
             }
             Some(FoundClass {
-                name: ast_identifier.value.to_string(),
+                name: ast_identifier.value.clone(),
                 range: ast_identifier.range,
             })
         }
@@ -355,7 +360,7 @@ fn get_class_identifier(
 ) -> Option<FoundClass> {
     if ast_identifier.range.is_in_range(point) {
         return Some(FoundClass {
-            name: ast_identifier.value.to_string(),
+            name: ast_identifier.value.clone(),
             range: ast_identifier.range,
         });
     }

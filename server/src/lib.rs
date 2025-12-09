@@ -1,6 +1,10 @@
 #![deny(warnings)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::too_many_lines)]
 mod backend;
 mod codeaction;
 pub mod completion;
@@ -41,7 +45,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
             ..CodeActionOptions::default()
         })),
         completion_provider: Some(CompletionOptions {
-            trigger_characters: Some([' ', '.', '('].iter().map(|i| i.to_string()).collect()),
+            trigger_characters: Some([' ', '.', '('].iter().map(ToString::to_string).collect()),
             ..CompletionOptions::default()
         }),
         document_symbol_provider: Some(OneOf::Left(true)),
@@ -87,7 +91,7 @@ fn main_loop(
     tokio::spawn(async move {
         Backend::initialized(connection, project_kind, class_map.clone(), reference_map).await;
     });
-    router::route(backend)?;
+    router::route(&backend)?;
     Ok(())
 }
 
