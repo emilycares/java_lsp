@@ -3426,10 +3426,10 @@ pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, us
                         range: AstRange::from_position_token(start, end),
                         value: AstJTypeKind::Array(Box::new(out)),
                     };
-                    // if let Ok((anno, npos)) = parse_annotated_list(tokens, pos) {
-                    //     annotated.extend(anno);
-                    //     pos = npos;
-                    // }
+                    if let Ok((anno, npos)) = parse_annotated_list(tokens, pos) {
+                        annotated.extend(anno);
+                        pos = npos;
+                    }
                 } else {
                     break;
                 }

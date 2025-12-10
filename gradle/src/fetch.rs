@@ -1,5 +1,5 @@
 use std::{
-    fs::{self, File, remove_file},
+    fs::{self, remove_file},
     path::{Path, PathBuf},
     process::Command,
     sync::{
@@ -57,6 +57,7 @@ pub async fn fetch_deps(
         remove_file(path).map_err(GradleFetchError::IO)?;
     }
 
+    #[cfg(unix)]
     check_gradlew_executable_permission()?;
 
     let unpack_folder = copy_classpath(&build_gradle)?;
@@ -193,16 +194,14 @@ fn write_build_gradle(
 }
 
 /// When gradlew is not executable stop
+#[cfg(unix)]
 fn check_gradlew_executable_permission() -> Result<(), GradleFetchError> {
+    use std::{fs::File, os::unix::fs::PermissionsExt};
     let f = File::open(PATH_GRADLE).map_err(GradleFetchError::NoGradlew)?;
     let meta = f.metadata().map_err(GradleFetchError::NoGradlew)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mode_exec = meta.permissions().mode() & 0o111 != 0;
-        if !mode_exec {
-            return Err(GradleFetchError::GradlewNotExecutable);
-        }
+    let mode_exec = meta.permissions().mode() & 0o111 != 0;
+    if !mode_exec {
+        return Err(GradleFetchError::GradlewNotExecutable);
     }
     Ok(())
 }

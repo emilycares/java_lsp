@@ -12,6 +12,7 @@ wtest:
 
 check:
   cargo check
+  cargo check --target x86_64-pc-windows-gnu
 
 fmt:
   cargo fmt
@@ -19,4 +20,4 @@ fmt:
 doc:
   cargo doc --no-deps --workspace
 
-precommit: check test fmt clippy doc dev
+precommit: fmt check test clippy doc dev
