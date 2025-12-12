@@ -4,7 +4,7 @@ use std::{
     process::Command,
     sync::{
         Arc,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU32, Ordering},
     },
 };
 
@@ -76,8 +76,8 @@ pub async fn fetch_deps(
             .filter(|i| i.file_name().to_string_lossy().ends_with(".jar"))
             .map(|i| i.path())
             .collect();
-        let tasks_number = jars.len() + 1;
-        let completed_number = Arc::new(AtomicUsize::new(0));
+        let tasks_number = u32::try_from(jars.len() + 1).unwrap_or(1);
+        let completed_number = Arc::new(AtomicU32::new(0));
 
         for jar in jars {
             if !jar.exists() {

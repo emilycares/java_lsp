@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         Arc,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU32, Ordering},
     },
 };
 
@@ -88,12 +88,11 @@ pub async fn fetch_deps(
     let tree = tree::load().map_err(MavenFetchError::Tree)?;
     let m2 = Arc::new(get_maven_m2_folder()?);
 
-    let tasks_number = tree.deps.len() + 1;
+    let tasks_number = u32::try_from(tree.deps.len() + 1).unwrap_or(1);
     let mut handles = JoinSet::<Option<ClassFolder>>::new();
-    let completed_number = Arc::new(AtomicUsize::new(0));
+    let completed_number = Arc::new(AtomicU32::new(0));
     let sender = Arc::new(sender);
 
-    // let out_classes = Arc::new(Mutex::new(Vec::new()));
     for dep in tree.deps {
         let m2 = m2.clone();
         let sender = sender.clone();

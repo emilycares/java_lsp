@@ -18,9 +18,7 @@ use lsp_types::{
     notification::{Notification, Progress, PublishDiagnostics},
 };
 use my_string::MyString;
-use parking_lot::Mutex;
 use parser::{SourceDestination, dto::Class};
-use position::PositionSymbol;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 
 use crate::{
@@ -122,17 +120,6 @@ impl Backend {
                     params,
                 }));
         }
-    }
-    fn global_error(_con: Arc<Connection>, message: &str) {
-        eprintln!("Error: {message}");
-    }
-    fn progress_update_persentage_a(
-        con: &Arc<Connection>,
-        task: String,
-        message: String,
-        percentage: Option<u32>,
-    ) {
-        Self::progress_update_persentage(con, task, message, percentage);
     }
 
     fn progress_update_persentage(
@@ -247,7 +234,6 @@ impl Backend {
                 error: false,
                 message: "...".to_string(),
             });
-            let reciever = Arc::new(Mutex::new(reciever));
 
             Self::progress_start(&con.clone(), task.clone());
             tokio::select! {
@@ -265,7 +251,6 @@ impl Backend {
                 error: false,
                 message: "...".to_string(),
             });
-            let reciever = Arc::new(Mutex::new(reciever));
 
             tokio::select! {
                 () = read_forward(reciever, con.clone(), task.clone())  => {},
@@ -620,17 +605,12 @@ impl Backend {
         };
         let uri = params.text_document.uri;
 
-        let symbols = position::get_class_position_ast(&document.ast, None);
-        match symbols {
-            Ok(symbols) => {
-                let symbols = position::symbols_to_document_symbols(&symbols, &uri);
-                Some(DocumentSymbolResponse::Flat(symbols))
-            }
-            Err(e) => {
-                eprintln!("Error while document symbol: {e:?}");
-                None
-            }
-        }
+        let mut symbols = vec![];
+        let _ = position::get_class_position_ast(&document.ast, None, &mut symbols);
+        let _ = position::get_method_position_ast(&document.ast, None, &mut symbols);
+        let _ = position::get_field_position_ast(&document.ast, None, &mut symbols);
+        let symbols = position::symbols_to_document_symbols(&symbols, &uri);
+        Some(DocumentSymbolResponse::Flat(symbols))
     }
 
     #[allow(clippy::unnecessary_wraps)]
@@ -665,33 +645,26 @@ impl Backend {
                     ),
                 ))
             })
-            .filter_map(|(path, source)| match source {
-                ClassSource::Owned(d) => {
-                    Some((path, position::get_class_position_ast(&d.ast, None)))
+            .filter_map(|(path, source)| {
+                let mut out = vec![];
+                match source {
+                    ClassSource::Owned(d) => {
+                        let _ = position::get_class_position_ast(&d.ast, None, &mut out);
+                    }
+                    ClassSource::Ref(d) => {
+                        let _ = position::get_class_position_ast(&d.ast, None, &mut out);
+                    }
+                    ClassSource::Err(_) => (),
                 }
-                ClassSource::Ref(d) => Some((path, position::get_class_position_ast(&d.ast, None))),
-                ClassSource::Err(_) => None,
+                Some((path, out))
             })
             .map(|(path, symbols)| {
                 (
                     path,
-                    match symbols {
-                        Ok(s) => s
-                            .into_iter()
-                            .filter(|i| match i {
-                                PositionSymbol::Range(_range) => false,
-                                PositionSymbol::Symbol {
-                                    range: _,
-                                    name,
-                                    kind: _,
-                                } => name.contains(&params.query),
-                            })
-                            .collect(),
-                        Err(e) => {
-                            eprintln!("Errors with workspace document symbol: {e:?}");
-                            vec![]
-                        }
-                    },
+                    symbols
+                        .into_iter()
+                        .filter(|i| i.name.contains(&params.query))
+                        .collect::<Vec<_>>(),
                 )
             })
             .filter_map(|(path, symbols)| {
@@ -726,30 +699,22 @@ impl Backend {
 }
 
 pub async fn read_forward(
-    rx: Arc<Mutex<tokio::sync::watch::Receiver<TaskProgress>>>,
+    mut rx: tokio::sync::watch::Receiver<TaskProgress>,
     con: Arc<Connection>,
     task: String,
 ) {
-    #![allow(clippy::nursery)]
     tokio::spawn(async move {
-        let mut i = rx.lock();
         loop {
-            let i = i.borrow_and_update();
-            if !i.has_changed() {
-                continue;
+            if rx.changed().await.is_err() {
+                break;
             }
-            let task = task.clone();
-            let con = con.clone();
-            if i.error {
-                Backend::global_error(con, &i.message);
-            } else {
-                Backend::progress_update_persentage_a(
-                    &con,
-                    task,
-                    i.message.clone(),
-                    i.persentage.try_into().ok(),
-                );
-            }
+            let i = rx.borrow();
+            Backend::progress_update_persentage(
+                &con.clone(),
+                task.clone(),
+                i.message.clone(),
+                Some(i.persentage),
+            );
         }
     })
     .await

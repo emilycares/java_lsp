@@ -66,8 +66,8 @@ pub fn class_path(
             })
             .filter_map(|lookup| {
                 let refs = get_position_refrences(&lookup, class_path, None).ok()?;
-                let a = refs.first().map(|i| i.0.get_range());
-                a.map(|a| (lookup, *a))
+                let a = refs.first().map(|i| i.0.range);
+                a.map(|a| (lookup, a))
             })
             .filter_map(
                 |(lookup, range)| match definition::class_to_uri(lookup.value()) {
@@ -124,8 +124,7 @@ pub fn call_chain_references(
                         ReferencesError::Definition
                     })?;
                     for i in method_refs {
-                        let r =
-                            to_lsp_range(i.0.get_range()).map_err(ReferencesError::ToLspRange)?;
+                        let r = to_lsp_range(&i.0.range).map_err(ReferencesError::ToLspRange)?;
                         let loc = Location::new(uri.clone(), r);
                         locations.push(loc);
                     }
@@ -259,10 +258,13 @@ fn pos_refs_helper(
     ast: &AstFile,
     query_class_name: &str,
 ) -> Result<Vec<ReferencePosition>, ReferencesError> {
-    match position::get_class_position_ast(ast, Some(query_class_name)) {
-        Err(e) => Err(ReferencesError::Position(e))?,
-        Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
-    }
+    let mut usages = vec![];
+    position::get_class_position_ast(ast, Some(query_class_name), &mut usages)
+        .map_err(ReferencesError::Position)?;
+    Ok(usages
+        .into_iter()
+        .map(ReferencePosition)
+        .collect::<Vec<_>>())
 }
 
 fn insert_or_extend<K, V, A>(out: &dashmap::DashMap<K, V>, key: &K, insert: V)

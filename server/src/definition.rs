@@ -3,7 +3,7 @@ use std::str::FromStr;
 use ast::types::AstPoint;
 use call_chain::CallItem;
 use document::{Document, DocumentError};
-use lsp_types::{GotoDefinitionResponse, Location, Uri};
+use lsp_types::{GotoDefinitionResponse, Location, SymbolKind, Uri};
 use my_string::MyString;
 use parser::dto::{self, ImportUnit};
 use position::PositionSymbol;
@@ -54,7 +54,8 @@ pub fn class(
         context.class_map,
     ) {
         Ok((class, _range)) => {
-            let ranges = position::get_class_position_ast(ast, Some(&class.name))
+            let mut ranges = vec![];
+            position::get_class_position_ast(ast, Some(&class.name), &mut ranges)
                 .map_err(DefinitionError::Position)?;
             let uri = class_to_uri(&class)?;
             Ok(go_to_definition_range(uri, &ranges)?)
@@ -107,7 +108,7 @@ pub fn call_chain_definition(
             };
 
             let source = get_source_content(&source_file, context.document_map)?;
-            let ranges = position::get_method_positions(source.as_bytes(), name)
+            let ranges = position::get_method_positions(source.as_bytes(), Some(name))
                 .map_err(DefinitionError::Position)?;
             let uri = source_to_uri(&source_file)?;
             Ok(go_to_definition_range(uri, &ranges)?)
@@ -124,7 +125,7 @@ pub fn call_chain_definition(
                 None => resolve_state.class.source,
             };
             let source = get_source_content(&source_file, context.document_map)?;
-            let ranges = position::get_field_positions(source.as_bytes(), name)
+            let ranges = position::get_field_positions(source.as_bytes(), Some(name))
                 .map_err(DefinitionError::Position)?;
             let uri = source_to_uri(&source_file)?;
             Ok(go_to_definition_range(uri, &ranges)?)
@@ -149,7 +150,11 @@ pub fn call_chain_definition(
                 .vars
                 .iter()
                 .filter(|n| n.name == *name)
-                .map(|v| PositionSymbol::Range(v.range))
+                .map(|v| PositionSymbol {
+                    range: v.range,
+                    name: v.name.clone(),
+                    kind: SymbolKind::VARIABLE,
+                })
                 .collect();
 
             Ok(go_to_definition_range(
@@ -213,13 +218,13 @@ fn go_to_definition_range(
         })),
         1 => Ok(GotoDefinitionResponse::Scalar(Location {
             uri,
-            range: to_lsp_range(ranges.first().expect("Length is 1").get_range())
+            range: to_lsp_range(&ranges.first().expect("Length is 1").range)
                 .map_err(DefinitionError::ToLspRange)?,
         })),
         2.. => {
             let locations = ranges
                 .iter()
-                .filter_map(|r| to_lsp_range(r.get_range()).ok())
+                .filter_map(|r| to_lsp_range(&r.range).ok())
                 .map(|r| Location {
                     uri: uri.clone(),
                     range: r,

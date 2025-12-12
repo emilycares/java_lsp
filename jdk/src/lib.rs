@@ -11,7 +11,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         Arc,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU32, Ordering},
     },
 };
 
@@ -181,13 +181,14 @@ async fn load_jmods(
 
     let mut handles = JoinSet::<Result<ClassFolder, JdkError>>::new();
     let source_dir = Arc::new(source_dir);
-    let completed_number = Arc::new(AtomicUsize::new(0));
+    let completed_number = Arc::new(AtomicU32::new(0));
     let sender = Arc::new(sender);
 
     match fs::read_dir(&jmods) {
         Err(e) => eprintln!("error reading dir: {:?} {e:?}", &jmods.to_str()),
         Ok(jmods) => {
-            for (tasks_number, jmod) in jmods.enumerate() {
+            let mut tasks_number: u32 = 0;
+            for jmod in jmods {
                 let sender = sender.clone();
                 let completed_number = completed_number.clone();
                 let source_dir = source_dir.clone();
@@ -225,6 +226,7 @@ async fn load_jmods(
                         });
                     }
                 }
+                tasks_number += 1;
             }
         }
     }
