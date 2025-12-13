@@ -95,10 +95,14 @@ pub fn load_java_files(folder: PathBuf) -> Vec<Class> {
         .par_bridge()
         .filter_map(Result::ok)
         .filter(|e| !e.file_type().is_dir())
+        .filter(|e| {
+            e.path()
+                .extension()
+                .is_some_and(|i| i.eq_ignore_ascii_case("java"))
+        })
         .filter_map(|e| e.path().to_str().map(ToString::to_string))
-        .filter(|e| e.eq_ignore_ascii_case(".java"))
         .filter_map(
-            |p| match load_java_fs(p.as_str(), SourceDestination::Here((&p).into())) {
+            |p| match load_java_fs(&p, SourceDestination::Here(p.clone())) {
                 Ok(c) => Some(c),
                 Err(e) => {
                     eprintln!("Unable to load java: {p}: {e:?}");

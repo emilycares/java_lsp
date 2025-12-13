@@ -38,10 +38,85 @@ fn thing(thing: &AstThing, point: &AstPoint) -> Option<FoundClass> {
     match &thing {
         AstThing::Class(ast_class) => get_class_cblock(&ast_class.block, point),
         AstThing::Record(ast_record) => get_class_cblock(&ast_record.block, point),
-        AstThing::Interface(_ast_interface) => todo!(),
+        AstThing::Interface(interface) => get_class_interface(interface, point),
         AstThing::Enumeration(_ast_enumeration) => todo!(),
         AstThing::Annotation(_ast_annotation) => todo!(),
     }
+}
+
+fn get_class_interface(
+    interface: &ast::types::AstInterface,
+    point: &AstPoint,
+) -> Option<FoundClass> {
+    for m in &interface.methods {
+        if !m.range.is_in_range(point) {
+            continue;
+        }
+        for ano in &m.header.annotated {
+            if !ano.range.is_in_range(point) {
+                continue;
+            }
+
+            if let Some(c) = get_class_identifier(&ano.name, point) {
+                return Some(c);
+            }
+        }
+
+        if let Some(o) = get_class_jtype(&m.header.jtype, point) {
+            return Some(o);
+        }
+        if m.header.parameters.range.is_in_range(point) {
+            for p in &m.header.parameters.parameters {
+                if let Some(o) = get_class_jtype(&p.jtype, point) {
+                    return Some(o);
+                }
+            }
+        }
+    }
+    for m in &interface.default_methods {
+        if !m.range.is_in_range(point) {
+            continue;
+        }
+        for ano in &m.header.annotated {
+            if !ano.range.is_in_range(point) {
+                continue;
+            }
+
+            if let Some(c) = get_class_identifier(&ano.name, point) {
+                return Some(c);
+            }
+        }
+
+        if let Some(o) = get_class_jtype(&m.header.jtype, point) {
+            return Some(o);
+        }
+        if m.header.parameters.range.is_in_range(point) {
+            for p in &m.header.parameters.parameters {
+                if let Some(o) = get_class_jtype(&p.jtype, point) {
+                    return Some(o);
+                }
+            }
+        }
+
+        if let Some(b) = get_class_block(&m.block, point) {
+            return Some(b);
+        }
+    }
+    for v in &interface.constants {
+        if !v.range.is_in_range(point) {
+            continue;
+        }
+
+        if let Some(o) = get_class_jtype(&v.jtype, point) {
+            return Some(o);
+        }
+        if let Some(ex) = &v.expression
+            && let Some(o) = get_class_expression(ex, point)
+        {
+            return Some(o);
+        }
+    }
+    None
 }
 
 fn get_class_cblock(block: &ast::types::AstClassBlock, point: &AstPoint) -> Option<FoundClass> {

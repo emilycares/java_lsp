@@ -8,7 +8,7 @@ pub fn load_project_folders() -> Vec<Class> {
     };
 
     out.extend(loader::load_java_files(current_dir.join("src/main/java")));
-    out.extend(loader::load_java_files(current_dir.join("src/text/java")));
+    out.extend(loader::load_java_files(current_dir.join("src/test/java")));
 
     // list modules
     // mvn help:evaluate -Dexpression=project.modules
