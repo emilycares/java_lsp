@@ -59,7 +59,7 @@ AstFile {
                         col: 1,
                     },
                 },
-                avaliability: AstAvailability(
+                availability: AstAvailability(
                     Public,
                 ),
                 attributes: AstThingAttributes(
@@ -96,7 +96,7 @@ AstFile {
                                     col: 29,
                                 },
                             },
-                            avaliability: AstAvailability(
+                            availability: AstAvailability(
                                 Public,
                             ),
                             annotated: [],
@@ -127,7 +127,7 @@ AstFile {
                                 value: Int,
                             },
                             expression: None,
-                            volatile_transient: AstVolatileTranient(
+                            volatile_transient: AstVolatileTransient(
                                 0x0,
                             ),
                         },
@@ -142,7 +142,7 @@ AstFile {
                                     col: 31,
                                 },
                             },
-                            avaliability: AstAvailability(
+                            availability: AstAvailability(
                                 Private,
                             ),
                             annotated: [],
@@ -173,7 +173,7 @@ AstFile {
                                 value: Int,
                             },
                             expression: None,
-                            volatile_transient: AstVolatileTranient(
+                            volatile_transient: AstVolatileTransient(
                                 0x0,
                             ),
                         },
@@ -188,7 +188,7 @@ AstFile {
                                     col: 31,
                                 },
                             },
-                            avaliability: AstAvailability(
+                            availability: AstAvailability(
                                 Private,
                             ),
                             annotated: [],
@@ -219,7 +219,7 @@ AstFile {
                                 value: Int,
                             },
                             expression: None,
-                            volatile_transient: AstVolatileTranient(
+                            volatile_transient: AstVolatileTransient(
                                 0x0,
                             ),
                         },

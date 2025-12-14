@@ -16,7 +16,7 @@ use crate::{
 pub fn parse_interface(
     tokens: &[PositionToken],
     pos: usize,
-    avaliability: AstAvailability,
+    availability: AstAvailability,
     attributes: AstThingAttributes,
     annotated: Vec<AstAnnotated>,
 ) -> Result<(AstThing, usize), AstError> {
@@ -122,7 +122,7 @@ pub fn parse_interface(
         AstThing::Interface(AstInterface {
             range: AstRange::from_position_token(start, end),
             attributes,
-            avaliability,
+            availability,
             annotated,
             name,
             type_parameters,
@@ -144,16 +144,16 @@ pub fn parse_interface_constant(
 ) -> Result<(Vec<AstInterfaceConstant>, usize), AstError> {
     let start = tokens.start(pos)?;
     let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
-    let mut avaliability = AstAvailability::empty();
+    let mut availability = AstAvailability::empty();
     let mut pos = pos;
     loop {
         let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
-            Token::Public => avaliability |= AstAvailability::Public,
-            Token::Private => avaliability |= AstAvailability::Private,
-            Token::Protected => avaliability |= AstAvailability::Protected,
-            Token::Static => avaliability |= AstAvailability::Static,
-            Token::Final => avaliability |= AstAvailability::Final,
+            Token::Public => availability |= AstAvailability::Public,
+            Token::Private => availability |= AstAvailability::Private,
+            Token::Protected => availability |= AstAvailability::Protected,
+            Token::Static => availability |= AstAvailability::Static,
+            Token::Final => availability |= AstAvailability::Final,
             Token::At => {
                 let (annotated_after, npos) = parse_annotated_list(tokens, pos)?;
                 pos = npos;
@@ -171,7 +171,7 @@ pub fn parse_interface_constant(
         tokens,
         start,
         &annotated,
-        avaliability.clone(),
+        availability.clone(),
         &jtype,
         pos,
     )?;
@@ -182,7 +182,7 @@ pub fn parse_interface_constant(
             tokens,
             start,
             &annotated,
-            avaliability.clone(),
+            availability.clone(),
             &jtype,
             npos,
         )?;
@@ -197,7 +197,7 @@ fn parse_interface_constant_base(
     tokens: &[PositionToken],
     start: &PositionToken,
     annotated: &[AstAnnotated],
-    avaliability: AstAvailability,
+    availability: AstAvailability,
     jtype: &AstJType,
     pos: usize,
 ) -> Result<(AstInterfaceConstant, usize), AstError> {
@@ -212,7 +212,7 @@ fn parse_interface_constant_base(
                 annotated: annotated.to_owned(),
                 jtype,
                 name,
-                avaliability,
+                availability,
                 expression: None,
             },
             pos,
@@ -227,7 +227,7 @@ fn parse_interface_constant_base(
             annotated: annotated.to_owned(),
             jtype,
             name,
-            avaliability,
+            availability,
             expression: Some(expression),
         },
         pos,
@@ -260,14 +260,14 @@ pub fn parse_interface_method_impl(
 ) -> Result<(AstInterfaceMethodDefault, usize), AstError> {
     let start = tokens.start(pos)?;
     let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
-    let mut avaliability = AstAvailability::empty();
+    let mut availability = AstAvailability::empty();
     let mut pos = pos;
     loop {
         let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
-            Token::Public => avaliability |= AstAvailability::Public,
-            Token::Private => avaliability |= AstAvailability::Private,
-            Token::Protected => avaliability |= AstAvailability::Protected,
+            Token::Public => availability |= AstAvailability::Public,
+            Token::Private => availability |= AstAvailability::Private,
+            Token::Protected => availability |= AstAvailability::Protected,
             Token::Default => (),
             Token::At => {
                 let (annotated_after, npos) = parse_annotated_list(tokens, pos)?;
@@ -279,7 +279,7 @@ pub fn parse_interface_method_impl(
         }
         pos += 1;
     }
-    let (header, pos) = parse_method_header(tokens, pos, avaliability)?;
+    let (header, pos) = parse_method_header(tokens, pos, availability)?;
     let (block, pos) = parse_block(tokens, pos)?;
     let end = tokens.end(pos)?;
     Ok((

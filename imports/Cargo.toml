@@ -10,7 +10,7 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
-document = { path = "../document" }
+ast = { path = "../ast" }
 parser = { path = "../parser"}
 
 [dev-dependencies]

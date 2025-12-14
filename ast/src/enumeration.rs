@@ -18,7 +18,7 @@ use crate::{
 pub fn parse_enumeration(
     tokens: &[PositionToken],
     pos: usize,
-    avaliability: AstAvailability,
+    availability: AstAvailability,
     attributes: AstThingAttributes,
     annotated: Vec<AstAnnotated>,
 ) -> Result<(AstThing, usize), AstError> {
@@ -107,7 +107,7 @@ pub fn parse_enumeration(
     Ok((
         AstThing::Enumeration(AstEnumeration {
             range: AstRange::from_position_token(start, end),
-            avaliability,
+            availability,
             attributes,
             annotated,
             name,

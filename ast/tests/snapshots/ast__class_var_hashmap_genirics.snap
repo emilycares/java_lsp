@@ -15,7 +15,7 @@ expression: parsed
                     col: 75,
                 },
             },
-            avaliability: AstAvailability(
+            availability: AstAvailability(
                 Private,
             ),
             annotated: [],
@@ -193,7 +193,7 @@ expression: parsed
                     ),
                 ],
             ),
-            volatile_transient: AstVolatileTranient(
+            volatile_transient: AstVolatileTransient(
                 0x0,
             ),
         },

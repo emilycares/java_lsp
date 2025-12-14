@@ -34,7 +34,7 @@ pub fn parse_record(
     Ok((
         AstThing::Record(AstRecord {
             range: AstRange::from_position_token(start, end),
-            avaliability,
+            availability: avaliability,
             attributes,
             annotated,
             name,

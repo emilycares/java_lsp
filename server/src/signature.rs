@@ -26,7 +26,7 @@ pub fn signature_driver(
     class_map: &DashMap<MyString, parser::dto::Class>,
 ) -> Result<SignatureHelp, SignatureError> {
     let call_chain = call_chain::get_call_chain(&document.ast, point);
-    let imports = imports::imports(document);
+    let imports = imports::imports(&document.ast);
     let vars = variables::get_vars(&document.ast, point).map_err(SignatureError::Variables)?;
     get_signature(&call_chain, &imports, &vars, class, class_map)
 }

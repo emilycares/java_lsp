@@ -11,11 +11,11 @@ use ast::range::{AstInRange, GetRange, add_ranges};
 use ast::types::{
     AstAnnotated, AstAnnotatedParameter, AstAnnotatedParameterKind, AstBlock, AstBlockEntry,
     AstBlockVariable, AstCastedExpression, AstClassBlock, AstExpressionIdentifier,
-    AstExpressionKind, AstExpressionOperator, AstExpressionOrDefault, AstExpressionOrValue,
-    AstExpresssionOrAnnotated, AstFile, AstForContent, AstIdentifier, AstIf, AstIfContent,
-    AstJType, AstJTypeKind, AstLambdaRhs, AstNewClass, AstNewRhs, AstPoint, AstRange,
-    AstRecursiveExpression, AstSuperClass, AstSwitchCaseArrowContent, AstThing, AstValue,
-    AstValueNuget, AstValues, AstValuesWithAnnotated, AstWhileContent,
+    AstExpressionKind, AstExpressionOperator, AstExpressionOrAnnotated, AstExpressionOrDefault,
+    AstExpressionOrValue, AstFile, AstForContent, AstIdentifier, AstIf, AstIfContent, AstJType,
+    AstJTypeKind, AstLambdaRhs, AstNewClass, AstNewRhs, AstPoint, AstRange, AstRecursiveExpression,
+    AstSuperClass, AstSwitchCaseArrowContent, AstThing, AstValue, AstValueNuget, AstValues,
+    AstValuesWithAnnotated, AstWhileContent,
 };
 use my_string::MyString;
 
@@ -639,8 +639,8 @@ fn cc_array_with_annotated(
         .values
         .iter()
         .filter_map(|i| match i {
-            AstExpresssionOrAnnotated::Expression(ast_expression) => Some(ast_expression),
-            AstExpresssionOrAnnotated::Annotated(_) => None,
+            AstExpressionOrAnnotated::Expression(ast_expression) => Some(ast_expression),
+            AstExpressionOrAnnotated::Annotated(_) => None,
         })
         .for_each(|i| cc_expr(i, point, false, out));
 }
@@ -838,7 +838,7 @@ fn cc_recursive_next_oprerator(
         | AstExpressionOperator::Equal(_)
         | AstExpressionOperator::NotEqual(_)
         | AstExpressionOperator::Multiply(_)
-        | AstExpressionOperator::Devide(_)
+        | AstExpressionOperator::Divide(_)
         | AstExpressionOperator::Modulo(_)
         | AstExpressionOperator::Le(_)
         | AstExpressionOperator::Lt(_)
@@ -867,7 +867,7 @@ fn cc_recursive_next_oprerator(
         | AstExpressionOperator::QuestionMark(_)
         | AstExpressionOperator::Colon(_)
         | AstExpressionOperator::Dot(_)
-        | AstExpressionOperator::ExclemationMark(_) => {
+        | AstExpressionOperator::ExclamationMark(_) => {
             if let Some(ident) = &current.ident {
                 let has_args = next.values.is_some();
                 cc_expr_ident(ident, has_args, has_parent, point, out);

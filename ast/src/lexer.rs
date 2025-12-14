@@ -224,7 +224,7 @@ impl fmt::Display for Token {
             Self::For => write!(f, "for"),
             Self::Break => write!(f, "break"),
             Self::Continue => write!(f, "continue"),
-            Self::Switch => write!(f, "swtich"),
+            Self::Switch => write!(f, "switch"),
             Self::Case => write!(f, "case"),
             Self::Do => write!(f, "do"),
             Self::Try => write!(f, "try"),
@@ -393,7 +393,7 @@ pub enum Token {
     Static,
     /// final
     Final,
-    /// defautl
+    /// default
     Default,
     /// [
     LeftParenSquare,
@@ -486,8 +486,8 @@ pub enum Token {
 /// Error during lex function
 #[derive(Debug, PartialEq, Eq)]
 pub enum LexerError {
-    /// Not implmented
-    UnknwonChar(char),
+    /// Not implemented char
+    UnknownChar(char),
 }
 
 static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
@@ -558,10 +558,20 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
     "opens" => Token::Opens,
     "open" => Token::Open,
 };
-
 /// Output token vec for document
 pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
     let mut tokens = Vec::new();
+
+    lex_mut(input, &mut tokens)?;
+
+    Ok(tokens)
+}
+
+/// Fill tokens vec with tokens for document
+///
+/// Use this instead of `lex` if there is already a vec of tokens that can be reused
+pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), LexerError> {
+    tokens.clear();
     let chars: Vec<char> = input.chars().collect();
     let mut line = 0;
     let mut col = 0;
@@ -1110,12 +1120,12 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
                 col += len;
                 continue;
             }
-            _ => return Err(LexerError::UnknwonChar(*ch)),
+            _ => return Err(LexerError::UnknownChar(*ch)),
         }
         index += 1;
     }
 
-    Ok(tokens)
+    Ok(())
 }
 
 /// tests

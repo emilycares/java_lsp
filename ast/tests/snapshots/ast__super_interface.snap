@@ -168,7 +168,7 @@ AstFile {
                         col: 1,
                     },
                 },
-                avaliability: AstAvailability(
+                availability: AstAvailability(
                     Public,
                 ),
                 attributes: AstThingAttributes(
@@ -329,7 +329,7 @@ AstFile {
                                     col: 30,
                                 },
                             },
-                            avaliability: AstAvailability(
+                            availability: AstAvailability(
                                 0x0,
                             ),
                             name: AstIdentifier {
@@ -401,7 +401,7 @@ AstFile {
                                     ],
                                 ),
                             },
-                            parameters: AstMethodParamerters {
+                            parameters: AstMethodParameters {
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 9,

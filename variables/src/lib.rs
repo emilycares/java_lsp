@@ -8,7 +8,7 @@
 use ast::types::{
     AstBlock, AstBlockEntry, AstBlockExpression, AstBlockVariable, AstClassMethod, AstExpression,
     AstExpressionKind, AstFile, AstFor, AstForContent, AstForEnhanced, AstIf, AstIfContent,
-    AstInterfaceConstant, AstLambda, AstLambdaRhs, AstMethodParamerter, AstPoint, AstRange,
+    AstInterfaceConstant, AstLambda, AstLambdaRhs, AstMethodParameter, AstPoint, AstRange,
     AstRecursiveExpression, AstSwitch, AstSwitchCaseArrowContent, AstThing, AstTryCatch, AstWhile,
     AstWhileContent,
 };
@@ -48,7 +48,7 @@ impl LocalVariable {
         }
     }
 
-    fn from_method_parameter(parameter: &AstMethodParamerter, level: usize) -> Self {
+    fn from_method_parameter(parameter: &AstMethodParameter, level: usize) -> Self {
         Self {
             level,
             jtype: (&parameter.jtype).into(),

@@ -21,7 +21,7 @@ expression: parsed
                             col: 5,
                         },
                     },
-                    avaliability: AstAvailability(
+                    availability: AstAvailability(
                         0x0,
                     ),
                     attributes: AstThingAttributes(

@@ -161,7 +161,7 @@ pub struct AstModuleProvides {
 #[derive(Debug, Clone)]
 pub struct AstClass {
     pub range: AstRange,
-    pub avaliability: AstAvailability,
+    pub availability: AstAvailability,
     pub attributes: AstThingAttributes,
     pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
@@ -174,7 +174,7 @@ pub struct AstClass {
 #[derive(Debug, Clone)]
 pub struct AstRecord {
     pub range: AstRange,
-    pub avaliability: AstAvailability,
+    pub availability: AstAvailability,
     pub attributes: AstThingAttributes,
     pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
@@ -207,7 +207,7 @@ pub struct AstClassBlock {
 }
 bitflags! {
    #[derive(PartialEq, Eq, Debug, Clone)]
-   pub struct AstVolatileTranient: u8 {
+   pub struct AstVolatileTransient: u8 {
      const Volatile  = 0b0000_0001;
      const Transient = 0b0000_0010;
    }
@@ -216,12 +216,12 @@ bitflags! {
 #[derive(Debug, Clone)]
 pub struct AstClassVariable {
     pub range: AstRange,
-    pub avaliability: AstAvailability,
+    pub availability: AstAvailability,
     pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
     pub jtype: AstJType,
     pub expression: Option<AstExpression>,
-    pub volatile_transient: AstVolatileTranient,
+    pub volatile_transient: AstVolatileTransient,
 }
 
 #[derive(Debug, Clone)]
@@ -238,10 +238,10 @@ pub struct AstStaticBlock {
 #[derive(Debug, Clone)]
 pub struct AstMethodHeader {
     pub range: AstRange,
-    pub avaliability: AstAvailability,
+    pub availability: AstAvailability,
     pub name: AstIdentifier,
     pub jtype: AstJType,
-    pub parameters: AstMethodParamerters,
+    pub parameters: AstMethodParameters,
     pub throws: Option<AstThrowsDeclaration>,
     pub type_parameters: Option<AstTypeParameters>,
     pub annotated: Vec<AstAnnotated>,
@@ -260,20 +260,20 @@ pub struct AstClassConstructor {
 #[derive(Debug, Clone)]
 pub struct AstConstructorHeader {
     pub range: AstRange,
-    pub avaliability: AstAvailability,
+    pub availability: AstAvailability,
     pub name: AstIdentifier,
-    pub parameters: AstMethodParamerters,
+    pub parameters: AstMethodParameters,
     pub throws: Option<AstThrowsDeclaration>,
     pub type_parameters: Option<AstTypeParameters>,
     pub annotated: Vec<AstAnnotated>,
 }
 #[derive(Debug, Clone)]
-pub struct AstMethodParamerters {
+pub struct AstMethodParameters {
     pub range: AstRange,
-    pub parameters: Vec<AstMethodParamerter>,
+    pub parameters: Vec<AstMethodParameter>,
 }
 #[derive(Debug, Clone)]
-pub struct AstMethodParamerter {
+pub struct AstMethodParameter {
     pub range: AstRange,
     pub annotated: Vec<AstAnnotated>,
     pub jtype: AstJType,
@@ -439,7 +439,7 @@ pub struct AstTryCatch {
 #[derive(Debug, Clone)]
 pub struct AstTryCatchCase {
     pub range: AstRange,
-    pub variable: AstBlockVariableMutliType,
+    pub variable: AstBlockVariableMultiType,
     pub block: AstBlock,
 }
 #[derive(Debug, Clone)]
@@ -475,7 +475,7 @@ pub struct AstBlockVariable {
 }
 
 #[derive(Debug, Clone)]
-pub struct AstBlockVariableMutliType {
+pub struct AstBlockVariableMultiType {
     pub range: AstRange,
     pub fin: bool,
     pub name: AstIdentifier,
@@ -589,7 +589,7 @@ pub enum AstAnnotatedParameterKind {
 #[derive(Debug, Clone)]
 pub struct AstAnnotation {
     pub range: AstRange,
-    pub avaliability: AstAvailability,
+    pub availability: AstAvailability,
     pub attributes: AstThingAttributes,
     pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
@@ -599,7 +599,7 @@ pub struct AstAnnotation {
 #[derive(Debug, Clone)]
 pub struct AstAnnotationField {
     pub range: AstRange,
-    pub avaliability: AstAvailability,
+    pub availability: AstAvailability,
     pub annotated: Vec<AstAnnotated>,
     pub jtype: AstJType,
     pub name: AstIdentifier,
@@ -609,7 +609,7 @@ pub struct AstAnnotationField {
 #[derive(Debug, Clone)]
 pub struct AstInterface {
     pub range: AstRange,
-    pub avaliability: AstAvailability,
+    pub availability: AstAvailability,
     pub attributes: AstThingAttributes,
     pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
@@ -795,10 +795,10 @@ pub struct AstValues {
 #[derive(Debug, Clone)]
 pub struct AstValuesWithAnnotated {
     pub range: AstRange,
-    pub values: Vec<AstExpresssionOrAnnotated>,
+    pub values: Vec<AstExpressionOrAnnotated>,
 }
 #[derive(Debug, Clone)]
-pub enum AstExpresssionOrAnnotated {
+pub enum AstExpressionOrAnnotated {
     Expression(AstExpression),
     Annotated(AstAnnotated),
 }
@@ -873,14 +873,14 @@ pub enum AstExpressionOperator {
     Equal(AstRange),
     NotEqual(AstRange),
     Multiply(AstRange),
-    Devide(AstRange),
+    Divide(AstRange),
     Modulo(AstRange),
     Le(AstRange),
     Lt(AstRange),
     Ge(AstRange),
     Gt(AstRange),
     Dot(AstRange),
-    ExclemationMark(AstRange),
+    ExclamationMark(AstRange),
     Ampersand(AstRange),
     AmpersandAmpersand(AstRange),
     VerticalBar(AstRange),
@@ -914,7 +914,7 @@ pub struct AstExtends {
 pub struct AstInterfaceConstant {
     pub range: AstRange,
     pub annotated: Vec<AstAnnotated>,
-    pub avaliability: AstAvailability,
+    pub availability: AstAvailability,
     pub name: AstIdentifier,
     pub jtype: AstJType,
     pub expression: Option<AstExpression>,
@@ -936,7 +936,7 @@ pub struct AstInterfaceMethodDefault {
 #[derive(Debug, Clone)]
 pub struct AstEnumeration {
     pub range: AstRange,
-    pub avaliability: AstAvailability,
+    pub availability: AstAvailability,
     pub attributes: AstThingAttributes,
     pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,

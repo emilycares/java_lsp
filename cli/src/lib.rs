@@ -5,6 +5,7 @@ use std::time::Instant;
 use std::{fs::canonicalize, path::PathBuf};
 
 use ast::error::PrintErr;
+use ast::lexer::PositionToken;
 use clap::{Parser, Subcommand};
 
 #[derive(Debug)]
@@ -45,10 +46,10 @@ pub enum Commands {
     AstCheckJdk,
 }
 
-pub async fn ast_check_async(file: PathBuf, num: usize) {
+pub async fn ast_check_async(file: PathBuf, num: usize, tokens: &mut Vec<PositionToken>) {
     match tokio::fs::read_to_string(&file).await {
         Ok(text) => {
-            lex_and_ast(&file, &text, num);
+            lex_and_ast(&file, &text, num, tokens);
         }
         Err(e) => {
             eprintln!("unable to open file: {:?}", e);
@@ -56,7 +57,7 @@ pub async fn ast_check_async(file: PathBuf, num: usize) {
         }
     }
 }
-pub fn ast_check(path: &PathBuf, num: usize) {
+pub fn ast_check(path: &PathBuf, num: usize, tokens: &mut Vec<PositionToken>) {
     use std::{fs::File, str::from_utf8};
 
     match File::open(path) {
@@ -69,7 +70,7 @@ pub fn ast_check(path: &PathBuf, num: usize) {
                         .expect("memmap advice to be accepted");
                     match from_utf8(&mmap[..]) {
                         Ok(text) => {
-                            lex_and_ast(path, text, num);
+                            lex_and_ast(path, text, num, tokens);
                         }
                         Err(e) => {
                             eprintln!("invalid utf8: {:?}", e);
@@ -90,14 +91,14 @@ pub fn ast_check(path: &PathBuf, num: usize) {
     };
 }
 
-fn lex_and_ast(file: &PathBuf, text: &str, num: usize) {
+fn lex_and_ast(file: &PathBuf, text: &str, num: usize, tokens: &mut Vec<PositionToken>) {
     // eprintln!("[{num}]Here: {:?}", file);
-    match ast::lexer::lex(text) {
-        Ok(tokens) => {
-            let ast = ast::parse_file(&tokens);
+    match ast::lexer::lex_mut(text, tokens) {
+        Ok(_) => {
+            let ast = ast::parse_file(tokens);
             if ast.is_err() {
                 eprintln!("[{num}]Here: {:?}", file);
-                ast.print_err(text, &tokens);
+                ast.print_err(text, tokens);
                 std::process::exit(3);
             }
         }
@@ -111,7 +112,8 @@ fn lex_and_ast(file: &PathBuf, text: &str, num: usize) {
 pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
     let mut count = 0;
     let time = Instant::now();
-    for i in jwalk::WalkDir::new(canonicalize(folder).expect("Cannonicalize fail"))
+    let mut tokens = Vec::new();
+    for i in jwalk::WalkDir::new(canonicalize(folder).expect("Canonicalize fail"))
         // Check in the same order always
         .sort(true)
         // .follow_links(true)
@@ -128,7 +130,7 @@ pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
         .enumerate()
     {
         count += 1;
-        ast_check(&i.1, i.0);
+        ast_check(&i.1, i.0, &mut tokens);
     }
     println!("Checked all files. {count}, in: {:.2?}", time.elapsed());
     Ok(())
@@ -137,7 +139,8 @@ pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
 pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<&str>) -> Result<(), CheckError> {
     let mut count = 0;
     let time = Instant::now();
-    for i in jwalk::WalkDir::new(canonicalize(folder).expect("Cannonicalize fail"))
+    let mut tokens = Vec::new();
+    for i in jwalk::WalkDir::new(canonicalize(folder).expect("Canonicalize fail"))
         // Check in the same order always
         .sort(true)
         // .follow_links(true)
@@ -161,7 +164,7 @@ pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<&str>) -> Result<
         .enumerate()
     {
         count += 1;
-        ast_check(&i.1, i.0);
+        ast_check(&i.1, i.0, &mut tokens);
     }
     println!("Checked all files. {count}, in: {:.2?}", time.elapsed());
     Ok(())
@@ -171,7 +174,8 @@ pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<&str>) -> Result<
 fn visit_java_fies(
     dir: &std::path::Path,
     index: usize,
-    cb: &dyn Fn(&PathBuf, usize),
+    tokens: &mut Vec<PositionToken>,
+    cb: &dyn Fn(&PathBuf, usize, &mut Vec<PositionToken>),
 ) -> Result<usize, CheckError> {
     if dir.is_dir() {
         let mut read_dir: Vec<_> = std::fs::read_dir(dir)
@@ -183,13 +187,13 @@ fn visit_java_fies(
         let mut index = index;
         for entry in read_dir.iter() {
             if entry.is_dir() {
-                let nindex = visit_java_fies(entry, index, cb)?;
+                let nindex = visit_java_fies(entry, index, tokens, cb)?;
                 index = nindex;
             } else if let Some(e) = entry.extension()
                 && e == "java"
             {
                 index += 1;
-                cb(entry, index);
+                cb(entry, index, tokens);
             }
         }
         return Ok(index);
@@ -199,10 +203,12 @@ fn visit_java_fies(
 #[cfg(target_os = "windows")]
 pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
     let time = Instant::now();
+    let mut tokens = Vec::new();
     visit_java_fies(
-        canonicalize(folder).expect("Cannonicalize fail").as_path(),
+        canonicalize(folder).map_err(CheckError::IO)?.as_path(),
         0,
-        &|i, index| ast_check(i, index),
+        &mut tokens,
+        &|i, index, tokens| ast_check(i, index, tokens),
     )?;
     println!("Checked all files. in: {:.2?}", time.elapsed());
     Ok(())
@@ -210,10 +216,12 @@ pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
 #[cfg(target_os = "windows")]
 pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<&str>) -> Result<(), CheckError> {
     let time = Instant::now();
+    let mut tokens = Vec::new();
     visit_java_fies(
-        canonicalize(folder).expect("Cannonicalize fail").as_path(),
+        canonicalize(folder).map_err(CheckError::IO)?.as_path(),
         0,
-        &|i, index| {
+        &mut tokens,
+        &|i, index, tokens| {
             if let Some(s) = i.to_str() {
                 for ig in &ignore {
                     if s.contains(ig) {
@@ -221,7 +229,7 @@ pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<&str>) -> Result<
                     }
                 }
             }
-            ast_check(i, index)
+            ast_check(i, index, tokens)
         },
     )?;
     println!("Checked all files. in: {:.2?}", time.elapsed());
@@ -229,12 +237,12 @@ pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<&str>) -> Result<
 }
 
 pub fn lex(file: PathBuf) {
-    let text = std::fs::read_to_string(&file).expect("File shoul exist");
-    let tokens = ast::lexer::lex(&text).expect("Ok to crach if fail");
+    let text = std::fs::read_to_string(&file).expect("File should exist");
+    let tokens = ast::lexer::lex(&text).expect("Ok to cratch if fail");
     eprintln!("{:?}", tokens);
 }
 pub fn lex_pos(file: PathBuf, pos: usize) {
-    let text = std::fs::read_to_string(&file).expect("File shoul exist");
-    let tokens = ast::lexer::lex(&text).expect("Ok to crach if fail");
+    let text = std::fs::read_to_string(&file).expect("File should exist");
+    let tokens = ast::lexer::lex(&text).expect("Ok to cratch if fail");
     eprintln!("{:?}", tokens[pos]);
 }

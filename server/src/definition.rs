@@ -265,7 +265,7 @@ public class Test {
         let class =
             parser::java::load_java_tree(&document.ast, parser::SourceDestination::None).unwrap();
         let vars = variables::get_vars(&document.ast, &point).unwrap();
-        let imports = imports::imports(&document);
+        let imports = imports::imports(&document.ast);
         let call_chain = call_chain::get_call_chain(&document.ast, &point);
         let context = DefinitionContext {
             document_uri,
@@ -306,7 +306,7 @@ public class Test {
         let class =
             parser::java::load_java_tree(&document.ast, parser::SourceDestination::None).unwrap();
         let vars = variables::get_vars(&document.ast, &point).unwrap();
-        let imports = imports::imports(&document);
+        let imports = imports::imports(&document.ast);
         let call_chain = call_chain::get_call_chain(&document.ast, &point);
         let context = DefinitionContext {
             document_uri,

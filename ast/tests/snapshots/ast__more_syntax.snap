@@ -59,7 +59,7 @@ AstFile {
                         col: 1,
                     },
                 },
-                avaliability: AstAvailability(
+                availability: AstAvailability(
                     Public,
                 ),
                 attributes: AstThingAttributes(
@@ -108,7 +108,7 @@ AstFile {
                                         col: 42,
                                     },
                                 },
-                                avaliability: AstAvailability(
+                                availability: AstAvailability(
                                     Public | Static | Protected,
                                 ),
                                 name: AstIdentifier {
@@ -137,7 +137,7 @@ AstFile {
                                     },
                                     value: Void,
                                 },
-                                parameters: AstMethodParamerters {
+                                parameters: AstMethodParameters {
                                     range: AstRange {
                                         start: AstPoint {
                                             line: 2,
@@ -149,7 +149,7 @@ AstFile {
                                         },
                                     },
                                     parameters: [
-                                        AstMethodParamerter {
+                                        AstMethodParameter {
                                             range: AstRange {
                                                 start: AstPoint {
                                                     line: 2,
@@ -3218,7 +3218,7 @@ AstFile {
                                                                     },
                                                                     ident: None,
                                                                     values: None,
-                                                                    operator: Devide(
+                                                                    operator: Divide(
                                                                         AstRange {
                                                                             start: AstPoint {
                                                                                 line: 26,
@@ -4156,7 +4156,7 @@ AstFile {
                                                             },
                                                             ident: None,
                                                             values: None,
-                                                            operator: ExclemationMark(
+                                                            operator: ExclamationMark(
                                                                 AstRange {
                                                                     start: AstPoint {
                                                                         line: 35,
@@ -4511,7 +4511,7 @@ AstFile {
                                                             },
                                                             ident: None,
                                                             values: None,
-                                                            operator: ExclemationMark(
+                                                            operator: ExclamationMark(
                                                                 AstRange {
                                                                     start: AstPoint {
                                                                         line: 37,
@@ -4592,7 +4592,7 @@ AstFile {
                                                             },
                                                             ident: None,
                                                             values: None,
-                                                            operator: ExclemationMark(
+                                                            operator: ExclamationMark(
                                                                 AstRange {
                                                                     start: AstPoint {
                                                                         line: 38,
@@ -5931,7 +5931,7 @@ AstFile {
                                                                 col: 9,
                                                             },
                                                         },
-                                                        variable: AstBlockVariableMutliType {
+                                                        variable: AstBlockVariableMultiType {
                                                             range: AstRange {
                                                                 start: AstPoint {
                                                                     line: 62,
@@ -6536,7 +6536,7 @@ AstFile {
                                                                 col: 9,
                                                             },
                                                         },
-                                                        variable: AstBlockVariableMutliType {
+                                                        variable: AstBlockVariableMultiType {
                                                             range: AstRange {
                                                                 start: AstPoint {
                                                                     line: 68,
@@ -7248,7 +7248,7 @@ AstFile {
                                                                 col: 9,
                                                             },
                                                         },
-                                                        variable: AstBlockVariableMutliType {
+                                                        variable: AstBlockVariableMultiType {
                                                             range: AstRange {
                                                                 start: AstPoint {
                                                                     line: 75,
@@ -7456,7 +7456,7 @@ AstFile {
                                                                 col: 9,
                                                             },
                                                         },
-                                                        variable: AstBlockVariableMutliType {
+                                                        variable: AstBlockVariableMultiType {
                                                             range: AstRange {
                                                                 start: AstPoint {
                                                                     line: 77,
@@ -8453,7 +8453,7 @@ AstFile {
                                                                 col: 9,
                                                             },
                                                         },
-                                                        variable: AstBlockVariableMutliType {
+                                                        variable: AstBlockVariableMultiType {
                                                             range: AstRange {
                                                                 start: AstPoint {
                                                                     line: 87,
@@ -10684,7 +10684,7 @@ AstFile {
                                                                                                 col: 32,
                                                                                             },
                                                                                         },
-                                                                                        avaliability: AstAvailability(
+                                                                                        availability: AstAvailability(
                                                                                             Public | Protected,
                                                                                         ),
                                                                                         name: AstIdentifier {
@@ -10713,7 +10713,7 @@ AstFile {
                                                                                             },
                                                                                             value: Void,
                                                                                         },
-                                                                                        parameters: AstMethodParamerters {
+                                                                                        parameters: AstMethodParameters {
                                                                                             range: AstRange {
                                                                                                 start: AstPoint {
                                                                                                     line: 116,
@@ -11523,7 +11523,7 @@ AstFile {
                         col: 1,
                     },
                 },
-                avaliability: AstAvailability(
+                availability: AstAvailability(
                     0x0,
                 ),
                 attributes: AstThingAttributes(
@@ -11560,7 +11560,7 @@ AstFile {
                                     col: 14,
                                 },
                             },
-                            avaliability: AstAvailability(
+                            availability: AstAvailability(
                                 0x0,
                             ),
                             annotated: [],
@@ -11631,7 +11631,7 @@ AstFile {
                                     ),
                                 ],
                             ),
-                            volatile_transient: AstVolatileTranient(
+                            volatile_transient: AstVolatileTransient(
                                 0x0,
                             ),
                         },
@@ -11652,7 +11652,7 @@ AstFile {
                                         col: 3,
                                     },
                                 },
-                                avaliability: AstAvailability(
+                                availability: AstAvailability(
                                     0x0,
                                 ),
                                 attributes: AstThingAttributes(
@@ -11689,7 +11689,7 @@ AstFile {
                                                     col: 14,
                                                 },
                                             },
-                                            avaliability: AstAvailability(
+                                            availability: AstAvailability(
                                                 0x0,
                                             ),
                                             annotated: [],
@@ -11760,7 +11760,7 @@ AstFile {
                                                     ),
                                                 ],
                                             ),
-                                            volatile_transient: AstVolatileTranient(
+                                            volatile_transient: AstVolatileTransient(
                                                 0x0,
                                             ),
                                         },
@@ -11790,7 +11790,7 @@ AstFile {
                         col: 1,
                     },
                 },
-                avaliability: AstAvailability(
+                availability: AstAvailability(
                     Abstract,
                 ),
                 attributes: AstThingAttributes(
@@ -11839,7 +11839,7 @@ AstFile {
                                         col: 36,
                                     },
                                 },
-                                avaliability: AstAvailability(
+                                availability: AstAvailability(
                                     Public | Protected | Abstract,
                                 ),
                                 name: AstIdentifier {
@@ -11868,7 +11868,7 @@ AstFile {
                                     },
                                     value: Void,
                                 },
-                                parameters: AstMethodParamerters {
+                                parameters: AstMethodParameters {
                                     range: AstRange {
                                         start: AstPoint {
                                             line: 134,
@@ -11909,7 +11909,7 @@ AstFile {
                                         col: 21,
                                     },
                                 },
-                                avaliability: AstAvailability(
+                                availability: AstAvailability(
                                     Public | Protected,
                                 ),
                                 name: AstIdentifier {
@@ -11938,7 +11938,7 @@ AstFile {
                                     },
                                     value: Void,
                                 },
-                                parameters: AstMethodParamerters {
+                                parameters: AstMethodParameters {
                                     range: AstRange {
                                         start: AstPoint {
                                             line: 135,

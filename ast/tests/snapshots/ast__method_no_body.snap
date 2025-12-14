@@ -25,7 +25,7 @@ expression: parsed
                     col: 39,
                 },
             },
-            avaliability: AstAvailability(
+            availability: AstAvailability(
                 Protected | Abstract,
             ),
             name: AstIdentifier {
@@ -68,7 +68,7 @@ expression: parsed
                     },
                 ),
             },
-            parameters: AstMethodParamerters {
+            parameters: AstMethodParameters {
                 range: AstRange {
                     start: AstPoint {
                         line: 0,
@@ -80,7 +80,7 @@ expression: parsed
                     },
                 },
                 parameters: [
-                    AstMethodParamerter {
+                    AstMethodParameter {
                         range: AstRange {
                             start: AstPoint {
                                 line: 0,

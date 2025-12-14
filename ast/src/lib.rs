@@ -17,11 +17,11 @@ use lexer::{PositionToken, Token};
 use my_string::MyString;
 use types::{
     AstAnnotated, AstAvailability, AstBlock, AstBlockAssign, AstBlockBreak, AstBlockContinue,
-    AstBlockEntry, AstBlockExpression, AstBlockReturn, AstBlockVariable, AstBlockVariableMutliType,
+    AstBlockEntry, AstBlockExpression, AstBlockReturn, AstBlockVariable, AstBlockVariableMultiType,
     AstBoolean, AstCastedExpression, AstDouble, AstExpression, AstExpressionIdentifier,
     AstExpressionOperator, AstExtends, AstFile, AstFor, AstForEnhanced, AstIdentifier, AstIf,
     AstIfContent, AstImport, AstImportUnit, AstImports, AstInt, AstJType, AstJTypeKind, AstLambda,
-    AstLambdaParameters, AstMethodHeader, AstMethodParamerter, AstMethodParamerters, AstNewClass,
+    AstLambdaParameters, AstMethodHeader, AstMethodParameter, AstMethodParameters, AstNewClass,
     AstPoint, AstRange, AstRecursiveExpression, AstSuperClass, AstSwitch, AstSwitchCase, AstThing,
     AstThrow, AstThrowsDeclaration, AstTryCatch, AstTryCatchCase, AstTypeParameters, AstValue,
     AstValueNuget, AstValues, AstWhile,
@@ -34,8 +34,8 @@ use crate::{
     record::parse_record,
     types::{
         AstAnnotatedParameter, AstAnnotatedParameterKind, AstBinaryLiteral, AstBlockAssert,
-        AstBlockYield, AstConstructorHeader, AstExpressionKind, AstExpressionOrDefault,
-        AstExpressionOrValue, AstExpresssionOrAnnotated, AstForContent, AstGenerics, AstHexLiteral,
+        AstBlockYield, AstConstructorHeader, AstExpressionKind, AstExpressionOrAnnotated,
+        AstExpressionOrDefault, AstExpressionOrValue, AstForContent, AstGenerics, AstHexLiteral,
         AstInlineBlock, AstInstanceOf, AstLambdaParameter, AstLambdaRhs, AstNewRhs, AstPackage,
         AstSwitchCaseArrowContent, AstSwitchCaseArrowDefault, AstSwitchCaseArrowType,
         AstSwitchCaseArrowValues, AstSwitchCaseArrowVar, AstSwitchDefault, AstSynchronizedBlock,
@@ -227,18 +227,18 @@ fn parse_import(tokens: &[PositionToken], pos: usize) -> Result<(AstImport, usiz
 ///`  public interface Constants { ...`
 pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, usize), AstError> {
     let (mut annotated, mut pos) = parse_annotated_list(tokens, pos)?;
-    let mut avaliability = AstAvailability::empty();
+    let mut availability = AstAvailability::empty();
     let mut attributes = AstThingAttributes::empty();
     loop {
         let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
-            Token::Public => avaliability |= AstAvailability::Public,
-            Token::Private => avaliability |= AstAvailability::Private,
-            Token::Protected => avaliability |= AstAvailability::Protected,
-            Token::Static => avaliability |= AstAvailability::Static,
-            Token::Final => avaliability |= AstAvailability::Final,
-            Token::Abstract => avaliability |= AstAvailability::Abstract,
-            Token::StrictFp => avaliability |= AstAvailability::StaticFp,
+            Token::Public => availability |= AstAvailability::Public,
+            Token::Private => availability |= AstAvailability::Private,
+            Token::Protected => availability |= AstAvailability::Protected,
+            Token::Static => availability |= AstAvailability::Static,
+            Token::Final => availability |= AstAvailability::Final,
+            Token::Abstract => availability |= AstAvailability::Abstract,
+            Token::StrictFp => availability |= AstAvailability::StaticFp,
             Token::Sealed => attributes |= AstThingAttributes::Sealed,
             Token::Non => {
                 if let Ok(npos) = assert_token(tokens, pos + 1, Token::Dash)
@@ -262,11 +262,11 @@ pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, us
     let t = tokens.get(pos).ok_or_else(AstError::eof)?;
     let pos = pos + 1;
     match t.token {
-        Token::Class => parse_class(tokens, pos, avaliability, attributes, annotated),
-        Token::Record => parse_record(tokens, pos, avaliability, attributes, annotated),
-        Token::Interface => parse_interface(tokens, pos, avaliability, attributes, annotated),
-        Token::Enum => parse_enumeration(tokens, pos, avaliability, attributes, annotated),
-        Token::AtInterface => parse_annotation(tokens, pos, avaliability, attributes, annotated),
+        Token::Class => parse_class(tokens, pos, availability, attributes, annotated),
+        Token::Record => parse_record(tokens, pos, availability, attributes, annotated),
+        Token::Interface => parse_interface(tokens, pos, availability, attributes, annotated),
+        Token::Enum => parse_enumeration(tokens, pos, availability, attributes, annotated),
+        Token::AtInterface => parse_annotation(tokens, pos, availability, attributes, annotated),
         _ => Err(AstError::ExpectedToken(ExpectedToken {
             pos,
             expected: Token::Class,
@@ -315,12 +315,12 @@ pub fn parse_annotated(
     let mut pos = pos;
     let mut errors = vec![];
     if assert_token(tokens, pos, Token::LeftParen).is_ok() {
-        'parmeters: {
+        'parameters: {
             match parse_annotated_parameters(tokens, pos) {
                 Ok((params, npos)) => {
                     parameters = AstAnnotatedParameterKind::Parameter(params);
                     pos = npos;
-                    break 'parmeters;
+                    break 'parameters;
                 }
                 Err(e) => errors.push(("parameters".into(), e)),
             }
@@ -328,7 +328,7 @@ pub fn parse_annotated(
                 Ok((array, npos)) => {
                     parameters = AstAnnotatedParameterKind::Array(array);
                     pos = npos;
-                    break 'parmeters;
+                    break 'parameters;
                 }
                 Err(e) => errors.push(("array".into(), e)),
             }
@@ -521,7 +521,7 @@ fn parse_array_with_annotated(
         match parse_annotated(tokens, pos) {
             Ok((an, npos)) => {
                 pos = npos;
-                values.push(AstExpresssionOrAnnotated::Annotated(an));
+                values.push(AstExpressionOrAnnotated::Annotated(an));
                 continue;
             }
             Err(e) => errors.push(("annotated".into(), e)),
@@ -529,7 +529,7 @@ fn parse_array_with_annotated(
         match parse_expression(tokens, pos, expression_options) {
             Ok((value, npos)) => {
                 pos = npos;
-                values.push(AstExpresssionOrAnnotated::Expression(value));
+                values.push(AstExpressionOrAnnotated::Expression(value));
                 continue;
             }
             Err(e) => errors.push(("expression".into(), e)),
@@ -815,7 +815,7 @@ fn parse_value_operator_options(
             Err(AstError::InvalidNuget(InvalidToken(pos)))
         }
         Token::ExclamationMark if expression_options != &ExpressionOptions::NoInlineIf => Ok((
-            AstExpressionOperator::ExclemationMark(AstRange::from_position_token(start, start)),
+            AstExpressionOperator::ExclamationMark(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
         Token::Dot => Ok((
@@ -827,7 +827,7 @@ fn parse_value_operator_options(
             pos + 1,
         )),
         Token::Slash => Ok((
-            AstExpressionOperator::Devide(AstRange::from_position_token(start, start)),
+            AstExpressionOperator::Divide(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
         Token::Percent => Ok((
@@ -942,7 +942,7 @@ fn parse_annotated_parameters(
                 continue;
             }
             Err(e) => {
-                errors.push(("exporession".into(), e));
+                errors.push(("expression".into(), e));
             }
         }
         match parse_annotated(tokens, pos) {
@@ -952,7 +952,7 @@ fn parse_annotated_parameters(
                 continue;
             }
             Err(e) => {
-                errors.push(("exporession".into(), e));
+                errors.push(("annotated".into(), e));
             }
         }
         return Err(AstError::AllChildrenFailed {
@@ -1445,7 +1445,7 @@ fn parse_variable_base(
 fn parse_block_variable_multi_type_no_semicolon(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(AstBlockVariableMutliType, usize), AstError> {
+) -> Result<(AstBlockVariableMultiType, usize), AstError> {
     let start = tokens.start(pos)?;
     let mut fin = false;
     let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
@@ -1486,7 +1486,7 @@ fn parse_block_variable_multi_type_no_semicolon(
     let end = tokens.end(pos)?;
 
     Ok((
-        AstBlockVariableMutliType {
+        AstBlockVariableMultiType {
             name,
             fin,
             jtypes,
@@ -1658,7 +1658,7 @@ fn parse_method_header(
     pos: usize,
     default_availability: AstAvailability,
 ) -> Result<(AstMethodHeader, usize), AstError> {
-    let mut avaliability = default_availability;
+    let mut availability = default_availability;
     let mut type_parameters = None;
     let start = tokens.start(pos)?;
     let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
@@ -1666,14 +1666,14 @@ fn parse_method_header(
     loop {
         let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
-            Token::Public => avaliability |= AstAvailability::Public,
-            Token::Private => avaliability |= AstAvailability::Private,
-            Token::Protected => avaliability |= AstAvailability::Protected,
-            Token::Synchronized => avaliability |= AstAvailability::Synchronized,
-            Token::Static => avaliability |= AstAvailability::Static,
-            Token::Final => avaliability |= AstAvailability::Final,
-            Token::Abstract => avaliability |= AstAvailability::Abstract,
-            Token::Native => avaliability |= AstAvailability::Native,
+            Token::Public => availability |= AstAvailability::Public,
+            Token::Private => availability |= AstAvailability::Private,
+            Token::Protected => availability |= AstAvailability::Protected,
+            Token::Synchronized => availability |= AstAvailability::Synchronized,
+            Token::Static => availability |= AstAvailability::Static,
+            Token::Final => availability |= AstAvailability::Final,
+            Token::Abstract => availability |= AstAvailability::Abstract,
+            Token::Native => availability |= AstAvailability::Native,
             Token::At => {
                 let (an, npos) = parse_annotated(tokens, pos)?;
                 annotated.push(an);
@@ -1692,7 +1692,7 @@ fn parse_method_header(
 
     let (jtype, pos) = parse_jtype(tokens, pos)?;
     let (name, pos) = parse_name(tokens, pos)?;
-    let (parameters, pos) = parse_method_paramerters(tokens, pos)?;
+    let (parameters, pos) = parse_method_parameters(tokens, pos)?;
     let mut pos = pos;
     let mut throws = None;
     if let Ok((nthrows, npos)) = parse_throws_declaration(tokens, pos) {
@@ -1703,7 +1703,7 @@ fn parse_method_header(
     Ok((
         AstMethodHeader {
             range: AstRange::from_position_token(start, end),
-            avaliability,
+            availability,
             type_parameters,
             name,
             annotated,
@@ -1742,7 +1742,7 @@ fn parse_constructor_header(
     pos: usize,
     default_availability: AstAvailability,
 ) -> Result<(AstConstructorHeader, usize), AstError> {
-    let mut avaliability = default_availability;
+    let mut availability = default_availability;
     let mut type_parameters = None;
     let start = tokens.start(pos)?;
     let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
@@ -1750,12 +1750,12 @@ fn parse_constructor_header(
     loop {
         let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
-            Token::Public => avaliability |= AstAvailability::Public,
-            Token::Private => avaliability |= AstAvailability::Private,
-            Token::Protected => avaliability |= AstAvailability::Protected,
-            Token::Synchronized => avaliability |= AstAvailability::Synchronized,
-            Token::Static => avaliability |= AstAvailability::Static,
-            Token::Final => avaliability |= AstAvailability::Final,
+            Token::Public => availability |= AstAvailability::Public,
+            Token::Private => availability |= AstAvailability::Private,
+            Token::Protected => availability |= AstAvailability::Protected,
+            Token::Synchronized => availability |= AstAvailability::Synchronized,
+            Token::Static => availability |= AstAvailability::Static,
+            Token::Final => availability |= AstAvailability::Final,
             Token::At => {
                 let (annotated_after, npos) = parse_annotated_list(tokens, pos)?;
                 pos = npos;
@@ -1773,7 +1773,7 @@ fn parse_constructor_header(
     }
 
     let (name, pos) = parse_name(tokens, pos)?;
-    let (parameters, pos) = parse_constructor_paramerters(tokens, pos)?;
+    let (parameters, pos) = parse_constructor_parameters(tokens, pos)?;
     let mut pos = pos;
     let mut throws = None;
     if let Ok((nthrows, npos)) = parse_throws_declaration(tokens, pos) {
@@ -1784,7 +1784,7 @@ fn parse_constructor_header(
     Ok((
         AstConstructorHeader {
             range: AstRange::from_position_token(start, end),
-            avaliability,
+            availability,
             type_parameters,
             name,
             parameters,
@@ -1921,7 +1921,7 @@ fn parse_block_brackets(
             }
         }
         if pos == start_pos {
-            eprintln!("No block enty was parsed: {:?}", tokens.get(pos));
+            eprintln!("No block entry was parsed: {:?}", tokens.get(pos));
             break;
         }
     }
@@ -2898,10 +2898,10 @@ fn parse_try_catch(tokens: &[PositionToken], pos: usize) -> Result<(AstTryCatch,
         pos,
     ))
 }
-fn parse_method_paramerters(
+fn parse_method_parameters(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(AstMethodParamerters, usize), AstError> {
+) -> Result<(AstMethodParameters, usize), AstError> {
     let start = tokens.start(pos)?;
     let pos = assert_token(tokens, pos, Token::LeftParen)?;
     let mut parameters = vec![];
@@ -2913,7 +2913,7 @@ fn parse_method_paramerters(
             early_exit = true;
             break 'l;
         }
-        match parse_method_paramerter(tokens, pos) {
+        match parse_method_parameter(tokens, pos) {
             Ok((parameter, npos)) => {
                 parameters.push(parameter);
                 pos = npos;
@@ -2932,22 +2932,22 @@ fn parse_method_paramerters(
     }
     let end = tokens.end(pos)?;
     Ok((
-        AstMethodParamerters {
+        AstMethodParameters {
             range: AstRange::from_position_token(start, end),
             parameters,
         },
         pos,
     ))
 }
-fn parse_constructor_paramerters(
+fn parse_constructor_parameters(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(AstMethodParamerters, usize), AstError> {
+) -> Result<(AstMethodParameters, usize), AstError> {
     let start = tokens.start(pos)?;
     let Ok(pos) = assert_token(tokens, pos, Token::LeftParen) else {
         let end = tokens.start(pos)?;
         return Ok((
-            AstMethodParamerters {
+            AstMethodParameters {
                 range: AstRange::from_position_token(start, end),
                 parameters: vec![],
             },
@@ -2963,7 +2963,7 @@ fn parse_constructor_paramerters(
             early_exit = true;
             break 'l;
         }
-        match parse_method_paramerter(tokens, pos) {
+        match parse_method_parameter(tokens, pos) {
             Ok((parameter, npos)) => {
                 parameters.push(parameter);
                 pos = npos;
@@ -2982,17 +2982,17 @@ fn parse_constructor_paramerters(
     }
     let end = tokens.end(pos)?;
     Ok((
-        AstMethodParamerters {
+        AstMethodParameters {
             range: AstRange::from_position_token(start, end),
             parameters,
         },
         pos,
     ))
 }
-fn parse_method_paramerter(
+fn parse_method_parameter(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(AstMethodParamerter, usize), AstError> {
+) -> Result<(AstMethodParameter, usize), AstError> {
     let start = tokens.start(pos)?;
     let mut fin = false;
     let mut variatic = false;
@@ -3012,7 +3012,7 @@ fn parse_method_paramerter(
     let pos = parse_array_type_on_name(tokens, pos, &mut jtype);
     let end = tokens.end(pos)?;
     Ok((
-        AstMethodParamerter {
+        AstMethodParameter {
             range: AstRange::from_position_token(start, end),
             annotated,
             jtype,
@@ -3252,7 +3252,7 @@ pub fn parse_name_single(
     ))
 }
 
-// Conatins Token::Identifier, Token::Dot
+// Contains Token::Identifier, Token::Dot
 fn parse_identifier(
     tokens: &[PositionToken],
     pos: usize,
@@ -3329,7 +3329,7 @@ fn parse_implements(
     let Ok(pos) = assert_token(tokens, pos, Token::Implements) else {
         return Ok((vec![], pos));
     };
-    let (out, pos) = parse_comma_seperated_jtype(tokens, pos)?;
+    let (out, pos) = parse_comma_separated_jtype(tokens, pos)?;
 
     Ok((out, pos))
 }
@@ -3338,12 +3338,12 @@ fn parse_permits(tokens: &[PositionToken], pos: usize) -> Result<(Vec<AstJType>,
     let Ok(pos) = assert_token(tokens, pos, Token::Permits) else {
         return Ok((vec![], pos));
     };
-    let (out, pos) = parse_comma_seperated_jtype(tokens, pos)?;
+    let (out, pos) = parse_comma_separated_jtype(tokens, pos)?;
 
     Ok((out, pos))
 }
 
-fn parse_comma_seperated_jtype(
+fn parse_comma_separated_jtype(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(Vec<AstJType>, usize), AstError> {
@@ -3405,9 +3405,9 @@ pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, us
                 value: ident.into(),
             };
             pos += 1;
-            if let Ok((gereric_argmuants, npos)) = parse_jtype_generics(tokens, pos) {
+            if let Ok((generic_argmuants, npos)) = parse_jtype_generics(tokens, pos) {
                 pos = npos;
-                out.value = AstJTypeKind::Generic(ast_identifier, gereric_argmuants.jtypes);
+                out.value = AstJTypeKind::Generic(ast_identifier, generic_argmuants.jtypes);
             } else {
                 out.value = AstJTypeKind::Class(ast_identifier);
             }

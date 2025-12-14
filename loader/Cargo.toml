@@ -11,6 +11,7 @@ license.workspace = true
 
 [dependencies]
 parser = { path = "../parser"}
+ast = { path = "../ast"}
 my_string = { path = "../my_string"}
 classfile-parser.workspace = true
 jwalk.workspace = true

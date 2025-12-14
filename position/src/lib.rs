@@ -7,7 +7,10 @@
 #![allow(clippy::too_many_lines)]
 use std::{num::TryFromIntError, str::Utf8Error};
 
-use ast::types::{AstBlockEntry, AstFile, AstIdentifier, AstRange, AstThing};
+use ast::types::{
+    AstBlock, AstBlockEntry, AstClassBlock, AstFile, AstIdentifier, AstIf, AstIfContent, AstRange,
+    AstThing,
+};
 use lsp_extra::to_lsp_range;
 use lsp_types::{Location, SymbolInformation, SymbolKind, Uri};
 
@@ -227,81 +230,10 @@ pub fn get_field_position_ast(
     for thing in &file.things {
         match thing {
             AstThing::Class(ast_class) => {
-                out.extend(
-                    ast_class
-                        .block
-                        .variables
-                        .iter()
-                        .filter(|i| is_valid_name(name, &i.name))
-                        .map(|i| PositionSymbol {
-                            range: i.range,
-                            name: i.name.value.clone(),
-                            kind: SymbolKind::FIELD,
-                        }),
-                );
-                out.extend(
-                    ast_class
-                        .block
-                        .methods
-                        .iter()
-                        .filter_map(|i| i.block.as_ref())
-                        .flat_map(|i| {
-                            i.entries
-                                .iter()
-                                .filter_map(|i| match i {
-                                    AstBlockEntry::Variable(ast_block_variables) => {
-                                        Some(ast_block_variables)
-                                    }
-                                    _ => None,
-                                })
-                                .flatten()
-                                .filter(|i| is_valid_name(name, &i.name))
-                                .map(|i| PositionSymbol {
-                                    range: i.range,
-                                    name: i.name.value.clone(),
-                                    kind: SymbolKind::FIELD,
-                                })
-                        }),
-                );
+                get_field_position_class_block(&ast_class.block, name, out);
             }
             AstThing::Record(ast_record) => {
-                out.extend(
-                    ast_record
-                        .block
-                        .variables
-                        .iter()
-                        .filter(|i| is_valid_name(name, &i.name))
-                        .map(|i| PositionSymbol {
-                            range: i.range,
-                            name: i.name.value.clone(),
-                            kind: SymbolKind::FIELD,
-                        }),
-                );
-
-                out.extend(
-                    ast_record
-                        .block
-                        .methods
-                        .iter()
-                        .filter_map(|i| i.block.as_ref())
-                        .flat_map(|i| {
-                            i.entries
-                                .iter()
-                                .filter_map(|i| match i {
-                                    AstBlockEntry::Variable(ast_block_variables) => {
-                                        Some(ast_block_variables)
-                                    }
-                                    _ => None,
-                                })
-                                .flatten()
-                                .filter(|i| is_valid_name(name, &i.name))
-                                .map(|i| PositionSymbol {
-                                    range: i.range,
-                                    name: i.name.value.clone(),
-                                    kind: SymbolKind::FIELD,
-                                })
-                        }),
-                );
+                get_field_position_class_block(&ast_record.block, name, out);
             }
             AstThing::Interface(ast_interface) => {
                 out.extend(
@@ -315,24 +247,13 @@ pub fn get_field_position_ast(
                             kind: SymbolKind::FIELD,
                         }),
                 );
-                out.extend(ast_interface.default_methods.iter().flat_map(|i| {
-                    i.block
-                        .entries
-                        .iter()
-                        .filter_map(|i| match i {
-                            AstBlockEntry::Variable(ast_block_variables) => {
-                                Some(ast_block_variables)
-                            }
-                            _ => None,
-                        })
-                        .flatten()
-                        .filter(|i| is_valid_name(name, &i.name))
-                        .map(|i| PositionSymbol {
-                            range: i.range,
-                            name: i.name.value.clone(),
-                            kind: SymbolKind::FIELD,
-                        })
-                }));
+                ast_interface
+                    .default_methods
+                    .iter()
+                    .map(|i| &i.block)
+                    .for_each(|i| {
+                        get_field_position_block(i, name, out);
+                    });
             }
             AstThing::Enumeration(ast_enumeration) => {
                 out.extend(
@@ -357,34 +278,92 @@ pub fn get_field_position_ast(
                             kind: SymbolKind::FIELD,
                         }),
                 );
-                out.extend(
-                    ast_enumeration
-                        .methods
-                        .iter()
-                        .filter_map(|i| i.block.as_ref())
-                        .flat_map(|i| {
-                            i.entries
-                                .iter()
-                                .filter_map(|i| match i {
-                                    AstBlockEntry::Variable(ast_block_variables) => {
-                                        Some(ast_block_variables)
-                                    }
-                                    _ => None,
-                                })
-                                .flatten()
-                                .filter(|i| is_valid_name(name, &i.name))
-                                .map(|i| PositionSymbol {
-                                    range: i.range,
-                                    name: i.name.value.clone(),
-                                    kind: SymbolKind::FIELD,
-                                })
-                        }),
-                );
+                ast_enumeration
+                    .methods
+                    .iter()
+                    .filter_map(|i| i.block.as_ref())
+                    .for_each(|i| {
+                        get_field_position_block(i, name, out);
+                    });
             }
             AstThing::Annotation(_ast_annotation) => (),
         }
     }
     Ok(())
+}
+
+fn get_field_position_class_block(
+    cblock: &AstClassBlock,
+    name: Option<&str>,
+    out: &mut Vec<PositionSymbol>,
+) {
+    out.extend(
+        cblock
+            .variables
+            .iter()
+            .filter(|i| is_valid_name(name, &i.name))
+            .map(|i| PositionSymbol {
+                range: i.range,
+                name: i.name.value.clone(),
+                kind: SymbolKind::FIELD,
+            }),
+    );
+    cblock
+        .methods
+        .iter()
+        .filter_map(|i| i.block.as_ref())
+        .for_each(|i| {
+            get_field_position_block(i, name, out);
+        });
+}
+
+fn get_field_position_block(block: &AstBlock, name: Option<&str>, out: &mut Vec<PositionSymbol>) {
+    block
+        .entries
+        .iter()
+        .for_each(|i| get_field_position_block_entry(i, name, out));
+}
+
+fn get_field_position_block_entry(
+    entry: &AstBlockEntry,
+    name: Option<&str>,
+    out: &mut Vec<PositionSymbol>,
+) {
+    match entry {
+        AstBlockEntry::Variable(ast_block_variables) => {
+            out.extend(
+                ast_block_variables
+                    .iter()
+                    .filter(|i| is_valid_name(name, &i.name))
+                    .map(|i| PositionSymbol {
+                        range: i.range,
+                        name: i.name.value.clone(),
+                        kind: SymbolKind::FIELD,
+                    }),
+            );
+        }
+        AstBlockEntry::If(
+            AstIf::If {
+                range: _,
+                control: _,
+                control_range: _,
+                content,
+            }
+            | AstIf::ElseIf {
+                range: _,
+                control: _,
+                control_range: _,
+                content,
+            }
+            | AstIf::Else { range: _, content },
+        ) => match content {
+            AstIfContent::Block(ast_block) => get_field_position_block(ast_block, name, out),
+            AstIfContent::BlockEntry(ast_block_entry) => {
+                get_field_position_block_entry(ast_block_entry, name, out);
+            }
+        },
+        _ => (),
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]

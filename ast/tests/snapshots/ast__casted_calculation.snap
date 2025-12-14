@@ -1,7 +1,6 @@
 ---
 source: ast/tests/ast.rs
 expression: parsed
-snapshot_kind: text
 ---
 (
     AstSwitchCaseArrowValues {
@@ -200,7 +199,7 @@ snapshot_kind: text
                                                         },
                                                         ident: None,
                                                         values: None,
-                                                        operator: Devide(
+                                                        operator: Divide(
                                                             AstRange {
                                                                 start: AstPoint {
                                                                     line: 0,

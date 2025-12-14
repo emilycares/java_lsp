@@ -5,7 +5,7 @@
 #![deny(clippy::nursery)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
-use document::Document;
+use ast::types::AstFile;
 use parser::dto::ImportUnit;
 
 #[must_use]
@@ -29,8 +29,8 @@ pub fn is_imported(imports: &[ImportUnit], class_path: &str) -> bool {
     false
 }
 
-pub fn imports(document: &Document) -> Vec<ImportUnit> {
-    if let Some(imports) = &document.ast.imports {
+pub fn imports(ast: &AstFile) -> Vec<ImportUnit> {
+    if let Some(imports) = &ast.imports {
         return imports.imports.iter().map(ImportUnit::from).collect();
     }
     vec![]

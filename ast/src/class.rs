@@ -9,7 +9,7 @@ use crate::{
     types::{
         AstAnnotated, AstAvailability, AstClass, AstClassBlock, AstClassConstructor,
         AstClassMethod, AstClassVariable, AstJType, AstRange, AstStaticBlock, AstSuperClass,
-        AstThing, AstThingAttributes, AstVolatileTranient,
+        AstThing, AstThingAttributes, AstVolatileTransient,
     },
 };
 
@@ -17,7 +17,7 @@ use crate::{
 pub fn parse_class(
     tokens: &[PositionToken],
     pos: usize,
-    avaliability: AstAvailability,
+    availability: AstAvailability,
     attributes: AstThingAttributes,
     annotated: Vec<AstAnnotated>,
 ) -> Result<(AstThing, usize), AstError> {
@@ -37,7 +37,7 @@ pub fn parse_class(
     Ok((
         AstThing::Class(AstClass {
             range: AstRange::from_position_token(start, end),
-            avaliability,
+            availability,
             attributes,
             annotated,
             name,
@@ -240,19 +240,19 @@ pub fn parse_class_variable(
 ) -> Result<(Vec<AstClassVariable>, usize), AstError> {
     let start = tokens.start(pos)?;
     let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
-    let mut avaliability = AstAvailability::empty();
+    let mut availability = AstAvailability::empty();
     let mut pos = pos;
-    let mut volatile_transient = AstVolatileTranient::empty();
+    let mut volatile_transient = AstVolatileTransient::empty();
     loop {
         let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
-            Token::Public => avaliability |= AstAvailability::Public,
-            Token::Private => avaliability |= AstAvailability::Private,
-            Token::Protected => avaliability |= AstAvailability::Protected,
-            Token::Static => avaliability |= AstAvailability::Static,
-            Token::Final => avaliability |= AstAvailability::Final,
-            Token::Volatile => volatile_transient |= AstVolatileTranient::Volatile,
-            Token::Transient => volatile_transient |= AstVolatileTranient::Transient,
+            Token::Public => availability |= AstAvailability::Public,
+            Token::Private => availability |= AstAvailability::Private,
+            Token::Protected => availability |= AstAvailability::Protected,
+            Token::Static => availability |= AstAvailability::Static,
+            Token::Final => availability |= AstAvailability::Final,
+            Token::Volatile => volatile_transient |= AstVolatileTransient::Volatile,
+            Token::Transient => volatile_transient |= AstVolatileTransient::Transient,
             Token::At => {
                 let (annotated_after, npos) = parse_annotated_list(tokens, pos)?;
                 pos = npos;
@@ -269,7 +269,7 @@ pub fn parse_class_variable(
         tokens,
         start,
         &annotated,
-        avaliability.clone(),
+        availability.clone(),
         volatile_transient.clone(),
         &jtype,
         pos,
@@ -281,7 +281,7 @@ pub fn parse_class_variable(
             tokens,
             start,
             &annotated,
-            avaliability.clone(),
+            availability.clone(),
             volatile_transient.clone(),
             &jtype,
             npos,
@@ -298,8 +298,8 @@ fn parse_class_variable_base(
     tokens: &[PositionToken],
     start: &PositionToken,
     annotated: &[AstAnnotated],
-    avaliability: AstAvailability,
-    volatile_transient: AstVolatileTranient,
+    availability: AstAvailability,
+    volatile_transient: AstVolatileTransient,
     jtype: &AstJType,
     pos: usize,
 ) -> Result<(AstClassVariable, usize), AstError> {
@@ -321,7 +321,7 @@ fn parse_class_variable_base(
             jtype,
             name,
             expression,
-            avaliability,
+            availability,
             volatile_transient,
         },
         pos,

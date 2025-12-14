@@ -140,7 +140,7 @@ fn convert_imports(imports: Option<&AstImports>, package: MyString) -> Vec<Impor
 }
 
 fn convert_class_method(m: &AstClassMethod) -> Method {
-    let access = Access::from(&m.header.avaliability, Access::Public);
+    let access = Access::from(&m.header.availability, Access::Public);
     let parameters = m
         .header
         .parameters
@@ -166,7 +166,7 @@ fn convert_class_method(m: &AstClassMethod) -> Method {
     }
 }
 fn convert_interface_method(m: &AstInterfaceMethod) -> Method {
-    let access = Access::from(&m.header.avaliability, Access::Public);
+    let access = Access::from(&m.header.availability, Access::Public);
     let parameters = m
         .header
         .parameters
@@ -193,7 +193,7 @@ fn convert_interface_method(m: &AstInterfaceMethod) -> Method {
     }
 }
 fn convert_interface_default_method(m: &AstInterfaceMethodDefault) -> Method {
-    let access = Access::from(&m.header.avaliability, Access::Public);
+    let access = Access::from(&m.header.availability, Access::Public);
     let parameters = m
         .header
         .parameters
@@ -222,7 +222,7 @@ fn convert_interface_default_method(m: &AstInterfaceMethodDefault) -> Method {
 
 fn convert_interface_constant(c: &AstInterfaceConstant) -> dto::Field {
     dto::Field {
-        access: Access::from(&c.avaliability, Access::Public),
+        access: Access::from(&c.availability, Access::Public),
         name: (&c.name).into(),
         jtype: (&c.jtype).into(),
         source: None,
@@ -237,7 +237,7 @@ fn convert_annotation_field(c: &AstAnnotationField) -> dto::Field {
     }
 }
 fn convert_class_field(c: &AstClassVariable) -> dto::Field {
-    let access = Access::from(&c.avaliability, Access::Public);
+    let access = Access::from(&c.availability, Access::Public);
     let jtype: dto::JType = (&c.jtype).into();
 
     dto::Field {

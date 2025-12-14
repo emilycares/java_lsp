@@ -59,7 +59,7 @@ AstFile {
                         col: 1,
                     },
                 },
-                avaliability: AstAvailability(
+                availability: AstAvailability(
                     Public,
                 ),
                 attributes: AstThingAttributes(
@@ -91,7 +91,7 @@ AstFile {
                                 col: 26,
                             },
                         },
-                        avaliability: AstAvailability(
+                        availability: AstAvailability(
                             0x0,
                         ),
                         annotated: [],
@@ -174,7 +174,7 @@ AstFile {
                                 col: 34,
                             },
                         },
-                        avaliability: AstAvailability(
+                        availability: AstAvailability(
                             0x0,
                         ),
                         annotated: [],

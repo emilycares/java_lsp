@@ -23,7 +23,7 @@ async fn main() {
             cli::lex_pos(file, pos);
         }
         Some(Commands::AstCheck { file }) => {
-            cli::ast_check(&file, 0);
+            cli::ast_check(&file, 0, &mut Vec::new());
         }
         Some(Commands::AstCheckDir { folder, ignore }) => {
             if let Some(ignore) = ignore {

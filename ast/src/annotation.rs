@@ -15,7 +15,7 @@ use crate::{
 pub fn parse_annotation(
     tokens: &[PositionToken],
     pos: usize,
-    avaliability: AstAvailability,
+    availability: AstAvailability,
     attributes: AstThingAttributes,
     annotated: Vec<AstAnnotated>,
 ) -> Result<(AstThing, usize), AstError> {
@@ -61,7 +61,7 @@ pub fn parse_annotation(
     Ok((
         AstThing::Annotation(AstAnnotation {
             range: AstRange::from_position_token(start, end),
-            avaliability,
+            availability,
             attributes,
             annotated,
             name,
@@ -79,17 +79,17 @@ pub fn parse_annotation_field(
     pos: usize,
 ) -> Result<(AstAnnotationField, usize), AstError> {
     let start = tokens.get(pos).ok_or_else(AstError::eof)?;
-    let mut avaliability = AstAvailability::empty();
+    let mut availability = AstAvailability::empty();
     let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
     let mut pos = pos;
     loop {
         let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
-            Token::Public => avaliability |= AstAvailability::Public,
-            Token::Private => avaliability |= AstAvailability::Private,
-            Token::Protected => avaliability |= AstAvailability::Protected,
-            Token::Static => avaliability |= AstAvailability::Static,
-            Token::Final => avaliability |= AstAvailability::Final,
+            Token::Public => availability |= AstAvailability::Public,
+            Token::Private => availability |= AstAvailability::Private,
+            Token::Protected => availability |= AstAvailability::Protected,
+            Token::Static => availability |= AstAvailability::Static,
+            Token::Final => availability |= AstAvailability::Final,
             Token::At => {
                 let (annotated_after, npos) = parse_annotated_list(tokens, pos)?;
                 pos = npos;
@@ -121,7 +121,7 @@ pub fn parse_annotation_field(
     Ok((
         AstAnnotationField {
             range: AstRange::from_position_token(start, end),
-            avaliability,
+            availability,
             annotated,
             jtype,
             name,

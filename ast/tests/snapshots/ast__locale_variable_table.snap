@@ -87,7 +87,7 @@ AstFile {
                         col: 1,
                     },
                 },
-                avaliability: AstAvailability(
+                availability: AstAvailability(
                     Public,
                 ),
                 attributes: AstThingAttributes(
@@ -124,7 +124,7 @@ AstFile {
                                     col: 45,
                                 },
                             },
-                            avaliability: AstAvailability(
+                            availability: AstAvailability(
                                 Private,
                             ),
                             annotated: [],
@@ -246,7 +246,7 @@ AstFile {
                                     ),
                                 ],
                             ),
-                            volatile_transient: AstVolatileTranient(
+                            volatile_transient: AstVolatileTransient(
                                 0x0,
                             ),
                         },
@@ -274,7 +274,7 @@ AstFile {
                                         col: 26,
                                     },
                                 },
-                                avaliability: AstAvailability(
+                                availability: AstAvailability(
                                     Public | Protected,
                                 ),
                                 name: AstIdentifier {
@@ -303,7 +303,7 @@ AstFile {
                                     },
                                     value: Void,
                                 },
-                                parameters: AstMethodParamerters {
+                                parameters: AstMethodParameters {
                                     range: AstRange {
                                         start: AstPoint {
                                             line: 6,
@@ -742,7 +742,7 @@ AstFile {
                                         col: 37,
                                     },
                                 },
-                                avaliability: AstAvailability(
+                                availability: AstAvailability(
                                     Public | Protected,
                                 ),
                                 name: AstIdentifier {
@@ -771,7 +771,7 @@ AstFile {
                                     },
                                     value: Int,
                                 },
-                                parameters: AstMethodParamerters {
+                                parameters: AstMethodParameters {
                                     range: AstRange {
                                         start: AstPoint {
                                             line: 10,
@@ -783,7 +783,7 @@ AstFile {
                                         },
                                     },
                                     parameters: [
-                                        AstMethodParamerter {
+                                        AstMethodParameter {
                                             range: AstRange {
                                                 start: AstPoint {
                                                     line: 10,
@@ -824,7 +824,7 @@ AstFile {
                                             fin: false,
                                             variatic: false,
                                         },
-                                        AstMethodParamerter {
+                                        AstMethodParameter {
                                             range: AstRange {
                                                 start: AstPoint {
                                                     line: 10,
