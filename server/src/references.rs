@@ -7,6 +7,7 @@ use std::{
 use ast::types::{AstFile, AstPoint};
 use call_chain::CallItem;
 use document::{ClassSource, Document, DocumentError};
+use lsp_extra::{ToLspRangeError, to_lsp_range};
 use lsp_types::Location;
 use my_string::MyString;
 use parser::dto::{self, Class, ImportUnit};
@@ -14,11 +15,7 @@ use position::PositionSymbol;
 use rayon::iter::{IntoParallelRefIterator, ParallelBridge, ParallelIterator};
 use variables::LocalVariable;
 
-use crate::{
-    codeaction::ToLspRangeError,
-    codeaction::to_lsp_range,
-    definition::{self},
-};
+use crate::definition::{self};
 
 #[derive(Debug)]
 pub enum ReferencesError {

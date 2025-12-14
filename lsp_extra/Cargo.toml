@@ -1,5 +1,5 @@
 [package]
-name = "position"
+name = "lsp_extra"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,7 +12,3 @@ license.workspace = true
 [dependencies]
 lsp-types.workspace = true
 ast = { path = "../ast"}
-lsp_extra = { path = "../lsp_extra"}
-
-[dev-dependencies]
-pretty_assertions.workspace = true

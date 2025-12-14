@@ -8,7 +8,8 @@
 use std::{num::TryFromIntError, str::Utf8Error};
 
 use ast::types::{AstBlockEntry, AstFile, AstIdentifier, AstRange, AstThing};
-use lsp_types::{Location, Position, Range, SymbolInformation, SymbolKind, Uri};
+use lsp_extra::to_lsp_range;
+use lsp_types::{Location, SymbolInformation, SymbolKind, Uri};
 
 #[derive(Debug, PartialEq)]
 pub enum PositionError {
@@ -424,28 +425,6 @@ pub const fn get_method_usage(
     //     ",
     //     Some(query_method_name),
     // )
-}
-
-#[derive(Debug)]
-pub enum ToLspRangeError {
-    Int(TryFromIntError),
-}
-pub fn to_lsp_range(range: &AstRange) -> Result<Range, ToLspRangeError> {
-    let sl = u32::try_from(range.start.line).map_err(ToLspRangeError::Int)?;
-    let sc = u32::try_from(range.start.col).map_err(ToLspRangeError::Int)?;
-    let el = u32::try_from(range.end.line).map_err(ToLspRangeError::Int)?;
-    let ec = u32::try_from(range.end.col).map_err(ToLspRangeError::Int)?;
-
-    Ok(Range {
-        start: Position {
-            line: sl,
-            character: sc,
-        },
-        end: Position {
-            line: el,
-            character: ec,
-        },
-    })
 }
 
 pub fn symbols_to_document_symbols(

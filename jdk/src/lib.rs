@@ -187,7 +187,7 @@ async fn load_jmods(
     match fs::read_dir(&jmods) {
         Err(e) => eprintln!("error reading dir: {:?} {e:?}", &jmods.to_str()),
         Ok(jmods) => {
-            let mut tasks_number: u32 = 0;
+            let mut tasks_number: u32 = 1;
             for jmod in jmods {
                 let sender = sender.clone();
                 let completed_number = completed_number.clone();
@@ -217,7 +217,7 @@ async fn load_jmods(
                             .await;
                             let a = completed_number.fetch_add(1, Ordering::Relaxed);
                             let _ = sender.send(TaskProgress {
-                                percentage: (100 * a) / (tasks_number + 1),
+                                percentage: (100 * a) / tasks_number,
                                 error: false,
                                 message: format!("Loaded classes of jmod: {jmod_display}"),
                             });

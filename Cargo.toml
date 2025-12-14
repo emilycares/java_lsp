@@ -34,6 +34,7 @@ members = [
     "get_class",
     "loader",
     "my_string",
+    "lsp_extra",
 ]
 exclude = ["bench"]
 resolver = "3"

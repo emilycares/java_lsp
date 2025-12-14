@@ -3,6 +3,7 @@ use std::str::FromStr;
 use ast::types::AstPoint;
 use call_chain::CallItem;
 use document::{Document, DocumentError};
+use lsp_extra::{ToLspRangeError, to_lsp_range};
 use lsp_types::{GotoDefinitionResponse, Location, SymbolKind, Uri};
 use my_string::MyString;
 use parser::dto::{self, ImportUnit};
@@ -10,10 +11,7 @@ use position::PositionSymbol;
 use tyres::TyresError;
 use variables::LocalVariable;
 
-use crate::{
-    codeaction::{ToLspRangeError, to_lsp_range},
-    hover::{ClassActionError, class_action},
-};
+use crate::hover::{ClassActionError, class_action};
 
 #[derive(Debug)]
 #[allow(dead_code)]

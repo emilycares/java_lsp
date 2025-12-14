@@ -1,13 +1,12 @@
 use ast::types::{AstFile, AstPoint};
 use call_chain::{self, CallItem};
 use document::Document;
+use lsp_extra::{ToLspRangeError, to_lsp_range};
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
 use my_string::MyString;
 use parser::dto::{self, ImportUnit};
 use tyres::TyresError;
 use variables::LocalVariable;
-
-use crate::codeaction::{ToLspRangeError, to_lsp_range};
 
 #[allow(dead_code)]
 #[derive(Debug)]

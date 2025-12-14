@@ -36,6 +36,7 @@ common = { path = "../common"}
 ast = { path = "../ast"}
 get_class = { path = "../get_class"}
 my_string = { path = "../my_string"}
+lsp_extra = { path = "../lsp_extra"}
 
 [dev-dependencies]
 pretty_assertions.workspace = true

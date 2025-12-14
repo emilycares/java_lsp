@@ -934,6 +934,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "lsp_extra"
+version = "0.1.0"
+dependencies = [
+ "ast",
+ "lsp-types",
+]
+
+[[package]]
 name = "maven"
 version = "0.1.0"
 dependencies = [
@@ -1237,6 +1245,7 @@ version = "0.1.0"
 dependencies = [
  "ast",
  "lsp-types",
+ "lsp_extra",
  "pretty_assertions",
 ]
 
@@ -1518,6 +1527,7 @@ dependencies = [
  "jwalk",
  "lsp-server",
  "lsp-types",
+ "lsp_extra",
  "maven",
  "my_string",
  "parser",
