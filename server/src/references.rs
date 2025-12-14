@@ -26,7 +26,7 @@ pub enum ReferencesError {
     Utf8(Utf8Error),
     Lexer(ast::lexer::LexerError),
     Ast(ast::error::AstError),
-    Position(position::PosionError),
+    Position(position::PositionError),
     FindClassnameInClasspath(String),
     Tyres(tyres::TyresError),
     ValidatedItemDoesNotExists,
@@ -65,7 +65,7 @@ pub fn class_path(
                 ReferenceUnit::Class(s) | ReferenceUnit::StaticClass(s) => class_map.get(s),
             })
             .filter_map(|lookup| {
-                let refs = get_position_refrences(&lookup, class_path, None).ok()?;
+                let refs = get_position_references(&lookup, class_path, None).ok()?;
                 let a = refs.first().map(|i| i.0.range);
                 a.map(|a| (lookup, a))
             })
@@ -73,7 +73,7 @@ pub fn class_path(
                 |(lookup, range)| match definition::class_to_uri(lookup.value()) {
                     Ok(u) => Some((u, range)),
                     Err(e) => {
-                        eprintln!("Referneces Uri error {e:?}");
+                        eprintln!("References Uri error {e:?}");
                         None
                     }
                 },
@@ -94,10 +94,10 @@ pub fn call_chain_references(
     reference_map: &dashmap::DashMap<MyString, Vec<ReferenceUnit>>,
     document_map: &dashmap::DashMap<MyString, Document>,
 ) -> Result<Vec<Location>, ReferencesError> {
-    let (item, relevat) = call_chain::validate(call_chain, context.point);
+    let (item, relevant) = call_chain::validate(call_chain, context.point);
 
     let reference_state = tyres::resolve_call_chain(
-        &relevat,
+        &relevant,
         context.vars,
         context.imports,
         context.class,
@@ -105,7 +105,7 @@ pub fn call_chain_references(
     )
     .map_err(ReferencesError::Tyres)?;
 
-    match relevat.get(item) {
+    match relevant.get(item) {
         Some(CallItem::MethodCall { name, range: _ }) => {
             let mut locations = vec![];
             if let Some(used_in) = reference_map.get(&reference_state.class.class_path) {
@@ -120,7 +120,7 @@ pub fn call_chain_references(
                     };
                     let method_refs = method_references(&class, name, document_map)?;
                     let uri = definition::source_to_uri(&class.source).map_err(|e| {
-                        eprintln!("Got into defintion error: {e:?}");
+                        eprintln!("Got into definition error: {e:?}");
                         ReferencesError::Definition
                     })?;
                     for i in method_refs {
@@ -159,7 +159,7 @@ fn method_references(
     document_map: &dashmap::DashMap<MyString, Document>,
 ) -> Result<Vec<ReferencePosition>, ReferencesError> {
     let uri = definition::source_to_uri(&class.source).map_err(|e| {
-        eprintln!("Got into defintion error: {e:?}");
+        eprintln!("Got into definition error: {e:?}");
         ReferencesError::Definition
     })?;
     let uri = uri.as_str();
@@ -188,7 +188,7 @@ fn method_references(
     }
 }
 
-pub fn init_refernece_map(
+pub fn init_reference_map(
     project_classes: &[Class],
     class_map: &dashmap::DashMap<MyString, parser::dto::Class>,
     reference_map: &dashmap::DashMap<MyString, Vec<ReferenceUnit>>,
@@ -229,7 +229,7 @@ pub fn reference_update_class(
     Ok(())
 }
 
-fn get_position_refrences(
+fn get_position_references(
     class: &Class,
     query_class_path: &str,
     ast: Option<&AstFile>,

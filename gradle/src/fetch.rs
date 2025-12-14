@@ -93,7 +93,7 @@ pub async fn fetch_deps(
                     Ok(classes) => {
                         let a = completed_number.fetch_add(1, Ordering::Relaxed);
                         let _ = sender.send(TaskProgress {
-                            persentage: (100 * a) / (tasks_number + 1),
+                            percentage: (100 * a) / (tasks_number + 1),
                             error: false,
                             message: current_name,
                         });
@@ -141,7 +141,7 @@ pub async fn fetch_deps(
 // configuration ':testResultsElementsForTest'
 // configuration ':testRuntimeClasspath'
 // configuration ':testRuntimeOnly']
-const UNPACK_DEPENCENCIES_TASK_GROOVY: &str = r#"
+const UNPACK_DEPENDENCIES_TASK_GROOVY: &str = r#"
 task classpath(type: Copy) {
     from configurations.runtimeClasspath
     from configurations.compileClasspath
@@ -154,7 +154,7 @@ fn copy_classpath(build_gradle: &PathBuf) -> Result<PathBuf, GradleFetchError> {
     let script = if build_gradle.ends_with(".kts") {
         unimplemented!("No support yet for build.gradle.kts");
     } else {
-        UNPACK_DEPENCENCIES_TASK_GROOVY
+        UNPACK_DEPENDENCIES_TASK_GROOVY
     };
     match fs::read_to_string(build_gradle) {
         Err(e) => Err(GradleFetchError::CouldNotReadBuildGradle(e)),

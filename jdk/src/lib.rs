@@ -82,7 +82,7 @@ fn java_executable_location() -> Option<PathBuf> {
     None
 }
 
-/// Extracts java jdk from from the java executabel in path.
+/// Extracts java jdk from from the java executable in path.
 /// returns folder of output
 pub async fn load_jdk(
     java_path: PathBuf,
@@ -217,7 +217,7 @@ async fn load_jmods(
                             .await;
                             let a = completed_number.fetch_add(1, Ordering::Relaxed);
                             let _ = sender.send(TaskProgress {
-                                persentage: (100 * a) / (tasks_number + 1),
+                                percentage: (100 * a) / (tasks_number + 1),
                                 error: false,
                                 message: format!("Loaded classes of jmod: {jmod_display}"),
                             });

@@ -23,7 +23,7 @@ use crate::{
 };
 
 // New plan for resolving sources from mavnen classes and sources
-// Inside of a class we must konw the dependency identifier. to load the source and docs for the
+// Inside of a class we must know the dependency identifier. to load the source and docs for the
 // class that this information is needed.
 // mvn dependency:unpack-dependencies -Dmdep.useRepositoryLayout=true
 //
@@ -31,10 +31,10 @@ use crate::{
 // mvn dependency:resolve -Dclassifier=sources
 // mvn dependency:resolve -Dclassifier=javadoc
 //
-// We also need to ajust that we load the classes from all dependencies using the tree.
+// We also need to adjust that we load the classes from all dependencies using the tree.
 // mvn dependency:tree | grep io.quarkus.quarkus-resteasy-reactive
 //
-//  Whit this tree we then konw witch classes to load
+//  Whit this tree we then know witch classes to load
 //  target/dependency/io/quarkus/quarkus-resteasy-reactive/3.7.2/**
 //  example:
 //  target/dependency/io/quarkus/quarkus-resteasy-reactive/3.7.2/io/quarkus/resteasy/reactive/server/Closer.class
@@ -50,7 +50,7 @@ use crate::{
 // Inside of the source file we should also be able to go to definition. Because everining should
 // be in the class_map.
 //
-// Allso there might be the need for multiple classmaps because the of the scope that we are
+// Also there might be the need for multiple classmaps because the of the scope that we are
 // currently in. (There might be overwrites. Less important) But we should only find test classes
 // from a test. And not from the implementation
 
@@ -127,7 +127,7 @@ pub async fn fetch_deps(
                 Ok(classes) => {
                     let a = completed_number.fetch_add(1, Ordering::Relaxed);
                     let _ = sender.send(TaskProgress {
-                        persentage: (100 * a) / (tasks_number + 1),
+                        percentage: (100 * a) / (tasks_number + 1),
                         error: false,
                         message: dep.artivact_id,
                     });
@@ -160,7 +160,7 @@ async fn download_sources(
     sender: &tokio::sync::watch::Sender<TaskProgress>,
 ) -> Result<(), MavenFetchError> {
     let _ = sender.send(TaskProgress {
-        persentage: 0,
+        percentage: 0,
         error: false,
         message: "Downloading sources ...".to_string(),
     });
@@ -172,13 +172,13 @@ async fn download_sources(
     let error = String::from_utf8_lossy(&e.stderr).to_string();
     if !error.is_empty() {
         let _ = sender.send(TaskProgress {
-            persentage: 0,
+            percentage: 0,
             error: true,
             message: error,
         });
     }
     let _ = sender.send(TaskProgress {
-        persentage: 0,
+        percentage: 0,
         error: false,
         message: "Downloading sources Done".to_string(),
     });

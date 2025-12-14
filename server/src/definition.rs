@@ -25,7 +25,7 @@ pub enum DefinitionError {
     LocalVariableNotFound { name: String },
     ValidatedItemDoesNotExists,
     NoCallChain,
-    Position(position::PosionError),
+    Position(position::PositionError),
     ArgumentNotFound,
     Document(DocumentError),
     ToLspRange(ToLspRangeError),
@@ -69,10 +69,10 @@ pub fn call_chain_definition(
     context: &DefinitionContext,
 ) -> Result<GotoDefinitionResponse, DefinitionError> {
     let call_chain = call_chain::flatten_argument_lists(call_chain);
-    let (item, relevat) = call_chain::validate(&call_chain, context.point);
+    let (item, relevant) = call_chain::validate(&call_chain, context.point);
 
     let resolve_state = tyres::resolve_call_chain_to_point(
-        &relevat,
+        &relevant,
         context.vars,
         context.imports,
         context.class,
@@ -80,7 +80,7 @@ pub fn call_chain_definition(
         context.point,
     )
     .map_err(DefinitionError::Tyres)?;
-    match relevat.get(item) {
+    match relevant.get(item) {
         Some(CallItem::This { range: _ }) => {
             let uri = source_to_uri(&resolve_state.class.source)?;
             let source = get_source_content(&resolve_state.class.source, context.document_map)?;

@@ -87,7 +87,7 @@ impl Backend {
         }
     }
 
-    fn send_dianostic(con: &Arc<Connection>, uri: Uri, diagnostics: Vec<Diagnostic>) {
+    fn send_diagnostic(con: &Arc<Connection>, uri: Uri, diagnostics: Vec<Diagnostic>) {
         if let Ok(params) = serde_json::to_value(PublishDiagnosticsParams {
             uri,
             diagnostics,
@@ -122,7 +122,7 @@ impl Backend {
         }
     }
 
-    fn progress_update_persentage(
+    fn progress_update_percentage(
         con: &Arc<Connection>,
         task: String,
         message: String,
@@ -212,9 +212,9 @@ impl Backend {
                             Diagnostic::new_simple(Range::new(p, p), e.message.clone())
                         })
                         .collect();
-                    Self::send_dianostic(&self.connection.clone(), uri, errs);
+                    Self::send_diagnostic(&self.connection.clone(), uri, errs);
                 } else {
-                    Self::send_dianostic(&self.connection.clone(), uri, vec![]);
+                    Self::send_diagnostic(&self.connection.clone(), uri, vec![]);
                 }
             }
         }
@@ -229,15 +229,15 @@ impl Backend {
         Self::progress_start(&con.clone(), "Init".to_string());
         {
             let task = "Load jdk".to_string();
-            let (sender, reciever) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
-                persentage: 0,
+            let (sender, receiver) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
+                percentage: 0,
                 error: false,
                 message: "...".to_string(),
             });
 
             Self::progress_start(&con.clone(), task.clone());
             tokio::select! {
-                () = read_forward(reciever, con.clone(), task.clone())  => {},
+                () = read_forward(receiver, con.clone(), task.clone())  => {},
                 _ = jdk::load_classes(&class_map, sender) => {}
             }
             Self::progress_end(&con.clone(), task);
@@ -246,14 +246,14 @@ impl Backend {
         if project_kind != ProjectKind::Unknown {
             let task = format!("Load {project_kind} dependencies");
             Self::progress_start(&con.clone(), task.clone());
-            let (sender, reciever) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
-                persentage: 0,
+            let (sender, receiver) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
+                percentage: 0,
                 error: false,
                 message: "...".to_string(),
             });
 
             tokio::select! {
-                () = read_forward(reciever, con.clone(), task.clone())  => {},
+                () = read_forward(receiver, con.clone(), task.clone())  => {},
                 () = fetch_deps(sender, project_kind.clone(), class_map.clone()) => {}
             }
             Self::progress_end(&con.clone(), task);
@@ -262,7 +262,7 @@ impl Backend {
         {
             let task = "Load project files".to_string();
             Self::progress_start(&con.clone(), task.clone());
-            Self::progress_update_persentage(
+            Self::progress_update_percentage(
                 &con.clone(),
                 task.clone(),
                 "Load project paths".to_string(),
@@ -275,17 +275,17 @@ impl Backend {
                 } => gradle::project::load_project_folders(),
                 ProjectKind::Unknown => vec![],
             };
-            Self::progress_update_persentage(
+            Self::progress_update_percentage(
                 &con.clone(),
                 task.clone(),
                 "Initializing reference map".to_string(),
                 None,
             );
-            match references::init_refernece_map(&project_classes, &class_map, &reference_map) {
+            match references::init_reference_map(&project_classes, &class_map, &reference_map) {
                 Ok(()) => (),
                 Err(e) => eprintln!("Got reference error: {e:?}"),
             }
-            Self::progress_update_persentage(
+            Self::progress_update_percentage(
                 &con.clone(),
                 task.clone(),
                 "Populating class map".to_string(),
@@ -434,7 +434,7 @@ impl Backend {
 
         // If there is any extend completion ignore completing vars
         if do_rest {
-            eprintln!("Call chain is emtpy");
+            eprintln!("Call chain is empty");
             out.extend(completion::static_methods(
                 &document.ast,
                 &imports,
@@ -500,7 +500,7 @@ impl Backend {
         None
     }
 
-    pub fn referneces(&self, params: ReferenceParams) -> Option<Vec<Location>> {
+    pub fn references(&self, params: ReferenceParams) -> Option<Vec<Location>> {
         let params = params.text_document_position;
         let uri = params.text_document.uri;
         let Some(document) = self.document_map.get_mut(uri.as_str()) else {
@@ -524,7 +524,7 @@ impl Backend {
                     return Some(value);
                 }
             }
-            Err(e) => eprintln!("Got refrence class error: {e:?}"),
+            Err(e) => eprintln!("Got reference class error: {e:?}"),
         }
         let call_chain = get_call_chain(&document.ast, &point);
         let Some(class) = &self.class_map.get(&document.class_path) else {
@@ -547,7 +547,7 @@ impl Backend {
         ) {
             Ok(refs) => Some(refs),
             Err(e) => {
-                eprintln!("Got refrence call_chain error: {e:?}");
+                eprintln!("Got reference call_chain error: {e:?}");
                 None
             }
         }
@@ -709,11 +709,11 @@ pub async fn read_forward(
                 break;
             }
             let i = rx.borrow();
-            Backend::progress_update_persentage(
+            Backend::progress_update_percentage(
                 &con.clone(),
                 task.clone(),
                 i.message.clone(),
-                Some(i.persentage),
+                Some(i.percentage),
             );
         }
     })

@@ -73,7 +73,7 @@ pub fn route(backend: &Backend) -> Result<(), Box<dyn std::error::Error + Send +
                     }
                     References::METHOD => {
                         if let Ok(params) = serde_json::from_value::<ReferenceParams>(req.params) {
-                            let result = backend.referneces(params);
+                            let result = backend.references(params);
                             let _ = backend.connection.sender.send(Message::Response(Response {
                                 id: req.id,
                                 result: serde_json::to_value(result).ok(),

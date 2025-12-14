@@ -11,7 +11,7 @@ use ast::types::{AstBlockEntry, AstFile, AstIdentifier, AstRange, AstThing};
 use lsp_types::{Location, Position, Range, SymbolInformation, SymbolKind, Uri};
 
 #[derive(Debug, PartialEq)]
-pub enum PosionError {
+pub enum PositionError {
     Utf8(Utf8Error),
     Lexer(ast::lexer::LexerError),
     Ast(ast::error::AstError),
@@ -22,7 +22,7 @@ pub fn get_class_position_ast(
     ast: &AstFile,
     name: Option<&str>,
     out: &mut Vec<PositionSymbol>,
-) -> Result<(), PosionError> {
+) -> Result<(), PositionError> {
     for thing in &ast.things {
         get_class_position_ast_thing(thing, name, out)?;
     }
@@ -33,7 +33,7 @@ fn get_class_position_ast_thing(
     thing: &AstThing,
     name: Option<&str>,
     out: &mut Vec<PositionSymbol>,
-) -> Result<(), PosionError> {
+) -> Result<(), PositionError> {
     let kind = SymbolKind::CLASS;
     match &thing {
         AstThing::Class(ast_class) => {
@@ -115,10 +115,10 @@ fn get_class_position_ast_thing(
 pub fn get_class_position(
     bytes: &[u8],
     name: Option<&str>,
-) -> Result<Vec<PositionSymbol>, PosionError> {
-    let str = str::from_utf8(bytes).map_err(PosionError::Utf8)?;
-    let tokens = ast::lexer::lex(str).map_err(PosionError::Lexer)?;
-    let ast = ast::parse_file(&tokens).map_err(PosionError::Ast)?;
+) -> Result<Vec<PositionSymbol>, PositionError> {
+    let str = str::from_utf8(bytes).map_err(PositionError::Utf8)?;
+    let tokens = ast::lexer::lex(str).map_err(PositionError::Lexer)?;
+    let ast = ast::parse_file(&tokens).map_err(PositionError::Ast)?;
     let mut out = vec![];
     get_class_position_ast(&ast, name, &mut out)?;
     Ok(out)
@@ -126,9 +126,9 @@ pub fn get_class_position(
 pub fn get_class_position_str(
     str: &str,
     name: Option<&str>,
-) -> Result<Vec<PositionSymbol>, PosionError> {
-    let tokens = ast::lexer::lex(str).map_err(PosionError::Lexer)?;
-    let ast = ast::parse_file(&tokens).map_err(PosionError::Ast)?;
+) -> Result<Vec<PositionSymbol>, PositionError> {
+    let tokens = ast::lexer::lex(str).map_err(PositionError::Lexer)?;
+    let ast = ast::parse_file(&tokens).map_err(PositionError::Ast)?;
     let mut out = vec![];
     get_class_position_ast(&ast, name, &mut out)?;
     Ok(out)
@@ -137,10 +137,10 @@ pub fn get_class_position_str(
 pub fn get_method_positions(
     bytes: &[u8],
     name: Option<&str>,
-) -> Result<Vec<PositionSymbol>, PosionError> {
-    let str = str::from_utf8(bytes).map_err(PosionError::Utf8)?;
-    let tokens = ast::lexer::lex(str).map_err(PosionError::Lexer)?;
-    let ast = ast::parse_file(&tokens).map_err(PosionError::Ast)?;
+) -> Result<Vec<PositionSymbol>, PositionError> {
+    let str = str::from_utf8(bytes).map_err(PositionError::Utf8)?;
+    let tokens = ast::lexer::lex(str).map_err(PositionError::Lexer)?;
+    let ast = ast::parse_file(&tokens).map_err(PositionError::Ast)?;
     let mut out = vec![];
     get_method_position_ast(&ast, name, &mut out)?;
     Ok(out)
@@ -149,7 +149,7 @@ pub fn get_method_position_ast(
     file: &AstFile,
     name: Option<&str>,
     out: &mut Vec<PositionSymbol>,
-) -> Result<(), PosionError> {
+) -> Result<(), PositionError> {
     for thing in &file.things {
         get_method_position_ast_thing(thing, name, out)?;
     }
@@ -160,7 +160,7 @@ pub fn get_method_position_ast_thing(
     thing: &AstThing,
     name: Option<&str>,
     out: &mut Vec<PositionSymbol>,
-) -> Result<(), PosionError> {
+) -> Result<(), PositionError> {
     match thing {
         AstThing::Class(ast_class) => out.extend(
             ast_class
@@ -210,10 +210,10 @@ fn is_valid_name(name: Option<&str>, i: &AstIdentifier) -> bool {
 pub fn get_field_positions(
     bytes: &[u8],
     name: Option<&str>,
-) -> Result<Vec<PositionSymbol>, PosionError> {
-    let str = str::from_utf8(bytes).map_err(PosionError::Utf8)?;
-    let tokens = ast::lexer::lex(str).map_err(PosionError::Lexer)?;
-    let ast = ast::parse_file(&tokens).map_err(PosionError::Ast)?;
+) -> Result<Vec<PositionSymbol>, PositionError> {
+    let str = str::from_utf8(bytes).map_err(PositionError::Utf8)?;
+    let tokens = ast::lexer::lex(str).map_err(PositionError::Lexer)?;
+    let ast = ast::parse_file(&tokens).map_err(PositionError::Ast)?;
     let mut out = vec![];
     get_field_position_ast(&ast, name, &mut out)?;
     Ok(out)
@@ -222,7 +222,7 @@ pub fn get_field_position_ast(
     file: &AstFile,
     name: Option<&str>,
     out: &mut Vec<PositionSymbol>,
-) -> Result<(), PosionError> {
+) -> Result<(), PositionError> {
     for thing in &file.things {
         match thing {
             AstThing::Class(ast_class) => {
@@ -396,7 +396,7 @@ pub struct PositionSymbol {
 pub const fn get_type_usage(
     _query_class_name: &str,
     _ast: &AstFile,
-) -> Result<Vec<PositionSymbol>, PosionError> {
+) -> Result<Vec<PositionSymbol>, PositionError> {
     Ok(vec![])
     // get_item_ranges(
     //     tree,
@@ -414,7 +414,7 @@ pub const fn get_method_usage(
     _bytes: &[u8],
     _query_method_name: &str,
     _ast: &AstFile,
-) -> Result<Vec<PositionSymbol>, PosionError> {
+) -> Result<Vec<PositionSymbol>, PositionError> {
     Ok(vec![])
     // get_item_ranges(
     //     tree,
