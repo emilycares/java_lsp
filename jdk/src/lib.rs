@@ -9,6 +9,7 @@ use std::{
     env,
     fs::{self, remove_file},
     path::{Path, PathBuf},
+    str::Utf8Error,
     sync::{
         Arc,
         atomic::{AtomicU32, Ordering},
@@ -17,7 +18,6 @@ use std::{
 
 use common::TaskProgress;
 use dashmap::DashMap;
-use futures::{AsyncBufReadExt, StreamExt, TryFutureExt};
 use my_string::MyString;
 use parser::{SourceDestination, dto::ClassFolder};
 use tokio::{process::Command, task::JoinSet};
@@ -40,6 +40,7 @@ pub enum JdkError {
     IO(std::io::Error),
     ZipUtil(zip_util::ZipUtilError),
     JavaNotInPath,
+    Utf8(Utf8Error),
 }
 
 pub async fn load_classes(
@@ -213,8 +214,8 @@ async fn load_jmods(
                                         .into(),
                                 ),
                             )
-                            .map_err(JdkError::ParserLoader)
-                            .await;
+                            .await
+                            .map_err(JdkError::ParserLoader);
                             let a = completed_number.fetch_add(1, Ordering::Relaxed);
                             let _ = sender.send(TaskProgress {
                                 percentage: (100 * a) / tasks_number,
@@ -285,12 +286,9 @@ async fn get_java_version(java_path: &PathBuf) -> Result<String, JdkError> {
         .output()
         .await
         .map_err(JdkError::JavaVersionCommand)?;
-    let mut lines = command_output.stderr.lines();
-    let line = lines.next();
-    let Some(line) = line.await.take() else {
-        return Err(JdkError::JavaVersionNoLine);
-    };
-    let Ok(line) = line else {
+    let stderr = std::str::from_utf8(&command_output.stderr).map_err(JdkError::Utf8)?;
+    let mut lines = stderr.lines();
+    let Some(line) = lines.next() else {
         return Err(JdkError::JavaVersionNoLine);
     };
     Ok(line.replace('\"', "").replace(' ', "_"))

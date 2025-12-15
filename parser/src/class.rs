@@ -8,7 +8,6 @@ use classfile_parser::constant_info::ConstantInfo;
 use classfile_parser::field_info::{FieldAccessFlags, FieldInfo};
 use classfile_parser::method_info::MethodAccessFlags;
 use classfile_parser::{ClassAccessFlags, ClassFile, class_parser};
-use itertools::Itertools;
 use my_string::MyString;
 
 pub fn load_class(
@@ -71,7 +70,6 @@ pub fn load_class(
         used_classes
             .into_iter()
             .filter(|i| *i != class_path)
-            .unique()
             .map(ImportUnit::Class),
     );
 

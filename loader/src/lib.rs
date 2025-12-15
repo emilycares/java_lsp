@@ -208,3 +208,19 @@ fn get_files<P: AsRef<Path>>(dir: P, ending: &str) -> Vec<String> {
         .filter(|e| e.ends_with(ending))
         .collect::<Vec<_>>()
 }
+
+#[cfg(test)]
+mod tests {
+    use std::ops::Deref;
+
+    use parser::dto::JType;
+
+    #[test]
+    fn ser() {
+        let inp = JType::Void;
+        let ser: Vec<u8> = postcard::to_allocvec(&inp).unwrap();
+        let out: JType = postcard::from_bytes(ser.deref()).unwrap();
+
+        assert_eq!(inp, out);
+    }
+}

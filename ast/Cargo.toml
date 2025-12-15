@@ -16,8 +16,3 @@ my_string = { path = "../my_string"}
 
 [dev-dependencies]
 insta.workspace = true
-criterion.workspace = true
-
-[[bench]]
-name = "base"
-harness = false

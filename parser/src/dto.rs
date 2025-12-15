@@ -11,7 +11,6 @@ pub enum ClassError {
     Asm,
     Unknown,
     ParseError,
-    // Postcard(postcard::Error),
     UnknownClassName,
     UnknownClassPath,
     InvalidClassPath,
@@ -306,20 +305,9 @@ impl PartialEq<AstJType> for JType {
 
 #[cfg(test)]
 mod tests {
-    use std::ops::Deref;
-
     use ast::types::{AstIdentifier, AstJType, AstJTypeKind, AstPoint, AstRange};
 
     use super::JType;
-
-    #[test]
-    fn ser() {
-        let inp = JType::Void;
-        let ser: Vec<u8> = postcard::to_allocvec(&inp).unwrap();
-        let out: JType = postcard::from_bytes(ser.deref()).unwrap();
-
-        assert_eq!(inp, out);
-    }
 
     #[test]
     fn jtype_map() {

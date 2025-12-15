@@ -14,7 +14,7 @@ use my_string::MyString;
 use ropey::Rope;
 
 pub struct Document {
-    pub text: ropey::Rope,
+    pub rope: Rope,
     pub str_data: String,
     pub ast: AstFile,
     pub path: PathBuf,
@@ -31,18 +31,18 @@ pub enum DocumentError {
 impl Document {
     pub fn reload_file_from_disk(&mut self) -> Result<(), DocumentError> {
         let text = fs::read_to_string(&self.path).map_err(DocumentError::Io)?;
-        self.text = ropey::Rope::from_str(&text);
+        self.rope = Rope::from_str(&text);
         self.str_data = text;
         self.reparse(false)?;
         Ok(())
     }
     pub fn setup_read(path: PathBuf, class_path: MyString) -> Result<Self, DocumentError> {
         let text = fs::read_to_string(&path).map_err(DocumentError::Io)?;
-        let rope = ropey::Rope::from_str(&text);
+        let rope = Rope::from_str(&text);
         Self::setup_rope(&text, path, rope, class_path)
     }
     pub fn setup(text: &str, path: PathBuf, class_path: MyString) -> Result<Self, DocumentError> {
-        let rope = ropey::Rope::from_str(text);
+        let rope = Rope::from_str(text);
         Self::setup_rope(text, path, rope, class_path)
     }
 
@@ -57,7 +57,7 @@ impl Document {
         ast.print_err(text, &tokens);
         let ast = ast.map_err(DocumentError::Ast)?;
         Ok(Self {
-            text: rope,
+            rope,
             str_data: text.to_string(),
             ast,
             path,
@@ -75,9 +75,17 @@ impl Document {
         self.as_str().as_bytes()
     }
 
-    pub fn replace_text(&mut self, text: Rope) -> Result<(), DocumentError> {
-        self.text = text;
+    pub fn replace_rope(&mut self, text: Rope) -> Result<(), DocumentError> {
+        self.rope = text;
         self.reparse(true)?;
+        Ok(())
+    }
+
+    pub fn replace_string(&mut self, text: &str) -> Result<(), DocumentError> {
+        let rope = Rope::from_str(text);
+        self.rope = rope;
+        text.clone_into(&mut self.str_data);
+        self.reparse(false)?;
         Ok(())
     }
 
@@ -92,25 +100,25 @@ impl Document {
 
                 // Get the start/end char indices of the line.
                 let start_idx = self
-                    .text
+                    .rope
                     .line_to_char(sp.line.try_into().unwrap_or_default())
                     + TryInto::<usize>::try_into(sp.character).unwrap_or_default();
                 let end_idx = self
-                    .text
+                    .rope
                     .line_to_char(ep.line.try_into().unwrap_or_default())
                     + TryInto::<usize>::try_into(ep.character).unwrap_or_default();
 
                 let do_insert = !change.text.is_empty();
 
                 if start_idx < end_idx {
-                    self.text.remove(start_idx..end_idx);
+                    self.rope.remove(start_idx..end_idx);
                     if do_insert {
-                        self.text.insert(start_idx, &change.text);
+                        self.rope.insert(start_idx, &change.text);
                     }
                 } else {
-                    self.text.remove(end_idx..start_idx);
+                    self.rope.remove(end_idx..start_idx);
                     if do_insert {
-                        self.text.insert(end_idx, &change.text);
+                        self.rope.insert(end_idx, &change.text);
                     }
                 }
 
@@ -118,7 +126,7 @@ impl Document {
             }
 
             if change.range.is_none() && change.range_length.is_none() {
-                self.text = Rope::from_str(&change.text);
+                self.rope = Rope::from_str(&change.text);
             }
         }
         self.reparse(true)?;
@@ -126,7 +134,7 @@ impl Document {
     }
     fn reparse(&mut self, update_str: bool) -> Result<(), DocumentError> {
         if update_str {
-            self.str_data = self.text.to_string();
+            self.str_data = self.rope.to_string();
         }
         let tokens = ast::lexer::lex(&self.str_data).map_err(DocumentError::Lexer)?;
         let ast = ast::parse_file(&tokens);

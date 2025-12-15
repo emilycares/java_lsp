@@ -64,24 +64,21 @@ impl Backend {
     fn on_open(&self, params: &TextDocumentItem) {
         let ipath = params.uri.path().as_str();
         let path = PathBuf::from(ipath);
-        let rope = ropey::Rope::from_str(&params.text);
         let uri = params.uri.as_str();
         let key: MyString = uri.to_string();
         if let Some(mut document) = self.document_map.get_mut(&key) {
             // TODO: Handle error
-            let _ = document.replace_text(rope);
+            let _ = document.replace_string(&params.text);
         } else {
             match parser::java::load_java(params.text.as_bytes(), SourceDestination::None) {
-                Ok(class) => {
-                    match Document::setup_rope(&params.text, path, rope, class.class_path) {
-                        Ok(doc) => {
-                            self.document_map.insert(key, doc);
-                        }
-                        Err(e) => {
-                            eprintln!("Failed to setup document: {e:?}");
-                        }
+                Ok(class) => match Document::setup(&params.text, path, class.class_path) {
+                    Ok(doc) => {
+                        self.document_map.insert(key, doc);
                     }
-                }
+                    Err(e) => {
+                        eprintln!("Failed to setup document: {e:?}");
+                    }
+                },
                 Err(e) => eprintln!("Got error parsing document {ipath}, {e:?}"),
             }
         }
@@ -371,7 +368,7 @@ impl Backend {
             eprintln!("Document is not opened.");
             return None;
         };
-        let lines = document.text.lines().len();
+        let lines = document.rope.lines().len();
         if let Err(e) = format::format(document.path.clone()) {
             eprintln!("Formatter error: {e:?}");
             return None;

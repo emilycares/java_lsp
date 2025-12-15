@@ -12,7 +12,6 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-nom.workspace = true
 dashmap.workspace = true
 dirs.workspace = true
 tokio.workspace = true

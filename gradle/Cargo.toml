@@ -10,10 +10,8 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
-nom.workspace = true
 dashmap.workspace = true
 tokio.workspace = true
-itertools.workspace = true
 my_string = { path = "../my_string"}
 compile = {path = "../compile"}
 common = {path = "../common"}
