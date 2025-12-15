@@ -1,3 +1,10 @@
+#![deny(warnings)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::redundant_clone)]
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::too_many_lines)]
 use std::num::TryFromIntError;
 
 use ast::types::AstRange;

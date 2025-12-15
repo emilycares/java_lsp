@@ -8,9 +8,9 @@
 use ast::{
     range::AstInRange,
     types::{
-        AstBlock, AstBlockEntry, AstExpressionIdentifier, AstExpressionKind, AstExpressionOrValue,
-        AstFile, AstJType, AstJTypeKind, AstLambdaRhs, AstNewRhs, AstPoint, AstRange,
-        AstRecursiveExpression, AstThing,
+        AstBlock, AstBlockEntry, AstClassBlock, AstExpressionIdentifier, AstExpressionKind,
+        AstExpressionOrValue, AstFile, AstJType, AstJTypeKind, AstLambdaRhs, AstNewRhs, AstPoint,
+        AstRange, AstRecursiveExpression, AstThing,
     },
 };
 pub struct FoundClass {
@@ -48,6 +48,13 @@ fn get_class_interface(
     interface: &ast::types::AstInterface,
     point: &AstPoint,
 ) -> Option<FoundClass> {
+    if let Some(extends) = interface.extends.as_ref() {
+        for p in &extends.parameters {
+            if let Some(o) = get_class_jtype(p, point) {
+                return Some(o);
+            }
+        }
+    }
     for m in &interface.methods {
         if !m.range.is_in_range(point) {
             continue;
@@ -59,6 +66,14 @@ fn get_class_interface(
 
             if let Some(c) = get_class_identifier(&ano.name, point) {
                 return Some(c);
+            }
+        }
+
+        if let Some(throws) = &m.header.throws {
+            for j in &throws.parameters {
+                if let Some(o) = get_class_jtype(j, point) {
+                    return Some(o);
+                }
             }
         }
 
@@ -84,6 +99,14 @@ fn get_class_interface(
 
             if let Some(c) = get_class_identifier(&ano.name, point) {
                 return Some(c);
+            }
+        }
+
+        if let Some(throws) = &m.header.throws {
+            for j in &throws.parameters {
+                if let Some(o) = get_class_jtype(j, point) {
+                    return Some(o);
+                }
             }
         }
 
@@ -119,7 +142,7 @@ fn get_class_interface(
     None
 }
 
-fn get_class_cblock(block: &ast::types::AstClassBlock, point: &AstPoint) -> Option<FoundClass> {
+fn get_class_cblock(block: &AstClassBlock, point: &AstPoint) -> Option<FoundClass> {
     for v in &block.variables {
         if !v.range.is_in_range(point) {
             continue;
@@ -396,7 +419,7 @@ fn get_class_jtype(jtype: &AstJType, point: &AstPoint) -> Option<FoundClass> {
         | AstJTypeKind::Boolean
         | AstJTypeKind::Wildcard
         | AstJTypeKind::Var => None,
-        AstJTypeKind::Parameter(ast_identifier) | AstJTypeKind::Class(ast_identifier) => {
+        AstJTypeKind::Class(ast_identifier) => {
             if !ast_identifier.range.is_in_range(point) {
                 return None;
             }

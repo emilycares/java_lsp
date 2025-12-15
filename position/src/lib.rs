@@ -42,45 +42,42 @@ fn get_class_position_ast_thing(
     match &thing {
         AstThing::Class(ast_class) => {
             if let Some(name) = name
-                && ast_class.name.value != name
+                && ast_class.name.value == name
             {
-                return Ok(());
+                out.push(PositionSymbol {
+                    range: ast_class.range,
+                    name: ast_class.name.value.clone(),
+                    kind,
+                });
             }
-            out.push(PositionSymbol {
-                range: ast_class.range,
-                name: ast_class.name.value.clone(),
-                kind,
-            });
             for inner in &ast_class.block.inner {
                 get_class_position_ast_thing(inner, name, out)?;
             }
         }
         AstThing::Record(ast_record) => {
             if let Some(name) = name
-                && ast_record.name.value != name
+                && ast_record.name.value == name
             {
-                return Ok(());
+                out.push(PositionSymbol {
+                    range: ast_record.range,
+                    name: ast_record.name.value.clone(),
+                    kind,
+                });
             }
-            out.push(PositionSymbol {
-                range: ast_record.range,
-                name: ast_record.name.value.clone(),
-                kind,
-            });
             for inner in &ast_record.block.inner {
                 get_class_position_ast_thing(inner, name, out)?;
             }
         }
         AstThing::Interface(ast_interface) => {
             if let Some(name) = name
-                && ast_interface.name.value != name
+                && ast_interface.name.value == name
             {
-                return Ok(());
+                out.push(PositionSymbol {
+                    range: ast_interface.range,
+                    name: ast_interface.name.value.clone(),
+                    kind: SymbolKind::INTERFACE,
+                });
             }
-            out.push(PositionSymbol {
-                range: ast_interface.range,
-                name: ast_interface.name.value.clone(),
-                kind: SymbolKind::INTERFACE,
-            });
             for inner in &ast_interface.inner {
                 get_class_position_ast_thing(inner, name, out)?;
             }
@@ -102,15 +99,14 @@ fn get_class_position_ast_thing(
         }
         AstThing::Annotation(ast_annotation) => {
             if let Some(name) = name
-                && ast_annotation.name.value != name
+                && ast_annotation.name.value == name
             {
-                return Ok(());
+                out.push(PositionSymbol {
+                    range: ast_annotation.range,
+                    name: ast_annotation.name.value.clone(),
+                    kind,
+                });
             }
-            out.push(PositionSymbol {
-                range: ast_annotation.range,
-                name: ast_annotation.name.value.clone(),
-                kind,
-            });
         }
     }
     Ok(())

@@ -119,7 +119,7 @@ pub async fn load_classes_jar<P: AsRef<Path>>(
 ) -> Result<dto::ClassFolder, LoaderError> {
     let buf = read(path).await.map_err(LoaderError::IO)?;
 
-    base_load_classes_zip(source, buf).await
+    base_load_classes_zip(source, buf, None).await
 }
 pub async fn load_classes_jmod<P: AsRef<Path>>(
     path: P,
@@ -128,12 +128,13 @@ pub async fn load_classes_jmod<P: AsRef<Path>>(
     let mut buf = read(path).await.map_err(LoaderError::IO)?;
     buf.drain(0..4);
 
-    base_load_classes_zip(source, buf).await
+    base_load_classes_zip(source, buf, Some("classes.")).await
 }
 
 async fn base_load_classes_zip(
     source: SourceDestination,
     buf: Vec<u8>,
+    trim_prefix: Option<&str>,
 ) -> Result<ClassFolder, LoaderError> {
     let zip = buf.read_zip().await.map_err(LoaderError::Zip)?;
     let mut classes = vec![];
@@ -157,7 +158,10 @@ async fn base_load_classes_zip(
 
         let class_path = file_name.trim_start_matches('/');
         let class_path = class_path.trim_end_matches(".class");
-        let class_path = class_path.replace('/', ".");
+        let mut class_path = class_path.replace('/', ".");
+        if let Some(trim_prefix) = trim_prefix {
+            class_path = class_path.replace(trim_prefix, "");
+        }
 
         let buf = entry.bytes().await.map_err(LoaderError::IO)?;
 

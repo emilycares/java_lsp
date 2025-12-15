@@ -250,7 +250,6 @@ impl From<&AstJType> for JType {
                 ast_identifier.into(),
                 ast_jtypes.iter().map(Into::into).collect(),
             ),
-            AstJTypeKind::Parameter(ast_identifier) => Self::Parameter(ast_identifier.into()),
             AstJTypeKind::Var => Self::Var,
             AstJTypeKind::Access { base, inner } => Self::Access {
                 base: Box::new((&**base).into()),

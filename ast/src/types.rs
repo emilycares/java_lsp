@@ -652,7 +652,6 @@ pub enum AstJTypeKind {
     Class(AstIdentifier),
     Array(Box<AstJType>),
     Generic(AstIdentifier, Vec<AstJType>),
-    Parameter(AstIdentifier),
     /// Untyped variable
     Var,
     Access {
@@ -703,7 +702,6 @@ impl fmt::Display for AstJTypeKind {
 
                 write!(f, ">")
             }
-            Self::Parameter(p) => write!(f, "<{}>", p.value),
             Self::Access { base, inner } => {
                 fmt::Display::fmt(&base.value, f)?;
                 write!(f, ".")?;

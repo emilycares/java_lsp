@@ -81,9 +81,9 @@ pub fn replace_with_value_type(
                     }
                 }
             }
-            AstThing::Interface(_ast_interface) => todo!(),
-            AstThing::Enumeration(_ast_enumeration) => todo!(),
-            AstThing::Annotation(_ast_annotation) => todo!(),
+            AstThing::Interface(_ast_interface) => (),
+            AstThing::Enumeration(_ast_enumeration) => (),
+            AstThing::Annotation(_ast_annotation) => (),
         }
     }
     let point;
@@ -246,12 +246,12 @@ fn find_var_block_entry<'a>(
         AstBlockEntry::Throw(_ast_throw) => None,
         AstBlockEntry::SwitchCaseArrowValues(_ast_switch_case_arrow) => None,
         AstBlockEntry::Yield(_ast_block_yield) => None,
-        AstBlockEntry::SynchronizedBlock(_ast_synchronized_block) => todo!(),
-        AstBlockEntry::SwitchCaseArrowDefault(_ast_switch_case_arrow_default) => todo!(),
-        AstBlockEntry::Thing(_ast_thing) => todo!(),
+        AstBlockEntry::SynchronizedBlock(_ast_synchronized_block) => None,
+        AstBlockEntry::SwitchCaseArrowDefault(_ast_switch_case_arrow_default) => None,
+        AstBlockEntry::Thing(_ast_thing) => None,
         AstBlockEntry::InlineBlock(ast_block) => find_var_block(&ast_block.block, point),
         AstBlockEntry::Semicolon(_ast_range) => None,
-        AstBlockEntry::SwitchCaseArrowType(_ast_switch_case_arrow_type) => todo!(),
+        AstBlockEntry::SwitchCaseArrowType(_ast_switch_case_arrow_type) => None,
     }
 }
 

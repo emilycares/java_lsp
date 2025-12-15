@@ -30,8 +30,12 @@ pub fn is_imported(imports: &[ImportUnit], class_path: &str) -> bool {
 }
 
 pub fn imports(ast: &AstFile) -> Vec<ImportUnit> {
-    if let Some(imports) = &ast.imports {
-        return imports.imports.iter().map(ImportUnit::from).collect();
+    let mut out = vec![];
+    if let Some(package) = &ast.package {
+        out.push(ImportUnit::Package(package.name.value.clone()));
     }
-    vec![]
+    if let Some(imports) = &ast.imports {
+        out.extend(imports.imports.iter().map(ImportUnit::from));
+    }
+    out
 }

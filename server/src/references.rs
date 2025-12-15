@@ -15,7 +15,7 @@ use position::PositionSymbol;
 use rayon::iter::{IntoParallelRefIterator, ParallelBridge, ParallelIterator};
 use variables::LocalVariable;
 
-use crate::definition::{self};
+use crate::definition::{self, DefinitionError};
 
 #[derive(Debug)]
 pub enum ReferencesError {
@@ -28,7 +28,7 @@ pub enum ReferencesError {
     Tyres(tyres::TyresError),
     ValidatedItemDoesNotExists,
     ArgumentNotFound,
-    Definition,
+    Definition(DefinitionError),
     Document(DocumentError),
     ToLspRange(ToLspRangeError),
 }
@@ -118,7 +118,7 @@ pub fn call_chain_references(
                     let method_refs = method_references(&class, name, document_map)?;
                     let uri = definition::source_to_uri(&class.source).map_err(|e| {
                         eprintln!("Got into definition error: {e:?}");
-                        ReferencesError::Definition
+                        ReferencesError::Definition(e)
                     })?;
                     for i in method_refs {
                         let r = to_lsp_range(&i.0.range).map_err(ReferencesError::ToLspRange)?;
@@ -129,9 +129,6 @@ pub fn call_chain_references(
             }
             Ok(locations)
         }
-        Some(CallItem::FieldAccess { name: _, range: _ }) => todo!(),
-        Some(CallItem::Variable { name: _, range: _ }) => todo!(),
-        Some(CallItem::ClassOrVariable { name: _, range: _ }) => todo!(),
         Some(CallItem::ArgumentList {
             prev: _,
             active_param,
@@ -157,7 +154,7 @@ fn method_references(
 ) -> Result<Vec<ReferencePosition>, ReferencesError> {
     let uri = definition::source_to_uri(&class.source).map_err(|e| {
         eprintln!("Got into definition error: {e:?}");
-        ReferencesError::Definition
+        ReferencesError::Definition(e)
     })?;
     let uri = uri.as_str();
     let doc = document::read_document_or_open_class(
@@ -165,14 +162,15 @@ fn method_references(
         class.class_path.clone(),
         document_map,
         uri,
-    );
+    )
+    .map_err(ReferencesError::Document)?;
     match doc {
         ClassSource::Owned(doc) => {
             let o = match position::get_method_usage(doc.as_bytes(), query_method_name, &doc.ast) {
                 Err(e) => Err(ReferencesError::Position(e))?,
                 Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
             };
-            document_map.insert(uri.into(), doc);
+            document_map.insert(uri.into(), *doc);
             o
         }
         ClassSource::Ref(doc) => {
@@ -181,7 +179,6 @@ fn method_references(
                 Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
             }
         }
-        ClassSource::Err(e) => Err(ReferencesError::Document(e)),
     }
 }
 

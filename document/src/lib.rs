@@ -145,23 +145,29 @@ impl Document {
     }
 }
 
-pub enum ClassSource<'a, D> {
-    Owned(D),
+pub enum ClassSource<'a> {
+    Owned(Box<Document>),
     Ref(RefMut<'a, MyString, Document>),
-    Err(DocumentError),
 }
-#[must_use]
+impl ClassSource<'_> {
+    pub fn get_ast(&self) -> Result<&AstFile, DocumentError> {
+        match self {
+            ClassSource::Owned(document) => Ok(&document.ast),
+            ClassSource::Ref(ref_mut) => Ok(&ref_mut.ast),
+        }
+    }
+}
 pub fn read_document_or_open_class<'a, 'b>(
     source: &'b str,
     class_path: MyString,
     document_map: &'a DashMap<MyString, Document>,
     uri: &'b str,
-) -> ClassSource<'a, Document> {
+) -> Result<ClassSource<'a>, DocumentError> {
     document_map.get_mut(uri).map_or_else(
         || match Document::setup_read(PathBuf::from(source), class_path) {
-            Ok(doc) => ClassSource::Owned(doc),
-            Err(e) => ClassSource::Err(e),
+            Ok(doc) => Ok(ClassSource::Owned(Box::new(doc))),
+            Err(e) => Err(e),
         },
-        ClassSource::Ref,
+        |i| Ok(ClassSource::Ref(i)),
     )
 }

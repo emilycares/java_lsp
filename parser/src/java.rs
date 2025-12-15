@@ -57,7 +57,7 @@ pub fn load_java_tree(
                 name.clone_from(&class.name.value);
                 methods.extend(class.block.methods.iter().map(convert_class_method));
                 fields.extend(class.block.variables.iter().map(convert_class_field));
-                //TDOO: Handle others
+                //TODO: Handle others
                 super_class = match &class.superclass.first() {
                     None | Some(AstSuperClass::None) => dto::SuperClass::None,
                     Some(AstSuperClass::Name(ast_identifier)) => {
@@ -65,7 +65,7 @@ pub fn load_java_tree(
                     }
                 };
             }
-            AstThing::Record(_) => todo!(),
+            AstThing::Record(_) => (),
             AstThing::Enumeration(enumeration) => {
                 name = (&enumeration.name).into();
                 methods.extend(enumeration.methods.iter().map(convert_class_method));

@@ -481,7 +481,7 @@ impl Backend {
             document_map: &self.document_map,
         };
 
-        match definition::class(document.value(), &context) {
+        match definition::class(document.value(), &context, &self.document_map) {
             Ok(definition) => return Some(definition),
             Err(e) => {
                 eprintln!("Error while class definition: {e:?}");
@@ -629,18 +629,15 @@ impl Backend {
             })
             .filter_map(|e| e.path().to_str().map(ToString::to_string))
             .filter_map(|i| {
-                let Ok(uri) = source_to_uri(&i) else {
-                    return None;
-                };
-                Some((
-                    i.clone(),
-                    document::read_document_or_open_class(
-                        &i,
-                        MyString::new(),
-                        &self.document_map,
-                        uri.as_str(),
-                    ),
-                ))
+                let uri = source_to_uri(&i).ok()?;
+                let class_source = document::read_document_or_open_class(
+                    &i,
+                    MyString::new(),
+                    &self.document_map,
+                    uri.as_str(),
+                )
+                .ok()?;
+                Some((i.clone(), class_source))
             })
             .filter_map(|(path, source)| {
                 let mut out = vec![];
@@ -651,7 +648,6 @@ impl Backend {
                     ClassSource::Ref(d) => {
                         let _ = position::get_class_position_ast(&d.ast, None, &mut out);
                     }
-                    ClassSource::Err(_) => (),
                 }
                 Some((path, out))
             })

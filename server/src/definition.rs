@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use ast::types::AstPoint;
 use call_chain::CallItem;
-use document::{Document, DocumentError};
+use document::{Document, DocumentError, read_document_or_open_class};
 use lsp_extra::{ToLspRangeError, to_lsp_range};
 use lsp_types::{GotoDefinitionResponse, Location, SymbolKind, Uri};
 use my_string::MyString;
@@ -41,6 +41,7 @@ pub struct DefinitionContext<'a> {
 pub fn class(
     document: &Document,
     context: &DefinitionContext,
+    document_map: &dashmap::DashMap<MyString, Document>,
 ) -> Result<GotoDefinitionResponse, DefinitionError> {
     let ast = &document.ast;
 
@@ -53,9 +54,17 @@ pub fn class(
     ) {
         Ok((class, _range)) => {
             let mut ranges = vec![];
-            position::get_class_position_ast(ast, Some(&class.name), &mut ranges)
-                .map_err(DefinitionError::Position)?;
             let uri = class_to_uri(&class)?;
+            if let Ok(c) = read_document_or_open_class(
+                &class.source,
+                class.class_path,
+                document_map,
+                uri.as_str(),
+            ) && let Ok(ast) = c.get_ast()
+            {
+                position::get_class_position_ast(ast, Some(&class.name), &mut ranges)
+                    .map_err(DefinitionError::Position)?;
+            }
             Ok(go_to_definition_range(uri, &ranges)?)
         }
         Err(e) => Err(DefinitionError::ClassActon(e)),
@@ -182,11 +191,12 @@ pub fn get_source_content(
     document_map: &dashmap::DashMap<MyString, Document>,
 ) -> Result<String, DefinitionError> {
     let uri = source_to_uri(source)?;
-    match document::read_document_or_open_class(source, String::new(), document_map, uri.as_str()) {
+    match document::read_document_or_open_class(source, String::new(), document_map, uri.as_str())
+        .map_err(DefinitionError::Document)?
+    {
         document::ClassSource::Owned(d) => Ok(d.str_data),
 
         document::ClassSource::Ref(d) => Ok(d.str_data.clone()),
-        document::ClassSource::Err(e) => Err(DefinitionError::Document(e)),
     }
 }
 

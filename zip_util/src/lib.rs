@@ -1,6 +1,10 @@
 #![deny(warnings)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::too_many_lines)]
 use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
 use std::{
     fs::File,
@@ -20,9 +24,8 @@ pub async fn extract_jar(jar: &PathBuf, source_dir: &Path) -> Result<(), ZipUtil
     let reader = buf.read_zip().await.map_err(ZipUtilError::Zip)?;
 
     for entry in reader.entries() {
-        let entry_name = match entry.sanitized_name() {
-            Some(name) => name,
-            None => continue,
+        let Some(entry_name) = entry.sanitized_name() else {
+            continue;
         };
 
         match entry.kind() {
@@ -30,11 +33,9 @@ pub async fn extract_jar(jar: &PathBuf, source_dir: &Path) -> Result<(), ZipUtil
                 #[cfg(windows)]
                 {
                     let path = dir.join(entry_name);
-                    std::fs::create_dir_all(
-                        path.parent()
-                            .expect("all full entry paths should have parent paths"),
-                    )
-                    .map_err(ZipUtilError::IO)?;
+                    if let Some(parent) = path.parent() {
+                        std::fs::create_dir_all(parent).map_err(ZipUtilError::IO)?;
+                    }
 
                     let mut entry_writer = File::create(path).map_err(ZipUtilError::IO)?;
                     let buf = entry.bytes().await.map_err(ZipUtilError::IO)?;
@@ -49,11 +50,9 @@ pub async fn extract_jar(jar: &PathBuf, source_dir: &Path) -> Result<(), ZipUtil
                     use tokio::io::AsyncReadExt;
 
                     let path = dir.join(entry_name);
-                    std::fs::create_dir_all(
-                        path.parent()
-                            .expect("all full entry paths should have parent paths"),
-                    )
-                    .map_err(ZipUtilError::IO)?;
+                    if let Some(parent) = path.parent() {
+                        std::fs::create_dir_all(parent).map_err(ZipUtilError::IO)?;
+                    }
                     if let Ok(metadata) = std::fs::symlink_metadata(&path)
                         && metadata.is_file()
                     {
@@ -76,19 +75,15 @@ pub async fn extract_jar(jar: &PathBuf, source_dir: &Path) -> Result<(), ZipUtil
             }
             EntryKind::Directory => {
                 let path = dir.join(entry_name);
-                std::fs::create_dir_all(
-                    path.parent()
-                        .expect("all full entry paths should have parent paths"),
-                )
-                .map_err(ZipUtilError::IO)?;
+                if let Some(parent) = path.parent() {
+                    std::fs::create_dir_all(parent).map_err(ZipUtilError::IO)?;
+                }
             }
             EntryKind::File => {
                 let path = dir.join(entry_name);
-                std::fs::create_dir_all(
-                    path.parent()
-                        .expect("all full entry paths should have parent paths"),
-                )
-                .map_err(ZipUtilError::IO)?;
+                if let Some(parent) = path.parent() {
+                    std::fs::create_dir_all(parent).map_err(ZipUtilError::IO)?;
+                }
                 let mut entry_writer = File::create(path).map_err(ZipUtilError::IO)?;
                 let buf = entry.bytes().await.map_err(ZipUtilError::IO)?;
 

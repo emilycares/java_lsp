@@ -27,7 +27,7 @@ pub enum TyresError {
     VariableNotFound(MyString),
     NotImported(MyString),
     CallChainInvalid(Vec<CallItem>),
-    CallChainEmtpy,
+    CallChainEmpty,
     /// Value needs to be checked, type is var
     CheckValue,
 }
@@ -198,7 +198,7 @@ pub fn resolve_call_chain(
     class_map: &DashMap<MyString, Class>,
 ) -> Result<ResolveState, TyresError> {
     if call_chain.is_empty() {
-        return Err(TyresError::CallChainEmtpy);
+        return Err(TyresError::CallChainEmpty);
     }
     let mut ops: Vec<ResolveState> = vec![];
     for item in call_chain {
@@ -224,7 +224,7 @@ pub fn resolve_call_chain_value(
     class_map: &DashMap<MyString, Class>,
 ) -> Result<ResolveState, TyresError> {
     if call_chain.is_empty() {
-        return Err(TyresError::CallChainEmtpy);
+        return Err(TyresError::CallChainEmpty);
     }
     let mut ops: Vec<ResolveState> = vec![];
     for item in call_chain {
@@ -251,7 +251,7 @@ pub fn resolve_call_chain_to_point(
     point: &AstPoint,
 ) -> Result<ResolveState, TyresError> {
     if call_chain.is_empty() {
-        return Err(TyresError::CallChainEmtpy);
+        return Err(TyresError::CallChainEmpty);
     }
     let mut ops: Vec<ResolveState> = vec![];
     for item in call_chain {

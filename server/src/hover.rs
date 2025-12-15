@@ -95,16 +95,16 @@ pub fn call_chain_hover(
     class: &dto::Class,
     class_map: &dashmap::DashMap<MyString, parser::dto::Class>,
 ) -> Result<Hover, HoverError> {
-    let (item, relevat) = call_chain::validate(call_chain, point);
+    let (item, relevant) = call_chain::validate(call_chain, point);
     let Some(el) = call_chain.get(item) else {
         return Err(HoverError::ValidatedItemDoesNotExists);
     };
-    let resolve_state =
-        match tyres::resolve_call_chain_to_point(&relevat, lo_va, imports, class, class_map, point)
-        {
-            Ok(c) => Ok(c),
-            Err(e) => Err(HoverError::Tyres(e)),
-        }?;
+    let resolve_state = match tyres::resolve_call_chain_to_point(
+        &relevant, lo_va, imports, class, class_map, point,
+    ) {
+        Ok(c) => Ok(c),
+        Err(e) => Err(HoverError::Tyres(e)),
+    }?;
     match el {
         CallItem::MethodCall { name, range } => {
             let methods: Vec<dto::Method> = resolve_state
@@ -232,7 +232,7 @@ fn variables_to_hover(vars: &[&LocalVariable], range: Range) -> Hover {
             kind: MarkupKind::Markdown,
             value: vars
                 .iter()
-                .map(|i| format_varible_hover(i))
+                .map(|i| format_variable_hoveer(i))
                 .collect::<Vec<_>>()
                 .join("\n"),
         }),
@@ -240,7 +240,7 @@ fn variables_to_hover(vars: &[&LocalVariable], range: Range) -> Hover {
     }
 }
 
-fn format_varible_hover(var: &LocalVariable) -> String {
+fn format_variable_hoveer(var: &LocalVariable) -> String {
     if var.is_fun {
         return format!("{} {}()", var.jtype, var.name);
     }

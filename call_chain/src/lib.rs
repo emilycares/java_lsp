@@ -215,7 +215,7 @@ fn cc_thing(thing: &AstThing, point: &AstPoint, out: &mut Vec<CallItem>) {
                 .filter(|i| i.is_in_range(point))
                 .for_each(|i| cc_thing(i, point, out));
         }
-        AstThing::Annotation(_) => todo!(),
+        AstThing::Annotation(_) => (),
     }
 }
 
@@ -360,8 +360,8 @@ pub fn validate(call_chain: &[CallItem], point: &AstPoint) -> (usize, Vec<CallIt
         .map(|i| i.0)
         .unwrap_or_default();
 
-    let relevat = &call_chain[0..cmp::min(item + 1, call_chain.len())];
-    (item, relevat.to_vec())
+    let relevant = &call_chain[0..cmp::min(item + 1, call_chain.len())];
+    (item, relevant.to_vec())
 }
 
 fn cc_block(block: &AstBlock, point: &AstPoint, out: &mut Vec<CallItem>) {
@@ -482,14 +482,14 @@ fn cc_block_entry(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIte
             cc_block(&ast_synchronized_block.block, point, out);
         }
         AstBlockEntry::SwitchCaseArrowValues(ast_switch_case_arrow) => {
-            cc_swtich_case_arrow_content(&ast_switch_case_arrow.content, point, out);
+            cc_switch_case_arrow_content(&ast_switch_case_arrow.content, point, out);
         }
         AstBlockEntry::SwitchCaseArrowDefault(ast_switch_case_arrow_default) => {
-            cc_swtich_case_arrow_content(&ast_switch_case_arrow_default.content, point, out);
+            cc_switch_case_arrow_content(&ast_switch_case_arrow_default.content, point, out);
         }
         AstBlockEntry::SwitchCaseArrowType(ast_switch_case_arrow_type) => {
             cc_jtype(&ast_switch_case_arrow_type.var.jtype, out);
-            cc_swtich_case_arrow_content(&ast_switch_case_arrow_type.content, point, out);
+            cc_switch_case_arrow_content(&ast_switch_case_arrow_type.content, point, out);
         }
         AstBlockEntry::Thing(ast_thing) => cc_thing(ast_thing, point, out),
         AstBlockEntry::InlineBlock(ast_block) => cc_block(&ast_block.block, point, out),
@@ -500,7 +500,7 @@ fn cc_block_entry(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIte
     }
 }
 
-fn cc_swtich_case_arrow_content(
+fn cc_switch_case_arrow_content(
     content: &AstSwitchCaseArrowContent,
     point: &AstPoint,
     out: &mut Vec<CallItem>,
@@ -750,7 +750,6 @@ fn cc_jtype(jtype: &AstJType, out: &mut Vec<CallItem>) {
             name: ast_identifier.value.clone(),
             range: jtype.range,
         }),
-        AstJTypeKind::Parameter(_ast_identifier) => todo!("call_chain jtype parameter"),
         AstJTypeKind::Access { base, inner } => {
             cc_jtype(base, out);
             cc_jtype(inner, out);
@@ -783,7 +782,6 @@ fn cc_jtype_not_sure_class(jtype: &AstJType, out: &mut Vec<CallItem>) {
             name: ast_identifier.value.clone(),
             range: jtype.range,
         }),
-        AstJTypeKind::Parameter(_ast_identifier) => todo!("call_chain jtype parameter"),
         AstJTypeKind::Access { base, inner } => {
             cc_jtype_not_sure_class(base, out);
             cc_jtype_not_sure_class(inner, out);
@@ -874,7 +872,7 @@ fn cc_recursive_next_oprerator(
             }
             cc_expr(&ast_expression[1..], point, true, out);
             if let Some(values) = &current.values {
-                cc_arugments(point, out, values);
+                cc_arguments(point, out, values);
             }
         }
         AstExpressionOperator::Assign(_) => {
@@ -903,7 +901,7 @@ fn cc_recursive_no_next(
     match (&current.ident, &current.values) {
         (None, None) => (),
         (None, Some(values)) => {
-            cc_arugments(point, out, values);
+            cc_arguments(point, out, values);
         }
         (Some(ident), None) => {
             cc_expr_ident(ident, has_values, has_parent, point, out);
@@ -912,7 +910,7 @@ fn cc_recursive_no_next(
             if ident.get_range().is_contained_in(&values.get_range()) {
                 cc_expr_ident(ident, has_values, has_parent, point, out);
             }
-            cc_arugments(point, out, values);
+            cc_arguments(point, out, values);
         }
     }
 }
@@ -935,7 +933,7 @@ fn cc_casted(casted: &AstCastedExpression, point: &AstPoint, out: &mut Vec<CallI
     out.extend(inner);
 }
 
-fn cc_arugments(point: &AstPoint, out: &mut Vec<CallItem>, values: &AstValues) {
+fn cc_arguments(point: &AstPoint, out: &mut Vec<CallItem>, values: &AstValues) {
     if !values.range.is_in_range(point) {
         return;
     }
