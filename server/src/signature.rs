@@ -57,6 +57,9 @@ pub fn get_signature(
     else {
         return Err(SignatureError::CouldNotGetMethod);
     };
+    let method_name = method_name.as_str();
+    // trim last method call
+    let prev = &prev[..1];
     let resolve_state = match tyres::resolve_call_chain(prev, vars, imports, class, class_map) {
         Ok(c) => Ok(c),
         Err(e) => Err(SignatureError::Tyres(e)),
@@ -65,7 +68,7 @@ pub fn get_signature(
         .class
         .methods
         .iter()
-        .filter(|m| m.name == *method_name)
+        .filter(|m| m.name == method_name)
         .collect();
 
     let Some(active_signature) = methods
@@ -106,24 +109,33 @@ fn get_args(call_chain: &[CallItem]) -> Option<&CallItem> {
 }
 
 fn method_to_signature_information(method: &dto::Method) -> SignatureInformation {
-    let parameters: Vec<ParameterInformation> = method
-        .parameters
-        .iter()
-        .map(|p| {
-            p.name.as_ref().map_or_else(
-                || ParameterInformation {
-                    label: ParameterLabel::Simple(p.jtype.to_string()),
-                    documentation: None,
-                },
-                |name| ParameterInformation {
-                    label: ParameterLabel::Simple(p.jtype.to_string()),
-                    documentation: Some(Documentation::String(name.clone())),
-                },
-            )
-        })
-        .collect();
+    let mut label = format!("{}(", method.name);
+    let mut parameters = Vec::with_capacity(method.parameters.len());
+    let mut peekable = method.parameters.iter().peekable();
+    while let Some(param) = peekable.next() {
+        let jtype = param.jtype.to_string();
+        if let Some(name) = &param.name {
+            let named = format!("{jtype} {name}");
+            label.push_str(&named);
+            parameters.push(ParameterInformation {
+                label: ParameterLabel::Simple(named),
+                documentation: None,
+            });
+        } else {
+            let ty = jtype.clone();
+            label.push_str(&ty);
+            parameters.push(ParameterInformation {
+                label: ParameterLabel::Simple(ty),
+                documentation: None,
+            });
+        }
+        if peekable.peek().is_some() {
+            label.push_str(", ");
+        }
+    }
+    label.push(')');
     SignatureInformation {
-        label: method.name.clone(),
+        label,
         documentation: Some(Documentation::String(method.ret.to_string())),
         parameters: Some(parameters),
         active_parameter: None,
@@ -187,7 +199,7 @@ public class Test {
             out,
             SignatureHelp {
                 signatures: vec![SignatureInformation {
-                    label: "concat".into(),
+                    label: "concat(String)".into(),
                     documentation: Some(Documentation::String("String".into())),
                     parameters: Some(vec![ParameterInformation {
                         label: ParameterLabel::Simple("String".into()),
@@ -264,7 +276,7 @@ public class Test {
             SignatureHelp {
                 signatures: vec![
                     SignatureInformation {
-                        label: "concat".into(),
+                        label: "concat(String)".into(),
                         documentation: Some(Documentation::String("String".into())),
                         parameters: Some(vec![ParameterInformation {
                             label: ParameterLabel::Simple("String".into()),
@@ -273,7 +285,7 @@ public class Test {
                         active_parameter: None,
                     },
                     SignatureInformation {
-                        label: "concat".into(),
+                        label: "concat(String, String)".into(),
                         documentation: Some(Documentation::String("String".into())),
                         parameters: Some(vec![
                             ParameterInformation {
@@ -357,7 +369,7 @@ public class Test {
             SignatureHelp {
                 signatures: vec![
                     SignatureInformation {
-                        label: "concat".into(),
+                        label: "concat(String)".into(),
                         documentation: Some(Documentation::String("String".into())),
                         parameters: Some(vec![ParameterInformation {
                             label: ParameterLabel::Simple("String".into()),
@@ -366,7 +378,7 @@ public class Test {
                         active_parameter: None,
                     },
                     SignatureInformation {
-                        label: "concat".into(),
+                        label: "concat(String, String)".into(),
                         documentation: Some(Documentation::String("String".into())),
                         parameters: Some(vec![
                             ParameterInformation {
