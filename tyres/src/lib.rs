@@ -117,7 +117,7 @@ pub fn resolve(
         };
         return Ok(ResolveState {
             jtype: JType::Class(class_name.into()),
-            class: parent::inclued_parent(imported_class.deref().to_owned(), class_map),
+            class: parent::include_parent(imported_class.deref().to_owned(), class_map),
         });
     }
 
@@ -128,7 +128,7 @@ pub fn resolve(
     if let Some(lang_class) = class_map.get(&lang_class_key) {
         return Ok(ResolveState {
             jtype: JType::Class(lang_class_key),
-            class: parent::inclued_parent(lang_class.deref().to_owned(), class_map),
+            class: parent::include_parent(lang_class.deref().to_owned(), class_map),
         });
     }
 
@@ -140,7 +140,7 @@ pub fn resolve(
             };
             Ok(ResolveState {
                 jtype: JType::Class(c),
-                class: parent::inclued_parent(imported_class.deref().to_owned(), class_map),
+                class: parent::include_parent(imported_class.deref().to_owned(), class_map),
             })
         }
         None => Err(TyresError::NotImported(class_name.into())),
@@ -208,11 +208,7 @@ pub fn resolve_call_chain(
         }
     }
     ops.last().map_or_else(
-        || {
-            Err(TyresError::CallChainInvalid(
-                call_chain.iter().map(Clone::clone).collect(),
-            ))
-        },
+        || Err(TyresError::CallChainInvalid(call_chain.to_vec())),
         |last| Ok(last.clone()),
     )
 }
@@ -234,11 +230,7 @@ pub fn resolve_call_chain_value(
         }
     }
     ops.last().map_or_else(
-        || {
-            Err(TyresError::CallChainInvalid(
-                call_chain.iter().map(Clone::clone).collect(),
-            ))
-        },
+        || Err(TyresError::CallChainInvalid(call_chain.to_vec())),
         |last| Ok(last.clone()),
     )
 }
@@ -264,11 +256,7 @@ pub fn resolve_call_chain_to_point(
         }
     }
     ops.last().map_or_else(
-        || {
-            Err(TyresError::CallChainInvalid(
-                call_chain.iter().map(Clone::clone).collect(),
-            ))
-        },
+        || Err(TyresError::CallChainInvalid(call_chain.to_vec())),
         |last| Ok(last.clone()),
     )
 }

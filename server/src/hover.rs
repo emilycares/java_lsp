@@ -148,25 +148,25 @@ pub fn call_chain_hover(
                         .filter(|v| !v.is_fun)
                         .map(|v| format!("{} {}", v.jtype, v.name))
                         .collect::<Vec<_>>()
-                        .join("\n");
+                        .join("\n\n");
                     let fields = local_class
                         .fields
                         .iter()
                         .filter(|m| m.name == *name)
                         .map(format_field)
                         .collect::<Vec<_>>()
-                        .join("\n");
+                        .join("\n\n");
                     let methods = local_class
                         .methods
                         .iter()
                         .filter(|m| m.name == *name)
                         .map(format_method)
                         .collect::<Vec<_>>()
-                        .join("\n");
+                        .join("\n\n");
                     Ok(Hover {
                         contents: HoverContents::Markup(MarkupContent {
                             kind: MarkupKind::Markdown,
-                            value: format!("{vars}\n{fields}\n{methods}"),
+                            value: format!("{vars}\n\n{fields}\n\n{methods}"),
                         }),
                         range: Some(range),
                     })
@@ -276,7 +276,7 @@ fn class_to_hover(class: &dto::Class, range: Range) -> Hover {
     Hover {
         contents: HoverContents::Markup(MarkupContent {
             kind: MarkupKind::Markdown,
-            value: format!("# {}\n\nmethods:\n{}", class.name, methods.join("\n")),
+            value: format!("# {}\n```java\n{}\n```", class.name, methods.join("\n")),
         }),
         range: Some(range),
     }

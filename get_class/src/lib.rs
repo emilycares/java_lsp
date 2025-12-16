@@ -9,8 +9,8 @@ use ast::{
     range::AstInRange,
     types::{
         AstBlock, AstBlockEntry, AstClassBlock, AstExpressionIdentifier, AstExpressionKind,
-        AstExpressionOrValue, AstFile, AstJType, AstJTypeKind, AstLambdaRhs, AstNewRhs, AstPoint,
-        AstRange, AstRecursiveExpression, AstThing,
+        AstExpressionOrValue, AstFile, AstImportUnit, AstJType, AstJTypeKind, AstLambdaRhs,
+        AstNewRhs, AstPoint, AstRange, AstRecursiveExpression, AstThing,
     },
 };
 pub struct FoundClass {
@@ -21,6 +21,27 @@ pub struct FoundClass {
 /// Get class name under cursor
 #[must_use]
 pub fn get_class(ast: &AstFile, point: &AstPoint) -> Option<FoundClass> {
+    if let Some(imports) = &ast.imports
+        && imports.range.is_in_range(point)
+    {
+        for im in &imports.imports {
+            if !im.range.is_in_range(point) {
+                continue;
+            }
+            let o = match &im.unit {
+                AstImportUnit::StaticClass(ast_identifier)
+                | AstImportUnit::StaticClassMethod(ast_identifier, _)
+                | AstImportUnit::Class(ast_identifier) => Some(FoundClass {
+                    name: ast_identifier.value.clone(),
+                    range: ast_identifier.range,
+                }),
+                AstImportUnit::Prefix(_) | AstImportUnit::StaticPrefix(_) => None,
+            };
+            if o.is_some() {
+                return o;
+            }
+        }
+    }
     things(&ast.things, point)
 }
 fn things(things: &[AstThing], point: &AstPoint) -> Option<FoundClass> {

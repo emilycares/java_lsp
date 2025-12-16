@@ -171,7 +171,7 @@ public class Test {
 }
 
 #[test]
-fn call_chain_menthod_field() {
+fn call_chain_method_field() {
     let content = "
 package ch.emilycares;
 public class Test {
@@ -285,7 +285,7 @@ public class Test {
 }
 
 #[test]
-fn call_chain_varible_class() {
+fn call_chain_variable_class() {
     let content = "
 package ch.emilycares;
 public class Test {
@@ -774,7 +774,7 @@ public class Test {
 }
 
 #[test]
-fn call_chain_field_declartion() {
+fn call_chain_field_declaration() {
     let content = "
 package ch.emilycares;
 public class Test {

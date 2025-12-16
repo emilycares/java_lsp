@@ -170,18 +170,19 @@ async fn download_sources(
     let e = overwrite_settings_xml_tokio(e);
     let e = e.output().await.map_err(MavenFetchError::IO)?;
     let error = String::from_utf8_lossy(&e.stderr).to_string();
-    if !error.is_empty() {
+    if error.is_empty() {
+        let _ = sender.send(TaskProgress {
+            percentage: 0,
+            error: false,
+            message: "Downloading sources Done".to_string(),
+        });
+    } else {
         let _ = sender.send(TaskProgress {
             percentage: 0,
             error: true,
             message: error,
         });
     }
-    let _ = sender.send(TaskProgress {
-        percentage: 0,
-        error: false,
-        message: "Downloading sources Done".to_string(),
-    });
     Ok(())
 }
 

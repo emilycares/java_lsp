@@ -4,7 +4,7 @@ use dashmap::DashMap;
 use my_string::MyString;
 use parser::dto::{Class, SuperClass};
 
-pub fn inclued_parent(class: Class, class_map: &DashMap<MyString, Class>) -> Class {
+pub fn include_parent(class: Class, class_map: &DashMap<MyString, Class>) -> Class {
     let mut s: Vec<Class> = vec![];
 
     populate_super_class(&class, class_map, &mut s);

@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use ast::types::AstPoint;
+use ast::types::{AstFile, AstPoint};
 use call_chain::CallItem;
 use document::{Document, DocumentError, read_document_or_open_class};
 use lsp_extra::{ToLspRangeError, to_lsp_range};
@@ -39,12 +39,10 @@ pub struct DefinitionContext<'a> {
 }
 
 pub fn class(
-    document: &Document,
+    ast: &AstFile,
     context: &DefinitionContext,
     document_map: &dashmap::DashMap<MyString, Document>,
 ) -> Result<GotoDefinitionResponse, DefinitionError> {
-    let ast = &document.ast;
-
     match class_action(
         ast,
         context.point,
@@ -204,7 +202,10 @@ pub fn class_to_uri(class: &dto::Class) -> Result<Uri, DefinitionError> {
     source_to_uri(&class.source)
 }
 pub fn source_to_uri(source: &str) -> Result<Uri, DefinitionError> {
+    #[cfg(windows)]
     let str_uri = format!("file:///{}", source.replace('\\', "/"));
+    #[cfg(unix)]
+    let str_uri = format!("file://{}", source.replace('\\', "/"));
     let uri = Uri::from_str(&str_uri);
     match uri {
         Ok(uri) => Ok(uri),

@@ -481,7 +481,7 @@ impl Backend {
             document_map: &self.document_map,
         };
 
-        match definition::class(document.value(), &context, &self.document_map) {
+        match definition::class(&document.ast, &context, &self.document_map) {
             Ok(definition) => return Some(definition),
             Err(e) => {
                 eprintln!("Error while class definition: {e:?}");

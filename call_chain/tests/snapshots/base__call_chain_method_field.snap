@@ -1,7 +1,6 @@
 ---
 source: call_chain/tests/base.rs
 expression: out
-snapshot_kind: text
 ---
 [
     ClassOrVariable {
