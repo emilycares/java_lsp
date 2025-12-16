@@ -100,7 +100,12 @@ pub fn load_java_files(folder: PathBuf) -> Vec<Class> {
                 .extension()
                 .is_some_and(|i| i.eq_ignore_ascii_case("java"))
         })
-        .filter_map(|e| e.path().to_str().map(ToString::to_string))
+        .filter_map(|e| {
+            e.path()
+                .to_str()
+                .map(ToString::to_string)
+                .map(|i| i.replace("\\", "/"))
+        })
         .filter_map(
             |p| match load_java_fs(&p, SourceDestination::Here(p.clone())) {
                 Ok(c) => Some(c),

@@ -1,5 +1,5 @@
 {
-  "name": "javalsp",
+  "name": "java_lsp",
   "description": "A java language server",
   "author": "emilycares",
   "license": "MIT",
@@ -23,24 +23,13 @@
   "contributes": {
     "configuration": {
       "type": "object",
-      "title": "Example configuration",
+      "title": "java_lsp",
       "properties": {
-        "javaLsp.maxNumberOfProblems": {
+        "java_lsp.executablePath": {
           "scope": "resource",
-          "type": "number",
-          "default": 100,
-          "description": "Controls the maximum number of problems produced by the server."
-        },
-        "javaLsp.trace.server": {
-          "scope": "window",
           "type": "string",
-          "enum": [
-            "off",
-            "messages",
-            "verbose"
-          ],
-          "default": "off",
-          "description": "Traces the communication between VS Code and the language server."
+          "default": "",
+          "description": "The path to the java_lsp executable."
         }
       }
     }

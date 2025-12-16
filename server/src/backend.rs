@@ -62,18 +62,19 @@ impl Backend {
     }
 
     fn on_open(&self, params: &TextDocumentItem) {
-        let ipath = params.uri.path().as_str();
-        let path = PathBuf::from(ipath);
-        let uri = params.uri.as_str();
-        let key: MyString = uri.to_string();
-        if let Some(mut document) = self.document_map.get_mut(&key) {
+        let ipath = get_normal_path(&params.uri);
+        let path = PathBuf::from(params.uri.path().as_str());
+        if let Some(mut document) = self.document_map.get_mut(&ipath) {
             // TODO: Handle error
             let _ = document.replace_string(&params.text);
         } else {
-            match parser::java::load_java(params.text.as_bytes(), SourceDestination::None) {
+            match parser::java::load_java(
+                params.text.as_bytes(),
+                SourceDestination::Here(ipath.clone()),
+            ) {
                 Ok(class) => match Document::setup(&params.text, path, class.class_path) {
                     Ok(doc) => {
-                        self.document_map.insert(key, doc);
+                        self.document_map.insert(ipath, doc);
                     }
                     Err(e) => {
                         eprintln!("Failed to setup document: {e:?}");
@@ -342,7 +343,7 @@ impl Backend {
 
     pub fn hover(&self, params: HoverParams) -> Option<Hover> {
         let uri = params.text_document_position_params.text_document.uri;
-        let document = self.document_map.get_mut(uri.as_str())?;
+        let document = self.document_map.get_mut(&get_normal_path(&uri))?;
         let point = to_ast_point(params.text_document_position_params.position);
         let imports = imports::imports(&document.ast);
         let vars = match variables::get_vars(&document.ast, &point) {
@@ -364,7 +365,7 @@ impl Backend {
 
     pub fn formatting(&self, params: DocumentFormattingParams) -> Option<Vec<TextEdit>> {
         let uri = params.text_document.uri;
-        let Some(mut document) = self.document_map.get_mut(uri.as_str()) else {
+        let Some(mut document) = self.document_map.get_mut(&get_normal_path(&uri)) else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -389,7 +390,7 @@ impl Backend {
     pub fn completion(&self, params: CompletionParams) -> Option<CompletionResponse> {
         let params = params.text_document_position;
         let uri = params.text_document.uri;
-        let Some(document) = self.document_map.get_mut(uri.as_str()) else {
+        let Some(document) = self.document_map.get_mut(&get_normal_path(&uri)) else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -452,7 +453,7 @@ impl Backend {
     pub fn goto_definition(&self, params: GotoDefinitionParams) -> Option<GotoDefinitionResponse> {
         let params = params.text_document_position_params;
         let uri = params.text_document.uri;
-        let Some(document) = self.document_map.get_mut(uri.as_str()) else {
+        let Some(document) = self.document_map.get_mut(&get_normal_path(&uri)) else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -500,7 +501,7 @@ impl Backend {
     pub fn references(&self, params: ReferenceParams) -> Option<Vec<Location>> {
         let params = params.text_document_position;
         let uri = params.text_document.uri;
-        let Some(document) = self.document_map.get_mut(uri.as_str()) else {
+        let Some(document) = self.document_map.get_mut(&get_normal_path(&uri)) else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -551,7 +552,10 @@ impl Backend {
     }
 
     pub fn code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
-        let Some(document) = self.document_map.get_mut(params.text_document.uri.as_str()) else {
+        let Some(document) = self
+            .document_map
+            .get_mut(&get_normal_path(&params.text_document.uri))
+        else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -596,7 +600,10 @@ impl Backend {
     }
 
     pub fn document_symbol(&self, params: DocumentSymbolParams) -> Option<DocumentSymbolResponse> {
-        let Some(document) = self.document_map.get_mut(params.text_document.uri.as_str()) else {
+        let Some(document) = self
+            .document_map
+            .get_mut(&get_normal_path(&params.text_document.uri))
+        else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -671,7 +678,7 @@ impl Backend {
 
     pub fn signature_help(&self, params: SignatureHelpParams) -> Option<SignatureHelp> {
         let uri = params.text_document_position_params.text_document.uri;
-        let Some(document) = self.document_map.get_mut(uri.as_str()) else {
+        let Some(document) = self.document_map.get_mut(&get_normal_path(&uri)) else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -689,6 +696,20 @@ impl Backend {
             }
         }
     }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn get_normal_path(uri: &Uri) -> String {
+    uri.path().as_str().to_owned()
+}
+#[cfg(target_os = "windows")]
+fn get_normal_path(uri: &Uri) -> String {
+    uri.path()
+        .as_str()
+        // remove leading slash
+        .trim_start_matches("/")
+        // url encoded colon
+        .replacen("%3A", ":", 1)
 }
 
 pub async fn read_forward(

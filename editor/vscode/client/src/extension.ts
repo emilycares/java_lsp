@@ -1,4 +1,3 @@
-import * as path from "path";
 import { workspace, ExtensionContext, window } from "vscode";
 
 import {
@@ -12,9 +11,15 @@ let client: LanguageClient;
 
 export function activate(context: ExtensionContext) {
   // The server is implemented in node
-  const serverModule = "/home/emily/Documents/rust/java_lsp/target/debug/java_lsp";
+  const config = workspace.getConfiguration("java_lsp");
+  let serverModule = "";
+  const configExecutablePath = config.get<string>("executablePath");
+  if (configExecutablePath.length == 0) {
+    window.showErrorMessage("java_lsp please configure: java_lsp.executablePath");
+    return;
+  }
+  serverModule = configExecutablePath;
 
-  //console.log(serverModule);
   //window.showErrorMessage("module: " + serverModule);
 
   // If the extension is launched in debug mode then the debug server options are used
