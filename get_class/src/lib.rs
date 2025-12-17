@@ -8,9 +8,9 @@
 use ast::{
     range::AstInRange,
     types::{
-        AstBlock, AstBlockEntry, AstClassBlock, AstExpressionIdentifier, AstExpressionKind,
-        AstExpressionOrValue, AstFile, AstImportUnit, AstJType, AstJTypeKind, AstLambdaRhs,
-        AstNewRhs, AstPoint, AstRange, AstRecursiveExpression, AstThing,
+        AstAnnotated, AstBlock, AstBlockEntry, AstClassBlock, AstExpressionIdentifier,
+        AstExpressionKind, AstExpressionOrValue, AstFile, AstImportUnit, AstJType, AstJTypeKind,
+        AstLambdaRhs, AstNewRhs, AstPoint, AstRange, AstRecursiveExpression, AstThing,
     },
 };
 pub struct FoundClass {
@@ -57,12 +57,35 @@ fn things(things: &[AstThing], point: &AstPoint) -> Option<FoundClass> {
 
 fn thing(thing: &AstThing, point: &AstPoint) -> Option<FoundClass> {
     match &thing {
-        AstThing::Class(ast_class) => get_class_cblock(&ast_class.block, point),
-        AstThing::Record(ast_record) => get_class_cblock(&ast_record.block, point),
+        AstThing::Class(ast_class) => {
+            if let Some(value) = get_class_annotated(&ast_class.annotated, point) {
+                return Some(value);
+            }
+            get_class_cblock(&ast_class.block, point)
+        }
+        AstThing::Record(ast_record) => {
+            if let Some(value) = get_class_annotated(&ast_record.annotated, point) {
+                return Some(value);
+            }
+            get_class_cblock(&ast_record.block, point)
+        }
         AstThing::Interface(interface) => get_class_interface(interface, point),
         AstThing::Enumeration(_ast_enumeration) => todo!(),
         AstThing::Annotation(_ast_annotation) => todo!(),
     }
+}
+
+fn get_class_annotated(annotated: &[AstAnnotated], point: &AstPoint) -> Option<FoundClass> {
+    for ano in annotated {
+        if !ano.range.is_in_range(point) {
+            continue;
+        }
+
+        if let Some(c) = get_class_identifier(&ano.name, point) {
+            return Some(c);
+        }
+    }
+    None
 }
 
 fn get_class_interface(

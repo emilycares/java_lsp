@@ -104,7 +104,7 @@ pub fn load_java_files(folder: PathBuf) -> Vec<Class> {
             e.path()
                 .to_str()
                 .map(ToString::to_string)
-                .map(|i| i.replace("\\", "/"))
+                .map(|i| i.replace('\\', "/"))
         })
         .filter_map(
             |p| match load_java_fs(&p, SourceDestination::Here(p.clone())) {
