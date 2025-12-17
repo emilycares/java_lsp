@@ -501,7 +501,7 @@ public class Test {}
             out,
             vec![PositionSymbol {
                 range: AstRange {
-                    start: AstPoint { line: 2, col: 13 },
+                    start: AstPoint { line: 2, col: 0 },
                     end: AstPoint { line: 2, col: 20 },
                 },
                 name: "Test".to_string(),

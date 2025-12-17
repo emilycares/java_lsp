@@ -222,13 +222,13 @@ pub enum JType {
     Boolean,
     Wildcard,
     Class(MyString),
-    Array(Box<JType>),
-    Generic(MyString, Vec<JType>),
+    Array(Box<Self>),
+    Generic(MyString, Vec<Self>),
     Parameter(MyString),
     Var,
     Access {
-        base: Box<JType>,
-        inner: Box<JType>,
+        base: Box<Self>,
+        inner: Box<Self>,
     },
 }
 impl From<&AstJType> for JType {

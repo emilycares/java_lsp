@@ -20,8 +20,8 @@ pub fn parse_class(
     availability: AstAvailability,
     attributes: AstThingAttributes,
     annotated: Vec<AstAnnotated>,
+    start: &PositionToken,
 ) -> Result<(AstThing, usize), AstError> {
-    let start = tokens.start(pos)?;
     let (name, pos) = parse_name(tokens, pos)?;
     let mut pos = pos;
     let type_parameters = if let Ok((type_params, npos)) = parse_type_parameters(tokens, pos) {

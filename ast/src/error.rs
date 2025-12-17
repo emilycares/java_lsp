@@ -42,7 +42,7 @@ pub enum AstError {
         /// Description
         parent: MyString,
         /// Related errors
-        errors: Vec<(MyString, AstError)>,
+        errors: Vec<(MyString, Self)>,
     },
     /// Invalid token in Boolean
     InvalidBoolean(InvalidToken),

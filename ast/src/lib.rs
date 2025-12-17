@@ -226,6 +226,7 @@ fn parse_import(tokens: &[PositionToken], pos: usize) -> Result<(AstImport, usiz
 ///`  public class Everything { ...`
 ///`  public interface Constants { ...`
 pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, usize), AstError> {
+    let start = tokens.start(pos)?;
     let (mut annotated, mut pos) = parse_annotated_list(tokens, pos)?;
     let mut availability = AstAvailability::empty();
     let mut attributes = AstThingAttributes::empty();
@@ -262,11 +263,15 @@ pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, us
     let t = tokens.get(pos).ok_or_else(AstError::eof)?;
     let pos = pos + 1;
     match t.token {
-        Token::Class => parse_class(tokens, pos, availability, attributes, annotated),
-        Token::Record => parse_record(tokens, pos, availability, attributes, annotated),
-        Token::Interface => parse_interface(tokens, pos, availability, attributes, annotated),
-        Token::Enum => parse_enumeration(tokens, pos, availability, attributes, annotated),
-        Token::AtInterface => parse_annotation(tokens, pos, availability, attributes, annotated),
+        Token::Class => parse_class(tokens, pos, availability, attributes, annotated, start),
+        Token::Record => parse_record(tokens, pos, availability, attributes, annotated, start),
+        Token::Interface => {
+            parse_interface(tokens, pos, availability, attributes, annotated, start)
+        }
+        Token::Enum => parse_enumeration(tokens, pos, availability, attributes, annotated, start),
+        Token::AtInterface => {
+            parse_annotation(tokens, pos, availability, attributes, annotated, start)
+        }
         _ => Err(AstError::ExpectedToken(ExpectedToken {
             pos,
             expected: Token::Class,

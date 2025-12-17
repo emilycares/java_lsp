@@ -52,7 +52,7 @@ AstFile {
                 range: AstRange {
                     start: AstPoint {
                         line: 1,
-                        col: 13,
+                        col: 0,
                     },
                     end: AstPoint {
                         line: 125,
@@ -11516,7 +11516,7 @@ AstFile {
                 range: AstRange {
                     start: AstPoint {
                         line: 126,
-                        col: 6,
+                        col: 0,
                     },
                     end: AstPoint {
                         line: 132,
@@ -11645,7 +11645,7 @@ AstFile {
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 129,
-                                        col: 8,
+                                        col: 2,
                                     },
                                     end: AstPoint {
                                         line: 131,
@@ -11783,7 +11783,7 @@ AstFile {
                 range: AstRange {
                     start: AstPoint {
                         line: 133,
-                        col: 15,
+                        col: 0,
                     },
                     end: AstPoint {
                         line: 138,

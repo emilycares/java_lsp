@@ -21,8 +21,8 @@ pub fn parse_enumeration(
     availability: AstAvailability,
     attributes: AstThingAttributes,
     annotated: Vec<AstAnnotated>,
+    start: &PositionToken,
 ) -> Result<(AstThing, usize), AstError> {
-    let start = tokens.start(pos)?;
     let (name, pos) = parse_identifier(tokens, pos)?;
     let (superclass, implements, permits, pos) = parse_implemnets_extends_permits(tokens, pos)?;
     let mut errors = vec![];

@@ -187,8 +187,8 @@ AstFile {
             AstClass {
                 range: AstRange {
                     start: AstPoint {
-                        line: 9,
-                        col: 13,
+                        line: 8,
+                        col: 0,
                     },
                     end: AstPoint {
                         line: 21,

@@ -13,8 +13,8 @@ expression: parsed
                 AstAnnotation {
                     range: AstRange {
                         start: AstPoint {
-                            line: 3,
-                            col: 14,
+                            line: 1,
+                            col: 4,
                         },
                         end: AstPoint {
                             line: 4,

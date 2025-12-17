@@ -19,8 +19,8 @@ pub fn parse_interface(
     availability: AstAvailability,
     attributes: AstThingAttributes,
     annotated: Vec<AstAnnotated>,
+    start: &PositionToken,
 ) -> Result<(AstThing, usize), AstError> {
-    let start = tokens.start(pos)?;
     let (name, pos) = parse_identifier(tokens, pos)?;
     let mut pos = pos;
     let mut type_parameters = None;

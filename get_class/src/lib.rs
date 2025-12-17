@@ -8,9 +8,10 @@
 use ast::{
     range::AstInRange,
     types::{
-        AstAnnotated, AstBlock, AstBlockEntry, AstClassBlock, AstExpressionIdentifier,
-        AstExpressionKind, AstExpressionOrValue, AstFile, AstImportUnit, AstJType, AstJTypeKind,
-        AstLambdaRhs, AstNewRhs, AstPoint, AstRange, AstRecursiveExpression, AstThing,
+        AstAnnotated, AstAnnotation, AstBlock, AstBlockEntry, AstClassBlock, AstEnumeration,
+        AstExpressionIdentifier, AstExpressionKind, AstExpressionOrValue, AstFile, AstImportUnit,
+        AstJType, AstJTypeKind, AstLambdaRhs, AstNewRhs, AstPoint, AstRange,
+        AstRecursiveExpression, AstThing,
     },
 };
 pub struct FoundClass {
@@ -70,9 +71,84 @@ fn thing(thing: &AstThing, point: &AstPoint) -> Option<FoundClass> {
             get_class_cblock(&ast_record.block, point)
         }
         AstThing::Interface(interface) => get_class_interface(interface, point),
-        AstThing::Enumeration(_ast_enumeration) => todo!(),
-        AstThing::Annotation(_ast_annotation) => todo!(),
+        AstThing::Enumeration(ast_enumeration) => get_class_enumeration(ast_enumeration, point),
+        AstThing::Annotation(ast_annotation) => get_class_annotation(ast_annotation, point),
     }
+}
+
+fn get_class_annotation(annotation: &AstAnnotation, point: &AstPoint) -> Option<FoundClass> {
+    if let Some(o) = get_class_annotated(&annotation.annotated, point) {
+        return Some(o);
+    }
+    for f in &annotation.fields {
+        if let Some(value) = get_class_annotated(&f.annotated, point) {
+            return Some(value);
+        }
+        if let Some(o) = get_class_jtype(&f.jtype, point) {
+            return Some(o);
+        }
+        if let Some(expr) = &f.expression
+            && let Some(o) = get_class_expression(expr, point)
+        {
+            return Some(o);
+        }
+    }
+    None
+}
+
+fn get_class_enumeration(enumeration: &AstEnumeration, point: &AstPoint) -> Option<FoundClass> {
+    if let Some(value) = get_class_annotated(&enumeration.annotated, point) {
+        return Some(value);
+    }
+    for v in &enumeration.variables {
+        if !v.range.is_in_range(point) {
+            continue;
+        }
+
+        if let Some(o) = get_class_jtype(&v.jtype, point) {
+            return Some(o);
+        }
+        if let Some(ex) = &v.expression
+            && let Some(o) = get_class_expression(ex, point)
+        {
+            return Some(o);
+        }
+    }
+    for m in &enumeration.methods {
+        if !m.range.is_in_range(point) {
+            continue;
+        }
+        for ano in &m.header.annotated {
+            if !ano.range.is_in_range(point) {
+                continue;
+            }
+
+            if let Some(c) = get_class_identifier(&ano.name, point) {
+                return Some(c);
+            }
+        }
+
+        if let Some(o) = get_class_jtype(&m.header.jtype, point) {
+            return Some(o);
+        }
+        if m.header.parameters.range.is_in_range(point) {
+            for p in &m.header.parameters.parameters {
+                if let Some(o) = get_class_annotated(&p.annotated, point) {
+                    return Some(o);
+                }
+                if let Some(o) = get_class_jtype(&p.jtype, point) {
+                    return Some(o);
+                }
+            }
+        }
+
+        if let Some(block) = &m.block
+            && let Some(b) = get_class_block(block, point)
+        {
+            return Some(b);
+        }
+    }
+    None
 }
 
 fn get_class_annotated(annotated: &[AstAnnotated], point: &AstPoint) -> Option<FoundClass> {
@@ -92,6 +168,9 @@ fn get_class_interface(
     interface: &ast::types::AstInterface,
     point: &AstPoint,
 ) -> Option<FoundClass> {
+    if let Some(value) = get_class_annotated(&interface.annotated, point) {
+        return Some(value);
+    }
     if let Some(extends) = interface.extends.as_ref() {
         for p in &extends.parameters {
             if let Some(o) = get_class_jtype(p, point) {
@@ -220,6 +299,9 @@ fn get_class_cblock(block: &AstClassBlock, point: &AstPoint) -> Option<FoundClas
         }
         if m.header.parameters.range.is_in_range(point) {
             for p in &m.header.parameters.parameters {
+                if let Some(o) = get_class_annotated(&p.annotated, point) {
+                    return Some(o);
+                }
                 if let Some(o) = get_class_jtype(&p.jtype, point) {
                     return Some(o);
                 }
@@ -416,7 +498,16 @@ fn get_class_expression_kind(ex: &AstExpressionKind, point: &AstPoint) -> Option
             }
             None
         }
-        AstExpressionKind::Array(_ast_values) => todo!(),
+        AstExpressionKind::Array(ast_values) => {
+            if ast_values.range.is_in_range(point) {
+                for i in &ast_values.values {
+                    if let Some(o) = get_class_expression(i, point) {
+                        return Some(o);
+                    }
+                }
+            }
+            None
+        }
     }
 }
 

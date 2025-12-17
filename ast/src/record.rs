@@ -18,8 +18,8 @@ pub fn parse_record(
     avaliability: AstAvailability,
     attributes: AstThingAttributes,
     annotated: Vec<AstAnnotated>,
+    start: &PositionToken,
 ) -> Result<(AstThing, usize), AstError> {
-    let start = tokens.start(pos)?;
     let (name, mut pos) = parse_name(tokens, pos)?;
     let mut type_parameters = None;
     if let Ok((type_params, npos)) = parse_type_parameters(tokens, pos) {

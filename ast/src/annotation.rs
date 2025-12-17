@@ -18,8 +18,8 @@ pub fn parse_annotation(
     availability: AstAvailability,
     attributes: AstThingAttributes,
     annotated: Vec<AstAnnotated>,
+    start: &PositionToken,
 ) -> Result<(AstThing, usize), AstError> {
-    let start = tokens.start(pos)?;
     let (name, pos) = parse_name_single(tokens, pos)?;
     let pos = assert_token(tokens, pos, Token::LeftParenCurly)?;
     let mut pos = pos;

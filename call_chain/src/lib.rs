@@ -45,9 +45,9 @@ pub enum CallItem {
         range: AstRange,
     },
     ArgumentList {
-        prev: Vec<CallItem>,
+        prev: Vec<Self>,
         active_param: Option<usize>,
-        filled_params: Vec<Vec<CallItem>>,
+        filled_params: Vec<Vec<Self>>,
         range: AstRange,
     },
 }
