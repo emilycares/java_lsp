@@ -162,38 +162,82 @@ pub fn get_method_position_ast_thing(
     out: &mut Vec<PositionSymbol>,
 ) -> Result<(), PositionError> {
     match thing {
-        AstThing::Class(ast_class) => out.extend(
-            ast_class
-                .block
-                .methods
-                .iter()
-                .filter(|i| is_valid_name(name, &i.header.name))
-                .map(|i| PositionSymbol {
-                    range: i.range,
-                    name: i.header.name.value.clone(),
-                    kind: SymbolKind::METHOD,
-                }),
-        ),
+        AstThing::Class(ast_class) => {
+            out.extend(
+                ast_class
+                    .block
+                    .methods
+                    .iter()
+                    .filter(|i| is_valid_name(name, &i.header.name))
+                    .map(|i| PositionSymbol {
+                        range: i.range,
+                        name: i.header.name.value.clone(),
+                        kind: SymbolKind::METHOD,
+                    }),
+            );
+            for inner in &ast_class.block.inner {
+                get_method_position_ast_thing(inner, name, out)?;
+            }
+        }
         AstThing::Record(ast_record) => {
-            out.extend(ast_record.block.methods.iter().map(|i| PositionSymbol {
-                range: i.range,
-                name: i.header.name.value.clone(),
-                kind: SymbolKind::METHOD,
-            }));
+            out.extend(
+                ast_record
+                    .block
+                    .methods
+                    .iter()
+                    .filter(|i| is_valid_name(name, &i.header.name))
+                    .map(|i| PositionSymbol {
+                        range: i.range,
+                        name: i.header.name.value.clone(),
+                        kind: SymbolKind::METHOD,
+                    }),
+            );
+            for inner in &ast_record.block.inner {
+                get_method_position_ast_thing(inner, name, out)?;
+            }
         }
         AstThing::Interface(ast_interface) => {
-            out.extend(ast_interface.methods.iter().map(|i| PositionSymbol {
-                range: i.range,
-                name: i.header.name.value.clone(),
-                kind: SymbolKind::METHOD,
-            }));
+            out.extend(
+                ast_interface
+                    .methods
+                    .iter()
+                    .filter(|i| is_valid_name(name, &i.header.name))
+                    .map(|i| PositionSymbol {
+                        range: i.range,
+                        name: i.header.name.value.clone(),
+                        kind: SymbolKind::METHOD,
+                    }),
+            );
+            out.extend(
+                ast_interface
+                    .default_methods
+                    .iter()
+                    .filter(|i| is_valid_name(name, &i.header.name))
+                    .map(|i| PositionSymbol {
+                        range: i.range,
+                        name: i.header.name.value.clone(),
+                        kind: SymbolKind::METHOD,
+                    }),
+            );
+            for inner in &ast_interface.inner {
+                get_method_position_ast_thing(inner, name, out)?;
+            }
         }
         AstThing::Enumeration(ast_enumeration) => {
-            out.extend(ast_enumeration.methods.iter().map(|i| PositionSymbol {
-                range: i.range,
-                name: i.header.name.value.clone(),
-                kind: SymbolKind::METHOD,
-            }));
+            out.extend(
+                ast_enumeration
+                    .methods
+                    .iter()
+                    .filter(|i| is_valid_name(name, &i.header.name))
+                    .map(|i| PositionSymbol {
+                        range: i.range,
+                        name: i.header.name.value.clone(),
+                        kind: SymbolKind::METHOD,
+                    }),
+            );
+            for inner in &ast_enumeration.inner {
+                get_method_position_ast_thing(inner, name, out)?;
+            }
         }
         AstThing::Annotation(_ast_annotation) => (),
     }
@@ -224,66 +268,78 @@ pub fn get_field_position_ast(
     out: &mut Vec<PositionSymbol>,
 ) -> Result<(), PositionError> {
     for thing in &file.things {
-        match thing {
-            AstThing::Class(ast_class) => {
-                get_field_position_class_block(&ast_class.block, name, out);
-            }
-            AstThing::Record(ast_record) => {
-                get_field_position_class_block(&ast_record.block, name, out);
-            }
-            AstThing::Interface(ast_interface) => {
-                out.extend(
-                    ast_interface
-                        .constants
-                        .iter()
-                        .filter(|i| is_valid_name(name, &i.name))
-                        .map(|i| PositionSymbol {
-                            range: i.range,
-                            name: i.name.value.clone(),
-                            kind: SymbolKind::FIELD,
-                        }),
-                );
-                ast_interface
-                    .default_methods
-                    .iter()
-                    .map(|i| &i.block)
-                    .for_each(|i| {
-                        get_field_position_block(i, name, out);
-                    });
-            }
-            AstThing::Enumeration(ast_enumeration) => {
-                out.extend(
-                    ast_enumeration
-                        .variants
-                        .iter()
-                        .filter(|i| is_valid_name(name, &i.name))
-                        .map(|i| PositionSymbol {
-                            range: i.range,
-                            name: i.name.value.clone(),
-                            kind: SymbolKind::ENUM_MEMBER,
-                        }),
-                );
-                out.extend(
-                    ast_enumeration
-                        .variables
-                        .iter()
-                        .filter(|i| is_valid_name(name, &i.name))
-                        .map(|i| PositionSymbol {
-                            range: i.range,
-                            name: i.name.value.clone(),
-                            kind: SymbolKind::FIELD,
-                        }),
-                );
-                ast_enumeration
-                    .methods
-                    .iter()
-                    .filter_map(|i| i.block.as_ref())
-                    .for_each(|i| {
-                        get_field_position_block(i, name, out);
-                    });
-            }
-            AstThing::Annotation(_ast_annotation) => (),
+        get_field_position_ast_thing(thing, name, out)?;
+    }
+    Ok(())
+}
+pub fn get_field_position_ast_thing(
+    thing: &AstThing,
+    name: Option<&str>,
+    out: &mut Vec<PositionSymbol>,
+) -> Result<(), PositionError> {
+    match thing {
+        AstThing::Class(ast_class) => {
+            get_field_position_class_block(&ast_class.block, name, out);
         }
+        AstThing::Record(ast_record) => {
+            get_field_position_class_block(&ast_record.block, name, out);
+        }
+        AstThing::Interface(ast_interface) => {
+            out.extend(
+                ast_interface
+                    .constants
+                    .iter()
+                    .filter(|i| is_valid_name(name, &i.name))
+                    .map(|i| PositionSymbol {
+                        range: i.range,
+                        name: i.name.value.clone(),
+                        kind: SymbolKind::FIELD,
+                    }),
+            );
+            ast_interface
+                .default_methods
+                .iter()
+                .filter(|i| is_valid_name(name, &i.header.name))
+                .map(|i| &i.block)
+                .for_each(|i| {
+                    get_field_position_block(i, name, out);
+                });
+        }
+        AstThing::Enumeration(ast_enumeration) => {
+            out.extend(
+                ast_enumeration
+                    .variants
+                    .iter()
+                    .filter(|i| is_valid_name(name, &i.name))
+                    .map(|i| PositionSymbol {
+                        range: i.range,
+                        name: i.name.value.clone(),
+                        kind: SymbolKind::ENUM_MEMBER,
+                    }),
+            );
+            out.extend(
+                ast_enumeration
+                    .variables
+                    .iter()
+                    .filter(|i| is_valid_name(name, &i.name))
+                    .map(|i| PositionSymbol {
+                        range: i.range,
+                        name: i.name.value.clone(),
+                        kind: SymbolKind::FIELD,
+                    }),
+            );
+            ast_enumeration
+                .methods
+                .iter()
+                .filter_map(|i| i.block.as_ref())
+                .for_each(|i| {
+                    get_field_position_block(i, name, out);
+                });
+            for inner in &ast_enumeration.inner {
+                get_field_position_ast_thing(inner, name, out)?;
+            }
+        }
+        AstThing::Annotation(_ast_annotation) => (),
     }
     Ok(())
 }
