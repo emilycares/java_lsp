@@ -8,10 +8,11 @@
 use ast::{
     range::AstInRange,
     types::{
-        AstAnnotated, AstAnnotation, AstBlock, AstBlockEntry, AstClassBlock, AstEnumeration,
-        AstExpressionIdentifier, AstExpressionKind, AstExpressionOrValue, AstFile, AstImportUnit,
-        AstJType, AstJTypeKind, AstLambdaRhs, AstNewRhs, AstPoint, AstRange,
-        AstRecursiveExpression, AstThing,
+        AstAnnotated, AstAnnotatedParameter, AstAnnotatedParameterKind, AstAnnotation, AstBlock,
+        AstBlockEntry, AstClassBlock, AstEnumeration, AstExpressionIdentifier, AstExpressionKind,
+        AstExpressionOrAnnotated, AstExpressionOrValue, AstFile, AstImportUnit, AstJType,
+        AstJTypeKind, AstLambdaRhs, AstNewRhs, AstPoint, AstRange, AstRecursiveExpression,
+        AstThing, AstValuesWithAnnotated,
     },
 };
 pub struct FoundClass {
@@ -59,13 +60,13 @@ fn things(things: &[AstThing], point: &AstPoint) -> Option<FoundClass> {
 fn thing(thing: &AstThing, point: &AstPoint) -> Option<FoundClass> {
     match &thing {
         AstThing::Class(ast_class) => {
-            if let Some(value) = get_class_annotated(&ast_class.annotated, point) {
+            if let Some(value) = get_class_annotated_vec(&ast_class.annotated, point) {
                 return Some(value);
             }
             get_class_cblock(&ast_class.block, point)
         }
         AstThing::Record(ast_record) => {
-            if let Some(value) = get_class_annotated(&ast_record.annotated, point) {
+            if let Some(value) = get_class_annotated_vec(&ast_record.annotated, point) {
                 return Some(value);
             }
             get_class_cblock(&ast_record.block, point)
@@ -77,11 +78,11 @@ fn thing(thing: &AstThing, point: &AstPoint) -> Option<FoundClass> {
 }
 
 fn get_class_annotation(annotation: &AstAnnotation, point: &AstPoint) -> Option<FoundClass> {
-    if let Some(o) = get_class_annotated(&annotation.annotated, point) {
+    if let Some(o) = get_class_annotated_vec(&annotation.annotated, point) {
         return Some(o);
     }
     for f in &annotation.fields {
-        if let Some(value) = get_class_annotated(&f.annotated, point) {
+        if let Some(value) = get_class_annotated_vec(&f.annotated, point) {
             return Some(value);
         }
         if let Some(o) = get_class_jtype(&f.jtype, point) {
@@ -97,7 +98,7 @@ fn get_class_annotation(annotation: &AstAnnotation, point: &AstPoint) -> Option<
 }
 
 fn get_class_enumeration(enumeration: &AstEnumeration, point: &AstPoint) -> Option<FoundClass> {
-    if let Some(value) = get_class_annotated(&enumeration.annotated, point) {
+    if let Some(value) = get_class_annotated_vec(&enumeration.annotated, point) {
         return Some(value);
     }
     for v in &enumeration.variables {
@@ -118,14 +119,8 @@ fn get_class_enumeration(enumeration: &AstEnumeration, point: &AstPoint) -> Opti
         if !m.range.is_in_range(point) {
             continue;
         }
-        for ano in &m.header.annotated {
-            if !ano.range.is_in_range(point) {
-                continue;
-            }
-
-            if let Some(c) = get_class_identifier(&ano.name, point) {
-                return Some(c);
-            }
+        if let Some(value) = get_class_annotated_vec(&m.header.annotated, point) {
+            return Some(value);
         }
 
         if let Some(o) = get_class_jtype(&m.header.jtype, point) {
@@ -133,7 +128,7 @@ fn get_class_enumeration(enumeration: &AstEnumeration, point: &AstPoint) -> Opti
         }
         if m.header.parameters.range.is_in_range(point) {
             for p in &m.header.parameters.parameters {
-                if let Some(o) = get_class_annotated(&p.annotated, point) {
+                if let Some(o) = get_class_annotated_vec(&p.annotated, point) {
                     return Some(o);
                 }
                 if let Some(o) = get_class_jtype(&p.jtype, point) {
@@ -151,14 +146,81 @@ fn get_class_enumeration(enumeration: &AstEnumeration, point: &AstPoint) -> Opti
     None
 }
 
-fn get_class_annotated(annotated: &[AstAnnotated], point: &AstPoint) -> Option<FoundClass> {
+fn get_class_annotated_vec(annotated: &[AstAnnotated], point: &AstPoint) -> Option<FoundClass> {
     for ano in annotated {
-        if !ano.range.is_in_range(point) {
-            continue;
-        }
-
-        if let Some(c) = get_class_identifier(&ano.name, point) {
+        if let Some(c) = get_class_annotated(ano, point) {
             return Some(c);
+        }
+    }
+    None
+}
+fn get_class_annotated(annotated: &AstAnnotated, point: &AstPoint) -> Option<FoundClass> {
+    if !annotated.range.is_in_range(point) {
+        return None;
+    }
+
+    if let Some(c) = get_class_identifier(&annotated.name, point) {
+        return Some(c);
+    }
+    match &annotated.parameters {
+        AstAnnotatedParameterKind::None => None,
+        AstAnnotatedParameterKind::Parameter(ast_annotated_parameters) => {
+            get_class_annotated_parameters(ast_annotated_parameters, point)
+        }
+        AstAnnotatedParameterKind::Array(ast_values_with_annotated) => {
+            get_class_values_with_annotated(ast_values_with_annotated, point)
+        }
+    }
+}
+
+fn get_class_values_with_annotated(
+    ast_values_with_annotated: &AstValuesWithAnnotated,
+    point: &AstPoint,
+) -> Option<FoundClass> {
+    if !ast_values_with_annotated.range.is_in_range(point) {
+        return None;
+    }
+    for val in &ast_values_with_annotated.values {
+        let o = match val {
+            AstExpressionOrAnnotated::Expression(expression) => {
+                get_class_expression(expression, point)
+            }
+            AstExpressionOrAnnotated::Annotated(ast_annotated) => {
+                get_class_annotated(ast_annotated, point)
+            }
+        };
+        if o.is_some() {
+            return o;
+        }
+    }
+    None
+}
+
+fn get_class_annotated_parameters(
+    ast_annotated_parameters: &[AstAnnotatedParameter],
+    point: &AstPoint,
+) -> Option<FoundClass> {
+    for p in ast_annotated_parameters {
+        let o = match &p {
+            AstAnnotatedParameter::NamedExpression {
+                range: _,
+                name: _,
+                expression,
+            }
+            | AstAnnotatedParameter::Expression(expression) => {
+                get_class_expression(expression, point)
+            }
+            AstAnnotatedParameter::Annotated(ast_annotated) => {
+                get_class_annotated(ast_annotated, point)
+            }
+            AstAnnotatedParameter::NamedArray {
+                range: _,
+                name: _,
+                values,
+            } => get_class_values_with_annotated(values, point),
+        };
+        if o.is_some() {
+            return o;
         }
     }
     None
@@ -168,7 +230,7 @@ fn get_class_interface(
     interface: &ast::types::AstInterface,
     point: &AstPoint,
 ) -> Option<FoundClass> {
-    if let Some(value) = get_class_annotated(&interface.annotated, point) {
+    if let Some(value) = get_class_annotated_vec(&interface.annotated, point) {
         return Some(value);
     }
     if let Some(extends) = interface.extends.as_ref() {
@@ -182,14 +244,8 @@ fn get_class_interface(
         if !m.range.is_in_range(point) {
             continue;
         }
-        for ano in &m.header.annotated {
-            if !ano.range.is_in_range(point) {
-                continue;
-            }
-
-            if let Some(c) = get_class_identifier(&ano.name, point) {
-                return Some(c);
-            }
+        if let Some(value) = get_class_annotated_vec(&m.header.annotated, point) {
+            return Some(value);
         }
 
         if let Some(throws) = &m.header.throws {
@@ -215,14 +271,8 @@ fn get_class_interface(
         if !m.range.is_in_range(point) {
             continue;
         }
-        for ano in &m.header.annotated {
-            if !ano.range.is_in_range(point) {
-                continue;
-            }
-
-            if let Some(c) = get_class_identifier(&ano.name, point) {
-                return Some(c);
-            }
+        if let Some(value) = get_class_annotated_vec(&m.header.annotated, point) {
+            return Some(value);
         }
 
         if let Some(throws) = &m.header.throws {
@@ -284,14 +334,8 @@ fn get_class_cblock(block: &AstClassBlock, point: &AstPoint) -> Option<FoundClas
         if !m.range.is_in_range(point) {
             continue;
         }
-        for ano in &m.header.annotated {
-            if !ano.range.is_in_range(point) {
-                continue;
-            }
-
-            if let Some(c) = get_class_identifier(&ano.name, point) {
-                return Some(c);
-            }
+        if let Some(value) = get_class_annotated_vec(&m.header.annotated, point) {
+            return Some(value);
         }
 
         if let Some(o) = get_class_jtype(&m.header.jtype, point) {
@@ -299,7 +343,7 @@ fn get_class_cblock(block: &AstClassBlock, point: &AstPoint) -> Option<FoundClas
         }
         if m.header.parameters.range.is_in_range(point) {
             for p in &m.header.parameters.parameters {
-                if let Some(o) = get_class_annotated(&p.annotated, point) {
+                if let Some(o) = get_class_annotated_vec(&p.annotated, point) {
                     return Some(o);
                 }
                 if let Some(o) = get_class_jtype(&p.jtype, point) {

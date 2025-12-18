@@ -246,11 +246,17 @@ pub fn resolve_call_chain_to_point(
         return Err(TyresError::CallChainEmpty);
     }
     let mut ops: Vec<ResolveState> = vec![];
-    for item in call_chain {
+    let mut cc = call_chain.iter().peekable();
+    while let Some(item) = cc.next() {
         if item.get_range().is_after_range(point) {
             break;
         }
-        let op = call_chain_op(item, &ops, lo_va, imports, class, class_map, true);
+        let op = if cc.peek().is_some() {
+            call_chain_op(item, &ops, lo_va, imports, class, class_map, true)
+        } else {
+            call_chain_op_self(item, &ops, lo_va, imports, class, class_map, true)
+        };
+
         if let Ok(op) = op {
             ops.push(op);
         }
@@ -292,6 +298,73 @@ fn call_chain_op(
         CallItem::Variable { name, range: _ } => {
             if let Some(lo) = lo_va.iter().find(|va| va.name == *name) {
                 return resolve_var(lo, imports, class_map);
+            }
+            Err(TyresError::VariableNotFound(name.clone()))
+        }
+        CallItem::This { range: _ } => Ok(ResolveState {
+            class: class.clone(),
+            jtype: JType::Class(class.class_path.clone()),
+        }),
+        CallItem::Class { name, range: _ } => resolve(name, imports, class_map),
+        CallItem::ClassOrVariable { name, range: _ } => {
+            if let Some(lo) = lo_va.iter().find(|va| va.name == *name) {
+                return resolve_var(lo, imports, class_map);
+            }
+            resolve(name, imports, class_map)
+        }
+        CallItem::ArgumentList {
+            prev,
+            range: _,
+            active_param,
+            filled_params,
+        } => {
+            if resolve_argument {
+                if let Some(active_param) = active_param
+                    && let Some(current_param) = filled_params.get(*active_param)
+                    && !current_param.is_empty()
+                {
+                    return resolve_call_chain(current_param, lo_va, imports, class, class_map);
+                }
+                return resolve_call_chain(prev, lo_va, imports, class, class_map);
+            }
+            resolve_call_chain(prev, lo_va, imports, class, class_map)
+        }
+    }
+}
+fn call_chain_op_self(
+    item: &CallItem,
+    ops: &[ResolveState],
+    lo_va: &[LocalVariable],
+    imports: &[ImportUnit],
+    class: &Class,
+    class_map: &DashMap<MyString, Class>,
+    resolve_argument: bool,
+) -> Result<ResolveState, TyresError> {
+    match item {
+        CallItem::MethodCall { name, range: _ } => {
+            let Some(last) = ops.last() else {
+                return Err(TyresError::NoClassInOps);
+            };
+            if last.class.methods.iter().any(|m| m.name == *name) {
+                return Ok(last.clone());
+            }
+            Err(TyresError::MethodNotFound(name.clone()))
+        }
+        CallItem::FieldAccess { name, range: _ } => {
+            let Some(last) = ops.last() else {
+                return Err(TyresError::NoClassInOps);
+            };
+            if last.class.fields.iter().any(|m| m.name == *name) {
+                return Ok(last.clone());
+            }
+            Err(TyresError::FieldNotFound(name.clone()))
+        }
+        CallItem::Variable { name, range: _ } => {
+            let Some(last) = ops.last() else {
+                return Err(TyresError::NoClassInOps);
+            };
+            if lo_va.iter().any(|va| va.name == *name) {
+                return Ok(last.clone());
             }
             Err(TyresError::VariableNotFound(name.clone()))
         }

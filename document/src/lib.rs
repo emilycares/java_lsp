@@ -30,6 +30,7 @@ pub enum DocumentError {
 
 impl Document {
     pub fn reload_file_from_disk(&mut self) -> Result<(), DocumentError> {
+        eprintln!("Reload file from disk: {:?}", self.path.display());
         let text = fs::read_to_string(&self.path).map_err(DocumentError::Io)?;
         self.rope = Rope::from_str(&text);
         self.str_data = text;
@@ -37,6 +38,7 @@ impl Document {
         Ok(())
     }
     pub fn setup_read(path: PathBuf, class_path: MyString) -> Result<Self, DocumentError> {
+        eprintln!("Read file from disk: {:?}", path.display());
         let text = fs::read_to_string(&path).map_err(DocumentError::Io)?;
         let rope = Rope::from_str(&text);
         Self::setup_rope(&text, path, rope, class_path)
@@ -164,10 +166,28 @@ pub fn read_document_or_open_class<'a, 'b>(
     uri: &'b str,
 ) -> Result<ClassSource<'a>, DocumentError> {
     document_map.get_mut(uri).map_or_else(
-        || match Document::setup_read(PathBuf::from(source), class_path) {
-            Ok(doc) => Ok(ClassSource::Owned(Box::new(doc))),
-            Err(e) => Err(e),
+        || {
+            let path = path_without_subclass(source);
+            match Document::setup_read(path, class_path) {
+                Ok(doc) => Ok(ClassSource::Owned(Box::new(doc))),
+                Err(e) => Err(e),
+            }
         },
         |i| Ok(ClassSource::Ref(i)),
     )
+}
+
+fn path_without_subclass(source: &str) -> PathBuf {
+    let mut path = PathBuf::from(source);
+    {
+        if let Some(file_name) = path.file_name()
+            && let Some(file_name) = file_name.to_str()
+            && file_name.contains('$')
+            && let Some((name, extension)) = file_name.split_once('.')
+            && let Some((name, _)) = name.split_once('$')
+        {
+            path.set_file_name(format!("{name}.{extension}"));
+        }
+    }
+    path
 }

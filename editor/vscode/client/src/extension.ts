@@ -43,8 +43,8 @@ export function activate(context: ExtensionContext) {
 
   // Create the language client and start the client.
   client = new LanguageClient(
-    "javaLsp",
-    "Java Language Server",
+    "java_lsp",
+    "java_lsp",
     serverOptions,
     clientOptions,
   );

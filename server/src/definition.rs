@@ -203,9 +203,12 @@ pub fn class_to_uri(class: &dto::Class) -> Result<Uri, DefinitionError> {
 }
 pub fn source_to_uri(source: &str) -> Result<Uri, DefinitionError> {
     #[cfg(windows)]
-    let str_uri = format!("file:///{}", source.replace('\\', "/"));
+    let source = &source.replace('\\', "/");
+    let source = path_without_subclass(source);
+    #[cfg(windows)]
+    let str_uri = format!("file:///{source}");
     #[cfg(unix)]
-    let str_uri = format!("file://{}", source.replace('\\', "/"));
+    let str_uri = format!("file://{source}");
     let uri = Uri::from_str(&str_uri);
     match uri {
         Ok(uri) => Ok(uri),
@@ -214,6 +217,17 @@ pub fn source_to_uri(source: &str) -> Result<Uri, DefinitionError> {
             error: format!("{e:?}"),
         }),
     }
+}
+
+fn path_without_subclass(source: &str) -> String {
+    if let Some((path, file_name)) = source.rsplit_once('/')
+        && file_name.contains('$')
+        && let Some((name, extension)) = file_name.split_once('.')
+        && let Some((name, _)) = name.split_once('$')
+    {
+        return format!("{path}/{name}.{extension}");
+    }
+    source.to_owned()
 }
 
 fn go_to_definition_range(
