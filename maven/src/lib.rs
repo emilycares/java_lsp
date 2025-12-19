@@ -9,7 +9,7 @@ pub mod compile;
 pub mod config;
 pub mod fetch;
 pub mod project;
-mod tree;
+pub mod tree;
 
 #[cfg(not(target_os = "windows"))]
 const EXECUTABLE_MAVEN: &str = "./mvnw";

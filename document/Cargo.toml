@@ -15,6 +15,7 @@ ropey.workspace = true
 dashmap.workspace = true
 ast = { path = "../ast"}
 parser = { path = "../parser"}
+lsp_extra = { path = "../lsp_extra"}
 my_string = { path = "../my_string"}
 
 [dev-dependencies]

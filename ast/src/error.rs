@@ -201,7 +201,8 @@ impl AstError {
         // Self::UnexpectedEOF(loc.file().into(), loc.line(), loc.column())
     }
 }
-fn get_pos(e: &AstError) -> (usize, usize) {
+/// Get position for `AstError`
+pub fn get_pos(e: &AstError) -> (usize, usize) {
     match e {
         AstError::ExpectedToken(expected_token) => (expected_token.pos, expected_token.pos),
         AstError::UnexpectedEOF => (10_000_000, 10_000_000),

@@ -54,31 +54,31 @@ impl AstPoint {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AstFile {
     pub package: Option<AstPackage>,
     pub imports: Option<AstImports>,
     pub things: Vec<AstThing>,
     pub modules: Vec<AstModule>,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AstPackage {
     pub range: AstRange,
     pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AstImports {
     pub range: AstRange,
     pub imports: Vec<AstImport>,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AstImport {
     pub range: AstRange,
     pub unit: AstImportUnit,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AstImportUnit {
     Class(AstIdentifier),
     StaticClass(AstIdentifier),

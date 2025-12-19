@@ -27,10 +27,11 @@ use tokio::fs::read;
 #[derive(Debug)]
 pub enum LoaderError {
     IO(std::io::Error),
-    Zip(rc_zip_tokio::rc_zip::error::Error),
-    SkipBytesStart(std::io::Error),
-    InvalidJmod(std::io::Error),
-    Postcard(postcard::Error),
+    Zip {
+        e: rc_zip_tokio::rc_zip::error::Error,
+        path: String,
+    },
+    InvalidCfcCache,
 }
 
 pub fn load_class_fs<T>(
@@ -71,18 +72,22 @@ pub fn save_class_folder<P: AsRef<Path>>(
         .write(true)
         .open(path)
         .map_err(LoaderError::IO)?;
-    let data = postcard::to_allocvec(class_folder).map_err(LoaderError::Postcard)?;
+    let data = postcard::to_allocvec(class_folder).map_err(|_| LoaderError::InvalidCfcCache)?;
 
     let _ = file.write_all(&data);
     Ok(())
 }
 
-pub fn load_class_folder<P: AsRef<Path>>(path: P) -> Result<dto::ClassFolder, LoaderError> {
-    let file = File::open(path).map_err(LoaderError::IO)?;
+pub fn load_class_folder<P: AsRef<Path> + Debug>(path: P) -> Result<dto::ClassFolder, LoaderError> {
+    let file = File::open(&path).map_err(LoaderError::IO)?;
     let mmap = unsafe { memmap2::Mmap::map(&file) }.map_err(LoaderError::IO)?;
-    let out = postcard::from_bytes(&mmap[..]).map_err(LoaderError::Postcard)?;
-
-    Ok(out)
+    if let Ok(o) = postcard::from_bytes(&mmap[..]) {
+        Ok(o)
+    } else {
+        eprintln!("Removing invalid cfc cache: {path:?}");
+        std::fs::remove_file(path).map_err(LoaderError::IO)?;
+        Err(LoaderError::InvalidCfcCache)
+    }
 }
 
 pub fn get_java_files_from_folder<P: AsRef<Path>>(path: P) -> Vec<String> {
@@ -118,30 +123,36 @@ pub fn load_java_files(folder: PathBuf) -> Vec<Class> {
         .collect::<Vec<_>>()
 }
 
-pub async fn load_classes_jar<P: AsRef<Path>>(
+pub async fn load_classes_jar<P: AsRef<Path> + Debug + Clone>(
     path: P,
     source: SourceDestination,
 ) -> Result<dto::ClassFolder, LoaderError> {
+    let src_zip = format!("{path:?}");
     let buf = read(path).await.map_err(LoaderError::IO)?;
 
-    base_load_classes_zip(source, buf, None).await
+    base_load_classes_zip(src_zip, source, buf, None).await
 }
-pub async fn load_classes_jmod<P: AsRef<Path>>(
+pub async fn load_classes_jmod<P: AsRef<Path> + Debug>(
     path: P,
     source: SourceDestination,
 ) -> Result<dto::ClassFolder, LoaderError> {
+    let src_zip = format!("{path:?}");
     let mut buf = read(path).await.map_err(LoaderError::IO)?;
     buf.drain(0..4);
 
-    base_load_classes_zip(source, buf, Some("classes.")).await
+    base_load_classes_zip(src_zip, source, buf, Some("classes.")).await
 }
 
 async fn base_load_classes_zip(
+    path: String,
     source: SourceDestination,
     buf: Vec<u8>,
     trim_prefix: Option<&str>,
 ) -> Result<ClassFolder, LoaderError> {
-    let zip = buf.read_zip().await.map_err(LoaderError::Zip)?;
+    let zip = buf
+        .read_zip()
+        .await
+        .map_err(|e| LoaderError::Zip { e, path })?;
     let mut classes = vec![];
 
     for entry in zip.entries() {

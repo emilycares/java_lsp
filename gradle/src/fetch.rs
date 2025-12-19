@@ -1,5 +1,5 @@
 use std::{
-    fs::{self, remove_file},
+    fs::{self},
     path::{Path, PathBuf},
     process::Command,
     sync::{
@@ -47,14 +47,13 @@ pub async fn fetch_deps(
     sender: tokio::sync::watch::Sender<TaskProgress>,
 ) -> Result<(), GradleFetchError> {
     let path = Path::new(&GRADLE_CFC);
-    if path.exists() {
-        if let Ok(classes) = loader::load_class_folder(path) {
-            for class in classes.classes {
-                class_map.insert(class.class_path.clone(), class);
-            }
-            return Ok(());
+    if path.exists()
+        && let Ok(classes) = loader::load_class_folder(path)
+    {
+        for class in classes.classes {
+            class_map.insert(class.class_path.clone(), class);
         }
-        remove_file(path).map_err(GradleFetchError::IO)?;
+        return Ok(());
     }
 
     #[cfg(unix)]

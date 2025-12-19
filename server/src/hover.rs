@@ -304,7 +304,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap().0;
         let ast = &doc.ast;
 
         let out = class_action(ast, &AstPoint::new(3, 14), &[], &[], &string_class_map());
@@ -322,7 +322,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap().0;
         let ast = &doc.ast;
 
         let out = class_action(ast, &AstPoint::new(3, 9), &[], &[], &string_class_map());
@@ -345,7 +345,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap().0;
         let point = AstPoint::new(5, 29);
         let vars = variables::get_vars(&doc.ast, &point).unwrap();
 

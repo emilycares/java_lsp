@@ -1,5 +1,4 @@
 use std::{
-    fs::remove_file,
     path::{Path, PathBuf},
     sync::{
         Arc,
@@ -58,10 +57,10 @@ use crate::{
 pub enum MavenFetchError {
     NoHomeFound,
     Tree(tree::MavenTreeError),
-    NoClassPath,
     ParserLoader(loader::LoaderError),
     NoM2Folder,
     IO(std::io::Error),
+    UnableToDownloadSources(String),
 }
 const MAVEN_CFC: &str = ".maven.cfc";
 
@@ -72,14 +71,14 @@ pub async fn fetch_deps(
     download: bool,
 ) -> Result<(), MavenFetchError> {
     let path = Path::new(&MAVEN_CFC);
-    if use_cache && path.exists() {
-        if let Ok(classes) = loader::load_class_folder(path) {
-            for class in classes.classes {
-                class_map.insert(class.class_path.clone(), class);
-            }
-            return Ok(());
+    if use_cache
+        && path.exists()
+        && let Ok(classes) = loader::load_class_folder(path)
+    {
+        for class in classes.classes {
+            class_map.insert(class.class_path.clone(), class);
         }
-        remove_file(path).map_err(MavenFetchError::IO)?;
+        return Ok(());
     }
 
     if download {
@@ -169,19 +168,15 @@ async fn download_sources(
     let e = e.args(["dependency:resolve", "-Dclassifier=sources"]);
     let e = overwrite_settings_xml_tokio(e);
     let e = e.output().await.map_err(MavenFetchError::IO)?;
-    let error = String::from_utf8_lossy(&e.stderr).to_string();
-    if error.is_empty() {
+    if e.status.success() {
         let _ = sender.send(TaskProgress {
             percentage: 0,
             error: false,
             message: "Downloading sources Done".to_string(),
         });
     } else {
-        let _ = sender.send(TaskProgress {
-            percentage: 0,
-            error: true,
-            message: error,
-        });
+        let error = String::from_utf8_lossy(&e.stderr).to_string();
+        return Err(MavenFetchError::UnableToDownloadSources(error));
     }
     Ok(())
 }

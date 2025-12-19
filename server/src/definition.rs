@@ -1,9 +1,7 @@
-use std::str::FromStr;
-
 use ast::types::{AstFile, AstPoint};
 use call_chain::CallItem;
 use document::{Document, DocumentError, read_document_or_open_class};
-use lsp_extra::{ToLspRangeError, to_lsp_range};
+use lsp_extra::{SourceToUriError, ToLspRangeError, source_to_uri, to_lsp_range};
 use lsp_types::{GotoDefinitionResponse, Location, SymbolKind, Uri};
 use my_string::MyString;
 use parser::dto::{self, ImportUnit};
@@ -19,7 +17,6 @@ pub enum DefinitionError {
     Tyres(TyresError),
     ClassActon(ClassActionError),
     NoSourceFile { file: String },
-    UriInvalid { uri: String, error: String },
     LocalVariableNotFound { name: String },
     ValidatedItemDoesNotExists,
     NoCallChain,
@@ -27,6 +24,7 @@ pub enum DefinitionError {
     ArgumentNotFound,
     Document(DocumentError),
     ToLspRange(ToLspRangeError),
+    SourceToUri(SourceToUriError),
 }
 pub struct DefinitionContext<'a> {
     pub document_uri: Uri,
@@ -53,12 +51,8 @@ pub fn class(
         Ok((class, _range)) => {
             let mut ranges = vec![];
             let uri = class_to_uri(&class)?;
-            if let Ok(c) = read_document_or_open_class(
-                &class.source,
-                class.class_path,
-                document_map,
-                uri.as_str(),
-            ) && let Ok(ast) = c.get_ast()
+            if let Ok(c) = read_document_or_open_class(&class.source, document_map)
+                && let Ok(ast) = c.get_ast()
             {
                 position::get_class_position_ast(ast, Some(&class.name), &mut ranges)
                     .map_err(DefinitionError::Position)?;
@@ -87,14 +81,16 @@ pub fn call_chain_definition(
     .map_err(DefinitionError::Tyres)?;
     match relevant.get(item) {
         Some(CallItem::This { range: _ }) => {
-            let uri = source_to_uri(&resolve_state.class.source)?;
+            let uri =
+                source_to_uri(&resolve_state.class.source).map_err(DefinitionError::SourceToUri)?;
             let source = get_source_content(&resolve_state.class.source, context.document_map)?;
             let ranges = position::get_class_position_str(&source, None)
                 .map_err(DefinitionError::Position)?;
             Ok(go_to_definition_range(uri, &ranges)?)
         }
         Some(CallItem::Class { name, range: _ }) => {
-            let uri = source_to_uri(&resolve_state.class.source)?;
+            let uri =
+                source_to_uri(&resolve_state.class.source).map_err(DefinitionError::SourceToUri)?;
             let source = get_source_content(&resolve_state.class.source, context.document_map)?;
             let ranges = position::get_class_position_str(&source, Some(name))
                 .map_err(DefinitionError::Position)?;
@@ -115,7 +111,7 @@ pub fn call_chain_definition(
             let source = get_source_content(&source_file, context.document_map)?;
             let ranges = position::get_method_positions(source.as_bytes(), Some(name))
                 .map_err(DefinitionError::Position)?;
-            let uri = source_to_uri(&source_file)?;
+            let uri = source_to_uri(&source_file).map_err(DefinitionError::SourceToUri)?;
             Ok(go_to_definition_range(uri, &ranges)?)
         }
         Some(CallItem::FieldAccess { name, range: _ }) => {
@@ -132,7 +128,7 @@ pub fn call_chain_definition(
             let source = get_source_content(&source_file, context.document_map)?;
             let ranges = position::get_field_positions(source.as_bytes(), Some(name))
                 .map_err(DefinitionError::Position)?;
-            let uri = source_to_uri(&source_file)?;
+            let uri = source_to_uri(&source_file).map_err(DefinitionError::SourceToUri)?;
             Ok(go_to_definition_range(uri, &ranges)?)
         }
         Some(CallItem::Variable { name, range: _ }) => {
@@ -188,46 +184,17 @@ pub fn get_source_content(
     source: &str,
     document_map: &dashmap::DashMap<MyString, Document>,
 ) -> Result<String, DefinitionError> {
-    let uri = source_to_uri(source)?;
-    match document::read_document_or_open_class(source, String::new(), document_map, uri.as_str())
+    match document::read_document_or_open_class(source, document_map)
         .map_err(DefinitionError::Document)?
     {
-        document::ClassSource::Owned(d) => Ok(d.str_data),
+        document::ClassSource::Owned(d, _) => Ok(d.str_data),
 
         document::ClassSource::Ref(d) => Ok(d.str_data.clone()),
     }
 }
 
 pub fn class_to_uri(class: &dto::Class) -> Result<Uri, DefinitionError> {
-    source_to_uri(&class.source)
-}
-pub fn source_to_uri(source: &str) -> Result<Uri, DefinitionError> {
-    #[cfg(windows)]
-    let source = &source.replace('\\', "/");
-    let source = path_without_subclass(source);
-    #[cfg(windows)]
-    let str_uri = format!("file:///{source}");
-    #[cfg(unix)]
-    let str_uri = format!("file://{source}");
-    let uri = Uri::from_str(&str_uri);
-    match uri {
-        Ok(uri) => Ok(uri),
-        Err(e) => Err(DefinitionError::UriInvalid {
-            uri: str_uri,
-            error: format!("{e:?}"),
-        }),
-    }
-}
-
-fn path_without_subclass(source: &str) -> String {
-    if let Some((path, file_name)) = source.rsplit_once('/')
-        && file_name.contains('$')
-        && let Some((name, extension)) = file_name.split_once('.')
-        && let Some((name, _)) = name.split_once('$')
-    {
-        return format!("{path}/{name}.{extension}");
-    }
-    source.to_owned()
+    source_to_uri(&class.source).map_err(DefinitionError::SourceToUri)
 }
 
 fn go_to_definition_range(
@@ -260,7 +227,7 @@ fn go_to_definition_range(
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{path::PathBuf, str::FromStr};
 
     use dashmap::DashMap;
 
@@ -280,12 +247,9 @@ public class Test {
 }
         "#;
         let point = AstPoint::new(6, 16);
-        let document = Document::setup(
-            content,
-            PathBuf::from_str("/Test.java").unwrap(),
-            "ch.emilycares.Test".into(),
-        )
-        .unwrap();
+        let document = Document::setup(content, PathBuf::from_str("/Test.java").unwrap())
+            .unwrap()
+            .0;
         let document_uri = Uri::from_str("file:///Test.java").unwrap();
         let class =
             parser::java::load_java_tree(&document.ast, parser::SourceDestination::None).unwrap();
@@ -321,12 +285,9 @@ public class Test {
 }
         "#;
         let point = AstPoint::new(8, 24);
-        let document = Document::setup(
-            content,
-            PathBuf::from_str("/Test.java").unwrap(),
-            "ch.emilycares.Test".into(),
-        )
-        .unwrap();
+        let document = Document::setup(content, PathBuf::from_str("/Test.java").unwrap())
+            .unwrap()
+            .0;
         let document_uri = Uri::from_str("file:///Test.java").unwrap();
         let class =
             parser::java::load_java_tree(&document.ast, parser::SourceDestination::None).unwrap();

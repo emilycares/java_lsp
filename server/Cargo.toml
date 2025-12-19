@@ -21,6 +21,7 @@ rayon.workspace = true
 jwalk.workspace = true
 format = { path = "../format"}
 parser = { path = "../parser"}
+loader = { path = "../loader"}
 maven = { path = "../maven"}
 gradle = { path = "../gradle"}
 imports = { path = "../imports"}

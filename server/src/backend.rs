@@ -1,30 +1,34 @@
-use std::{collections::HashMap, path::PathBuf, str::FromStr, sync::Arc};
+use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 
 use call_chain::get_call_chain;
 use common::{TaskProgress, project_kind::ProjectKind};
 use compile::CompileError;
 use dashmap::{DashMap, DashSet};
-use document::{ClassSource, Document};
+use document::{ClassSource, Document, read_document_or_open_class};
+use loader::LoaderError;
+use lsp_extra::{SERVER_NAME, source_to_uri};
 use lsp_server::{Connection, Message};
 use lsp_types::{
     ClientCapabilities, CodeActionParams, CodeActionResponse, CompletionParams, CompletionResponse,
-    Diagnostic, DidChangeTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
-    DocumentFormattingParams, DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams,
-    GotoDefinitionResponse, Hover, HoverParams, Location, Position, ProgressParams,
-    ProgressParamsValue, ProgressToken, PublishDiagnosticsParams, Range, ReferenceParams,
-    SignatureHelp, SignatureHelpParams, TextDocumentContentChangeEvent, TextDocumentItem, TextEdit,
-    Uri, WorkDoneProgress, WorkDoneProgressBegin, WorkDoneProgressEnd, WorkDoneProgressReport,
-    WorkspaceSymbolParams, WorkspaceSymbolResponse,
+    Diagnostic, DiagnosticSeverity, DidChangeTextDocumentParams, DidOpenTextDocumentParams,
+    DidSaveTextDocumentParams, DocumentFormattingParams, DocumentSymbolParams,
+    DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams,
+    Location, Position, ProgressParams, ProgressParamsValue, ProgressToken,
+    PublishDiagnosticsParams, Range, ReferenceParams, SignatureHelp, SignatureHelpParams,
+    TextDocumentContentChangeEvent, TextDocumentItem, TextEdit, Uri, WorkDoneProgress,
+    WorkDoneProgressBegin, WorkDoneProgressEnd, WorkDoneProgressReport, WorkspaceSymbolParams,
+    WorkspaceSymbolResponse,
     notification::{Notification, Progress, PublishDiagnostics},
 };
+use maven::{fetch::MavenFetchError, tree::MavenTreeError};
 use my_string::MyString;
-use parser::{SourceDestination, dto::Class};
+use parser::dto::Class;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 
 use crate::{
     codeaction::{self, CodeActionContext},
     completion,
-    definition::{self, DefinitionContext, source_to_uri},
+    definition::{self, DefinitionContext},
     hover::{self, class_action},
     references::{self, ReferenceUnit, ReferencesContext},
     signature, to_ast_point,
@@ -53,39 +57,26 @@ impl Backend {
         }
     }
 
-    fn on_change(&self, uri: &str, changes: &[TextDocumentContentChangeEvent]) {
-        let Some(mut document) = self.document_map.get_mut(uri) else {
+    fn on_change(&self, uri: Uri, changes: &[TextDocumentContentChangeEvent]) {
+        let Some(mut document) = self.document_map.get_mut(&get_document_map_key(&uri)) else {
+            eprintln!("on_change document not found");
             return;
         };
-        // TODO: Handle error
-        let _ = document.apply_text_changes(changes);
+        let mut errors = Vec::new();
+        if let Ok(Some(d)) = document.apply_text_changes(changes) {
+            errors.push(d);
+        }
+        Self::send_diagnostic(&self.connection.clone(), uri, errors);
     }
 
     fn on_open(&self, params: &TextDocumentItem) {
-        let ipath = get_normal_path(&params.uri);
-        let path = PathBuf::from(params.uri.path().as_str());
-        if let Some(mut document) = self.document_map.get_mut(&ipath) {
-            // TODO: Handle error
-            let _ = document.replace_string(&params.text);
-        } else {
-            match parser::java::load_java(
-                params.text.as_bytes(),
-                SourceDestination::Here(ipath.clone()),
-            ) {
-                Ok(class) => match Document::setup(&params.text, path, class.class_path) {
-                    Ok(doc) => {
-                        self.document_map.insert(ipath, doc);
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to setup document: {e:?}");
-                    }
-                },
-                Err(e) => eprintln!("Got error parsing document {ipath}, {e:?}"),
-            }
+        match read_document_or_open_class(&get_document_map_key(&params.uri), &self.document_map) {
+            Ok(_) => {}
+            Err(_) => todo!(),
         }
     }
 
-    fn send_diagnostic(con: &Arc<Connection>, uri: Uri, diagnostics: Vec<Diagnostic>) {
+    pub fn send_diagnostic(con: &Arc<Connection>, uri: Uri, diagnostics: Vec<Diagnostic>) {
         if let Ok(params) = serde_json::to_value(PublishDiagnosticsParams {
             uri,
             diagnostics,
@@ -199,7 +190,7 @@ impl Backend {
             let Some(path) = path.get(..) else {
                 continue;
             };
-            if let Ok(uri) = Uri::from_str(&format!("file:///{path}")) {
+            if let Ok(uri) = source_to_uri(path) {
                 if let Some(errs) = emap.get(path) {
                     let errs: Vec<Diagnostic> = errs
                         .iter()
@@ -207,7 +198,15 @@ impl Backend {
                             let r = u32::try_from(e.row).unwrap_or_default();
                             let c = u32::try_from(e.col).unwrap_or_default();
                             let p = Position::new(r - 1, c);
-                            Diagnostic::new_simple(Range::new(p, p), e.message.clone())
+                            Diagnostic::new(
+                                Range::new(p, p),
+                                Some(DiagnosticSeverity::ERROR),
+                                None,
+                                Some(String::from(SERVER_NAME)),
+                                e.message.clone(),
+                                None,
+                                None,
+                            )
                         })
                         .collect();
                     Self::send_diagnostic(&self.connection.clone(), uri, errs);
@@ -252,7 +251,7 @@ impl Backend {
 
             tokio::select! {
                 () = read_forward(receiver, con.clone(), task.clone())  => {},
-                () = fetch_deps(sender, project_kind.clone(), class_map.clone()) => {}
+                () = fetch_deps(con.clone(), sender, project_kind.clone(), class_map.clone()) => {}
             }
             Self::progress_end(&con.clone(), task);
         }
@@ -308,42 +307,60 @@ impl Backend {
     }
 
     pub fn did_change(&self, params: &DidChangeTextDocumentParams) {
-        self.on_change(params.text_document.uri.as_str(), &params.content_changes);
+        self.on_change(params.text_document.uri.clone(), &params.content_changes);
     }
 
     pub fn did_save(&self, params: &DidSaveTextDocumentParams) {
         let path = params.text_document.uri.path();
-        // The path on windows should not look like this: /C:/asdas remove the leading slash
-
-        let errors = self.compile(path.as_str());
+        let path_str = path.as_str();
+        let errors = self.compile(path_str);
         self.publish_compile_errors(errors);
 
-        let Some(mut document) = self.document_map.get_mut(params.text_document.uri.as_str())
-        else {
-            eprintln!("no doc found");
-            return;
-        };
-        match parser::update_project_java_file(PathBuf::from(path.as_str()), document.as_bytes()) {
-            Ok(class) => {
-                document.class_path.clone_from(&class.class_path);
-                let class_path = class.class_path.clone();
-                match references::reference_update_class(
-                    &class,
-                    &self.class_map,
-                    &self.reference_map,
-                ) {
-                    Ok(()) => {}
-                    Err(e) => eprintln!("Got reference error: {e:?}"),
+        match read_document_or_open_class(path.as_str(), &self.document_map) {
+            Ok(ClassSource::Owned(doc, diag)) => {
+                self.handle_diagnostic(params.text_document.uri.clone(), diag.as_ref().clone());
+                match parser::update_project_java_file(PathBuf::from(path.as_str()), doc.as_bytes())
+                {
+                    Ok(class) => {
+                        let class_path = class.class_path.clone();
+                        match references::reference_update_class(
+                            &class,
+                            &self.class_map,
+                            &self.reference_map,
+                        ) {
+                            Ok(()) => {}
+                            Err(e) => eprintln!("Got reference error: {e:?}"),
+                        }
+                        self.class_map.insert(class_path, class);
+                    }
+                    Err(e) => eprintln!("Save file parse error {e:?}"),
                 }
-                self.class_map.insert(class_path, class);
             }
-            Err(e) => eprintln!("Save file parse error {e:?}"),
+            Ok(ClassSource::Ref(doc)) => {
+                match parser::update_project_java_file(PathBuf::from(path.as_str()), doc.as_bytes())
+                {
+                    Ok(class) => {
+                        let class_path = class.class_path.clone();
+                        match references::reference_update_class(
+                            &class,
+                            &self.class_map,
+                            &self.reference_map,
+                        ) {
+                            Ok(()) => {}
+                            Err(e) => eprintln!("Got reference error: {e:?}"),
+                        }
+                        self.class_map.insert(class_path, class);
+                    }
+                    Err(e) => eprintln!("Save file parse error {e:?}"),
+                }
+            }
+            Err(_) => (),
         }
     }
 
     pub fn hover(&self, params: HoverParams) -> Option<Hover> {
         let uri = params.text_document_position_params.text_document.uri;
-        let document = self.document_map.get(&get_normal_path(&uri))?;
+        let document = self.document_map.get(&get_document_map_key(&uri))?;
         let point = to_ast_point(params.text_document_position_params.position);
         let imports = imports::imports(&document.ast);
         let vars = match variables::get_vars(&document.ast, &point) {
@@ -365,7 +382,7 @@ impl Backend {
 
     pub fn formatting(&self, params: DocumentFormattingParams) -> Option<Vec<TextEdit>> {
         let uri = params.text_document.uri;
-        let Some(mut document) = self.document_map.get_mut(&get_normal_path(&uri)) else {
+        let Some(mut document) = self.document_map.get_mut(&get_document_map_key(&uri)) else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -390,7 +407,7 @@ impl Backend {
     pub fn completion(&self, params: CompletionParams) -> Option<CompletionResponse> {
         let params = params.text_document_position;
         let uri = params.text_document.uri;
-        let Some(document) = self.document_map.get(&get_normal_path(&uri)) else {
+        let Some(document) = self.document_map.get(&get_document_map_key(&uri)) else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -453,7 +470,7 @@ impl Backend {
     pub fn goto_definition(&self, params: GotoDefinitionParams) -> Option<GotoDefinitionResponse> {
         let params = params.text_document_position_params;
         let uri = params.text_document.uri;
-        let Some(document) = self.document_map.get(&get_normal_path(&uri)) else {
+        let Some(document) = self.document_map.get(&get_document_map_key(&uri)) else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -501,7 +518,7 @@ impl Backend {
     pub fn references(&self, params: ReferenceParams) -> Option<Vec<Location>> {
         let params = params.text_document_position;
         let uri = params.text_document.uri;
-        let Some(document) = self.document_map.get(&get_normal_path(&uri)) else {
+        let Some(document) = self.document_map.get(&get_document_map_key(&uri)) else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -554,7 +571,7 @@ impl Backend {
     pub fn code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
         let Some(document) = self
             .document_map
-            .get(&get_normal_path(&params.text_document.uri))
+            .get(&get_document_map_key(&params.text_document.uri))
         else {
             eprintln!("Document is not opened.");
             return None;
@@ -602,7 +619,7 @@ impl Backend {
     pub fn document_symbol(&self, params: DocumentSymbolParams) -> Option<DocumentSymbolResponse> {
         let Some(document) = self
             .document_map
-            .get(&get_normal_path(&params.text_document.uri))
+            .get(&get_document_map_key(&params.text_document.uri))
         else {
             eprintln!("Document is not opened.");
             return None;
@@ -636,20 +653,14 @@ impl Backend {
             })
             .filter_map(|e| e.path().to_str().map(ToString::to_string))
             .filter_map(|i| {
-                let uri = source_to_uri(&i).ok()?;
-                let class_source = document::read_document_or_open_class(
-                    &i,
-                    MyString::new(),
-                    &self.document_map,
-                    uri.as_str(),
-                )
-                .ok()?;
+                let class_source =
+                    document::read_document_or_open_class(&i, &self.document_map).ok()?;
                 Some((i.clone(), class_source))
             })
             .filter_map(|(path, source)| {
                 let mut out = vec![];
                 match source {
-                    ClassSource::Owned(d) => {
+                    ClassSource::Owned(d, _) => {
                         let _ = position::get_class_position_ast(&d.ast, None, &mut out);
                     }
                     ClassSource::Ref(d) => {
@@ -668,7 +679,7 @@ impl Backend {
                 )
             })
             .filter_map(|(path, symbols)| {
-                let uri = Uri::from_str(&format!("file:///{path}")).ok()?;
+                let uri = source_to_uri(&path).ok()?;
                 Some(position::symbols_to_document_symbols(&symbols, &uri))
             })
             .flatten()
@@ -678,7 +689,7 @@ impl Backend {
 
     pub fn signature_help(&self, params: SignatureHelpParams) -> Option<SignatureHelp> {
         let uri = params.text_document_position_params.text_document.uri;
-        let Some(document) = self.document_map.get(&get_normal_path(&uri)) else {
+        let Some(document) = self.document_map.get(&get_document_map_key(&uri)) else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -696,14 +707,20 @@ impl Backend {
             }
         }
     }
+
+    fn handle_diagnostic(&self, uri: Uri, diag: Option<Diagnostic>) {
+        let mut diagnostics = Vec::new();
+        diagnostics.extend(diag);
+        Self::send_diagnostic(&self.connection, uri, diagnostics);
+    }
 }
 
 #[cfg(not(target_os = "windows"))]
-fn get_normal_path(uri: &Uri) -> String {
+pub fn get_document_map_key(uri: &Uri) -> String {
     uri.path().as_str().to_owned()
 }
 #[cfg(target_os = "windows")]
-fn get_normal_path(uri: &Uri) -> String {
+pub fn get_document_map_key(uri: &Uri) -> String {
     uri.path()
         .as_str()
         // remove leading slash
@@ -736,6 +753,7 @@ pub async fn read_forward(
 }
 
 pub async fn fetch_deps(
+    con: Arc<Connection>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
     project_kind: ProjectKind,
     class_map: Arc<dashmap::DashMap<MyString, parser::dto::Class>>,
@@ -747,6 +765,93 @@ pub async fn fetch_deps(
                     Ok(()) => (),
                     Err(e) => {
                         eprintln!("Got error while loading maven project: {e:?}");
+                        let mut diagnostics = Vec::new();
+                        let range = Range::default();
+                        match e {
+                            MavenFetchError::UnableToDownloadSources(e) => {
+                                let message = format!("Unable download maven sources: {e}");
+                                diagnostics.push(Diagnostic::new(
+                                    range,
+                                    Some(DiagnosticSeverity::ERROR),
+                                    None,
+                                    Some(String::from(SERVER_NAME)),
+                                    message,
+                                    None,
+                                    None,
+                                ));
+                            }
+                            MavenFetchError::NoHomeFound => {
+                                let message = "Unable to find home directory".to_owned();
+                                diagnostics.push(Diagnostic::new(
+                                    range,
+                                    Some(DiagnosticSeverity::ERROR),
+                                    None,
+                                    Some(String::from(SERVER_NAME)),
+                                    message,
+                                    None,
+                                    None,
+                                ));
+                            }
+                            MavenFetchError::Tree(MavenTreeError::Cli(e)) => {
+                                let message = format!("Unable load maven dependency tree {e:?}");
+                                diagnostics.push(Diagnostic::new(
+                                    range,
+                                    Some(DiagnosticSeverity::ERROR),
+                                    None,
+                                    Some(String::from(SERVER_NAME)),
+                                    message,
+                                    None,
+                                    None,
+                                ));
+                            }
+                            MavenFetchError::Tree(MavenTreeError::UnknownDependencyScope(
+                                scope,
+                            )) => {
+                                let message =
+                                    format!("Unsupported dependency scope found: {scope:?}");
+                                diagnostics.push(Diagnostic::new(
+                                    range,
+                                    Some(DiagnosticSeverity::ERROR),
+                                    None,
+                                    Some(String::from(SERVER_NAME)),
+                                    message,
+                                    None,
+                                    None,
+                                ));
+                            }
+                            MavenFetchError::ParserLoader(LoaderError::Zip { e, path }) => {
+                                let severity = Some(DiagnosticSeverity::ERROR);
+                                let message = format!(
+                                    "Unable to load zip or jmod classes from: {path}, error: {e}"
+                                );
+                                diagnostics.push(Diagnostic::new(
+                                    range, severity, None, None, message, None, None,
+                                ));
+                            }
+                            MavenFetchError::NoM2Folder => {
+                                let message = "Unable to find .m2 directory".to_owned();
+                                diagnostics.push(Diagnostic::new(
+                                    range,
+                                    Some(DiagnosticSeverity::ERROR),
+                                    None,
+                                    Some(String::from(SERVER_NAME)),
+                                    message,
+                                    None,
+                                    None,
+                                ));
+                            }
+                            MavenFetchError::ParserLoader(
+                                LoaderError::IO(_) | LoaderError::InvalidCfcCache,
+                            )
+                            | MavenFetchError::IO(_) => (),
+                        }
+                        let source = PathBuf::from("./pom.xml");
+                        if let Ok(source) = fs::canonicalize(source)
+                            && let Some(source) = source.to_str()
+                            && let Ok(uri) = source_to_uri(source)
+                        {
+                            Backend::send_diagnostic(&con, uri, diagnostics);
+                        }
                     }
                 }
             }

@@ -362,7 +362,7 @@ public class GreetingResource {
     }
 }
         ";
-        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap().0;
         let class = dto::Class {
             access: dto::Access::Public,
             name: "Test".into(),
@@ -440,7 +440,7 @@ public class Test {
 
     #[test]
     fn extend_completion_method() {
-        let doc = Document::setup(SYMBOL_METHOD, PathBuf::new(), "".into()).unwrap();
+        let doc = Document::setup(SYMBOL_METHOD, PathBuf::new()).unwrap().0;
         let lo_va = vec![LocalVariable {
             level: 3,
             jtype: dto::JType::Class("String".into()),
@@ -572,7 +572,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap().0;
 
         let out = classes(&doc, &AstPoint::new(5, 16), &[], &class_map);
         assert_eq!(
@@ -624,7 +624,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap().0;
 
         let out = classes(
             &doc,

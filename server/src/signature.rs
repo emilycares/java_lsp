@@ -192,7 +192,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap().0;
 
         let out = signature_driver(&doc, &AstPoint::new(5, 29), &class, &class_map).unwrap();
         assert_eq!(
@@ -268,7 +268,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap().0;
 
         let out = signature_driver(&doc, &AstPoint::new(5, 29), &class, &class_map).unwrap();
         assert_eq!(
@@ -361,7 +361,7 @@ public class Test {
     }
 }
 "#;
-        let doc = Document::setup(content, PathBuf::new(), "".into()).unwrap();
+        let doc = Document::setup(content, PathBuf::new()).unwrap().0;
 
         let out = signature_driver(&doc, &AstPoint::new(5, 39), &class, &class_map).unwrap();
         assert_eq!(

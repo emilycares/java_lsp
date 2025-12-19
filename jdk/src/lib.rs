@@ -7,7 +7,7 @@
 #![allow(clippy::too_many_lines)]
 use std::{
     env,
-    fs::{self, remove_file},
+    fs::{self},
     path::{Path, PathBuf},
     str::Utf8Error,
     sync::{
@@ -50,14 +50,13 @@ pub async fn load_classes(
     let (java_path, op_dir) = get_work_dirs().await?;
     let cache_path = op_dir.join(JDK_CFC);
 
-    if cache_path.exists() {
-        if let Ok(classes) = loader::load_class_folder(&cache_path) {
-            for class in classes.classes {
-                class_map.insert(class.class_path.clone(), class);
-            }
-            return Ok(());
+    if cache_path.exists()
+        && let Ok(classes) = loader::load_class_folder(&cache_path)
+    {
+        for class in classes.classes {
+            class_map.insert(class.class_path.clone(), class);
         }
-        remove_file(&cache_path).map_err(JdkError::IO)?;
+        return Ok(());
     }
     let class_folder = load_jdk(java_path, &op_dir, sender).await?;
     if let Err(e) = loader::save_class_folder(cache_path, &class_folder) {

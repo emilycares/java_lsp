@@ -487,7 +487,7 @@ pub enum Token {
 #[derive(Debug, PartialEq, Eq)]
 pub enum LexerError {
     /// Not implemented char
-    UnknownChar(char),
+    UnknownChar(char, usize, usize),
 }
 
 static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
@@ -1120,7 +1120,7 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 col += len;
                 continue;
             }
-            _ => return Err(LexerError::UnknownChar(*ch)),
+            _ => return Err(LexerError::UnknownChar(*ch, line, col)),
         }
         index += 1;
     }

@@ -7,7 +7,7 @@ use std::{
 use ast::types::{AstFile, AstPoint};
 use call_chain::CallItem;
 use document::{ClassSource, Document, DocumentError};
-use lsp_extra::{ToLspRangeError, to_lsp_range};
+use lsp_extra::{SourceToUriError, ToLspRangeError, source_to_uri, to_lsp_range};
 use lsp_types::Location;
 use my_string::MyString;
 use parser::dto::{self, Class, ImportUnit};
@@ -31,6 +31,7 @@ pub enum ReferencesError {
     Definition(DefinitionError),
     Document(DocumentError),
     ToLspRange(ToLspRangeError),
+    SourceToUri(SourceToUriError),
 }
 
 #[derive(Debug)]
@@ -116,9 +117,9 @@ pub fn call_chain_references(
                         continue;
                     };
                     let method_refs = method_references(&class, name, document_map)?;
-                    let uri = definition::source_to_uri(&class.source).map_err(|e| {
+                    let uri = source_to_uri(&class.source).map_err(|e| {
                         eprintln!("Got into definition error: {e:?}");
-                        ReferencesError::Definition(e)
+                        ReferencesError::SourceToUri(e)
                     })?;
                     for i in method_refs {
                         let r = to_lsp_range(&i.0.range).map_err(ReferencesError::ToLspRange)?;
@@ -152,25 +153,19 @@ fn method_references(
     query_method_name: &str,
     document_map: &dashmap::DashMap<MyString, Document>,
 ) -> Result<Vec<ReferencePosition>, ReferencesError> {
-    let uri = definition::source_to_uri(&class.source).map_err(|e| {
+    let uri = source_to_uri(&class.source).map_err(|e| {
         eprintln!("Got into definition error: {e:?}");
-        ReferencesError::Definition(e)
+        ReferencesError::SourceToUri(e)
     })?;
-    let uri = uri.as_str();
-    let doc = document::read_document_or_open_class(
-        &class.source,
-        class.class_path.clone(),
-        document_map,
-        uri,
-    )
-    .map_err(ReferencesError::Document)?;
+    let doc = document::read_document_or_open_class(&class.source, document_map)
+        .map_err(ReferencesError::Document)?;
     match doc {
-        ClassSource::Owned(doc) => {
+        ClassSource::Owned(doc, _) => {
             let o = match position::get_method_usage(doc.as_bytes(), query_method_name, &doc.ast) {
                 Err(e) => Err(ReferencesError::Position(e))?,
                 Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
             };
-            document_map.insert(uri.into(), *doc);
+            document_map.insert(uri.as_str().into(), *doc);
             o
         }
         ClassSource::Ref(doc) => {

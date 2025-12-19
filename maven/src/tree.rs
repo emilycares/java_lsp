@@ -5,7 +5,7 @@ use crate::{EXECUTABLE_MAVEN, config::overwrite_settings_xml};
 #[derive(Debug)]
 pub enum MavenTreeError {
     Cli(std::io::Error),
-    UnknownDependencyScope,
+    UnknownDependencyScope(String),
 }
 
 pub fn load() -> Result<Dependency, MavenTreeError> {
@@ -115,7 +115,7 @@ impl FromStr for DependencyScope {
             "import" => Ok(Self::Import),
             other => {
                 eprintln!("Other dep scope: {other}");
-                Err(MavenTreeError::UnknownDependencyScope)
+                Err(MavenTreeError::UnknownDependencyScope(other.to_owned()))
             }
         }
     }
