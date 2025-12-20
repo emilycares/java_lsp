@@ -7,19 +7,6 @@
 #![allow(clippy::too_many_lines)]
 use std::process::Command;
 
-use nom::{
-    IResult, Parser,
-    branch::alt,
-    character::complete::digit0,
-    multi::separated_list0,
-    sequence::{pair, separated_pair},
-};
-use nom::{
-    bytes::{complete::take_until, streaming::tag},
-    combinator::opt,
-    multi::many0_count,
-};
-
 #[derive(Debug, PartialEq, Eq)]
 pub struct CompileError {
     pub path: String,
@@ -42,39 +29,95 @@ pub fn compile_java_file(file_path: &str, classpath: &str) -> Option<Vec<Compile
 
     let stdout = out.stderr;
     let stdout = std::str::from_utf8(&stdout).ok()?;
-    parse_compile_errors(stdout).ok().map(|e| e.1)
+    Some(parse_compile_errors(stdout))
 }
 
-pub fn parse_compile_errors(input: &str) -> IResult<&str, Vec<CompileError>> {
-    let (input, errors) = separated_list0(tag("\n"), parse_error).parse(input)?;
-    Ok((input, errors))
-}
+#[must_use]
+pub fn parse_compile_errors(input: &str) -> Vec<CompileError> {
+    let mut out = Vec::new();
+    let chars: Vec<char> = input.chars().collect();
+    let mut index = 0;
+    loop {
+        let ch = chars.get(index);
+        let Some(ch) = ch else {
+            break;
+        };
 
-fn parse_error(input: &str) -> IResult<&str, CompileError> {
-    let (input, _) = opt(tag("\n")).parse(input)?;
-    let (input, path) = take_until(".java:")(input)?;
-    let (input, _) = tag(".java:")(input)?;
-    let (input, (row, (msg, col))) =
-        separated_pair(digit0, tag(": error: "), parse_message_and_col).parse(input)?;
-    Ok((
-        input,
-        CompileError {
-            path: format!("{path}.java"),
-            message: msg.to_string(),
+        if !ch.is_alphabetic() && ch != &'/' {
+            index += 1;
+            continue;
+        }
+        let mut path = String::new();
+        while let Some(ch) = chars.get(index)
+            && ch != &':'
+        {
+            path.push(*ch);
+            index += 1;
+        }
+        if path.starts_with("error") {
+            break;
+        }
+        dbg!(&path);
+        index += 1;
+        let mut row = String::new();
+        while let Some(ch) = chars.get(index)
+            && ch.is_numeric()
+        {
+            row.push(*ch);
+            index += 1;
+        }
+        dbg!(&row);
+        index += 1;
+        while let Some(ch) = chars.get(index)
+            && ch != &':'
+        {
+            index += 1;
+        }
+        index += 2;
+
+        let mut message = String::new();
+        while let Some(ch) = chars.get(index)
+            && ch != &'\n'
+        {
+            if ch == &'\r' {
+                index += 1;
+                continue;
+            }
+            message.push(*ch);
+            index += 1;
+        }
+        dbg!(&message);
+        // skip newline
+        index += 1;
+        // Skip code
+        while let Some(ch) = chars.get(index)
+            && ch != &'\n'
+        {
+            if ch == &'\r' {
+                index += 1;
+                continue;
+            }
+            index += 1;
+        }
+        // skip newline
+        index += 1;
+        let mut col = 0;
+        while let Some(ch) = chars.get(index)
+            && ch != &'^'
+        {
+            col += 1;
+            index += 1;
+        }
+        dbg!(col);
+        out.push(CompileError {
+            path,
+            message,
             row: row.parse().unwrap_or_default(),
             col,
-        },
-    ))
-}
+        });
+    }
 
-fn parse_message_and_col(input: &str) -> IResult<&str, (&str, usize)> {
-    let (input, message) = take_until("\n")(input)?;
-    let (input, _) = take_until("\n")(input)?;
-    let (input, _) = tag("\n")(input)?;
-    let (input, _) = take_until("\n")(input)?;
-    let (input, _) = tag("\n")(input)?;
-    let (input, (col, _)) = pair(many0_count(alt((tag(" "), tag("\t")))), tag("^")).parse(input)?;
-    Ok((input, (message, col)))
+    out
 }
 
 #[cfg(test)]
@@ -95,9 +138,9 @@ src/main/java/org/acme/GreetingResource.java:15: error: > or ',' expected
                                              ^
 1 error
           ";
-        let out = parse_compile_errors(input).expect("test");
+        let out = parse_compile_errors(input);
         assert_eq!(
-            out.1,
+            out,
             vec![
                 CompileError {
                     path: "src/main/java/org/acme/GreetingResource.java".to_string(),
@@ -118,8 +161,8 @@ src/main/java/org/acme/GreetingResource.java:15: error: > or ',' expected
     #[test]
     fn parse_compile_errors_real() {
         let input = "/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java:16: error: > or ',' expected\n\tvar hash = new HashMap<String, String();\n\t                                     ^\n1 error\n";
-        let out = parse_compile_errors(input).expect("test");
-        assert_eq!(out.1, vec![
+        let out = parse_compile_errors(input);
+        assert_eq!(out, vec![
             CompileError {
                 path: "/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java".to_string(),
                 message: "> or ',' expected".to_string(),

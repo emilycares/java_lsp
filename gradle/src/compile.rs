@@ -6,19 +6,13 @@ use crate::fetch::PATH_GRADLE;
 
 #[must_use]
 pub fn compile_java() -> Option<Vec<CompileError>> {
-    if let Some(log) = run_compile_java()
-        && let Some(value) = cut_and_parse(&log)
-    {
-        return Some(value);
-    }
-
-    None
+    run_compile_java().map(|log| cut_and_parse(&log))
 }
 
 #[must_use]
-fn cut_and_parse(log: &str) -> Option<Vec<CompileError>> {
+fn cut_and_parse(log: &str) -> Vec<CompileError> {
     let log = cut_log(log);
-    parse_compile_errors(&log).ok().map(|e| e.1)
+    parse_compile_errors(&log)
 }
 
 #[must_use]
@@ -59,7 +53,7 @@ mod tests {
         let out = cut_and_parse(inp);
         assert_eq!(
             out,
-            Some(vec![
+            vec![
                 CompileError {
                     path: "/home/emily/tmp/vanilla-gradle/app/src/main/java/org/example/Other.java"
                         .to_string(),
@@ -74,7 +68,7 @@ mod tests {
                     row: 4,
                     col: 19,
                 },
-            ])
+            ]
         );
     }
 }

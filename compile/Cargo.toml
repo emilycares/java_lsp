@@ -9,8 +9,5 @@ documentation.workspace = true
 readme.workspace = true
 license.workspace = true
 
-[dependencies]
-nom.workspace = true
-
 [dev-dependencies]
 pretty_assertions.workspace = true

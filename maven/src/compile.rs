@@ -12,7 +12,7 @@ const CLASSPATH_FILE: &str = "target/classpath.txt";
 pub fn generate_classpath() -> Option<String> {
     if Path::new(&CLASSPATH_FILE).exists() {
         let classpath = read_to_string(CLASSPATH_FILE).ok()?;
-        return Some(format!("{}:target/classes", classpath.trim()));
+        return Some(classpath.trim().to_string());
     }
 
     // mvn dependency:build-classpath -Dmdep.outputFile=target/classpath.txt
