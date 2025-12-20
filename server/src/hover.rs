@@ -111,10 +111,10 @@ pub fn call_chain_hover(
                 .class
                 .methods
                 .into_iter()
-                .filter(|m| m.name == *name)
+                .filter(|i| i.name.as_ref().filter(|i| *i == name).is_some())
                 .collect();
             let range = to_lsp_range(range).map_err(HoverError::ToLspRange)?;
-            Ok(methods_to_hover(&methods, range))
+            Ok(methods_to_hover(&methods, range, &resolve_state.class.name))
         }
         CallItem::FieldAccess { name, range } => {
             let Some(method) = resolve_state.class.fields.iter().find(|m| m.name == *name) else {
@@ -159,8 +159,8 @@ pub fn call_chain_hover(
                     let methods = local_class
                         .methods
                         .iter()
-                        .filter(|m| m.name == *name)
-                        .map(format_method)
+                        .filter(|i| i.name.as_ref().filter(|i| *i == name).is_some())
+                        .map(|i| format_method(i, &local_class.name))
                         .collect::<Vec<_>>()
                         .join("\n\n");
                     Ok(Hover {
@@ -202,7 +202,7 @@ fn format_field(f: &dto::Field) -> String {
     format!("{} {}", f.jtype, f.name)
 }
 
-fn format_method(m: &dto::Method) -> String {
+fn format_method(m: &dto::Method, class_name: &String) -> String {
     let parameters = m
         .parameters
         .iter()
@@ -215,7 +215,15 @@ fn format_method(m: &dto::Method) -> String {
         .collect::<Vec<_>>()
         .join(", ");
     if m.throws.is_empty() {
-        return format!("{} {}({})", m.ret, m.name, parameters);
+        if m.name.is_none() {
+            return format!("{}({})", m.name.as_ref().unwrap_or(class_name), parameters);
+        }
+        return format!(
+            "{} {}({})",
+            m.ret,
+            m.name.as_ref().unwrap_or(class_name),
+            parameters
+        );
     }
     let throws = m
         .throws
@@ -223,7 +231,22 @@ fn format_method(m: &dto::Method) -> String {
         .map(|p| format!("{p}"))
         .collect::<Vec<_>>()
         .join(", ");
-    format!("{} {}({}) throws {}", m.ret, m.name, parameters, throws)
+    if m.name.is_none() {
+        format!(
+            "{}({}) throws {}",
+            m.name.as_ref().unwrap_or(class_name),
+            parameters,
+            throws
+        )
+    } else {
+        format!(
+            "{} {}({}) throws {}",
+            m.ret,
+            m.name.as_ref().unwrap_or(class_name),
+            parameters,
+            throws
+        )
+    }
 }
 
 fn variables_to_hover(vars: &[&LocalVariable], range: Range) -> Hover {
@@ -257,13 +280,13 @@ fn field_to_hover(f: &dto::Field, range: Range) -> Hover {
     }
 }
 
-fn methods_to_hover(methods: &[dto::Method], range: Range) -> Hover {
+fn methods_to_hover(methods: &[dto::Method], range: Range, class_name: &String) -> Hover {
     Hover {
         contents: HoverContents::Markup(MarkupContent {
             kind: MarkupKind::Markdown,
             value: methods
                 .iter()
-                .map(format_method)
+                .map(|i| format_method(i, class_name))
                 .collect::<Vec<_>>()
                 .join("\n"),
         }),
@@ -272,7 +295,11 @@ fn methods_to_hover(methods: &[dto::Method], range: Range) -> Hover {
 }
 
 fn class_to_hover(class: &dto::Class, range: Range) -> Hover {
-    let methods: Vec<_> = class.methods.iter().map(format_method).collect();
+    let methods: Vec<_> = class
+        .methods
+        .iter()
+        .map(|i| format_method(i, &class.name))
+        .collect();
     Hover {
         contents: HoverContents::Markup(MarkupContent {
             kind: MarkupKind::Markdown,
@@ -371,7 +398,7 @@ public class Test {
                 name: "String".into(),
                 methods: vec![dto::Method {
                     access: dto::Access::Public,
-                    name: "length".into(),
+                    name: Some("length".into()),
                     ret: dto::JType::Int,
                     ..Default::default()
                 }],

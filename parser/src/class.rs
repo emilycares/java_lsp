@@ -43,7 +43,6 @@ pub fn load_class(
             }
             method
         })
-        .filter(|m| m.name != "<init>")
         //.filter(|f| !f.access.contains(&dto::Access::Private))
         .collect();
     let fields: Vec<_> = c
@@ -205,9 +204,11 @@ fn parse_method(
                 .map(dto::JType::Class)
         })
         .collect();
+    let lname = lookup_string(c, method.name_index)?;
+    let name = if lname == "<init>" { None } else { Some(lname) };
     Some(dto::Method {
         access: parse_method_access(method),
-        name: lookup_string(c, method.name_index)?,
+        name,
         parameters,
         ret,
         throws,

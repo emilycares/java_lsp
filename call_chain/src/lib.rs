@@ -10,7 +10,7 @@ use std::cmp::{self, max, min};
 use ast::range::{AstInRange, GetRange, add_ranges};
 use ast::types::{
     AstAnnotated, AstAnnotatedParameter, AstAnnotatedParameterKind, AstBlock, AstBlockEntry,
-    AstBlockVariable, AstCastedExpression, AstClassBlock, AstExpressionIdentifier,
+    AstBlockVariable, AstCastedExpression, AstClassBlock, AstExpression, AstExpressionIdentifier,
     AstExpressionKind, AstExpressionOperator, AstExpressionOrAnnotated, AstExpressionOrDefault,
     AstExpressionOrValue, AstFile, AstForContent, AstIdentifier, AstIf, AstIfContent, AstJType,
     AstJTypeKind, AstLambdaRhs, AstNewClass, AstNewRhs, AstPoint, AstRange, AstRecursiveExpression,
@@ -591,28 +591,26 @@ fn cc_new_class(ast_new_class: &AstNewClass, point: &AstPoint, out: &mut Vec<Cal
             range: ast_new_class.range,
         });
     }
-    if ast_new_class.range.is_in_range(point) {
-        match ast_new_class.rhs.as_ref() {
-            AstNewRhs::None => (),
-            AstNewRhs::ArrayParameters(ast_expressions) => ast_expressions
-                .iter()
-                .flatten()
-                .for_each(|i| cc_expr(i, point, false, out)),
-            AstNewRhs::Parameters(ast_expressions) => ast_expressions
-                .iter()
-                .for_each(|i| cc_expr(i, point, false, out)),
-            AstNewRhs::Block(ast_class_block) => {
-                cc_class_block(ast_class_block, point, out);
-            }
-            AstNewRhs::ParametersAndBlock(ast_expressions, ast_class_block) => {
-                for i in ast_expressions {
-                    cc_expr(i, point, false, out);
-                }
-
-                cc_class_block(ast_class_block, point, out);
-            }
-            AstNewRhs::Array(ast_values) => cc_array(ast_values, point, out),
+    match ast_new_class.rhs.as_ref() {
+        AstNewRhs::None => (),
+        AstNewRhs::ArrayParameters(ast_expressions) => ast_expressions
+            .iter()
+            .flatten()
+            .for_each(|i| cc_expr(i, point, false, out)),
+        AstNewRhs::Parameters(range, ast_expressions) => {
+            cc_arguments_base(point, out, ast_expressions, range);
         }
+        AstNewRhs::Block(ast_class_block) => {
+            cc_class_block(ast_class_block, point, out);
+        }
+        AstNewRhs::ParametersAndBlock(parameter_range, ast_expressions, ast_class_block) => {
+            if parameter_range.is_in_range(point) {
+                cc_arguments_base(point, out, ast_expressions, parameter_range);
+            } else {
+                cc_class_block(ast_class_block, point, out);
+            }
+        }
+        AstNewRhs::Array(ast_values) => cc_array(ast_values, point, out),
     }
 }
 
@@ -932,14 +930,21 @@ fn cc_casted(casted: &AstCastedExpression, point: &AstPoint, out: &mut Vec<CallI
     out.push(args);
     out.extend(inner);
 }
-
 fn cc_arguments(point: &AstPoint, out: &mut Vec<CallItem>, values: &AstValues) {
-    if !values.range.is_in_range(point) {
+    cc_arguments_base(point, out, &values.values, &values.range);
+}
+
+fn cc_arguments_base(
+    point: &AstPoint,
+    out: &mut Vec<CallItem>,
+    expressions: &[AstExpression],
+    expressions_range: &AstRange,
+) {
+    if !expressions_range.is_in_range(point) {
         return;
     }
-    let active_param = get_active_param(values, point);
-    let mut filled_params: Vec<Vec<CallItem>> = values
-        .values
+    let active_param = get_active_param(expressions, point);
+    let mut filled_params: Vec<Vec<CallItem>> = expressions
         .iter()
         .map(|i| {
             let mut out = vec![];
@@ -956,7 +961,7 @@ fn cc_arguments(point: &AstPoint, out: &mut Vec<CallItem>, values: &AstValues) {
         prev: out.clone(),
         active_param: Some(active_param),
         filled_params,
-        range: values.range,
+        range: *expressions_range,
     };
     out.clear();
 
@@ -966,9 +971,8 @@ fn cc_arguments(point: &AstPoint, out: &mut Vec<CallItem>, values: &AstValues) {
     }
 }
 
-fn get_active_param(values: &AstValues, point: &AstPoint) -> usize {
-    values
-        .values
+fn get_active_param(expressions: &[AstExpression], point: &AstPoint) -> usize {
+    expressions
         .iter()
         .enumerate()
         .min_by_key(|(_, expression)| dist(*point, expression.get_range()))

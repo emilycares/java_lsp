@@ -14,7 +14,18 @@ Class {
         ),
     ],
     name: "Super",
-    methods: [],
+    methods: [
+        Method {
+            access: Access(
+                Public,
+            ),
+            name: None,
+            parameters: [],
+            throws: [],
+            ret: Void,
+            source: None,
+        },
+    ],
     fields: [],
     super_class: Name(
         "IOException",

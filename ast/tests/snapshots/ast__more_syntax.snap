@@ -7857,6 +7857,16 @@ AstFile {
                                                                                 ),
                                                                             },
                                                                             rhs: Parameters(
+                                                                                AstRange {
+                                                                                    start: AstPoint {
+                                                                                        line: 83,
+                                                                                        col: 26,
+                                                                                    },
+                                                                                    end: AstPoint {
+                                                                                        line: 83,
+                                                                                        col: 55,
+                                                                                    },
+                                                                                },
                                                                                 [
                                                                                     [
                                                                                         NewClass(
@@ -7899,6 +7909,16 @@ AstFile {
                                                                                                     ),
                                                                                                 },
                                                                                                 rhs: Parameters(
+                                                                                                    AstRange {
+                                                                                                        start: AstPoint {
+                                                                                                            line: 83,
+                                                                                                            col: 38,
+                                                                                                        },
+                                                                                                        end: AstPoint {
+                                                                                                            line: 83,
+                                                                                                            col: 54,
+                                                                                                        },
+                                                                                                    },
                                                                                                     [
                                                                                                         [
                                                                                                             Recursive(
@@ -9083,6 +9103,16 @@ AstFile {
                                                                                             ),
                                                                                         },
                                                                                         rhs: Parameters(
+                                                                                            AstRange {
+                                                                                                start: AstPoint {
+                                                                                                    line: 94,
+                                                                                                    col: 50,
+                                                                                                },
+                                                                                                end: AstPoint {
+                                                                                                    line: 94,
+                                                                                                    col: 79,
+                                                                                                },
+                                                                                            },
                                                                                             [],
                                                                                         ),
                                                                                     },
@@ -9189,6 +9219,16 @@ AstFile {
                                                                                             ),
                                                                                         },
                                                                                         rhs: Parameters(
+                                                                                            AstRange {
+                                                                                                start: AstPoint {
+                                                                                                    line: 95,
+                                                                                                    col: 50,
+                                                                                                },
+                                                                                                end: AstPoint {
+                                                                                                    line: 95,
+                                                                                                    col: 80,
+                                                                                                },
+                                                                                            },
                                                                                             [],
                                                                                         ),
                                                                                     },
@@ -9554,6 +9594,16 @@ AstFile {
                                                                 ),
                                                             },
                                                             rhs: Parameters(
+                                                                AstRange {
+                                                                    start: AstPoint {
+                                                                        line: 100,
+                                                                        col: 18,
+                                                                    },
+                                                                    end: AstPoint {
+                                                                        line: 100,
+                                                                        col: 54,
+                                                                    },
+                                                                },
                                                                 [
                                                                     [
                                                                         Recursive(
@@ -10658,6 +10708,16 @@ AstFile {
                                                                         ),
                                                                     },
                                                                     rhs: ParametersAndBlock(
+                                                                        AstRange {
+                                                                            start: AstPoint {
+                                                                                line: 114,
+                                                                                col: 22,
+                                                                            },
+                                                                            end: AstPoint {
+                                                                                line: 114,
+                                                                                col: 27,
+                                                                            },
+                                                                        },
                                                                         [],
                                                                         AstClassBlock {
                                                                             variables: [],

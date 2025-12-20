@@ -490,7 +490,7 @@ fn get_class_expression_kind(ex: &AstExpressionKind, point: &AstPoint) -> Option
             }
             match &*ast_new_class.rhs {
                 AstNewRhs::None => None,
-                AstNewRhs::Parameters(ast_expressions) => {
+                AstNewRhs::Parameters(_, ast_expressions) => {
                     for ex in ast_expressions {
                         if let Some(e) = get_class_expression(ex, point) {
                             return Some(e);
@@ -507,7 +507,7 @@ fn get_class_expression_kind(ex: &AstExpressionKind, point: &AstPoint) -> Option
                     None
                 }
                 AstNewRhs::Block(ast_class_block) => get_class_cblock(ast_class_block, point),
-                AstNewRhs::ParametersAndBlock(ast_expressions, ast_class_block) => {
+                AstNewRhs::ParametersAndBlock(_, ast_expressions, ast_class_block) => {
                     for ex in ast_expressions {
                         if let Some(e) = get_class_expression(ex, point) {
                             return Some(e);

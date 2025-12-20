@@ -187,6 +187,16 @@ expression: parsed
                                 ),
                             },
                             rhs: Parameters(
+                                AstRange {
+                                    start: AstPoint {
+                                        line: 0,
+                                        col: 72,
+                                    },
+                                    end: AstPoint {
+                                        line: 0,
+                                        col: 75,
+                                    },
+                                },
                                 [],
                             ),
                         },

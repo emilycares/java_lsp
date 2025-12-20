@@ -922,3 +922,30 @@ public class Test {
         ]
     );
 }
+
+#[test]
+fn call_chain_constructor_with_argument() {
+    let content = r#"
+package ch.emilycares;
+public class Test {
+    public String hello() {
+      var i = new FileInputStream(new File(""));
+      return "";
+    }
+}
+"#;
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
+
+    let out = get_call_chain(&ast, &AstPoint::new(4, 48));
+    assert_eq!(
+        out,
+        vec![CallItem::Class {
+            name: "FileInputStream".to_string(),
+            range: AstRange {
+                start: AstPoint { line: 4, col: 14 },
+                end: AstPoint { line: 4, col: 47 },
+            },
+        },]
+    );
+}

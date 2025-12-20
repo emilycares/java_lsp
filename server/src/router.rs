@@ -127,7 +127,9 @@ pub fn route(backend: &Backend) -> Result<(), Box<dyn std::error::Error + Send +
                             }));
                         }
                     }
-                    _ => {}
+                    r => {
+                        eprintln!("Got unsupported request: {r}");
+                    }
                 }
             }
             Message::Response(resp) => {

@@ -3,9 +3,9 @@ use std::str::Utf8Error;
 use ast::{
     lexer,
     types::{
-        AstAnnotationField, AstClassMethod, AstClassVariable, AstExtends, AstFile, AstImports,
-        AstInterfaceConstant, AstInterfaceMethod, AstInterfaceMethodDefault, AstJTypeKind,
-        AstSuperClass, AstThing, AstTypeParameters,
+        AstAnnotationField, AstClassConstructor, AstClassMethod, AstClassVariable, AstExtends,
+        AstFile, AstImports, AstInterfaceConstant, AstInterfaceMethod, AstInterfaceMethodDefault,
+        AstJType, AstJTypeKind, AstSuperClass, AstThing, AstTypeParameters,
     },
 };
 use my_string::MyString;
@@ -55,6 +55,13 @@ pub fn load_java_tree(
         match thing {
             AstThing::Class(class) => {
                 name.clone_from(&class.name.value);
+                methods.extend(
+                    class
+                        .block
+                        .constructors
+                        .iter()
+                        .map(convert_class_constructor),
+                );
                 methods.extend(class.block.methods.iter().map(convert_class_method));
                 fields.extend(class.block.variables.iter().map(convert_class_field));
                 //TODO: Handle others
@@ -158,10 +165,36 @@ fn convert_class_method(m: &AstClassMethod) -> Method {
         .map_or_else(Vec::new, |t| t.parameters.iter().map(Into::into).collect());
     Method {
         access,
-        name: (&m.header.name).into(),
+        name: Some((&m.header.name).into()),
         parameters,
         throws,
         ret: check_type_parameters(&m.header.jtype, m.header.type_parameters.as_ref()),
+        source: None,
+    }
+}
+fn convert_class_constructor(m: &AstClassConstructor) -> Method {
+    let access = Access::from(&m.header.availability, Access::Public);
+    let parameters = m
+        .header
+        .parameters
+        .parameters
+        .iter()
+        .map(|p| dto::Parameter {
+            name: Some((&p.name).into()),
+            jtype: check_type_parameters(&p.jtype, m.header.type_parameters.as_ref()),
+        })
+        .collect();
+    let throws = m
+        .header
+        .throws
+        .as_ref()
+        .map_or_else(Vec::new, |t| t.parameters.iter().map(Into::into).collect());
+    Method {
+        access,
+        name: None,
+        parameters,
+        throws,
+        ret: check_type_parameters(&AstJType::default(), m.header.type_parameters.as_ref()),
         source: None,
     }
 }
@@ -185,7 +218,7 @@ fn convert_interface_method(m: &AstInterfaceMethod) -> Method {
     });
     Method {
         access,
-        name: (&m.header.name).into(),
+        name: Some((&m.header.name).into()),
         parameters,
         throws,
         ret: check_type_parameters(&m.header.jtype, m.header.type_parameters.as_ref()),
@@ -212,7 +245,7 @@ fn convert_interface_default_method(m: &AstInterfaceMethodDefault) -> Method {
     });
     Method {
         access,
-        name: (&m.header.name).into(),
+        name: Some((&m.header.name).into()),
         parameters,
         throws,
         ret: check_type_parameters(&m.header.jtype, m.header.type_parameters.as_ref()),

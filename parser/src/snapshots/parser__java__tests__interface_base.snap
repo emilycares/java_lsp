@@ -25,7 +25,9 @@ Class {
             access: Access(
                 Public,
             ),
-            name: "mapToObj",
+            name: Some(
+                "mapToObj",
+            ),
             parameters: [
                 Parameter {
                     name: Some(
@@ -57,7 +59,9 @@ Class {
             access: Access(
                 Public | Static,
             ),
-            name: "a",
+            name: Some(
+                "a",
+            ),
             parameters: [
                 Parameter {
                     name: Some(

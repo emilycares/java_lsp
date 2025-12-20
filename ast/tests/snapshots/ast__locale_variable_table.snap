@@ -240,6 +240,16 @@ AstFile {
                                                 ),
                                             },
                                             rhs: Parameters(
+                                                AstRange {
+                                                    start: AstPoint {
+                                                        line: 4,
+                                                        col: 42,
+                                                    },
+                                                    end: AstPoint {
+                                                        line: 4,
+                                                        col: 45,
+                                                    },
+                                                },
                                                 [],
                                             ),
                                         },
@@ -487,6 +497,16 @@ AstFile {
                                                                         ),
                                                                     },
                                                                     rhs: Parameters(
+                                                                        AstRange {
+                                                                            start: AstPoint {
+                                                                                line: 7,
+                                                                                col: 45,
+                                                                            },
+                                                                            end: AstPoint {
+                                                                                line: 7,
+                                                                                col: 48,
+                                                                            },
+                                                                        },
                                                                         [],
                                                                     ),
                                                                 },

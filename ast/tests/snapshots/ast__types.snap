@@ -1554,6 +1554,16 @@ AstFile {
                                                 ),
                                             },
                                             rhs: Parameters(
+                                                AstRange {
+                                                    start: AstPoint {
+                                                        line: 13,
+                                                        col: 33,
+                                                    },
+                                                    end: AstPoint {
+                                                        line: 13,
+                                                        col: 42,
+                                                    },
+                                                },
                                                 [],
                                             ),
                                         },

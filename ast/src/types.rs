@@ -849,9 +849,9 @@ pub struct AstGenerics {
 pub enum AstNewRhs {
     None,
     ArrayParameters(Vec<Vec<AstExpression>>),
-    Parameters(Vec<AstExpression>),
+    Parameters(AstRange, Vec<AstExpression>),
     Block(AstClassBlock),
-    ParametersAndBlock(Vec<AstExpression>, AstClassBlock),
+    ParametersAndBlock(AstRange, Vec<AstExpression>, AstClassBlock),
     Array(AstValues),
 }
 

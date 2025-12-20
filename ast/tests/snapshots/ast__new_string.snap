@@ -56,6 +56,16 @@ expression: parsed.unwrap()
                             ),
                         },
                         rhs: Parameters(
+                            AstRange {
+                                start: AstPoint {
+                                    line: 1,
+                                    col: 16,
+                                },
+                                end: AstPoint {
+                                    line: 1,
+                                    col: 24,
+                                },
+                            },
                             [],
                         ),
                     },

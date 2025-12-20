@@ -1040,10 +1040,12 @@ pub fn parse_new_class(
         }
         Err(e) => errors.push(("array_parameters".into(), e)),
     }
+    let pstart = tokens.end(pos)?;
     match parse_expression_parameters(tokens, pos) {
         Ok((nrhs, npos)) => {
             pos = npos;
-            rhs = AstNewRhs::Parameters(nrhs);
+            let pend = tokens.end(pos)?;
+            rhs = AstNewRhs::Parameters(AstRange::from_position_token(pstart, pend), nrhs);
         }
         Err(e) => errors.push(("expression_parameters".into(), e)),
     }
@@ -1059,8 +1061,8 @@ pub fn parse_new_class(
         match parse_class_block(tokens, pos) {
             Ok((b, npos)) => {
                 pos = npos;
-                if let AstNewRhs::Parameters(p) = rhs {
-                    rhs = AstNewRhs::ParametersAndBlock(p, b);
+                if let AstNewRhs::Parameters(range, p) = rhs {
+                    rhs = AstNewRhs::ParametersAndBlock(range, p, b);
                 } else {
                     rhs = AstNewRhs::Block(b);
                 }

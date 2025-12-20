@@ -31,7 +31,9 @@ Class {
             access: Access(
                 Public,
             ),
-            name: "stream",
+            name: Some(
+                "stream",
+            ),
             parameters: [],
             throws: [],
             ret: Generic(

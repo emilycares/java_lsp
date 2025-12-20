@@ -71,8 +71,13 @@ impl Backend {
 
     fn on_open(&self, params: &TextDocumentItem) {
         match read_document_or_open_class(&get_document_map_key(&params.uri), &self.document_map) {
-            Ok(_) => {}
-            Err(_) => todo!(),
+            Ok(ClassSource::Owned(_, diag)) => {
+                self.handle_diagnostic(params.uri.clone(), diag.as_ref().clone());
+            }
+            Ok(ClassSource::Ref(_)) => {}
+            Err(e) => {
+                eprintln!("Error while on_open: {e:?}");
+            }
         }
     }
 
@@ -197,7 +202,7 @@ impl Backend {
                         .map(|e| {
                             let r = u32::try_from(e.row).unwrap_or_default();
                             let c = u32::try_from(e.col).unwrap_or_default();
-                            let p = Position::new(r - 1, c);
+                            let p = Position::new(r.saturating_sub(1), c);
                             Diagnostic::new(
                                 Range::new(p, p),
                                 Some(DiagnosticSeverity::ERROR),
@@ -702,7 +707,7 @@ impl Backend {
         match signature::signature_driver(&document, &point, class, &self.class_map) {
             Ok(hover) => Some(hover),
             Err(e) => {
-                eprintln!("Error while hover: {e:?}");
+                eprintln!("Error while signature_help: {e:?}");
                 None
             }
         }
@@ -768,7 +773,7 @@ pub async fn fetch_deps(
                         let mut diagnostics = Vec::new();
                         let range = Range::default();
                         match e {
-                            MavenFetchError::UnableToDownloadSources(e) => {
+                            MavenFetchError::DownloadSources(e) => {
                                 let message = format!("Unable download maven sources: {e}");
                                 diagnostics.push(Diagnostic::new(
                                     range,

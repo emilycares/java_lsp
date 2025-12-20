@@ -28,7 +28,9 @@ Class {
             access: Access(
                 Public,
             ),
-            name: "display",
+            name: Some(
+                "display",
+            ),
             parameters: [],
             throws: [],
             ret: Void,
@@ -38,7 +40,9 @@ Class {
             access: Access(
                 Public,
             ),
-            name: "createSocket",
+            name: Some(
+                "createSocket",
+            ),
             parameters: [
                 Parameter {
                     name: Some(

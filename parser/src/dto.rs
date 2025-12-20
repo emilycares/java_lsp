@@ -185,7 +185,7 @@ impl Access {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
 pub struct Method {
     pub access: Access,
-    pub name: MyString,
+    pub name: Option<MyString>,
     pub parameters: Vec<Parameter>,
     pub throws: Vec<JType>,
     pub ret: JType,

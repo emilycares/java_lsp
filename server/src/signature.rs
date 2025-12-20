@@ -42,7 +42,7 @@ pub fn get_signature(
         prev,
         range: _,
         active_param,
-        filled_params: _,
+        filled_params,
     }) = args
     else {
         return Err(SignatureError::NotAnArgumentList);
@@ -50,14 +50,46 @@ pub fn get_signature(
     let Some(active_param) = active_param else {
         return Err(SignatureError::NotAnArgumentList);
     };
-    let Some(CallItem::MethodCall {
-        name: method_name,
-        range: _,
-    }) = prev.last()
-    else {
-        return Err(SignatureError::CouldNotGetMethod);
-    };
-    let method_name = method_name.as_str();
+    let num_params = filled_params.len();
+    match &prev.last() {
+        Some(CallItem::MethodCall {
+            name: method_name,
+            range: _,
+        }) => signature_help_for_method(
+            imports,
+            vars,
+            class,
+            class_map,
+            prev,
+            *active_param,
+            num_params,
+            method_name,
+        ),
+        Some(CallItem::Class { name: _, range: _ }) => signature_help_for_constructor(
+            imports,
+            vars,
+            class,
+            class_map,
+            prev,
+            *active_param,
+            num_params,
+        ),
+
+        Some(_) | None => Err(SignatureError::CouldNotGetMethod),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn signature_help_for_method(
+    imports: &[ImportUnit],
+    vars: &[LocalVariable],
+    class: &Class,
+    class_map: &DashMap<String, Class>,
+    prev: &[CallItem],
+    active_param: usize,
+    num_params: usize,
+    method_name: &str,
+) -> Result<SignatureHelp, SignatureError> {
     // trim last method call
     let prev = &prev[..1];
     let resolve_state = match tyres::resolve_call_chain(prev, vars, imports, class, class_map) {
@@ -68,26 +100,67 @@ pub fn get_signature(
         .class
         .methods
         .iter()
-        .filter(|m| m.name == method_name)
+        .filter(|i| i.name.as_ref().filter(|i| *i == method_name).is_some())
         .collect();
 
     let Some(active_signature) = methods
         .iter()
         .enumerate()
-        .find(|(_, m)| m.parameters.len() > *active_param)
+        .find(|(_, m)| m.parameters.len() >= num_params)
     else {
         return Err(SignatureError::CouldNoteGetActiveSignature);
     };
     let active_signature_id = active_signature.0;
     let signatures = methods
         .iter()
-        .map(|m| method_to_signature_information(m))
+        .map(|m| method_to_signature_information(m, &resolve_state.class.name))
         .collect();
 
     Ok(SignatureHelp {
         signatures,
         active_signature: TryInto::<u32>::try_into(active_signature_id).ok(),
-        active_parameter: TryInto::<u32>::try_into(*active_param).ok(),
+        active_parameter: TryInto::<u32>::try_into(active_param).ok(),
+    })
+}
+fn signature_help_for_constructor(
+    imports: &[ImportUnit],
+    vars: &[LocalVariable],
+    class: &Class,
+    class_map: &DashMap<String, Class>,
+    prev: &[CallItem],
+    active_param: usize,
+    num_params: usize,
+) -> Result<SignatureHelp, SignatureError> {
+    // trim last method call
+    let prev = &prev[..1];
+    let resolve_state = match tyres::resolve_call_chain(prev, vars, imports, class, class_map) {
+        Ok(c) => Ok(c),
+        Err(e) => Err(SignatureError::Tyres(e)),
+    }?;
+    let methods: Vec<&dto::Method> = resolve_state
+        .class
+        .methods
+        .iter()
+        .filter(|m| m.name.is_none())
+        .collect();
+
+    let Some(active_signature) = methods
+        .iter()
+        .enumerate()
+        .find(|(_, m)| m.parameters.len() >= num_params)
+    else {
+        return Err(SignatureError::CouldNoteGetActiveSignature);
+    };
+    let active_signature_id = active_signature.0;
+    let signatures = methods
+        .iter()
+        .map(|m| method_to_signature_information(m, &resolve_state.class.name))
+        .collect();
+
+    Ok(SignatureHelp {
+        signatures,
+        active_signature: TryInto::<u32>::try_into(active_signature_id).ok(),
+        active_parameter: TryInto::<u32>::try_into(active_param).ok(),
     })
 }
 
@@ -108,8 +181,11 @@ fn get_args(call_chain: &[CallItem]) -> Option<&CallItem> {
     })
 }
 
-fn method_to_signature_information(method: &dto::Method) -> SignatureInformation {
-    let mut label = format!("{}(", method.name);
+fn method_to_signature_information(
+    method: &dto::Method,
+    class_name: &String,
+) -> SignatureInformation {
+    let mut label = format!("{}(", method.name.as_ref().unwrap_or(class_name));
     let mut parameters = Vec::with_capacity(method.parameters.len());
     let mut peekable = method.parameters.iter().peekable();
     while let Some(param) = peekable.next() {
@@ -167,7 +243,7 @@ pub mod tests {
                 name: "String".into(),
                 methods: vec![dto::Method {
                     access: dto::Access::Public,
-                    name: "concat".into(),
+                    name: Some("concat".into()),
                     parameters: vec![dto::Parameter {
                         name: None,
                         jtype: dto::JType::Class("java.lang.String".into()),
@@ -224,7 +300,7 @@ public class Test {
                 methods: vec![
                     dto::Method {
                         access: dto::Access::Public,
-                        name: "concat".into(),
+                        name: Some("concat".into()),
                         parameters: vec![dto::Parameter {
                             name: None,
                             jtype: dto::JType::Class("java.lang.String".into()),
@@ -235,7 +311,7 @@ public class Test {
                     },
                     dto::Method {
                         access: dto::Access::Public,
-                        name: "concat".into(),
+                        name: Some("concat".into()),
                         parameters: vec![
                             dto::Parameter {
                                 name: None,
@@ -317,7 +393,7 @@ public class Test {
                 methods: vec![
                     dto::Method {
                         access: dto::Access::Public,
-                        name: "concat".into(),
+                        name: Some("concat".into()),
                         parameters: vec![dto::Parameter {
                             name: None,
                             jtype: dto::JType::Class("java.lang.String".into()),
@@ -328,7 +404,7 @@ public class Test {
                     },
                     dto::Method {
                         access: dto::Access::Public,
-                        name: "concat".into(),
+                        name: Some("concat".into()),
                         parameters: vec![
                             dto::Parameter {
                                 name: None,

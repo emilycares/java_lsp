@@ -17,9 +17,21 @@ Class {
     methods: [
         Method {
             access: Access(
+                Public,
+            ),
+            name: None,
+            parameters: [],
+            throws: [],
+            ret: Void,
+            source: None,
+        },
+        Method {
+            access: Access(
                 0x0,
             ),
-            name: "method",
+            name: Some(
+                "method",
+            ),
             parameters: [],
             throws: [],
             ret: Void,
@@ -29,7 +41,9 @@ Class {
             access: Access(
                 Public,
             ),
-            name: "public_method",
+            name: Some(
+                "public_method",
+            ),
             parameters: [],
             throws: [],
             ret: Void,
@@ -39,7 +53,9 @@ Class {
             access: Access(
                 Private,
             ),
-            name: "private_method",
+            name: Some(
+                "private_method",
+            ),
             parameters: [],
             throws: [],
             ret: Void,
@@ -49,7 +65,9 @@ Class {
             access: Access(
                 0x0,
             ),
-            name: "out",
+            name: Some(
+                "out",
+            ),
             parameters: [],
             throws: [],
             ret: Int,
@@ -59,7 +77,9 @@ Class {
             access: Access(
                 0x0,
             ),
-            name: "add",
+            name: Some(
+                "add",
+            ),
             parameters: [
                 Parameter {
                     name: Some(
@@ -82,7 +102,9 @@ Class {
             access: Access(
                 Static,
             ),
-            name: "sadd",
+            name: Some(
+                "sadd",
+            ),
             parameters: [
                 Parameter {
                     name: Some(

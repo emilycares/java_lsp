@@ -60,7 +60,7 @@ pub enum MavenFetchError {
     ParserLoader(loader::LoaderError),
     NoM2Folder,
     IO(std::io::Error),
-    UnableToDownloadSources(String),
+    DownloadSources(String),
 }
 const MAVEN_CFC: &str = ".maven.cfc";
 
@@ -176,7 +176,7 @@ async fn download_sources(
         });
     } else {
         let error = String::from_utf8_lossy(&e.stderr).to_string();
-        return Err(MavenFetchError::UnableToDownloadSources(error));
+        return Err(MavenFetchError::DownloadSources(error));
     }
     Ok(())
 }

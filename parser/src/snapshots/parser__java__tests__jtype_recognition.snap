@@ -1,7 +1,6 @@
 ---
 source: parser/src/java.rs
 expression: result.unwrap()
-snapshot_kind: text
 ---
 Class {
     class_path: "a.test.Types",
@@ -20,7 +19,9 @@ Class {
             access: Access(
                 Public | Protected | Static,
             ),
-            name: "main",
+            name: Some(
+                "main",
+            ),
             parameters: [
                 Parameter {
                     name: Some(

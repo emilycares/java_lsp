@@ -1,7 +1,6 @@
 ---
 source: parser/src/java.rs
 expression: result.unwrap()
-snapshot_kind: text
 ---
 Class {
     class_path: "ch.emilycares.Thrower",
@@ -23,7 +22,9 @@ Class {
             access: Access(
                 Public | Protected,
             ),
-            name: "ioThrower",
+            name: Some(
+                "ioThrower",
+            ),
             parameters: [],
             throws: [
                 Class(
@@ -37,7 +38,9 @@ Class {
             access: Access(
                 Public | Protected,
             ),
-            name: "ioThrower",
+            name: Some(
+                "ioThrower",
+            ),
             parameters: [
                 Parameter {
                     name: Some(

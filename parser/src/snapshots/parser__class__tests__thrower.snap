@@ -19,7 +19,19 @@ Class {
             access: Access(
                 Public,
             ),
-            name: "ioThrower",
+            name: None,
+            parameters: [],
+            throws: [],
+            ret: Void,
+            source: None,
+        },
+        Method {
+            access: Access(
+                Public,
+            ),
+            name: Some(
+                "ioThrower",
+            ),
             parameters: [],
             throws: [
                 Class(
@@ -33,7 +45,9 @@ Class {
             access: Access(
                 Public,
             ),
-            name: "ioThrower",
+            name: Some(
+                "ioThrower",
+            ),
             parameters: [
                 Parameter {
                     name: Some(

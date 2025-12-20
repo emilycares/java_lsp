@@ -200,12 +200,19 @@ pub fn resolve_call_chain(
     if call_chain.is_empty() {
         return Err(TyresError::CallChainEmpty);
     }
-    let mut ops: Vec<ResolveState> = vec![];
-    for item in call_chain {
-        let op = call_chain_op(item, &ops, lo_va, imports, class, class_map, true);
-        if let Ok(op) = op {
-            ops.push(op);
-        }
+    let mut ops: Vec<ResolveState> = vec![ResolveState {
+        class: class.clone(),
+        jtype: JType::Class(class.class_path.clone()),
+    }];
+    let mut cc = call_chain.iter().peekable();
+    while let Some(item) = cc.next() {
+        let op = if cc.peek().is_some() {
+            call_chain_op(item, &ops, lo_va, imports, class, class_map, true, false)?
+        } else {
+            call_chain_op_self(item, &ops, lo_va, imports, class, class_map, true)?
+        };
+
+        ops.push(op);
     }
     ops.last().map_or_else(
         || Err(TyresError::CallChainInvalid(call_chain.to_vec())),
@@ -222,12 +229,13 @@ pub fn resolve_call_chain_value(
     if call_chain.is_empty() {
         return Err(TyresError::CallChainEmpty);
     }
-    let mut ops: Vec<ResolveState> = vec![];
+    let mut ops: Vec<ResolveState> = vec![ResolveState {
+        class: class.clone(),
+        jtype: JType::Class(class.class_path.clone()),
+    }];
     for item in call_chain {
-        let op = call_chain_op(item, &ops, lo_va, imports, class, class_map, false);
-        if let Ok(op) = op {
-            ops.push(op);
-        }
+        let op = call_chain_op(item, &ops, lo_va, imports, class, class_map, false, true)?;
+        ops.push(op);
     }
     ops.last().map_or_else(
         || Err(TyresError::CallChainInvalid(call_chain.to_vec())),
@@ -245,14 +253,17 @@ pub fn resolve_call_chain_to_point(
     if call_chain.is_empty() {
         return Err(TyresError::CallChainEmpty);
     }
-    let mut ops: Vec<ResolveState> = vec![];
+    let mut ops: Vec<ResolveState> = vec![ResolveState {
+        class: class.clone(),
+        jtype: JType::Class(class.class_path.clone()),
+    }];
     let mut cc = call_chain.iter().peekable();
     while let Some(item) = cc.next() {
         if item.get_range().is_after_range(point) {
             break;
         }
         let op = if cc.peek().is_some() {
-            call_chain_op(item, &ops, lo_va, imports, class, class_map, true)
+            call_chain_op(item, &ops, lo_va, imports, class, class_map, true, false)
         } else {
             call_chain_op_self(item, &ops, lo_va, imports, class, class_map, true)
         };
@@ -267,6 +278,7 @@ pub fn resolve_call_chain_to_point(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn call_chain_op(
     item: &CallItem,
     ops: &[ResolveState],
@@ -275,13 +287,14 @@ fn call_chain_op(
     class: &Class,
     class_map: &DashMap<MyString, Class>,
     resolve_argument: bool,
+    return_value: bool,
 ) -> Result<ResolveState, TyresError> {
     match item {
         CallItem::MethodCall { name, range: _ } => {
             let Some(ResolveState { class, jtype: _ }) = ops.last() else {
                 return Err(TyresError::NoClassInOps);
             };
-            if let Some(method) = class.methods.iter().find(|m| m.name == *name) {
+            if let Some(method) = class.methods.iter().find(|m| m.name == Some(name.clone())) {
                 return resolve_jtype(&method.ret, imports, class_map);
             }
             Err(TyresError::MethodNotFound(name.clone()))
@@ -327,7 +340,11 @@ fn call_chain_op(
                 }
                 return resolve_call_chain(prev, lo_va, imports, class, class_map);
             }
-            resolve_call_chain(prev, lo_va, imports, class, class_map)
+            if return_value {
+                resolve_call_chain_value(prev, lo_va, imports, class, class_map)
+            } else {
+                resolve_call_chain(prev, lo_va, imports, class, class_map)
+            }
         }
     }
 }
@@ -345,7 +362,12 @@ fn call_chain_op_self(
             let Some(last) = ops.last() else {
                 return Err(TyresError::NoClassInOps);
             };
-            if last.class.methods.iter().any(|m| m.name == *name) {
+            if last
+                .class
+                .methods
+                .iter()
+                .any(|m| m.name == Some(name.clone()))
+            {
                 return Ok(last.clone());
             }
             Err(TyresError::MethodNotFound(name.clone()))
@@ -480,7 +502,7 @@ pub fn resolve_jtype(
             class: Class {
                 name: "array".into(),
                 methods: vec![dto::Method {
-                    name: "clone".into(),
+                    name: Some("clone".into()),
                     ret: JType::Array(i.clone()),
                     ..Default::default()
                 }],

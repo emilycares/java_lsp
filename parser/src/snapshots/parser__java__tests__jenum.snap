@@ -19,7 +19,9 @@ Class {
             access: Access(
                 Public | Protected,
             ),
-            name: "getTag",
+            name: Some(
+                "getTag",
+            ),
             parameters: [],
             throws: [],
             ret: Class(

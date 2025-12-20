@@ -44,7 +44,7 @@ pub fn class_describe(val: &dto::Class, ast: Option<&AstFile>) -> CompletionItem
         .map(|m| {
             format!(
                 "{}({:?})",
-                m.name,
+                m.name.as_ref().unwrap_or(&val.name),
                 m.parameters
                     .iter()
                     .map(|p| format!("{}", p.jtype))
@@ -84,7 +84,7 @@ pub fn class_unpack(
                 }
                 i.access.contains(parser::dto::Access::Public)
             })
-            .map(|i| complete_method(i, imports, ast)),
+            .filter_map(|i| complete_method(i, imports, ast)),
     );
 
     out.extend(
@@ -119,7 +119,14 @@ pub fn class_unpack(
     out
 }
 
-fn complete_method(m: &dto::Method, imports: &[ImportUnit], ast: &AstFile) -> CompletionItem {
+fn complete_method(
+    m: &dto::Method,
+    imports: &[ImportUnit],
+    ast: &AstFile,
+) -> Option<CompletionItem> {
+    let Some(method_name) = &m.name else {
+        return None;
+    };
     let params_detail: Vec<String> = m
         .parameters
         .iter()
@@ -132,8 +139,8 @@ fn complete_method(m: &dto::Method, imports: &[ImportUnit], ast: &AstFile) -> Co
         .collect();
 
     match method_snippet(m) {
-        Snippet::Simple(snippet) => CompletionItem {
-            label: m.name.clone(),
+        Some(Snippet::Simple(snippet)) => Some(CompletionItem {
+            label: method_name.clone(),
             label_details: Some(CompletionItemLabelDetails {
                 detail: Some(format!("{} ({})", m.ret, params_detail.join(", "))),
                 ..Default::default()
@@ -142,8 +149,8 @@ fn complete_method(m: &dto::Method, imports: &[ImportUnit], ast: &AstFile) -> Co
             insert_text: Some(snippet),
             insert_text_format: Some(InsertTextFormat::SNIPPET),
             ..Default::default()
-        },
-        Snippet::Import { snippet, import } => {
+        }),
+        Some(Snippet::Import { snippet, import }) => {
             let additional_text_edits = if !imports.contains(&import)
                 && let ImportUnit::Class(class_path) = import
             {
@@ -152,8 +159,8 @@ fn complete_method(m: &dto::Method, imports: &[ImportUnit], ast: &AstFile) -> Co
                 None
             };
 
-            CompletionItem {
-                label: m.name.clone(),
+            Some(CompletionItem {
+                label: method_name.clone(),
                 label_details: Some(CompletionItemLabelDetails {
                     detail: Some(format!("{} ({})", m.ret, params_detail.join(", "))),
                     ..Default::default()
@@ -163,8 +170,9 @@ fn complete_method(m: &dto::Method, imports: &[ImportUnit], ast: &AstFile) -> Co
                 insert_text_format: Some(InsertTextFormat::SNIPPET),
                 additional_text_edits,
                 ..Default::default()
-            }
+            })
         }
+        None => None,
     }
 }
 
@@ -174,7 +182,10 @@ enum Snippet {
     Import { snippet: String, import: ImportUnit },
 }
 
-fn method_snippet(m: &dto::Method) -> Snippet {
+fn method_snippet(m: &dto::Method) -> Option<Snippet> {
+    let Some(method_name) = &m.name else {
+        return None;
+    };
     let mut import = None;
     let mut params_snippet = String::new();
     let p_len = m.parameters.len();
@@ -188,10 +199,10 @@ fn method_snippet(m: &dto::Method) -> Snippet {
         }
     }
 
-    let snippet = format!("{}({})", m.name, params_snippet);
+    let snippet = format!("{method_name}({params_snippet})");
     match import {
-        Some(import) => Snippet::Import { snippet, import },
-        None => Snippet::Simple(snippet),
+        Some(import) => Some(Snippet::Import { snippet, import }),
+        None => Some(Snippet::Simple(snippet)),
     }
 }
 
@@ -298,7 +309,7 @@ pub fn static_methods(
                 .get(c)
                 .into_iter()
                 .flat_map(|class| class.methods.clone())
-                .filter(|f| f.name == *m)
+                .filter(|f| f.name.as_ref().filter(|i| *i == m).is_some())
                 .collect(),
             ImportUnit::StaticPrefix(c) => class_map
                 .get(c)
@@ -306,7 +317,7 @@ pub fn static_methods(
                 .flat_map(|class| class.methods.clone())
                 .collect(),
         })
-        .map(|m| complete_method(&m, imports, ast))
+        .filter_map(|m| complete_method(&m, imports, ast))
         .collect()
 }
 
@@ -393,7 +404,7 @@ public class GreetingResource {
                 name: "String".into(),
                 methods: vec![dto::Method {
                     access: dto::Access::Public,
-                    name: "length".into(),
+                    name: Some("length".into()),
                     ret: dto::JType::Int,
                     ..Default::default()
                 }],
@@ -462,7 +473,7 @@ public class Test {
                 name: "String".into(),
                 methods: vec![dto::Method {
                     access: dto::Access::Public,
-                    name: "concat".into(),
+                    name: Some("concat".into()),
                     ret: dto::JType::Class("java.lang.String".into()),
                     ..Default::default()
                 }],
@@ -498,21 +509,21 @@ public class Test {
     fn method_snippet_no_param() {
         let method = dto::Method {
             access: dto::Access::Public,
-            name: "length".into(),
+            name: Some("length".into()),
             parameters: vec![],
             ret: dto::JType::Int,
             throws: vec![],
             source: None,
         };
         let out = method_snippet(&method);
-        assert_eq!(out, Snippet::Simple("length()".into()));
+        assert_eq!(out, Some(Snippet::Simple("length()".into())));
     }
 
     #[test]
     fn method_snippet_base() {
         let method = dto::Method {
             access: dto::Access::Public,
-            name: "compute".into(),
+            name: Some("compute".into()),
             parameters: vec![dto::Parameter {
                 name: None,
                 jtype: dto::JType::Int,
@@ -522,14 +533,14 @@ public class Test {
             source: None,
         };
         let out = method_snippet(&method);
-        assert_eq!(out, Snippet::Simple("compute(${1:int})".into()));
+        assert_eq!(out, Some(Snippet::Simple("compute(${1:int})".into())));
     }
 
     #[test]
     fn method_snippet_args() {
         let method = dto::Method {
             access: dto::Access::Public,
-            name: "split".into(),
+            name: Some("split".into()),
             parameters: vec![
                 dto::Parameter {
                     name: None,
@@ -545,7 +556,10 @@ public class Test {
             source: None,
         };
         let out = method_snippet(&method);
-        assert_eq!(Snippet::Simple("split(${1:String}, ${2:int})".into()), out,);
+        assert_eq!(
+            Some(Snippet::Simple("split(${1:String}, ${2:int})".into())),
+            out
+        );
     }
 
     #[ignore = "todo"]

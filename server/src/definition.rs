@@ -101,7 +101,7 @@ pub fn call_chain_definition(
                 .class
                 .methods
                 .iter()
-                .filter(|i| i.name == *name)
+                .filter(|i| i.name.as_ref().filter(|i| *i == name).is_some())
                 .find_map(|i| i.source.clone())
             {
                 Some(method_source) => method_source,
@@ -316,7 +316,7 @@ public class Test {
                 name: "Logger".into(),
                 methods: vec![dto::Method {
                     access: dto::Access::Public,
-                    name: "info".into(),
+                    name: Some("info".into()),
                     ret: dto::JType::Void,
                     ..Default::default()
                 }],
@@ -331,7 +331,7 @@ public class Test {
                 name: "List".into(),
                 methods: vec![dto::Method {
                     access: dto::Access::Public,
-                    name: "stream".into(),
+                    name: Some("stream".into()),
                     ret: dto::JType::Class("java.util.stream.Stream".into()),
                     ..Default::default()
                 }],
@@ -346,7 +346,7 @@ public class Test {
                 name: "Stream".into(),
                 methods: vec![dto::Method {
                     access: dto::Access::Public,
-                    name: "map".into(),
+                    name: Some("map".into()),
                     ret: dto::JType::Class("java.util.stream.Stream".into()),
                     ..Default::default()
                 }],
@@ -360,7 +360,7 @@ public class Test {
                 name: "String".into(),
                 methods: vec![dto::Method {
                     access: dto::Access::Public,
-                    name: "length".into(),
+                    name: Some("length".into()),
                     ret: dto::JType::Int,
                     ..Default::default()
                 }],

@@ -86,7 +86,7 @@ pub fn replace_with_value_type(
             AstThing::Annotation(_ast_annotation) => (),
         }
     }
-    let point;
+    let mut point;
     let current_type = match (classvar, blockvar) {
         (None, None) => return Ok(None),
         (None | Some(_), Some(b)) => {
@@ -98,6 +98,7 @@ pub fn replace_with_value_type(
             &c.jtype
         }
     };
+    point.col += 1;
     // value here
     let call_chain = call_chain::get_call_chain(ast, &point);
     let value_resolve_state = tyres::resolve_call_chain_value(
@@ -404,7 +405,10 @@ public class Test {
         "#;
         let point = AstPoint::new(4, 10);
         let doc = Document::setup(content, PathBuf::from_str("./").unwrap()).unwrap();
-        let imports = vec![ImportUnit::Class("java.io.FileInputStream".into())];
+        let imports = vec![
+            ImportUnit::Class("java.io.FileInputStream".into()),
+            ImportUnit::Class("java.io.File".into()),
+        ];
         let class =
             parser::java::load_java_tree(&doc.0.ast, parser::SourceDestination::None).unwrap();
         let uri = Uri::from_str("file:///a").unwrap();
@@ -472,7 +476,7 @@ public class Test {
                 name: "String".into(),
                 methods: vec![dto::Method {
                     access: dto::Access::Public,
-                    name: "length".into(),
+                    name: Some("length".into()),
                     ret: dto::JType::Int,
                     ..Default::default()
                 }],
@@ -481,6 +485,15 @@ public class Test {
         );
         class_map.insert(
             "java.io.FileInputStream".into(),
+            dto::Class {
+                access: dto::Access::Public,
+                name: "FileInputStream".into(),
+                methods: vec![],
+                ..Default::default()
+            },
+        );
+        class_map.insert(
+            "java.io.File".into(),
             dto::Class {
                 access: dto::Access::Public,
                 name: "FileInputStream".into(),
