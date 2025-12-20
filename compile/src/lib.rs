@@ -57,7 +57,6 @@ pub fn parse_compile_errors(input: &str) -> Vec<CompileError> {
         if path.starts_with("error") {
             break;
         }
-        dbg!(&path);
         index += 1;
         let mut row = String::new();
         while let Some(ch) = chars.get(index)
@@ -66,7 +65,6 @@ pub fn parse_compile_errors(input: &str) -> Vec<CompileError> {
             row.push(*ch);
             index += 1;
         }
-        dbg!(&row);
         index += 1;
         while let Some(ch) = chars.get(index)
             && ch != &':'
@@ -86,7 +84,6 @@ pub fn parse_compile_errors(input: &str) -> Vec<CompileError> {
             message.push(*ch);
             index += 1;
         }
-        dbg!(&message);
         // skip newline
         index += 1;
         // Skip code
@@ -108,7 +105,6 @@ pub fn parse_compile_errors(input: &str) -> Vec<CompileError> {
             col += 1;
             index += 1;
         }
-        dbg!(col);
         out.push(CompileError {
             path,
             message,
