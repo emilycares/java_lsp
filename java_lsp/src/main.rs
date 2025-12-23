@@ -23,11 +23,14 @@ async fn main() {
             cli::lex_pos(file, pos);
         }
         Some(Commands::AstCheck { file }) => {
+            #[cfg(target_os = "windows")]
+            cli::ast_check(&file);
+            #[cfg(not(target_os = "windows"))]
             cli::ast_check(&file, 0, &mut Vec::new());
         }
         Some(Commands::AstCheckDir { folder, ignore }) => {
             if let Some(ignore) = ignore {
-                let collect: Vec<&str> = ignore.split(',').collect();
+                let collect: Vec<String> = ignore.split(',').map(|i| i.to_string()).collect();
                 cli::ast_check_dir_ignore(folder, collect).await.unwrap();
             } else {
                 cli::ast_check_dir(folder).await.unwrap();

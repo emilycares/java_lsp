@@ -5,12 +5,17 @@ use std::time::Instant;
 use std::{fs::canonicalize, path::PathBuf};
 
 use ast::error::PrintErr;
+#[cfg(not(target_os = "windows"))]
 use ast::lexer::PositionToken;
 use clap::{Parser, Subcommand};
+#[cfg(target_os = "windows")]
+use std::sync::Arc;
+use std::sync::mpsc;
 
 #[derive(Debug)]
 pub enum CheckError {
     IO(std::io::Error),
+    ChannelSend(mpsc::SendError<PathBuf>),
 }
 
 /// A java lsp server
@@ -46,17 +51,41 @@ pub enum Commands {
     AstCheckJdk,
 }
 
-pub async fn ast_check_async(file: PathBuf, num: usize, tokens: &mut Vec<PositionToken>) {
-    match tokio::fs::read_to_string(&file).await {
-        Ok(text) => {
-            lex_and_ast(&file, &text, num, tokens);
+#[cfg(target_os = "windows")]
+pub fn ast_check(path: &PathBuf) {
+    use std::{fs::File, str::from_utf8};
+
+    match File::open(path) {
+        Ok(file) => {
+            let mmap = unsafe { memmap2::Mmap::map(&file) };
+            match mmap {
+                Ok(mmap) => {
+                    #[cfg(unix)]
+                    mmap.advise(memmap2::Advice::Sequential)
+                        .expect("memmap advice to be accepted");
+                    match from_utf8(&mmap[..]) {
+                        Ok(text) => {
+                            lex_and_ast(path, text);
+                        }
+                        Err(e) => {
+                            eprintln!("invalid utf8: {:?}", e);
+                            std::process::exit(3);
+                        }
+                    };
+                }
+                Err(e) => {
+                    eprintln!("unable to memmap: {:?}", e);
+                    std::process::exit(2);
+                }
+            };
         }
         Err(e) => {
             eprintln!("unable to open file: {:?}", e);
             std::process::exit(1);
         }
-    }
+    };
 }
+#[cfg(not(target_os = "windows"))]
 pub fn ast_check(path: &PathBuf, num: usize, tokens: &mut Vec<PositionToken>) {
     use std::{fs::File, str::from_utf8};
 
@@ -91,6 +120,7 @@ pub fn ast_check(path: &PathBuf, num: usize, tokens: &mut Vec<PositionToken>) {
     };
 }
 
+#[cfg(not(target_os = "windows"))]
 fn lex_and_ast(file: &PathBuf, text: &str, num: usize, tokens: &mut Vec<PositionToken>) {
     // eprintln!("[{num}]Here: {:?}", file);
     match ast::lexer::lex_mut(text, tokens) {
@@ -104,6 +134,24 @@ fn lex_and_ast(file: &PathBuf, text: &str, num: usize, tokens: &mut Vec<Position
         }
         Err(e) => {
             eprintln!("[{num}]Lexer error: {:?}", e);
+            std::process::exit(2);
+        }
+    }
+}
+#[cfg(target_os = "windows")]
+fn lex_and_ast(file: &PathBuf, text: &str) {
+    // eprintln!("Here: {:?}", file);
+    match ast::lexer::lex(text) {
+        Ok(tokens) => {
+            let ast = ast::parse_file(&tokens);
+            if ast.is_err() {
+                eprintln!("Here: {:?}", file);
+                ast.print_err(text, &tokens);
+                std::process::exit(3);
+            }
+        }
+        Err(e) => {
+            eprintln!("Lexer error: {:?}", e);
             std::process::exit(2);
         }
     }
@@ -136,7 +184,7 @@ pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
     Ok(())
 }
 #[cfg(not(target_os = "windows"))]
-pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<&str>) -> Result<(), CheckError> {
+pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<String>) -> Result<(), CheckError> {
     let mut count = 0;
     let time = Instant::now();
     let mut tokens = Vec::new();
@@ -172,66 +220,76 @@ pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<&str>) -> Result<
 
 #[cfg(target_os = "windows")]
 fn visit_java_fies(
-    dir: &std::path::Path,
-    index: usize,
-    tokens: &mut Vec<PositionToken>,
-    cb: &dyn Fn(&PathBuf, usize, &mut Vec<PositionToken>),
-) -> Result<usize, CheckError> {
-    if dir.is_dir() {
-        let mut read_dir: Vec<_> = std::fs::read_dir(dir)
-            .map_err(CheckError::IO)?
-            .map(|res| res.map(|e| e.path()))
-            .filter_map(|a| a.ok())
-            .collect();
-        read_dir.sort();
-        let mut index = index;
-        for entry in read_dir.iter() {
-            if entry.is_dir() {
-                let nindex = visit_java_fies(entry, index, tokens, cb)?;
-                index = nindex;
-            } else if let Some(e) = entry.extension()
-                && e == "java"
-            {
-                index += 1;
-                cb(entry, index, tokens);
-            }
+    dir: &PathBuf,
+    tx: Arc<mpsc::Sender<PathBuf>>,
+    cb: impl Fn(&PathBuf),
+) -> Result<(), CheckError> {
+    let read_dir = std::fs::read_dir(dir)
+        .map_err(CheckError::IO)?
+        .map(|res| res.map(|e| e.path()))
+        .filter_map(|a| a.ok());
+    for entry in read_dir {
+        if entry.is_dir() {
+            tx.send(entry).map_err(CheckError::ChannelSend)?;
+        } else if let Some(e) = entry.extension()
+            && e == "java"
+        {
+            cb(&entry);
         }
-        return Ok(index);
     }
-    Ok(0)
+    Ok(())
 }
 #[cfg(target_os = "windows")]
 pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
+    use tokio::task::JoinSet;
+
+    use std::time::Duration;
+
     let time = Instant::now();
-    let mut tokens = Vec::new();
-    visit_java_fies(
-        canonicalize(folder).map_err(CheckError::IO)?.as_path(),
-        0,
-        &mut tokens,
-        &|i, index, tokens| ast_check(i, index, tokens),
-    )?;
+    let dir = canonicalize(folder).map_err(CheckError::IO)?;
+    let (tx, rx) = mpsc::channel();
+    tx.send(dir).map_err(CheckError::ChannelSend)?;
+    let tx = Arc::new(tx);
+    let mut handles = JoinSet::new();
+    while let Ok(dir) = rx.recv_timeout(Duration::from_millis(300)) {
+        let tx = tx.clone();
+        handles.spawn(async move { visit_java_fies(&dir, tx, ast_check) });
+    }
+    let _ = handles.join_all().await;
+
     println!("Checked all files. in: {:.2?}", time.elapsed());
     Ok(())
 }
 #[cfg(target_os = "windows")]
-pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<&str>) -> Result<(), CheckError> {
+pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<String>) -> Result<(), CheckError> {
+    use std::time::Duration;
+
+    use tokio::task::JoinSet;
+
     let time = Instant::now();
-    let mut tokens = Vec::new();
-    visit_java_fies(
-        canonicalize(folder).map_err(CheckError::IO)?.as_path(),
-        0,
-        &mut tokens,
-        &|i, index, tokens| {
-            if let Some(s) = i.to_str() {
-                for ig in &ignore {
-                    if s.contains(ig) {
-                        return;
+    let (tx, rx) = mpsc::channel();
+    let dir = canonicalize(folder).map_err(CheckError::IO)?;
+    tx.send(dir).map_err(CheckError::ChannelSend)?;
+    let tx = Arc::new(tx);
+    let mut handles = JoinSet::new();
+    let ignore = Arc::new(ignore);
+    while let Ok(dir) = rx.recv_timeout(Duration::from_millis(300)) {
+        let tx = tx.clone();
+        let ignore = ignore.clone();
+        handles.spawn(async move {
+            visit_java_fies(&dir, tx, |i| {
+                if let Some(s) = i.to_str() {
+                    for ig in ignore.iter() {
+                        if s.contains(ig) {
+                            return;
+                        }
                     }
                 }
-            }
-            ast_check(i, index, tokens)
-        },
-    )?;
+                ast_check(i)
+            })
+        });
+    }
+    let _ = handles.join_all().await;
     println!("Checked all files. in: {:.2?}", time.elapsed());
     Ok(())
 }

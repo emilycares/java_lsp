@@ -727,7 +727,7 @@ pub fn get_document_map_key(uri: &Uri) -> String {
     uri.path()
         .as_str()
         // remove leading slash
-        .trim_start_matches("/")
+        .trim_start_matches('/')
         // url encoded colon
         .replacen("%3A", ":", 1)
 }
