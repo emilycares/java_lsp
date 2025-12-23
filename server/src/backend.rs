@@ -290,12 +290,27 @@ impl Backend {
     }
 
     pub fn did_open(&self, params: &DidOpenTextDocumentParams) {
-        match read_document_or_open_class(
-            &get_document_map_key(&params.text_document.uri),
-            &self.document_map,
-        ) {
-            Ok(ClassSource::Owned(_, diag)) => {
+        let get_document_map_key = get_document_map_key(&params.text_document.uri);
+        match read_document_or_open_class(&get_document_map_key, &self.document_map) {
+            Ok(ClassSource::Owned(doc, diag)) => {
                 self.handle_diagnostic(params.text_document.uri.clone(), diag.as_ref().clone());
+                match parser::update_project_java_file(
+                    PathBuf::from(get_document_map_key),
+                    doc.as_bytes(),
+                ) {
+                    Ok(class) => {
+                        match references::reference_update_class(
+                            &class,
+                            &self.class_map,
+                            &self.reference_map,
+                        ) {
+                            Ok(()) => {}
+                            Err(e) => eprintln!("Got reference error: {e:?}"),
+                        }
+                        self.class_map.insert(doc.class_path, class);
+                    }
+                    Err(e) => eprintln!("Save file parse error {e:?}"),
+                }
             }
             Ok(ClassSource::Ref(_)) => {}
             Err(e) => {

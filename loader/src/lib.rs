@@ -5,6 +5,8 @@
 #![deny(clippy::nursery)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
+#[cfg(target_os = "windows")]
+use std::sync::{Arc, mpsc};
 use std::{
     fs::{File, OpenOptions},
     io::Write,
@@ -94,6 +96,7 @@ pub fn get_java_files_from_folder<P: AsRef<Path>>(path: P) -> Vec<String> {
     get_files(&path, ".java")
 }
 
+#[cfg(not(target_os = "windows"))]
 pub fn load_java_files(folder: PathBuf) -> Vec<Class> {
     WalkDir::new(folder)
         .into_iter()
@@ -121,6 +124,52 @@ pub fn load_java_files(folder: PathBuf) -> Vec<Class> {
             },
         )
         .collect::<Vec<_>>()
+}
+#[must_use]
+#[cfg(target_os = "windows")]
+pub fn load_java_files(dir: PathBuf) -> Vec<Class> {
+    use std::time::Duration;
+
+    let (tx, rx) = mpsc::channel();
+    let _ = tx.send(dir);
+    let tx = Arc::new(tx);
+    let mut out = Vec::new();
+    while let Ok(dir) = rx.recv_timeout(Duration::from_millis(3000)) {
+        let tx = tx.clone();
+        if let Ok(o) = visit_java_files(&dir, &tx, |p| {
+            if let Some(s) = p.to_str() {
+                return load_java_fs(p, SourceDestination::Here(s.to_owned())).ok();
+            }
+            None
+        }) {
+            out.extend(o);
+        }
+    }
+
+    out
+}
+#[cfg(target_os = "windows")]
+fn visit_java_files(
+    dir: &PathBuf,
+    tx: &Arc<mpsc::Sender<PathBuf>>,
+    cb: impl Fn(&PathBuf) -> Option<Class>,
+) -> Result<Vec<Class>, LoaderError> {
+    let read_dir = std::fs::read_dir(dir)
+        .map_err(LoaderError::IO)?
+        .map(|res| res.map(|e| e.path()))
+        .filter_map(Result::ok);
+    let mut out: Vec<Class> = Vec::new();
+    for entry in read_dir {
+        if entry.is_dir() {
+            let _ = tx.send(entry);
+        } else if let Some(e) = entry.extension()
+            && e == "java"
+            && let Some(o) = cb(&entry)
+        {
+            out.push(o);
+        }
+    }
+    Ok(out)
 }
 
 pub async fn load_classes_jar<P: AsRef<Path> + Debug + Clone>(

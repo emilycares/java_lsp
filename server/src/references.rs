@@ -1,18 +1,17 @@
 use std::{
     fs::{self},
-    hash::Hash,
     str::Utf8Error,
 };
 
 use ast::types::{AstFile, AstPoint};
 use call_chain::CallItem;
+use dashmap::ReadOnlyView;
 use document::{ClassSource, Document, DocumentError};
 use lsp_extra::{SourceToUriError, ToLspRangeError, source_to_uri, to_lsp_range};
 use lsp_types::Location;
 use my_string::MyString;
 use parser::dto::{self, Class, ImportUnit};
 use position::PositionSymbol;
-use rayon::iter::{IntoParallelRefIterator, ParallelBridge, ParallelIterator};
 use variables::LocalVariable;
 
 use crate::definition::{self, DefinitionError};
@@ -182,9 +181,9 @@ pub fn init_reference_map(
     class_map: &dashmap::DashMap<MyString, parser::dto::Class>,
     reference_map: &dashmap::DashMap<MyString, Vec<ReferenceUnit>>,
 ) -> Result<(), ReferencesError> {
-    project_classes.par_iter().for_each(|class| {
-        let _ = reference_update_class(class, class_map, reference_map);
-    });
+    for class in project_classes {
+        reference_update_class(class, class_map, reference_map)?;
+    }
     Ok(())
 }
 
@@ -194,10 +193,11 @@ pub fn reference_update_class(
     reference_map: &dashmap::DashMap<MyString, Vec<ReferenceUnit>>,
 ) -> Result<(), ReferencesError> {
     let class_path = class.class_path.clone();
+    let r_class_map = class_map.clone().into_read_only();
     for import in &class.imports {
         match import {
             ImportUnit::Package(p) | ImportUnit::Prefix(p) => {
-                let implicit_imports = get_implicit_imports(class_map, class, p);
+                let implicit_imports = get_implicit_imports(&r_class_map, class, p);
                 for s in implicit_imports {
                     if let Some(mut a) = reference_map.get_mut(&s) {
                         a.push(ReferenceUnit::Class(class_path.clone()));
@@ -205,12 +205,28 @@ pub fn reference_update_class(
                 }
             }
             ImportUnit::Class(s) => {
-                let insert = vec![ReferenceUnit::Class(class.class_path.clone())];
-                insert_or_extend(reference_map, s, insert);
+                if reference_map.contains_key(s) {
+                    if let Some(mut a) = reference_map.get_mut(s) {
+                        a.push(ReferenceUnit::Class(class.class_path.clone()));
+                    }
+                } else {
+                    reference_map.insert(
+                        s.clone(),
+                        vec![ReferenceUnit::Class(class.class_path.clone())],
+                    );
+                }
             }
             ImportUnit::StaticClass(s) => {
-                let insert = vec![ReferenceUnit::StaticClass(class.class_path.clone())];
-                insert_or_extend(reference_map, s, insert);
+                if reference_map.contains_key(s) {
+                    if let Some(mut a) = reference_map.get_mut(s) {
+                        a.push(ReferenceUnit::StaticClass(class.class_path.clone()));
+                    }
+                } else {
+                    reference_map.insert(
+                        s.clone(),
+                        vec![ReferenceUnit::StaticClass(class.class_path.clone())],
+                    );
+                }
             }
             ImportUnit::StaticClassMethod(_, _) | ImportUnit::StaticPrefix(_) => (),
         }
@@ -256,30 +272,13 @@ fn pos_refs_helper(
         .collect::<Vec<_>>())
 }
 
-fn insert_or_extend<K, V, A>(out: &dashmap::DashMap<K, V>, key: &K, insert: V)
-where
-    K: Eq + Hash + Clone,
-    V: Extend<A> + IntoIterator<Item = A>,
-{
-    if out.contains_key(key) {
-        if let Some(mut a) = out.get_mut(key) {
-            a.extend(insert);
-        }
-    } else {
-        out.insert(key.clone(), insert);
-    }
-}
-
 fn get_implicit_imports(
-    class_map: &dashmap::DashMap<MyString, Class>,
+    class_map: &ReadOnlyView<MyString, Class>,
     class: &Class,
     package: &MyString,
 ) -> Vec<MyString> {
     class_map
-        .clone()
-        .into_read_only()
         .keys()
-        .par_bridge()
         .filter(|c| {
             if let Some((c_package, _)) = c.rsplit_once('.') {
                 return c_package == package;

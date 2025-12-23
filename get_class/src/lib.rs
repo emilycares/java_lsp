@@ -60,12 +60,24 @@ fn things(things: &[AstThing], point: &AstPoint) -> Option<FoundClass> {
 fn thing(thing: &AstThing, point: &AstPoint) -> Option<FoundClass> {
     match &thing {
         AstThing::Class(ast_class) => {
+            if ast_class.name.range.is_in_range(point) {
+                return Some(FoundClass {
+                    name: ast_class.name.value.clone(),
+                    range: ast_class.name.range,
+                });
+            }
             if let Some(value) = get_class_annotated_vec(&ast_class.annotated, point) {
                 return Some(value);
             }
             get_class_cblock(&ast_class.block, point)
         }
         AstThing::Record(ast_record) => {
+            if ast_record.name.range.is_in_range(point) {
+                return Some(FoundClass {
+                    name: ast_record.name.value.clone(),
+                    range: ast_record.name.range,
+                });
+            }
             if let Some(value) = get_class_annotated_vec(&ast_record.annotated, point) {
                 return Some(value);
             }
@@ -78,6 +90,12 @@ fn thing(thing: &AstThing, point: &AstPoint) -> Option<FoundClass> {
 }
 
 fn get_class_annotation(annotation: &AstAnnotation, point: &AstPoint) -> Option<FoundClass> {
+    if annotation.name.range.is_in_range(point) {
+        return Some(FoundClass {
+            name: annotation.name.value.clone(),
+            range: annotation.name.range,
+        });
+    }
     if let Some(o) = get_class_annotated_vec(&annotation.annotated, point) {
         return Some(o);
     }
@@ -98,6 +116,12 @@ fn get_class_annotation(annotation: &AstAnnotation, point: &AstPoint) -> Option<
 }
 
 fn get_class_enumeration(enumeration: &AstEnumeration, point: &AstPoint) -> Option<FoundClass> {
+    if enumeration.name.range.is_in_range(point) {
+        return Some(FoundClass {
+            name: enumeration.name.value.clone(),
+            range: enumeration.name.range,
+        });
+    }
     if let Some(value) = get_class_annotated_vec(&enumeration.annotated, point) {
         return Some(value);
     }
@@ -230,6 +254,12 @@ fn get_class_interface(
     interface: &ast::types::AstInterface,
     point: &AstPoint,
 ) -> Option<FoundClass> {
+    if interface.name.range.is_in_range(point) {
+        return Some(FoundClass {
+            name: interface.name.value.clone(),
+            range: interface.name.range,
+        });
+    }
     if let Some(value) = get_class_annotated_vec(&interface.annotated, point) {
         return Some(value);
     }
