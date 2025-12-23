@@ -10,14 +10,13 @@ use lsp_extra::{SERVER_NAME, source_to_uri};
 use lsp_server::{Connection, Message};
 use lsp_types::{
     ClientCapabilities, CodeActionParams, CodeActionResponse, CompletionParams, CompletionResponse,
-    Diagnostic, DiagnosticSeverity, DidChangeTextDocumentParams, DidOpenTextDocumentParams,
-    DidSaveTextDocumentParams, DocumentFormattingParams, DocumentSymbolParams,
-    DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams,
-    Location, Position, ProgressParams, ProgressParamsValue, ProgressToken,
+    Diagnostic, DiagnosticSeverity, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
+    DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentFormattingParams,
+    DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse,
+    Hover, HoverParams, Location, Position, ProgressParams, ProgressParamsValue, ProgressToken,
     PublishDiagnosticsParams, Range, ReferenceParams, SignatureHelp, SignatureHelpParams,
-    TextDocumentContentChangeEvent, TextDocumentItem, TextEdit, Uri, WorkDoneProgress,
-    WorkDoneProgressBegin, WorkDoneProgressEnd, WorkDoneProgressReport, WorkspaceSymbolParams,
-    WorkspaceSymbolResponse,
+    TextDocumentContentChangeEvent, TextEdit, Uri, WorkDoneProgress, WorkDoneProgressBegin,
+    WorkDoneProgressEnd, WorkDoneProgressReport, WorkspaceSymbolParams, WorkspaceSymbolResponse,
     notification::{Notification, Progress, PublishDiagnostics},
 };
 use maven::{fetch::MavenFetchError, tree::MavenTreeError};
@@ -67,18 +66,6 @@ impl Backend {
             errors.push(d);
         }
         Self::send_diagnostic(&self.connection.clone(), uri, errors);
-    }
-
-    fn on_open(&self, params: &TextDocumentItem) {
-        match read_document_or_open_class(&get_document_map_key(&params.uri), &self.document_map) {
-            Ok(ClassSource::Owned(_, diag)) => {
-                self.handle_diagnostic(params.uri.clone(), diag.as_ref().clone());
-            }
-            Ok(ClassSource::Ref(_)) => {}
-            Err(e) => {
-                eprintln!("Error while on_open: {e:?}");
-            }
-        }
     }
 
     pub fn send_diagnostic(con: &Arc<Connection>, uri: Uri, diagnostics: Vec<Diagnostic>) {
@@ -302,13 +289,24 @@ impl Backend {
         Self::progress_end(&con, "Init".to_string());
     }
 
-    pub fn did_open(&self, params: DidOpenTextDocumentParams) {
-        self.on_open(&TextDocumentItem {
-            uri: params.text_document.uri,
-            text: params.text_document.text,
-            version: params.text_document.version,
-            language_id: params.text_document.language_id,
-        });
+    pub fn did_open(&self, params: &DidOpenTextDocumentParams) {
+        match read_document_or_open_class(
+            &get_document_map_key(&params.text_document.uri),
+            &self.document_map,
+        ) {
+            Ok(ClassSource::Owned(_, diag)) => {
+                self.handle_diagnostic(params.text_document.uri.clone(), diag.as_ref().clone());
+            }
+            Ok(ClassSource::Ref(_)) => {}
+            Err(e) => {
+                eprintln!("Error while on_open: {e:?}");
+            }
+        }
+    }
+    pub fn did_close(&self, params: &DidCloseTextDocumentParams) {
+        let key = get_document_map_key(&params.text_document.uri);
+        eprintln!("Closing file: {key}");
+        self.document_map.remove(&key);
     }
 
     pub fn did_change(&self, params: &DidChangeTextDocumentParams) {

@@ -1,4 +1,4 @@
-use lsp_types::ReferenceParams;
+use lsp_types::notification::DidCloseTextDocument;
 use lsp_types::request::{References, SignatureHelpRequest};
 use lsp_types::{
     CodeActionParams, CompletionParams, DidChangeTextDocumentParams, DidOpenTextDocumentParams,
@@ -10,6 +10,7 @@ use lsp_types::{
         HoverRequest, Request, WorkspaceSymbolRequest,
     },
 };
+use lsp_types::{DidCloseTextDocumentParams, ReferenceParams};
 
 use lsp_server::{Message, Response};
 
@@ -135,30 +136,42 @@ pub fn route(backend: &Backend) -> Result<(), Box<dyn std::error::Error + Send +
             Message::Response(resp) => {
                 eprintln!("got response: {resp:?}");
             }
-            Message::Notification(not) => match not.method.as_str() {
-                DidOpenTextDocument::METHOD => {
-                    if let Ok(params) =
-                        serde_json::from_value::<DidOpenTextDocumentParams>(not.params)
-                    {
-                        backend.did_open(params);
+            Message::Notification(not) => {
+                // let time = Instant::now();
+                match not.method.as_str() {
+                    DidOpenTextDocument::METHOD => {
+                        if let Ok(params) =
+                            serde_json::from_value::<DidOpenTextDocumentParams>(not.params)
+                        {
+                            backend.did_open(&params);
+                        }
+                    }
+                    DidCloseTextDocument::METHOD => {
+                        if let Ok(params) =
+                            serde_json::from_value::<DidCloseTextDocumentParams>(not.params)
+                        {
+                            backend.did_close(&params);
+                        }
+                    }
+                    DidChangeTextDocument::METHOD => {
+                        if let Ok(params) =
+                            serde_json::from_value::<DidChangeTextDocumentParams>(not.params)
+                        {
+                            backend.did_change(&params);
+                        }
+                    }
+                    DidSaveTextDocument::METHOD => {
+                        if let Ok(params) =
+                            serde_json::from_value::<DidSaveTextDocumentParams>(not.params)
+                        {
+                            backend.did_save(&params);
+                        }
+                    }
+                    r => {
+                        eprintln!("Got unsupported notification: {r}");
                     }
                 }
-                DidChangeTextDocument::METHOD => {
-                    if let Ok(params) =
-                        serde_json::from_value::<DidChangeTextDocumentParams>(not.params)
-                    {
-                        backend.did_change(&params);
-                    }
-                }
-                DidSaveTextDocument::METHOD => {
-                    if let Ok(params) =
-                        serde_json::from_value::<DidSaveTextDocumentParams>(not.params)
-                    {
-                        backend.did_save(&params);
-                    }
-                }
-                _ => {}
-            },
+            }
         }
     }
     Ok(())
