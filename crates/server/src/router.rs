@@ -1,16 +1,17 @@
-use lsp_types::notification::DidCloseTextDocument;
-use lsp_types::request::{References, SignatureHelpRequest};
 use lsp_types::{
-    CodeActionParams, CompletionParams, DidChangeTextDocumentParams, DidOpenTextDocumentParams,
-    DidSaveTextDocumentParams, DocumentFormattingParams, DocumentSymbolParams,
-    GotoDefinitionParams, HoverParams, SignatureHelpParams, WorkspaceSymbolParams,
-    notification::{DidChangeTextDocument, DidOpenTextDocument, DidSaveTextDocument, Notification},
+    CodeActionParams, CompletionParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
+    DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentFormattingParams,
+    DocumentSymbolParams, GotoDefinitionParams, HoverParams, ReferenceParams, SignatureHelpParams,
+    WorkspaceSymbolParams,
+    notification::{
+        DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, DidSaveTextDocument,
+        Notification,
+    },
     request::{
         CodeActionRequest, Completion, DocumentSymbolRequest, Formatting, GotoDefinition,
-        HoverRequest, Request, WorkspaceSymbolRequest,
+        HoverRequest, References, Request, SignatureHelpRequest, WorkspaceSymbolRequest,
     },
 };
-use lsp_types::{DidCloseTextDocumentParams, ReferenceParams};
 
 use lsp_server::{Message, Response};
 

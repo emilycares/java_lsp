@@ -82,13 +82,23 @@ impl Backend {
                 }));
         }
     }
-
-    fn progress_start(con: &Arc<Connection>, task: String) {
-        eprintln!("Start progress on: {task}");
+    fn progress_start_option_token(
+        con: &Arc<Connection>,
+        token: Option<ProgressToken>,
+        title: &str,
+    ) {
+        if let Some(token) = token {
+            Self::progress_start_token(con, token, title);
+            return;
+        }
+        Self::progress_start(con, title);
+    }
+    fn progress_start_token(con: &Arc<Connection>, token: ProgressToken, title: &str) {
+        eprintln!("Start progress on: {title}");
         if let Ok(params) = serde_json::to_value(ProgressParams {
-            token: ProgressToken::String(task.clone()),
+            token,
             value: ProgressParamsValue::WorkDone(WorkDoneProgress::Begin(WorkDoneProgressBegin {
-                title: task,
+                title: title.to_owned(),
                 cancellable: None,
                 message: None,
                 percentage: None,
@@ -103,15 +113,42 @@ impl Backend {
         }
     }
 
+    fn progress_start(con: &Arc<Connection>, task: &str) {
+        let token = ProgressToken::String(task.to_owned());
+        Self::progress_start_token(con, token, task);
+    }
+    fn progress_update_percentage_option_token(
+        con: &Arc<Connection>,
+        token: Option<ProgressToken>,
+        task: &str,
+        message: String,
+        percentage: Option<u32>,
+    ) {
+        if let Some(token) = token {
+            Self::progress_update_percentage_token(con, token, task, message, percentage);
+            return;
+        }
+        Self::progress_update_percentage(con, task, message, percentage);
+    }
     fn progress_update_percentage(
         con: &Arc<Connection>,
-        task: String,
+        task: &str,
+        message: String,
+        percentage: Option<u32>,
+    ) {
+        let token = ProgressToken::String(task.to_owned());
+        Self::progress_update_percentage_token(con, token, task, message, percentage);
+    }
+    fn progress_update_percentage_token(
+        con: &Arc<Connection>,
+        token: ProgressToken,
+        task: &str,
         message: String,
         percentage: Option<u32>,
     ) {
         eprintln!("Report progress on: {task} {percentage:?} status: {message}");
         if let Ok(params) = serde_json::to_value(ProgressParams {
-            token: ProgressToken::String(task),
+            token,
             value: ProgressParamsValue::WorkDone(WorkDoneProgress::Report(
                 WorkDoneProgressReport {
                     cancellable: None,
@@ -128,11 +165,17 @@ impl Backend {
                 }));
         }
     }
-
-    fn progress_end(con: &Arc<Connection>, task: String) {
+    fn progress_end_option_token(con: &Arc<Connection>, token: Option<ProgressToken>, task: &str) {
+        if let Some(token) = token {
+            Self::progress_end_token(con, token, task);
+            return;
+        }
+        Self::progress_end(con, task);
+    }
+    fn progress_end_token(con: &Arc<Connection>, token: ProgressToken, task: &str) {
         eprintln!("End progress on: {task}");
         if let Ok(params) = serde_json::to_value(ProgressParams {
-            token: ProgressToken::String(task),
+            token,
             value: ProgressParamsValue::WorkDone(WorkDoneProgress::End(WorkDoneProgressEnd {
                 message: None,
             })),
@@ -144,6 +187,11 @@ impl Backend {
                     params,
                 }));
         }
+    }
+
+    fn progress_end(con: &Arc<Connection>, task: &str) {
+        let token = ProgressToken::String(task.to_owned());
+        Self::progress_end_token(con, token, task);
     }
 
     fn compile(&self, path: &str) -> Vec<CompileError> {
@@ -210,31 +258,32 @@ impl Backend {
     }
 
     pub async fn initialized(
+        progress: Option<ProgressToken>,
         con: Arc<Connection>,
         project_kind: ProjectKind,
         class_map: Arc<dashmap::DashMap<MyString, parser::dto::Class>>,
         reference_map: Arc<dashmap::DashMap<MyString, Vec<ReferenceUnit>>>,
     ) {
-        Self::progress_start(&con.clone(), "Init".to_string());
+        Self::progress_start_option_token(&con.clone(), progress.clone(), "Init");
         {
-            let task = "Load jdk".to_string();
+            let task = "Load jdk";
             let (sender, receiver) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
                 percentage: 0,
                 error: false,
                 message: "...".to_string(),
             });
 
-            Self::progress_start(&con.clone(), task.clone());
+            Self::progress_start_option_token(&con.clone(), progress.clone(), task);
             tokio::select! {
-                () = read_forward(receiver, con.clone(), task.clone())  => {},
+                () = read_forward(receiver, con.clone(), task.to_owned(), progress.clone())  => {},
                 _ = jdk::load_classes(&class_map, sender) => {}
             }
-            Self::progress_end(&con.clone(), task);
+            Self::progress_end_option_token(&con.clone(), progress.clone(), task);
         }
 
         if project_kind != ProjectKind::Unknown {
             let task = format!("Load {project_kind} dependencies");
-            Self::progress_start(&con.clone(), task.clone());
+            Self::progress_start_option_token(&con.clone(), progress.clone(), &task);
             let (sender, receiver) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
                 percentage: 0,
                 error: false,
@@ -242,18 +291,19 @@ impl Backend {
             });
 
             tokio::select! {
-                () = read_forward(receiver, con.clone(), task.clone())  => {},
+                () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
                 () = fetch_deps(con.clone(), sender, project_kind.clone(), class_map.clone()) => {}
             }
-            Self::progress_end(&con.clone(), task);
+            Self::progress_end_option_token(&con.clone(), progress.clone(), &task);
         }
 
         {
-            let task = "Load project files".to_string();
-            Self::progress_start(&con.clone(), task.clone());
-            Self::progress_update_percentage(
+            let task = "Load project files";
+            Self::progress_start_option_token(&con.clone(), progress.clone(), task);
+            Self::progress_update_percentage_option_token(
                 &con.clone(),
-                task.clone(),
+                progress.clone(),
+                task,
                 "Load project paths".to_string(),
                 None,
             );
@@ -262,11 +312,12 @@ impl Backend {
                 ProjectKind::Gradle {
                     path_build_gradle: _,
                 } => gradle::project::load_project_folders(),
-                ProjectKind::Unknown => vec![],
+                ProjectKind::Unknown => loader::load_java_files(PathBuf::from("./")),
             };
-            Self::progress_update_percentage(
+            Self::progress_update_percentage_option_token(
                 &con.clone(),
-                task.clone(),
+                progress.clone(),
+                task,
                 "Initializing reference map".to_string(),
                 None,
             );
@@ -274,19 +325,20 @@ impl Backend {
                 Ok(()) => (),
                 Err(e) => eprintln!("Got reference error: {e:?}"),
             }
-            Self::progress_update_percentage(
+            Self::progress_update_percentage_option_token(
                 &con.clone(),
-                task.clone(),
+                progress.clone(),
+                task,
                 "Populating class map".to_string(),
                 None,
             );
             for class in project_classes {
                 class_map.insert(class.class_path.clone(), class);
             }
-            Self::progress_end(&con.clone(), task);
+            Self::progress_end_option_token(&con.clone(), progress.clone(), task);
         }
 
-        Self::progress_end(&con, "Init".to_string());
+        Self::progress_end_option_token(&con, progress, "Init");
     }
 
     pub fn did_open(&self, params: &DidOpenTextDocumentParams) {
@@ -751,6 +803,7 @@ pub async fn read_forward(
     mut rx: tokio::sync::watch::Receiver<TaskProgress>,
     con: Arc<Connection>,
     task: String,
+    token: Option<ProgressToken>,
 ) {
     tokio::spawn(async move {
         loop {
@@ -758,9 +811,10 @@ pub async fn read_forward(
                 break;
             }
             let i = rx.borrow();
-            Backend::progress_update_percentage(
+            Backend::progress_update_percentage_option_token(
                 &con.clone(),
-                task.clone(),
+                token.clone(),
+                &task,
                 i.message.clone(),
                 Some(i.percentage),
             );

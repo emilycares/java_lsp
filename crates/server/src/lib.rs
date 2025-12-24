@@ -95,7 +95,14 @@ fn main_loop(
     let class_map = backend.class_map.clone();
     let reference_map = backend.reference_map.clone();
     tokio::spawn(async move {
-        Backend::initialized(connection, project_kind, class_map.clone(), reference_map).await;
+        Backend::initialized(
+            params.work_done_progress_params.work_done_token,
+            connection,
+            project_kind,
+            class_map.clone(),
+            reference_map,
+        )
+        .await;
     });
     router::route(&backend)?;
     Ok(())
