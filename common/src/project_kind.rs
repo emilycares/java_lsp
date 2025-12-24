@@ -20,6 +20,7 @@ impl Display for ProjectKind {
 }
 
 pub fn get_project_kind() -> ProjectKind {
+    eprintln!("Current dir {:?}", std::env::current_dir().ok());
     if PathBuf::from("./pom.xml").exists() {
         return ProjectKind::Maven;
     }
