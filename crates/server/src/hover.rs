@@ -1,10 +1,13 @@
 use ast::types::{AstFile, AstPoint};
 use call_chain::{self, CallItem};
-use document::Document;
+use document::{Document, get_class_path};
 use lsp_extra::{ToLspRangeError, to_lsp_range};
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
 use my_string::MyString;
-use parser::dto::{self, ImportUnit};
+use parser::{
+    dto::{self, ImportUnit},
+    java::load_java_tree,
+};
 use tyres::TyresError;
 use variables::LocalVariable;
 
@@ -20,6 +23,7 @@ pub enum HoverError {
     NoClass(MyString),
     ArgumentNotFound,
     ToLspRange(ToLspRangeError),
+    CouldNotFindClassPath,
 }
 
 pub fn base(
@@ -37,14 +41,18 @@ pub fn base(
         Err(ClassActionError::NotFound) => {}
         Err(e) => eprintln!("class action hover error: {e:?}"),
     }
-    let Some(class) = class_map.get(&document.class_path) else {
-        return Err(HoverError::NoClass(document.class_path.clone()));
+    let Some(class_path) = get_class_path(&document.ast) else {
+        eprintln!("Could not get class_path");
+        return Err(HoverError::CouldNotFindClassPath);
+    };
+    let Some(class) = class_map.get(&class_path) else {
+        return Err(HoverError::NoClass(class_path));
     };
 
     let call_chain = call_chain::get_call_chain(ast, point);
 
     call_chain_hover(
-        document,
+        ast,
         &call_chain,
         point,
         lo_va,
@@ -87,7 +95,7 @@ pub fn class_action(
 }
 
 pub fn call_chain_hover(
-    document: &Document,
+    ast: &AstFile,
     call_chain: &[CallItem],
     point: &AstPoint,
     lo_va: &[LocalVariable],
@@ -140,7 +148,7 @@ pub fn call_chain_hover(
             if vars.is_empty() {
                 return Ok(class_to_hover(&resolve_state.class, range));
             }
-            match parser::load_java(document.as_bytes(), parser::SourceDestination::None) {
+            match load_java_tree(ast, parser::SourceDestination::None) {
                 Err(e) => Err(HoverError::ParseError(e)),
                 Ok(local_class) => {
                     let vars = vars
@@ -183,7 +191,7 @@ pub fn call_chain_hover(
                 && let Some(current_param) = filled_params.get(*active_param)
             {
                 return call_chain_hover(
-                    document,
+                    ast,
                     current_param,
                     point,
                     lo_va,
@@ -378,7 +386,7 @@ public class Test {
 
         let chain = call_chain::get_call_chain(&doc.ast, &point);
         let out = call_chain_hover(
-            &doc,
+            &doc.ast,
             &chain,
             &point,
             &vars,

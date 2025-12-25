@@ -23,7 +23,6 @@ pub struct Document {
     pub str_data: String,
     pub ast: AstFile,
     pub path: PathBuf,
-    pub class_path: MyString,
 }
 
 #[derive(Debug)]
@@ -71,7 +70,6 @@ impl Document {
                 modules: Vec::new(),
             },
             path,
-            class_path: String::new(),
         };
 
         let possible_diag = o.reparse(true)?;
@@ -151,9 +149,6 @@ impl Document {
                 let ast = ast::parse_file(&tokens);
                 match ast {
                     Ok(ast) => {
-                        if let Some(c) = get_class_path(&ast) {
-                            self.class_path = c;
-                        }
                         self.ast = ast;
                     }
                     Err(e) => {
@@ -173,7 +168,8 @@ impl Document {
     }
 }
 
-fn get_class_path(ast: &AstFile) -> Option<String> {
+#[must_use]
+pub fn get_class_path(ast: &AstFile) -> Option<String> {
     if let Some(package) = &ast.package
         && let Some(thing) = &ast.things.first()
     {

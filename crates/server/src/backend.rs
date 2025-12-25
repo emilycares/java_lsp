@@ -4,7 +4,7 @@ use call_chain::get_call_chain;
 use common::{TaskProgress, project_kind::ProjectKind};
 use compile::CompileError;
 use dashmap::{DashMap, DashSet};
-use document::{ClassSource, Document, read_document_or_open_class};
+use document::{ClassSource, Document, get_class_path, read_document_or_open_class};
 use loader::LoaderError;
 use lsp_extra::{SERVER_NAME, source_to_uri};
 use lsp_server::{Connection, Message};
@@ -359,7 +359,9 @@ impl Backend {
                             Ok(()) => {}
                             Err(e) => eprintln!("Got reference error: {e:?}"),
                         }
-                        self.class_map.insert(doc.class_path, class);
+                        if let Some(key) = get_class_path(&doc.ast) {
+                            self.class_map.insert(key, class);
+                        }
                     }
                     Err(e) => eprintln!("Save file parse error {e:?}"),
                 }
@@ -492,8 +494,13 @@ impl Backend {
         }?;
 
         let imports = imports::imports(&document.ast);
-        let Some(class) = &self.class_map.get(&document.class_path) else {
-            eprintln!("Could not find class {}", document.class_path);
+
+        let Some(class_path) = get_class_path(&document.ast) else {
+            eprintln!("Could not get class_path");
+            return None;
+        };
+        let Some(class) = &self.class_map.get(&class_path) else {
+            eprintln!("Could not find class {class_path}");
             return None;
         };
 
@@ -554,8 +561,12 @@ impl Backend {
                 None
             }
         }?;
-        let Some(class) = &self.class_map.get(&document.class_path) else {
-            eprintln!("Could not find class {}", document.class_path);
+        let Some(class_path) = get_class_path(&document.ast) else {
+            eprintln!("Could not get class_path");
+            return None;
+        };
+        let Some(class) = &self.class_map.get(&class_path) else {
+            eprintln!("Could not find class {class_path}");
             return None;
         };
 
@@ -612,8 +623,12 @@ impl Backend {
             Err(e) => eprintln!("Got reference class error: {e:?}"),
         }
         let call_chain = get_call_chain(&document.ast, &point);
-        let Some(class) = &self.class_map.get(&document.class_path) else {
-            eprintln!("Could not find class {}", document.class_path);
+        let Some(class_path) = get_class_path(&document.ast) else {
+            eprintln!("Could not get class_path");
+            return None;
+        };
+        let Some(class) = &self.class_map.get(&class_path) else {
+            eprintln!("Could not find class {class_path}");
             return None;
         };
         let context = ReferencesContext {
@@ -651,8 +666,12 @@ impl Backend {
 
         let imports = imports::imports(&document.ast);
 
-        let Some(class) = &self.class_map.get(&document.class_path) else {
-            eprintln!("Could not find class {}", document.class_path);
+        let Some(class_path) = get_class_path(&document.ast) else {
+            eprintln!("Could not get class_path");
+            return None;
+        };
+        let Some(class) = &self.class_map.get(&class_path) else {
+            eprintln!("Could not find class {class_path}");
             return None;
         };
         let vars = match variables::get_vars(&document.ast, &point) {
@@ -764,8 +783,12 @@ impl Backend {
             return None;
         };
         let point = to_ast_point(params.text_document_position_params.position);
-        let Some(class) = &self.class_map.get(&document.class_path) else {
-            eprintln!("Could not find class {}", document.class_path);
+        let Some(class_path) = get_class_path(&document.ast) else {
+            eprintln!("Could not get class_path");
+            return None;
+        };
+        let Some(class) = &self.class_map.get(&class_path) else {
+            eprintln!("Could not find class {class_path}");
             return None;
         };
 
