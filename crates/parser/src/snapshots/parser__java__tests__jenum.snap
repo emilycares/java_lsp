@@ -1,12 +1,12 @@
 ---
-source: parser/src/java.rs
+source: crates/parser/src/java.rs
 expression: result.unwrap()
 ---
 Class {
     class_path: "ch.emilycares.Variants",
     source: "/path/to/source/ch/emilycares/Variants.java",
     access: Access(
-        0x0,
+        Public,
     ),
     imports: [
         Package(

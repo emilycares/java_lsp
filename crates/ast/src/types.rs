@@ -96,7 +96,7 @@ bitflags! {
 }
 
 bitflags! {
-   #[derive(Debug, Clone)]
+   #[derive(Debug, Clone, PartialEq, Eq)]
    pub struct AstAvailability: u16 {
         const Public       = 0b0000_0000_0000_0001;
         const Synchronized = 0b0000_0000_0000_0010;

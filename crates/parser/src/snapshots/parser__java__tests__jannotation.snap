@@ -1,12 +1,12 @@
 ---
-source: parser/src/java.rs
+source: crates/parser/src/java.rs
 expression: result.unwrap()
 ---
 Class {
     class_path: "ch.emilycares.Annotation",
     source: "/path/to/source/ch/emilycares/Annotation.java",
     access: Access(
-        0x0,
+        Public,
     ),
     imports: [
         Package(
@@ -18,7 +18,7 @@ Class {
     fields: [
         Field {
             access: Access(
-                0x0,
+                Public,
             ),
             name: "value",
             jtype: Int,
@@ -26,7 +26,7 @@ Class {
         },
         Field {
             access: Access(
-                0x0,
+                Public,
             ),
             name: "text",
             jtype: Class(

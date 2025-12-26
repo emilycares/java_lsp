@@ -124,12 +124,6 @@ impl From<&AstImport> for ImportUnit {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
-pub enum SourceKind {
-    Jdk(String),
-    Maven(String),
-}
-
 bitflags! {
    #[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Debug, Default)]
    pub struct Access: u16 {
@@ -147,6 +141,7 @@ bitflags! {
      const Interface    = 0b0001_0000_0000_0000;
      const Abstract     = 0b0010_0000_0000_0000;
      const Synchronized = 0b0100_0000_0000_0000;
+     const Deprecated   = 0b1000_0000_0000_0000;
    }
 }
 impl Access {

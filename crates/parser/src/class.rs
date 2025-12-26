@@ -90,6 +90,12 @@ pub fn load_class(
                 .map_or(dto::SuperClass::None, dto::SuperClass::Name)
         })
         .collect();
+    let deprecated = c.attributes.iter().any(|attribute_info| {
+        let Some(lookup_string) = lookup_string(&c, attribute_info.attribute_name_index) else {
+            return false;
+        };
+        matches!(lookup_string.as_str(), "Deprecated")
+    });
 
     Ok(dto::Class {
         source,
@@ -101,7 +107,7 @@ pub fn load_class(
             None => dto::SuperClass::None,
         },
         imports,
-        access: parse_class_access(c.access_flags),
+        access: parse_class_access(c.access_flags, deprecated),
         name,
         methods,
         fields,
@@ -204,10 +210,16 @@ fn parse_method(
                 .map(dto::JType::Class)
         })
         .collect();
+    let deprecated = method.attributes.iter().any(|attribute_info| {
+        let Some(lookup_string) = lookup_string(c, attribute_info.attribute_name_index) else {
+            return false;
+        };
+        matches!(lookup_string.as_str(), "Deprecated")
+    });
     let lname = lookup_string(c, method.name_index)?;
     let name = if lname == "<init>" { None } else { Some(lname) };
     Some(dto::Method {
-        access: parse_method_access(method),
+        access: parse_method_access(method, deprecated),
         name,
         parameters,
         ret,
@@ -272,8 +284,11 @@ fn parse_code_attribute(c: &ClassFile, attributes: &[AttributeInfo]) -> Option<C
         .map(|i| i.1)
 }
 
-fn parse_class_access(flags: ClassAccessFlags) -> dto::Access {
+fn parse_class_access(flags: ClassAccessFlags, deprecated: bool) -> dto::Access {
     let mut access = dto::Access::empty();
+    if deprecated {
+        access.insert(dto::Access::Deprecated);
+    }
     if flags == ClassAccessFlags::PUBLIC {
         access.insert(dto::Access::Public);
     }
@@ -298,8 +313,14 @@ fn parse_class_access(flags: ClassAccessFlags) -> dto::Access {
     access
 }
 
-fn parse_method_access(method: &classfile_parser::method_info::MethodInfo) -> dto::Access {
+fn parse_method_access(
+    method: &classfile_parser::method_info::MethodInfo,
+    deprecated: bool,
+) -> dto::Access {
     let mut access = dto::Access::empty();
+    if deprecated {
+        access.insert(dto::Access::Deprecated);
+    }
     if method.access_flags == MethodAccessFlags::PUBLIC {
         access.insert(dto::Access::Public);
     }

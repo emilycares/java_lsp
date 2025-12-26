@@ -5,7 +5,7 @@ use lsp_extra::{ToLspRangeError, to_lsp_range};
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
 use my_string::MyString;
 use parser::{
-    dto::{self, ImportUnit},
+    dto::{self, Access, ImportUnit},
     java::load_java_tree,
 };
 use tyres::TyresError;
@@ -210,51 +210,44 @@ fn format_field(f: &dto::Field) -> String {
     format!("{} {}", f.jtype, f.name)
 }
 
-fn format_method(m: &dto::Method, class_name: &String) -> String {
-    let parameters = m
-        .parameters
-        .iter()
-        .map(|p| {
-            p.name.as_ref().map_or_else(
-                || format!("{}", p.jtype),
-                |name| format!("{} {}", p.jtype, name),
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(", ");
-    if m.throws.is_empty() {
-        if m.name.is_none() {
-            return format!("{}({})", m.name.as_ref().unwrap_or(class_name), parameters);
-        }
-        return format!(
-            "{} {}({})",
-            m.ret,
-            m.name.as_ref().unwrap_or(class_name),
-            parameters
-        );
+fn format_method(m: &dto::Method, class_name: &str) -> String {
+    let mut out = String::new();
+    if m.access == Access::Deprecated {
+        out.push_str("@Deprecated ");
     }
-    let throws = m
-        .throws
-        .iter()
-        .map(|p| format!("{p}"))
-        .collect::<Vec<_>>()
-        .join(", ");
-    if m.name.is_none() {
-        format!(
-            "{}({}) throws {}",
-            m.name.as_ref().unwrap_or(class_name),
-            parameters,
-            throws
-        )
+    out.push_str(m.ret.to_string().as_str());
+    out.push(' ');
+
+    if let Some(name) = &m.name {
+        out.push_str(name.as_str());
     } else {
-        format!(
-            "{} {}({}) throws {}",
-            m.ret,
-            m.name.as_ref().unwrap_or(class_name),
-            parameters,
-            throws
-        )
+        out.push_str(class_name);
     }
+    out.push('(');
+    let mut params = m.parameters.iter().peekable();
+    while let Some(param) = params.next() {
+        out.push_str(param.jtype.to_string().as_str());
+        if let Some(name) = &param.name {
+            out.push(' ');
+            out.push_str(name.as_str());
+        }
+        if params.peek().is_some() {
+            out.push_str(", ");
+        }
+    }
+    out.push(')');
+
+    if !m.throws.is_empty() {
+        out.push_str(" throws ");
+        let mut throw = m.throws.iter().peekable();
+        while let Some(j) = throw.next() {
+            out.push_str(j.to_string().as_str());
+            if throw.peek().is_some() {
+                out.push_str(", ");
+            }
+        }
+    }
+    out
 }
 
 fn variables_to_hover(vars: &[&LocalVariable], range: Range) -> Hover {
@@ -288,7 +281,7 @@ fn field_to_hover(f: &dto::Field, range: Range) -> Hover {
     }
 }
 
-fn methods_to_hover(methods: &[dto::Method], range: Range, class_name: &String) -> Hover {
+fn methods_to_hover(methods: &[dto::Method], range: Range, class_name: &str) -> Hover {
     Hover {
         contents: HoverContents::Markup(MarkupContent {
             kind: MarkupKind::Markdown,

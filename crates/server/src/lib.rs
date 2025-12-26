@@ -63,6 +63,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
             trigger_characters: Some(vec!["(".to_owned(), ",".to_owned(), "<".to_owned()]),
             ..Default::default()
         }),
+        document_highlight_provider: None,
         ..ServerCapabilities::default()
     })
     .unwrap_or_default();

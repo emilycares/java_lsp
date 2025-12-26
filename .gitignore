@@ -10,3 +10,4 @@ bench/target
 .vscode
 result
 .vs
+**/target
