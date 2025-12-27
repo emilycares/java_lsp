@@ -26,7 +26,7 @@ pub fn update_project_java_file<T: AsRef<Path>>(
     file: T,
     bytes: &[u8],
 ) -> Result<dto::Class, ParseJavaError> {
-    load_java(
+    java::load_java(
         bytes,
         SourceDestination::Here(file.as_ref().to_str().unwrap_or_default().into()),
     )
@@ -42,8 +42,4 @@ where
 {
     let bytes = std::fs::read(path).map_err(ClassError::IO)?;
     class::load_class(&bytes, class_path, source)
-}
-
-pub fn load_java(data: &[u8], source: SourceDestination) -> Result<dto::Class, ParseJavaError> {
-    java::load_java(data, source)
 }

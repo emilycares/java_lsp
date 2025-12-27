@@ -161,6 +161,10 @@ pub fn call_chain_hover(
                         .fields
                         .iter()
                         .filter(|m| m.name == *name)
+                        .filter(|i| {
+                            i.access.contains(Access::Private)
+                                || i.access.contains(Access::Deprecated)
+                        })
                         .map(format_field)
                         .collect::<Vec<_>>()
                         .join("\n\n");
@@ -168,6 +172,10 @@ pub fn call_chain_hover(
                         .methods
                         .iter()
                         .filter(|i| i.name.as_ref().filter(|i| *i == name).is_some())
+                        .filter(|i| {
+                            i.access.contains(Access::Private)
+                                || i.access.contains(Access::Deprecated)
+                        })
                         .map(|i| format_method(i, &local_class.name))
                         .collect::<Vec<_>>()
                         .join("\n\n");
@@ -212,9 +220,6 @@ fn format_field(f: &dto::Field) -> String {
 
 fn format_method(m: &dto::Method, class_name: &str) -> String {
     let mut out = String::new();
-    if m.access == Access::Deprecated {
-        out.push_str("@Deprecated ");
-    }
     out.push_str(m.ret.to_string().as_str());
     out.push(' ');
 
@@ -256,7 +261,7 @@ fn variables_to_hover(vars: &[&LocalVariable], range: Range) -> Hover {
             kind: MarkupKind::Markdown,
             value: vars
                 .iter()
-                .map(|i| format_variable_hoveer(i))
+                .map(|i| format_variable_hover(i))
                 .collect::<Vec<_>>()
                 .join("\n"),
         }),
@@ -264,7 +269,7 @@ fn variables_to_hover(vars: &[&LocalVariable], range: Range) -> Hover {
     }
 }
 
-fn format_variable_hoveer(var: &LocalVariable) -> String {
+fn format_variable_hover(var: &LocalVariable) -> String {
     if var.is_fun {
         return format!("{} {}()", var.jtype, var.name);
     }
@@ -287,6 +292,9 @@ fn methods_to_hover(methods: &[dto::Method], range: Range, class_name: &str) -> 
             kind: MarkupKind::Markdown,
             value: methods
                 .iter()
+                .filter(|i| {
+                    i.access.contains(Access::Private) || i.access.contains(Access::Deprecated)
+                })
                 .map(|i| format_method(i, class_name))
                 .collect::<Vec<_>>()
                 .join("\n"),
@@ -299,6 +307,7 @@ fn class_to_hover(class: &dto::Class, range: Range) -> Hover {
     let methods: Vec<_> = class
         .methods
         .iter()
+        .filter(|i| i.access.contains(Access::Private) || i.access.contains(Access::Deprecated))
         .map(|i| format_method(i, &class.name))
         .collect();
     Hover {
