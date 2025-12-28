@@ -11,6 +11,7 @@ pub mod java;
 
 use std::{fmt::Debug, path::Path};
 
+use ast::types::AstFile;
 use dto::ClassError;
 use java::ParseJavaError;
 use my_string::MyString;
@@ -24,10 +25,10 @@ pub enum SourceDestination {
 
 pub fn update_project_java_file<T: AsRef<Path>>(
     file: T,
-    bytes: &[u8],
+    ast: &AstFile,
 ) -> Result<dto::Class, ParseJavaError> {
-    java::load_java(
-        bytes,
+    java::load_java_tree(
+        ast,
         SourceDestination::Here(file.as_ref().to_str().unwrap_or_default().into()),
     )
 }

@@ -160,19 +160,17 @@ fn method_references(
         .map_err(ReferencesError::Document)?;
     match doc {
         ClassSource::Owned(doc, _) => {
-            let o = match position::get_method_usage(doc.as_bytes(), query_method_name, &doc.ast) {
+            let o = match position::get_method_usage(query_method_name, &doc.ast) {
                 Err(e) => Err(ReferencesError::Position(e))?,
                 Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
             };
             document_map.insert(uri.as_str().into(), *doc);
             o
         }
-        ClassSource::Ref(doc) => {
-            match position::get_method_usage(doc.as_bytes(), query_method_name, &doc.ast) {
-                Err(e) => Err(ReferencesError::Position(e))?,
-                Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
-            }
-        }
+        ClassSource::Ref(doc) => match position::get_method_usage(query_method_name, &doc.ast) {
+            Err(e) => Err(ReferencesError::Position(e))?,
+            Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
+        },
     }
 }
 

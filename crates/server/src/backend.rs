@@ -403,8 +403,7 @@ impl Backend {
         match read_document_or_open_class(path.as_str(), &self.document_map) {
             Ok(ClassSource::Owned(doc, diag)) => {
                 self.handle_diagnostic(params.text_document.uri.clone(), diag.as_ref().clone());
-                match parser::update_project_java_file(PathBuf::from(path.as_str()), doc.as_bytes())
-                {
+                match parser::update_project_java_file(PathBuf::from(path.as_str()), &doc.ast) {
                     Ok(class) => {
                         let class_path = class.class_path.clone();
                         match references::reference_update_class(
@@ -421,8 +420,7 @@ impl Backend {
                 }
             }
             Ok(ClassSource::Ref(doc)) => {
-                match parser::update_project_java_file(PathBuf::from(path.as_str()), doc.as_bytes())
-                {
+                match parser::update_project_java_file(PathBuf::from(path.as_str()), &doc.ast) {
                     Ok(class) => {
                         let class_path = class.class_path.clone();
                         match references::reference_update_class(
@@ -484,7 +482,7 @@ impl Backend {
         // self.connection.
         Some(vec![TextEdit::new(
             Range::new(Position::new(0, 0), Position::new(lines - 1, 0)),
-            document.str_data.clone(),
+            document.rope.to_string(),
         )])
     }
 

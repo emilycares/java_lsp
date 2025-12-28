@@ -83,16 +83,20 @@ pub fn call_chain_definition(
         Some(CallItem::This { range: _ }) => {
             let uri =
                 source_to_uri(&resolve_state.class.source).map_err(DefinitionError::SourceToUri)?;
-            let source = get_source_content(&resolve_state.class.source, context.document_map)?;
-            let ranges = position::get_class_position_str(&source, None)
+            let ast = document::get_ast(&resolve_state.class.source, context.document_map)
+                .map_err(DefinitionError::Document)?;
+            let mut ranges = Vec::new();
+            position::get_class_position_ast(&ast, None, &mut ranges)
                 .map_err(DefinitionError::Position)?;
             Ok(go_to_definition_range(uri, &ranges)?)
         }
         Some(CallItem::Class { name, range: _ }) => {
             let uri =
                 source_to_uri(&resolve_state.class.source).map_err(DefinitionError::SourceToUri)?;
-            let source = get_source_content(&resolve_state.class.source, context.document_map)?;
-            let ranges = position::get_class_position_str(&source, Some(name))
+            let ast = document::get_ast(&resolve_state.class.source, context.document_map)
+                .map_err(DefinitionError::Document)?;
+            let mut ranges = Vec::new();
+            position::get_class_position_ast(&ast, Some(name), &mut ranges)
                 .map_err(DefinitionError::Position)?;
             Ok(go_to_definition_range(uri, &ranges)?)
         }
@@ -108,8 +112,10 @@ pub fn call_chain_definition(
                 None => resolve_state.class.source,
             };
 
-            let source = get_source_content(&source_file, context.document_map)?;
-            let ranges = position::get_method_positions(source.as_bytes(), Some(name))
+            let ast = document::get_ast(&source_file, context.document_map)
+                .map_err(DefinitionError::Document)?;
+            let mut ranges = Vec::new();
+            position::get_method_position_ast(&ast, Some(name), &mut ranges)
                 .map_err(DefinitionError::Position)?;
             let uri = source_to_uri(&source_file).map_err(DefinitionError::SourceToUri)?;
             Ok(go_to_definition_range(uri, &ranges)?)
@@ -125,8 +131,10 @@ pub fn call_chain_definition(
                 Some(method_source) => method_source,
                 None => resolve_state.class.source,
             };
-            let source = get_source_content(&source_file, context.document_map)?;
-            let ranges = position::get_field_positions(source.as_bytes(), Some(name))
+            let ast = document::get_ast(&source_file, context.document_map)
+                .map_err(DefinitionError::Document)?;
+            let mut ranges = Vec::new();
+            position::get_field_position_ast(&ast, Some(name), &mut ranges)
                 .map_err(DefinitionError::Position)?;
             let uri = source_to_uri(&source_file).map_err(DefinitionError::SourceToUri)?;
             Ok(go_to_definition_range(uri, &ranges)?)
@@ -177,19 +185,6 @@ pub fn call_chain_definition(
             Err(DefinitionError::ArgumentNotFound)
         }
         None => Err(DefinitionError::ValidatedItemDoesNotExists),
-    }
-}
-
-pub fn get_source_content(
-    source: &str,
-    document_map: &dashmap::DashMap<MyString, Document>,
-) -> Result<String, DefinitionError> {
-    match document::read_document_or_open_class(source, document_map)
-        .map_err(DefinitionError::Document)?
-    {
-        document::ClassSource::Owned(d, _) => Ok(d.str_data),
-
-        document::ClassSource::Ref(d) => Ok(d.str_data.clone()),
     }
 }
 

@@ -20,7 +20,6 @@ use ropey::Rope;
 #[derive(Debug, Clone)]
 pub struct Document {
     pub rope: Rope,
-    pub str_data: String,
     pub ast: AstFile,
     pub path: PathBuf,
 }
@@ -35,23 +34,21 @@ impl Document {
         eprintln!("Reload file from disk: {:?}", self.path.display());
         let text = fs::read_to_string(&self.path).map_err(DocumentError::Io)?;
         self.rope = Rope::from_str(&text);
-        self.str_data = text;
-        self.reparse(false)?;
+        self.reparse()?;
         Ok(())
     }
     pub fn setup_read(path: PathBuf) -> Result<(Self, Option<Diagnostic>), DocumentError> {
         eprintln!("Read file from disk: {:?}", path.display());
         let text = fs::read_to_string(&path).map_err(DocumentError::Io)?;
         let rope = Rope::from_str(&text);
-        Self::setup_rope(&text, path, rope)
+        Self::setup_rope(path, rope)
     }
     pub fn setup(text: &str, path: PathBuf) -> Result<(Self, Option<Diagnostic>), DocumentError> {
         let rope = Rope::from_str(text);
-        Self::setup_rope(text, path, rope)
+        Self::setup_rope(path, rope)
     }
 
     pub fn setup_rope(
-        text: &str,
         path: PathBuf,
         rope: Rope,
     ) -> Result<(Self, Option<Diagnostic>), DocumentError> {
@@ -62,7 +59,6 @@ impl Document {
         // let class_path = get_class_path(&ast).unwrap_or_default();
         let mut o = Self {
             rope,
-            str_data: text.to_string(),
             ast: AstFile {
                 package: None,
                 imports: None,
@@ -72,30 +68,19 @@ impl Document {
             path,
         };
 
-        let possible_diag = o.reparse(true)?;
+        let possible_diag = o.reparse()?;
         Ok((o, possible_diag))
-    }
-
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.str_data
-    }
-
-    #[must_use]
-    pub fn as_bytes(&self) -> &[u8] {
-        self.as_str().as_bytes()
     }
 
     pub fn replace_rope(&mut self, text: Rope) -> Result<Option<Diagnostic>, DocumentError> {
         self.rope = text;
-        self.reparse(true)
+        self.reparse()
     }
 
     pub fn replace_string(&mut self, text: &str) -> Result<Option<Diagnostic>, DocumentError> {
         let rope = Rope::from_str(text);
         self.rope = rope;
-        text.clone_into(&mut self.str_data);
-        self.reparse(false)
+        self.reparse()
     }
 
     pub fn apply_text_changes(
@@ -138,13 +123,10 @@ impl Document {
                 self.rope = Rope::from_str(&change.text);
             }
         }
-        self.reparse(true)
+        self.reparse()
     }
-    fn reparse(&mut self, update_str: bool) -> Result<Option<Diagnostic>, DocumentError> {
-        if update_str {
-            self.str_data = self.rope.to_string();
-        }
-        match ast::lexer::lex(&self.str_data) {
+    fn reparse(&mut self) -> Result<Option<Diagnostic>, DocumentError> {
+        match ast::lexer::lex(&self.rope.to_string()) {
             Ok(tokens) => {
                 let ast = ast::parse_file(&tokens);
                 match ast {
@@ -152,7 +134,7 @@ impl Document {
                         self.ast = ast;
                     }
                     Err(e) => {
-                        e.print_err(&self.str_data, &tokens);
+                        e.print_err(&self.rope.to_string(), &tokens);
                         if let Some(diag) = lsp_extra::ast_error_to_diagnostic(&e, &tokens) {
                             return Ok(Some(diag));
                         }
@@ -198,13 +180,13 @@ impl ClassSource<'_> {
     }
 }
 pub fn open_document(
-    source: &str,
+    key: &str,
     content: &str,
     document_map: &DashMap<MyString, Document>,
 ) -> Result<Option<Diagnostic>, DocumentError> {
-    let path = path_without_subclass(source);
+    let path = path_without_subclass(key);
     let (doc, diag) = Document::setup(content, path)?;
-    document_map.insert(source.to_owned(), doc);
+    document_map.insert(key.to_owned(), doc);
     Ok(diag)
 }
 pub fn read_document_or_open_class<'a>(
@@ -223,13 +205,13 @@ pub fn read_document_or_open_class<'a>(
     )
 }
 
-pub fn get_source_content(
+pub fn get_ast(
     source: &str,
     document_map: &dashmap::DashMap<MyString, Document>,
-) -> Result<String, DocumentError> {
+) -> Result<AstFile, DocumentError> {
     match read_document_or_open_class(source, document_map)? {
-        ClassSource::Owned(d, _) => Ok(d.str_data),
-        ClassSource::Ref(d) => Ok(d.str_data.clone()),
+        ClassSource::Owned(d, _) => Ok(d.ast),
+        ClassSource::Ref(d) => Ok(d.ast.clone()),
     }
 }
 fn path_without_subclass(source: &str) -> PathBuf {

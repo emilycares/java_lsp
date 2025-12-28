@@ -443,7 +443,6 @@ pub const fn get_type_usage(
 }
 
 pub const fn get_method_usage(
-    _bytes: &[u8],
     _query_method_name: &str,
     _ast: &AstFile,
 ) -> Result<Vec<PositionSymbol>, PositionError> {
