@@ -14,7 +14,7 @@ async fn main() {
                 std::env::set_var("RUST_BACKTRACE", "1");
                 // std::env::set_var("RUST_LOG=lsp_server", "debug");
             };
-            let _ = server::main();
+            let _ = server::stdio();
         }
         Some(Commands::Lex { file }) => {
             cli::lex(file);

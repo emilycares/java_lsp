@@ -4,7 +4,7 @@ use call_chain::get_call_chain;
 use common::{TaskProgress, project_kind::ProjectKind};
 use compile::CompileError;
 use dashmap::{DashMap, DashSet};
-use document::{ClassSource, Document, get_class_path, read_document_or_open_class};
+use document::{ClassSource, Document, get_class_path, open_document, read_document_or_open_class};
 use loader::LoaderError;
 use lsp_extra::{SERVER_NAME, source_to_uri};
 use lsp_server::{Connection, Message};
@@ -371,30 +371,14 @@ impl Backend {
 
     pub fn did_open(&self, params: &DidOpenTextDocumentParams) {
         let document_map_key = get_document_map_key(&params.text_document.uri);
-        match read_document_or_open_class(&document_map_key, &self.document_map) {
-            Ok(ClassSource::Owned(doc, diag)) => {
-                self.handle_diagnostic(params.text_document.uri.clone(), diag.as_ref().clone());
-                match parser::update_project_java_file(
-                    PathBuf::from(document_map_key),
-                    doc.as_bytes(),
-                ) {
-                    Ok(class) => {
-                        match references::reference_update_class(
-                            &class,
-                            &self.class_map,
-                            &self.reference_map,
-                        ) {
-                            Ok(()) => {}
-                            Err(e) => eprintln!("Got reference error: {e:?}"),
-                        }
-                        if let Some(key) = get_class_path(&doc.ast) {
-                            self.class_map.insert(key, class);
-                        }
-                    }
-                    Err(e) => eprintln!("Save file parse error {e:?}"),
-                }
+        match open_document(
+            &document_map_key,
+            &params.text_document.text,
+            &self.document_map,
+        ) {
+            Ok(diag) => {
+                self.handle_diagnostic(params.text_document.uri.clone(), diag);
             }
-            Ok(ClassSource::Ref(_)) => {}
             Err(e) => {
                 eprintln!("Error while on_open: {e:?}");
             }

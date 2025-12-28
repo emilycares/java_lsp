@@ -23,16 +23,27 @@ use lsp_types::{
     TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
 };
 
-use lsp_server::Connection;
+use lsp_server::{Connection, IoThreads};
 
 use crate::backend::Backend;
+
+/// Accept connection over stdio
+///
+/// # Panics
+/// When it could not init project
+pub fn stdio() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
+    let (connection, io_threads) = Connection::stdio();
+    main(connection, io_threads)
+}
 
 /// Server main
 ///
 /// # Panics
 /// When it could not init project
-pub fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
-    let (connection, io_threads) = Connection::stdio();
+pub fn main(
+    connection: Connection,
+    io_threads: IoThreads,
+) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
     let project_kind = common::project_kind::get_project_kind();
     if let Err(e) = project_kind {
         eprintln!("Error with project init: {e:?}");

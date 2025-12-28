@@ -197,6 +197,16 @@ impl ClassSource<'_> {
         }
     }
 }
+pub fn open_document(
+    source: &str,
+    content: &str,
+    document_map: &DashMap<MyString, Document>,
+) -> Result<Option<Diagnostic>, DocumentError> {
+    let path = path_without_subclass(source);
+    let (doc, diag) = Document::setup(content, path)?;
+    document_map.insert(source.to_owned(), doc);
+    Ok(diag)
+}
 pub fn read_document_or_open_class<'a>(
     source: &str,
     document_map: &'a DashMap<MyString, Document>,
