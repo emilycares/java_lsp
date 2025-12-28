@@ -16,7 +16,6 @@ use parser::{
 use tokio::{process::Command, task::JoinSet};
 
 use crate::{
-    EXECUTABLE_MAVEN,
     config::overwrite_settings_xml_tokio,
     tree::{self, Pom},
 };
@@ -59,8 +58,8 @@ pub enum MavenFetchError {
     Tree(tree::MavenTreeError),
     ParserLoader(loader::LoaderError),
     NoM2Folder,
-    IO(std::io::Error),
     DownloadSources(String),
+    FailedToResolveSources(std::io::Error),
 }
 const MAVEN_CFC: &str = ".maven.cfc";
 
@@ -69,6 +68,7 @@ pub async fn fetch_deps(
     sender: tokio::sync::watch::Sender<TaskProgress>,
     use_cache: bool,
     download: bool,
+    maven_executable: &str,
 ) -> Result<(), MavenFetchError> {
     let path = Path::new(&MAVEN_CFC);
     if use_cache
@@ -82,9 +82,9 @@ pub async fn fetch_deps(
     }
 
     if download {
-        download_sources(&sender).await?;
+        download_sources(&sender, maven_executable).await?;
     }
-    let tree = tree::load().map_err(MavenFetchError::Tree)?;
+    let tree = tree::load(maven_executable).map_err(MavenFetchError::Tree)?;
     let m2 = Arc::new(get_maven_m2_folder()?);
 
     let tasks_number = u32::try_from(tree.deps.len() + 1).unwrap_or(1);
@@ -157,17 +157,22 @@ pub async fn fetch_deps(
 
 async fn download_sources(
     sender: &tokio::sync::watch::Sender<TaskProgress>,
+    maven_executable: &str,
 ) -> Result<(), MavenFetchError> {
     let _ = sender.send(TaskProgress {
         percentage: 0,
         error: false,
         message: "Downloading sources ...".to_string(),
     });
+    // https://maven.apache.org/plugins/maven-dependency-plugin/resolve-mojo.html
     // mvn dependency:resolve -Dclassifier=sources
-    let mut e = Command::new(EXECUTABLE_MAVEN);
+    let mut e = Command::new(maven_executable);
     let e = e.args(["dependency:resolve", "-Dclassifier=sources"]);
     let e = overwrite_settings_xml_tokio(e);
-    let e = e.output().await.map_err(MavenFetchError::IO)?;
+    let e = e
+        .output()
+        .await
+        .map_err(MavenFetchError::FailedToResolveSources)?;
     if e.status.success() {
         let _ = sender.send(TaskProgress {
             percentage: 0,

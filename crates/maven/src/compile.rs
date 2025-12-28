@@ -5,18 +5,18 @@ use std::{
     process::Command,
 };
 
-use crate::{EXECUTABLE_MAVEN, config::overwrite_settings_xml};
+use crate::config::overwrite_settings_xml;
 const CLASSPATH_FILE: &str = "target/classpath.txt";
 
 #[must_use]
-pub fn generate_classpath() -> Option<String> {
+pub fn generate_classpath(maven_executable: &str) -> Option<String> {
     if Path::new(&CLASSPATH_FILE).exists() {
         let classpath = read_to_string(CLASSPATH_FILE).ok()?;
         return Some(classpath.trim().to_string());
     }
 
     // mvn dependency:build-classpath -Dmdep.outputFile=target/classpath.txt
-    let mut output = Command::new(EXECUTABLE_MAVEN);
+    let mut output = Command::new(maven_executable);
     let output = output.args([
         "dependency:build-classpath",
         "-Dmdep.outputFile=target/classpath.txt",

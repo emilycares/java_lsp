@@ -1,6 +1,6 @@
 use std::{process::Command, str::FromStr};
 
-use crate::{EXECUTABLE_MAVEN, config::overwrite_settings_xml};
+use crate::config::overwrite_settings_xml;
 
 #[derive(Debug)]
 pub enum MavenTreeError {
@@ -8,8 +8,8 @@ pub enum MavenTreeError {
     UnknownDependencyScope(String),
 }
 
-pub fn load() -> Result<Dependency, MavenTreeError> {
-    let log: String = get_cli_output()?;
+pub fn load(maven_executable: &str) -> Result<Dependency, MavenTreeError> {
+    let log: String = get_cli_output(maven_executable)?;
     let cut: String = cut_output(&log);
 
     parser(&cut)
@@ -42,9 +42,9 @@ fn parser(cut: &str) -> Result<Dependency, MavenTreeError> {
     Ok(Dependency { deps: out })
 }
 
-fn get_cli_output() -> Result<String, MavenTreeError> {
+fn get_cli_output(maven_executable: &str) -> Result<String, MavenTreeError> {
     // mvn dependency:tree -DoutputType=dot
-    let mut output = Command::new(EXECUTABLE_MAVEN);
+    let mut output = Command::new(maven_executable);
     let output = output.arg("dependency:tree").arg("-DoutputType=dot");
     let output = overwrite_settings_xml(output);
     let output = output.output().map_err(MavenTreeError::Cli)?;

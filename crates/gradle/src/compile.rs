@@ -2,11 +2,9 @@ use std::process::Command;
 
 use compile::{CompileError, parse_compile_errors};
 
-use crate::fetch::PATH_GRADLE;
-
 #[must_use]
-pub fn compile_java() -> Option<Vec<CompileError>> {
-    run_compile_java().map(|log| cut_and_parse(&log))
+pub fn compile_java(executable_gradle: &str) -> Option<Vec<CompileError>> {
+    run_compile_java(executable_gradle).map(|log| cut_and_parse(&log))
 }
 
 #[must_use]
@@ -29,9 +27,9 @@ pub fn cut_log(inp: &str) -> String {
     out
 }
 
-fn run_compile_java() -> Option<String> {
+fn run_compile_java(executable_gradle: &str) -> Option<String> {
     // ./gradlew dependencies --console --plain
-    let output = Command::new(PATH_GRADLE)
+    let output = Command::new(executable_gradle)
         .arg("compileJava")
         .arg("-q")
         .output()

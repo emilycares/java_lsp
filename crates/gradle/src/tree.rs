@@ -1,7 +1,5 @@
 use std::process::Command;
 
-use crate::fetch;
-
 #[derive(Debug)]
 pub enum GradleTreeError {
     CliFailed(std::io::Error),
@@ -14,15 +12,15 @@ pub struct Dependency {
     pub version: String,
 }
 
-pub fn load() -> Result<Vec<Dependency>, GradleTreeError> {
-    let log: String = get_cli_output()?;
+pub fn load(executable_gradle: &str) -> Result<Vec<Dependency>, GradleTreeError> {
+    let log: String = get_cli_output(executable_gradle)?;
     let out = parse_tree(&log);
     Ok(out)
 }
 
-fn get_cli_output() -> Result<String, GradleTreeError> {
+fn get_cli_output(executable_gradle: &str) -> Result<String, GradleTreeError> {
     // ./gradlew dependencies --console plain
-    match Command::new(fetch::PATH_GRADLE)
+    match Command::new(executable_gradle)
         .arg("dependencies")
         .arg("--console")
         .arg("plain")

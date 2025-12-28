@@ -200,18 +200,19 @@ impl Backend {
     }
 
     fn compile(&self, path: &str) -> Vec<CompileError> {
-        match self.project_kind {
-            ProjectKind::Maven => {
-                if let Some(classpath) = maven::compile::generate_classpath()
+        match &self.project_kind {
+            ProjectKind::Maven { executable } => {
+                if let Some(classpath) = maven::compile::generate_classpath(executable)
                     && let Some(errors) = compile::compile_java_file(path, &classpath)
                 {
                     return errors;
                 }
             }
             ProjectKind::Gradle {
+                executable,
                 path_build_gradle: _,
             } => {
-                if let Some(errors) = gradle::compile::compile_java() {
+                if let Some(errors) = gradle::compile::compile_java(executable) {
                     return errors;
                 }
             }
@@ -331,8 +332,9 @@ impl Backend {
                     None,
                 );
                 let project_classes = match project_kind {
-                    ProjectKind::Maven => maven::project::load_project_folders(),
+                    ProjectKind::Maven { executable: _ } => maven::project::load_project_folders(),
                     ProjectKind::Gradle {
+                        executable: _,
                         path_build_gradle: _,
                     } => gradle::project::load_project_folders(),
                     ProjectKind::Unknown => loader::load_java_files(PathBuf::from("./")),
@@ -879,114 +881,121 @@ pub async fn fetch_deps(
     project_kind: ProjectKind,
     class_map: Arc<dashmap::DashMap<MyString, parser::dto::Class>>,
 ) {
-    tokio::spawn(async move {
-        match project_kind {
-            ProjectKind::Maven => {
-                match maven::fetch::fetch_deps(class_map, sender, true, true).await {
-                    Ok(()) => (),
-                    Err(e) => {
-                        eprintln!("Got error while loading maven project: {e:?}");
-                        let mut diagnostics = Vec::new();
-                        let range = Range::default();
-                        match e {
-                            MavenFetchError::DownloadSources(e) => {
-                                let message = format!("Unable download maven sources: {e}");
-                                diagnostics.push(Diagnostic::new(
-                                    range,
-                                    Some(DiagnosticSeverity::ERROR),
-                                    None,
-                                    Some(String::from(SERVER_NAME)),
-                                    message,
-                                    None,
-                                    None,
-                                ));
-                            }
-                            MavenFetchError::NoHomeFound => {
-                                let message = "Unable to find home directory".to_owned();
-                                diagnostics.push(Diagnostic::new(
-                                    range,
-                                    Some(DiagnosticSeverity::ERROR),
-                                    None,
-                                    Some(String::from(SERVER_NAME)),
-                                    message,
-                                    None,
-                                    None,
-                                ));
-                            }
-                            MavenFetchError::Tree(MavenTreeError::Cli(e)) => {
-                                let message = format!("Unable load maven dependency tree {e:?}");
-                                diagnostics.push(Diagnostic::new(
-                                    range,
-                                    Some(DiagnosticSeverity::ERROR),
-                                    None,
-                                    Some(String::from(SERVER_NAME)),
-                                    message,
-                                    None,
-                                    None,
-                                ));
-                            }
-                            MavenFetchError::Tree(MavenTreeError::UnknownDependencyScope(
-                                scope,
-                            )) => {
-                                let message =
-                                    format!("Unsupported dependency scope found: {scope:?}");
-                                diagnostics.push(Diagnostic::new(
-                                    range,
-                                    Some(DiagnosticSeverity::ERROR),
-                                    None,
-                                    Some(String::from(SERVER_NAME)),
-                                    message,
-                                    None,
-                                    None,
-                                ));
-                            }
-                            MavenFetchError::ParserLoader(LoaderError::Zip { e, path }) => {
-                                let severity = Some(DiagnosticSeverity::ERROR);
-                                let message = format!(
-                                    "Unable to load zip or jmod classes from: {path}, error: {e}"
-                                );
-                                diagnostics.push(Diagnostic::new(
-                                    range, severity, None, None, message, None, None,
-                                ));
-                            }
-                            MavenFetchError::NoM2Folder => {
-                                let message = "Unable to find .m2 directory".to_owned();
-                                diagnostics.push(Diagnostic::new(
-                                    range,
-                                    Some(DiagnosticSeverity::ERROR),
-                                    None,
-                                    Some(String::from(SERVER_NAME)),
-                                    message,
-                                    None,
-                                    None,
-                                ));
-                            }
-                            MavenFetchError::ParserLoader(
-                                LoaderError::IO(_) | LoaderError::InvalidCfcCache,
-                            )
-                            | MavenFetchError::IO(_) => (),
+    match project_kind {
+        ProjectKind::Maven { executable } => {
+            match maven::fetch::fetch_deps(class_map, sender, true, true, &executable).await {
+                Ok(()) => (),
+                Err(e) => {
+                    eprintln!("Got error while loading maven project: {e:?}");
+                    let mut diagnostics = Vec::new();
+                    let range = Range::default();
+                    match e {
+                        MavenFetchError::DownloadSources(e) => {
+                            let message = format!("Unable download maven sources: {e}");
+                            diagnostics.push(Diagnostic::new(
+                                range,
+                                Some(DiagnosticSeverity::ERROR),
+                                None,
+                                Some(String::from(SERVER_NAME)),
+                                message,
+                                None,
+                                None,
+                            ));
                         }
-                        let source = PathBuf::from("./pom.xml");
-                        if let Ok(source) = fs::canonicalize(source)
-                            && let Some(source) = source.to_str()
-                            && let Ok(uri) = source_to_uri(source)
-                        {
-                            Backend::send_diagnostic(&con, uri, diagnostics);
+                        MavenFetchError::NoHomeFound => {
+                            let message = "Unable to find home directory".to_owned();
+                            diagnostics.push(Diagnostic::new(
+                                range,
+                                Some(DiagnosticSeverity::ERROR),
+                                None,
+                                Some(String::from(SERVER_NAME)),
+                                message,
+                                None,
+                                None,
+                            ));
                         }
+                        MavenFetchError::Tree(MavenTreeError::Cli(e)) => {
+                            let message = format!("Unable load maven dependency tree {e:?}");
+                            diagnostics.push(Diagnostic::new(
+                                range,
+                                Some(DiagnosticSeverity::ERROR),
+                                None,
+                                Some(String::from(SERVER_NAME)),
+                                message,
+                                None,
+                                None,
+                            ));
+                        }
+                        MavenFetchError::Tree(MavenTreeError::UnknownDependencyScope(scope)) => {
+                            let message = format!("Unsupported dependency scope found: {scope:?}");
+                            diagnostics.push(Diagnostic::new(
+                                range,
+                                Some(DiagnosticSeverity::ERROR),
+                                None,
+                                Some(String::from(SERVER_NAME)),
+                                message,
+                                None,
+                                None,
+                            ));
+                        }
+                        MavenFetchError::ParserLoader(LoaderError::Zip { e, path }) => {
+                            let severity = Some(DiagnosticSeverity::ERROR);
+                            let message = format!(
+                                "Unable to load zip or jmod classes from: {path}, error: {e}"
+                            );
+                            diagnostics.push(Diagnostic::new(
+                                range, severity, None, None, message, None, None,
+                            ));
+                        }
+                        MavenFetchError::NoM2Folder => {
+                            let message = "Unable to find .m2 directory".to_owned();
+                            diagnostics.push(Diagnostic::new(
+                                range,
+                                Some(DiagnosticSeverity::ERROR),
+                                None,
+                                Some(String::from(SERVER_NAME)),
+                                message,
+                                None,
+                                None,
+                            ));
+                        }
+                        MavenFetchError::FailedToResolveSources(_) => {
+                            let message = "Unable to download maven sources".to_owned();
+                            diagnostics.push(Diagnostic::new(
+                                range,
+                                Some(DiagnosticSeverity::ERROR),
+                                None,
+                                Some(String::from(SERVER_NAME)),
+                                message,
+                                None,
+                                None,
+                            ));
+                        }
+                        MavenFetchError::ParserLoader(
+                            LoaderError::IO(_) | LoaderError::InvalidCfcCache,
+                        ) => (),
+                    }
+                    let source = PathBuf::from("./pom.xml");
+                    if let Ok(source) = fs::canonicalize(source)
+                        && let Some(source) = source.to_str()
+                        && let Ok(uri) = source_to_uri(source)
+                    {
+                        Backend::send_diagnostic(&con, uri, diagnostics);
                     }
                 }
             }
-            ProjectKind::Gradle {
-                path_build_gradle: path,
-            } => match gradle::fetch::fetch_deps(&class_map, path, sender).await {
-                Ok(()) => (),
-                Err(e) => {
-                    eprintln!("Got error while loading gradle project: {e:?}");
-                }
-            },
-            ProjectKind::Unknown => (),
         }
-    })
-    .await
-    .expect("asdf");
+        ProjectKind::Gradle {
+            executable,
+            path_build_gradle,
+        } => match gradle::fetch::fetch_deps(&class_map, path_build_gradle, &executable, sender)
+            .await
+        {
+            Ok(()) => (),
+            Err(e) => {
+                eprintln!("Got error while loading gradle project: {e:?}");
+            }
+        },
+        ProjectKind::Unknown => (),
+    }
 }

@@ -27,9 +27,18 @@ use lsp_server::Connection;
 
 use crate::backend::Backend;
 
+/// Server main
+///
+/// # Panics
+/// When it could not init project
 pub fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
     let (connection, io_threads) = Connection::stdio();
     let project_kind = common::project_kind::get_project_kind();
+    if let Err(e) = project_kind {
+        eprintln!("Error with project init: {e:?}");
+        std::process::exit(1);
+    }
+    let project_kind = project_kind.expect("Program should already have exited");
     eprintln!("Start java_lsp with project_kind: {project_kind:?}");
     let backend = Backend::new(connection, project_kind);
 
