@@ -154,7 +154,7 @@ pub fn call_chain_hover(
                     let vars = vars
                         .iter()
                         .filter(|v| !v.is_fun)
-                        .map(|v| format!("{} {}", v.jtype, v.name))
+                        .map(|v| format!("{} {}", jtype_hover_display(&v.jtype), v.name))
                         .collect::<Vec<_>>()
                         .join("\n\n");
                     let fields = local_class
@@ -215,12 +215,12 @@ pub fn call_chain_hover(
 }
 
 fn format_field(f: &dto::Field) -> String {
-    format!("{} {}", f.jtype, f.name)
+    format!("{} {}", jtype_hover_display(&f.jtype), f.name)
 }
 
 fn format_method(m: &dto::Method, class_name: &str) -> String {
     let mut out = String::new();
-    out.push_str(m.ret.to_string().as_str());
+    out.push_str(jtype_hover_display(&m.ret).as_str());
     out.push(' ');
 
     if let Some(name) = &m.name {
@@ -231,7 +231,7 @@ fn format_method(m: &dto::Method, class_name: &str) -> String {
     out.push('(');
     let mut params = m.parameters.iter().peekable();
     while let Some(param) = params.next() {
-        out.push_str(param.jtype.to_string().as_str());
+        out.push_str(jtype_hover_display(&param.jtype).as_str());
         if let Some(name) = &param.name {
             out.push(' ');
             out.push_str(name.as_str());
@@ -255,6 +255,46 @@ fn format_method(m: &dto::Method, class_name: &str) -> String {
     out
 }
 
+fn jtype_hover_display(jtype: &dto::JType) -> String {
+    match jtype {
+        dto::JType::Void => "void".to_owned(),
+        dto::JType::Byte => "byte".to_owned(),
+        dto::JType::Char => "char".to_owned(),
+        dto::JType::Double => "double".to_owned(),
+        dto::JType::Float => "float".to_owned(),
+        dto::JType::Int => "int".to_owned(),
+        dto::JType::Long => "long".to_owned(),
+        dto::JType::Short => "short".to_owned(),
+        dto::JType::Boolean => "boolean".to_owned(),
+        dto::JType::Wildcard => "?".to_owned(),
+        dto::JType::Var => "var".to_owned(),
+        dto::JType::Class(s) => class_name_hover(s),
+        dto::JType::Array(jtype) => format!("{}[]", jtype_hover_display(jtype)),
+        dto::JType::Generic(jtype, jtypes) => format!(
+            "{}<{}>",
+            class_name_hover(jtype),
+            jtypes
+                .iter()
+                .map(jtype_hover_display)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        dto::JType::Parameter(p) => format!("<{p}>"),
+        dto::JType::Access { base, inner } => format!(
+            "{}.{}",
+            jtype_hover_display(base),
+            jtype_hover_display(inner)
+        ),
+    }
+}
+
+fn class_name_hover(s: &String) -> String {
+    if let Some((_, s)) = s.rsplit_once('.') {
+        return s.replace('$', "");
+    }
+    s.to_owned()
+}
+
 fn variables_to_hover(vars: &[&LocalVariable], range: Range) -> Hover {
     Hover {
         contents: HoverContents::Markup(MarkupContent {
@@ -271,9 +311,9 @@ fn variables_to_hover(vars: &[&LocalVariable], range: Range) -> Hover {
 
 fn format_variable_hover(var: &LocalVariable) -> String {
     if var.is_fun {
-        return format!("{} {}()", var.jtype, var.name);
+        return format!("{} {}()", jtype_hover_display(&var.jtype), var.name);
     }
-    format!("{} {}", var.jtype, var.name)
+    format!("{} {}", jtype_hover_display(&var.jtype), var.name)
 }
 
 fn field_to_hover(f: &dto::Field, range: Range) -> Hover {
