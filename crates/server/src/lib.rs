@@ -7,6 +7,7 @@
 #![allow(clippy::too_many_lines)]
 mod backend;
 mod codeaction;
+pub mod command;
 pub mod completion;
 mod definition;
 mod hover;
@@ -16,16 +17,16 @@ pub mod signature;
 
 use std::sync::Arc;
 
-use ast::types::AstPoint;
 use lsp_types::{
     CodeActionKind, CodeActionOptions, CodeActionProviderCapability, CompletionOptions,
-    HoverProviderCapability, InitializeParams, OneOf, ServerCapabilities, SignatureHelpOptions,
-    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
+    ExecuteCommandOptions, HoverProviderCapability, InitializeParams, OneOf, ServerCapabilities,
+    SignatureHelpOptions, TextDocumentSyncCapability, TextDocumentSyncKind,
+    TextDocumentSyncOptions,
 };
 
 use lsp_server::{Connection, IoThreads};
 
-use crate::backend::Backend;
+use crate::{backend::Backend, command::COMMAND_RELOAD_DEPENDENCIES};
 
 /// Accept connection over stdio
 ///
@@ -84,6 +85,10 @@ pub fn main(
             ..Default::default()
         }),
         document_highlight_provider: None,
+        execute_command_provider: Some(ExecuteCommandOptions {
+            commands: vec![COMMAND_RELOAD_DEPENDENCIES.to_owned()],
+            ..ExecuteCommandOptions::default()
+        }),
         ..ServerCapabilities::default()
     })
     .unwrap_or_default();
@@ -127,11 +132,4 @@ fn main_loop(
     });
     router::route(&backend)?;
     Ok(())
-}
-
-fn to_ast_point(position: lsp_types::Position) -> AstPoint {
-    AstPoint::new(
-        position.line.try_into().unwrap_or_default(),
-        position.character.try_into().unwrap_or_default(),
-    )
 }

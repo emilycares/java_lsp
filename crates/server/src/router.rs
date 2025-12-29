@@ -1,15 +1,16 @@
 use lsp_types::{
     CodeActionParams, CompletionParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
     DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentFormattingParams,
-    DocumentSymbolParams, GotoDefinitionParams, HoverParams, ReferenceParams, SignatureHelpParams,
-    WorkspaceSymbolParams,
+    DocumentSymbolParams, ExecuteCommandParams, GotoDefinitionParams, HoverParams, ReferenceParams,
+    SignatureHelpParams, WorkspaceSymbolParams,
     notification::{
         DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, DidSaveTextDocument,
         Notification,
     },
     request::{
-        CodeActionRequest, Completion, DocumentSymbolRequest, Formatting, GotoDefinition,
-        HoverRequest, References, Request, SignatureHelpRequest, WorkspaceSymbolRequest,
+        CodeActionRequest, Completion, DocumentSymbolRequest, ExecuteCommand, Formatting,
+        GotoDefinition, HoverRequest, References, Request, SignatureHelpRequest,
+        WorkspaceSymbolRequest,
     },
 };
 
@@ -122,6 +123,18 @@ pub fn route(backend: &Backend) -> Result<(), Box<dyn std::error::Error + Send +
                             serde_json::from_value::<SignatureHelpParams>(req.params)
                         {
                             let result = backend.signature_help(params);
+                            let _ = backend.connection.sender.send(Message::Response(Response {
+                                id: req.id,
+                                result: serde_json::to_value(result).ok(),
+                                error: None,
+                            }));
+                        }
+                    }
+                    ExecuteCommand::METHOD => {
+                        if let Ok(params) =
+                            serde_json::from_value::<ExecuteCommandParams>(req.params)
+                        {
+                            let result = backend.execute_command(params);
                             let _ = backend.connection.sender.send(Message::Response(Response {
                                 id: req.id,
                                 result: serde_json::to_value(result).ok(),

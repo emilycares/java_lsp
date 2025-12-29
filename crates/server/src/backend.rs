@@ -6,32 +6,35 @@ use compile::CompileError;
 use dashmap::{DashMap, DashSet};
 use document::{ClassSource, Document, get_class_path, open_document, read_document_or_open_class};
 use loader::LoaderError;
-use lsp_extra::{SERVER_NAME, source_to_uri};
+use lsp_extra::{SERVER_NAME, source_to_uri, to_ast_point};
 use lsp_server::{Connection, Message};
 use lsp_types::{
     ClientCapabilities, CodeActionParams, CodeActionResponse, CompletionParams, CompletionResponse,
     Diagnostic, DiagnosticSeverity, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
     DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentFormattingParams,
-    DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse,
-    Hover, HoverParams, Location, Position, ProgressParams, ProgressParamsValue, ProgressToken,
-    PublishDiagnosticsParams, Range, ReferenceParams, SignatureHelp, SignatureHelpParams,
-    TextDocumentContentChangeEvent, TextEdit, Uri, WorkDoneProgress, WorkDoneProgressBegin,
-    WorkDoneProgressEnd, WorkDoneProgressReport, WorkspaceSymbolParams, WorkspaceSymbolResponse,
+    DocumentSymbolParams, DocumentSymbolResponse, ExecuteCommandParams, GotoDefinitionParams,
+    GotoDefinitionResponse, Hover, HoverParams, Location, Position, ProgressParams,
+    ProgressParamsValue, ProgressToken, PublishDiagnosticsParams, Range, ReferenceParams,
+    SignatureHelp, SignatureHelpParams, TextDocumentContentChangeEvent, TextEdit, Uri,
+    WorkDoneProgress, WorkDoneProgressBegin, WorkDoneProgressEnd, WorkDoneProgressReport,
+    WorkspaceSymbolParams, WorkspaceSymbolResponse,
     notification::{Notification, Progress, PublishDiagnostics},
 };
 use maven::{fetch::MavenFetchError, tree::MavenTreeError};
 use my_string::MyString;
 use parser::dto::Class;
 use rayon::iter::{ParallelBridge, ParallelIterator};
+use serde_json::Value;
 use tokio::task::JoinSet;
 
 use crate::{
     codeaction::{self, CodeActionContext},
+    command::{self, COMMAND_RELOAD_DEPENDENCIES},
     completion,
     definition::{self, DefinitionContext},
     hover::{self, class_action},
     references::{self, ReferenceUnit, ReferencesContext},
-    signature, to_ast_point,
+    signature,
 };
 
 pub struct Backend {
@@ -83,7 +86,7 @@ impl Backend {
                 }));
         }
     }
-    fn progress_start_option_token(
+    pub fn progress_start_option_token(
         con: &Arc<Connection>,
         token: &Arc<Option<ProgressToken>>,
         title: &str,
@@ -166,7 +169,7 @@ impl Backend {
                 }));
         }
     }
-    fn progress_end_option_token(
+    pub fn progress_end_option_token(
         con: &Arc<Connection>,
         token: &Arc<Option<ProgressToken>>,
         task: &str,
@@ -312,7 +315,7 @@ impl Backend {
 
                 tokio::select! {
                     () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-                    () = fetch_deps(con.clone(), sender, project_kind.clone(), class_map.clone()) => {}
+                    () = fetch_deps(con.clone(), sender, project_kind.clone(), class_map.clone(), true) => {}
                 }
                 Self::progress_end_option_token(&con, &progress, &task);
             });
@@ -811,6 +814,22 @@ impl Backend {
         }
     }
 
+    pub fn execute_command(&self, params: ExecuteCommandParams) -> Option<Value> {
+        let progress = params.work_done_progress_params.work_done_token;
+        match params.command.as_str() {
+            COMMAND_RELOAD_DEPENDENCIES => command::reload_dependencies(
+                &self.connection,
+                progress,
+                &self.project_kind,
+                &self.class_map.clone(),
+            ),
+            u => {
+                eprintln!("Unhandled command: {u}");
+                None
+            }
+        }
+    }
+
     fn handle_diagnostic(&self, uri: Uri, diag: Option<Diagnostic>) {
         let mut diagnostics = Vec::new();
         diagnostics.extend(diag);
@@ -862,10 +881,11 @@ pub async fn fetch_deps(
     sender: tokio::sync::watch::Sender<TaskProgress>,
     project_kind: ProjectKind,
     class_map: Arc<dashmap::DashMap<MyString, parser::dto::Class>>,
+    use_cache: bool,
 ) {
     match project_kind {
         ProjectKind::Maven { executable } => {
-            match maven::fetch::fetch_deps(class_map, sender, true, true, &executable).await {
+            match maven::fetch::fetch_deps(class_map, sender, use_cache, true, &executable).await {
                 Ok(()) => (),
                 Err(e) => {
                     eprintln!("Got error while loading maven project: {e:?}");

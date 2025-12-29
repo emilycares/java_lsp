@@ -29,7 +29,7 @@ pub enum GradleFetchError {
     GradlewNotExecutable,
 }
 
-const GRADLE_CFC: &str = ".gradle.cfc";
+pub const GRADLE_CFC: &str = ".gradle.cfc";
 
 // https://github.com/gradle/gradle/issues/20460
 // https://www.javathinking.com/blog/how-do-i-print-out-the-java-classpath-in-gradle/

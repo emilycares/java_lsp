@@ -61,7 +61,7 @@ pub enum MavenFetchError {
     DownloadSources(String),
     FailedToResolveSources(std::io::Error),
 }
-const MAVEN_CFC: &str = ".maven.cfc";
+pub const MAVEN_CFC: &str = ".maven.cfc";
 
 pub async fn fetch_deps(
     class_map: Arc<DashMap<MyString, Class>>,

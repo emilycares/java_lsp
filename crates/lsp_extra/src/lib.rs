@@ -10,7 +10,7 @@ use std::{num::TryFromIntError, str::FromStr};
 use ast::{
     error::{AstError, get_pos},
     lexer::{LexerError, PositionToken},
-    types::AstRange,
+    types::{AstPoint, AstRange},
 };
 use lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range, Uri};
 
@@ -36,6 +36,14 @@ pub fn to_lsp_range(range: &AstRange) -> Result<Range, ToLspRangeError> {
             character: ec,
         },
     })
+}
+
+#[must_use]
+pub fn to_ast_point(position: lsp_types::Position) -> AstPoint {
+    AstPoint::new(
+        position.line.try_into().unwrap_or_default(),
+        position.character.try_into().unwrap_or_default(),
+    )
 }
 
 #[must_use]
@@ -88,6 +96,7 @@ fn path_without_subclass(source: &str) -> String {
     }
     source.to_owned()
 }
+
 #[must_use]
 /// # Panics
 /// When tokens vec has been mutated

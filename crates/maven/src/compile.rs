@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::config::overwrite_settings_xml;
-const CLASSPATH_FILE: &str = "target/classpath.txt";
+pub const CLASSPATH_FILE: &str = "target/classpath.txt";
 
 #[must_use]
 pub fn generate_classpath(maven_executable: &str) -> Option<String> {
