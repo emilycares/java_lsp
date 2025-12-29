@@ -87,7 +87,9 @@ pub fn main(
         document_highlight_provider: None,
         execute_command_provider: Some(ExecuteCommandOptions {
             commands: vec![COMMAND_RELOAD_DEPENDENCIES.to_owned()],
-            ..ExecuteCommandOptions::default()
+            work_done_progress_options: lsp_types::WorkDoneProgressOptions {
+                work_done_progress: Some(true),
+            },
         }),
         ..ServerCapabilities::default()
     })

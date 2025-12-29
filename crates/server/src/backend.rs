@@ -126,7 +126,7 @@ impl Backend {
         token: &Arc<Option<ProgressToken>>,
         task: &str,
         message: String,
-        percentage: Option<u32>,
+        percentage: u32,
     ) {
         if let Some(token) = token.as_ref() {
             Self::progress_update_percentage_token(con, token, task, message, percentage);
@@ -138,7 +138,7 @@ impl Backend {
         con: &Arc<Connection>,
         task: &str,
         message: String,
-        percentage: Option<u32>,
+        percentage: u32,
     ) {
         let token = ProgressToken::String(task.to_owned());
         Self::progress_update_percentage_token(con, &token, task, message, percentage);
@@ -148,7 +148,7 @@ impl Backend {
         token: &ProgressToken,
         task: &str,
         message: String,
-        percentage: Option<u32>,
+        percentage: u32,
     ) {
         eprintln!("Report progress on: {task} {percentage:?} status: {message}");
         if let Ok(params) = serde_json::to_value(ProgressParams {
@@ -157,7 +157,7 @@ impl Backend {
                 WorkDoneProgressReport {
                     cancellable: None,
                     message: Some(message),
-                    percentage,
+                    percentage: Some(percentage),
                 },
             )),
         }) {
@@ -332,7 +332,7 @@ impl Backend {
                     &progress,
                     task,
                     "Load project paths".to_string(),
-                    None,
+                    1,
                 );
                 let project_classes = match project_kind {
                     ProjectKind::Maven { executable: _ } => maven::project::load_project_folders(),
@@ -347,7 +347,7 @@ impl Backend {
                     &progress,
                     task,
                     "Initializing reference map".to_string(),
-                    None,
+                    50,
                 );
                 match references::init_reference_map(&project_classes, &class_map, &reference_map) {
                     Ok(()) => (),
@@ -357,8 +357,8 @@ impl Backend {
                     &con.clone(),
                     &progress,
                     task,
-                    "Populating class map".to_string(),
-                    None,
+                    format!("Populating class map number: {}", project_classes.len()),
+                    90,
                 );
                 for class in project_classes {
                     class_map.insert(class.class_path.clone(), class);
@@ -868,7 +868,7 @@ pub async fn read_forward(
                 &token,
                 &task,
                 i.message.clone(),
-                Some(i.percentage),
+                i.percentage,
             );
         }
     })

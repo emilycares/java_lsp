@@ -143,50 +143,14 @@ pub fn call_chain_hover(
             Ok(class_to_hover(&resolve_state.class, range))
         }
         CallItem::ClassOrVariable { name, range } => {
-            let vars: Vec<_> = lo_va.iter().filter(|v| v.name == *name).collect();
+            let vars = lo_va.iter().any(|v| v.name == *name);
             let range = to_lsp_range(range).map_err(HoverError::ToLspRange)?;
-            if vars.is_empty() {
+            if !vars {
                 return Ok(class_to_hover(&resolve_state.class, range));
             }
             match load_java_tree(ast, parser::SourceDestination::None) {
                 Err(e) => Err(HoverError::ParseError(e)),
-                Ok(local_class) => {
-                    let vars = vars
-                        .iter()
-                        .filter(|v| !v.is_fun)
-                        .map(|v| format!("{} {}", jtype_hover_display(&v.jtype), v.name))
-                        .collect::<Vec<_>>()
-                        .join("\n\n");
-                    let fields = local_class
-                        .fields
-                        .iter()
-                        .filter(|m| m.name == *name)
-                        .filter(|i| {
-                            i.access.contains(Access::Private)
-                                || i.access.contains(Access::Deprecated)
-                        })
-                        .map(format_field)
-                        .collect::<Vec<_>>()
-                        .join("\n\n");
-                    let methods = local_class
-                        .methods
-                        .iter()
-                        .filter(|i| i.name.as_ref().filter(|i| *i == name).is_some())
-                        .filter(|i| {
-                            i.access.contains(Access::Private)
-                                || i.access.contains(Access::Deprecated)
-                        })
-                        .map(|i| format_method(i, &local_class.name))
-                        .collect::<Vec<_>>()
-                        .join("\n\n");
-                    Ok(Hover {
-                        contents: HoverContents::Markup(MarkupContent {
-                            kind: MarkupKind::Markdown,
-                            value: format!("{vars}\n\n{fields}\n\n{methods}"),
-                        }),
-                        range: Some(range),
-                    })
-                }
+                Ok(local_class) => Ok(class_to_hover(&local_class, range)),
             }
         }
         CallItem::ArgumentList {
@@ -290,7 +254,7 @@ fn jtype_hover_display(jtype: &dto::JType) -> String {
 
 fn class_name_hover(s: &String) -> String {
     if let Some((_, s)) = s.rsplit_once('.') {
-        return s.replace('$', "");
+        return s.replace('$', ".");
     }
     s.to_owned()
 }
@@ -347,13 +311,31 @@ fn class_to_hover(class: &dto::Class, range: Range) -> Hover {
     let methods: Vec<_> = class
         .methods
         .iter()
-        .filter(|i| i.access.contains(Access::Private) || i.access.contains(Access::Deprecated))
+        .filter(|i| !i.access.intersects(Access::Private | Access::Deprecated))
         .map(|i| format_method(i, &class.name))
         .collect();
+    let fields: Vec<_> = class
+        .fields
+        .iter()
+        .filter(|i| !i.access.contains(Access::Deprecated))
+        .map(format_field)
+        .collect();
+    let mut value = format!("# {}\n```java\n", class.name);
+    let has_fields = !fields.is_empty();
+    if !methods.is_empty() {
+        value.push_str(methods.join("\n").as_str());
+        if has_fields {
+            value.push('\n');
+        }
+    }
+    if has_fields {
+        value.push_str(fields.join("\n").as_str());
+    }
+    value.push_str("\n```");
     Hover {
         contents: HoverContents::Markup(MarkupContent {
             kind: MarkupKind::Markdown,
-            value: format!("# {}\n```java\n{}\n```", class.name, methods.join("\n")),
+            value,
         }),
         range: Some(range),
     }
