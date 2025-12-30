@@ -18,7 +18,7 @@ use my_string::MyString;
 use parser::{
     SourceDestination,
     class::{self, load_class},
-    dto::{self, Class, ClassError, ClassFolder},
+    dto::{Class, ClassError, ClassFolder},
     java::{self, ParseJavaError},
 };
 use rayon::iter::{ParallelBridge, ParallelIterator};
@@ -40,7 +40,7 @@ pub fn load_class_fs<T>(
     path: T,
     class_path: MyString,
     source: SourceDestination,
-) -> Result<dto::Class, dto::ClassError>
+) -> Result<Class, ClassError>
 where
     T: AsRef<Path> + Debug,
 {
@@ -49,7 +49,7 @@ where
     class::load_class(&mmap[..], class_path, source)
 }
 
-pub fn load_java_fs<T>(path: T, source: SourceDestination) -> Result<dto::Class, ParseJavaError>
+pub fn load_java_fs<T>(path: T, source: SourceDestination) -> Result<Class, ParseJavaError>
 where
     T: AsRef<Path> + Debug,
 {
@@ -63,7 +63,7 @@ where
 
 pub fn save_class_folder<P: AsRef<Path>>(
     path: P,
-    class_folder: &dto::ClassFolder,
+    class_folder: &ClassFolder,
 ) -> Result<(), LoaderError> {
     if class_folder.classes.is_empty() {
         return Ok(());
@@ -80,7 +80,7 @@ pub fn save_class_folder<P: AsRef<Path>>(
     Ok(())
 }
 
-pub fn load_class_folder<P: AsRef<Path> + Debug>(path: P) -> Result<dto::ClassFolder, LoaderError> {
+pub fn load_class_folder<P: AsRef<Path> + Debug>(path: P) -> Result<ClassFolder, LoaderError> {
     let file = File::open(&path).map_err(LoaderError::IO)?;
     let mmap = unsafe { memmap2::Mmap::map(&file) }.map_err(LoaderError::IO)?;
     if let Ok(o) = postcard::from_bytes(&mmap[..]) {
@@ -175,7 +175,7 @@ fn visit_java_files(
 pub async fn load_classes_jar<P: AsRef<Path> + Debug + Clone>(
     path: P,
     source: SourceDestination,
-) -> Result<dto::ClassFolder, LoaderError> {
+) -> Result<ClassFolder, LoaderError> {
     let src_zip = format!("{path:?}");
     let buf = read(path).await.map_err(LoaderError::IO)?;
 
@@ -184,7 +184,7 @@ pub async fn load_classes_jar<P: AsRef<Path> + Debug + Clone>(
 pub async fn load_classes_jmod<P: AsRef<Path> + Debug>(
     path: P,
     source: SourceDestination,
-) -> Result<dto::ClassFolder, LoaderError> {
+) -> Result<ClassFolder, LoaderError> {
     let src_zip = format!("{path:?}");
     let mut buf = read(path).await.map_err(LoaderError::IO)?;
     buf.drain(0..4);
@@ -241,12 +241,12 @@ async fn base_load_classes_zip(
     Ok(ClassFolder { classes })
 }
 
-pub fn load_classes<P: AsRef<Path>>(path: P, source: &SourceDestination) -> dto::ClassFolder {
+pub fn load_classes<P: AsRef<Path>>(path: P, source: &SourceDestination) -> ClassFolder {
     let Some(str_path) = &path.as_ref().to_str() else {
         eprintln!("load_classes failed could not make path into str");
-        return dto::ClassFolder::default();
+        return ClassFolder::default();
     };
-    dto::ClassFolder {
+    ClassFolder {
         classes: get_files(&path, ".class")
             .into_iter()
             .filter(|p| !p.ends_with("module-info.class"))

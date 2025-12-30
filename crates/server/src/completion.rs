@@ -4,7 +4,7 @@ use document::{Document, DocumentError};
 use get_class::FoundClass;
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat};
 use my_string::MyString;
-use parser::dto::{self, ImportUnit};
+use parser::dto::{Access, Class, ImportUnit, JType, Method, Parameter};
 use variables::LocalVariable;
 
 use crate::codeaction;
@@ -37,7 +37,7 @@ pub fn complete_vars(vars: &[LocalVariable]) -> Vec<CompletionItem> {
 
 /// Preview class with the description of methods
 #[must_use]
-pub fn class_describe(val: &dto::Class, ast: Option<&AstFile>) -> CompletionItem {
+pub fn class_describe(val: &Class, ast: Option<&AstFile>) -> CompletionItem {
     let methods: Vec<_> = val
         .methods
         .iter()
@@ -68,11 +68,7 @@ pub fn class_describe(val: &dto::Class, ast: Option<&AstFile>) -> CompletionItem
 
 /// Unpack class as completion items with methods and fields
 #[must_use]
-pub fn class_unpack(
-    val: &dto::Class,
-    imports: &[ImportUnit],
-    ast: &AstFile,
-) -> Vec<CompletionItem> {
+pub fn class_unpack(val: &Class, imports: &[ImportUnit], ast: &AstFile) -> Vec<CompletionItem> {
     let mut out = vec![];
 
     out.extend(
@@ -82,7 +78,7 @@ pub fn class_unpack(
                 if i.access.is_empty() {
                     return true;
                 }
-                i.access.contains(parser::dto::Access::Public)
+                i.access.contains(Access::Public)
             })
             .filter_map(|i| complete_method(i, imports, ast)),
     );
@@ -101,7 +97,7 @@ pub fn class_unpack(
                 if i.access.is_empty() {
                     return true;
                 }
-                i.access.contains(parser::dto::Access::Public)
+                i.access.contains(Access::Public)
             })
             .map(|f| CompletionItem {
                 label: f.name.clone(),
@@ -119,11 +115,7 @@ pub fn class_unpack(
     out
 }
 
-fn complete_method(
-    m: &dto::Method,
-    imports: &[ImportUnit],
-    ast: &AstFile,
-) -> Option<CompletionItem> {
+fn complete_method(m: &Method, imports: &[ImportUnit], ast: &AstFile) -> Option<CompletionItem> {
     let Some(method_name) = &m.name else {
         return None;
     };
@@ -182,7 +174,7 @@ enum Snippet {
     Import { snippet: String, import: ImportUnit },
 }
 
-fn method_snippet(m: &dto::Method) -> Option<Snippet> {
+fn method_snippet(m: &Method) -> Option<Snippet> {
     let Some(method_name) = &m.name else {
         return None;
     };
@@ -206,9 +198,9 @@ fn method_snippet(m: &dto::Method) -> Option<Snippet> {
     }
 }
 
-fn type_to_snippet(import: &mut Option<ImportUnit>, p: &dto::Parameter) -> String {
+fn type_to_snippet(import: &mut Option<ImportUnit>, p: &Parameter) -> String {
     match &p.jtype {
-        dto::JType::Class(c) => match c.as_str() {
+        JType::Class(c) => match c.as_str() {
             "java.util.stream.Collector" => {
                 *import = Some(ImportUnit::Class("java.util.stream.Collectors".into()));
                 "Collectors.toList()".to_string()
@@ -231,8 +223,8 @@ pub fn complete_call_chain(
     point: &AstPoint,
     vars: &[LocalVariable],
     imports: &[ImportUnit],
-    class: &dto::Class,
-    class_map: &dashmap::DashMap<MyString, parser::dto::Class>,
+    class: &Class,
+    class_map: &dashmap::DashMap<MyString, Class>,
 ) -> Result<Vec<CompletionItem>, CompletionError> {
     let call_chain = get_call_chain(&document.ast, point);
     match tyres::resolve_call_chain(&call_chain, vars, imports, class, class_map) {
@@ -246,7 +238,7 @@ pub fn classes(
     document: &Document,
     point: &AstPoint,
     imports: &[ImportUnit],
-    class_map: &dashmap::DashMap<MyString, parser::dto::Class>,
+    class_map: &dashmap::DashMap<MyString, Class>,
 ) -> Vec<CompletionItem> {
     if point.col < 3 {
         return vec![];
@@ -296,7 +288,7 @@ pub fn classes(
 pub fn static_methods(
     ast: &AstFile,
     imports: &[ImportUnit],
-    class_map: &dashmap::DashMap<MyString, parser::dto::Class>,
+    class_map: &dashmap::DashMap<MyString, Class>,
 ) -> Vec<CompletionItem> {
     imports
         .iter()
@@ -333,7 +325,7 @@ mod tests {
         Range, TextEdit,
     };
     use my_string::MyString;
-    use parser::dto::{self, ImportUnit};
+    use parser::dto::{Access, Class, ImportUnit, JType, Method, Parameter};
     use pretty_assertions::assert_eq;
     use variables::LocalVariable;
 
@@ -374,14 +366,14 @@ public class GreetingResource {
 }
         ";
         let doc = Document::setup(content, PathBuf::new()).unwrap().0;
-        let class = dto::Class {
-            access: dto::Access::Public,
+        let class = Class {
+            access: Access::Public,
             name: "Test".into(),
             ..Default::default()
         };
         let lo_va = vec![LocalVariable {
             level: 3,
-            jtype: dto::JType::Class("String".into()),
+            jtype: JType::Class("String".into()),
             name: "other".into(),
             is_fun: false,
             range: AstRange::default(),
@@ -395,17 +387,17 @@ public class GreetingResource {
             ImportUnit::Class("io.quarkus.qute.TemplateInstance".into()),
             ImportUnit::Class("io.quarkus.qute.Template".into()),
         ];
-        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
+        let class_map: DashMap<MyString, Class> = DashMap::new();
         class_map.insert(
             "java.lang.String".into(),
-            dto::Class {
-                access: dto::Access::Public,
+            Class {
+                access: Access::Public,
                 imports: imports.clone(),
                 name: "String".into(),
-                methods: vec![dto::Method {
-                    access: dto::Access::Public,
+                methods: vec![Method {
+                    access: Access::Public,
                     name: Some("length".into()),
-                    ret: dto::JType::Int,
+                    ret: JType::Int,
                     ..Default::default()
                 }],
                 ..Default::default()
@@ -454,27 +446,27 @@ public class Test {
         let doc = Document::setup(SYMBOL_METHOD, PathBuf::new()).unwrap().0;
         let lo_va = vec![LocalVariable {
             level: 3,
-            jtype: dto::JType::Class("String".into()),
+            jtype: JType::Class("String".into()),
             name: "local".into(),
             is_fun: false,
             range: AstRange::default(),
         }];
         let imports = vec![];
-        let class = dto::Class {
-            access: dto::Access::Public,
+        let class = Class {
+            access: Access::Public,
             name: "Test".into(),
             ..Default::default()
         };
-        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
+        let class_map: DashMap<MyString, Class> = DashMap::new();
         class_map.insert(
             "java.lang.String".into(),
-            dto::Class {
-                access: dto::Access::Public,
+            Class {
+                access: Access::Public,
                 name: "String".into(),
-                methods: vec![dto::Method {
-                    access: dto::Access::Public,
+                methods: vec![Method {
+                    access: Access::Public,
                     name: Some("concat".into()),
-                    ret: dto::JType::Class("java.lang.String".into()),
+                    ret: JType::Class("java.lang.String".into()),
                     ..Default::default()
                 }],
                 ..Default::default()
@@ -507,11 +499,11 @@ public class Test {
 
     #[test]
     fn method_snippet_no_param() {
-        let method = dto::Method {
-            access: dto::Access::Public,
+        let method = Method {
+            access: Access::Public,
             name: Some("length".into()),
             parameters: vec![],
-            ret: dto::JType::Int,
+            ret: JType::Int,
             throws: vec![],
             source: None,
         };
@@ -521,14 +513,14 @@ public class Test {
 
     #[test]
     fn method_snippet_base() {
-        let method = dto::Method {
-            access: dto::Access::Public,
+        let method = Method {
+            access: Access::Public,
             name: Some("compute".into()),
-            parameters: vec![dto::Parameter {
+            parameters: vec![Parameter {
                 name: None,
-                jtype: dto::JType::Int,
+                jtype: JType::Int,
             }],
-            ret: dto::JType::Int,
+            ret: JType::Int,
             throws: vec![],
             source: None,
         };
@@ -538,20 +530,20 @@ public class Test {
 
     #[test]
     fn method_snippet_args() {
-        let method = dto::Method {
-            access: dto::Access::Public,
+        let method = Method {
+            access: Access::Public,
             name: Some("split".into()),
             parameters: vec![
-                dto::Parameter {
+                Parameter {
                     name: None,
-                    jtype: dto::JType::Class("java.lang.String".into()),
+                    jtype: JType::Class("java.lang.String".into()),
                 },
-                dto::Parameter {
+                Parameter {
                     name: None,
-                    jtype: dto::JType::Int,
+                    jtype: JType::Int,
                 },
             ],
-            ret: dto::JType::Int,
+            ret: JType::Int,
             throws: vec![],
             source: None,
         };
@@ -565,12 +557,12 @@ public class Test {
     #[ignore = "todo"]
     #[test]
     fn class_completion_base() {
-        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
+        let class_map: DashMap<MyString, Class> = DashMap::new();
         class_map.insert(
             "java.lang.StringBuilder".into(),
-            dto::Class {
+            Class {
                 class_path: "java.lang.StringBuilder".into(),
-                access: dto::Access::Public,
+                access: Access::Public,
                 name: "StringBuilder".into(),
                 ..Default::default()
             },
@@ -616,12 +608,12 @@ public class Test {
     #[ignore = "todo"]
     #[test]
     fn class_completion_imported() {
-        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
+        let class_map: DashMap<MyString, Class> = DashMap::new();
         class_map.insert(
             "java.lang.StringBuilder".into(),
-            dto::Class {
+            Class {
                 class_path: "java.lang.StringBuilder".into(),
-                access: dto::Access::Public,
+                access: Access::Public,
                 name: "StringBuilder".into(),
                 ..Default::default()
             },

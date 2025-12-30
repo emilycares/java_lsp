@@ -13,8 +13,9 @@ use std::{fmt::Debug, path::Path};
 
 use ast::types::AstFile;
 use dto::ClassError;
-use java::ParseJavaError;
 use my_string::MyString;
+
+use crate::dto::Class;
 
 #[derive(Debug, Clone)]
 pub enum SourceDestination {
@@ -23,10 +24,7 @@ pub enum SourceDestination {
     None,
 }
 
-pub fn update_project_java_file<T: AsRef<Path>>(
-    file: T,
-    ast: &AstFile,
-) -> Result<dto::Class, ParseJavaError> {
+pub fn update_project_java_file<T: AsRef<Path>>(file: T, ast: &AstFile) -> Class {
     java::load_java_tree(
         ast,
         SourceDestination::Here(file.as_ref().to_str().unwrap_or_default().into()),
@@ -37,7 +35,7 @@ pub fn load_class_fs<T>(
     path: T,
     class_path: MyString,
     source: SourceDestination,
-) -> Result<dto::Class, dto::ClassError>
+) -> Result<Class, ClassError>
 where
     T: AsRef<Path> + Debug,
 {

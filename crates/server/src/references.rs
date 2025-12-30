@@ -10,7 +10,7 @@ use document::{ClassSource, Document, DocumentError};
 use lsp_extra::{SourceToUriError, ToLspRangeError, source_to_uri, to_lsp_range};
 use lsp_types::Location;
 use my_string::MyString;
-use parser::dto::{self, Class, ImportUnit};
+use parser::dto::{Class, ImportUnit};
 use position::PositionSymbol;
 use variables::LocalVariable;
 
@@ -44,8 +44,8 @@ pub struct ReferencePosition(PositionSymbol);
 pub struct ReferencesContext<'a> {
     pub point: &'a AstPoint,
     pub imports: &'a [ImportUnit],
-    pub class_map: &'a dashmap::DashMap<MyString, parser::dto::Class>,
-    pub class: &'a dto::Class,
+    pub class_map: &'a dashmap::DashMap<MyString, Class>,
+    pub class: &'a Class,
     pub vars: &'a [LocalVariable],
 }
 
@@ -53,7 +53,7 @@ pub struct ReferencesContext<'a> {
 pub fn class_path(
     class_path: &str,
     reference_map: &dashmap::DashMap<MyString, Vec<ReferenceUnit>>,
-    class_map: &dashmap::DashMap<MyString, parser::dto::Class>,
+    class_map: &dashmap::DashMap<MyString, Class>,
 ) -> Option<Vec<Location>> {
     if let Some(crefs) = reference_map.get(class_path) {
         let refs = crefs
@@ -176,7 +176,7 @@ fn method_references(
 
 pub fn init_reference_map(
     project_classes: &[Class],
-    class_map: &dashmap::DashMap<MyString, parser::dto::Class>,
+    class_map: &dashmap::DashMap<MyString, Class>,
     reference_map: &dashmap::DashMap<MyString, Vec<ReferenceUnit>>,
 ) -> Result<(), ReferencesError> {
     for class in project_classes {

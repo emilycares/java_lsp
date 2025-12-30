@@ -11,7 +11,10 @@ use std::{
 use common::TaskProgress;
 use dashmap::DashMap;
 use my_string::MyString;
-use parser::{SourceDestination, dto::ClassFolder};
+use parser::{
+    SourceDestination,
+    dto::{Class, ClassFolder},
+};
 use tokio::task::JoinSet;
 
 use crate::tree::GradleTreeError;
@@ -36,7 +39,7 @@ pub const GRADLE_CFC: &str = ".gradle.cfc";
 // https://github.com/dansomething/gradle-classpath
 
 pub async fn fetch_deps(
-    class_map: &DashMap<MyString, parser::dto::Class>,
+    class_map: &DashMap<MyString, Class>,
     build_gradle: PathBuf,
     executable_gradle: &str,
     sender: tokio::sync::watch::Sender<TaskProgress>,

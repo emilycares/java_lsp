@@ -1,7 +1,9 @@
 use std::path::{MAIN_SEPARATOR, MAIN_SEPARATOR_STR};
 
 use crate::SourceDestination;
-use crate::dto::{self, ClassError, ImportUnit, JType, Parameter};
+use crate::dto::{
+    Access, Class, ClassError, Field, ImportUnit, JType, Method, Parameter, SuperClass,
+};
 use classfile_parser::attribute_info::{AttributeInfo, CodeAttribute};
 use classfile_parser::code_attribute::LocalVariableTableAttribute;
 use classfile_parser::constant_info::ConstantInfo;
@@ -14,7 +16,7 @@ pub fn load_class(
     bytes: &[u8],
     class_path: MyString,
     source: SourceDestination,
-) -> Result<dto::Class, dto::ClassError> {
+) -> Result<Class, ClassError> {
     let (_, c) = class_parser(bytes).map_err(|_| ClassError::ParseError)?;
     let code_attribute = parse_code_attribute(&c, &c.attributes);
     let mut used_classes = parse_used_classes(&c, code_attribute);
@@ -43,7 +45,7 @@ pub fn load_class(
             }
             method
         })
-        //.filter(|f| !f.access.contains(&dto::Access::Private))
+        //.filter(|f| !f.access.contains(&Access::Private))
         .collect();
     let fields: Vec<_> = c
         .fields
@@ -57,7 +59,7 @@ pub fn load_class(
 
             field
         })
-        //.filter(|f| !f.access.contains(&dto::Access::Private))
+        //.filter(|f| !f.access.contains(&Access::Private))
         .collect();
 
     let name = lookup_class_name(&c, c.this_class.into()).ok_or(ClassError::UnknownClassName)?;
@@ -86,8 +88,7 @@ pub fn load_class(
         .interfaces
         .iter()
         .map(|index| {
-            lookup_class_name(&c, *index as usize)
-                .map_or(dto::SuperClass::None, dto::SuperClass::Name)
+            lookup_class_name(&c, *index as usize).map_or(SuperClass::None, SuperClass::Name)
         })
         .collect();
     let deprecated = c.attributes.iter().any(|attribute_info| {
@@ -97,14 +98,14 @@ pub fn load_class(
         matches!(lookup_string.as_str(), "Deprecated")
     });
 
-    Ok(dto::Class {
+    Ok(Class {
         source,
         class_path,
         super_interfaces,
         super_class: match lookup_class_name(&c, c.super_class.into()) {
-            Some(c) if c == "Object" => dto::SuperClass::None,
-            Some(c) => dto::SuperClass::Name(c),
-            None => dto::SuperClass::None,
+            Some(c) if c == "Object" => SuperClass::None,
+            Some(c) => SuperClass::Name(c),
+            None => SuperClass::None,
         },
         imports,
         access: parse_class_access(c.access_flags, deprecated),
@@ -125,8 +126,8 @@ fn lookup_class_name(c: &ClassFile, index: usize) -> Option<MyString> {
     }
 }
 
-fn parse_field(c: &ClassFile, field: &FieldInfo) -> Option<dto::Field> {
-    Some(dto::Field {
+fn parse_field(c: &ClassFile, field: &FieldInfo) -> Option<Field> {
+    Some(Field {
         access: parse_field_access(field),
         name: lookup_string(c, field.name_index)?,
         jtype: parse_field_descriptor(&lookup_string(c, field.descriptor_index)?),
@@ -137,11 +138,11 @@ fn parse_field(c: &ClassFile, field: &FieldInfo) -> Option<dto::Field> {
 fn parse_method(
     c: &ClassFile,
     method: &classfile_parser::method_info::MethodInfo,
-) -> Option<dto::Method> {
+) -> Option<Method> {
     let (params, ret) = parse_method_descriptor(&lookup_string(c, method.descriptor_index)?);
 
     let mut params = params.into_iter();
-    let mut parameters: Vec<dto::Parameter> = method
+    let mut parameters: Vec<Parameter> = method
         .attributes
         .iter()
         .filter_map(|attribute_info| {
@@ -161,7 +162,7 @@ fn parse_method(
                 .parameters
                 .into_iter()
                 .filter_map(|pa| {
-                    Some(dto::Parameter {
+                    Some(Parameter {
                         name: lookup_string(c, pa.name_index).and_then(|s| {
                             if s.is_empty() {
                                 return None;
@@ -177,10 +178,10 @@ fn parse_method(
     // Remaining method descriptor data as params
     {
         for jtype in params {
-            parameters.push(dto::Parameter { name: None, jtype });
+            parameters.push(Parameter { name: None, jtype });
         }
     }
-    let throws: Vec<dto::JType> = method
+    let throws: Vec<JType> = method
         .attributes
         .iter()
         .filter_map(|attribute_info| {
@@ -207,7 +208,7 @@ fn parse_method(
                     }
                     None
                 })
-                .map(dto::JType::Class)
+                .map(JType::Class)
         })
         .collect();
     let deprecated = method.attributes.iter().any(|attribute_info| {
@@ -218,7 +219,7 @@ fn parse_method(
     });
     let lname = lookup_string(c, method.name_index)?;
     let name = if lname == "<init>" { None } else { Some(lname) };
-    Some(dto::Method {
+    Some(Method {
         access: parse_method_access(method, deprecated),
         name,
         parameters,
@@ -284,31 +285,31 @@ fn parse_code_attribute(c: &ClassFile, attributes: &[AttributeInfo]) -> Option<C
         .map(|i| i.1)
 }
 
-fn parse_class_access(flags: ClassAccessFlags, deprecated: bool) -> dto::Access {
-    let mut access = dto::Access::empty();
+fn parse_class_access(flags: ClassAccessFlags, deprecated: bool) -> Access {
+    let mut access = Access::empty();
     if deprecated {
-        access.insert(dto::Access::Deprecated);
+        access.insert(Access::Deprecated);
     }
     if flags == ClassAccessFlags::PUBLIC {
-        access.insert(dto::Access::Public);
+        access.insert(Access::Public);
     }
     if flags == ClassAccessFlags::FINAL {
-        access.insert(dto::Access::Final);
+        access.insert(Access::Final);
     }
     if flags == ClassAccessFlags::SUPER {
-        access.insert(dto::Access::Super);
+        access.insert(Access::Super);
     }
     if flags == ClassAccessFlags::INTERFACE {
-        access.insert(dto::Access::Interface);
+        access.insert(Access::Interface);
     }
     if flags == ClassAccessFlags::SYNTHETIC {
-        access.insert(dto::Access::Synthetic);
+        access.insert(Access::Synthetic);
     }
     if flags == ClassAccessFlags::ANNOTATION {
-        access.insert(dto::Access::Annotation);
+        access.insert(Access::Annotation);
     }
     if flags == ClassAccessFlags::ENUM {
-        access.insert(dto::Access::Enum);
+        access.insert(Access::Enum);
     }
     access
 }
@@ -316,54 +317,54 @@ fn parse_class_access(flags: ClassAccessFlags, deprecated: bool) -> dto::Access 
 fn parse_method_access(
     method: &classfile_parser::method_info::MethodInfo,
     deprecated: bool,
-) -> dto::Access {
-    let mut access = dto::Access::empty();
+) -> Access {
+    let mut access = Access::empty();
     if deprecated {
-        access.insert(dto::Access::Deprecated);
+        access.insert(Access::Deprecated);
     }
     if method.access_flags == MethodAccessFlags::PUBLIC {
-        access.insert(dto::Access::Public);
+        access.insert(Access::Public);
     }
     if method.access_flags == MethodAccessFlags::PRIVATE {
-        access.insert(dto::Access::Private);
+        access.insert(Access::Private);
     }
     if method.access_flags == MethodAccessFlags::PROTECTED {
-        access.insert(dto::Access::Protected);
+        access.insert(Access::Protected);
     }
     if method.access_flags == MethodAccessFlags::STATIC {
-        access.insert(dto::Access::Static);
+        access.insert(Access::Static);
     }
     if method.access_flags == MethodAccessFlags::FINAL {
-        access.insert(dto::Access::Final);
+        access.insert(Access::Final);
     }
     if method.access_flags == MethodAccessFlags::ABSTRACT {
-        access.insert(dto::Access::Abstract);
+        access.insert(Access::Abstract);
     }
     if method.access_flags == MethodAccessFlags::SYNTHETIC {
-        access.insert(dto::Access::Synthetic);
+        access.insert(Access::Synthetic);
     }
     access
 }
 
-fn parse_field_access(method: &FieldInfo) -> dto::Access {
-    let mut access = dto::Access::empty();
+fn parse_field_access(method: &FieldInfo) -> Access {
+    let mut access = Access::empty();
     if method.access_flags == FieldAccessFlags::PUBLIC {
-        access.insert(dto::Access::Public);
+        access.insert(Access::Public);
     }
     if method.access_flags == FieldAccessFlags::PRIVATE {
-        access.insert(dto::Access::Private);
+        access.insert(Access::Private);
     }
     if method.access_flags == FieldAccessFlags::PROTECTED {
-        access.insert(dto::Access::Protected);
+        access.insert(Access::Protected);
     }
     if method.access_flags == FieldAccessFlags::STATIC {
-        access.insert(dto::Access::Static);
+        access.insert(Access::Static);
     }
     if method.access_flags == FieldAccessFlags::FINAL {
-        access.insert(dto::Access::Final);
+        access.insert(Access::Final);
     }
     if method.access_flags == FieldAccessFlags::SYNTHETIC {
-        access.insert(dto::Access::Synthetic);
+        access.insert(Access::Synthetic);
     }
     access
 }
@@ -379,7 +380,7 @@ fn lookup_string(c: &ClassFile, index: u16) -> Option<MyString> {
     }
 }
 
-fn parse_method_descriptor(descriptor: &str) -> (Vec<dto::JType>, dto::JType) {
+fn parse_method_descriptor(descriptor: &str) -> (Vec<JType>, JType) {
     let mut param_types = Vec::new();
     let mut chars = descriptor.chars();
     let current = chars.next();
@@ -399,29 +400,29 @@ fn parse_method_descriptor(descriptor: &str) -> (Vec<dto::JType>, dto::JType) {
             let return_type = parse_field_type(current, &mut chars);
             (param_types, return_type)
         }
-        _ => (vec![], dto::JType::Void),
+        _ => (vec![], JType::Void),
     }
 }
-fn parse_field_descriptor(descriptor: &str) -> dto::JType {
+fn parse_field_descriptor(descriptor: &str) -> JType {
     let mut chars = descriptor.chars();
     let current = chars.next();
     parse_field_type(current, &mut chars)
 }
 
-fn parse_field_type(c: Option<char>, chars: &mut std::str::Chars) -> dto::JType {
+fn parse_field_type(c: Option<char>, chars: &mut std::str::Chars) -> JType {
     let Some(c) = c else {
-        return dto::JType::Void;
+        return JType::Void;
     };
     match c {
-        'B' => dto::JType::Byte,
-        'C' => dto::JType::Char,
-        'D' => dto::JType::Double,
-        'F' => dto::JType::Float,
-        'I' => dto::JType::Int,
-        'J' => dto::JType::Long,
-        'S' => dto::JType::Short,
-        'Z' => dto::JType::Boolean,
-        'V' => dto::JType::Void,
+        'B' => JType::Byte,
+        'C' => JType::Char,
+        'D' => JType::Double,
+        'F' => JType::Float,
+        'I' => JType::Int,
+        'J' => JType::Long,
+        'S' => JType::Short,
+        'Z' => JType::Boolean,
+        'V' => JType::Void,
         'L' => {
             let mut class_name = String::new();
             for ch in chars.by_ref() {
@@ -430,12 +431,12 @@ fn parse_field_type(c: Option<char>, chars: &mut std::str::Chars) -> dto::JType 
                 }
                 class_name.push(ch);
             }
-            dto::JType::Class(class_name.replace('/', "."))
+            JType::Class(class_name.replace('/', "."))
         }
-        '[' => dto::JType::Array(Box::new(parse_field_type(chars.next(), chars))),
+        '[' => JType::Array(Box::new(parse_field_type(chars.next(), chars))),
         _ => {
             //panic!("Unknown type: {}", c);
-            dto::JType::Void
+            JType::Void
         }
     }
 }

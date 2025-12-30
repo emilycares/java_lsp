@@ -13,13 +13,13 @@ use ast::types::{
     AstWhileContent,
 };
 use my_string::MyString;
-use parser::dto;
+use parser::dto::JType;
 
 /// variable or function in a ast
 #[derive(Debug, PartialEq, Clone)]
 pub struct LocalVariable {
     pub level: usize,
-    pub jtype: dto::JType,
+    pub jtype: JType,
     pub name: MyString,
     pub is_fun: bool,
     pub range: AstRange,
@@ -28,7 +28,7 @@ pub struct LocalVariable {
 impl LocalVariable {
     #[must_use]
     pub fn from_block_variable(v: &AstBlockVariable, level: usize) -> Self {
-        let jtype: dto::JType = (&v.jtype).into();
+        let jtype: JType = (&v.jtype).into();
         Self {
             level,
             jtype,
@@ -281,7 +281,7 @@ fn expression(
 fn lambda(lambda: &AstLambda, point: &AstPoint, level: usize, out: &mut Vec<LocalVariable>) {
     out.extend(lambda.parameters.values.iter().map(|i| LocalVariable {
         level,
-        jtype: dto::JType::Void,
+        jtype: JType::Void,
         name: i.name.value.clone(),
         is_fun: false,
         range: i.range,
@@ -426,7 +426,7 @@ fn get_class_variables(
     level: usize,
 ) -> impl Iterator<Item = LocalVariable> {
     variables.iter().map(move |i| {
-        let jtype: dto::JType = (&i.jtype).into();
+        let jtype: JType = (&i.jtype).into();
         LocalVariable {
             range: i.range,
             level,

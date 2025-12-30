@@ -1,11 +1,11 @@
 use ast::types::{AstFile, AstPoint};
 use call_chain::{self, CallItem};
-use document::{Document, get_class_path};
+use document::get_class_path;
 use lsp_extra::{ToLspRangeError, to_lsp_range};
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
 use my_string::MyString;
 use parser::{
-    dto::{self, Access, ImportUnit},
+    dto::{Access, Class, Field, ImportUnit, JType, Method},
     java::load_java_tree,
 };
 use tyres::TyresError;
@@ -27,13 +27,12 @@ pub enum HoverError {
 }
 
 pub fn base(
-    document: &Document,
+    ast: &AstFile,
     point: &AstPoint,
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
-    class_map: &dashmap::DashMap<MyString, parser::dto::Class>,
+    class_map: &dashmap::DashMap<MyString, Class>,
 ) -> Result<Hover, HoverError> {
-    let ast = &document.ast;
     match class_action(ast, point, lo_va, imports, class_map) {
         Ok((class, range)) => {
             return Ok(class_to_hover(&class, range));
@@ -41,7 +40,7 @@ pub fn base(
         Err(ClassActionError::NotFound) => {}
         Err(e) => eprintln!("class action hover error: {e:?}"),
     }
-    let Some(class_path) = get_class_path(&document.ast) else {
+    let Some(class_path) = get_class_path(ast) else {
         eprintln!("Could not get class_path");
         return Err(HoverError::CouldNotFindClassPath);
     };
@@ -82,8 +81,8 @@ pub fn class_action(
     point: &AstPoint,
     _lo_va: &[LocalVariable],
     imports: &[ImportUnit],
-    class_map: &dashmap::DashMap<MyString, parser::dto::Class>,
-) -> Result<(dto::Class, Range), ClassActionError> {
+    class_map: &dashmap::DashMap<MyString, Class>,
+) -> Result<(Class, Range), ClassActionError> {
     if let Some(class) = get_class::get_class(ast, point) {
         let range = to_lsp_range(&class.range).map_err(ClassActionError::ToLspRange)?;
         return match tyres::resolve(&class.name, imports, class_map) {
@@ -100,8 +99,8 @@ pub fn call_chain_hover(
     point: &AstPoint,
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
-    class: &dto::Class,
-    class_map: &dashmap::DashMap<MyString, parser::dto::Class>,
+    class: &Class,
+    class_map: &dashmap::DashMap<MyString, Class>,
 ) -> Result<Hover, HoverError> {
     let (item, relevant) = call_chain::validate(call_chain, point);
     let Some(el) = call_chain.get(item) else {
@@ -115,7 +114,7 @@ pub fn call_chain_hover(
     }?;
     match el {
         CallItem::MethodCall { name, range } => {
-            let methods: Vec<dto::Method> = resolve_state
+            let methods: Vec<Method> = resolve_state
                 .class
                 .methods
                 .into_iter()
@@ -148,10 +147,9 @@ pub fn call_chain_hover(
             if !vars {
                 return Ok(class_to_hover(&resolve_state.class, range));
             }
-            match load_java_tree(ast, parser::SourceDestination::None) {
-                Err(e) => Err(HoverError::ParseError(e)),
-                Ok(local_class) => Ok(class_to_hover(&local_class, range)),
-            }
+
+            let local_class = load_java_tree(ast, parser::SourceDestination::None);
+            Ok(class_to_hover(&local_class, range))
         }
         CallItem::ArgumentList {
             prev: _,
@@ -178,11 +176,11 @@ pub fn call_chain_hover(
     }
 }
 
-fn format_field(f: &dto::Field) -> String {
+fn format_field(f: &Field) -> String {
     format!("{} {}", jtype_hover_display(&f.jtype), f.name)
 }
 
-fn format_method(m: &dto::Method, class_name: &str) -> String {
+fn format_method(m: &Method, class_name: &str) -> String {
     let mut out = String::new();
     out.push_str(jtype_hover_display(&m.ret).as_str());
     out.push(' ');
@@ -219,22 +217,22 @@ fn format_method(m: &dto::Method, class_name: &str) -> String {
     out
 }
 
-fn jtype_hover_display(jtype: &dto::JType) -> String {
+fn jtype_hover_display(jtype: &JType) -> String {
     match jtype {
-        dto::JType::Void => "void".to_owned(),
-        dto::JType::Byte => "byte".to_owned(),
-        dto::JType::Char => "char".to_owned(),
-        dto::JType::Double => "double".to_owned(),
-        dto::JType::Float => "float".to_owned(),
-        dto::JType::Int => "int".to_owned(),
-        dto::JType::Long => "long".to_owned(),
-        dto::JType::Short => "short".to_owned(),
-        dto::JType::Boolean => "boolean".to_owned(),
-        dto::JType::Wildcard => "?".to_owned(),
-        dto::JType::Var => "var".to_owned(),
-        dto::JType::Class(s) => class_name_hover(s),
-        dto::JType::Array(jtype) => format!("{}[]", jtype_hover_display(jtype)),
-        dto::JType::Generic(jtype, jtypes) => format!(
+        JType::Void => "void".to_owned(),
+        JType::Byte => "byte".to_owned(),
+        JType::Char => "char".to_owned(),
+        JType::Double => "double".to_owned(),
+        JType::Float => "float".to_owned(),
+        JType::Int => "int".to_owned(),
+        JType::Long => "long".to_owned(),
+        JType::Short => "short".to_owned(),
+        JType::Boolean => "boolean".to_owned(),
+        JType::Wildcard => "?".to_owned(),
+        JType::Var => "var".to_owned(),
+        JType::Class(s) => class_name_hover(s),
+        JType::Array(jtype) => format!("{}[]", jtype_hover_display(jtype)),
+        JType::Generic(jtype, jtypes) => format!(
             "{}<{}>",
             class_name_hover(jtype),
             jtypes
@@ -243,8 +241,8 @@ fn jtype_hover_display(jtype: &dto::JType) -> String {
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
-        dto::JType::Parameter(p) => format!("<{p}>"),
-        dto::JType::Access { base, inner } => format!(
+        JType::Parameter(p) => format!("<{p}>"),
+        JType::Access { base, inner } => format!(
             "{}.{}",
             jtype_hover_display(base),
             jtype_hover_display(inner)
@@ -280,7 +278,7 @@ fn format_variable_hover(var: &LocalVariable) -> String {
     format!("{} {}", jtype_hover_display(&var.jtype), var.name)
 }
 
-fn field_to_hover(f: &dto::Field, range: Range) -> Hover {
+fn field_to_hover(f: &Field, range: Range) -> Hover {
     Hover {
         contents: HoverContents::Markup(MarkupContent {
             kind: MarkupKind::Markdown,
@@ -290,7 +288,7 @@ fn field_to_hover(f: &dto::Field, range: Range) -> Hover {
     }
 }
 
-fn methods_to_hover(methods: &[dto::Method], range: Range, class_name: &str) -> Hover {
+fn methods_to_hover(methods: &[Method], range: Range, class_name: &str) -> Hover {
     Hover {
         contents: HoverContents::Markup(MarkupContent {
             kind: MarkupKind::Markdown,
@@ -307,7 +305,7 @@ fn methods_to_hover(methods: &[dto::Method], range: Range, class_name: &str) -> 
     }
 }
 
-fn class_to_hover(class: &dto::Class, range: Range) -> Hover {
+fn class_to_hover(class: &Class, range: Range) -> Hover {
     let methods: Vec<_> = class
         .methods
         .iter()
@@ -349,7 +347,7 @@ mod tests {
     use dashmap::DashMap;
     use document::Document;
     use my_string::MyString;
-    use parser::dto;
+    use parser::dto::{Access, Class, JType, Method};
 
     use crate::hover::{call_chain_hover, class_action};
 
@@ -390,8 +388,8 @@ public class Test {
 
     #[test]
     fn method_hover() {
-        let class = dto::Class {
-            access: dto::Access::Public,
+        let class = Class {
+            access: Access::Public,
             name: "Test".into(),
             ..Default::default()
         };
@@ -421,17 +419,17 @@ public class Test {
         assert!(out.is_ok());
     }
 
-    fn string_class_map() -> DashMap<MyString, dto::Class> {
-        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
+    fn string_class_map() -> DashMap<MyString, Class> {
+        let class_map: DashMap<MyString, Class> = DashMap::new();
         class_map.insert(
             "java.lang.String".into(),
-            dto::Class {
-                access: dto::Access::Public,
+            Class {
+                access: Access::Public,
                 name: "String".into(),
-                methods: vec![dto::Method {
-                    access: dto::Access::Public,
+                methods: vec![Method {
+                    access: Access::Public,
                     name: Some("length".into()),
-                    ret: dto::JType::Int,
+                    ret: JType::Int,
                     ..Default::default()
                 }],
                 ..Default::default()

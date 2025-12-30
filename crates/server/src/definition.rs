@@ -4,7 +4,7 @@ use document::{Document, DocumentError, read_document_or_open_class};
 use lsp_extra::{SourceToUriError, ToLspRangeError, source_to_uri, to_lsp_range};
 use lsp_types::{GotoDefinitionResponse, Location, SymbolKind, Uri};
 use my_string::MyString;
-use parser::dto::{self, ImportUnit};
+use parser::dto::{Class, ImportUnit};
 use position::PositionSymbol;
 use tyres::TyresError;
 use variables::LocalVariable;
@@ -31,8 +31,8 @@ pub struct DefinitionContext<'a> {
     pub point: &'a AstPoint,
     pub vars: &'a [LocalVariable],
     pub imports: &'a [ImportUnit],
-    pub class: &'a dto::Class,
-    pub class_map: &'a dashmap::DashMap<MyString, dto::Class>,
+    pub class: &'a Class,
+    pub class_map: &'a dashmap::DashMap<MyString, Class>,
     pub document_map: &'a dashmap::DashMap<MyString, Document>,
 }
 
@@ -188,7 +188,7 @@ pub fn call_chain_definition(
     }
 }
 
-pub fn class_to_uri(class: &dto::Class) -> Result<Uri, DefinitionError> {
+pub fn class_to_uri(class: &Class) -> Result<Uri, DefinitionError> {
     source_to_uri(&class.source).map_err(DefinitionError::SourceToUri)
 }
 
@@ -225,6 +225,7 @@ mod tests {
     use std::{path::PathBuf, str::FromStr};
 
     use dashmap::DashMap;
+    use parser::dto::{Access, JType, Method};
 
     use super::*;
 
@@ -246,8 +247,7 @@ public class Test {
             .unwrap()
             .0;
         let document_uri = Uri::from_str("file:///Test.java").unwrap();
-        let class =
-            parser::java::load_java_tree(&document.ast, parser::SourceDestination::None).unwrap();
+        let class = parser::java::load_java_tree(&document.ast, parser::SourceDestination::None);
         let vars = variables::get_vars(&document.ast, &point).unwrap();
         let imports = imports::imports(&document.ast);
         let call_chain = call_chain::get_call_chain(&document.ast, &point);
@@ -284,8 +284,7 @@ public class Test {
             .unwrap()
             .0;
         let document_uri = Uri::from_str("file:///Test.java").unwrap();
-        let class =
-            parser::java::load_java_tree(&document.ast, parser::SourceDestination::None).unwrap();
+        let class = parser::java::load_java_tree(&document.ast, parser::SourceDestination::None);
         let vars = variables::get_vars(&document.ast, &point).unwrap();
         let imports = imports::imports(&document.ast);
         let call_chain = call_chain::get_call_chain(&document.ast, &point);
@@ -301,18 +300,18 @@ public class Test {
         let out = call_chain_definition(&call_chain, &context);
         assert!(out.is_err());
     }
-    fn get_class_map() -> DashMap<MyString, dto::Class> {
-        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
+    fn get_class_map() -> DashMap<MyString, Class> {
+        let class_map: DashMap<MyString, Class> = DashMap::new();
         class_map.insert(
             "org.jboss.logging.Logger".into(),
-            dto::Class {
+            Class {
                 source: "/Logger.java".into(),
-                access: dto::Access::Public,
+                access: Access::Public,
                 name: "Logger".into(),
-                methods: vec![dto::Method {
-                    access: dto::Access::Public,
+                methods: vec![Method {
+                    access: Access::Public,
                     name: Some("info".into()),
-                    ret: dto::JType::Void,
+                    ret: JType::Void,
                     ..Default::default()
                 }],
                 ..Default::default()
@@ -320,14 +319,14 @@ public class Test {
         );
         class_map.insert(
             "java.util.List".into(),
-            dto::Class {
+            Class {
                 source: "/List.java".into(),
-                access: dto::Access::Public,
+                access: Access::Public,
                 name: "List".into(),
-                methods: vec![dto::Method {
-                    access: dto::Access::Public,
+                methods: vec![Method {
+                    access: Access::Public,
                     name: Some("stream".into()),
-                    ret: dto::JType::Class("java.util.stream.Stream".into()),
+                    ret: JType::Class("java.util.stream.Stream".into()),
                     ..Default::default()
                 }],
                 ..Default::default()
@@ -335,14 +334,14 @@ public class Test {
         );
         class_map.insert(
             "java.util.stream.Stream".into(),
-            dto::Class {
+            Class {
                 source: "/Stream.java".into(),
-                access: dto::Access::Public,
+                access: Access::Public,
                 name: "Stream".into(),
-                methods: vec![dto::Method {
-                    access: dto::Access::Public,
+                methods: vec![Method {
+                    access: Access::Public,
                     name: Some("map".into()),
-                    ret: dto::JType::Class("java.util.stream.Stream".into()),
+                    ret: JType::Class("java.util.stream.Stream".into()),
                     ..Default::default()
                 }],
                 ..Default::default()
@@ -350,13 +349,13 @@ public class Test {
         );
         class_map.insert(
             "java.lang.String".into(),
-            dto::Class {
-                access: dto::Access::Public,
+            Class {
+                access: Access::Public,
                 name: "String".into(),
-                methods: vec![dto::Method {
-                    access: dto::Access::Public,
+                methods: vec![Method {
+                    access: Access::Public,
                     name: Some("length".into()),
-                    ret: dto::JType::Int,
+                    ret: JType::Int,
                     ..Default::default()
                 }],
                 ..Default::default()

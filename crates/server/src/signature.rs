@@ -6,7 +6,7 @@ use lsp_types::{
     Documentation, ParameterInformation, ParameterLabel, SignatureHelp, SignatureInformation,
 };
 use my_string::MyString;
-use parser::dto::{self, Class, ImportUnit};
+use parser::dto::{Class, ImportUnit, Method};
 use variables::{LocalVariable, VariablesError};
 
 #[derive(Debug)]
@@ -23,7 +23,7 @@ pub fn signature_driver(
     document: &Document,
     point: &AstPoint,
     class: &Class,
-    class_map: &DashMap<MyString, parser::dto::Class>,
+    class_map: &DashMap<MyString, Class>,
 ) -> Result<SignatureHelp, SignatureError> {
     let call_chain = call_chain::get_call_chain(&document.ast, point);
     let imports = imports::imports(&document.ast);
@@ -35,7 +35,7 @@ pub fn get_signature(
     imports: &[ImportUnit],
     vars: &[LocalVariable],
     class: &Class,
-    class_map: &DashMap<MyString, parser::dto::Class>,
+    class_map: &DashMap<MyString, Class>,
 ) -> Result<SignatureHelp, SignatureError> {
     let args = get_args(call_chain);
     let Some(CallItem::ArgumentList {
@@ -96,7 +96,7 @@ fn signature_help_for_method(
         Ok(c) => Ok(c),
         Err(e) => Err(SignatureError::Tyres(e)),
     }?;
-    let methods: Vec<&dto::Method> = resolve_state
+    let methods: Vec<&Method> = resolve_state
         .class
         .methods
         .iter()
@@ -137,7 +137,7 @@ fn signature_help_for_constructor(
         Ok(c) => Ok(c),
         Err(e) => Err(SignatureError::Tyres(e)),
     }?;
-    let methods: Vec<&dto::Method> = resolve_state
+    let methods: Vec<&Method> = resolve_state
         .class
         .methods
         .iter()
@@ -181,10 +181,7 @@ fn get_args(call_chain: &[CallItem]) -> Option<&CallItem> {
     })
 }
 
-fn method_to_signature_information(
-    method: &dto::Method,
-    class_name: &String,
-) -> SignatureInformation {
+fn method_to_signature_information(method: &Method, class_name: &String) -> SignatureInformation {
     let mut label = format!("{}(", method.name.as_ref().unwrap_or(class_name));
     let mut parameters = Vec::with_capacity(method.parameters.len());
     let mut peekable = method.parameters.iter().peekable();
@@ -230,32 +227,32 @@ pub mod tests {
         Documentation, ParameterInformation, ParameterLabel, SignatureHelp, SignatureInformation,
     };
     use my_string::MyString;
-    use parser::dto;
+    use parser::dto::{Access, Class, JType, Method, Parameter};
     use pretty_assertions::assert_eq;
 
     #[test]
     fn signarure_base() {
-        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
+        let class_map: DashMap<MyString, Class> = DashMap::new();
         class_map.insert(
             "java.lang.String".into(),
-            dto::Class {
-                access: dto::Access::Public,
+            Class {
+                access: Access::Public,
                 name: "String".into(),
-                methods: vec![dto::Method {
-                    access: dto::Access::Public,
+                methods: vec![Method {
+                    access: Access::Public,
                     name: Some("concat".into()),
-                    parameters: vec![dto::Parameter {
+                    parameters: vec![Parameter {
                         name: None,
-                        jtype: dto::JType::Class("java.lang.String".into()),
+                        jtype: JType::Class("java.lang.String".into()),
                     }],
-                    ret: dto::JType::Class("java.lang.String".into()),
+                    ret: JType::Class("java.lang.String".into()),
                     ..Default::default()
                 }],
                 ..Default::default()
             },
         );
-        let class = dto::Class {
-            access: dto::Access::Public,
+        let class = Class {
+            access: Access::Public,
             name: "Test".into(),
             ..Default::default()
         };
@@ -291,38 +288,38 @@ public class Test {
 
     #[test]
     fn signature_multi_name() {
-        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
+        let class_map: DashMap<MyString, Class> = DashMap::new();
         class_map.insert(
             "java.lang.String".into(),
-            dto::Class {
-                access: dto::Access::Public,
+            Class {
+                access: Access::Public,
                 name: "String".into(),
                 methods: vec![
-                    dto::Method {
-                        access: dto::Access::Public,
+                    Method {
+                        access: Access::Public,
                         name: Some("concat".into()),
-                        parameters: vec![dto::Parameter {
+                        parameters: vec![Parameter {
                             name: None,
-                            jtype: dto::JType::Class("java.lang.String".into()),
+                            jtype: JType::Class("java.lang.String".into()),
                         }],
-                        ret: dto::JType::Class("java.lang.String".into()),
+                        ret: JType::Class("java.lang.String".into()),
                         throws: vec![],
                         source: None,
                     },
-                    dto::Method {
-                        access: dto::Access::Public,
+                    Method {
+                        access: Access::Public,
                         name: Some("concat".into()),
                         parameters: vec![
-                            dto::Parameter {
+                            Parameter {
                                 name: None,
-                                jtype: dto::JType::Class("java.lang.String".into()),
+                                jtype: JType::Class("java.lang.String".into()),
                             },
-                            dto::Parameter {
+                            Parameter {
                                 name: None,
-                                jtype: dto::JType::Class("java.lang.String".into()),
+                                jtype: JType::Class("java.lang.String".into()),
                             },
                         ],
-                        ret: dto::JType::Class("java.lang.String".into()),
+                        ret: JType::Class("java.lang.String".into()),
                         throws: vec![],
                         source: None,
                     },
@@ -330,8 +327,8 @@ public class Test {
                 ..Default::default()
             },
         );
-        let class = dto::Class {
-            access: dto::Access::Public,
+        let class = Class {
+            access: Access::Public,
             name: "Test".into(),
             ..Default::default()
         };
@@ -384,38 +381,38 @@ public class Test {
 
     #[test]
     fn signature_multi_name_second() {
-        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
+        let class_map: DashMap<MyString, Class> = DashMap::new();
         class_map.insert(
             "java.lang.String".into(),
-            dto::Class {
-                access: dto::Access::Public,
+            Class {
+                access: Access::Public,
                 name: "String".into(),
                 methods: vec![
-                    dto::Method {
-                        access: dto::Access::Public,
+                    Method {
+                        access: Access::Public,
                         name: Some("concat".into()),
-                        parameters: vec![dto::Parameter {
+                        parameters: vec![Parameter {
                             name: None,
-                            jtype: dto::JType::Class("java.lang.String".into()),
+                            jtype: JType::Class("java.lang.String".into()),
                         }],
-                        ret: dto::JType::Class("java.lang.String".into()),
+                        ret: JType::Class("java.lang.String".into()),
                         throws: vec![],
                         source: None,
                     },
-                    dto::Method {
-                        access: dto::Access::Public,
+                    Method {
+                        access: Access::Public,
                         name: Some("concat".into()),
                         parameters: vec![
-                            dto::Parameter {
+                            Parameter {
                                 name: None,
-                                jtype: dto::JType::Class("java.lang.String".into()),
+                                jtype: JType::Class("java.lang.String".into()),
                             },
-                            dto::Parameter {
+                            Parameter {
                                 name: None,
-                                jtype: dto::JType::Class("java.lang.String".into()),
+                                jtype: JType::Class("java.lang.String".into()),
                             },
                         ],
-                        ret: dto::JType::Class("java.lang.String".into()),
+                        ret: JType::Class("java.lang.String".into()),
                         throws: vec![],
                         source: None,
                     },
@@ -423,8 +420,8 @@ public class Test {
                 ..Default::default()
             },
         );
-        let class = dto::Class {
-            access: dto::Access::Public,
+        let class = Class {
+            access: Access::Public,
             name: "Test".into(),
             ..Default::default()
         };

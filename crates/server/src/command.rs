@@ -4,6 +4,7 @@ use common::{TaskProgress, project_kind::ProjectKind};
 use lsp_server::Connection;
 use lsp_types::ProgressToken;
 use my_string::MyString;
+use parser::dto::Class;
 
 use crate::backend::{Backend, fetch_deps, read_forward};
 
@@ -13,7 +14,7 @@ pub fn reload_dependencies(
     con: &Arc<Connection>,
     progress: Option<ProgressToken>,
     project_kind: &ProjectKind,
-    class_map: &Arc<dashmap::DashMap<MyString, parser::dto::Class>>,
+    class_map: &Arc<dashmap::DashMap<MyString, Class>>,
 ) -> Option<serde_json::Value> {
     let con = con.clone();
     let project_kind = project_kind.clone();

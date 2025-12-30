@@ -13,33 +13,27 @@ use my_string::MyString;
 
 use crate::{
     SourceDestination,
-    dto::{self, Access, Field, ImportUnit, Method},
+    dto::{Access, Class, ClassError, Field, ImportUnit, JType, Method, Parameter, SuperClass},
 };
 
 #[derive(Debug)]
 pub enum ParseJavaError {
     Utf8(Utf8Error),
-    Class(dto::ClassError),
+    Class(ClassError),
     Io(std::io::Error),
     UnknownJType(String, String),
     UnknownWildcard(String),
     Ast(ast::error::AstError),
     Lexer(ast::lexer::LexerError),
 }
-pub fn load_java(
-    bytes: &[u8],
-    source: SourceDestination,
-) -> Result<crate::dto::Class, ParseJavaError> {
+pub fn load_java(bytes: &[u8], source: SourceDestination) -> Result<Class, ParseJavaError> {
     let str = str::from_utf8(bytes).map_err(ParseJavaError::Utf8)?;
     let tokens = lexer::lex(str).map_err(ParseJavaError::Lexer)?;
     let parsed = ast::parse_file(&tokens).map_err(ParseJavaError::Ast)?;
-    load_java_tree(&parsed, source)
+    Ok(load_java_tree(&parsed, source))
 }
 
-pub fn load_java_tree(
-    ast: &AstFile,
-    source: SourceDestination,
-) -> Result<crate::dto::Class, ParseJavaError> {
+pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
     let mut methods: Vec<Method> = vec![];
     let mut fields: Vec<Field> = vec![];
     let class_path_base: MyString = ast
@@ -47,7 +41,7 @@ pub fn load_java_tree(
         .as_ref()
         .map_or_else(MyString::new, |p| (&p.name).into());
     let mut name: MyString = String::new();
-    let mut super_class = dto::SuperClass::None;
+    let mut super_class = SuperClass::None;
     let mut super_interfaces = vec![];
     let imports: Vec<ImportUnit> = ast.imports.as_ref().map_or_else(Vec::new, |imports| {
         imports.imports.iter().map(Into::into).collect()
@@ -70,9 +64,9 @@ pub fn load_java_tree(
                 fields.extend(class.block.variables.iter().map(convert_class_field));
                 //TODO: Handle others
                 super_class = match &class.superclass.first() {
-                    None | Some(AstSuperClass::None) => dto::SuperClass::None,
+                    None | Some(AstSuperClass::None) => SuperClass::None,
                     Some(AstSuperClass::Name(ast_identifier)) => {
-                        dto::SuperClass::Name(ast_identifier.into())
+                        SuperClass::Name(ast_identifier.into())
                     }
                 };
             }
@@ -120,7 +114,7 @@ pub fn load_java_tree(
     class_path.push('.');
     class_path.push_str(&name);
 
-    Ok(dto::Class {
+    Class {
         source,
         class_path,
         access,
@@ -130,7 +124,7 @@ pub fn load_java_tree(
         name,
         methods,
         fields,
-    })
+    }
 }
 
 fn load_deprecated(access: &mut Access, annotated: &[AstAnnotated]) {
@@ -139,15 +133,15 @@ fn load_deprecated(access: &mut Access, annotated: &[AstAnnotated]) {
     }
 }
 
-fn fun_name(ext: &AstExtends, imports: &[ImportUnit]) -> impl Iterator<Item = dto::SuperClass> {
+fn fun_name(ext: &AstExtends, imports: &[ImportUnit]) -> impl Iterator<Item = SuperClass> {
     ext.parameters.iter().filter_map(|i| {
         if let AstJTypeKind::Class(c) = &i.value {
             return imports
                 .iter()
                 .find_map(|i| i.get_imported_class_package(&c.value))
                 .map_or_else(
-                    || Some(dto::SuperClass::Name(c.into())),
-                    |class_path| Some(dto::SuperClass::ClassPath(class_path)),
+                    || Some(SuperClass::Name(c.into())),
+                    |class_path| Some(SuperClass::ClassPath(class_path)),
                 );
         }
         None
@@ -170,7 +164,7 @@ fn convert_class_method(m: &AstClassMethod) -> Method {
         .parameters
         .parameters
         .iter()
-        .map(|p| dto::Parameter {
+        .map(|p| Parameter {
             name: Some((&p.name).into()),
             jtype: check_type_parameters(&p.jtype, m.header.type_parameters.as_ref()),
         })
@@ -196,7 +190,7 @@ fn convert_class_constructor(m: &AstClassConstructor) -> Method {
         .parameters
         .parameters
         .iter()
-        .map(|p| dto::Parameter {
+        .map(|p| Parameter {
             name: Some((&p.name).into()),
             jtype: check_type_parameters(&p.jtype, m.header.type_parameters.as_ref()),
         })
@@ -222,7 +216,7 @@ fn convert_interface_method(m: &AstInterfaceMethod) -> Method {
         .parameters
         .parameters
         .iter()
-        .map(|p| dto::Parameter {
+        .map(|p| Parameter {
             name: Some((&p.name).into()),
             jtype: check_type_parameters(&p.jtype, m.header.type_parameters.as_ref()),
         })
@@ -249,7 +243,7 @@ fn convert_interface_default_method(m: &AstInterfaceMethodDefault) -> Method {
         .parameters
         .parameters
         .iter()
-        .map(|p| dto::Parameter {
+        .map(|p| Parameter {
             name: Some((&p.name).into()),
             jtype: check_type_parameters(&p.jtype, m.header.type_parameters.as_ref()),
         })
@@ -270,32 +264,32 @@ fn convert_interface_default_method(m: &AstInterfaceMethodDefault) -> Method {
     }
 }
 
-fn convert_interface_constant(c: &AstInterfaceConstant) -> dto::Field {
+fn convert_interface_constant(c: &AstInterfaceConstant) -> Field {
     let mut access = Access::from(&c.availability, Access::Public);
     load_deprecated(&mut access, &c.annotated);
-    dto::Field {
+    Field {
         access,
         name: (&c.name).into(),
         jtype: (&c.jtype).into(),
         source: None,
     }
 }
-fn convert_annotation_field(c: &AstAnnotationField) -> dto::Field {
+fn convert_annotation_field(c: &AstAnnotationField) -> Field {
     let mut access = Access::from(&c.availability, Access::Public);
     load_deprecated(&mut access, &c.annotated);
-    dto::Field {
+    Field {
         access,
         name: (&c.name).into(),
         jtype: (&c.jtype).into(),
         source: None,
     }
 }
-fn convert_class_field(c: &AstClassVariable) -> dto::Field {
+fn convert_class_field(c: &AstClassVariable) -> Field {
     let mut access = Access::from(&c.availability, Access::Public);
     load_deprecated(&mut access, &c.annotated);
-    let jtype: dto::JType = (&c.jtype).into();
+    let jtype: JType = (&c.jtype).into();
 
-    dto::Field {
+    Field {
         access,
         jtype,
         name: c.name.value.clone(),
@@ -306,36 +300,36 @@ fn convert_class_field(c: &AstClassVariable) -> dto::Field {
 fn check_type_parameters(
     jtype: &ast::types::AstJType,
     type_parameters: Option<&AstTypeParameters>,
-) -> dto::JType {
-    let jtype: dto::JType = jtype.into();
+) -> JType {
+    let jtype: JType = jtype.into();
     let Some(type_parameters) = type_parameters else {
         return jtype;
     };
 
-    if let dto::JType::Class(ref p) = jtype
+    if let JType::Class(ref p) = jtype
         && type_parameters
             .parameters
             .iter()
             .any(|i| i.name.value == *p)
     {
-        return dto::JType::Parameter(p.to_owned());
+        return JType::Parameter(p.to_owned());
     }
-    if let dto::JType::Generic(name, params) = jtype {
+    if let JType::Generic(name, params) = jtype {
         let params = params
             .iter()
             .map(|i| {
-                if let dto::JType::Class(p) = i
+                if let JType::Class(p) = i
                     && type_parameters
                         .parameters
                         .iter()
                         .any(|i| i.name.value == *p)
                 {
-                    return dto::JType::Parameter(p.to_owned());
+                    return JType::Parameter(p.to_owned());
                 }
                 i.clone()
             })
             .collect();
-        return dto::JType::Generic(name, params);
+        return JType::Generic(name, params);
     }
 
     jtype

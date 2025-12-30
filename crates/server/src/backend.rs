@@ -270,7 +270,7 @@ impl Backend {
         progress: Option<ProgressToken>,
         con: Arc<Connection>,
         project_kind: ProjectKind,
-        class_map: Arc<dashmap::DashMap<MyString, parser::dto::Class>>,
+        class_map: Arc<dashmap::DashMap<MyString, Class>>,
         reference_map: Arc<dashmap::DashMap<MyString, Vec<ReferenceUnit>>>,
     ) {
         let progress = Arc::new(progress);
@@ -405,39 +405,33 @@ impl Backend {
 
         match read_document_or_open_class(path.as_str(), &self.document_map) {
             Ok(ClassSource::Owned(doc, diag)) => {
-                self.handle_diagnostic(params.text_document.uri.clone(), diag.as_ref().clone());
-                match parser::update_project_java_file(PathBuf::from(path.as_str()), &doc.ast) {
-                    Ok(class) => {
-                        let class_path = class.class_path.clone();
-                        match references::reference_update_class(
-                            &class,
-                            &self.class_map,
-                            &self.reference_map,
-                        ) {
-                            Ok(()) => {}
-                            Err(e) => eprintln!("Got reference error: {e:?}"),
-                        }
-                        self.class_map.insert(class_path, class);
-                    }
-                    Err(e) => eprintln!("Save file parse error {e:?}"),
+                self.handle_diagnostic(params.text_document.uri.clone(), *diag);
+                let class =
+                    parser::update_project_java_file(PathBuf::from(path.as_str()), &doc.ast);
+                let class_path = class.class_path.clone();
+                match references::reference_update_class(
+                    &class,
+                    &self.class_map,
+                    &self.reference_map,
+                ) {
+                    Ok(()) => {}
+                    Err(e) => eprintln!("Got reference error: {e:?}"),
                 }
+                self.class_map.insert(class_path, class);
             }
             Ok(ClassSource::Ref(doc)) => {
-                match parser::update_project_java_file(PathBuf::from(path.as_str()), &doc.ast) {
-                    Ok(class) => {
-                        let class_path = class.class_path.clone();
-                        match references::reference_update_class(
-                            &class,
-                            &self.class_map,
-                            &self.reference_map,
-                        ) {
-                            Ok(()) => {}
-                            Err(e) => eprintln!("Got reference error: {e:?}"),
-                        }
-                        self.class_map.insert(class_path, class);
-                    }
-                    Err(e) => eprintln!("Save file parse error {e:?}"),
+                let class =
+                    parser::update_project_java_file(PathBuf::from(path.as_str()), &doc.ast);
+                let class_path = class.class_path.clone();
+                match references::reference_update_class(
+                    &class,
+                    &self.class_map,
+                    &self.reference_map,
+                ) {
+                    Ok(()) => {}
+                    Err(e) => eprintln!("Got reference error: {e:?}"),
                 }
+                self.class_map.insert(class_path, class);
             }
             Err(_) => (),
         }
@@ -456,7 +450,7 @@ impl Backend {
             }
         }?;
 
-        match hover::base(document.value(), &point, &vars, &imports, &self.class_map) {
+        match hover::base(&document.ast, &point, &vars, &imports, &self.class_map) {
             Ok(hover) => Some(hover),
             Err(e) => {
                 eprintln!("Error while hover: {e:?}");
@@ -880,7 +874,7 @@ pub async fn fetch_deps(
     con: Arc<Connection>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
     project_kind: ProjectKind,
-    class_map: Arc<dashmap::DashMap<MyString, parser::dto::Class>>,
+    class_map: Arc<dashmap::DashMap<MyString, Class>>,
     use_cache: bool,
 ) {
     match project_kind {

@@ -13,7 +13,7 @@ use ast::types::AstPoint;
 use call_chain::CallItem;
 use dashmap::DashMap;
 use my_string::MyString;
-use parser::dto::{self, Access, Class, ImportUnit, JType};
+use parser::dto::{Access, Class, Field, ImportUnit, JType, Method};
 use variables::LocalVariable;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -42,7 +42,7 @@ pub struct ResolveState {
 pub fn is_imported_class_name(
     jtype: &str,
     imports: &[ImportUnit],
-    class_map: &DashMap<MyString, parser::dto::Class>,
+    class_map: &DashMap<MyString, Class>,
 ) -> bool {
     is_imported(jtype, imports, class_map).is_some()
 }
@@ -57,7 +57,7 @@ pub enum ImportResult {
 pub fn is_imported<'a>(
     jtype: &'a str,
     imports: &'a [ImportUnit],
-    class_map: &DashMap<MyString, parser::dto::Class>,
+    class_map: &DashMap<MyString, Class>,
 ) -> Option<ImportResult> {
     if jtype.starts_with("java.lang") {
         return Some(ImportResult::Class(jtype.into()));
@@ -105,7 +105,7 @@ pub fn is_imported<'a>(
 pub fn resolve(
     class_name: &str,
     imports: &[ImportUnit],
-    class_map: &DashMap<MyString, parser::dto::Class>,
+    class_map: &DashMap<MyString, Class>,
 ) -> Result<ResolveState, TyresError> {
     eprintln!("resolve: {class_name}");
 
@@ -148,15 +148,12 @@ pub fn resolve(
 }
 
 #[must_use]
-pub fn resolve_import(
-    jtype: &str,
-    class_map: &DashMap<MyString, parser::dto::Class>,
-) -> Vec<String> {
+pub fn resolve_import(jtype: &str, class_map: &DashMap<MyString, Class>) -> Vec<String> {
     resolve_class_key(class_map, |p| p.starts_with(jtype))
 }
 
 pub fn resolve_class_key(
-    class_map: &DashMap<MyString, parser::dto::Class>,
+    class_map: &DashMap<MyString, Class>,
     infl: impl Fn(&&MyString) -> bool,
 ) -> Vec<String> {
     class_map
@@ -171,7 +168,7 @@ pub fn resolve_class_key(
 pub fn resolve_var(
     extend: &LocalVariable,
     imports: &[ImportUnit],
-    class_map: &DashMap<MyString, parser::dto::Class>,
+    class_map: &DashMap<MyString, Class>,
 ) -> Result<ResolveState, TyresError> {
     resolve_jtype(&extend.jtype, imports, class_map)
 }
@@ -501,12 +498,12 @@ pub fn resolve_jtype(
             jtype: jtype.clone(),
             class: Class {
                 name: "array".into(),
-                methods: vec![dto::Method {
+                methods: vec![Method {
                     name: Some("clone".into()),
                     ret: JType::Array(i.clone()),
                     ..Default::default()
                 }],
-                fields: vec![dto::Field {
+                fields: vec![Field {
                     access: Access::empty(),
                     name: "length".into(),
                     jtype: JType::Int,
@@ -515,8 +512,7 @@ pub fn resolve_jtype(
                 ..Default::default()
             },
         }),
-        JType::Class(c) => resolve(c, imports, class_map),
-        JType::Generic(c, _vec) => resolve(c, imports, class_map),
+        JType::Class(c) | JType::Generic(c, _) => resolve(c, imports, class_map),
         JType::Parameter(p) => {
             let mut name = MyString::new();
             name.push('<');
@@ -534,6 +530,7 @@ pub fn resolve_jtype(
         JType::Var => Err(TyresError::CheckValue),
         JType::Access { base, inner } => {
             let query = format!("{}${}", &base, &inner);
+            eprintln!("Resolve JType::Access: {query}");
             let Some(out) = class_map.get(&query) else {
                 return Err(TyresError::ClassNotFound { class_path: query });
             };

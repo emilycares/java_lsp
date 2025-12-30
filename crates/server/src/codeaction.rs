@@ -9,15 +9,15 @@ use lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, Position, Range, TextEdit, Uri, WorkspaceEdit,
 };
 use my_string::MyString;
-use parser::dto::{self, ImportUnit};
+use parser::dto::{Class, ImportUnit};
 use tyres::TyresError;
 use variables::LocalVariable;
 
 pub struct CodeActionContext<'a> {
     pub point: &'a AstPoint,
     pub imports: &'a [ImportUnit],
-    pub class_map: &'a dashmap::DashMap<MyString, parser::dto::Class>,
-    pub class: &'a dto::Class,
+    pub class_map: &'a dashmap::DashMap<MyString, Class>,
+    pub class: &'a Class,
     pub vars: &'a [LocalVariable],
     pub current_file: &'a Uri,
 }
@@ -352,7 +352,7 @@ pub mod tests {
     use document::Document;
     use lsp_types::Uri;
     use my_string::MyString;
-    use parser::dto::{self, ImportUnit};
+    use parser::dto::{Access, Class, ImportUnit, JType, Method};
     use pretty_assertions::assert_eq;
 
     use crate::codeaction::replace_with_value_type;
@@ -372,8 +372,7 @@ public class Test {
         let point = AstPoint::new(4, 10);
         let doc = Document::setup(content, PathBuf::from_str("./").unwrap()).unwrap();
         let imports = vec![];
-        let class =
-            parser::java::load_java_tree(&doc.0.ast, parser::SourceDestination::None).unwrap();
+        let class = parser::java::load_java_tree(&doc.0.ast, parser::SourceDestination::None);
         let uri = Uri::from_str("file:///a").unwrap();
         let context = CodeActionContext {
             point: &point,
@@ -409,8 +408,7 @@ public class Test {
             ImportUnit::Class("java.io.FileInputStream".into()),
             ImportUnit::Class("java.io.File".into()),
         ];
-        let class =
-            parser::java::load_java_tree(&doc.0.ast, parser::SourceDestination::None).unwrap();
+        let class = parser::java::load_java_tree(&doc.0.ast, parser::SourceDestination::None);
         let uri = Uri::from_str("file:///a").unwrap();
         let context = CodeActionContext {
             point: &point,
@@ -447,8 +445,7 @@ public class Test {
         let point = AstPoint::new(5, 10);
         let doc = Document::setup(content, PathBuf::from_str("./").unwrap()).unwrap();
         let imports = vec![];
-        let class =
-            parser::java::load_java_tree(&doc.0.ast, parser::SourceDestination::None).unwrap();
+        let class = parser::java::load_java_tree(&doc.0.ast, parser::SourceDestination::None);
         let uri = Uri::from_str("file:///a").unwrap();
         let context = CodeActionContext {
             point: &point,
@@ -467,17 +464,17 @@ public class Test {
             _ => unreachable!(),
         }
     }
-    fn get_class_map() -> DashMap<MyString, dto::Class> {
-        let class_map: DashMap<MyString, dto::Class> = DashMap::new();
+    fn get_class_map() -> DashMap<MyString, Class> {
+        let class_map: DashMap<MyString, Class> = DashMap::new();
         class_map.insert(
             "java.lang.String".into(),
-            dto::Class {
-                access: dto::Access::Public,
+            Class {
+                access: Access::Public,
                 name: "String".into(),
-                methods: vec![dto::Method {
-                    access: dto::Access::Public,
+                methods: vec![Method {
+                    access: Access::Public,
                     name: Some("length".into()),
-                    ret: dto::JType::Int,
+                    ret: JType::Int,
                     ..Default::default()
                 }],
                 ..Default::default()
@@ -485,8 +482,8 @@ public class Test {
         );
         class_map.insert(
             "java.io.FileInputStream".into(),
-            dto::Class {
-                access: dto::Access::Public,
+            Class {
+                access: Access::Public,
                 name: "FileInputStream".into(),
                 methods: vec![],
                 ..Default::default()
@@ -494,8 +491,8 @@ public class Test {
         );
         class_map.insert(
             "java.io.File".into(),
-            dto::Class {
-                access: dto::Access::Public,
+            Class {
+                access: Access::Public,
                 name: "FileInputStream".into(),
                 methods: vec![],
                 ..Default::default()

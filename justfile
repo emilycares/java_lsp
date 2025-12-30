@@ -5,7 +5,7 @@ clippy:
   cargo clippy --workspace
 
 test:
-  cargo-nextest nextest run --workspace
+  cargo nextest run --workspace
 
 wtest:
   watchexec -e rs cargo nextest run --workspace
