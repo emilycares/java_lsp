@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    ffi::OsString,
     fs,
     path::{Path, PathBuf},
     sync::Arc,
@@ -267,6 +268,7 @@ impl Backend {
         class_map: Arc<DashMap<MyString, Class>>,
         reference_map: Arc<DashMap<MyString, Vec<ReferenceUnit>>>,
         project_dir: &Path,
+        path: &OsString,
     ) {
         let progress = Arc::new(progress);
         Self::progress_start_option_token(&con, &progress, "Init");
@@ -274,6 +276,7 @@ impl Backend {
         {
             let con = con.clone();
             let class_map = class_map.clone();
+            let path = path.to_owned();
             handles.spawn(async move {
                 let task = "Load jdk";
                 let progress = Arc::new(Option::Some(ProgressToken::String(task.to_owned())));
@@ -287,7 +290,7 @@ impl Backend {
                 Self::progress_start_option_token(&con.clone(), &progress, task);
                 tokio::select! {
                     () = read_forward(receiver, con.clone(), task.to_owned(), progress.clone())  => {},
-                    _ = jdk::load_classes(&class_map, sender) => {}
+                    _ = jdk::load_classes(&class_map, sender, &path) => {}
                 }
                 Self::progress_end_option_token(&con.clone(), &progress, task);
             });
@@ -320,6 +323,7 @@ impl Backend {
 
         {
             let con = con.clone();
+            let project_dir = project_dir.to_owned();
             handles.spawn(async move {
                 let task = "Load project files";
                 let progress = Arc::new(Option::Some(ProgressToken::String(task.to_owned())));
@@ -332,11 +336,13 @@ impl Backend {
                     1,
                 );
                 let project_classes = match project_kind {
-                    ProjectKind::Maven { executable: _ } => maven::project::load_project_folders(),
+                    ProjectKind::Maven { executable: _ } => {
+                        maven::project::load_project_folders(&project_dir)
+                    }
                     ProjectKind::Gradle {
                         executable: _,
                         path_build_gradle: _,
-                    } => gradle::project::load_project_folders(),
+                    } => gradle::project::load_project_folders(&project_dir),
                     ProjectKind::Unknown => loader::load_java_files(PathBuf::from("./")),
                 };
                 Self::progress_update_percentage_option_token(
@@ -750,8 +756,7 @@ impl Backend {
         &self,
         params: &WorkspaceSymbolParams,
     ) -> Option<WorkspaceSymbolResponse> {
-        let current_dir = std::env::current_dir().ok()?;
-        let symbols = jwalk::WalkDir::new(current_dir.join("src"))
+        let symbols = jwalk::WalkDir::new(self.project_dir.join("src"))
             .into_iter()
             .par_bridge()
             .filter_map(Result::ok)

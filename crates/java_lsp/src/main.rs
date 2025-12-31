@@ -37,7 +37,10 @@ async fn main() {
             }
         }
         Some(Commands::AstCheckJdk) => {
-            let (java_path, op_dir) = jdk::get_work_dirs().await.unwrap();
+            let Some(path) = std::env::var_os("PATH") else {
+                return;
+            };
+            let (java_path, op_dir) = jdk::get_work_dirs(&path).await.unwrap();
             let (sender, _) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress::default());
             jdk::load_jdk(java_path, &op_dir, sender).await.unwrap();
             cli::ast_check_dir(op_dir.join("src")).await.unwrap();

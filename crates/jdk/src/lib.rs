@@ -7,6 +7,7 @@
 #![allow(clippy::too_many_lines)]
 use std::{
     env,
+    ffi::OsString,
     fs::{self},
     path::{Path, PathBuf},
     str::Utf8Error,
@@ -49,8 +50,9 @@ pub enum JdkError {
 pub async fn load_classes(
     class_map: &DashMap<MyString, Class>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
+    path: &OsString,
 ) -> Result<(), JdkError> {
-    let (java_path, op_dir) = get_work_dirs().await?;
+    let (java_path, op_dir) = get_work_dirs(path).await?;
     let cache_path = op_dir.join(JDK_CFC);
 
     if cache_path.exists()
@@ -71,18 +73,15 @@ pub async fn load_classes(
     Ok(())
 }
 
-fn java_executable_location() -> Option<PathBuf> {
-    if let Some(paths) = env::var_os("PATH") {
-        return env::split_paths(&paths).find_map(|dir| {
-            let full_path = dir.join(EXECUTABLE_JAVA);
-            if full_path.is_file() {
-                Some(full_path)
-            } else {
-                None
-            }
-        });
-    }
-    None
+fn java_executable_location(path: &OsString) -> Option<PathBuf> {
+    env::split_paths(path).find_map(|dir| {
+        let full_path = dir.join(EXECUTABLE_JAVA);
+        if full_path.is_file() {
+            Some(full_path)
+        } else {
+            None
+        }
+    })
 }
 
 /// Extracts java jdk from from the java executable in path.
@@ -260,8 +259,8 @@ async fn unzip_to_dir(dir: &Path, zip: &PathBuf) -> Result<(), JdkError> {
 }
 
 /// Returns java path and opdir
-pub async fn get_work_dirs() -> Result<(PathBuf, PathBuf), JdkError> {
-    let mut java_path = java_executable_location().ok_or(JdkError::JavaNotInPath)?;
+pub async fn get_work_dirs(path: &OsString) -> Result<(PathBuf, PathBuf), JdkError> {
+    let mut java_path = java_executable_location(path).ok_or(JdkError::JavaNotInPath)?;
     if java_path.is_symlink()
         && let Ok(linked) = fs::read_link(&java_path)
     {

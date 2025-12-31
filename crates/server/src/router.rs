@@ -1,8 +1,11 @@
 use lsp_types::{
-    CodeActionParams, CompletionParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
+    CodeActionKind, CodeActionOptions, CodeActionParams, CodeActionProviderCapability,
+    CompletionOptions, CompletionParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
     DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentFormattingParams,
-    DocumentSymbolParams, ExecuteCommandParams, GotoDefinitionParams, HoverParams, ReferenceParams,
-    SignatureHelpParams, WorkspaceSymbolParams,
+    DocumentSymbolParams, ExecuteCommandOptions, ExecuteCommandParams, GotoDefinitionParams,
+    HoverParams, HoverProviderCapability, OneOf, ReferenceParams, ServerCapabilities,
+    SignatureHelpOptions, SignatureHelpParams, TextDocumentSyncCapability, TextDocumentSyncKind,
+    TextDocumentSyncOptions, WorkspaceSymbolParams,
     notification::{
         DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, DidSaveTextDocument,
         Notification,
@@ -16,8 +19,48 @@ use lsp_types::{
 
 use lsp_server::{Message, Response};
 
-use crate::backend::Backend;
+use crate::{backend::Backend, command::COMMAND_RELOAD_DEPENDENCIES};
 
+pub fn get_server_capabilities() -> ServerCapabilities {
+    ServerCapabilities {
+        text_document_sync: Some(TextDocumentSyncCapability::Options(
+            TextDocumentSyncOptions {
+                open_close: Some(true),
+                change: Some(TextDocumentSyncKind::INCREMENTAL),
+                will_save: None,
+                will_save_wait_until: None,
+                save: None,
+            },
+        )),
+        definition_provider: Some(OneOf::Left(true)),
+        references_provider: Some(OneOf::Left(true)),
+        code_action_provider: Some(CodeActionProviderCapability::Options(CodeActionOptions {
+            code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
+            ..CodeActionOptions::default()
+        })),
+        completion_provider: Some(CompletionOptions {
+            trigger_characters: Some([' ', '.', '('].iter().map(ToString::to_string).collect()),
+            ..CompletionOptions::default()
+        }),
+        document_symbol_provider: Some(OneOf::Left(true)),
+        workspace_symbol_provider: Some(OneOf::Left(true)),
+        // Not ready
+        // document_formatting_provider: Some(OneOf::Left(true)),
+        hover_provider: Some(HoverProviderCapability::Simple(true)),
+        signature_help_provider: Some(SignatureHelpOptions {
+            trigger_characters: Some(vec!["(".to_owned(), ",".to_owned(), "<".to_owned()]),
+            ..Default::default()
+        }),
+        document_highlight_provider: None,
+        execute_command_provider: Some(ExecuteCommandOptions {
+            commands: vec![COMMAND_RELOAD_DEPENDENCIES.to_owned()],
+            work_done_progress_options: lsp_types::WorkDoneProgressOptions {
+                work_done_progress: Some(true),
+            },
+        }),
+        ..ServerCapabilities::default()
+    }
+}
 pub fn route(backend: &Backend) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     loop {
         let Ok(msg) = backend.connection.receiver.recv() else {
