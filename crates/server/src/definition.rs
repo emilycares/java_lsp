@@ -1,5 +1,6 @@
 use ast::types::{AstFile, AstPoint};
 use call_chain::CallItem;
+use dashmap::DashMap;
 use document::{Document, DocumentError, read_document_or_open_class};
 use lsp_extra::{SourceToUriError, ToLspRangeError, source_to_uri, to_lsp_range};
 use lsp_types::{GotoDefinitionResponse, Location, SymbolKind, Uri};
@@ -32,14 +33,14 @@ pub struct DefinitionContext<'a> {
     pub vars: &'a [LocalVariable],
     pub imports: &'a [ImportUnit],
     pub class: &'a Class,
-    pub class_map: &'a dashmap::DashMap<MyString, Class>,
-    pub document_map: &'a dashmap::DashMap<MyString, Document>,
+    pub class_map: &'a DashMap<MyString, Class>,
+    pub document_map: &'a DashMap<MyString, Document>,
 }
 
 pub fn class(
     ast: &AstFile,
     context: &DefinitionContext,
-    document_map: &dashmap::DashMap<MyString, Document>,
+    document_map: &DashMap<MyString, Document>,
 ) -> Result<GotoDefinitionResponse, DefinitionError> {
     match class_action(
         ast,

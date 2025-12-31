@@ -1,11 +1,6 @@
-use std::{
-    fs::{self},
-    str::Utf8Error,
-};
-
 use ast::types::{AstFile, AstPoint};
 use call_chain::CallItem;
-use dashmap::ReadOnlyView;
+use dashmap::{DashMap, ReadOnlyView};
 use document::{ClassSource, Document, DocumentError};
 use lsp_extra::{SourceToUriError, ToLspRangeError, source_to_uri, to_lsp_range};
 use lsp_types::Location;
@@ -14,14 +9,10 @@ use parser::dto::{Class, ImportUnit};
 use position::PositionSymbol;
 use variables::LocalVariable;
 
-use crate::definition::{self, DefinitionError};
+use crate::definition::DefinitionError;
 
 #[derive(Debug)]
 pub enum ReferencesError {
-    IoRead(MyString, std::io::Error),
-    Utf8(Utf8Error),
-    Lexer(ast::lexer::LexerError),
-    Ast(ast::error::AstError),
     Position(position::PositionError),
     FindClassnameInClasspath(String),
     Tyres(tyres::TyresError),
@@ -44,7 +35,7 @@ pub struct ReferencePosition(PositionSymbol);
 pub struct ReferencesContext<'a> {
     pub point: &'a AstPoint,
     pub imports: &'a [ImportUnit],
-    pub class_map: &'a dashmap::DashMap<MyString, Class>,
+    pub class_map: &'a DashMap<MyString, Class>,
     pub class: &'a Class,
     pub vars: &'a [LocalVariable],
 }
@@ -52,8 +43,9 @@ pub struct ReferencesContext<'a> {
 #[must_use]
 pub fn class_path(
     class_path: &str,
-    reference_map: &dashmap::DashMap<MyString, Vec<ReferenceUnit>>,
-    class_map: &dashmap::DashMap<MyString, Class>,
+    reference_map: &DashMap<MyString, Vec<ReferenceUnit>>,
+    class_map: &DashMap<MyString, Class>,
+    document_map: &DashMap<MyString, Document>,
 ) -> Option<Vec<Location>> {
     if let Some(crefs) = reference_map.get(class_path) {
         let refs = crefs
@@ -61,13 +53,14 @@ pub fn class_path(
             .filter_map(|i| match i {
                 ReferenceUnit::Class(s) | ReferenceUnit::StaticClass(s) => class_map.get(s),
             })
+            .filter_map(|i| document_map.get(&i.source))
             .filter_map(|lookup| {
-                let refs = get_position_references(&lookup, class_path, None).ok()?;
+                let refs = pos_refs_helper(&lookup.ast, class_path).ok()?;
                 let a = refs.first().map(|i| i.0.range);
                 a.map(|a| (lookup, a))
             })
             .filter_map(
-                |(lookup, range)| match definition::class_to_uri(lookup.value()) {
+                |(lookup, range)| match source_to_uri(lookup.path.to_str()?) {
                     Ok(u) => Some((u, range)),
                     Err(e) => {
                         eprintln!("References Uri error {e:?}");
@@ -88,8 +81,8 @@ pub fn class_path(
 pub fn call_chain_references(
     call_chain: &[CallItem],
     context: &ReferencesContext,
-    reference_map: &dashmap::DashMap<MyString, Vec<ReferenceUnit>>,
-    document_map: &dashmap::DashMap<MyString, Document>,
+    reference_map: &DashMap<MyString, Vec<ReferenceUnit>>,
+    document_map: &DashMap<MyString, Document>,
 ) -> Result<Vec<Location>, ReferencesError> {
     let (item, relevant) = call_chain::validate(call_chain, context.point);
 
@@ -150,7 +143,7 @@ pub fn call_chain_references(
 fn method_references(
     class: &Class,
     query_method_name: &str,
-    document_map: &dashmap::DashMap<MyString, Document>,
+    document_map: &DashMap<MyString, Document>,
 ) -> Result<Vec<ReferencePosition>, ReferencesError> {
     let uri = source_to_uri(&class.source).map_err(|e| {
         eprintln!("Got into definition error: {e:?}");
@@ -176,8 +169,8 @@ fn method_references(
 
 pub fn init_reference_map(
     project_classes: &[Class],
-    class_map: &dashmap::DashMap<MyString, Class>,
-    reference_map: &dashmap::DashMap<MyString, Vec<ReferenceUnit>>,
+    class_map: &DashMap<MyString, Class>,
+    reference_map: &DashMap<MyString, Vec<ReferenceUnit>>,
 ) -> Result<(), ReferencesError> {
     for class in project_classes {
         reference_update_class(class, class_map, reference_map)?;
@@ -187,8 +180,8 @@ pub fn init_reference_map(
 
 pub fn reference_update_class(
     class: &Class,
-    class_map: &dashmap::DashMap<MyString, Class>,
-    reference_map: &dashmap::DashMap<MyString, Vec<ReferenceUnit>>,
+    class_map: &DashMap<MyString, Class>,
+    reference_map: &DashMap<MyString, Vec<ReferenceUnit>>,
 ) -> Result<(), ReferencesError> {
     let class_path = class.class_path.clone();
     let r_class_map = class_map.clone().into_read_only();
@@ -230,31 +223,6 @@ pub fn reference_update_class(
         }
     }
     Ok(())
-}
-
-fn get_position_references(
-    class: &Class,
-    query_class_path: &str,
-    ast: Option<&AstFile>,
-) -> Result<Vec<ReferencePosition>, ReferencesError> {
-    let Some(query_class_name) = ImportUnit::class_path_get_class_name(query_class_path) else {
-        return Err(ReferencesError::FindClassnameInClasspath(
-            query_class_path.to_string(),
-        ));
-    };
-    if let Some(ast) = ast {
-        pos_refs_helper(ast, query_class_name)
-    } else {
-        match fs::read(&class.source) {
-            Err(e) => Err(ReferencesError::IoRead(class.source.clone(), e)),
-            Ok(bytes) => {
-                let str = str::from_utf8(&bytes).map_err(ReferencesError::Utf8)?;
-                let tokens = ast::lexer::lex(str).map_err(ReferencesError::Lexer)?;
-                let ast = ast::parse_file(&tokens).map_err(ReferencesError::Ast)?;
-                pos_refs_helper(&ast, query_class_name)
-            }
-        }
-    }
 }
 
 fn pos_refs_helper(

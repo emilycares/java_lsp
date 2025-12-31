@@ -1,4 +1,5 @@
 use std::{
+    hash::{DefaultHasher, Hash, Hasher},
     path::{Path, PathBuf},
     sync::{
         Arc,
@@ -61,7 +62,6 @@ pub enum MavenFetchError {
     DownloadSources(String),
     FailedToResolveSources(std::io::Error),
 }
-pub const MAVEN_CFC: &str = ".maven.cfc";
 
 pub async fn fetch_deps(
     class_map: Arc<DashMap<MyString, Class>>,
@@ -69,11 +69,13 @@ pub async fn fetch_deps(
     use_cache: bool,
     download: bool,
     maven_executable: &str,
+    project_dir: &Path,
+    project_cache_dir: &Path,
 ) -> Result<(), MavenFetchError> {
-    let path = Path::new(&MAVEN_CFC);
+    let cache_path = get_maven_cache_path(project_dir, project_cache_dir);
     if use_cache
-        && path.exists()
-        && let Ok(classes) = loader::load_class_folder(path)
+        && cache_path.exists()
+        && let Ok(classes) = loader::load_class_folder(&cache_path)
     {
         for class in classes.classes {
             class_map.insert(class.class_path.clone(), class);
@@ -146,13 +148,21 @@ pub async fn fetch_deps(
         classes: done.into_iter().flatten().flat_map(|i| i.classes).collect(),
     };
 
-    if let Err(e) = loader::save_class_folder(MAVEN_CFC, &maven_class_folder) {
-        eprintln!("Failed to save {MAVEN_CFC} because: {e:?}");
+    if let Err(e) = loader::save_class_folder(&cache_path, &maven_class_folder) {
+        eprintln!("Failed to save {} because: {e:?}", cache_path.display());
     }
     for class in maven_class_folder.classes {
         class_map.insert(class.class_path.clone(), class);
     }
     Ok(())
+}
+
+#[must_use]
+pub fn get_maven_cache_path(project_dir: &Path, project_cache_dir: &Path) -> PathBuf {
+    let mut hasher = DefaultHasher::new();
+    project_dir.hash(&mut hasher);
+    let s = format!("{}.maven.cfc", hasher.finish());
+    project_cache_dir.join(s)
 }
 
 async fn download_sources(

@@ -36,18 +36,18 @@ impl Display for ProjectKind {
     }
 }
 
-pub fn get_project_kind() -> Result<ProjectKind, ProjectKindError> {
-    eprintln!("Current dir {:?}", std::env::current_dir().ok());
-    if PathBuf::from("./pom.xml").exists() {
+pub fn get_project_kind(project_dir: &PathBuf) -> Result<ProjectKind, ProjectKindError> {
+    eprintln!("Current dir {:?}", project_dir);
+    if project_dir.join("pom.xml").exists() {
         return get_maven_executable();
     }
 
-    let build_gradle = PathBuf::from("./build.gradle");
+    let build_gradle = project_dir.join("build.gradle");
     if build_gradle.exists() {
         return get_gradle_executable(build_gradle);
     }
 
-    let build_gradle = PathBuf::from("./build.gradle.kts");
+    let build_gradle = project_dir.join("build.gradle.kts");
     if build_gradle.exists() {
         return get_gradle_executable(build_gradle);
     }

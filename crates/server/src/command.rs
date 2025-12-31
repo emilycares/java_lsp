@@ -1,6 +1,11 @@
-use std::{fs, path::PathBuf, sync::Arc};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
-use common::{TaskProgress, project_kind::ProjectKind};
+use common::{TaskProgress, project_cache_dir, project_kind::ProjectKind};
+use dashmap::DashMap;
 use lsp_server::Connection;
 use lsp_types::ProgressToken;
 use my_string::MyString;
@@ -14,11 +19,13 @@ pub fn reload_dependencies(
     con: &Arc<Connection>,
     progress: Option<ProgressToken>,
     project_kind: &ProjectKind,
-    class_map: &Arc<dashmap::DashMap<MyString, Class>>,
+    class_map: &Arc<DashMap<MyString, Class>>,
+    project_dir: &Path,
 ) -> Option<serde_json::Value> {
     let con = con.clone();
     let project_kind = project_kind.clone();
     let class_map = class_map.clone();
+    let project_dir = project_dir.to_owned();
     tokio::spawn(async move {
         let task = format!("Command: {COMMAND_RELOAD_DEPENDENCIES}");
         let progress = Arc::new(progress);
@@ -28,31 +35,16 @@ pub fn reload_dependencies(
             error: false,
             message: "...".to_string(),
         });
-        match project_kind {
-            ProjectKind::Maven { executable: _ } => {
-                let cache = PathBuf::from(maven::fetch::MAVEN_CFC);
-                if cache.exists() {
-                    let _ = fs::remove_file(cache);
-                }
-                let cache = PathBuf::from(maven::compile::CLASSPATH_FILE);
-                if cache.exists() {
-                    let _ = fs::remove_file(cache);
-                }
+        if let ProjectKind::Maven { executable: _ } = project_kind {
+            let cache = PathBuf::from(maven::compile::CLASSPATH_FILE);
+            if cache.exists() {
+                let _ = fs::remove_file(cache);
             }
-            ProjectKind::Gradle {
-                executable: _,
-                path_build_gradle: _,
-            } => {
-                let cache = PathBuf::from(gradle::fetch::GRADLE_CFC);
-                if cache.exists() {
-                    let _ = fs::remove_file(cache);
-                }
-            }
-            ProjectKind::Unknown => (),
         }
+        let cache = project_cache_dir();
         tokio::select! {
             () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-            () = fetch_deps(con.clone(), sender, project_kind, class_map.clone(), false) => {}
+            () = fetch_deps(con.clone(), sender, project_kind, class_map.clone(), false, &project_dir, &cache) => {}
         }
         Backend::progress_end_option_token(&con.clone(), &progress, &task);
     });

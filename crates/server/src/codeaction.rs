@@ -4,6 +4,7 @@ use ast::types::{
     AstBlockEntry, AstBlockVariable, AstFile, AstForContent, AstIf, AstIfContent, AstPoint,
     AstThing, AstWhileContent,
 };
+use dashmap::DashMap;
 use lsp_extra::{ToLspRangeError, to_lsp_range};
 use lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, Position, Range, TextEdit, Uri, WorkspaceEdit,
@@ -16,7 +17,7 @@ use variables::LocalVariable;
 pub struct CodeActionContext<'a> {
     pub point: &'a AstPoint,
     pub imports: &'a [ImportUnit],
-    pub class_map: &'a dashmap::DashMap<MyString, Class>,
+    pub class_map: &'a DashMap<MyString, Class>,
     pub class: &'a Class,
     pub vars: &'a [LocalVariable],
     pub current_file: &'a Uri,

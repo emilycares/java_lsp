@@ -10,3 +10,4 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
+dirs.workspace = true

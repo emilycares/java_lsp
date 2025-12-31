@@ -45,14 +45,17 @@ pub fn main(
     connection: Connection,
     io_threads: IoThreads,
 ) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
-    let project_kind = common::project_kind::get_project_kind();
+    let Ok(project_dir) = std::env::current_dir() else {
+        return Ok(());
+    };
+    let project_kind = common::project_kind::get_project_kind(&project_dir);
     if let Err(e) = project_kind {
         eprintln!("Error with project init: {e:?}");
         std::process::exit(1);
     }
     let project_kind = project_kind.expect("Program should already have exited");
     eprintln!("Start java_lsp with project_kind: {project_kind:?}");
-    let backend = Backend::new(connection, project_kind);
+    let backend = Backend::new(connection, project_kind, project_dir);
 
     // Run the server and wait for the two threads to end (typically by trigger LSP Exit event).
     let server_capabilities = serde_json::to_value(ServerCapabilities {
@@ -122,6 +125,7 @@ fn main_loop(
     let project_kind = backend.project_kind.clone();
     let class_map = backend.class_map.clone();
     let reference_map = backend.reference_map.clone();
+    let project_dir = backend.project_dir.clone();
     tokio::spawn(async move {
         Backend::initialized(
             params.work_done_progress_params.work_done_token,
@@ -129,6 +133,7 @@ fn main_loop(
             project_kind,
             class_map.clone(),
             reference_map,
+            &project_dir,
         )
         .await;
     });

@@ -61,13 +61,14 @@ where
     java::load_java(&mmap[..], source)
 }
 
-pub fn save_class_folder<P: AsRef<Path>>(
+pub fn save_class_folder<P: AsRef<Path> + Debug>(
     path: P,
     class_folder: &ClassFolder,
 ) -> Result<(), LoaderError> {
     if class_folder.classes.is_empty() {
         return Ok(());
     }
+    eprintln!("Writing cache file to: {path:?}");
     let mut file = OpenOptions::new()
         .create(true)
         .truncate(true)

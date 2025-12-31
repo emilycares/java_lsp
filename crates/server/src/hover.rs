@@ -1,5 +1,6 @@
 use ast::types::{AstFile, AstPoint};
 use call_chain::{self, CallItem};
+use dashmap::DashMap;
 use document::get_class_path;
 use lsp_extra::{ToLspRangeError, to_lsp_range};
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
@@ -31,7 +32,7 @@ pub fn base(
     point: &AstPoint,
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
-    class_map: &dashmap::DashMap<MyString, Class>,
+    class_map: &DashMap<MyString, Class>,
 ) -> Result<Hover, HoverError> {
     match class_action(ast, point, lo_va, imports, class_map) {
         Ok((class, range)) => {
@@ -81,7 +82,7 @@ pub fn class_action(
     point: &AstPoint,
     _lo_va: &[LocalVariable],
     imports: &[ImportUnit],
-    class_map: &dashmap::DashMap<MyString, Class>,
+    class_map: &DashMap<MyString, Class>,
 ) -> Result<(Class, Range), ClassActionError> {
     if let Some(class) = get_class::get_class(ast, point) {
         let range = to_lsp_range(&class.range).map_err(ClassActionError::ToLspRange)?;
@@ -100,7 +101,7 @@ pub fn call_chain_hover(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &dashmap::DashMap<MyString, Class>,
+    class_map: &DashMap<MyString, Class>,
 ) -> Result<Hover, HoverError> {
     let (item, relevant) = call_chain::validate(call_chain, point);
     let Some(el) = call_chain.get(item) else {

@@ -207,7 +207,7 @@ pub fn read_document_or_open_class<'a>(
 
 pub fn get_ast(
     source: &str,
-    document_map: &dashmap::DashMap<MyString, Document>,
+    document_map: &DashMap<MyString, Document>,
 ) -> Result<AstFile, DocumentError> {
     match read_document_or_open_class(source, document_map)? {
         ClassSource::Owned(d, _) => Ok(d.ast),

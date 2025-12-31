@@ -1,5 +1,6 @@
 use ast::types::{AstFile, AstPoint};
 use call_chain::get_call_chain;
+use dashmap::DashMap;
 use document::{Document, DocumentError};
 use get_class::FoundClass;
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat};
@@ -224,7 +225,7 @@ pub fn complete_call_chain(
     vars: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &dashmap::DashMap<MyString, Class>,
+    class_map: &DashMap<MyString, Class>,
 ) -> Result<Vec<CompletionItem>, CompletionError> {
     let call_chain = get_call_chain(&document.ast, point);
     match tyres::resolve_call_chain(&call_chain, vars, imports, class, class_map) {
@@ -238,7 +239,7 @@ pub fn classes(
     document: &Document,
     point: &AstPoint,
     imports: &[ImportUnit],
-    class_map: &dashmap::DashMap<MyString, Class>,
+    class_map: &DashMap<MyString, Class>,
 ) -> Vec<CompletionItem> {
     if point.col < 3 {
         return vec![];
@@ -288,7 +289,7 @@ pub fn classes(
 pub fn static_methods(
     ast: &AstFile,
     imports: &[ImportUnit],
-    class_map: &dashmap::DashMap<MyString, Class>,
+    class_map: &DashMap<MyString, Class>,
 ) -> Vec<CompletionItem> {
     imports
         .iter()

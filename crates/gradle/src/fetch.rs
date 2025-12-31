@@ -1,5 +1,6 @@
 use std::{
     fs::{self},
+    hash::{DefaultHasher, Hash, Hasher},
     path::{Path, PathBuf},
     process::Command,
     sync::{
@@ -32,8 +33,6 @@ pub enum GradleFetchError {
     GradlewNotExecutable,
 }
 
-pub const GRADLE_CFC: &str = ".gradle.cfc";
-
 // https://github.com/gradle/gradle/issues/20460
 // https://www.javathinking.com/blog/how-do-i-print-out-the-java-classpath-in-gradle/
 // https://github.com/dansomething/gradle-classpath
@@ -43,10 +42,14 @@ pub async fn fetch_deps(
     build_gradle: PathBuf,
     executable_gradle: &str,
     sender: tokio::sync::watch::Sender<TaskProgress>,
+    use_cache: bool,
+    project_dir: &Path,
+    project_cache_dir: &Path,
 ) -> Result<(), GradleFetchError> {
-    let path = Path::new(&GRADLE_CFC);
-    if path.exists()
-        && let Ok(classes) = loader::load_class_folder(path)
+    let cache_path = get_gradle_cache_path(project_dir, project_cache_dir);
+    if use_cache
+        && cache_path.exists()
+        && let Ok(classes) = loader::load_class_folder(&cache_path)
     {
         for class in classes.classes {
             class_map.insert(class.class_path.clone(), class);
@@ -107,8 +110,8 @@ pub async fn fetch_deps(
     let gradle_class_folder = ClassFolder {
         classes: done.into_iter().flatten().flat_map(|i| i.classes).collect(),
     };
-    if let Err(e) = loader::save_class_folder(GRADLE_CFC, &gradle_class_folder) {
-        eprintln!("Failed to save {GRADLE_CFC} because: {e:?}");
+    if let Err(e) = loader::save_class_folder(&cache_path, &gradle_class_folder) {
+        eprintln!("Failed to save {} because: {e:?}", cache_path.display());
     }
     for class in gradle_class_folder.classes {
         class_map.insert(class.class_path.clone(), class);
@@ -188,4 +191,12 @@ fn write_build_gradle(
         Err(e) => Err(GradleFetchError::CouldNotModifyBuildGradle(e)),
         Ok(()) => Ok(()),
     }
+}
+
+#[must_use]
+pub fn get_gradle_cache_path(project_dir: &Path, project_cache_dir: &Path) -> PathBuf {
+    let mut hasher = DefaultHasher::new();
+    project_dir.hash(&mut hasher);
+    let s = format!("{}.gradle.cfc", hasher.finish());
+    project_cache_dir.join(s)
 }

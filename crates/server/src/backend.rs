@@ -1,7 +1,12 @@
-use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use call_chain::get_call_chain;
-use common::{TaskProgress, project_kind::ProjectKind};
+use common::{TaskProgress, project_cache_dir, project_kind::ProjectKind};
 use compile::CompileError;
 use dashmap::{DashMap, DashSet};
 use document::{ClassSource, Document, get_class_path, open_document, read_document_or_open_class};
@@ -15,9 +20,8 @@ use lsp_types::{
     DocumentSymbolParams, DocumentSymbolResponse, ExecuteCommandParams, GotoDefinitionParams,
     GotoDefinitionResponse, Hover, HoverParams, Location, Position, ProgressParams,
     ProgressParamsValue, ProgressToken, PublishDiagnosticsParams, Range, ReferenceParams,
-    SignatureHelp, SignatureHelpParams, TextDocumentContentChangeEvent, TextEdit, Uri,
-    WorkDoneProgress, WorkDoneProgressBegin, WorkDoneProgressEnd, WorkDoneProgressReport,
-    WorkspaceSymbolParams, WorkspaceSymbolResponse,
+    SignatureHelp, SignatureHelpParams, TextEdit, Uri, WorkDoneProgress, WorkDoneProgressBegin,
+    WorkDoneProgressEnd, WorkDoneProgressReport, WorkspaceSymbolParams, WorkspaceSymbolResponse,
     notification::{Notification, Progress, PublishDiagnostics},
 };
 use maven::{fetch::MavenFetchError, tree::MavenTreeError};
@@ -45,10 +49,11 @@ pub struct Backend {
     pub reference_map: Arc<DashMap<MyString, Vec<ReferenceUnit>>>,
     pub client_capabilities: Arc<Option<ClientCapabilities>>,
     pub connection: Arc<Connection>,
+    pub project_dir: PathBuf,
 }
 
 impl Backend {
-    pub fn new(connection: Connection, project_kind: ProjectKind) -> Self {
+    pub fn new(connection: Connection, project_kind: ProjectKind, project_dir: PathBuf) -> Self {
         Self {
             connection: Arc::new(connection),
             error_files: DashSet::new(),
@@ -57,19 +62,8 @@ impl Backend {
             class_map: Arc::new(DashMap::new()),
             reference_map: Arc::new(DashMap::new()),
             client_capabilities: Arc::new(None),
+            project_dir,
         }
-    }
-
-    fn on_change(&self, uri: Uri, changes: &[TextDocumentContentChangeEvent]) {
-        let Some(mut document) = self.document_map.get_mut(&get_document_map_key(&uri)) else {
-            eprintln!("on_change document not found");
-            return;
-        };
-        let mut errors = Vec::new();
-        if let Ok(Some(d)) = document.apply_text_changes(changes) {
-            errors.push(d);
-        }
-        Self::send_diagnostic(&self.connection.clone(), uri, errors);
     }
 
     pub fn send_diagnostic(con: &Arc<Connection>, uri: Uri, diagnostics: Vec<Diagnostic>) {
@@ -270,8 +264,9 @@ impl Backend {
         progress: Option<ProgressToken>,
         con: Arc<Connection>,
         project_kind: ProjectKind,
-        class_map: Arc<dashmap::DashMap<MyString, Class>>,
-        reference_map: Arc<dashmap::DashMap<MyString, Vec<ReferenceUnit>>>,
+        class_map: Arc<DashMap<MyString, Class>>,
+        reference_map: Arc<DashMap<MyString, Vec<ReferenceUnit>>>,
+        project_dir: &Path,
     ) {
         let progress = Arc::new(progress);
         Self::progress_start_option_token(&con, &progress, "Init");
@@ -304,6 +299,7 @@ impl Backend {
             let progress = Arc::new(Option::Some(ProgressToken::String(task.clone())));
             let project_kind = project_kind.clone();
             let class_map = class_map.clone();
+            let project_dir = project_dir.to_owned();
             handles.spawn(async move {
                 Self::progress_start_option_token(&con.clone(), &progress, &task);
                 let (sender, receiver) =
@@ -312,10 +308,11 @@ impl Backend {
                         error: false,
                         message: "...".to_string(),
                     });
+                let cache = project_cache_dir();
 
                 tokio::select! {
                     () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-                    () = fetch_deps(con.clone(), sender, project_kind.clone(), class_map.clone(), true) => {}
+                    () = fetch_deps(con.clone(), sender, project_kind.clone(), class_map.clone(), true, &project_dir, &cache) => {}
                 }
                 Self::progress_end_option_token(&con, &progress, &task);
             });
@@ -394,7 +391,22 @@ impl Backend {
     }
 
     pub fn did_change(&self, params: &DidChangeTextDocumentParams) {
-        self.on_change(params.text_document.uri.clone(), &params.content_changes);
+        let Some(mut document) = self
+            .document_map
+            .get_mut(&get_document_map_key(&params.text_document.uri))
+        else {
+            eprintln!("on_change document not found");
+            return;
+        };
+        let mut errors = Vec::new();
+        if let Ok(Some(d)) = document.apply_text_changes(&params.content_changes) {
+            errors.push(d);
+        }
+        Self::send_diagnostic(
+            &self.connection.clone(),
+            params.text_document.uri.clone(),
+            errors,
+        );
     }
 
     pub fn did_save(&self, params: &DidSaveTextDocumentParams) {
@@ -621,9 +633,12 @@ impl Backend {
         }?;
         match class_action(&document.ast, &point, &vars, &imports, &self.class_map) {
             Ok((class, _range)) => {
-                if let Some(value) =
-                    references::class_path(&class.class_path, &self.reference_map, &self.class_map)
-                {
+                if let Some(value) = references::class_path(
+                    &class.class_path,
+                    &self.reference_map,
+                    &self.class_map,
+                    &self.document_map,
+                ) {
                     return Some(value);
                 }
             }
@@ -816,6 +831,7 @@ impl Backend {
                 progress,
                 &self.project_kind,
                 &self.class_map.clone(),
+                &self.project_dir,
             ),
             u => {
                 eprintln!("Unhandled command: {u}");
@@ -874,12 +890,24 @@ pub async fn fetch_deps(
     con: Arc<Connection>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
     project_kind: ProjectKind,
-    class_map: Arc<dashmap::DashMap<MyString, Class>>,
+    class_map: Arc<DashMap<MyString, Class>>,
     use_cache: bool,
+    project_dir: &Path,
+    project_cache_dir: &Path,
 ) {
     match project_kind {
         ProjectKind::Maven { executable } => {
-            match maven::fetch::fetch_deps(class_map, sender, use_cache, true, &executable).await {
+            match maven::fetch::fetch_deps(
+                class_map,
+                sender,
+                use_cache,
+                true,
+                &executable,
+                project_dir,
+                project_cache_dir,
+            )
+            .await
+            {
                 Ok(()) => (),
                 Err(e) => {
                     eprintln!("Got error while loading maven project: {e:?}");
@@ -984,8 +1012,16 @@ pub async fn fetch_deps(
         ProjectKind::Gradle {
             executable,
             path_build_gradle,
-        } => match gradle::fetch::fetch_deps(&class_map, path_build_gradle, &executable, sender)
-            .await
+        } => match gradle::fetch::fetch_deps(
+            &class_map,
+            path_build_gradle,
+            &executable,
+            sender,
+            use_cache,
+            project_dir,
+            project_cache_dir,
+        )
+        .await
         {
             Ok(()) => (),
             Err(e) => {
