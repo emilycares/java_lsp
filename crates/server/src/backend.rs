@@ -10,7 +10,10 @@ use call_chain::get_call_chain;
 use common::{TaskProgress, project_cache_dir, project_kind::ProjectKind};
 use compile::CompileError;
 use dashmap::{DashMap, DashSet};
-use document::{ClassSource, Document, get_class_path, open_document, read_document_or_open_class};
+use document::{
+    ClassSource, Document, DocumentError, get_class_path, open_document,
+    read_document_or_open_class,
+};
 use loader::LoaderError;
 use lsp_extra::{SERVER_NAME, source_to_uri, to_ast_point};
 use lsp_server::{Connection, Message};
@@ -38,7 +41,7 @@ use crate::{
     completion,
     definition::{self, DefinitionContext},
     hover::{self, class_action},
-    references::{self, ReferenceUnit, ReferencesContext},
+    references::{self, ReferenceUnit, ReferencesContext, ReferencesError},
     signature,
 };
 
@@ -382,8 +385,9 @@ impl Backend {
             &params.text_document.text,
             &self.document_map,
         ) {
-            Ok(diag) => {
-                self.handle_diagnostic(params.text_document.uri.clone(), diag);
+            Ok(()) => {}
+            Err(DocumentError::Diagnostic(diag)) => {
+                self.handle_diagnostic(params.text_document.uri.clone(), Some(*diag));
             }
             Err(e) => {
                 eprintln!("Error while on_open: {e:?}");
@@ -405,8 +409,10 @@ impl Backend {
             return;
         };
         let mut errors = Vec::new();
-        if let Ok(Some(d)) = document.apply_text_changes(&params.content_changes) {
-            errors.push(d);
+        if let Err(DocumentError::Diagnostic(diag)) =
+            document.apply_text_changes(&params.content_changes)
+        {
+            errors.push(*diag);
         }
         Self::send_diagnostic(
             &self.connection.clone(),
@@ -422,8 +428,8 @@ impl Backend {
         self.publish_compile_errors(errors);
 
         match read_document_or_open_class(path.as_str(), &self.document_map) {
-            Ok(ClassSource::Owned(doc, diag)) => {
-                self.handle_diagnostic(params.text_document.uri.clone(), *diag);
+            Ok(ClassSource::Owned(doc)) => {
+                self.handle_diagnostic(params.text_document.uri.clone(), None);
                 let class =
                     parser::update_project_java_file(PathBuf::from(path.as_str()), &doc.ast);
                 let class_path = class.class_path.clone();
@@ -438,6 +444,7 @@ impl Backend {
                 self.class_map.insert(class_path, class);
             }
             Ok(ClassSource::Ref(doc)) => {
+                self.handle_diagnostic(params.text_document.uri.clone(), None);
                 let class =
                     parser::update_project_java_file(PathBuf::from(path.as_str()), &doc.ast);
                 let class_path = class.class_path.clone();
@@ -450,6 +457,9 @@ impl Backend {
                     Err(e) => eprintln!("Got reference error: {e:?}"),
                 }
                 self.class_map.insert(class_path, class);
+            }
+            Err(DocumentError::Diagnostic(diag)) => {
+                self.handle_diagnostic(params.text_document.uri.clone(), Some(*diag));
             }
             Err(_) => (),
         }
@@ -674,6 +684,10 @@ impl Backend {
             &self.document_map,
         ) {
             Ok(refs) => Some(refs),
+            Err(ReferencesError::Document(DocumentError::Diagnostic(diag))) => {
+                self.handle_diagnostic(uri, Some(*diag));
+                None
+            }
             Err(e) => {
                 eprintln!("Got reference call_chain error: {e:?}");
                 None
@@ -776,7 +790,7 @@ impl Backend {
             .filter_map(|(path, source)| {
                 let mut out = vec![];
                 match source {
-                    ClassSource::Owned(d, _) => {
+                    ClassSource::Owned(d) => {
                         let _ = position::get_class_position_ast(&d.ast, None, &mut out);
                     }
                     ClassSource::Ref(d) => {

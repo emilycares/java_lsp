@@ -373,17 +373,17 @@ public class Test {
         let point = AstPoint::new(4, 10);
         let doc = Document::setup(content, PathBuf::from_str("./").unwrap()).unwrap();
         let imports = vec![];
-        let class = parser::java::load_java_tree(&doc.0.ast, parser::SourceDestination::None);
+        let class = parser::java::load_java_tree(&doc.ast, parser::SourceDestination::None);
         let uri = Uri::from_str("file:///a").unwrap();
         let context = CodeActionContext {
             point: &point,
             imports: &imports,
             class_map: &get_class_map(),
             class: &class,
-            vars: &variables::get_vars(&doc.0.ast, &point).unwrap(),
+            vars: &variables::get_vars(&doc.ast, &point).unwrap(),
             current_file: &uri,
         };
-        let out = replace_with_value_type(&doc.0.ast, &context);
+        let out = replace_with_value_type(&doc.ast, &context);
         let result = out.unwrap().unwrap();
         match result {
             lsp_types::CodeActionOrCommand::CodeAction(code_action) => {
@@ -409,17 +409,17 @@ public class Test {
             ImportUnit::Class("java.io.FileInputStream".into()),
             ImportUnit::Class("java.io.File".into()),
         ];
-        let class = parser::java::load_java_tree(&doc.0.ast, parser::SourceDestination::None);
+        let class = parser::java::load_java_tree(&doc.ast, parser::SourceDestination::None);
         let uri = Uri::from_str("file:///a").unwrap();
         let context = CodeActionContext {
             point: &point,
             imports: &imports,
             class_map: &get_class_map(),
             class: &class,
-            vars: &variables::get_vars(&doc.0.ast, &point).unwrap(),
+            vars: &variables::get_vars(&doc.ast, &point).unwrap(),
             current_file: &uri,
         };
-        let out = replace_with_value_type(&doc.0.ast, &context);
+        let out = replace_with_value_type(&doc.ast, &context);
         let result = out.unwrap().unwrap();
         match result {
             lsp_types::CodeActionOrCommand::CodeAction(code_action) => {
@@ -446,17 +446,17 @@ public class Test {
         let point = AstPoint::new(5, 10);
         let doc = Document::setup(content, PathBuf::from_str("./").unwrap()).unwrap();
         let imports = vec![];
-        let class = parser::java::load_java_tree(&doc.0.ast, parser::SourceDestination::None);
+        let class = parser::java::load_java_tree(&doc.ast, parser::SourceDestination::None);
         let uri = Uri::from_str("file:///a").unwrap();
         let context = CodeActionContext {
             point: &point,
             imports: &imports,
             class_map: &get_class_map(),
             class: &class,
-            vars: &variables::get_vars(&doc.0.ast, &point).unwrap(),
+            vars: &variables::get_vars(&doc.ast, &point).unwrap(),
             current_file: &uri,
         };
-        let out = replace_with_value_type(&doc.0.ast, &context);
+        let out = replace_with_value_type(&doc.ast, &context);
         let result = out.unwrap().unwrap();
         match result {
             lsp_types::CodeActionOrCommand::CodeAction(code_action) => {

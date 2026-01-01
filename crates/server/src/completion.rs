@@ -366,7 +366,7 @@ public class GreetingResource {
     }
 }
         ";
-        let doc = Document::setup(content, PathBuf::new()).unwrap().0;
+        let doc = Document::setup(content, PathBuf::new()).unwrap();
         let class = Class {
             access: Access::Public,
             name: "Test".into(),
@@ -444,7 +444,7 @@ public class Test {
 
     #[test]
     fn extend_completion_method() {
-        let doc = Document::setup(SYMBOL_METHOD, PathBuf::new()).unwrap().0;
+        let doc = Document::setup(SYMBOL_METHOD, PathBuf::new()).unwrap();
         let lo_va = vec![LocalVariable {
             level: 3,
             jtype: JType::Class("String".into()),
@@ -579,7 +579,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content, PathBuf::new()).unwrap().0;
+        let doc = Document::setup(content, PathBuf::new()).unwrap();
 
         let out = classes(&doc, &AstPoint::new(5, 16), &[], &class_map);
         assert_eq!(
@@ -631,7 +631,7 @@ public class Test {
     }
 }
 ";
-        let doc = Document::setup(content, PathBuf::new()).unwrap().0;
+        let doc = Document::setup(content, PathBuf::new()).unwrap();
 
         let out = classes(
             &doc,

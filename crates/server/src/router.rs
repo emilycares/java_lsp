@@ -39,7 +39,7 @@ pub fn get_server_capabilities() -> ServerCapabilities {
             ..CodeActionOptions::default()
         })),
         completion_provider: Some(CompletionOptions {
-            trigger_characters: Some([' ', '.', '('].iter().map(ToString::to_string).collect()),
+            trigger_characters: Some(vec![' '.to_string(), '.'.to_string(), '('.to_string()]),
             ..CompletionOptions::default()
         }),
         document_symbol_provider: Some(OneOf::Left(true)),
@@ -48,7 +48,7 @@ pub fn get_server_capabilities() -> ServerCapabilities {
         // document_formatting_provider: Some(OneOf::Left(true)),
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         signature_help_provider: Some(SignatureHelpOptions {
-            trigger_characters: Some(vec!["(".to_owned(), ",".to_owned(), "<".to_owned()]),
+            trigger_characters: Some(vec!['('.to_string(), ','.to_string(), '<'.to_string()]),
             ..Default::default()
         }),
         document_highlight_provider: None,

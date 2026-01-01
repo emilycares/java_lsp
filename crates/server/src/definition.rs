@@ -244,9 +244,7 @@ public class Test {
 }
         "#;
         let point = AstPoint::new(6, 16);
-        let document = Document::setup(content, PathBuf::from_str("/Test.java").unwrap())
-            .unwrap()
-            .0;
+        let document = Document::setup(content, PathBuf::from_str("/Test.java").unwrap()).unwrap();
         let document_uri = Uri::from_str("file:///Test.java").unwrap();
         let class = parser::java::load_java_tree(&document.ast, parser::SourceDestination::None);
         let vars = variables::get_vars(&document.ast, &point).unwrap();
@@ -281,9 +279,7 @@ public class Test {
 }
         "#;
         let point = AstPoint::new(8, 24);
-        let document = Document::setup(content, PathBuf::from_str("/Test.java").unwrap())
-            .unwrap()
-            .0;
+        let document = Document::setup(content, PathBuf::from_str("/Test.java").unwrap()).unwrap();
         let document_uri = Uri::from_str("file:///Test.java").unwrap();
         let class = parser::java::load_java_tree(&document.ast, parser::SourceDestination::None);
         let vars = variables::get_vars(&document.ast, &point).unwrap();

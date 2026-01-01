@@ -152,7 +152,7 @@ fn method_references(
     let doc = document::read_document_or_open_class(&class.source, document_map)
         .map_err(ReferencesError::Document)?;
     match doc {
-        ClassSource::Owned(doc, _) => {
+        ClassSource::Owned(doc) => {
             let o = match position::get_method_usage(query_method_name, &doc.ast) {
                 Err(e) => Err(ReferencesError::Position(e))?,
                 Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
