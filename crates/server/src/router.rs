@@ -29,7 +29,7 @@ pub fn get_server_capabilities() -> ServerCapabilities {
                 change: Some(TextDocumentSyncKind::INCREMENTAL),
                 will_save: None,
                 will_save_wait_until: None,
-                save: None,
+                save: Some(lsp_types::TextDocumentSyncSaveOptions::Supported(true)),
             },
         )),
         definition_provider: Some(OneOf::Left(true)),

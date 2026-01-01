@@ -203,11 +203,12 @@ impl Backend {
     fn compile(&self, path: &str) -> Vec<CompileErrorMessage> {
         match &self.project_kind {
             ProjectKind::Maven { executable } => {
-                if let Some(classpath) = maven::compile::generate_classpath(executable) {
-                    match compile::compile_java_file(path, &classpath) {
+                match maven::compile::generate_classpath(executable) {
+                    Ok(classpath) => match compile::maven_compile_java_file(path, &classpath) {
                         Ok(errors) => return errors,
                         Err(e) => eprintln!("Compile error: {e:?}"),
-                    }
+                    },
+                    e => eprintln!("Failed to load classpath {e:?}"),
                 }
             }
             ProjectKind::Gradle {
@@ -218,7 +219,10 @@ impl Backend {
                     return errors;
                 }
             }
-            ProjectKind::Unknown => eprintln!("Could not find project kind maven or gradle"),
+            ProjectKind::Unknown => match compile::compile_java_file(path) {
+                Ok(errors) => return errors,
+                Err(e) => eprintln!("Compile error: {e:?}"),
+            },
         }
         vec![]
     }

@@ -21,7 +21,7 @@ pub struct CompileErrorMessage {
     pub col: usize,
 }
 
-pub fn compile_java_file(
+pub fn maven_compile_java_file(
     file_path: &str,
     classpath: &str,
 ) -> Result<Vec<CompileErrorMessage>, CompileError> {
@@ -35,8 +35,18 @@ pub fn compile_java_file(
         .output()
         .map_err(CompileError::JavacIo)?;
 
-    let stdout = out.stderr;
-    let stdout = std::str::from_utf8(&stdout).map_err(CompileError::Utf8)?;
+    let stdout = std::str::from_utf8(&out.stderr).map_err(CompileError::Utf8)?;
+    Ok(parse_compile_errors(stdout))
+}
+
+pub fn compile_java_file(file_path: &str) -> Result<Vec<CompileErrorMessage>, CompileError> {
+    // Compile the Java file using `javac` with the generated classpath
+    let out = Command::new("javac")
+        .arg(file_path)
+        .output()
+        .map_err(CompileError::JavacIo)?;
+
+    let stdout = std::str::from_utf8(&out.stderr).map_err(CompileError::Utf8)?;
     Ok(parse_compile_errors(stdout))
 }
 
@@ -113,6 +123,37 @@ pub fn parse_compile_errors(input: &str) -> Vec<CompileErrorMessage> {
             col += 1;
             index += 1;
         }
+        while let Some(ch) = chars.get(index)
+            && ch != &'\n'
+        {
+            if ch == &'\r' {
+                index += 1;
+                continue;
+            }
+            index += 1;
+        }
+        // skip newline
+        index += 1;
+
+        while let Some(ch) = chars.get(index)
+            && ch == &' '
+            && let Some(next) = chars.get(index + 1)
+            && next == &' '
+        {
+            message.push(' ');
+            while let Some(ch) = chars.get(index)
+                && ch != &'\n'
+            {
+                if ch == &'\r' {
+                    index += 1;
+                    continue;
+                }
+                index += 1;
+                message.push(*ch);
+            }
+            // skip newline
+            index += 1;
+        }
         out.push(CompileErrorMessage {
             path,
             message,
@@ -164,7 +205,11 @@ src/main/java/org/acme/GreetingResource.java:15: error: > or ',' expected
 
     #[test]
     fn parse_compile_errors_real() {
-        let input = "/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java:16: error: > or ',' expected\n\tvar hash = new HashMap<String, String();\n\t                                     ^\n1 error\n";
+        let input = r#"/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java:16: error: > or ',' expected
+	var hash = new HashMap<String, String();
+	                                     ^
+1 error
+"#;
         let out = parse_compile_errors(input);
         assert_eq!(out, vec![
             CompileErrorMessage {
@@ -172,6 +217,36 @@ src/main/java/org/acme/GreetingResource.java:15: error: > or ',' expected
                 message: "> or ',' expected".to_string(),
                 row: 16,
                 col: 38,
+            },
+        ]);
+    }
+    #[test]
+    fn parse_compile_errors_could_not_find_symbol() {
+        let input = r#"/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java:27: error: cannot find symbol
+    public Uni<Response> createCampaign(SomeRequest request) {
+                                        ^
+  symbol:   class SomeRequest
+  location: class GreetingResource
+/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java:42: error: cannot find symbol
+    public Uni<Response> addQuest(@PathParam("slug") String slug, SomeRequest request) {
+                                                                  ^
+  symbol:   class SomeRequest
+  location: class GreetingResource
+2 error
+"#;
+        let out = parse_compile_errors(input);
+        assert_eq!(out, vec![
+            CompileErrorMessage {
+                path: "/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java".to_string(),
+                message: "cannot find symbol   symbol:   class SomeRequest   location: class GreetingResource".to_string(),
+                row: 27,
+                col: 40,
+            },
+            CompileErrorMessage {
+                path: "/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java".to_string(),
+                message: "cannot find symbol   symbol:   class SomeRequest   location: class GreetingResource".to_string(),
+                row: 42,
+                col: 66,
             },
         ]);
     }
