@@ -8,7 +8,7 @@ use std::{
 
 use call_chain::get_call_chain;
 use common::{TaskProgress, project_cache_dir, project_kind::ProjectKind};
-use compile::CompileError;
+use compile::CompileErrorMessage;
 use dashmap::{DashMap, DashSet};
 use document::{
     ClassSource, Document, DocumentError, get_class_path, open_document,
@@ -200,13 +200,14 @@ impl Backend {
         Self::progress_end_token(con, &token, task);
     }
 
-    fn compile(&self, path: &str) -> Vec<CompileError> {
+    fn compile(&self, path: &str) -> Vec<CompileErrorMessage> {
         match &self.project_kind {
             ProjectKind::Maven { executable } => {
-                if let Some(classpath) = maven::compile::generate_classpath(executable)
-                    && let Some(errors) = compile::compile_java_file(path, &classpath)
-                {
-                    return errors;
+                if let Some(classpath) = maven::compile::generate_classpath(executable) {
+                    match compile::compile_java_file(path, &classpath) {
+                        Ok(errors) => return errors,
+                        Err(e) => eprintln!("Compile error: {e:?}"),
+                    }
                 }
             }
             ProjectKind::Gradle {
@@ -222,8 +223,13 @@ impl Backend {
         vec![]
     }
 
-    fn publish_compile_errors(&self, errors: Vec<CompileError>) {
-        let mut emap = HashMap::<String, Vec<CompileError>>::new();
+    fn publish_compile_errors(
+        &self,
+        errors: Vec<CompileErrorMessage>,
+        current_file: &Uri,
+    ) -> Vec<Diagnostic> {
+        let mut out = Vec::new();
+        let mut emap = HashMap::<String, Vec<CompileErrorMessage>>::new();
         for e in errors {
             self.error_files.insert(e.path.clone());
             if let Some(list) = emap.get_mut(&e.path) {
@@ -239,29 +245,19 @@ impl Backend {
             };
             if let Ok(uri) = source_to_uri(path) {
                 if let Some(errs) = emap.get(path) {
-                    let errs: Vec<Diagnostic> = errs
-                        .iter()
-                        .map(|e| {
-                            let r = u32::try_from(e.row).unwrap_or_default();
-                            let c = u32::try_from(e.col).unwrap_or_default();
-                            let p = Position::new(r.saturating_sub(1), c);
-                            Diagnostic::new(
-                                Range::new(p, p),
-                                Some(DiagnosticSeverity::ERROR),
-                                None,
-                                Some(String::from(SERVER_NAME)),
-                                e.message.clone(),
-                                None,
-                                None,
-                            )
-                        })
-                        .collect();
-                    Self::send_diagnostic(&self.connection.clone(), uri, errs);
+                    if &uri == current_file {
+                        out.extend(errs.iter().map(compile_error_to_diagnostic));
+                    } else {
+                        let errs: Vec<Diagnostic> =
+                            errs.iter().map(compile_error_to_diagnostic).collect();
+                        Self::send_diagnostic(&self.connection.clone(), uri, errs);
+                    }
                 } else {
                     Self::send_diagnostic(&self.connection.clone(), uri, vec![]);
                 }
             }
         }
+        out
     }
 
     pub async fn initialized(
@@ -425,11 +421,11 @@ impl Backend {
         let path = params.text_document.uri.path();
         let path_str = path.as_str();
         let errors = self.compile(path_str);
-        self.publish_compile_errors(errors);
+        let mut current_file_diagnostics =
+            self.publish_compile_errors(errors, &params.text_document.uri);
 
         match read_document_or_open_class(path.as_str(), &self.document_map) {
             Ok(ClassSource::Owned(doc)) => {
-                self.handle_diagnostic(params.text_document.uri.clone(), None);
                 let class =
                     parser::update_project_java_file(PathBuf::from(path.as_str()), &doc.ast);
                 let class_path = class.class_path.clone();
@@ -444,7 +440,6 @@ impl Backend {
                 self.class_map.insert(class_path, class);
             }
             Ok(ClassSource::Ref(doc)) => {
-                self.handle_diagnostic(params.text_document.uri.clone(), None);
                 let class =
                     parser::update_project_java_file(PathBuf::from(path.as_str()), &doc.ast);
                 let class_path = class.class_path.clone();
@@ -459,10 +454,17 @@ impl Backend {
                 self.class_map.insert(class_path, class);
             }
             Err(DocumentError::Diagnostic(diag)) => {
-                self.handle_diagnostic(params.text_document.uri.clone(), Some(*diag));
+                current_file_diagnostics.push(*diag);
             }
-            Err(_) => (),
+            Err(e) => {
+                eprintln!("Error while save: {e:?}");
+            }
         }
+        Self::send_diagnostic(
+            &self.connection,
+            params.text_document.uri.clone(),
+            current_file_diagnostics,
+        );
     }
 
     pub fn hover(&self, params: HoverParams) -> Option<Hover> {
@@ -864,6 +866,21 @@ impl Backend {
         diagnostics.extend(diag);
         Self::send_diagnostic(&self.connection, uri, diagnostics);
     }
+}
+
+fn compile_error_to_diagnostic(e: &CompileErrorMessage) -> Diagnostic {
+    let r = u32::try_from(e.row).unwrap_or_default();
+    let c = u32::try_from(e.col).unwrap_or_default();
+    let p = Position::new(r.saturating_sub(1), c);
+    Diagnostic::new(
+        Range::new(p, p),
+        Some(DiagnosticSeverity::ERROR),
+        None,
+        Some(String::from(SERVER_NAME)),
+        e.message.clone(),
+        None,
+        None,
+    )
 }
 
 #[cfg(not(target_os = "windows"))]

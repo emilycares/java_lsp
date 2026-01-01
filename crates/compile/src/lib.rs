@@ -5,18 +5,26 @@
 #![deny(clippy::nursery)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
-use std::process::Command;
+use std::{process::Command, str::Utf8Error};
+
+#[derive(Debug)]
+pub enum CompileError {
+    JavacIo(std::io::Error),
+    Utf8(Utf8Error),
+}
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct CompileError {
+pub struct CompileErrorMessage {
     pub path: String,
     pub message: String,
     pub row: usize,
     pub col: usize,
 }
 
-#[must_use]
-pub fn compile_java_file(file_path: &str, classpath: &str) -> Option<Vec<CompileError>> {
+pub fn compile_java_file(
+    file_path: &str,
+    classpath: &str,
+) -> Result<Vec<CompileErrorMessage>, CompileError> {
     // Compile the Java file using `javac` with the generated classpath
     let out = Command::new("javac")
         .arg("-cp")
@@ -25,15 +33,15 @@ pub fn compile_java_file(file_path: &str, classpath: &str) -> Option<Vec<Compile
         .arg("target/classes")
         .arg(file_path)
         .output()
-        .ok()?;
+        .map_err(CompileError::JavacIo)?;
 
     let stdout = out.stderr;
-    let stdout = std::str::from_utf8(&stdout).ok()?;
-    Some(parse_compile_errors(stdout))
+    let stdout = std::str::from_utf8(&stdout).map_err(CompileError::Utf8)?;
+    Ok(parse_compile_errors(stdout))
 }
 
 #[must_use]
-pub fn parse_compile_errors(input: &str) -> Vec<CompileError> {
+pub fn parse_compile_errors(input: &str) -> Vec<CompileErrorMessage> {
     let mut out = Vec::new();
     let chars: Vec<char> = input.chars().collect();
     let mut index = 0;
@@ -105,7 +113,7 @@ pub fn parse_compile_errors(input: &str) -> Vec<CompileError> {
             col += 1;
             index += 1;
         }
-        out.push(CompileError {
+        out.push(CompileErrorMessage {
             path,
             message,
             row: row.parse().unwrap_or_default(),
@@ -120,7 +128,7 @@ pub fn parse_compile_errors(input: &str) -> Vec<CompileError> {
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use crate::{CompileError, parse_compile_errors};
+    use crate::{CompileErrorMessage, parse_compile_errors};
 
     #[test]
     fn parse_compile_errors_basic() {
@@ -138,13 +146,13 @@ src/main/java/org/acme/GreetingResource.java:15: error: > or ',' expected
         assert_eq!(
             out,
             vec![
-                CompileError {
+                CompileErrorMessage {
                     path: "src/main/java/org/acme/GreetingResource.java".to_string(),
                     message: "> or ',' expected".to_string(),
                     row: 15,
                     col: 45,
                 },
-                CompileError {
+                CompileErrorMessage {
                     path: "src/main/java/org/acme/GreetingResource.java".to_string(),
                     message: "> or ',' expected".to_string(),
                     row: 15,
@@ -159,7 +167,7 @@ src/main/java/org/acme/GreetingResource.java:15: error: > or ',' expected
         let input = "/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java:16: error: > or ',' expected\n\tvar hash = new HashMap<String, String();\n\t                                     ^\n1 error\n";
         let out = parse_compile_errors(input);
         assert_eq!(out, vec![
-            CompileError {
+            CompileErrorMessage {
                 path: "/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java".to_string(),
                 message: "> or ',' expected".to_string(),
                 row: 16,

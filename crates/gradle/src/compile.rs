@@ -1,14 +1,14 @@
 use std::process::Command;
 
-use compile::{CompileError, parse_compile_errors};
+use compile::{CompileErrorMessage, parse_compile_errors};
 
 #[must_use]
-pub fn compile_java(executable_gradle: &str) -> Option<Vec<CompileError>> {
+pub fn compile_java(executable_gradle: &str) -> Option<Vec<CompileErrorMessage>> {
     run_compile_java(executable_gradle).map(|log| cut_and_parse(&log))
 }
 
 #[must_use]
-fn cut_and_parse(log: &str) -> Vec<CompileError> {
+fn cut_and_parse(log: &str) -> Vec<CompileErrorMessage> {
     let log = cut_log(log);
     parse_compile_errors(&log)
 }
@@ -40,7 +40,7 @@ fn run_compile_java(executable_gradle: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use compile::CompileError;
+    use compile::CompileErrorMessage;
     use pretty_assertions::assert_eq;
 
     use crate::compile::cut_and_parse;
@@ -52,14 +52,14 @@ mod tests {
         assert_eq!(
             out,
             vec![
-                CompileError {
+                CompileErrorMessage {
                     path: "/home/emily/tmp/vanilla-gradle/app/src/main/java/org/example/Other.java"
                         .to_string(),
                     message: "illegal start of type".to_string(),
                     row: 4,
                     col: 2,
                 },
-                CompileError {
+                CompileErrorMessage {
                     path: "/home/emily/tmp/vanilla-gradle/app/src/main/java/org/example/App.java"
                         .to_string(),
                     message: "';' expected".to_string(),
