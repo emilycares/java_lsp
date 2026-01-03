@@ -15,6 +15,8 @@ license.workspace = true
 dashmap.workspace = true
 dirs.workspace = true
 tokio.workspace = true
+sha1_smol.workspace = true
+reqwest.workspace = true
 my_string = { path = "../my_string"}
 common = { path = "../common" }
 parser = {path = "../parser"}

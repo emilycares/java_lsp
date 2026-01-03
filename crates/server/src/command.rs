@@ -8,10 +8,11 @@ use common::{TaskProgress, project_cache_dir, project_kind::ProjectKind};
 use dashmap::DashMap;
 use lsp_server::Connection;
 use lsp_types::ProgressToken;
+use maven::update;
 use my_string::MyString;
 use parser::dto::Class;
 
-use crate::backend::{Backend, fetch_deps, read_forward};
+use crate::backend::{Backend, fetch_deps, read_forward, update_report};
 
 pub const COMMAND_RELOAD_DEPENDENCIES: &str = "ReloadDependencies";
 #[must_use]
@@ -49,4 +50,29 @@ pub fn reload_dependencies(
         Backend::progress_end_option_token(&con.clone(), &progress, &task);
     });
     None
+}
+pub const UPDATE_DEPENDENCIES: &str = "UpdateDependencies";
+pub fn update_dependencies(
+    con: &Arc<Connection>,
+    progress: Option<ProgressToken>,
+    maven_executable: &str,
+) {
+    let repos = Arc::new(vec!["https://repo.maven.apache.org/maven2/".to_owned()]);
+    let maven_executable = Arc::new(maven_executable.to_owned());
+    let con = con.clone();
+    tokio::spawn(async move {
+        let task = format!("Command: {UPDATE_DEPENDENCIES}");
+        let progress = Arc::new(progress);
+        Backend::progress_start_option_token(&con.clone(), &progress, &task);
+        let (sender, receiver) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
+            percentage: 0,
+            error: false,
+            message: "...".to_string(),
+        });
+        tokio::select! {
+            () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
+            () = update_report(con.clone(), update::update(maven_executable.as_ref(), repos, sender).await) => {},
+        }
+        Backend::progress_end_option_token(&con.clone(), &progress, &task);
+    });
 }

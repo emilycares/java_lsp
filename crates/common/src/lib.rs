@@ -18,3 +18,10 @@ pub fn project_cache_dir() -> PathBuf {
     let _ = fs::create_dir_all(&dir);
     dir
 }
+
+pub fn deps_dir() -> PathBuf {
+    let mut dir = dirs::cache_dir().expect("There should be a cache dir");
+    dir = dir.join("java_lsp").join("deps");
+    let _ = fs::create_dir_all(&dir);
+    dir
+}

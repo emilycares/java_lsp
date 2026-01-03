@@ -39,7 +39,6 @@
             "rust-analyzer"
             "rustfmt"
           ];
-          targets = [ "x86_64-pc-windows-gnu" ];
         };
       in
       {

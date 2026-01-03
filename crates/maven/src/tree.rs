@@ -1,4 +1,7 @@
-use std::{process::Command, str::FromStr};
+use std::{
+    process::Command,
+    str::{Utf8Error, from_utf8},
+};
 
 use crate::config::overwrite_settings_xml;
 
@@ -6,6 +9,8 @@ use crate::config::overwrite_settings_xml;
 pub enum MavenTreeError {
     Cli(std::io::Error),
     UnknownDependencyScope(String),
+    Utf8(Utf8Error),
+    GotError(String),
 }
 
 pub fn load(maven_executable: &str) -> Result<Dependency, MavenTreeError> {
@@ -23,19 +28,31 @@ fn parser(cut: &str) -> Result<Dependency, MavenTreeError> {
             continue;
         };
         let mut spl = line.split(':');
-        let group_id = spl.next().unwrap_or_default().to_string();
-        let artivact_id = spl.next().unwrap_or_default().to_string();
+        let group_id = spl.next().unwrap_or_default();
+        let artivact_id = spl.next().unwrap_or_default();
         spl.next();
-        let version = spl.next().unwrap_or_default().to_string();
+        let version = spl.next().unwrap_or_default();
         let scope = spl.next().unwrap_or_default();
         let Some((scope, _)) = scope.split_once('\"') else {
             continue;
         };
-        let scope: DependencyScope = scope.parse()?;
+        let scope: DependencyScope = match scope {
+            "compile" => DependencyScope::Compile,
+            "provided" => DependencyScope::Provided,
+            "runtime" => DependencyScope::Runtime,
+            "test" => DependencyScope::Test,
+            "system" => DependencyScope::System,
+            "import" => DependencyScope::Import,
+            other => {
+                return Err(MavenTreeError::UnknownDependencyScope(format!(
+                    "{group_id}:{artivact_id}:{version} scope: {other}"
+                )));
+            }
+        };
         out.push(Pom {
-            group_id,
-            artivact_id,
-            version,
+            group_id: group_id.to_string(),
+            artivact_id: artivact_id.to_string(),
+            version: version.to_string(),
             scope,
         });
     }
@@ -48,6 +65,11 @@ fn get_cli_output(maven_executable: &str) -> Result<String, MavenTreeError> {
     let output = output.arg("dependency:tree").arg("-DoutputType=dot");
     let output = overwrite_settings_xml(output);
     let output = output.output().map_err(MavenTreeError::Cli)?;
+
+    if !output.status.success() {
+        let err = from_utf8(&output.stderr).map_err(MavenTreeError::Utf8)?;
+        return Err(MavenTreeError::GotError(err.to_owned()));
+    }
 
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
@@ -75,12 +97,12 @@ fn cut_output(inp: &str) -> String {
     out
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Dependency {
     pub deps: Vec<Pom>,
 }
 
-#[derive(PartialEq, Eq, Debug, Default)]
+#[derive(PartialEq, Eq, Debug, Default, Clone)]
 pub struct Pom {
     pub group_id: String,
     pub artivact_id: String,
@@ -89,7 +111,7 @@ pub struct Pom {
 }
 
 /// <https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html#dependency-scope>
-#[derive(Default, PartialEq, Eq, Debug)]
+#[derive(Default, PartialEq, Eq, Debug, Clone)]
 pub enum DependencyScope {
     #[default]
     Compile,
@@ -100,25 +122,6 @@ pub enum DependencyScope {
     Test,
     System,
     Import,
-}
-
-impl FromStr for DependencyScope {
-    type Err = MavenTreeError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "compile" => Ok(Self::Compile),
-            "provided" => Ok(Self::Provided),
-            "runtime" => Ok(Self::Runtime),
-            "test" => Ok(Self::Test),
-            "system" => Ok(Self::System),
-            "import" => Ok(Self::Import),
-            other => {
-                eprintln!("Other dep scope: {other}");
-                Err(MavenTreeError::UnknownDependencyScope(other.to_owned()))
-            }
-        }
-    }
 }
 
 #[cfg(test)]

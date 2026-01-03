@@ -7,6 +7,7 @@
 #![allow(clippy::too_many_lines)]
 pub mod compile;
 pub mod config;
-pub mod fetch;
+pub mod m2;
 pub mod project;
 pub mod tree;
+pub mod update;

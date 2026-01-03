@@ -3,30 +3,33 @@
   rustPlatform,
   git,
   installShellFiles,
-}: let
+  cmake,
+}:
+let
   fs = lib.fileset;
 in
-  rustPlatform.buildRustPackage (self: {
-    cargoLock = {
-      lockFile = ./Cargo.lock;
-      # This is not allowed in nixpkgs but is very convenient here: it allows us to
-      # avoid specifying `outputHashes` here for any git dependencies we might take
-      # on temporarily.
-      allowBuiltinFetchGit = true;
-    };
+rustPlatform.buildRustPackage (self: {
+  cargoLock = {
+    lockFile = ./Cargo.lock;
+    # This is not allowed in nixpkgs but is very convenient here: it allows us to
+    # avoid specifying `outputHashes` here for any git dependencies we might take
+    # on temporarily.
+    allowBuiltinFetchGit = true;
+  };
 
-    nativeBuildInputs = [
-      installShellFiles
-      git
-    ];
+  nativeBuildInputs = [
+    installShellFiles
+    git
+    cmake
+  ];
 
-    buildType = "release";
+  buildType = "release";
 
-    name = "java_lsp";
-    src = fs.toSource {
-      root = ./.;
-      fileset = fs.gitTracked ./.;
-    };
+  name = "java_lsp";
+  src = fs.toSource {
+    root = ./.;
+    fileset = fs.gitTracked ./.;
+  };
 
-    meta.mainProgram = "java_lsp";
-  })
+  meta.mainProgram = "java_lsp";
+})

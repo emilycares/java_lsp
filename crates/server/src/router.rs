@@ -19,7 +19,10 @@ use lsp_types::{
 
 use lsp_server::{Message, Response};
 
-use crate::{backend::Backend, command::COMMAND_RELOAD_DEPENDENCIES};
+use crate::{
+    backend::Backend,
+    command::{COMMAND_RELOAD_DEPENDENCIES, UPDATE_DEPENDENCIES},
+};
 
 pub fn get_server_capabilities() -> ServerCapabilities {
     ServerCapabilities {
@@ -53,7 +56,10 @@ pub fn get_server_capabilities() -> ServerCapabilities {
         }),
         document_highlight_provider: None,
         execute_command_provider: Some(ExecuteCommandOptions {
-            commands: vec![COMMAND_RELOAD_DEPENDENCIES.to_owned()],
+            commands: vec![
+                COMMAND_RELOAD_DEPENDENCIES.to_owned(),
+                UPDATE_DEPENDENCIES.to_owned(),
+            ],
             work_done_progress_options: lsp_types::WorkDoneProgressOptions {
                 work_done_progress: Some(true),
             },

@@ -72,3 +72,5 @@ phf = { version = "0.13.1", features = ["macros"] }
 rayon = "1.11.0"
 insta = { version = "1.43.1", default-features = false }
 memmap2 = "0.9.9"
+sha1_smol = "1.0.1"
+reqwest = "0.13.1"

@@ -28,7 +28,9 @@ use lsp_types::{
     WorkDoneProgressEnd, WorkDoneProgressReport, WorkspaceSymbolParams, WorkspaceSymbolResponse,
     notification::{Notification, Progress, PublishDiagnostics},
 };
-use maven::{fetch::MavenFetchError, tree::MavenTreeError};
+use maven::{
+    m2::MTwoError, project::MavenProjectError, tree::MavenTreeError, update::MavenUpdateError,
+};
 use my_string::MyString;
 use parser::dto::Class;
 use rayon::iter::{ParallelBridge, ParallelIterator};
@@ -37,7 +39,7 @@ use tokio::task::JoinSet;
 
 use crate::{
     codeaction::{self, CodeActionContext},
-    command::{self, COMMAND_RELOAD_DEPENDENCIES},
+    command::{self, COMMAND_RELOAD_DEPENDENCIES, UPDATE_DEPENDENCIES},
     completion,
     definition::{self, DefinitionContext},
     hover::{self, class_action},
@@ -858,6 +860,12 @@ impl Backend {
                 &self.class_map.clone(),
                 &self.project_dir,
             ),
+            UPDATE_DEPENDENCIES => {
+                if let ProjectKind::Maven { executable } = &self.project_kind {
+                    command::update_dependencies(&self.connection, progress, executable);
+                }
+                None
+            }
             u => {
                 eprintln!("Unhandled command: {u}");
                 None
@@ -937,11 +945,10 @@ pub async fn fetch_deps(
 ) {
     match project_kind {
         ProjectKind::Maven { executable } => {
-            match maven::fetch::fetch_deps(
+            match maven::project::project_deps(
                 class_map,
                 sender,
                 use_cache,
-                true,
                 &executable,
                 project_dir,
                 project_cache_dir,
@@ -954,7 +961,7 @@ pub async fn fetch_deps(
                     let mut diagnostics = Vec::new();
                     let range = Range::default();
                     match e {
-                        MavenFetchError::DownloadSources(e) => {
+                        MavenProjectError::DownloadSources(e) => {
                             let message = format!("Unable download maven sources: {e}");
                             diagnostics.push(Diagnostic::new(
                                 range,
@@ -966,7 +973,7 @@ pub async fn fetch_deps(
                                 None,
                             ));
                         }
-                        MavenFetchError::NoHomeFound => {
+                        MavenProjectError::MTwo(MTwoError::NoHomeFound) => {
                             let message = "Unable to find home directory".to_owned();
                             diagnostics.push(Diagnostic::new(
                                 range,
@@ -978,40 +985,7 @@ pub async fn fetch_deps(
                                 None,
                             ));
                         }
-                        MavenFetchError::Tree(MavenTreeError::Cli(e)) => {
-                            let message = format!("Unable load maven dependency tree {e:?}");
-                            diagnostics.push(Diagnostic::new(
-                                range,
-                                Some(DiagnosticSeverity::ERROR),
-                                None,
-                                Some(String::from(SERVER_NAME)),
-                                message,
-                                None,
-                                None,
-                            ));
-                        }
-                        MavenFetchError::Tree(MavenTreeError::UnknownDependencyScope(scope)) => {
-                            let message = format!("Unsupported dependency scope found: {scope:?}");
-                            diagnostics.push(Diagnostic::new(
-                                range,
-                                Some(DiagnosticSeverity::ERROR),
-                                None,
-                                Some(String::from(SERVER_NAME)),
-                                message,
-                                None,
-                                None,
-                            ));
-                        }
-                        MavenFetchError::ParserLoader(LoaderError::Zip { e, path }) => {
-                            let severity = Some(DiagnosticSeverity::ERROR);
-                            let message = format!(
-                                "Unable to load zip or jmod classes from: {path}, error: {e}"
-                            );
-                            diagnostics.push(Diagnostic::new(
-                                range, severity, None, None, message, None, None,
-                            ));
-                        }
-                        MavenFetchError::NoM2Folder => {
+                        MavenProjectError::MTwo(MTwoError::NoM2Folder) => {
                             let message = "Unable to find .m2 directory".to_owned();
                             diagnostics.push(Diagnostic::new(
                                 range,
@@ -1023,7 +997,52 @@ pub async fn fetch_deps(
                                 None,
                             ));
                         }
-                        MavenFetchError::FailedToResolveSources(_) => {
+                        MavenProjectError::Tree(MavenTreeError::GotError(e)) => {
+                            let message = format!("Unable load maven dependency tree {e:?}");
+                            diagnostics.push(Diagnostic::new(
+                                range,
+                                Some(DiagnosticSeverity::ERROR),
+                                None,
+                                Some(String::from(SERVER_NAME)),
+                                message,
+                                None,
+                                None,
+                            ));
+                        }
+                        MavenProjectError::Tree(MavenTreeError::Cli(e)) => {
+                            let message = format!("Unable load maven dependency tree {e:?}");
+                            diagnostics.push(Diagnostic::new(
+                                range,
+                                Some(DiagnosticSeverity::ERROR),
+                                None,
+                                Some(String::from(SERVER_NAME)),
+                                message,
+                                None,
+                                None,
+                            ));
+                        }
+                        MavenProjectError::Tree(MavenTreeError::UnknownDependencyScope(scope)) => {
+                            let message = format!("Unsupported dependency scope found: {scope:?}");
+                            diagnostics.push(Diagnostic::new(
+                                range,
+                                Some(DiagnosticSeverity::ERROR),
+                                None,
+                                Some(String::from(SERVER_NAME)),
+                                message,
+                                None,
+                                None,
+                            ));
+                        }
+                        MavenProjectError::ParserLoader(LoaderError::Zip { e, path }) => {
+                            let severity = Some(DiagnosticSeverity::ERROR);
+                            let message = format!(
+                                "Unable to load zip or jmod classes from: {path}, error: {e}"
+                            );
+                            diagnostics.push(Diagnostic::new(
+                                range, severity, None, None, message, None, None,
+                            ));
+                        }
+                        MavenProjectError::FailedToResolveSources(_) => {
                             let message = "Unable to download maven sources".to_owned();
                             diagnostics.push(Diagnostic::new(
                                 range,
@@ -1035,7 +1054,8 @@ pub async fn fetch_deps(
                                 None,
                             ));
                         }
-                        MavenFetchError::ParserLoader(
+                        MavenProjectError::Tree(MavenTreeError::Utf8(_))
+                        | MavenProjectError::ParserLoader(
                             LoaderError::IO(_) | LoaderError::InvalidCfcCache,
                         ) => (),
                     }
@@ -1069,5 +1089,75 @@ pub async fn fetch_deps(
             }
         },
         ProjectKind::Unknown => (),
+    }
+}
+pub async fn update_report(con: Arc<Connection>, res: Result<(), MavenUpdateError>) {
+    let Err(res) = res else {
+        return;
+    };
+    let mut diagnostics = Vec::new();
+    let range = Range::default();
+    match res {
+        MavenUpdateError::ClientBuilder(error)
+        | MavenUpdateError::ReqBuilder(error)
+        | MavenUpdateError::ShaBody(error)
+        | MavenUpdateError::JarBody(error)
+        | MavenUpdateError::Request(error) => {
+            diagnostics.push(Diagnostic::new(
+                range,
+                Some(DiagnosticSeverity::ERROR),
+                None,
+                Some(String::from(SERVER_NAME)),
+                error.to_string(),
+                None,
+                None,
+            ));
+        }
+        MavenUpdateError::WriteHash(error)
+        | MavenUpdateError::WriteJar(error)
+        | MavenUpdateError::CreateDir(error)
+        | MavenUpdateError::WriteEtag(error) => {
+            let message = format!("Io error while update: {error}");
+            diagnostics.push(Diagnostic::new(
+                range,
+                Some(DiagnosticSeverity::ERROR),
+                None,
+                Some(String::from(SERVER_NAME)),
+                message,
+                None,
+                None,
+            ));
+        }
+        MavenUpdateError::MTwo(mtwo_error) => {
+            let message = format!("m2 error while update: {mtwo_error:?}");
+            diagnostics.push(Diagnostic::new(
+                range,
+                Some(DiagnosticSeverity::ERROR),
+                None,
+                Some(String::from(SERVER_NAME)),
+                message,
+                None,
+                None,
+            ));
+        }
+        MavenUpdateError::Tree(maven_tree_error) => {
+            let message = format!("maven tree error while update: {maven_tree_error:?}");
+            diagnostics.push(Diagnostic::new(
+                range,
+                Some(DiagnosticSeverity::ERROR),
+                None,
+                Some(String::from(SERVER_NAME)),
+                message,
+                None,
+                None,
+            ));
+        }
+    }
+    let source = PathBuf::from("./pom.xml");
+    if let Ok(source) = fs::canonicalize(source)
+        && let Some(source) = source.to_str()
+        && let Ok(uri) = source_to_uri(source)
+    {
+        Backend::send_diagnostic(&con, uri, diagnostics);
     }
 }
