@@ -14,7 +14,6 @@ use parser::dto::{Class, ClassFolder};
 use tokio::task::JoinSet;
 
 use crate::{
-    m2::MTwoError,
     tree::{self},
     update::{deps_base, deps_get_cfc},
 };
@@ -22,10 +21,6 @@ use crate::{
 #[derive(Debug)]
 pub enum MavenProjectError {
     Tree(tree::MavenTreeError),
-    ParserLoader(loader::LoaderError),
-    DownloadSources(String),
-    FailedToResolveSources(std::io::Error),
-    MTwo(MTwoError),
 }
 
 pub async fn project_deps(
@@ -49,13 +44,13 @@ pub async fn project_deps(
 
     let tree = tree::load(maven_executable).map_err(MavenProjectError::Tree)?;
 
-    let tasks_number = u32::try_from(tree.deps.len() + 1).unwrap_or(1);
+    let tasks_number = u32::try_from(tree.len() + 1).unwrap_or(1);
     let completed_number = Arc::new(AtomicU32::new(0));
     let mut handles = JoinSet::<Option<ClassFolder>>::new();
     let sender = Arc::new(sender);
     let deps_path = Arc::new(deps_dir());
 
-    for dep in tree.deps {
+    for dep in tree {
         let sender = sender.clone();
         let completed_number = completed_number.clone();
         let deps_path = deps_path.clone();

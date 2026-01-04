@@ -8,50 +8,44 @@ use std::{
     time::Duration,
 };
 
-use common::{TaskProgress, deps_dir};
+use common::{Dependency, TaskProgress, deps_dir};
 use parser::SourceDestination;
 use reqwest::{Client, StatusCode};
 use tokio::task::JoinSet;
 
+use crate::m2::{MTwoError, get_maven_m2_folder, pom_classes_jar, pom_m2_sha1};
 use crate::m2::{PomMTwo, pom_m2, pom_sources_jar};
-use crate::{
-    m2::{MTwoError, get_maven_m2_folder, pom_classes_jar, pom_m2_sha1},
-    tree::{self, MavenTreeError, Pom},
-};
 
 #[derive(Debug)]
 pub enum MavenUpdateError {
+    MTwo(MTwoError),
     ClientBuilder(reqwest::Error),
     ReqBuilder(reqwest::Error),
     Request(reqwest::Error),
-    WriteHash(std::io::Error),
     ShaBody(reqwest::Error),
-    WriteJar(std::io::Error),
     JarBody(reqwest::Error),
+    WriteHash(std::io::Error),
+    WriteJar(std::io::Error),
     CreateDir(std::io::Error),
     WriteEtag(std::io::Error),
-    MTwo(MTwoError),
-    Tree(MavenTreeError),
 }
 
 pub async fn update(
-    maven_executable: &str,
     repos: Arc<Vec<String>>,
+    tree: Vec<Dependency>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
 ) -> Result<(), MavenUpdateError> {
-    let maven_executable = maven_executable.to_owned();
     let client = reqwest::Client::builder()
         .tcp_keepalive(Duration::from_secs(60))
         .build()
         .map_err(MavenUpdateError::ClientBuilder)?;
     let client = Arc::new(client);
     let m2 = get_maven_m2_folder().map_err(MavenUpdateError::MTwo)?;
-    let tree = tree::load(&maven_executable).map_err(MavenUpdateError::Tree)?;
     let mut handles = JoinSet::new();
-    let tasks_number = u32::try_from(tree.deps.len() + 1).unwrap_or(1);
+    let tasks_number = u32::try_from(tree.len() + 1).unwrap_or(1);
     let completed_number = Arc::new(AtomicU32::new(0));
 
-    for pom in tree.deps {
+    for pom in tree {
         let deps_path = deps_dir();
         let deps_bas = Arc::new(deps_base(&pom, &deps_path));
         let pom_mtwo = Arc::new(pom_m2(&pom, &m2));
@@ -120,7 +114,7 @@ fn handle_repo_retry(
     jar: Arc<PathBuf>,
     d_source: Arc<PathBuf>,
     f_source: Arc<PathBuf>,
-    pom: Arc<Pom>,
+    pom: Arc<Dependency>,
     pom_mtwo: Arc<PomMTwo>,
     repo: &str,
     client: &Arc<Client>,
@@ -154,7 +148,7 @@ async fn fetch_extract_source(
     pom_mtwo: Arc<PathBuf>,
     d_source: Arc<PathBuf>,
     deps_bas: Arc<PathBuf>,
-    pom: Arc<Pom>,
+    pom: Arc<Dependency>,
     client: Arc<Client>,
     repo: Arc<String>,
 ) {
@@ -172,7 +166,7 @@ async fn fetch_extract_source(
     }
 }
 
-async fn index_jar(pom: &Pom, deps_bas: &PathBuf, jar: &PathBuf, d_source: &DepsSource) {
+async fn index_jar(pom: &Dependency, deps_bas: &PathBuf, jar: &PathBuf, d_source: &DepsSource) {
     let Some(source) = d_source.as_path().to_str() else {
         return;
     };
@@ -202,7 +196,7 @@ pub enum UpdateStateOne {
 }
 
 #[must_use]
-pub fn stage_one(pom: &Pom, deps_bas: &DepsBas, pom_mtwo: &PomMTwo) -> UpdateStateOne {
+pub fn stage_one(pom: &Dependency, deps_bas: &DepsBas, pom_mtwo: &PomMTwo) -> UpdateStateOne {
     let sha1 = pom_m2_sha1(pom, pom_mtwo);
     let own_hash = deps_get_hash(deps_bas, pom);
     let jar = pom_classes_jar(pom, pom_mtwo);
@@ -250,7 +244,7 @@ pub enum UpdateStateTwo {
 }
 
 pub async fn stage_two(
-    pom: Arc<Pom>,
+    pom: Arc<Dependency>,
     pom_mtwo: Arc<PomMTwo>,
     repo: &str,
     jar: Arc<PathBuf>,
@@ -331,7 +325,7 @@ pub enum UpdateStateSource {
     NotFound,
 }
 pub async fn fetch_source(
-    pom: &Pom,
+    pom: &Dependency,
     pom_mtwo: &PomMTwo,
     repo: &str,
     source: &DepsSource,
@@ -364,7 +358,7 @@ pub async fn fetch_source(
     Ok(UpdateStateSource::Updated)
 }
 
-fn pom_jar_url(pom: &Pom, repo: &str) -> String {
+fn pom_jar_url(pom: &Dependency, repo: &str) -> String {
     format!(
         "{repo}{}/{}/{}/{}-{}.jar",
         pom.group_id.replace('.', "/"),
@@ -374,7 +368,7 @@ fn pom_jar_url(pom: &Pom, repo: &str) -> String {
         pom.version
     )
 }
-fn pom_source_jar_url(pom: &Pom, repo: &str) -> String {
+fn pom_source_jar_url(pom: &Dependency, repo: &str) -> String {
     format!(
         "{repo}{}/{}/{}/{}-{}-sources.jar",
         pom.group_id.replace('.', "/"),
@@ -384,7 +378,7 @@ fn pom_source_jar_url(pom: &Pom, repo: &str) -> String {
         pom.version
     )
 }
-fn pom_jar_sha_url(pom: &Pom, repo: &str) -> String {
+fn pom_jar_sha_url(pom: &Dependency, repo: &str) -> String {
     format!(
         "{repo}{}/{}/{}/{}-{}.jar.sha1",
         pom.group_id.replace('.', "/"),
@@ -408,7 +402,7 @@ pub fn deps_get_source(deps_bas: &DepsBas) -> DepsSource {
 
 type DepsHash = PathBuf;
 #[must_use]
-pub fn deps_get_hash(deps_bas: &DepsBas, pom: &Pom) -> DepsHash {
+pub fn deps_get_hash(deps_bas: &DepsBas, pom: &Dependency) -> DepsHash {
     let mut p = deps_bas.join("a");
 
     let file_name = format!("{}-{}.hash", pom.artivact_id, pom.version);
@@ -418,7 +412,7 @@ pub fn deps_get_hash(deps_bas: &DepsBas, pom: &Pom) -> DepsHash {
 }
 type DepsCFC = PathBuf;
 #[must_use]
-pub fn deps_get_cfc(deps_bas: &DepsBas, pom: &Pom) -> DepsCFC {
+pub fn deps_get_cfc(deps_bas: &DepsBas, pom: &Dependency) -> DepsCFC {
     let mut p = deps_bas.join("a");
 
     let file_name = format!("{}-{}.cfc", pom.artivact_id, pom.version);
@@ -429,7 +423,7 @@ pub fn deps_get_cfc(deps_bas: &DepsBas, pom: &Pom) -> DepsCFC {
 
 type DepsEtag = PathBuf;
 #[must_use]
-pub fn deps_get_etag(deps_bas: &DepsBas, pom: &Pom) -> DepsEtag {
+pub fn deps_get_etag(deps_bas: &DepsBas, pom: &Dependency) -> DepsEtag {
     let mut p = deps_bas.join("a");
 
     let file_name = format!("{}-{}.etag", pom.artivact_id, pom.version);
@@ -440,7 +434,7 @@ pub fn deps_get_etag(deps_bas: &DepsBas, pom: &Pom) -> DepsEtag {
 
 pub type DepsBas = PathBuf;
 #[must_use]
-pub fn deps_base(pom: &Pom, deps_path: &Path) -> DepsBas {
+pub fn deps_base(pom: &Dependency, deps_path: &Path) -> DepsBas {
     let group_parts = pom.group_id.split('.');
     let mut p = deps_path.to_path_buf();
     for gp in group_parts {

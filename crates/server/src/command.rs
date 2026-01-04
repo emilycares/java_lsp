@@ -55,11 +55,11 @@ pub const UPDATE_DEPENDENCIES: &str = "UpdateDependencies";
 pub fn update_dependencies(
     con: &Arc<Connection>,
     progress: Option<ProgressToken>,
-    maven_executable: &str,
+    project_kind: &ProjectKind,
 ) {
     let repos = Arc::new(vec!["https://repo.maven.apache.org/maven2/".to_owned()]);
-    let maven_executable = Arc::new(maven_executable.to_owned());
     let con = con.clone();
+    let project_kind = Arc::new(project_kind.clone());
     tokio::spawn(async move {
         let task = format!("Command: {UPDATE_DEPENDENCIES}");
         let progress = Arc::new(progress);
@@ -69,9 +69,32 @@ pub fn update_dependencies(
             error: false,
             message: "...".to_string(),
         });
-        tokio::select! {
-            () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-            () = update_report(con.clone(), update::update(maven_executable.as_ref(), repos, sender).await) => {},
+        let tree = match &*project_kind {
+            ProjectKind::Maven { executable } => match maven::tree::load(executable) {
+                Ok(t) => Some(t),
+                Err(e) => {
+                    eprintln!("Failed to load tree: {e:?}");
+                    None
+                }
+            },
+            ProjectKind::Gradle {
+                executable,
+                path_build_gradle: _,
+            } => match gradle::tree::load(executable) {
+                Ok(t) => Some(t),
+                Err(e) => {
+                    eprintln!("Failed to load tree: {e:?}");
+                    None
+                }
+            },
+            ProjectKind::Unknown => None,
+        };
+        dbg!(&tree);
+        if let Some(tree) = tree {
+            tokio::select! {
+                () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
+                () = update_report(con.clone(), update::update(repos, tree, sender).await) => {},
+            }
         }
         Backend::progress_end_option_token(&con.clone(), &progress, &task);
     });

@@ -12,6 +12,13 @@ pub struct TaskProgress {
     pub message: String,
 }
 
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct Dependency {
+    pub group_id: String,
+    pub artivact_id: String,
+    pub version: String,
+}
+
 pub fn project_cache_dir() -> PathBuf {
     let mut dir = dirs::cache_dir().expect("There should be a cache dir");
     dir = dir.join("java_lsp").join("project_cache");

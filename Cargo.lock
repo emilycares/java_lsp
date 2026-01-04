@@ -707,6 +707,7 @@ dependencies = [
  "compile",
  "dashmap",
  "loader",
+ "maven",
  "my_string",
  "parser",
  "pretty_assertions",

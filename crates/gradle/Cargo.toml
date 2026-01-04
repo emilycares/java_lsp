@@ -17,6 +17,7 @@ compile = {path = "../compile"}
 common = {path = "../common"}
 parser = {path = "../parser"}
 loader = {path = "../loader"}
+maven = {path = "../maven"}
 
 [dev-dependencies]
 pretty_assertions.workspace = true

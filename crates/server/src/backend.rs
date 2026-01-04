@@ -14,7 +14,6 @@ use document::{
     ClassSource, Document, DocumentError, get_class_path, open_document,
     read_document_or_open_class,
 };
-use loader::LoaderError;
 use lsp_extra::{SERVER_NAME, source_to_uri, to_ast_point};
 use lsp_server::{Connection, Message};
 use lsp_types::{
@@ -28,9 +27,7 @@ use lsp_types::{
     WorkDoneProgressEnd, WorkDoneProgressReport, WorkspaceSymbolParams, WorkspaceSymbolResponse,
     notification::{Notification, Progress, PublishDiagnostics},
 };
-use maven::{
-    m2::MTwoError, project::MavenProjectError, tree::MavenTreeError, update::MavenUpdateError,
-};
+use maven::{project::MavenProjectError, tree::MavenTreeError, update::MavenUpdateError};
 use my_string::MyString;
 use parser::dto::Class;
 use rayon::iter::{ParallelBridge, ParallelIterator};
@@ -861,9 +858,7 @@ impl Backend {
                 &self.project_dir,
             ),
             UPDATE_DEPENDENCIES => {
-                if let ProjectKind::Maven { executable } = &self.project_kind {
-                    command::update_dependencies(&self.connection, progress, executable);
-                }
+                command::update_dependencies(&self.connection, progress, &self.project_kind);
                 None
             }
             u => {
@@ -961,42 +956,6 @@ pub async fn fetch_deps(
                     let mut diagnostics = Vec::new();
                     let range = Range::default();
                     match e {
-                        MavenProjectError::DownloadSources(e) => {
-                            let message = format!("Unable download maven sources: {e}");
-                            diagnostics.push(Diagnostic::new(
-                                range,
-                                Some(DiagnosticSeverity::ERROR),
-                                None,
-                                Some(String::from(SERVER_NAME)),
-                                message,
-                                None,
-                                None,
-                            ));
-                        }
-                        MavenProjectError::MTwo(MTwoError::NoHomeFound) => {
-                            let message = "Unable to find home directory".to_owned();
-                            diagnostics.push(Diagnostic::new(
-                                range,
-                                Some(DiagnosticSeverity::ERROR),
-                                None,
-                                Some(String::from(SERVER_NAME)),
-                                message,
-                                None,
-                                None,
-                            ));
-                        }
-                        MavenProjectError::MTwo(MTwoError::NoM2Folder) => {
-                            let message = "Unable to find .m2 directory".to_owned();
-                            diagnostics.push(Diagnostic::new(
-                                range,
-                                Some(DiagnosticSeverity::ERROR),
-                                None,
-                                Some(String::from(SERVER_NAME)),
-                                message,
-                                None,
-                                None,
-                            ));
-                        }
                         MavenProjectError::Tree(MavenTreeError::GotError(e)) => {
                             let message = format!("Unable load maven dependency tree {e:?}");
                             diagnostics.push(Diagnostic::new(
@@ -1033,31 +992,7 @@ pub async fn fetch_deps(
                                 None,
                             ));
                         }
-                        MavenProjectError::ParserLoader(LoaderError::Zip { e, path }) => {
-                            let severity = Some(DiagnosticSeverity::ERROR);
-                            let message = format!(
-                                "Unable to load zip or jmod classes from: {path}, error: {e}"
-                            );
-                            diagnostics.push(Diagnostic::new(
-                                range, severity, None, None, message, None, None,
-                            ));
-                        }
-                        MavenProjectError::FailedToResolveSources(_) => {
-                            let message = "Unable to download maven sources".to_owned();
-                            diagnostics.push(Diagnostic::new(
-                                range,
-                                Some(DiagnosticSeverity::ERROR),
-                                None,
-                                Some(String::from(SERVER_NAME)),
-                                message,
-                                None,
-                                None,
-                            ));
-                        }
-                        MavenProjectError::Tree(MavenTreeError::Utf8(_))
-                        | MavenProjectError::ParserLoader(
-                            LoaderError::IO(_) | LoaderError::InvalidCfcCache,
-                        ) => (),
+                        MavenProjectError::Tree(MavenTreeError::Utf8(_)) => (),
                     }
                     let source = PathBuf::from("./pom.xml");
                     if let Ok(source) = fs::canonicalize(source)
@@ -1071,10 +1006,9 @@ pub async fn fetch_deps(
         }
         ProjectKind::Gradle {
             executable,
-            path_build_gradle,
-        } => match gradle::fetch::fetch_deps(
+            path_build_gradle: _,
+        } => match gradle::project::project_deps(
             &class_map,
-            path_build_gradle,
             &executable,
             sender,
             use_cache,
@@ -1130,18 +1064,6 @@ pub async fn update_report(con: Arc<Connection>, res: Result<(), MavenUpdateErro
         }
         MavenUpdateError::MTwo(mtwo_error) => {
             let message = format!("m2 error while update: {mtwo_error:?}");
-            diagnostics.push(Diagnostic::new(
-                range,
-                Some(DiagnosticSeverity::ERROR),
-                None,
-                Some(String::from(SERVER_NAME)),
-                message,
-                None,
-                None,
-            ));
-        }
-        MavenUpdateError::Tree(maven_tree_error) => {
-            let message = format!("maven tree error while update: {maven_tree_error:?}");
             diagnostics.push(Diagnostic::new(
                 range,
                 Some(DiagnosticSeverity::ERROR),

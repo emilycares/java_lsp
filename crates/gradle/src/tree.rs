@@ -1,15 +1,15 @@
-use std::process::Command;
+use std::{
+    process::Command,
+    str::{Utf8Error, from_utf8},
+};
+
+use common::Dependency;
 
 #[derive(Debug)]
 pub enum GradleTreeError {
     CliFailed(std::io::Error),
-}
-
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Dependency {
-    pub group_id: String,
-    pub artivact_id: String,
-    pub version: String,
+    Utf8(Utf8Error),
+    GotError(String),
 }
 
 pub fn load(executable_gradle: &str) -> Result<Vec<Dependency>, GradleTreeError> {
@@ -27,7 +27,13 @@ fn get_cli_output(executable_gradle: &str) -> Result<String, GradleTreeError> {
         // .arg("-b")
         .output()
     {
-        Ok(output) => Ok(String::from_utf8_lossy(&output.stdout).to_string()),
+        Ok(output) => {
+            if !output.status.success() {
+                let err = from_utf8(&output.stderr).map_err(GradleTreeError::Utf8)?;
+                return Err(GradleTreeError::GotError(err.to_owned()));
+            }
+            Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        }
         Err(e) => Err(GradleTreeError::CliFailed(e)),
     }
 }
