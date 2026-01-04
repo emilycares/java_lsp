@@ -856,7 +856,13 @@ impl Backend {
                 &self.project_dir,
             ),
             UPDATE_DEPENDENCIES => {
-                command::update_dependencies(&self.connection, progress, &self.project_kind);
+                command::update_dependencies(
+                    &self.connection,
+                    progress,
+                    &self.project_kind,
+                    &self.class_map.clone(),
+                    &self.project_dir,
+                );
                 None
             }
             u => {
@@ -1021,7 +1027,7 @@ pub async fn project_deps(
     }
 }
 pub async fn update_report(
-    project_kind: Arc<ProjectKind>,
+    project_kind: ProjectKind,
     con: Arc<Connection>,
     repos: Arc<Vec<String>>,
     tree: Vec<Dependency>,
@@ -1077,11 +1083,11 @@ pub async fn update_report(
             ));
         }
     }
-    let source = match &*project_kind {
+    let source = match project_kind {
         ProjectKind::Maven { .. } => Some(PathBuf::from("./pom.xml")),
         ProjectKind::Gradle {
             path_build_gradle, ..
-        } => Some(PathBuf::from(path_build_gradle)),
+        } => Some(path_build_gradle),
         ProjectKind::Unknown => None,
     };
     if let Some(source) = source
