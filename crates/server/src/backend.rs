@@ -7,7 +7,7 @@ use std::{
 };
 
 use call_chain::get_call_chain;
-use common::{TaskProgress, project_cache_dir, project_kind::ProjectKind};
+use common::{Dependency, TaskProgress, project_cache_dir, project_kind::ProjectKind};
 use compile::CompileErrorMessage;
 use dashmap::{DashMap, DashSet};
 use document::{
@@ -27,7 +27,11 @@ use lsp_types::{
     WorkDoneProgressEnd, WorkDoneProgressReport, WorkspaceSymbolParams, WorkspaceSymbolResponse,
     notification::{Notification, Progress, PublishDiagnostics},
 };
-use maven::{project::MavenProjectError, tree::MavenTreeError, update::MavenUpdateError};
+use maven::{
+    project::MavenProjectError,
+    tree::MavenTreeError,
+    update::{self, MavenUpdateError},
+};
 use my_string::MyString;
 use parser::dto::Class;
 use rayon::iter::{ParallelBridge, ParallelIterator};
@@ -210,10 +214,7 @@ impl Backend {
                     e => eprintln!("Failed to load classpath {e:?}"),
                 }
             }
-            ProjectKind::Gradle {
-                executable,
-                path_build_gradle: _,
-            } => {
+            ProjectKind::Gradle { executable, .. } => {
                 if let Some(errors) = gradle::compile::compile_java(executable) {
                     return errors;
                 }
@@ -317,7 +318,7 @@ impl Backend {
 
                 tokio::select! {
                     () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-                    () = fetch_deps(con.clone(), sender, project_kind.clone(), class_map.clone(), true, &project_dir, &cache) => {}
+                    () = project_deps(con.clone(), sender, project_kind.clone(), class_map.clone(), true, &project_dir, &cache) => {}
                 }
                 Self::progress_end_option_token(&con, &progress, &task);
             });
@@ -338,13 +339,10 @@ impl Backend {
                     1,
                 );
                 let project_classes = match project_kind {
-                    ProjectKind::Maven { executable: _ } => {
-                        maven::project::load_project_folders(&project_dir)
+                    ProjectKind::Maven { .. } => maven::project::load_project_folders(&project_dir),
+                    ProjectKind::Gradle { .. } => {
+                        gradle::project::load_project_folders(&project_dir)
                     }
-                    ProjectKind::Gradle {
-                        executable: _,
-                        path_build_gradle: _,
-                    } => gradle::project::load_project_folders(&project_dir),
                     ProjectKind::Unknown => loader::load_java_files(PathBuf::from("./")),
                 };
                 Self::progress_update_percentage_option_token(
@@ -929,7 +927,7 @@ pub async fn read_forward(
     .expect("Forward failed");
 }
 
-pub async fn fetch_deps(
+pub async fn project_deps(
     con: Arc<Connection>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
     project_kind: ProjectKind,
@@ -1004,10 +1002,7 @@ pub async fn fetch_deps(
                 }
             }
         }
-        ProjectKind::Gradle {
-            executable,
-            path_build_gradle: _,
-        } => match gradle::project::project_deps(
+        ProjectKind::Gradle { executable, .. } => match gradle::project::project_deps(
             &class_map,
             &executable,
             sender,
@@ -1025,7 +1020,14 @@ pub async fn fetch_deps(
         ProjectKind::Unknown => (),
     }
 }
-pub async fn update_report(con: Arc<Connection>, res: Result<(), MavenUpdateError>) {
+pub async fn update_report(
+    project_kind: Arc<ProjectKind>,
+    con: Arc<Connection>,
+    repos: Arc<Vec<String>>,
+    tree: Vec<Dependency>,
+    sender: tokio::sync::watch::Sender<TaskProgress>,
+) {
+    let res = update::update(repos, tree, sender).await;
     let Err(res) = res else {
         return;
     };
@@ -1075,8 +1077,15 @@ pub async fn update_report(con: Arc<Connection>, res: Result<(), MavenUpdateErro
             ));
         }
     }
-    let source = PathBuf::from("./pom.xml");
-    if let Ok(source) = fs::canonicalize(source)
+    let source = match &*project_kind {
+        ProjectKind::Maven { .. } => Some(PathBuf::from("./pom.xml")),
+        ProjectKind::Gradle {
+            path_build_gradle, ..
+        } => Some(PathBuf::from(path_build_gradle)),
+        ProjectKind::Unknown => None,
+    };
+    if let Some(source) = source
+        && let Ok(source) = fs::canonicalize(source)
         && let Some(source) = source.to_str()
         && let Ok(uri) = source_to_uri(source)
     {

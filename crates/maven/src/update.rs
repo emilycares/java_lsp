@@ -50,7 +50,6 @@ pub async fn update(
         let deps_bas = Arc::new(deps_base(&pom, &deps_path));
         let pom_mtwo = Arc::new(pom_m2(&pom, &m2));
         let one = stage_one(&pom, &deps_bas, &pom_mtwo);
-        // dbg!(&one);
         match one {
             UpdateStateOne::NoOwnHash
             | UpdateStateOne::WasUpdated
@@ -60,6 +59,7 @@ pub async fn update(
                 let f_source = Arc::new(pom_sources_jar(&pom, &pom_mtwo));
                 let d_source = Arc::new(deps_get_source(&deps_bas));
                 let pom = Arc::new(pom);
+                let mut found = false;
                 for repo in repos.as_ref() {
                     let two = stage_two(
                         pom.clone(),
@@ -70,6 +70,12 @@ pub async fn update(
                         &client,
                     )
                     .await;
+                    let a = completed_number.fetch_add(1, Ordering::Relaxed);
+                    let _ = sender.send(TaskProgress {
+                        percentage: (100 * a) / (tasks_number + 1),
+                        error: false,
+                        message: pom.artivact_id.clone(),
+                    });
                     let res = handle_repo_retry(
                         &mut handles,
                         two,
@@ -84,20 +90,20 @@ pub async fn update(
                     );
 
                     if res {
-                        let a = completed_number.fetch_add(1, Ordering::Relaxed);
-                        let _ = sender.send(TaskProgress {
-                            percentage: (100 * a) / (tasks_number + 1),
-                            error: false,
-                            message: pom.artivact_id.clone(),
-                        });
+                        found = true;
                     } else {
                         break;
                     }
                 }
+                if !found && matches!(one, UpdateStateOne::WasUpdated) {
+                    handles.spawn(async move {
+                        index_jar(&pom, &deps_bas, &jar, &d_source).await;
+                    });
+                }
             }
-            UpdateStateOne::FailedToReadSha => todo!(),
-            UpdateStateOne::FailedToReadOwnHash => todo!(),
-            UpdateStateOne::FailedToReadJar => todo!(),
+            UpdateStateOne::FailedToReadSha
+            | UpdateStateOne::FailedToReadOwnHash
+            | UpdateStateOne::FailedToReadJar => (),
         }
     }
     let _ = handles.join_all().await;
@@ -170,7 +176,6 @@ async fn index_jar(pom: &Dependency, deps_bas: &PathBuf, jar: &PathBuf, d_source
     let Some(source) = d_source.as_path().to_str() else {
         return;
     };
-    dbg!(&source);
     match loader::load_classes_jar(jar, SourceDestination::RelativeInFolder(source.to_owned()))
         .await
     {

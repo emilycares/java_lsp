@@ -8,11 +8,10 @@ use common::{TaskProgress, project_cache_dir, project_kind::ProjectKind};
 use dashmap::DashMap;
 use lsp_server::Connection;
 use lsp_types::ProgressToken;
-use maven::update;
 use my_string::MyString;
 use parser::dto::Class;
 
-use crate::backend::{Backend, fetch_deps, read_forward, update_report};
+use crate::backend::{Backend, project_deps, read_forward, update_report};
 
 pub const COMMAND_RELOAD_DEPENDENCIES: &str = "ReloadDependencies";
 #[must_use]
@@ -45,7 +44,7 @@ pub fn reload_dependencies(
         let cache = project_cache_dir();
         tokio::select! {
             () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-            () = fetch_deps(con.clone(), sender, project_kind, class_map.clone(), false, &project_dir, &cache) => {}
+            () = project_deps(con.clone(), sender, project_kind, class_map.clone(), false, &project_dir, &cache) => {}
         }
         Backend::progress_end_option_token(&con.clone(), &progress, &task);
     });
@@ -64,11 +63,6 @@ pub fn update_dependencies(
         let task = format!("Command: {UPDATE_DEPENDENCIES}");
         let progress = Arc::new(progress);
         Backend::progress_start_option_token(&con.clone(), &progress, &task);
-        let (sender, receiver) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
-            percentage: 0,
-            error: false,
-            message: "...".to_string(),
-        });
         let tree = match &*project_kind {
             ProjectKind::Maven { executable } => match maven::tree::load(executable) {
                 Ok(t) => Some(t),
@@ -77,10 +71,7 @@ pub fn update_dependencies(
                     None
                 }
             },
-            ProjectKind::Gradle {
-                executable,
-                path_build_gradle: _,
-            } => match gradle::tree::load(executable) {
+            ProjectKind::Gradle { executable, .. } => match gradle::tree::load(executable) {
                 Ok(t) => Some(t),
                 Err(e) => {
                     eprintln!("Failed to load tree: {e:?}");
@@ -89,11 +80,15 @@ pub fn update_dependencies(
             },
             ProjectKind::Unknown => None,
         };
-        dbg!(&tree);
         if let Some(tree) = tree {
+            let (sender, receiver) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
+                percentage: 0,
+                error: false,
+                message: "...".to_string(),
+            });
             tokio::select! {
                 () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-                () = update_report(con.clone(), update::update(repos, tree, sender).await) => {},
+                () = update_report(project_kind, con.clone(), repos, tree, sender) => {},
             }
         }
         Backend::progress_end_option_token(&con.clone(), &progress, &task);
