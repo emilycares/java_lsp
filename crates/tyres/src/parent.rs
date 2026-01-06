@@ -2,7 +2,9 @@ use std::ops::Deref;
 
 use dashmap::DashMap;
 use my_string::MyString;
-use parser::dto::{Class, SuperClass};
+use parser::dto::{Class, ImportUnit, SuperClass};
+
+use crate::{ImportResult, is_imported};
 
 pub fn include_parent(class: Class, class_map: &DashMap<MyString, Class>) -> Class {
     let mut s: Vec<Class> = vec![];
@@ -31,7 +33,7 @@ pub fn include_parent(class: Class, class_map: &DashMap<MyString, Class>) -> Cla
 }
 
 fn populate_super_class(class: &Class, class_map: &DashMap<MyString, Class>, s: &mut Vec<Class>) {
-    let parent = load_parent(&class.super_class, class_map);
+    let parent = load_parent(&class.super_class, &class.imports, class_map);
     if let Some(p) = parent {
         populate_super_class(&p, class_map, s);
         s.push(p);
@@ -44,7 +46,7 @@ fn populate_super_interfaces(
     s: &mut Vec<Class>,
 ) {
     for super_interface in &class.super_interfaces {
-        let parent = load_parent(super_interface, class_map);
+        let parent = load_parent(super_interface, &class.imports, class_map);
         if let Some(p) = parent {
             populate_super_interfaces(&p, class_map, s);
             s.push(p);
@@ -72,14 +74,28 @@ fn overlay_class(b: Class, c: &Class) -> Class {
     out
 }
 
-fn load_parent(super_class: &SuperClass, class_map: &DashMap<MyString, Class>) -> Option<Class> {
+fn load_parent(
+    super_class: &SuperClass,
+    imports: &[ImportUnit],
+    class_map: &DashMap<MyString, Class>,
+) -> Option<Class> {
     match super_class {
         SuperClass::None => None,
         SuperClass::Name(n) => {
-            let mut key = MyString::new();
-            key.push_str("java.util.");
-            key.push_str(n);
-            class_map.get(&key).map(|p| p.deref().to_owned())
+            let key = format!("java.util.{n}");
+            if let Some(o) = class_map.get(&key).map(|p| p.deref().to_owned()) {
+                return Some(o);
+            }
+            let import_result = is_imported(n, imports, class_map);
+            match import_result {
+                Some(ImportResult::Class(imp) | ImportResult::StaticClass(imp)) => {
+                    if let Some(o) = class_map.get(&imp).map(|p| p.deref().to_owned()) {
+                        return Some(o);
+                    }
+                    None
+                }
+                None => None,
+            }
         }
         SuperClass::ClassPath(class_path) => {
             class_map.get(class_path).map(|p| p.deref().to_owned())
