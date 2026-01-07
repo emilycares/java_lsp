@@ -125,7 +125,8 @@ fn get_executable_from_path(
     path: &OsString,
 ) -> Result<String, ProjectKindError> {
     let path = std::env::split_paths(path)
-        .find(|i| i.join(executable).is_file())
+        .map(|i| i.join(executable))
+        .find(|i| i.is_file())
         .ok_or(e)?;
     let executable = path.to_str().ok_or(ProjectKindError::PathToString)?;
     #[cfg(unix)]
