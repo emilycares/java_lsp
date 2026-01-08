@@ -139,6 +139,11 @@ fn parse_method(
     c: &ClassFile,
     method: &classfile_parser::method_info::MethodInfo,
 ) -> Option<Method> {
+    let lname = lookup_string(c, method.name_index)?;
+
+    if lname.starts_with("lambda$") {
+        return None;
+    }
     let (params, ret) = parse_method_descriptor(&lookup_string(c, method.descriptor_index)?);
 
     let mut params = params.into_iter();
@@ -217,7 +222,6 @@ fn parse_method(
         };
         matches!(lookup_string.as_str(), "Deprecated")
     });
-    let lname = lookup_string(c, method.name_index)?;
     let name = if lname == "<init>" { None } else { Some(lname) };
     Some(Method {
         access: parse_method_access(method, deprecated),

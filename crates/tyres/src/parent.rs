@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use dashmap::DashMap;
 use my_string::MyString;
-use parser::dto::{Class, ImportUnit, SuperClass};
+use parser::dto::{Access, Class, ImportUnit, SuperClass};
 
 use crate::{ImportResult, is_imported};
 
@@ -56,14 +56,20 @@ fn populate_super_interfaces(
 fn overlay_class(b: Class, c: &Class) -> Class {
     let mut out = b;
 
-    for m in c.methods.clone() {
+    for m in &c.methods {
+        if m.access.intersects(Access::Private) {
+            continue;
+        }
         let mut method = m.clone();
         if method.source.is_none() {
             method.source = Some(c.source.clone());
         }
         out.methods.push(method);
     }
-    for f in c.fields.clone() {
+    for f in &c.fields {
+        if f.access.intersects(Access::Private) {
+            continue;
+        }
         let mut field = f.clone();
         if field.source.is_none() {
             field.source = Some(c.source.clone());

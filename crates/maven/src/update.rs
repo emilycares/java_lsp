@@ -142,7 +142,14 @@ fn handle_repo_retry(
                 index_jar(&pom, &deps_bas, &jar, &d_source).await;
             });
         }
-        Ok(UpdateStateTwo::AlreadyLatest) => (),
+        Ok(UpdateStateTwo::AlreadyLatest) => {
+            let cfc = deps_get_cfc(&deps_bas, &pom);
+            if !cfc.exists() {
+                handles.spawn(async move {
+                    index_jar(&pom, &deps_bas, &jar, &d_source).await;
+                });
+            }
+        }
         Ok(UpdateStateTwo::NotFound) => return true,
         Err(e) => eprintln!("Got error: {e:?}"),
     }
@@ -202,15 +209,15 @@ pub enum UpdateStateOne {
 
 #[must_use]
 pub fn stage_one(pom: &Dependency, deps_bas: &DepsBas, pom_mtwo: &PomMTwo) -> UpdateStateOne {
-    let sha1 = pom_m2_sha1(pom, pom_mtwo);
     let own_hash = deps_get_hash(deps_bas, pom);
-    let jar = pom_classes_jar(pom, pom_mtwo);
     if !own_hash.exists() {
         return UpdateStateOne::NoOwnHash;
     }
+    let jar = pom_classes_jar(pom, pom_mtwo);
     if !jar.exists() {
         return UpdateStateOne::JarNotFound;
     }
+    let sha1 = pom_m2_sha1(pom, pom_mtwo);
     if sha1.exists() {
         let Ok(sha_content) = std::fs::read_to_string(&sha1) else {
             return UpdateStateOne::FailedToReadSha;
