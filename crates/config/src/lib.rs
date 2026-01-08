@@ -1,11 +1,9 @@
 #![deny(warnings)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
-use std::sync::Arc;
+use std::sync::LazyLock;
 
-use once_cell::sync::Lazy;
-
-pub static CONFIG: Lazy<Arc<Configuration>> = Lazy::new(|| Arc::new(Configuration::default()));
+pub static CONFIG: LazyLock<Configuration> = LazyLock::new(Configuration::default);
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
