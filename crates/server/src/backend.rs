@@ -27,11 +27,7 @@ use lsp_types::{
     WorkDoneProgressEnd, WorkDoneProgressReport, WorkspaceSymbolParams, WorkspaceSymbolResponse,
     notification::{Notification, Progress, PublishDiagnostics},
 };
-use maven::{
-    project::MavenProjectError,
-    tree::MavenTreeError,
-    update::{self, MavenUpdateError},
-};
+use maven::update::{self, MavenUpdateError};
 use my_string::MyString;
 use parser::dto::Class;
 use rayon::iter::{ParallelBridge, ParallelIterator};
@@ -315,10 +311,12 @@ impl Backend {
                         message: "...".to_string(),
                     });
                 let cache = project_cache_dir();
-
-                tokio::select! {
-                    () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-                    () = project_deps(con.clone(), sender, project_kind.clone(), class_map.clone(), true, &project_dir, &cache) => {}
+                let tree = command::get_tree(&project_kind, &con).await;
+                if let Some(tree) = tree {
+                    tokio::select! {
+                        () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
+                        () = project_deps(sender, project_kind.clone(), class_map.clone(), true, &project_dir, &cache, &tree) => {}
+                    }
                 }
                 Self::progress_end_option_token(&con, &progress, &task);
             });
@@ -934,87 +932,39 @@ pub async fn read_forward(
 }
 
 pub async fn project_deps(
-    con: Arc<Connection>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
     project_kind: ProjectKind,
     class_map: Arc<DashMap<MyString, Class>>,
     use_cache: bool,
     project_dir: &Path,
     project_cache_dir: &Path,
+    tree: &[Dependency],
 ) {
     match project_kind {
-        ProjectKind::Maven { executable } => {
+        ProjectKind::Maven { .. } => {
             match maven::project::project_deps(
                 class_map,
                 sender,
                 use_cache,
-                &executable,
                 project_dir,
                 project_cache_dir,
+                tree,
             )
             .await
             {
                 Ok(()) => (),
                 Err(e) => {
                     eprintln!("Got error while loading maven project: {e:?}");
-                    let mut diagnostics = Vec::new();
-                    let range = Range::default();
-                    match e {
-                        MavenProjectError::Tree(MavenTreeError::GotError(e)) => {
-                            let message = format!("Unable load maven dependency tree {e:?}");
-                            diagnostics.push(Diagnostic::new(
-                                range,
-                                Some(DiagnosticSeverity::ERROR),
-                                None,
-                                Some(String::from(SERVER_NAME)),
-                                message,
-                                None,
-                                None,
-                            ));
-                        }
-                        MavenProjectError::Tree(MavenTreeError::Cli(e)) => {
-                            let message = format!("Unable load maven dependency tree {e:?}");
-                            diagnostics.push(Diagnostic::new(
-                                range,
-                                Some(DiagnosticSeverity::ERROR),
-                                None,
-                                Some(String::from(SERVER_NAME)),
-                                message,
-                                None,
-                                None,
-                            ));
-                        }
-                        MavenProjectError::Tree(MavenTreeError::UnknownDependencyScope(scope)) => {
-                            let message = format!("Unsupported dependency scope found: {scope:?}");
-                            diagnostics.push(Diagnostic::new(
-                                range,
-                                Some(DiagnosticSeverity::ERROR),
-                                None,
-                                Some(String::from(SERVER_NAME)),
-                                message,
-                                None,
-                                None,
-                            ));
-                        }
-                        MavenProjectError::Tree(MavenTreeError::Utf8(_)) => (),
-                    }
-                    let source = PathBuf::from("./pom.xml");
-                    if let Ok(source) = fs::canonicalize(source)
-                        && let Some(source) = source.to_str()
-                        && let Ok(uri) = source_to_uri(source)
-                    {
-                        Backend::send_diagnostic(&con, uri, diagnostics);
-                    }
                 }
             }
         }
-        ProjectKind::Gradle { executable, .. } => match gradle::project::project_deps(
+        ProjectKind::Gradle { .. } => match gradle::project::project_deps(
             &class_map,
-            &executable,
             sender,
             use_cache,
             project_dir,
             project_cache_dir,
+            tree,
         )
         .await
         {
@@ -1030,7 +980,7 @@ pub async fn update_report(
     project_kind: ProjectKind,
     con: Arc<Connection>,
     repos: Arc<Vec<String>>,
-    tree: Vec<Dependency>,
+    tree: &[Dependency],
     sender: tokio::sync::watch::Sender<TaskProgress>,
 ) {
     let res = update::update(repos, tree, sender).await;
@@ -1083,11 +1033,19 @@ pub async fn update_report(
             ));
         }
     }
+    report_maven_gradle_diagnostic(&project_kind, &con, diagnostics);
+}
+
+pub fn report_maven_gradle_diagnostic(
+    project_kind: &ProjectKind,
+    con: &Arc<Connection>,
+    diagnostics: Vec<Diagnostic>,
+) {
     let source = match project_kind {
         ProjectKind::Maven { .. } => Some(PathBuf::from("./pom.xml")),
         ProjectKind::Gradle {
             path_build_gradle, ..
-        } => Some(path_build_gradle),
+        } => Some(path_build_gradle.clone()),
         ProjectKind::Unknown => None,
     };
     if let Some(source) = source
@@ -1095,6 +1053,6 @@ pub async fn update_report(
         && let Some(source) = source.to_str()
         && let Ok(uri) = source_to_uri(source)
     {
-        Backend::send_diagnostic(&con, uri, diagnostics);
+        Backend::send_diagnostic(con, uri, diagnostics);
     }
 }

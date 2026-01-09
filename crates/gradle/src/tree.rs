@@ -1,9 +1,7 @@
-use std::{
-    process::Command,
-    str::{Utf8Error, from_utf8},
-};
+use std::str::{Utf8Error, from_utf8};
 
 use common::Dependency;
+use tokio::process::Command;
 
 #[derive(Debug)]
 pub enum GradleTreeError {
@@ -12,13 +10,13 @@ pub enum GradleTreeError {
     GotError(String),
 }
 
-pub fn load(executable_gradle: &str) -> Result<Vec<Dependency>, GradleTreeError> {
-    let log: String = get_cli_output(executable_gradle)?;
+pub async fn load(executable_gradle: &str) -> Result<Vec<Dependency>, GradleTreeError> {
+    let log: String = get_cli_output(executable_gradle).await?;
     let out = parse_tree(&log);
     Ok(out)
 }
 
-fn get_cli_output(executable_gradle: &str) -> Result<String, GradleTreeError> {
+async fn get_cli_output(executable_gradle: &str) -> Result<String, GradleTreeError> {
     // ./gradlew dependencies --console plain
     match Command::new(executable_gradle)
         .arg("dependencies")
@@ -26,6 +24,7 @@ fn get_cli_output(executable_gradle: &str) -> Result<String, GradleTreeError> {
         .arg("plain")
         // .arg("-b")
         .output()
+        .await
     {
         Ok(output) => {
             if !output.status.success() {

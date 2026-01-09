@@ -1,11 +1,9 @@
-use std::{
-    process::Command,
-    str::{Utf8Error, from_utf8},
-};
+use std::str::{Utf8Error, from_utf8};
 
 use common::Dependency;
+use tokio::process::Command;
 
-use crate::config::overwrite_settings_xml;
+use crate::config::overwrite_settings_xml_tokio;
 
 #[derive(Debug)]
 pub enum MavenTreeError {
@@ -15,8 +13,8 @@ pub enum MavenTreeError {
     GotError(String),
 }
 
-pub fn load(maven_executable: &str) -> Result<Vec<Dependency>, MavenTreeError> {
-    let log: String = get_cli_output(maven_executable)?;
+pub async fn load(maven_executable: &str) -> Result<Vec<Dependency>, MavenTreeError> {
+    let log: String = get_cli_output(maven_executable).await?;
     let cut: String = cut_output(&log);
 
     Ok(parser(&cut))
@@ -43,12 +41,12 @@ fn parser(cut: &str) -> Vec<Dependency> {
     out
 }
 
-fn get_cli_output(maven_executable: &str) -> Result<String, MavenTreeError> {
+async fn get_cli_output(maven_executable: &str) -> Result<String, MavenTreeError> {
     // mvn dependency:tree -DoutputType=dot
     let mut output = Command::new(maven_executable);
     let output = output.arg("dependency:tree").arg("-DoutputType=dot");
-    let output = overwrite_settings_xml(output);
-    let output = output.output().map_err(MavenTreeError::Cli)?;
+    let output = overwrite_settings_xml_tokio(output);
+    let output = output.output().await.map_err(MavenTreeError::Cli)?;
 
     if !output.status.success() {
         let err = from_utf8(&output.stderr).map_err(MavenTreeError::Utf8)?;

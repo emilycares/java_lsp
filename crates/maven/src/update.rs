@@ -32,7 +32,7 @@ pub enum MavenUpdateError {
 
 pub async fn update(
     repos: Arc<Vec<String>>,
-    tree: Vec<Dependency>,
+    tree: &[Dependency],
     sender: tokio::sync::watch::Sender<TaskProgress>,
 ) -> Result<(), MavenUpdateError> {
     let client = reqwest::Client::builder()
@@ -47,18 +47,18 @@ pub async fn update(
 
     for pom in tree {
         let deps_path = deps_dir();
-        let deps_bas = Arc::new(deps_base(&pom, &deps_path));
-        let pom_mtwo = Arc::new(pom_m2(&pom, &m2));
-        let one = stage_one(&pom, &deps_bas, &pom_mtwo);
+        let deps_bas = Arc::new(deps_base(pom, &deps_path));
+        let pom_mtwo = Arc::new(pom_m2(pom, &m2));
+        let one = stage_one(pom, &deps_bas, &pom_mtwo);
         match one {
             UpdateStateOne::NoOwnHash
             | UpdateStateOne::WasUpdated
             | UpdateStateOne::JarNotFound
             | UpdateStateOne::CheckUpdate => {
+                let pom = Arc::new(pom.to_owned());
                 let jar = Arc::new(pom_classes_jar(&pom, &m2));
                 let f_source = Arc::new(pom_sources_jar(&pom, &pom_mtwo));
                 let d_source = Arc::new(deps_get_source(&deps_bas));
-                let pom = Arc::new(pom);
                 let mut found = false;
                 for repo in repos.as_ref() {
                     let two = stage_two(
@@ -97,7 +97,7 @@ pub async fn update(
                 }
                 if !found && matches!(one, UpdateStateOne::WasUpdated) {
                     handles.spawn(async move {
-                        index_jar(&pom, &deps_bas, &jar, &d_source).await;
+                        index_jar(pom, &deps_bas, &jar, &d_source).await;
                     });
                 }
             }
@@ -139,14 +139,14 @@ fn handle_repo_retry(
                 });
             }
             handles.spawn(async move {
-                index_jar(&pom, &deps_bas, &jar, &d_source).await;
+                index_jar(pom, &deps_bas, &jar, &d_source).await;
             });
         }
         Ok(UpdateStateTwo::AlreadyLatest) => {
             let cfc = deps_get_cfc(&deps_bas, &pom);
             if !cfc.exists() {
                 handles.spawn(async move {
-                    index_jar(&pom, &deps_bas, &jar, &d_source).await;
+                    index_jar(pom, &deps_bas, &jar, &d_source).await;
                 });
             }
         }
@@ -179,7 +179,7 @@ async fn fetch_extract_source(
     }
 }
 
-async fn index_jar(pom: &Dependency, deps_bas: &PathBuf, jar: &PathBuf, d_source: &DepsSource) {
+async fn index_jar(pom: Arc<Dependency>, deps_bas: &PathBuf, jar: &PathBuf, d_source: &DepsSource) {
     let Some(source) = d_source.as_path().to_str() else {
         return;
     };
@@ -187,7 +187,7 @@ async fn index_jar(pom: &Dependency, deps_bas: &PathBuf, jar: &PathBuf, d_source
         .await
     {
         Ok(classes) => {
-            let cfc = deps_get_cfc(deps_bas, pom);
+            let cfc = deps_get_cfc(deps_bas, &pom);
             if let Err(e) = loader::save_class_folder(&cfc, &classes) {
                 eprintln!("Failed to save cache for {}, {e:?}", cfc.display());
             }

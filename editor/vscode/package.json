@@ -32,7 +32,19 @@
           "description": "The path to the java_lsp executable."
         }
       }
-    }
+    },
+    "commands": [
+      {
+        "command": "ReloadDependencies",
+        "title": "Reload Dependencies",
+        "category": "java_lsp"
+      },
+      {
+        "command": "UpdateDependencies",
+        "title": "Update Dependencies",
+        "category": "java_lsp"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
