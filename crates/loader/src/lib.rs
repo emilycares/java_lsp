@@ -70,7 +70,6 @@ pub fn save_class_folder<P: AsRef<Path> + Debug>(
     if class_folder.classes.is_empty() {
         return Ok(());
     }
-    eprintln!("Writing cache file to: {path:?}");
     let mut file = OpenOptions::new()
         .create(true)
         .truncate(true)
@@ -88,14 +87,12 @@ pub fn load_class_folder<P: AsRef<Path> + Debug>(path: P) -> Result<ClassFolder,
     let mmap = unsafe { memmap2::Mmap::map(&file) }.map_err(LoaderError::IO)?;
     if let Ok(o) = postcard::from_bytes::<ClassFolder>(&mmap[..]) {
         if o.version != CFC_VERSION {
-            eprintln!("Removing old cfc cache: {path:?}");
-            std::fs::remove_file(path).map_err(LoaderError::IO)?;
+            eprintln!("Detected old cfc cache: {path:?}");
             return Err(LoaderError::InvalidCfcCache);
         }
         Ok(o)
     } else {
-        eprintln!("Removing invalid cfc cache: {path:?}");
-        std::fs::remove_file(path).map_err(LoaderError::IO)?;
+        eprintln!("Detected invalid cfc cache: {path:?}");
         Err(LoaderError::InvalidCfcCache)
     }
 }
