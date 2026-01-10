@@ -26,6 +26,8 @@ use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
 use std::fmt::Debug;
 use tokio::fs::read;
 
+pub const CFC_VERSION: usize = 0;
+
 #[derive(Debug)]
 pub enum LoaderError {
     IO(std::io::Error),
@@ -84,7 +86,12 @@ pub fn save_class_folder<P: AsRef<Path> + Debug>(
 pub fn load_class_folder<P: AsRef<Path> + Debug>(path: P) -> Result<ClassFolder, LoaderError> {
     let file = File::open(&path).map_err(LoaderError::IO)?;
     let mmap = unsafe { memmap2::Mmap::map(&file) }.map_err(LoaderError::IO)?;
-    if let Ok(o) = postcard::from_bytes(&mmap[..]) {
+    if let Ok(o) = postcard::from_bytes::<ClassFolder>(&mmap[..]) {
+        if o.version != CFC_VERSION {
+            eprintln!("Removing old cfc cache: {path:?}");
+            std::fs::remove_file(path).map_err(LoaderError::IO)?;
+            return Err(LoaderError::InvalidCfcCache);
+        }
         Ok(o)
     } else {
         eprintln!("Removing invalid cfc cache: {path:?}");
@@ -239,7 +246,10 @@ async fn base_load_classes_zip(
         }
     }
 
-    Ok(ClassFolder { classes })
+    Ok(ClassFolder {
+        version: CFC_VERSION,
+        classes,
+    })
 }
 
 pub fn load_classes<P: AsRef<Path>>(path: P, source: &SourceDestination) -> ClassFolder {
@@ -248,6 +258,7 @@ pub fn load_classes<P: AsRef<Path>>(path: P, source: &SourceDestination) -> Clas
         return ClassFolder::default();
     };
     ClassFolder {
+        version: CFC_VERSION,
         classes: get_files(&path, ".class")
             .into_iter()
             .filter(|p| !p.ends_with("module-info.class"))

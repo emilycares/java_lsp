@@ -9,14 +9,20 @@ use std::{
 
 use common::{Dependency, TaskProgress, deps_dir};
 use dashmap::DashMap;
+use loader::{CFC_VERSION, LoaderError};
 use my_string::MyString;
 use parser::dto::{Class, ClassFolder};
 use tokio::task::JoinSet;
 
-use crate::update::{deps_base, deps_get_cfc};
+use crate::{
+    m2::{self, MTwoError},
+    update::{deps_base, deps_get_cfc, deps_get_source},
+};
 
 #[derive(Debug)]
-pub enum MavenProjectError {}
+pub enum MavenProjectError {
+    MTwo(MTwoError),
+}
 
 pub async fn project_deps(
     class_map: Arc<DashMap<MyString, Class>>,
@@ -42,19 +48,22 @@ pub async fn project_deps(
     let mut handles = JoinSet::<Option<ClassFolder>>::new();
     let sender = Arc::new(sender);
     let deps_path = Arc::new(deps_dir());
+    let m2 = m2::get_maven_m2_folder().map_err(MavenProjectError::MTwo)?;
+    let m2 = Arc::new(m2);
 
     for dep in tree {
         let sender = sender.clone();
         let completed_number = completed_number.clone();
         let deps_path = deps_path.clone();
         let dep = Arc::new(dep.to_owned());
+        let m2 = m2.clone();
 
         handles.spawn(async move {
             let sender = sender.clone();
 
             let deps_bas = deps_base(&dep, &deps_path);
             let cfc = deps_get_cfc(&deps_bas, &dep);
-            match loader::load_class_folder(cfc) {
+            match loader::load_class_folder(&cfc) {
                 Ok(classes) => {
                     let a = completed_number.fetch_add(1, Ordering::Relaxed);
                     let _ = sender.send(TaskProgress {
@@ -63,6 +72,37 @@ pub async fn project_deps(
                         message: dep.artivact_id.clone(),
                     });
                     Some(classes)
+                }
+                Err(LoaderError::InvalidCfcCache | LoaderError::IO(_)) => {
+                    let pom_mtwo = m2::pom_m2(&dep, &m2);
+                    let jar = m2::pom_classes_jar(&dep, &pom_mtwo);
+                    let source = deps_get_source(&deps_bas);
+                    if let Some(source) = source.as_path().to_str() {
+                        match loader::load_classes_jar(
+                            &jar,
+                            parser::SourceDestination::RelativeInFolder(source.to_owned()),
+                        )
+                        .await
+                        {
+                            Ok(classes) => {
+                                let a = completed_number.fetch_add(1, Ordering::Relaxed);
+                                let _ = sender.send(TaskProgress {
+                                    percentage: (100 * a) / (tasks_number + 1),
+                                    error: false,
+                                    message: dep.artivact_id.clone(),
+                                });
+                                if let Err(e) = loader::save_class_folder(&cfc, &classes) {
+                                    eprintln!("Failed to save cache for {}, {e:?}", cfc.display());
+                                }
+
+                                return Some(classes);
+                            }
+                            Err(e) => {
+                                eprintln!("Failed to index jar: {}, {e:?}", jar.display());
+                            }
+                        }
+                    }
+                    None
                 }
                 Err(e) => {
                     eprintln!("Parse error in {dep:?}, {e:?}");
@@ -76,6 +116,7 @@ pub async fn project_deps(
 
     let maven_class_folder = ClassFolder {
         classes: done.into_iter().flatten().flat_map(|i| i.classes).collect(),
+        version: CFC_VERSION,
     };
 
     if let Err(e) = loader::save_class_folder(&cache_path, &maven_class_folder) {

@@ -18,6 +18,7 @@ pub enum ClassError {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
 pub struct ClassFolder {
+    pub version: usize,
     pub classes: Vec<Class>,
 }
 

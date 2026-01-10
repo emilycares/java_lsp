@@ -19,6 +19,7 @@ use std::{
 
 use common::TaskProgress;
 use dashmap::DashMap;
+use loader::CFC_VERSION;
 use my_string::MyString;
 use parser::{
     SourceDestination,
@@ -243,7 +244,10 @@ async fn load_jmods(
         }
     }
 
-    Ok(ClassFolder { classes })
+    Ok(ClassFolder {
+        classes,
+        version: CFC_VERSION,
+    })
 }
 
 async fn unzip_to_dir(dir: &Path, zip: &PathBuf) -> Result<(), JdkError> {
