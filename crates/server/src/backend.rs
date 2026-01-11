@@ -14,6 +14,7 @@ use document::{
     ClassSource, Document, DocumentError, get_class_path, open_document,
     read_document_or_open_class,
 };
+use gradle::project::get_gradle_cache_path;
 use lsp_extra::{SERVER_NAME, source_to_uri, to_ast_point};
 use lsp_server::{Connection, Message};
 use lsp_types::{
@@ -27,7 +28,10 @@ use lsp_types::{
     WorkDoneProgressEnd, WorkDoneProgressReport, WorkspaceSymbolParams, WorkspaceSymbolResponse,
     notification::{Notification, Progress, PublishDiagnostics},
 };
-use maven::update::{self, MavenUpdateError};
+use maven::{
+    project::get_maven_cache_path,
+    update::{self, MavenUpdateError},
+};
 use my_string::MyString;
 use parser::dto::Class;
 use rayon::iter::{ParallelBridge, ParallelIterator};
@@ -940,40 +944,18 @@ pub async fn project_deps(
     project_cache_dir: &Path,
     tree: &[Dependency],
 ) {
-    match project_kind {
-        ProjectKind::Maven { .. } => {
-            match maven::project::project_deps(
-                class_map,
-                sender,
-                use_cache,
-                project_dir,
-                project_cache_dir,
-                tree,
-            )
-            .await
-            {
-                Ok(()) => (),
-                Err(e) => {
-                    eprintln!("Got error while loading maven project: {e:?}");
-                }
-            }
-        }
-        ProjectKind::Gradle { .. } => match gradle::project::project_deps(
-            &class_map,
-            sender,
-            use_cache,
-            project_dir,
-            project_cache_dir,
-            tree,
-        )
-        .await
-        {
+    let cache_path = match project_kind {
+        ProjectKind::Maven { .. } => Some(get_maven_cache_path(project_dir, project_cache_dir)),
+        ProjectKind::Gradle { .. } => Some(get_gradle_cache_path(project_dir, project_cache_dir)),
+        ProjectKind::Unknown => None,
+    };
+    if let Some(cache_path) = cache_path {
+        match maven::project::project_deps(class_map, sender, use_cache, tree, cache_path).await {
             Ok(()) => (),
             Err(e) => {
-                eprintln!("Got error while loading gradle project: {e:?}");
+                eprintln!("Got error while loading maven project: {e:?}");
             }
-        },
-        ProjectKind::Unknown => (),
+        }
     }
 }
 pub async fn update_report(

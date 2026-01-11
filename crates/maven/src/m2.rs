@@ -1,11 +1,13 @@
-use std::path::{Path, PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use common::Dependency;
 
 #[derive(Debug)]
 pub enum MTwoError {
     NoHomeFound,
-    NoM2Folder,
 }
 
 pub fn get_maven_m2_folder() -> Result<PathBuf, MTwoError> {
@@ -15,7 +17,7 @@ pub fn get_maven_m2_folder() -> Result<PathBuf, MTwoError> {
     };
     let m2 = home.join(".m2");
     if !m2.exists() {
-        return Err(MTwoError::NoM2Folder);
+        let _ = fs::create_dir_all(&m2);
     }
     Ok(m2)
 }
