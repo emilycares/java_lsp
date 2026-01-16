@@ -50,60 +50,60 @@ pub async fn update(
         let deps_bas = Arc::new(deps_base(pom, &deps_path));
         let pom_mtwo = Arc::new(pom_m2(pom, &m2));
         let one = stage_one(pom, &deps_bas, &pom_mtwo);
+        let mut ignore_etag = false;
         match one {
-            UpdateStateOne::NoOwnHash
-            | UpdateStateOne::WasUpdated
-            | UpdateStateOne::JarNotFound
-            | UpdateStateOne::CheckUpdate => {
-                let pom = Arc::new(pom.to_owned());
-                let jar = Arc::new(pom_classes_jar(&pom, &m2));
-                let f_source = Arc::new(pom_sources_jar(&pom, &pom_mtwo));
-                let d_source = Arc::new(deps_get_source(&deps_bas));
-                let mut found = false;
-                for repo in repos.as_ref() {
-                    let two = stage_two(
-                        pom.clone(),
-                        pom_mtwo.clone(),
-                        repo,
-                        jar.clone(),
-                        &deps_bas,
-                        &client,
-                    )
-                    .await;
-                    let a = completed_number.fetch_add(1, Ordering::Relaxed);
-                    let _ = sender.send(TaskProgress {
-                        percentage: (100 * a) / (tasks_number + 1),
-                        error: false,
-                        message: pom.artivact_id.clone(),
-                    });
-                    let res = handle_repo_retry(
-                        &mut handles,
-                        two,
-                        deps_bas.clone(),
-                        jar.clone(),
-                        d_source.clone(),
-                        f_source.clone(),
-                        pom.clone(),
-                        pom_mtwo.clone(),
-                        repo,
-                        &client,
-                    );
-
-                    if res {
-                        found = true;
-                    } else {
-                        break;
-                    }
-                }
-                if !found && matches!(one, UpdateStateOne::WasUpdated) {
-                    handles.spawn(async move {
-                        index_jar(pom, &deps_bas, &jar, &d_source).await;
-                    });
-                }
-            }
+            UpdateStateOne::WasUpdated | UpdateStateOne::JarNotFound => ignore_etag = true,
+            UpdateStateOne::NoOwnHash | UpdateStateOne::CheckUpdate => (),
             UpdateStateOne::FailedToReadSha
             | UpdateStateOne::FailedToReadOwnHash
-            | UpdateStateOne::FailedToReadJar => (),
+            | UpdateStateOne::FailedToReadJar => continue,
+        }
+
+        let pom = Arc::new(pom.to_owned());
+        let jar = Arc::new(pom_classes_jar(&pom, &m2));
+        let f_source = Arc::new(pom_sources_jar(&pom, &pom_mtwo));
+        let d_source = Arc::new(deps_get_source(&deps_bas));
+        let mut found = false;
+        for repo in repos.as_ref() {
+            let two = stage_two(
+                pom.clone(),
+                pom_mtwo.clone(),
+                repo,
+                jar.clone(),
+                &deps_bas,
+                ignore_etag,
+                &client,
+            )
+            .await;
+            let a = completed_number.fetch_add(1, Ordering::Relaxed);
+            let _ = sender.send(TaskProgress {
+                percentage: (100 * a) / (tasks_number + 1),
+                error: false,
+                message: pom.artivact_id.clone(),
+            });
+            let res = handle_repo_retry(
+                &mut handles,
+                two,
+                deps_bas.clone(),
+                jar.clone(),
+                d_source.clone(),
+                f_source.clone(),
+                pom.clone(),
+                pom_mtwo.clone(),
+                repo,
+                &client,
+            );
+
+            if res {
+                found = true;
+            } else {
+                break;
+            }
+        }
+        if !found && matches!(one, UpdateStateOne::WasUpdated) {
+            handles.spawn(async move {
+                index_jar(pom, &deps_bas, &jar, &d_source).await;
+            });
         }
     }
     let _ = handles.join_all().await;
@@ -261,6 +261,7 @@ pub async fn stage_two(
     repo: &str,
     jar: Arc<PathBuf>,
     deps_bas: &DepsBas,
+    ignore_etag: bool,
     client: &Arc<Client>,
 ) -> Result<UpdateStateTwo, MavenUpdateError> {
     let jar_url = pom_jar_url(&pom, repo);
@@ -273,7 +274,8 @@ pub async fn stage_two(
         .await
         .map_err(MavenUpdateError::CreateDir)?;
     let etag = deps_get_etag(deps_bas, &pom);
-    if etag.exists()
+    if !ignore_etag
+        && etag.exists()
         && let Ok(etag) = fs::read_to_string(&etag)
     {
         builder = builder.header("If-None-Match", etag);
