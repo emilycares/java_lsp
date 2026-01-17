@@ -17,6 +17,8 @@ dirs.workspace = true
 tokio.workspace = true
 sha1_smol.workspace = true
 reqwest.workspace = true
+serde.workspace = true
+serde-xml-rs.workspace = true
 my_string = { path = "../my_string"}
 common = { path = "../common" }
 parser = {path = "../parser"}

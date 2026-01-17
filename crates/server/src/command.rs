@@ -6,6 +6,7 @@ use std::{
 
 use common::{Dependency, TaskProgress, project_cache_dir, project_kind::ProjectKind};
 use dashmap::DashMap;
+use gradle::tree::GradleTreeError;
 use lsp_extra::SERVER_NAME;
 use lsp_server::Connection;
 use lsp_types::{Diagnostic, DiagnosticSeverity, ProgressToken, Range};
@@ -26,6 +27,7 @@ pub fn reload_dependencies(
     class_map: &Arc<DashMap<MyString, Class>>,
     project_dir: &Path,
 ) -> Option<serde_json::Value> {
+    let repos = Arc::new(repos(project_kind, project_dir));
     let con = con.clone();
     let project_kind = project_kind.clone();
     let class_map = class_map.clone();
@@ -54,7 +56,7 @@ pub fn reload_dependencies(
             let cache = project_cache_dir();
             tokio::select! {
                 () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-                () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree) => {}
+                () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree, repos) => {}
             }
         }
         Backend::progress_end_option_token(&con.clone(), &progress, &task);
@@ -69,18 +71,20 @@ pub fn update_dependencies(
     class_map: &Arc<DashMap<MyString, Class>>,
     project_dir: &Path,
 ) {
-    let repos = Arc::new(vec!["https://repo.maven.apache.org/maven2/".to_owned()]);
+    let repos = Arc::new(repos(project_kind, project_dir));
     let con = con.clone();
     let project_kind = project_kind.clone();
     let class_map = class_map.clone();
     let project_dir = project_dir.to_owned();
     tokio::spawn(async move {
         let progress = Arc::new(progress);
-        let tree_task = "Load Dependencies".to_string();
-        Backend::progress_start_option_token(&con.clone(), &progress, &tree_task);
+
+        let mut task = "Load Dependencies".to_string();
+        Backend::progress_start_option_token(&con.clone(), &progress, &task);
         let tree = get_tree(&project_kind, &con).await;
-        Backend::progress_end_option_token(&con.clone(), &progress, &tree_task);
-        let task = format!("Command: {UPDATE_DEPENDENCIES}");
+        Backend::progress_end_option_token(&con.clone(), &progress, &task);
+
+        task = format!("Command: {UPDATE_DEPENDENCIES}");
         Backend::progress_start_option_token(&con.clone(), &progress, &task);
         if let Some(tree) = tree {
             let (sender, receiver) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
@@ -90,7 +94,7 @@ pub fn update_dependencies(
             });
             tokio::select! {
                 () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-                () = update_report(project_kind.clone(), con.clone(), repos, &tree, sender) => {},
+                () = update_report(project_kind.clone(), con.clone(), repos.clone(), &tree, sender) => {},
             }
             let (sender, receiver) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
                 percentage: 0,
@@ -98,16 +102,39 @@ pub fn update_dependencies(
                 message: "...".to_string(),
             });
             let cache = project_cache_dir();
-            let task = format!("Command: {COMMAND_RELOAD_DEPENDENCIES}");
+            task = format!("Command: {COMMAND_RELOAD_DEPENDENCIES}");
             Backend::progress_start_option_token(&con.clone(), &progress, &task);
             tokio::select! {
                 () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-                () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree) => {}
+                () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree, repos) => {}
             }
             Backend::progress_end_option_token(&con.clone(), &progress, &task);
         }
         Backend::progress_end_option_token(&con.clone(), &progress, &task);
     });
+}
+
+#[must_use]
+pub fn repos(project_kind: &ProjectKind, project_dir: &Path) -> Vec<maven::repository::Repository> {
+    match project_kind {
+        ProjectKind::Maven { executable: _ } => {
+            match maven::m2::get_maven_m2_folder() {
+                Ok(m2_folder) => {
+                    match maven::repository::load_repositories(&m2_folder, project_dir) {
+                        Ok(repositories) => return repositories,
+                        Err(e) => eprintln!("Got error loading repos: {e:?}"),
+                    }
+                }
+                Err(e) => eprintln!("Got error loading m2 folder: {e:?}"),
+            }
+            vec![maven::repository::central()]
+        }
+        ProjectKind::Gradle {
+            executable: _,
+            path_build_gradle: _,
+        }
+        | ProjectKind::Unknown => vec![maven::repository::central()],
+    }
 }
 
 #[must_use]
@@ -172,8 +199,43 @@ pub async fn get_tree(
         },
         ProjectKind::Gradle { ref executable, .. } => match gradle::tree::load(executable).await {
             Ok(t) => Some(t),
-            Err(e) => {
-                eprintln!("Failed to load tree: {e:?}");
+            Err(GradleTreeError::GotError(e)) => {
+                let message = format!("Unable load gradle dependency tree {e:?}");
+                diagnostics.push(Diagnostic::new(
+                    range,
+                    Some(DiagnosticSeverity::ERROR),
+                    None,
+                    Some(String::from(SERVER_NAME)),
+                    message,
+                    None,
+                    None,
+                ));
+                None
+            }
+            Err(GradleTreeError::CliFailed(e)) => {
+                let message = format!("Unable load gradle dependency tree {e:?}");
+                diagnostics.push(Diagnostic::new(
+                    range,
+                    Some(DiagnosticSeverity::ERROR),
+                    None,
+                    Some(String::from(SERVER_NAME)),
+                    message,
+                    None,
+                    None,
+                ));
+                None
+            }
+            Err(GradleTreeError::Utf8(e)) => {
+                let message = format!("Unable load gradle dependency tree {e:?}");
+                diagnostics.push(Diagnostic::new(
+                    range,
+                    Some(DiagnosticSeverity::ERROR),
+                    None,
+                    Some(String::from(SERVER_NAME)),
+                    message,
+                    None,
+                    None,
+                ));
                 None
             }
         },

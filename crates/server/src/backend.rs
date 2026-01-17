@@ -30,6 +30,7 @@ use lsp_types::{
 };
 use maven::{
     project::get_maven_cache_path,
+    repository::Repository,
     update::{self, MavenUpdateError},
 };
 use my_string::MyString;
@@ -40,7 +41,7 @@ use tokio::task::JoinSet;
 
 use crate::{
     codeaction::{self, CodeActionContext},
-    command::{self, COMMAND_RELOAD_DEPENDENCIES, UPDATE_DEPENDENCIES},
+    command::{self, COMMAND_RELOAD_DEPENDENCIES, UPDATE_DEPENDENCIES, repos},
     completion,
     definition::{self, DefinitionContext},
     hover::{self, class_action},
@@ -306,6 +307,7 @@ impl Backend {
             let project_kind = project_kind.clone();
             let class_map = class_map.clone();
             let project_dir = project_dir.to_owned();
+            let repos = Arc::new(repos(&project_kind, &project_dir));
             handles.spawn(async move {
                 Self::progress_start_option_token(&con.clone(), &progress, &task);
                 let (sender, receiver) =
@@ -319,7 +321,7 @@ impl Backend {
                 if let Some(tree) = tree {
                     tokio::select! {
                         () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-                        () = project_deps(sender, project_kind.clone(), class_map.clone(), true, &project_dir, &cache, &tree) => {}
+                        () = project_deps(sender, project_kind.clone(), class_map.clone(), true, &project_dir, &cache, &tree, repos) => {}
                     }
                 }
                 Self::progress_end_option_token(&con, &progress, &task);
@@ -935,6 +937,7 @@ pub async fn read_forward(
     .expect("Forward failed");
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn project_deps(
     sender: tokio::sync::watch::Sender<TaskProgress>,
     project_kind: ProjectKind,
@@ -943,6 +946,7 @@ pub async fn project_deps(
     project_dir: &Path,
     project_cache_dir: &Path,
     tree: &[Dependency],
+    repos: Arc<Vec<Repository>>,
 ) {
     let cache_path = match project_kind {
         ProjectKind::Maven { .. } => Some(get_maven_cache_path(project_dir, project_cache_dir)),
@@ -950,7 +954,9 @@ pub async fn project_deps(
         ProjectKind::Unknown => None,
     };
     if let Some(cache_path) = cache_path {
-        match maven::project::project_deps(class_map, sender, use_cache, tree, cache_path).await {
+        match maven::project::project_deps(class_map, sender, use_cache, tree, cache_path, repos)
+            .await
+        {
             Ok(()) => (),
             Err(e) => {
                 eprintln!("Got error while loading maven project: {e:?}");
@@ -961,7 +967,7 @@ pub async fn project_deps(
 pub async fn update_report(
     project_kind: ProjectKind,
     con: Arc<Connection>,
-    repos: Arc<Vec<String>>,
+    repos: Arc<Vec<Repository>>,
     tree: &[Dependency],
     sender: tokio::sync::watch::Sender<TaskProgress>,
 ) {

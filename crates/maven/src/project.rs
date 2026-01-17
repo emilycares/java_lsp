@@ -17,6 +17,7 @@ use tokio::task::JoinSet;
 
 use crate::{
     m2::{self, MTwoError},
+    repository::Repository,
     update::{self, deps_base, deps_get_cfc, deps_get_source},
 };
 
@@ -31,6 +32,7 @@ pub async fn project_deps(
     use_cache: bool,
     tree: &[Dependency],
     cache_path: PathBuf,
+    repos: Arc<Vec<Repository>>,
 ) -> Result<(), MavenProjectError> {
     if use_cache
         && cache_path.exists()
@@ -108,7 +110,6 @@ pub async fn project_deps(
         });
     }
 
-    let repos = Arc::new(vec!["https://repo.maven.apache.org/maven2/".to_owned()]);
     let u = update::update(repos, &update_tree, sender.clone()).await;
     let sender = Arc::new(sender);
 
@@ -162,7 +163,6 @@ async fn reindex(
     jar: PathBuf,
     sender: Arc<tokio::sync::watch::Sender<TaskProgress>>,
 ) -> Option<ClassFolder> {
-    eprintln!("Reindex {}", jar.display());
     let source = deps_get_source(&deps_bas);
     if let Some(source) = source.as_path().to_str() {
         match loader::load_classes_jar(

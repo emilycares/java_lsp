@@ -13,8 +13,11 @@ use parser::SourceDestination;
 use reqwest::{Client, StatusCode};
 use tokio::task::JoinSet;
 
-use crate::m2::{MTwoError, get_maven_m2_folder, pom_classes_jar, pom_m2_sha1};
 use crate::m2::{PomMTwo, pom_m2, pom_sources_jar};
+use crate::{
+    m2::{MTwoError, get_maven_m2_folder, pom_classes_jar, pom_m2_sha1},
+    repository::Repository,
+};
 
 #[derive(Debug)]
 pub enum MavenUpdateError {
@@ -31,7 +34,7 @@ pub enum MavenUpdateError {
 }
 
 pub async fn update(
-    repos: Arc<Vec<String>>,
+    repos: Arc<Vec<Repository>>,
     tree: &[Dependency],
     sender: tokio::sync::watch::Sender<TaskProgress>,
 ) -> Result<(), MavenUpdateError> {
@@ -60,7 +63,7 @@ pub async fn update(
         }
 
         let pom = Arc::new(pom.to_owned());
-        let jar = Arc::new(pom_classes_jar(&pom, &m2));
+        let jar = Arc::new(pom_classes_jar(&pom, &pom_mtwo));
         let f_source = Arc::new(pom_sources_jar(&pom, &pom_mtwo));
         let d_source = Arc::new(deps_get_source(&deps_bas));
         let mut found = false;
@@ -81,6 +84,7 @@ pub async fn update(
                 error: false,
                 message: pom.artivact_id.clone(),
             });
+            let repo = Arc::new(repo.to_owned());
             let res = handle_repo_retry(
                 &mut handles,
                 two,
@@ -122,7 +126,7 @@ fn handle_repo_retry(
     f_source: Arc<PathBuf>,
     pom: Arc<Dependency>,
     pom_mtwo: Arc<PomMTwo>,
-    repo: &str,
+    repo: Arc<Repository>,
     client: &Arc<Client>,
 ) -> bool {
     match two {
@@ -132,7 +136,6 @@ fn handle_repo_retry(
                 let deps_bas = deps_bas.clone();
                 let pom = pom.clone();
                 let client = client.clone();
-                let repo = Arc::new(repo.to_owned());
                 handles.spawn(async move {
                     fetch_extract_source(f_source, pom_mtwo, d_source, deps_bas, pom, client, repo)
                         .await;
@@ -163,7 +166,7 @@ async fn fetch_extract_source(
     deps_bas: Arc<PathBuf>,
     pom: Arc<Dependency>,
     client: Arc<Client>,
-    repo: Arc<String>,
+    repo: Arc<Repository>,
 ) {
     match fetch_source(&pom, &pom_mtwo, &repo, &f_source, &deps_bas, &client).await {
         Ok(UpdateStateSource::Updated) => {
@@ -258,15 +261,18 @@ pub enum UpdateStateTwo {
 pub async fn stage_two(
     pom: Arc<Dependency>,
     pom_mtwo: Arc<PomMTwo>,
-    repo: &str,
+    repo: &Repository,
     jar: Arc<PathBuf>,
     deps_bas: &DepsBas,
     ignore_etag: bool,
     client: &Arc<Client>,
 ) -> Result<UpdateStateTwo, MavenUpdateError> {
-    let jar_url = pom_jar_url(&pom, repo);
+    let jar_url = pom_jar_url(&pom, &repo.url);
     eprintln!("Fetch jar: {jar_url}");
     let mut builder = client.get(jar_url);
+    if let Some(cred) = &repo.credentials {
+        builder = builder.basic_auth(cred.username.clone(), Some(cred.password.clone()));
+    }
     tokio::fs::create_dir_all(deps_bas)
         .await
         .map_err(MavenUpdateError::CreateDir)?;
@@ -308,10 +314,11 @@ pub async fn stage_two(
             .await
             .map_err(MavenUpdateError::WriteHash)?;
     } else {
-        let req = client
-            .get(pom_jar_sha_url(&pom, repo))
-            .build()
-            .map_err(MavenUpdateError::ReqBuilder)?;
+        let mut builder = client.get(pom_jar_sha_url(&pom, &repo.url));
+        if let Some(cred) = &repo.credentials {
+            builder = builder.basic_auth(cred.username.clone(), Some(cred.password.clone()));
+        }
+        let req = builder.build().map_err(MavenUpdateError::ReqBuilder)?;
         let resp = client
             .execute(req)
             .await
@@ -341,13 +348,16 @@ pub enum UpdateStateSource {
 pub async fn fetch_source(
     pom: &Dependency,
     pom_mtwo: &PomMTwo,
-    repo: &str,
+    repo: &Repository,
     source: &DepsSource,
     deps_bas: &DepsBas,
     client: &Arc<Client>,
 ) -> Result<UpdateStateSource, MavenUpdateError> {
-    let jar_url = pom_source_jar_url(pom, repo);
-    let builder = client.get(jar_url);
+    let jar_url = pom_source_jar_url(pom, &repo.url);
+    let mut builder = client.get(jar_url);
+    if let Some(cred) = &repo.credentials {
+        builder = builder.basic_auth(cred.username.clone(), Some(cred.password.clone()));
+    }
     tokio::fs::create_dir_all(deps_bas)
         .await
         .map_err(MavenUpdateError::CreateDir)?;

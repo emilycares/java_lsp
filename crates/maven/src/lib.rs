@@ -8,6 +8,9 @@
 pub mod compile;
 pub mod config;
 pub mod m2;
+pub mod pom;
 pub mod project;
+pub mod repository;
+pub mod settings;
 pub mod tree;
 pub mod update;
