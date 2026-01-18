@@ -209,7 +209,7 @@ fn type_to_snippet(import: &mut Option<ImportUnit>, p: &Parameter) -> String {
             "java.util.function.Function" | "java.util.function.Consumer" => "i -> i".to_string(),
             "java.util.function.Predicate" => "i -> true".to_string(),
             "java.util.function.BiFunction" => "(a, b) -> i".to_string(),
-            "java.util.function.BiComsumer" => "(i, consumer) -> i".to_string(),
+            "java.util.function.BiConsumer" => "(i, consumer) -> i".to_string(),
             _ => {
                 format!("{}", p.jtype)
             }

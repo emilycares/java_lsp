@@ -15,7 +15,7 @@ use crate::{
 pub fn parse_record(
     tokens: &[PositionToken],
     pos: usize,
-    avaliability: AstAvailability,
+    availability: AstAvailability,
     attributes: AstThingAttributes,
     annotated: Vec<AstAnnotated>,
     start: &PositionToken,
@@ -26,7 +26,7 @@ pub fn parse_record(
         type_parameters = Some(type_params);
         pos = npos;
     }
-    let (record_entries, pos) = parse_record_entires(tokens, pos)?;
+    let (record_entries, pos) = parse_record_entries(tokens, pos)?;
     let (implements, pos) = parse_implements(tokens, pos)?;
     let (superclass, pos) = parse_superclass(tokens, pos)?;
     let (block, pos) = parse_class_block(tokens, pos)?;
@@ -34,7 +34,7 @@ pub fn parse_record(
     Ok((
         AstThing::Record(AstRecord {
             range: AstRange::from_position_token(start, end),
-            availability: avaliability,
+            availability,
             attributes,
             annotated,
             name,
@@ -48,7 +48,7 @@ pub fn parse_record(
     ))
 }
 /// `(String a, short b)`
-pub fn parse_record_entires(
+pub fn parse_record_entries(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstRecordEntries, usize), AstError> {

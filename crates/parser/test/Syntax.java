@@ -121,7 +121,7 @@ public class Syntax {
         };
         Arrays.stream(names).forEach(Geeks::print);
         """
-        Java ist besser
+        Java is better
         --Thorben""";
         return;
     }

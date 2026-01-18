@@ -1,5 +1,5 @@
 ---
-source: ast/tests/ast.rs
+source: crates/ast/tests/ast.rs
 expression: parsed.unwrap()
 ---
 AstFile {
@@ -11496,11 +11496,11 @@ AstFile {
                                                 range: AstRange {
                                                     start: AstPoint {
                                                         line: 122,
-                                                        col: 52,
+                                                        col: 51,
                                                     },
                                                     end: AstPoint {
                                                         line: 122,
-                                                        col: 54,
+                                                        col: 53,
                                                     },
                                                 },
                                                 value: [
@@ -11509,11 +11509,11 @@ AstFile {
                                                             range: AstRange {
                                                                 start: AstPoint {
                                                                     line: 122,
-                                                                    col: 52,
+                                                                    col: 51,
                                                                 },
                                                                 end: AstPoint {
                                                                     line: 122,
-                                                                    col: 94,
+                                                                    col: 92,
                                                                 },
                                                             },
                                                             ident: Some(
@@ -11524,14 +11524,14 @@ AstFile {
                                                                                 range: AstRange {
                                                                                     start: AstPoint {
                                                                                         line: 122,
-                                                                                        col: 52,
+                                                                                        col: 51,
                                                                                     },
                                                                                     end: AstPoint {
                                                                                         line: 121,
                                                                                         col: 51,
                                                                                     },
                                                                                 },
-                                                                                value: "\n        Java ist besser\n        --Thorben",
+                                                                                value: "\n        Java is better\n        --Thorben",
                                                                             },
                                                                         ),
                                                                     ),

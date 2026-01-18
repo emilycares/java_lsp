@@ -17,6 +17,7 @@ fmt:
   cargo fmt
 
 doc:
+  typos
   cargo doc --no-deps --workspace
 
 precommit: fmt check test clippy doc dev

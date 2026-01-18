@@ -7,5 +7,5 @@ javac -parameters Constants.java
 javac -parameters Super.java
 javac -parameters SuperInterface.java
 javac -parameters InterfaceBase.java 
-# -g ist with Debug info
+# -g is with Debug info
 javac -parameters -g LocalVariableTable.java

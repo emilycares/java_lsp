@@ -321,7 +321,7 @@ fn return_casted_newclass() {
 }
 
 #[test]
-fn jtype_geneic_array() {
+fn jtype_generic_array() {
     let content = r#"Entry<T>[]"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_jtype(&tokens, 0);
@@ -351,7 +351,7 @@ fn name_dot() {
     insta::assert_debug_snapshot!(parsed);
 }
 #[test]
-fn labled_emty_for() {
+fn labeled_empty_for() {
     let content = r#" l: for (;;) {} "#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_for(&tokens, 0);
@@ -379,7 +379,7 @@ fn class_colon_colon_new() {
     insta::assert_debug_snapshot!(parsed);
 }
 #[test]
-fn parmeter_class_function_pass() {
+fn parameter_class_function_pass() {
     let content = r#"toArray(Class<?>[]::new)"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);

@@ -68,6 +68,7 @@
                 cargo-nextest
                 cargo-insta
                 just
+                typos
               ]
               ++ (lib.optional (stdenv.isx86_64 && stdenv.isLinux) cargo-tarpaulin)
               ++ (lib.optional stdenv.isLinux lldb)

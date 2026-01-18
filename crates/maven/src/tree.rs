@@ -88,7 +88,7 @@ mod tests {
 
     #[test]
     fn cut_basic() {
-        let inp = include_str!("../tests/tverify.bacic.txt");
+        let inp = include_str!("../tests/tverify.basic.txt");
 
         let out = cut_output(inp);
 
@@ -98,7 +98,7 @@ mod tests {
 
     #[test]
     fn parse_diagram() {
-        let inp = include_str!("../tests/tverify.bacic.txt");
+        let inp = include_str!("../tests/tverify.basic.txt");
         let cut = cut_output(inp);
         let out = parser(&cut);
         assert_eq!(
@@ -1125,7 +1125,7 @@ mod tests {
 
     #[test]
     fn parse_diagram_with_tab() {
-        let inp = include_str!("../tests/tverify-tap.bacic.txt");
+        let inp = include_str!("../tests/tverify-tap.basic.txt");
         let out = parser(inp);
         assert_eq!(
             out,

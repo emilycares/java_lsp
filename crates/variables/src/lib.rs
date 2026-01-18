@@ -88,17 +88,17 @@ fn get_vars_thing(thing: &AstThing, point: &AstPoint, out: &mut Vec<LocalVariabl
         }
         AstThing::Interface(ast_interface) => {
             let level = level + 1;
-            out.extend(get_interface_constats(&ast_interface.constants, level));
+            out.extend(get_interface_constants(&ast_interface.constants, level));
         }
         AstThing::Enumeration(_) | AstThing::Annotation(_) => (),
     }
 }
 
-fn get_interface_constats(
-    contants: &[AstInterfaceConstant],
+fn get_interface_constants(
+    constants: &[AstInterfaceConstant],
     level: usize,
 ) -> impl Iterator<Item = LocalVariable> {
-    contants.iter().map(move |i| LocalVariable {
+    constants.iter().map(move |i| LocalVariable {
         level,
         jtype: (&i.jtype).into(),
         name: (&i.name).into(),
