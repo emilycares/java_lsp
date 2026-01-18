@@ -13,10 +13,13 @@ use parser::SourceDestination;
 use reqwest::{Client, StatusCode};
 use tokio::task::JoinSet;
 
-use crate::m2::{PomMTwo, pom_m2, pom_sources_jar};
 use crate::{
     m2::{MTwoError, get_maven_m2_folder, pom_classes_jar, pom_m2_sha1},
     repository::Repository,
+};
+use crate::{
+    m2::{PomMTwo, pom_m2, pom_sources_jar},
+    metadata,
 };
 
 #[derive(Debug)]
@@ -68,7 +71,8 @@ pub async fn update(
         let d_source = Arc::new(deps_get_source(&deps_bas));
         let mut found = false;
         for repo in repos.as_ref() {
-            let two = stage_two(
+            let jar_url = pom_jar_url(&pom, &repo.url);
+            let mut two = stage_two(
                 pom.clone(),
                 pom_mtwo.clone(),
                 repo,
@@ -76,8 +80,43 @@ pub async fn update(
                 &deps_bas,
                 ignore_etag,
                 &client,
+                &jar_url,
             )
             .await;
+
+            let mut source_url = pom_source_jar_url(&pom, &repo.url);
+
+            if matches!(two, Ok(UpdateStateTwo::NotFound)) && pom.version.ends_with("SNAPSHOT") {
+                let url = pom_snapshot_maven_metadata_xml_url(&pom, &repo.url);
+                let mut builder = client.get(url);
+                if let Some(cred) = &repo.credentials {
+                    builder =
+                        builder.basic_auth(cred.username.clone(), Some(cred.password.clone()));
+                }
+                if let Ok(req) = builder.build()
+                    && let Ok(resp) = client.execute(req).await
+                    && resp.status().is_success()
+                    && let Ok(content) = resp.text().await
+                    && let Ok(info) = metadata::get_metadata_info(&content, &pom.artivact_id)
+                    && let Some(classes) = info.classes
+                {
+                    two = stage_two(
+                        pom.clone(),
+                        pom_mtwo.clone(),
+                        repo,
+                        jar.clone(),
+                        &deps_bas,
+                        ignore_etag,
+                        &client,
+                        &pom_url_base(&pom, &repo.url, &classes),
+                    )
+                    .await;
+                    if let Some(src) = info.source {
+                        source_url = pom_url_base(&pom, &repo.url, &src);
+                    }
+                }
+            }
+
             let a = completed_number.fetch_add(1, Ordering::Relaxed);
             let _ = sender.send(TaskProgress {
                 percentage: (100 * a) / (tasks_number + 1),
@@ -96,6 +135,7 @@ pub async fn update(
                 pom_mtwo.clone(),
                 repo,
                 &client,
+                source_url,
             );
 
             if res {
@@ -128,17 +168,25 @@ fn handle_repo_retry(
     pom_mtwo: Arc<PomMTwo>,
     repo: Arc<Repository>,
     client: &Arc<Client>,
+    source_url: String,
 ) -> bool {
     match two {
         Ok(UpdateStateTwo::Updated) => {
             {
                 let d_source = d_source.clone();
                 let deps_bas = deps_bas.clone();
-                let pom = pom.clone();
                 let client = client.clone();
                 handles.spawn(async move {
-                    fetch_extract_source(f_source, pom_mtwo, d_source, deps_bas, pom, client, repo)
-                        .await;
+                    fetch_extract_source(
+                        f_source,
+                        pom_mtwo,
+                        d_source,
+                        deps_bas,
+                        client,
+                        repo,
+                        &source_url,
+                    )
+                    .await;
                 });
             }
             handles.spawn(async move {
@@ -164,11 +212,11 @@ async fn fetch_extract_source(
     pom_mtwo: Arc<PathBuf>,
     d_source: Arc<PathBuf>,
     deps_bas: Arc<PathBuf>,
-    pom: Arc<Dependency>,
     client: Arc<Client>,
     repo: Arc<Repository>,
+    url: &str,
 ) {
-    match fetch_source(&pom, &pom_mtwo, &repo, &f_source, &deps_bas, &client).await {
+    match fetch_source(&pom_mtwo, &repo, &f_source, &deps_bas, &client, url).await {
         Ok(UpdateStateSource::Updated) => {
             let _ = tokio::fs::remove_dir(&d_source.as_path()).await;
             eprintln!("Extract: {}", f_source.display());
@@ -258,6 +306,7 @@ pub enum UpdateStateTwo {
     NotFound,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn stage_two(
     pom: Arc<Dependency>,
     pom_mtwo: Arc<PomMTwo>,
@@ -266,8 +315,8 @@ pub async fn stage_two(
     deps_bas: &DepsBas,
     ignore_etag: bool,
     client: &Arc<Client>,
+    jar_url: &str,
 ) -> Result<UpdateStateTwo, MavenUpdateError> {
-    let jar_url = pom_jar_url(&pom, &repo.url);
     eprintln!("Fetch jar: {jar_url}");
     let mut builder = client.get(jar_url);
     if let Some(cred) = &repo.credentials {
@@ -296,7 +345,7 @@ pub async fn stage_two(
     if resp.status() == StatusCode::NOT_MODIFIED {
         return Ok(UpdateStateTwo::AlreadyLatest);
     }
-    if resp.status() == StatusCode::NOT_FOUND {
+    if resp.status() == StatusCode::NOT_FOUND || !resp.status().is_success() {
         return Ok(UpdateStateTwo::NotFound);
     }
     let hash = deps_get_hash(deps_bas, &pom);
@@ -346,15 +395,14 @@ pub enum UpdateStateSource {
     NotFound,
 }
 pub async fn fetch_source(
-    pom: &Dependency,
     pom_mtwo: &PomMTwo,
     repo: &Repository,
     source: &DepsSource,
     deps_bas: &DepsBas,
     client: &Arc<Client>,
+    url: &str,
 ) -> Result<UpdateStateSource, MavenUpdateError> {
-    let jar_url = pom_source_jar_url(pom, &repo.url);
-    let mut builder = client.get(jar_url);
+    let mut builder = client.get(url);
     if let Some(cred) = &repo.credentials {
         builder = builder.basic_auth(cred.username.clone(), Some(cred.password.clone()));
     }
@@ -371,7 +419,7 @@ pub async fn fetch_source(
         .await
         .map_err(MavenUpdateError::Request)?;
 
-    if resp.status() == StatusCode::NOT_FOUND {
+    if resp.status() == StatusCode::NOT_FOUND || !resp.status().is_success() {
         return Ok(UpdateStateSource::NotFound);
     }
     let contents = &resp.bytes().await.map_err(MavenUpdateError::JarBody)?;
@@ -392,6 +440,14 @@ fn pom_jar_url(pom: &Dependency, repo: &str) -> String {
         pom.version
     )
 }
+fn pom_snapshot_maven_metadata_xml_url(pom: &Dependency, repo: &str) -> String {
+    format!(
+        "{repo}{}/{}/{}/maven-metadata.xml",
+        pom.group_id.replace('.', "/"),
+        pom.artivact_id,
+        pom.version,
+    )
+}
 fn pom_source_jar_url(pom: &Dependency, repo: &str) -> String {
     format!(
         "{repo}{}/{}/{}/{}-{}-sources.jar",
@@ -400,6 +456,16 @@ fn pom_source_jar_url(pom: &Dependency, repo: &str) -> String {
         pom.version,
         pom.artivact_id,
         pom.version
+    )
+}
+fn pom_url_base(pom: &Dependency, repo: &str, suffix: &str) -> String {
+    format!(
+        "{}{}/{}/{}/{}",
+        repo,
+        pom.group_id.replace('.', "/"),
+        pom.artivact_id,
+        pom.version,
+        suffix
     )
 }
 fn pom_jar_sha_url(pom: &Dependency, repo: &str) -> String {
