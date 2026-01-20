@@ -11,6 +11,7 @@ pub enum M2SettingsError {
 #[serde(rename = "settings")]
 pub struct M2Settings {
     pub servers: Option<M2Servers>,
+    pub mirrors: Option<M2Mirrors>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
@@ -25,6 +26,19 @@ pub struct M2Server {
     pub password: String,
 }
 
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+pub struct M2Mirrors {
+    pub mirror: Vec<M2Mirror>,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+pub struct M2Mirror {
+    pub id: String,
+    #[serde(rename = "mirrorOf")]
+    pub mirror_of: String,
+    pub url: String,
+}
+
 pub fn load_settings_xml(m2_folder: &Path) -> Result<M2Settings, M2SettingsError> {
     let path = m2_folder.join("settings.xml");
     let file = std::fs::File::open(path).map_err(M2SettingsError::IO)?;
@@ -35,7 +49,7 @@ pub fn load_settings_xml(m2_folder: &Path) -> Result<M2Settings, M2SettingsError
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use crate::settings::{M2Server, M2Servers, M2Settings};
+    use crate::settings::{M2Mirror, M2Mirrors, M2Server, M2Servers, M2Settings};
 
     #[test]
     fn load() {
@@ -70,19 +84,53 @@ mod tests {
                     },
                 ],
             }),
+            mirrors: None,
         };
 
         let out: M2Settings = serde_xml_rs::from_str(content).unwrap();
 
         assert_eq!(out, expect);
     }
+
+    #[test]
+    fn load_mirrors() {
+        let content = r#"
+        <settings>
+          <mirrors>
+            <mirror>
+              <id>org-public</id>
+              <mirrorOf>*</mirrorOf>
+              <url>https://org.url</url>
+            </mirror>
+          </mirrors>
+        </settings>
+        "#;
+        let expect = M2Settings {
+            servers: None,
+            mirrors: Some(M2Mirrors {
+                mirror: vec![M2Mirror {
+                    id: "org-public".to_string(),
+                    mirror_of: "*".to_string(),
+                    url: "https://org.url".to_string(),
+                }],
+            }),
+        };
+
+        let out: M2Settings = serde_xml_rs::from_str(content).unwrap();
+
+        assert_eq!(out, expect);
+    }
+
     #[test]
     fn no_servers() {
         let content = r#"
         <settings>
         </settings>
         "#;
-        let expect = M2Settings { servers: None };
+        let expect = M2Settings {
+            servers: None,
+            mirrors: None,
+        };
 
         let out: M2Settings = serde_xml_rs::from_str(content).unwrap();
 

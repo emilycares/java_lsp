@@ -48,17 +48,32 @@ pub fn load_repositories(
     };
 
     for repo in repositories.repository {
-        let mut url = repo.url;
-        if !url.ends_with('/') {
-            url.push('/');
+        add_repo(&mut out, &servers, &repo.id, repo.url);
+    }
+
+    let mut star_mirror = false;
+    if let Some(mirrors) = se.mirrors {
+        for mi in mirrors.mirror {
+            if mi.mirror_of == "*" {
+                add_repo(&mut out, &servers, &mi.id, mi.url);
+                star_mirror = true;
+            }
         }
-        let Some(s) = servers.server.iter().find(|i| i.id == repo.id) else {
-            out.push(Repository {
-                url,
-                credentials: None,
-            });
-            continue;
-        };
+    }
+
+    if !star_mirror {
+        out.push(central());
+    }
+
+    Ok(out)
+}
+
+fn add_repo(out: &mut Vec<Repository>, servers: &settings::M2Servers, id: &str, url: String) {
+    let mut url = url;
+    if !url.ends_with('/') {
+        url.push('/');
+    }
+    if let Some(s) = servers.server.iter().find(|i| i.id == id) {
         out.push(Repository {
             url,
             credentials: Some(RepositoryCredentials {
@@ -66,9 +81,10 @@ pub fn load_repositories(
                 password: s.password.clone(),
             }),
         });
+    } else {
+        out.push(Repository {
+            url,
+            credentials: None,
+        });
     }
-
-    out.push(central());
-
-    Ok(out)
 }
