@@ -21,7 +21,6 @@ pub enum DefinitionError {
     LocalVariableNotFound { name: String },
     ValidatedItemDoesNotExists,
     NoCallChain,
-    Position(position::PositionError),
     ArgumentNotFound,
     Document(DocumentError),
     ToLspRange(ToLspRangeError),
@@ -55,8 +54,7 @@ pub fn class(
             if let Ok(c) = read_document_or_open_class(&class.source, document_map)
                 && let Ok(ast) = c.get_ast()
             {
-                position::get_class_position_ast(ast, Some(&class.name), &mut ranges)
-                    .map_err(DefinitionError::Position)?;
+                position::get_class_position_ast(ast, Some(&class.name), &mut ranges);
             }
             Ok(go_to_definition_range(uri, &ranges)?)
         }
@@ -87,8 +85,7 @@ pub fn call_chain_definition(
             let ast = document::get_ast(&resolve_state.class.source, context.document_map)
                 .map_err(DefinitionError::Document)?;
             let mut ranges = Vec::new();
-            position::get_class_position_ast(&ast, None, &mut ranges)
-                .map_err(DefinitionError::Position)?;
+            position::get_class_position_ast(&ast, None, &mut ranges);
             Ok(go_to_definition_range(uri, &ranges)?)
         }
         Some(CallItem::Class { name, range: _ }) => {
@@ -97,8 +94,7 @@ pub fn call_chain_definition(
             let ast = document::get_ast(&resolve_state.class.source, context.document_map)
                 .map_err(DefinitionError::Document)?;
             let mut ranges = Vec::new();
-            position::get_class_position_ast(&ast, Some(name), &mut ranges)
-                .map_err(DefinitionError::Position)?;
+            position::get_class_position_ast(&ast, Some(name), &mut ranges);
             Ok(go_to_definition_range(uri, &ranges)?)
         }
         Some(CallItem::MethodCall { name, range: _ }) => {
@@ -116,8 +112,7 @@ pub fn call_chain_definition(
             let ast = document::get_ast(&source_file, context.document_map)
                 .map_err(DefinitionError::Document)?;
             let mut ranges = Vec::new();
-            position::get_method_position_ast(&ast, Some(name), &mut ranges)
-                .map_err(DefinitionError::Position)?;
+            position::get_method_position_ast(&ast, Some(name), &mut ranges);
             let uri = source_to_uri(&source_file).map_err(DefinitionError::SourceToUri)?;
             Ok(go_to_definition_range(uri, &ranges)?)
         }
@@ -135,8 +130,7 @@ pub fn call_chain_definition(
             let ast = document::get_ast(&source_file, context.document_map)
                 .map_err(DefinitionError::Document)?;
             let mut ranges = Vec::new();
-            position::get_field_position_ast(&ast, Some(name), &mut ranges)
-                .map_err(DefinitionError::Position)?;
+            position::get_field_position_ast(&ast, Some(name), &mut ranges);
             let uri = source_to_uri(&source_file).map_err(DefinitionError::SourceToUri)?;
             Ok(go_to_definition_range(uri, &ranges)?)
         }

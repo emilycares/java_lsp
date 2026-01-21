@@ -765,9 +765,9 @@ impl Backend {
         let uri = params.text_document.uri;
 
         let mut symbols = vec![];
-        let _ = position::get_class_position_ast(&document.ast, None, &mut symbols);
-        let _ = position::get_method_position_ast(&document.ast, None, &mut symbols);
-        let _ = position::get_field_position_ast(&document.ast, None, &mut symbols);
+        position::get_class_position_ast(&document.ast, None, &mut symbols);
+        position::get_method_position_ast(&document.ast, None, &mut symbols);
+        position::get_field_position_ast(&document.ast, None, &mut symbols);
         let symbols = position::symbols_to_document_symbols(&symbols, &uri);
         Some(DocumentSymbolResponse::Flat(symbols))
     }
@@ -798,10 +798,10 @@ impl Backend {
                 let mut out = vec![];
                 match source {
                     ClassSource::Owned(d) => {
-                        let _ = position::get_class_position_ast(&d.ast, None, &mut out);
+                        position::get_class_position_ast(&d.ast, None, &mut out);
                     }
                     ClassSource::Ref(d) => {
-                        let _ = position::get_class_position_ast(&d.ast, None, &mut out);
+                        position::get_class_position_ast(&d.ast, None, &mut out);
                     }
                 }
                 Some((path, out))

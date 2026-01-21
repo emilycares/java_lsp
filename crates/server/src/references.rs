@@ -1,7 +1,7 @@
 use ast::types::{AstFile, AstPoint};
 use call_chain::CallItem;
 use dashmap::{DashMap, ReadOnlyView};
-use document::{ClassSource, Document, DocumentError};
+use document::{Document, DocumentError};
 use lsp_extra::{SourceToUriError, ToLspRangeError, source_to_uri, to_lsp_range};
 use lsp_types::Location;
 use my_string::MyString;
@@ -13,7 +13,6 @@ use crate::definition::DefinitionError;
 
 #[derive(Debug)]
 pub enum ReferencesError {
-    Position(position::PositionError),
     FindClassnameInClasspath(String),
     Tyres(tyres::TyresError),
     ValidatedItemDoesNotExists,
@@ -55,7 +54,7 @@ pub fn class_path(
             })
             .filter_map(|i| document_map.get(&i.source))
             .filter_map(|lookup| {
-                let refs = pos_refs_helper(&lookup.ast, class_path).ok()?;
+                let refs = pos_refs_helper(&lookup.ast, class_path);
                 let a = refs.first().map(|i| i.0.range);
                 a.map(|a| (lookup, a))
             })
@@ -140,31 +139,15 @@ pub fn call_chain_references(
     }
 }
 
+/// remove clippy when done
+#[allow(clippy::nursery, clippy::pedantic)]
 fn method_references(
-    class: &Class,
-    query_method_name: &str,
-    document_map: &DashMap<MyString, Document>,
+    _class: &Class,
+    _query_method_name: &str,
+    _document_map: &DashMap<MyString, Document>,
 ) -> Result<Vec<ReferencePosition>, ReferencesError> {
-    let uri = source_to_uri(&class.source).map_err(|e| {
-        eprintln!("Got into definition error: {e:?}");
-        ReferencesError::SourceToUri(e)
-    })?;
-    let doc = document::read_document_or_open_class(&class.source, document_map)
-        .map_err(ReferencesError::Document)?;
-    match doc {
-        ClassSource::Owned(doc) => {
-            let o = match position::get_method_usage(query_method_name, &doc.ast) {
-                Err(e) => Err(ReferencesError::Position(e))?,
-                Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
-            };
-            document_map.insert(uri.as_str().into(), *doc);
-            o
-        }
-        ClassSource::Ref(doc) => match position::get_method_usage(query_method_name, &doc.ast) {
-            Err(e) => Err(ReferencesError::Position(e))?,
-            Ok(usages) => Ok(usages.into_iter().map(ReferencePosition).collect()),
-        },
-    }
+    //TODO
+    Ok(Vec::new())
 }
 
 pub fn init_reference_map(
@@ -225,17 +208,13 @@ pub fn reference_update_class(
     Ok(())
 }
 
-fn pos_refs_helper(
-    ast: &AstFile,
-    query_class_name: &str,
-) -> Result<Vec<ReferencePosition>, ReferencesError> {
+fn pos_refs_helper(ast: &AstFile, query_class_name: &str) -> Vec<ReferencePosition> {
     let mut usages = vec![];
-    position::get_class_position_ast(ast, Some(query_class_name), &mut usages)
-        .map_err(ReferencesError::Position)?;
-    Ok(usages
+    position::get_class_position_ast(ast, Some(query_class_name), &mut usages);
+    usages
         .into_iter()
         .map(ReferencePosition)
-        .collect::<Vec<_>>())
+        .collect::<Vec<_>>()
 }
 
 fn get_implicit_imports(

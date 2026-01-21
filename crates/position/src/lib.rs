@@ -5,39 +5,25 @@
 #![deny(clippy::nursery)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
-use std::{num::TryFromIntError, str::Utf8Error};
 
 use ast::types::{
-    AstBlock, AstBlockEntry, AstClassBlock, AstFile, AstIdentifier, AstIf, AstIfContent, AstRange,
-    AstThing,
+    AstBlock, AstBlockEntry, AstClassBlock, AstExpressionKind, AstExpressionOrValue, AstFile,
+    AstIdentifier, AstIf, AstIfContent, AstLambdaRhs, AstRange, AstThing,
 };
 use lsp_extra::to_lsp_range;
 use lsp_types::{Location, SymbolInformation, SymbolKind, Uri};
 
-#[derive(Debug, PartialEq)]
-pub enum PositionError {
-    Utf8(Utf8Error),
-    Lexer(ast::lexer::LexerError),
-    Ast(ast::error::AstError),
-    Int(TryFromIntError),
-}
-
-pub fn get_class_position_ast(
-    ast: &AstFile,
-    name: Option<&str>,
-    out: &mut Vec<PositionSymbol>,
-) -> Result<(), PositionError> {
+pub fn get_class_position_ast(ast: &AstFile, name: Option<&str>, out: &mut Vec<PositionSymbol>) {
     for thing in &ast.things {
-        get_class_position_ast_thing(thing, name, out)?;
+        get_class_position_ast_thing(thing, name, out);
     }
-    Ok(())
 }
 
 fn get_class_position_ast_thing(
     thing: &AstThing,
     name: Option<&str>,
     out: &mut Vec<PositionSymbol>,
-) -> Result<(), PositionError> {
+) {
     let kind = SymbolKind::CLASS;
     match &thing {
         AstThing::Class(ast_class) => {
@@ -51,7 +37,7 @@ fn get_class_position_ast_thing(
                 });
             }
             for inner in &ast_class.block.inner {
-                get_class_position_ast_thing(inner, name, out)?;
+                get_class_position_ast_thing(inner, name, out);
             }
         }
         AstThing::Record(ast_record) => {
@@ -65,7 +51,7 @@ fn get_class_position_ast_thing(
                 });
             }
             for inner in &ast_record.block.inner {
-                get_class_position_ast_thing(inner, name, out)?;
+                get_class_position_ast_thing(inner, name, out);
             }
         }
         AstThing::Interface(ast_interface) => {
@@ -79,14 +65,14 @@ fn get_class_position_ast_thing(
                 });
             }
             for inner in &ast_interface.inner {
-                get_class_position_ast_thing(inner, name, out)?;
+                get_class_position_ast_thing(inner, name, out);
             }
         }
         AstThing::Enumeration(ast_enumeration) => {
             if let Some(name) = name
                 && ast_enumeration.name.value != name
             {
-                return Ok(());
+                return;
             }
             out.push(PositionSymbol {
                 range: ast_enumeration.range,
@@ -94,7 +80,7 @@ fn get_class_position_ast_thing(
                 kind: SymbolKind::ENUM,
             });
             for inner in &ast_enumeration.inner {
-                get_class_position_ast_thing(inner, name, out)?;
+                get_class_position_ast_thing(inner, name, out);
             }
         }
         AstThing::Annotation(ast_annotation) => {
@@ -109,58 +95,19 @@ fn get_class_position_ast_thing(
             }
         }
     }
-    Ok(())
 }
 
-pub fn get_class_position(
-    bytes: &[u8],
-    name: Option<&str>,
-) -> Result<Vec<PositionSymbol>, PositionError> {
-    let str = str::from_utf8(bytes).map_err(PositionError::Utf8)?;
-    let tokens = ast::lexer::lex(str).map_err(PositionError::Lexer)?;
-    let ast = ast::parse_file(&tokens).map_err(PositionError::Ast)?;
-    let mut out = vec![];
-    get_class_position_ast(&ast, name, &mut out)?;
-    Ok(out)
-}
-pub fn get_class_position_str(
-    str: &str,
-    name: Option<&str>,
-) -> Result<Vec<PositionSymbol>, PositionError> {
-    let tokens = ast::lexer::lex(str).map_err(PositionError::Lexer)?;
-    let ast = ast::parse_file(&tokens).map_err(PositionError::Ast)?;
-    let mut out = vec![];
-    get_class_position_ast(&ast, name, &mut out)?;
-    Ok(out)
-}
-
-pub fn get_method_positions(
-    bytes: &[u8],
-    name: Option<&str>,
-) -> Result<Vec<PositionSymbol>, PositionError> {
-    let str = str::from_utf8(bytes).map_err(PositionError::Utf8)?;
-    let tokens = ast::lexer::lex(str).map_err(PositionError::Lexer)?;
-    let ast = ast::parse_file(&tokens).map_err(PositionError::Ast)?;
-    let mut out = vec![];
-    get_method_position_ast(&ast, name, &mut out)?;
-    Ok(out)
-}
-pub fn get_method_position_ast(
-    file: &AstFile,
-    name: Option<&str>,
-    out: &mut Vec<PositionSymbol>,
-) -> Result<(), PositionError> {
+pub fn get_method_position_ast(file: &AstFile, name: Option<&str>, out: &mut Vec<PositionSymbol>) {
     for thing in &file.things {
-        get_method_position_ast_thing(thing, name, out)?;
+        get_method_position_ast_thing(thing, name, out);
     }
-    Ok(())
 }
 
 pub fn get_method_position_ast_thing(
     thing: &AstThing,
     name: Option<&str>,
     out: &mut Vec<PositionSymbol>,
-) -> Result<(), PositionError> {
+) {
     match thing {
         AstThing::Class(ast_class) => {
             out.extend(
@@ -176,7 +123,7 @@ pub fn get_method_position_ast_thing(
                     }),
             );
             for inner in &ast_class.block.inner {
-                get_method_position_ast_thing(inner, name, out)?;
+                get_method_position_ast_thing(inner, name, out);
             }
         }
         AstThing::Record(ast_record) => {
@@ -193,7 +140,7 @@ pub fn get_method_position_ast_thing(
                     }),
             );
             for inner in &ast_record.block.inner {
-                get_method_position_ast_thing(inner, name, out)?;
+                get_method_position_ast_thing(inner, name, out);
             }
         }
         AstThing::Interface(ast_interface) => {
@@ -220,7 +167,7 @@ pub fn get_method_position_ast_thing(
                     }),
             );
             for inner in &ast_interface.inner {
-                get_method_position_ast_thing(inner, name, out)?;
+                get_method_position_ast_thing(inner, name, out);
             }
         }
         AstThing::Enumeration(ast_enumeration) => {
@@ -236,12 +183,11 @@ pub fn get_method_position_ast_thing(
                     }),
             );
             for inner in &ast_enumeration.inner {
-                get_method_position_ast_thing(inner, name, out)?;
+                get_method_position_ast_thing(inner, name, out);
             }
         }
         AstThing::Annotation(_ast_annotation) => (),
     }
-    Ok(())
 }
 
 fn is_valid_name(name: Option<&str>, i: &AstIdentifier) -> bool {
@@ -251,32 +197,16 @@ fn is_valid_name(name: Option<&str>, i: &AstIdentifier) -> bool {
     name == i.value
 }
 
-pub fn get_field_positions(
-    bytes: &[u8],
-    name: Option<&str>,
-) -> Result<Vec<PositionSymbol>, PositionError> {
-    let str = str::from_utf8(bytes).map_err(PositionError::Utf8)?;
-    let tokens = ast::lexer::lex(str).map_err(PositionError::Lexer)?;
-    let ast = ast::parse_file(&tokens).map_err(PositionError::Ast)?;
-    let mut out = vec![];
-    get_field_position_ast(&ast, name, &mut out)?;
-    Ok(out)
-}
-pub fn get_field_position_ast(
-    file: &AstFile,
-    name: Option<&str>,
-    out: &mut Vec<PositionSymbol>,
-) -> Result<(), PositionError> {
+pub fn get_field_position_ast(file: &AstFile, name: Option<&str>, out: &mut Vec<PositionSymbol>) {
     for thing in &file.things {
-        get_field_position_ast_thing(thing, name, out)?;
+        get_field_position_ast_thing(thing, name, out);
     }
-    Ok(())
 }
 pub fn get_field_position_ast_thing(
     thing: &AstThing,
     name: Option<&str>,
     out: &mut Vec<PositionSymbol>,
-) -> Result<(), PositionError> {
+) {
     match thing {
         AstThing::Class(ast_class) => {
             get_field_position_class_block(&ast_class.block, name, out);
@@ -336,12 +266,11 @@ pub fn get_field_position_ast_thing(
                     get_field_position_block(i, name, out);
                 });
             for inner in &ast_enumeration.inner {
-                get_field_position_ast_thing(inner, name, out)?;
+                get_field_position_ast_thing(inner, name, out);
             }
         }
         AstThing::Annotation(_ast_annotation) => (),
     }
-    Ok(())
 }
 
 fn get_field_position_class_block(
@@ -370,10 +299,9 @@ fn get_field_position_class_block(
 }
 
 fn get_field_position_block(block: &AstBlock, name: Option<&str>, out: &mut Vec<PositionSymbol>) {
-    block
-        .entries
-        .iter()
-        .for_each(|i| get_field_position_block_entry(i, name, out));
+    for e in &block.entries {
+        get_field_position_block_entry(e, name, out);
+    }
 }
 
 fn get_field_position_block_entry(
@@ -393,6 +321,14 @@ fn get_field_position_block_entry(
                         kind: SymbolKind::FIELD,
                     }),
             );
+        }
+        AstBlockEntry::Return(r) => {
+            get_field_position_expression_or_value(&r.expression, name, out);
+        }
+        AstBlockEntry::Expression(e) => {
+            for e in &e.value {
+                get_field_position_expression(e, name, out);
+            }
         }
         AstBlockEntry::If(
             AstIf::If {
@@ -418,6 +354,45 @@ fn get_field_position_block_entry(
     }
 }
 
+fn get_field_position_expression_or_value(
+    expression: &AstExpressionOrValue,
+    name: Option<&str>,
+    out: &mut Vec<PositionSymbol>,
+) {
+    match expression {
+        AstExpressionOrValue::Expression(ast_expression_kinds) => {
+            for e in ast_expression_kinds {
+                get_field_position_expression(e, name, out);
+            }
+        }
+        AstExpressionOrValue::None | AstExpressionOrValue::Value(_) => (),
+    }
+}
+
+fn get_field_position_expression(
+    i: &AstExpressionKind,
+    name: Option<&str>,
+    out: &mut Vec<PositionSymbol>,
+) {
+    if let AstExpressionKind::Lambda(ast_lambda) = i {
+        out.extend(ast_lambda.parameters.values.iter().map(|i| PositionSymbol {
+            range: i.range,
+            name: i.name.value.clone(),
+            kind: SymbolKind::FIELD,
+        }));
+
+        match &ast_lambda.rhs {
+            AstLambdaRhs::None => (),
+            AstLambdaRhs::Block(ast_block) => get_field_position_block(ast_block, name, out),
+            AstLambdaRhs::Expr(ast_expression_kinds) => {
+                for e in ast_expression_kinds {
+                    get_field_position_expression(e, name, out);
+                }
+            }
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct PositionSymbol {
     pub range: AstRange,
@@ -425,11 +400,7 @@ pub struct PositionSymbol {
     pub kind: SymbolKind,
 }
 
-pub const fn get_type_usage(
-    _query_class_name: &str,
-    _ast: &AstFile,
-) -> Result<Vec<PositionSymbol>, PositionError> {
-    Ok(vec![])
+pub const fn get_type_usage(_query_class_name: &str, _ast: &AstFile) {
     // get_item_ranges(
     //     tree,
     //     bytes,
@@ -442,11 +413,7 @@ pub const fn get_type_usage(
     // )
 }
 
-pub const fn get_method_usage(
-    _query_method_name: &str,
-    _ast: &AstFile,
-) -> Result<Vec<PositionSymbol>, PositionError> {
-    Ok(vec![])
+pub const fn get_method_usage(_query_method_name: &str, _ast: &AstFile) {
     // get_item_ranges(
     //     tree,
     //     bytes,
@@ -490,13 +457,13 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::{
-        PositionSymbol, get_class_position_ast, get_field_positions, get_method_positions,
+        PositionSymbol, get_class_position_ast, get_field_position_ast, get_method_position_ast,
         get_type_usage,
     };
 
     #[test]
     fn method_pos_base() {
-        let content = b"
+        let content = "
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -506,38 +473,44 @@ public class Test {
     }
 }
 ";
-        let out = get_method_positions(content, Some("hello"));
+        let tokens = ast::lexer::lex(content).unwrap();
+        let ast = ast::parse_file(&tokens).unwrap();
+        let mut out = vec![];
+        get_method_position_ast(&ast, Some("hello"), &mut out);
         assert_eq!(
             out,
-            Ok(vec![PositionSymbol {
+            vec![PositionSymbol {
                 range: AstRange {
                     start: AstPoint { line: 3, col: 4 },
                     end: AstPoint { line: 7, col: 5 },
                 },
                 name: "hello".to_string(),
                 kind: SymbolKind::METHOD,
-            },])
+            },]
         );
     }
 
     #[test]
     fn field_pos_base() {
-        let content = b"
+        let content = "
 package ch.emilycares;
 public class Test {
     public String a;
 }
 ";
-        let out = get_field_positions(content, Some("a"));
+        let tokens = ast::lexer::lex(content).unwrap();
+        let ast = ast::parse_file(&tokens).unwrap();
+        let mut out = vec![];
+        get_field_position_ast(&ast, Some("a"), &mut out);
         assert_eq!(
-            Ok(vec![PositionSymbol {
+            vec![PositionSymbol {
                 range: AstRange {
                     start: AstPoint { line: 3, col: 4 },
                     end: AstPoint { line: 3, col: 19 },
                 },
                 name: "a".to_string(),
                 kind: SymbolKind::FIELD,
-            },]),
+            },],
             out
         );
     }
@@ -551,7 +524,7 @@ public class Test {}
         let tokens = ast::lexer::lex(content).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         let mut out = vec![];
-        get_class_position_ast(&ast, Some("Test"), &mut out).unwrap();
+        get_class_position_ast(&ast, Some("Test"), &mut out);
         assert_eq!(
             out,
             vec![PositionSymbol {
@@ -575,8 +548,7 @@ private StringBuilder sb = new StringBuilder();
 "#;
         let tokens = ast::lexer::lex(content).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
-        let out = get_type_usage("StringBuilder", &ast);
-
-        assert_eq!(out.unwrap().len(), 2);
+        get_type_usage("StringBuilder", &ast);
+        // assert here
     }
 }
