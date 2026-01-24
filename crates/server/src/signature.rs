@@ -1,6 +1,10 @@
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
+
 use ast::types::AstPoint;
 use call_chain::CallItem;
-use dashmap::DashMap;
 use document::Document;
 use lsp_types::{
     Documentation, ParameterInformation, ParameterLabel, SignatureHelp, SignatureInformation,
@@ -23,7 +27,7 @@ pub fn signature_driver(
     document: &Document,
     point: &AstPoint,
     class: &Class,
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
 ) -> Result<SignatureHelp, SignatureError> {
     let call_chain = call_chain::get_call_chain(&document.ast, point);
     let imports = imports::imports(&document.ast);
@@ -35,7 +39,7 @@ pub fn get_signature(
     imports: &[ImportUnit],
     vars: &[LocalVariable],
     class: &Class,
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
 ) -> Result<SignatureHelp, SignatureError> {
     let args = get_args(call_chain);
     let Some(CallItem::ArgumentList {
@@ -84,7 +88,7 @@ fn signature_help_for_method(
     imports: &[ImportUnit],
     vars: &[LocalVariable],
     class: &Class,
-    class_map: &DashMap<String, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
     prev: &[CallItem],
     active_param: usize,
     num_params: usize,
@@ -126,7 +130,7 @@ fn signature_help_for_constructor(
     imports: &[ImportUnit],
     vars: &[LocalVariable],
     class: &Class,
-    class_map: &DashMap<String, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
     prev: &[CallItem],
     active_param: usize,
     num_params: usize,
@@ -217,11 +221,14 @@ fn method_to_signature_information(method: &Method, class_name: &String) -> Sign
 
 #[cfg(test)]
 pub mod tests {
-    use std::path::PathBuf;
+    use std::{
+        collections::HashMap,
+        path::PathBuf,
+        sync::{Arc, Mutex},
+    };
 
     use super::signature_driver;
     use ast::types::AstPoint;
-    use dashmap::DashMap;
     use document::Document;
     use lsp_types::{
         Documentation, ParameterInformation, ParameterLabel, SignatureHelp, SignatureInformation,
@@ -232,7 +239,7 @@ pub mod tests {
 
     #[test]
     fn signarure_base() {
-        let class_map: DashMap<MyString, Class> = DashMap::new();
+        let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
             "java.lang.String".into(),
             Class {
@@ -251,6 +258,7 @@ pub mod tests {
                 ..Default::default()
             },
         );
+        let class_map = Arc::new(Mutex::new(class_map));
         let class = Class {
             access: Access::Public,
             name: "Test".into(),
@@ -288,7 +296,7 @@ public class Test {
 
     #[test]
     fn signature_multi_name() {
-        let class_map: DashMap<MyString, Class> = DashMap::new();
+        let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
             "java.lang.String".into(),
             Class {
@@ -327,6 +335,7 @@ public class Test {
                 ..Default::default()
             },
         );
+        let class_map = Arc::new(Mutex::new(class_map));
         let class = Class {
             access: Access::Public,
             name: "Test".into(),
@@ -381,7 +390,7 @@ public class Test {
 
     #[test]
     fn signature_multi_name_second() {
-        let class_map: DashMap<MyString, Class> = DashMap::new();
+        let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
             "java.lang.String".into(),
             Class {
@@ -420,6 +429,7 @@ public class Test {
                 ..Default::default()
             },
         );
+        let class_map = Arc::new(Mutex::new(class_map));
         let class = Class {
             access: Access::Public,
             name: "Test".into(),

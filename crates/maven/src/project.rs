@@ -1,15 +1,15 @@
 use std::{
+    collections::HashMap,
     fs,
     hash::{DefaultHasher, Hash, Hasher},
     path::{Path, PathBuf},
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicU32, Ordering},
     },
 };
 
 use common::{Dependency, TaskProgress, deps_dir};
-use dashmap::DashMap;
 use loader::{CFC_VERSION, LoaderError};
 use my_string::MyString;
 use parser::dto::{Class, ClassFolder};
@@ -27,7 +27,7 @@ pub enum MavenProjectError {
 }
 
 pub async fn project_deps(
-    class_map: Arc<DashMap<MyString, Class>>,
+    class_map: Arc<Mutex<HashMap<MyString, Class, impl std::hash::BuildHasher>>>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
     use_cache: bool,
     tree: &[Dependency],
@@ -38,8 +38,10 @@ pub async fn project_deps(
         && cache_path.exists()
         && let Ok(classes) = loader::load_class_folder(&cache_path)
     {
-        for class in classes.classes {
-            class_map.insert(class.class_path.clone(), class);
+        if let Ok(mut cm) = class_map.lock() {
+            for class in classes.classes {
+                cm.insert(class.class_path.clone(), class);
+            }
         }
         return Ok(());
     }
@@ -148,8 +150,10 @@ pub async fn project_deps(
     if let Err(e) = loader::save_class_folder(&cache_path, &maven_class_folder) {
         eprintln!("Failed to save {} because: {e:?}", cache_path.display());
     }
-    for class in maven_class_folder.classes {
-        class_map.insert(class.class_path.clone(), class);
+    if let Ok(mut cm) = class_map.lock() {
+        for class in maven_class_folder.classes {
+            cm.insert(class.class_path.clone(), class);
+        }
     }
     Ok(())
 }

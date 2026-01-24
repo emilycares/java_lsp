@@ -701,13 +701,19 @@ fn cc_expr(
     }
     match ex {
         AstExpressionKind::Recursive(_) => {}
-        AstExpressionKind::Lambda(ast_lambda) => match &ast_lambda.rhs {
-            AstLambdaRhs::None => (),
-            AstLambdaRhs::Block(ast_block) => cc_block(ast_block, point, out),
-            AstLambdaRhs::Expr(ast_base_expression) => {
-                cc_expr(ast_base_expression, point, has_parent, out);
+        AstExpressionKind::Lambda(ast_lambda) => {
+            if ast_lambda.range.is_in_range(point) {
+                out.clear();
+                match &ast_lambda.rhs {
+                    AstLambdaRhs::None => (),
+                    AstLambdaRhs::Block(ast_block) => cc_block(ast_block, point, out),
+                    AstLambdaRhs::Expr(ast_base_expression) => {
+                        cc_expr(ast_base_expression, point, has_parent, out);
+                    }
+                }
+                return;
             }
-        },
+        }
         AstExpressionKind::InlineSwitch(_ast_switch) => (),
         AstExpressionKind::NewClass(ast_new_class) => cc_new_class(ast_new_class, point, out),
         AstExpressionKind::Array(ast_values) => cc_array(ast_values, point, out),
@@ -944,6 +950,13 @@ fn cc_arguments_base(
         return;
     }
     let active_param = get_active_param(expressions, point);
+    if let Some(expr) = expressions.get(active_param)
+        && let Some(AstExpressionKind::Lambda(l)) = expr.first()
+        && l.range.is_in_range(point)
+    {
+        cc_expr(expr, point, false, out);
+        return;
+    }
     let mut filled_params: Vec<Vec<CallItem>> = expressions
         .iter()
         .map(|i| {

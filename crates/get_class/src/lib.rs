@@ -498,6 +498,9 @@ fn get_class_expression_kind(ex: &AstExpressionKind, point: &AstPoint) -> Option
             None
         }
         AstExpressionKind::Recursive(ast_recursive_expression) => {
+            if !ast_recursive_expression.range.is_in_range(point) {
+                return None;
+            }
             get_class_recursive_expression(ast_recursive_expression, point)
         }
         AstExpressionKind::Lambda(ast_lambda) => {
@@ -592,21 +595,17 @@ fn get_class_recursive_expression(
     if !expression.range.is_in_range(point) {
         return None;
     }
-    loop {
-        if let Some(ident) = &expression.ident
-            && let Some(i) = get_class_expression_identifier(ident, point)
-        {
-            return Some(i);
-        } else if let Some(vals) = &expression.values
-            && vals.range.is_in_range(point)
-        {
-            for val in &vals.values {
-                if let Some(s) = get_class_expression(val, point) {
-                    return Some(s);
-                }
+    if let Some(ident) = &expression.ident
+        && let Some(i) = get_class_expression_identifier(ident, point)
+    {
+        return Some(i);
+    } else if let Some(vals) = &expression.values
+        && vals.range.is_in_range(point)
+    {
+        for val in &vals.values {
+            if let Some(s) = get_class_expression(val, point) {
+                return Some(s);
             }
-        } else {
-            break;
         }
     }
     None

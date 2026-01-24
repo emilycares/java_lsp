@@ -1,6 +1,10 @@
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
+
 use ast::types::{AstFile, AstPoint};
 use call_chain::get_call_chain;
-use dashmap::DashMap;
 use document::{Document, DocumentError};
 use get_class::FoundClass;
 use lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat};
@@ -225,10 +229,13 @@ pub fn complete_call_chain(
     vars: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
 ) -> Result<Vec<CompletionItem>, CompletionError> {
     let call_chain = get_call_chain(&document.ast, point);
-    match tyres::resolve_call_chain(&call_chain, vars, imports, class, class_map) {
+    let mut point = *point;
+    point.col += 1;
+
+    match tyres::resolve_call_chain_to_point(&call_chain, vars, imports, class, class_map, &point) {
         Ok(resolve_state) => Ok(class_unpack(&resolve_state.class, imports, &document.ast)),
         Err(tyres_error) => Err(CompletionError::Tyres { tyres_error }),
     }
@@ -239,7 +246,7 @@ pub fn classes(
     document: &Document,
     point: &AstPoint,
     imports: &[ImportUnit],
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
 ) -> Vec<CompletionItem> {
     if point.col < 3 {
         return vec![];
@@ -249,6 +256,7 @@ pub fn classes(
         name: text,
         range: _,
     }) = get_class::get_class(&document.ast, point)
+        && let Ok(class_map) = class_map.lock()
     {
         out.extend(
             imports
@@ -267,18 +275,18 @@ pub fn classes(
                     cname.starts_with(&text)
                 })
                 .filter_map(|class_path| class_map.get(class_path))
-                .map(|c| class_describe(&c, None)),
+                .map(|c| class_describe(c, None)),
         );
         out.extend(
             class_map
                 .iter()
-                .filter(|c| c.name.starts_with(&text))
-                .filter(|i| !i.name.contains('&'))
-                .filter(|v| {
-                    let class_path = v.value().class_path.as_str();
+                .filter(|(_, c)| c.name.starts_with(&text))
+                .filter(|(_, i)| !i.name.contains('&'))
+                .filter(|(_, v)| {
+                    let class_path = v.class_path.as_str();
                     !imports::is_imported(imports, class_path)
                 })
-                .map(|v| class_describe(v.value(), Some(&document.ast)))
+                .map(|(_, v)| class_describe(v, Some(&document.ast)))
                 .take(20),
         );
     }
@@ -289,7 +297,7 @@ pub fn classes(
 pub fn static_methods(
     ast: &AstFile,
     imports: &[ImportUnit],
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
 ) -> Vec<CompletionItem> {
     imports
         .iter()
@@ -298,17 +306,27 @@ pub fn static_methods(
             | ImportUnit::Package(_)
             | ImportUnit::Class(_)
             | ImportUnit::StaticClass(_) => vec![],
-            ImportUnit::StaticClassMethod(c, m) => class_map
-                .get(c)
-                .into_iter()
-                .flat_map(|class| class.methods.clone())
-                .filter(|f| f.name.as_ref().filter(|i| *i == m).is_some())
-                .collect(),
-            ImportUnit::StaticPrefix(c) => class_map
-                .get(c)
-                .into_iter()
-                .flat_map(|class| class.methods.clone())
-                .collect(),
+            ImportUnit::StaticClassMethod(c, m) => {
+                if let Ok(cm) = class_map.lock()
+                    && let Some(class) = cm.get(c)
+                {
+                    return class
+                        .methods
+                        .iter()
+                        .filter(|f| f.name.as_ref().filter(|i| *i == m).is_some())
+                        .map(Method::clone)
+                        .collect();
+                }
+                Vec::new()
+            }
+            ImportUnit::StaticPrefix(c) => {
+                if let Ok(cm) = class_map.lock()
+                    && let Some(class) = cm.get(c)
+                {
+                    return class.methods.iter().map(Method::clone).collect();
+                }
+                Vec::new()
+            }
         })
         .filter_map(|m| complete_method(&m, imports, ast))
         .collect()
@@ -316,10 +334,13 @@ pub fn static_methods(
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{
+        collections::HashMap,
+        path::PathBuf,
+        sync::{Arc, Mutex},
+    };
 
     use ast::types::{AstPoint, AstRange};
-    use dashmap::DashMap;
     use document::Document;
     use lsp_types::{
         CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat, Position,
@@ -388,7 +409,7 @@ public class GreetingResource {
             ImportUnit::Class("io.quarkus.qute.TemplateInstance".into()),
             ImportUnit::Class("io.quarkus.qute.Template".into()),
         ];
-        let class_map: DashMap<MyString, Class> = DashMap::new();
+        let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
             "java.lang.String".into(),
             Class {
@@ -404,6 +425,7 @@ public class GreetingResource {
                 ..Default::default()
             },
         );
+        let class_map = Arc::new(Mutex::new(class_map));
 
         let out = complete_call_chain(
             &doc,
@@ -458,7 +480,7 @@ public class Test {
             name: "Test".into(),
             ..Default::default()
         };
-        let class_map: DashMap<MyString, Class> = DashMap::new();
+        let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
             "java.lang.String".into(),
             Class {
@@ -473,6 +495,7 @@ public class Test {
                 ..Default::default()
             },
         );
+        let class_map = Arc::new(Mutex::new(class_map));
 
         let out = complete_call_chain(
             &doc,
@@ -558,7 +581,7 @@ public class Test {
     #[ignore = "todo"]
     #[test]
     fn class_completion_base() {
-        let class_map: DashMap<MyString, Class> = DashMap::new();
+        let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
             "java.lang.StringBuilder".into(),
             Class {
@@ -568,6 +591,7 @@ public class Test {
                 ..Default::default()
             },
         );
+        let class_map = Arc::new(Mutex::new(class_map));
         let content = "
 package ch.emilycares;
 public class Test {
@@ -609,7 +633,7 @@ public class Test {
     #[ignore = "todo"]
     #[test]
     fn class_completion_imported() {
-        let class_map: DashMap<MyString, Class> = DashMap::new();
+        let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
             "java.lang.StringBuilder".into(),
             Class {
@@ -619,6 +643,7 @@ public class Test {
                 ..Default::default()
             },
         );
+        let class_map = Arc::new(Mutex::new(class_map));
         let content = "
 package ch.emilycares;
 import java.lang.StringBuilder;

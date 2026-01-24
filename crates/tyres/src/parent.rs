@@ -1,12 +1,14 @@
-use std::ops::Deref;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
-use dashmap::DashMap;
 use my_string::MyString;
 use parser::dto::{Access, Class, ImportUnit, SuperClass};
 
 use crate::{ImportResult, is_imported};
 
-pub fn include_parent(class: Class, class_map: &DashMap<MyString, Class>) -> Class {
+pub fn include_parent(class: Class, class_map: &Arc<Mutex<HashMap<MyString, Class>>>) -> Class {
     let mut s: Vec<Class> = vec![];
 
     populate_super_class(&class, class_map, &mut s);
@@ -32,7 +34,11 @@ pub fn include_parent(class: Class, class_map: &DashMap<MyString, Class>) -> Cla
     class
 }
 
-fn populate_super_class(class: &Class, class_map: &DashMap<MyString, Class>, s: &mut Vec<Class>) {
+fn populate_super_class(
+    class: &Class,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    s: &mut Vec<Class>,
+) {
     let parent = load_parent(&class.super_class, &class.imports, class_map);
     if let Some(p) = parent {
         populate_super_class(&p, class_map, s);
@@ -42,7 +48,7 @@ fn populate_super_class(class: &Class, class_map: &DashMap<MyString, Class>, s: 
 
 fn populate_super_interfaces(
     class: &Class,
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
     s: &mut Vec<Class>,
 ) {
     for super_interface in &class.super_interfaces {
@@ -83,19 +89,23 @@ fn overlay_class(b: Class, c: &Class) -> Class {
 fn load_parent(
     super_class: &SuperClass,
     imports: &[ImportUnit],
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
 ) -> Option<Class> {
     match super_class {
         SuperClass::None => None,
         SuperClass::Name(n) => {
             let key = format!("java.util.{n}");
-            if let Some(o) = class_map.get(&key).map(|p| p.deref().to_owned()) {
+            if let Ok(class_map) = class_map.lock()
+                && let Some(o) = class_map.get(&key).map(ToOwned::to_owned)
+            {
                 return Some(o);
             }
             let import_result = is_imported(n, imports, class_map);
             match import_result {
                 Some(ImportResult::Class(imp) | ImportResult::StaticClass(imp)) => {
-                    if let Some(o) = class_map.get(&imp).map(|p| p.deref().to_owned()) {
+                    if let Ok(class_map) = class_map.lock()
+                        && let Some(o) = class_map.get(&imp).map(ToOwned::to_owned)
+                    {
                         return Some(o);
                     }
                     None
@@ -103,8 +113,8 @@ fn load_parent(
                 None => None,
             }
         }
-        SuperClass::ClassPath(class_path) => {
-            class_map.get(class_path).map(|p| p.deref().to_owned())
-        }
+        SuperClass::ClassPath(class_path) => class_map
+            .lock()
+            .map_or(None, |cm| cm.get(class_path).map(ToOwned::to_owned)),
     }
 }

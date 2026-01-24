@@ -1,10 +1,13 @@
-use std::{collections::HashMap, num::TryFromIntError};
+use std::{
+    collections::HashMap,
+    num::TryFromIntError,
+    sync::{Arc, Mutex},
+};
 
 use ast::types::{
     AstBlockEntry, AstBlockVariable, AstFile, AstForContent, AstIf, AstIfContent, AstPoint,
     AstThing, AstWhileContent,
 };
-use dashmap::DashMap;
 use lsp_extra::{ToLspRangeError, to_lsp_range};
 use lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, Position, Range, TextEdit, Uri, WorkspaceEdit,
@@ -17,7 +20,7 @@ use variables::LocalVariable;
 pub struct CodeActionContext<'a> {
     pub point: &'a AstPoint,
     pub imports: &'a [ImportUnit],
-    pub class_map: &'a DashMap<MyString, Class>,
+    pub class_map: Arc<Mutex<HashMap<MyString, Class>>>,
     pub class: &'a Class,
     pub vars: &'a [LocalVariable],
     pub current_file: &'a Uri,
@@ -107,7 +110,7 @@ pub fn replace_with_value_type(
         context.vars,
         context.imports,
         context.class,
-        context.class_map,
+        &context.class_map.clone(),
     )
     .map_err(CodeActionError::Tyres)?;
 
@@ -273,9 +276,9 @@ pub fn import_jtype(
     context: &CodeActionContext,
 ) -> Option<Vec<CodeActionOrCommand>> {
     if let Some(class) = get_class::get_class(ast, context.point)
-        && !tyres::is_imported_class_name(&class.name, context.imports, context.class_map)
+        && !tyres::is_imported_class_name(&class.name, context.imports, &context.class_map)
     {
-        let i = tyres::resolve_import(&class.name, context.class_map)
+        let i = tyres::resolve_import(&class.name, &context.class_map)
             .iter()
             .map(|a| import_to_code_action(context.current_file, a, ast))
             .collect();
@@ -346,10 +349,14 @@ pub fn import_to_code_action(
 }
 #[cfg(test)]
 pub mod tests {
-    use std::{path::PathBuf, str::FromStr};
+    use std::{
+        collections::HashMap,
+        path::PathBuf,
+        str::FromStr,
+        sync::{Arc, Mutex},
+    };
 
     use ast::types::AstPoint;
-    use dashmap::DashMap;
     use document::Document;
     use lsp_types::Uri;
     use my_string::MyString;
@@ -378,7 +385,7 @@ public class Test {
         let context = CodeActionContext {
             point: &point,
             imports: &imports,
-            class_map: &get_class_map(),
+            class_map: get_class_map(),
             class: &class,
             vars: &variables::get_vars(&doc.ast, &point).unwrap(),
             current_file: &uri,
@@ -414,7 +421,7 @@ public class Test {
         let context = CodeActionContext {
             point: &point,
             imports: &imports,
-            class_map: &get_class_map(),
+            class_map: get_class_map(),
             class: &class,
             vars: &variables::get_vars(&doc.ast, &point).unwrap(),
             current_file: &uri,
@@ -451,7 +458,7 @@ public class Test {
         let context = CodeActionContext {
             point: &point,
             imports: &imports,
-            class_map: &get_class_map(),
+            class_map: get_class_map(),
             class: &class,
             vars: &variables::get_vars(&doc.ast, &point).unwrap(),
             current_file: &uri,
@@ -465,8 +472,8 @@ public class Test {
             _ => unreachable!(),
         }
     }
-    fn get_class_map() -> DashMap<MyString, Class> {
-        let class_map: DashMap<MyString, Class> = DashMap::new();
+    fn get_class_map() -> Arc<Mutex<HashMap<MyString, Class>>> {
+        let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
             "java.lang.String".into(),
             Class {
@@ -499,6 +506,6 @@ public class Test {
                 ..Default::default()
             },
         );
-        class_map
+        Arc::new(Mutex::new(class_map))
     }
 }

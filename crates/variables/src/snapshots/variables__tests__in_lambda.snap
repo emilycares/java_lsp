@@ -1,0 +1,63 @@
+---
+source: crates/variables/src/lib.rs
+expression: out
+---
+[
+    LocalVariable {
+        level: 2,
+        jtype: Generic(
+            "Uni",
+            [
+                Class(
+                    "Response",
+                ),
+            ],
+        ),
+        name: "test",
+        is_fun: true,
+        range: AstRange {
+            start: AstPoint {
+                line: 2,
+                col: 4,
+            },
+            end: AstPoint {
+                line: 7,
+                col: 5,
+            },
+        },
+    },
+    LocalVariable {
+        level: 3,
+        jtype: Void,
+        name: "t",
+        is_fun: false,
+        range: AstRange {
+            start: AstPoint {
+                line: 3,
+                col: 29,
+            },
+            end: AstPoint {
+                line: 3,
+                col: 30,
+            },
+        },
+    },
+    LocalVariable {
+        level: 4,
+        jtype: Class(
+            "Definition",
+        ),
+        name: "q",
+        is_fun: false,
+        range: AstRange {
+            start: AstPoint {
+                line: 4,
+                col: 20,
+            },
+            end: AstPoint {
+                line: 4,
+                col: 51,
+            },
+        },
+    },
+]

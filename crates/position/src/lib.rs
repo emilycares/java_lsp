@@ -13,6 +13,13 @@ use ast::types::{
 use lsp_extra::to_lsp_range;
 use lsp_types::{Location, SymbolInformation, SymbolKind, Uri};
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct PositionSymbol {
+    pub range: AstRange,
+    pub name: String,
+    pub kind: SymbolKind,
+}
+
 pub fn get_class_position_ast(ast: &AstFile, name: Option<&str>, out: &mut Vec<PositionSymbol>) {
     for thing in &ast.things {
         get_class_position_ast_thing(thing, name, out);
@@ -374,30 +381,37 @@ fn get_field_position_expression(
     name: Option<&str>,
     out: &mut Vec<PositionSymbol>,
 ) {
-    if let AstExpressionKind::Lambda(ast_lambda) = i {
-        out.extend(ast_lambda.parameters.values.iter().map(|i| PositionSymbol {
-            range: i.range,
-            name: i.name.value.clone(),
-            kind: SymbolKind::FIELD,
-        }));
-
-        match &ast_lambda.rhs {
-            AstLambdaRhs::None => (),
-            AstLambdaRhs::Block(ast_block) => get_field_position_block(ast_block, name, out),
-            AstLambdaRhs::Expr(ast_expression_kinds) => {
-                for e in ast_expression_kinds {
-                    get_field_position_expression(e, name, out);
+    match i {
+        AstExpressionKind::Recursive(r) => {
+            if let Some(vals) = &r.values {
+                for v in &vals.values {
+                    for e in v {
+                        get_field_position_expression(e, name, out);
+                    }
                 }
             }
         }
+        AstExpressionKind::Lambda(ast_lambda) => {
+            out.extend(ast_lambda.parameters.values.iter().map(|i| PositionSymbol {
+                range: i.range,
+                name: i.name.value.clone(),
+                kind: SymbolKind::FIELD,
+            }));
+            match &ast_lambda.rhs {
+                AstLambdaRhs::None => (),
+                AstLambdaRhs::Block(ast_block) => get_field_position_block(ast_block, name, out),
+                AstLambdaRhs::Expr(ast_expression_kinds) => {
+                    for e in ast_expression_kinds {
+                        get_field_position_expression(e, name, out);
+                    }
+                }
+            }
+        }
+        AstExpressionKind::InlineSwitch(s) => {
+            get_field_position_block(&s.block, name, out);
+        }
+        _ => (),
     }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct PositionSymbol {
-    pub range: AstRange,
-    pub name: String,
-    pub kind: SymbolKind,
 }
 
 pub const fn get_type_usage(_query_class_name: &str, _ast: &AstFile) {
@@ -511,6 +525,45 @@ public class Test {
                 name: "a".to_string(),
                 kind: SymbolKind::FIELD,
             },],
+            out
+        );
+    }
+
+    #[test]
+    fn field_pos_in_lambda() {
+        let content = r#"
+public class Test {
+    public Uni<Response> test() {
+        return Thing.dothing(t -> {
+                    Definition q = new Definition();
+                    
+                    });
+    }
+}
+        "#;
+        let tokens = ast::lexer::lex(content).unwrap();
+        let ast = ast::parse_file(&tokens).unwrap();
+        let mut out = vec![];
+        get_field_position_ast(&ast, None, &mut out);
+        assert_eq!(
+            vec![
+                PositionSymbol {
+                    range: AstRange {
+                        start: AstPoint { line: 3, col: 29 },
+                        end: AstPoint { line: 3, col: 30 },
+                    },
+                    name: "t".to_string(),
+                    kind: SymbolKind::FIELD,
+                },
+                PositionSymbol {
+                    range: AstRange {
+                        start: AstPoint { line: 4, col: 20 },
+                        end: AstPoint { line: 4, col: 51 },
+                    },
+                    name: "q".to_string(),
+                    kind: SymbolKind::FIELD,
+                },
+            ],
             out
         );
     }

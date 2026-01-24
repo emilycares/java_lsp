@@ -3,7 +3,7 @@ use std::{
     ffi::OsString,
     fs,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
 
 use call_chain::get_call_chain;
@@ -53,7 +53,7 @@ pub struct Backend {
     pub error_files: DashSet<String>,
     pub project_kind: ProjectKind,
     pub document_map: DashMap<MyString, Document>,
-    pub class_map: Arc<DashMap<MyString, Class>>,
+    pub class_map: Arc<Mutex<HashMap<MyString, Class>>>,
     pub reference_map: Arc<DashMap<MyString, Vec<ReferenceUnit>>>,
     pub client_capabilities: Arc<Option<ClientCapabilities>>,
     pub connection: Arc<Connection>,
@@ -67,7 +67,7 @@ impl Backend {
             error_files: DashSet::new(),
             project_kind,
             document_map: DashMap::new(),
-            class_map: Arc::new(DashMap::new()),
+            class_map: Arc::new(Mutex::new(HashMap::new())),
             reference_map: Arc::new(DashMap::new()),
             client_capabilities: Arc::new(None),
             project_dir,
@@ -269,7 +269,7 @@ impl Backend {
         progress: Option<ProgressToken>,
         con: Arc<Connection>,
         project_kind: ProjectKind,
-        class_map: Arc<DashMap<MyString, Class>>,
+        class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
         reference_map: Arc<DashMap<MyString, Vec<ReferenceUnit>>>,
         project_dir: &Path,
         path: &OsString,
@@ -294,7 +294,7 @@ impl Backend {
                 Self::progress_start_option_token(&con.clone(), &progress, task);
                 tokio::select! {
                     () = read_forward(receiver, con.clone(), task.to_owned(), progress.clone())  => {},
-                    _ = jdk::load_classes(&class_map, sender, &path) => {}
+                    _ = jdk::load_classes(class_map, sender, &path) => {}
                 }
                 Self::progress_end_option_token(&con.clone(), &progress, task);
             });
@@ -331,6 +331,7 @@ impl Backend {
         {
             let con = con.clone();
             let project_dir = project_dir.to_owned();
+            let class_map = class_map.clone();
             handles.spawn(async move {
                 let task = "Load project files";
                 let progress = Arc::new(Option::Some(ProgressToken::String(task.to_owned())));
@@ -367,8 +368,10 @@ impl Backend {
                     format!("Populating class map number: {}", project_classes.len()),
                     90,
                 );
-                for class in project_classes {
-                    class_map.insert(class.class_path.clone(), class);
+                if let Ok(cm) = class_map.lock().as_mut() {
+                    for class in project_classes {
+                        cm.insert(class.class_path.clone(), class);
+                    }
                 }
                 Self::progress_end_option_token(&con.clone(), &progress, task);
             });
@@ -442,7 +445,9 @@ impl Backend {
                     Ok(()) => {}
                     Err(e) => eprintln!("Got reference error: {e:?}"),
                 }
-                self.class_map.insert(class_path, class);
+                if let Ok(class_map) = self.class_map.lock().as_mut() {
+                    class_map.insert(class_path, class);
+                }
             }
             Ok(ClassSource::Ref(doc)) => {
                 let class =
@@ -456,7 +461,9 @@ impl Backend {
                     Ok(()) => {}
                     Err(e) => eprintln!("Got reference error: {e:?}"),
                 }
-                self.class_map.insert(class_path, class);
+                if let Ok(class_map) = self.class_map.lock().as_mut() {
+                    class_map.insert(class_path, class);
+                }
             }
             Err(DocumentError::Diagnostic(diag)) => {
                 current_file_diagnostics.push(*diag);
@@ -521,10 +528,13 @@ impl Backend {
     pub fn completion(&self, params: CompletionParams) -> Option<CompletionResponse> {
         let params = params.text_document_position;
         let uri = params.text_document.uri;
-        let Some(document) = self.document_map.get(&get_document_map_key(&uri)) else {
+        let document;
+        if let Some(doc) = self.document_map.get(&get_document_map_key(&uri)) {
+            document = doc.clone();
+        } else {
             eprintln!("Document is not opened.");
             return None;
-        };
+        }
         let mut out = vec![];
         let point = to_ast_point(params.position);
         let vars = match variables::get_vars(&document.ast, &point) {
@@ -541,19 +551,24 @@ impl Backend {
             eprintln!("Could not get class_path");
             return None;
         };
-        let Some(class) = &self.class_map.get(&class_path) else {
+        let class;
+        if let Ok(cm) = self.class_map.lock()
+            && let Some(cl) = cm.get(&class_path)
+        {
+            class = cl.clone();
+        } else {
             eprintln!("Could not find class {class_path}");
             return None;
-        };
+        }
 
         let mut do_rest = true;
         match completion::complete_call_chain(
-            document.value(),
+            &document,
             &point,
             &vars,
             &imports,
-            class,
-            &self.class_map,
+            &class,
+            &self.class_map.clone(),
         ) {
             Ok(call_chain) => {
                 if !call_chain.is_empty() {
@@ -576,7 +591,7 @@ impl Backend {
             ));
             out.extend(completion::complete_vars(&vars));
             out.extend(completion::classes(
-                document.value(),
+                &document,
                 &point,
                 &imports,
                 &self.class_map,
@@ -589,10 +604,13 @@ impl Backend {
     pub fn goto_definition(&self, params: GotoDefinitionParams) -> Option<GotoDefinitionResponse> {
         let params = params.text_document_position_params;
         let uri = params.text_document.uri;
-        let Some(document) = self.document_map.get(&get_document_map_key(&uri)) else {
+        let document;
+        if let Some(doc) = self.document_map.get(&get_document_map_key(&uri)) {
+            document = doc.clone();
+        } else {
             eprintln!("Document is not opened.");
             return None;
-        };
+        }
 
         let point = to_ast_point(params.position);
         let imports = imports::imports(&document.ast);
@@ -607,18 +625,23 @@ impl Backend {
             eprintln!("Could not get class_path");
             return None;
         };
-        let Some(class) = &self.class_map.get(&class_path) else {
+        let class;
+        if let Ok(cm) = self.class_map.lock()
+            && let Some(cl) = cm.get(&class_path)
+        {
+            class = cl.clone();
+        } else {
             eprintln!("Could not find class {class_path}");
             return None;
-        };
+        }
 
         let context = DefinitionContext {
             document_uri: uri,
             point: &point,
             vars: &vars,
             imports: &imports,
-            class,
-            class_map: &self.class_map,
+            class: &class,
+            class_map: self.class_map.clone(),
             document_map: &self.document_map,
         };
 
@@ -632,7 +655,7 @@ impl Backend {
         match definition::call_chain_definition(&call_chain, &context) {
             Ok(definition) => return Some(definition),
             Err(e) => {
-                eprintln!("Error while definition: {e:?}");
+                eprintln!("Error while call_chain definition: {e:?}");
             }
         }
         None
@@ -641,10 +664,13 @@ impl Backend {
     pub fn references(&self, params: ReferenceParams) -> Option<Vec<Location>> {
         let params = params.text_document_position;
         let uri = params.text_document.uri;
-        let Some(document) = self.document_map.get(&get_document_map_key(&uri)) else {
+        let document;
+        if let Some(doc) = self.document_map.get(&get_document_map_key(&uri)) {
+            document = doc.clone();
+        } else {
             eprintln!("Document is not opened.");
             return None;
-        };
+        }
         let point = to_ast_point(params.position);
         let imports = imports::imports(&document.ast);
         let vars = match variables::get_vars(&document.ast, &point) {
@@ -672,15 +698,20 @@ impl Backend {
             eprintln!("Could not get class_path");
             return None;
         };
-        let Some(class) = &self.class_map.get(&class_path) else {
+        let class;
+        if let Ok(cm) = self.class_map.lock()
+            && let Some(cl) = cm.get(&class_path)
+        {
+            class = cl.clone();
+        } else {
             eprintln!("Could not find class {class_path}");
             return None;
-        };
+        }
         let context = ReferencesContext {
             point: &point,
             imports: &imports,
-            class_map: &self.class_map,
-            class,
+            class_map: self.class_map.clone(),
+            class: &class,
             vars: &vars,
         };
 
@@ -703,13 +734,16 @@ impl Backend {
     }
 
     pub fn code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
-        let Some(document) = self
+        let document;
+        if let Some(doc) = self
             .document_map
             .get(&get_document_map_key(&params.text_document.uri))
-        else {
+        {
+            document = doc.clone();
+        } else {
             eprintln!("Document is not opened.");
             return None;
-        };
+        }
         let current_file = params.text_document.uri;
         let point = to_ast_point(params.range.start);
 
@@ -719,10 +753,15 @@ impl Backend {
             eprintln!("Could not get class_path");
             return None;
         };
-        let Some(class) = &self.class_map.get(&class_path) else {
+        let class;
+        if let Ok(cm) = self.class_map.lock()
+            && let Some(cl) = cm.get(&class_path)
+        {
+            class = cl.clone();
+        } else {
             eprintln!("Could not find class {class_path}");
             return None;
-        };
+        }
         let vars = match variables::get_vars(&document.ast, &point) {
             Ok(v) => Some(v),
             Err(e) => {
@@ -734,8 +773,8 @@ impl Backend {
         let context = CodeActionContext {
             point: &point,
             imports: &imports,
-            class_map: &self.class_map,
-            class,
+            class_map: self.class_map.clone(),
+            class: &class,
             vars: &vars,
             current_file: &current_file,
         };
@@ -755,13 +794,16 @@ impl Backend {
     }
 
     pub fn document_symbol(&self, params: DocumentSymbolParams) -> Option<DocumentSymbolResponse> {
-        let Some(document) = self
+        let document;
+        if let Some(doc) = self
             .document_map
             .get(&get_document_map_key(&params.text_document.uri))
-        else {
+        {
+            document = doc.clone();
+        } else {
             eprintln!("Document is not opened.");
             return None;
-        };
+        }
         let uri = params.text_document.uri;
 
         let mut symbols = vec![];
@@ -826,21 +868,29 @@ impl Backend {
 
     pub fn signature_help(&self, params: SignatureHelpParams) -> Option<SignatureHelp> {
         let uri = params.text_document_position_params.text_document.uri;
-        let Some(document) = self.document_map.get(&get_document_map_key(&uri)) else {
+        let document;
+        if let Some(doc) = self.document_map.get(&get_document_map_key(&uri)) {
+            document = doc.clone();
+        } else {
             eprintln!("Document is not opened.");
             return None;
-        };
+        }
         let point = to_ast_point(params.text_document_position_params.position);
         let Some(class_path) = get_class_path(&document.ast) else {
             eprintln!("Could not get class_path");
             return None;
         };
-        let Some(class) = &self.class_map.get(&class_path) else {
+        let class;
+        if let Ok(cm) = self.class_map.lock()
+            && let Some(cl) = cm.get(&class_path)
+        {
+            class = cl.clone();
+        } else {
             eprintln!("Could not find class {class_path}");
             return None;
-        };
+        }
 
-        match signature::signature_driver(&document, &point, class, &self.class_map) {
+        match signature::signature_driver(&document, &point, &class, &self.class_map) {
             Ok(hover) => Some(hover),
             Err(e) => {
                 eprintln!("Error while signature_help: {e:?}");
@@ -856,7 +906,7 @@ impl Backend {
                 &self.connection,
                 progress,
                 &self.project_kind,
-                &self.class_map.clone(),
+                &self.class_map,
                 &self.project_dir,
             ),
             UPDATE_DEPENDENCIES => {
@@ -864,7 +914,7 @@ impl Backend {
                     &self.connection,
                     progress,
                     &self.project_kind,
-                    &self.class_map.clone(),
+                    &self.class_map,
                     &self.project_dir,
                 );
                 None
@@ -941,7 +991,7 @@ pub async fn read_forward(
 pub async fn project_deps(
     sender: tokio::sync::watch::Sender<TaskProgress>,
     project_kind: ProjectKind,
-    class_map: Arc<DashMap<MyString, Class>>,
+    class_map: Arc<Mutex<HashMap<MyString, Class>>>,
     use_cache: bool,
     project_dir: &Path,
     project_cache_dir: &Path,

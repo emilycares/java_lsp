@@ -5,13 +5,16 @@
 #![deny(clippy::nursery)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
+#![allow(clippy::implicit_hasher)]
 mod parent;
 
-use std::ops::Deref;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use ast::types::AstPoint;
 use call_chain::CallItem;
-use dashmap::DashMap;
 use my_string::MyString;
 use parser::dto::{Access, Class, Field, ImportUnit, JType, Method};
 use variables::LocalVariable;
@@ -42,7 +45,7 @@ pub struct ResolveState {
 pub fn is_imported_class_name(
     jtype: &str,
     imports: &[ImportUnit],
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
 ) -> bool {
     is_imported(jtype, imports, class_map).is_some()
 }
@@ -57,7 +60,7 @@ pub enum ImportResult {
 pub fn is_imported<'a>(
     jtype: &'a str,
     imports: &'a [ImportUnit],
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
 ) -> Option<ImportResult> {
     if jtype.starts_with("java.lang") {
         return Some(ImportResult::Class(jtype.into()));
@@ -82,7 +85,9 @@ pub fn is_imported<'a>(
             possible_class_path.push_str(jtype);
             let possible_class_path = possible_class_path;
 
-            if class_map.contains_key(&possible_class_path) {
+            if let Ok(class_map) = class_map.lock()
+                && class_map.contains_key(&possible_class_path)
+            {
                 return Some(ImportResult::Class(possible_class_path));
             }
             None
@@ -93,7 +98,9 @@ pub fn is_imported<'a>(
             possible_class_path.push('.');
             possible_class_path.push_str(jtype);
             let possible_class_path = possible_class_path;
-            if class_map.contains_key(&possible_class_path) {
+            if let Ok(class_map) = class_map.lock()
+                && class_map.contains_key(&possible_class_path)
+            {
                 return Some(ImportResult::StaticClass(possible_class_path));
             }
             None
@@ -105,19 +112,24 @@ pub fn is_imported<'a>(
 pub fn resolve(
     class_name: &str,
     imports: &[ImportUnit],
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
 ) -> Result<ResolveState, TyresError> {
     eprintln!("resolve: {class_name}");
 
     if class_name.contains('.') {
-        let Some(imported_class) = class_map.get(class_name) else {
+        let imported_class;
+        if let Ok(cm) = class_map.lock()
+            && let Some(ic) = cm.get(class_name)
+        {
+            imported_class = ic.to_owned();
+        } else {
             return Err(TyresError::ClassNotFound {
                 class_path: class_name.into(),
             });
-        };
+        }
         return Ok(ResolveState {
             jtype: JType::Class(class_name.into()),
-            class: parent::include_parent(imported_class.deref().to_owned(), class_map),
+            class: parent::include_parent(imported_class, class_map),
         });
     }
 
@@ -125,50 +137,62 @@ pub fn resolve(
     lang_class_key.push_str("java.lang.");
     lang_class_key.push_str(class_name);
     let lang_class_key = lang_class_key;
-    if let Some(lang_class) = class_map.get(&lang_class_key) {
+    if let Ok(cm) = class_map.lock()
+        && let Some(ic) = cm.get(&lang_class_key)
+    {
+        let lang_class = ic.to_owned();
+        drop(cm);
         return Ok(ResolveState {
             jtype: JType::Class(lang_class_key),
-            class: parent::include_parent(lang_class.deref().to_owned(), class_map),
+            class: parent::include_parent(lang_class, class_map),
         });
     }
 
     let import_result = is_imported(class_name, imports, class_map);
     match import_result {
         Some(ImportResult::Class(c) | ImportResult::StaticClass(c)) => {
-            let Some(imported_class) = class_map.get(&c) else {
-                return Err(TyresError::ClassNotFound { class_path: c });
-            };
-            Ok(ResolveState {
-                jtype: JType::Class(c),
-                class: parent::include_parent(imported_class.deref().to_owned(), class_map),
-            })
+            if let Ok(cm) = class_map.lock()
+                && let Some(ic) = cm.get(&c)
+            {
+                let imported_class = ic.to_owned();
+                drop(cm);
+                return Ok(ResolveState {
+                    jtype: JType::Class(c),
+                    class: parent::include_parent(imported_class, class_map),
+                });
+            }
+            Err(TyresError::ClassNotFound { class_path: c })
         }
         None => Err(TyresError::NotImported(class_name.into())),
     }
 }
 
 #[must_use]
-pub fn resolve_import(jtype: &str, class_map: &DashMap<MyString, Class>) -> Vec<String> {
+pub fn resolve_import(
+    jtype: &str,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+) -> Vec<String> {
     resolve_class_key(class_map, |p| p.starts_with(jtype))
 }
 
 pub fn resolve_class_key(
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
     infl: impl Fn(&&MyString) -> bool,
 ) -> Vec<String> {
-    class_map
-        .clone()
-        .into_read_only()
-        .keys()
-        .filter(infl)
-        .map(ToString::to_string)
-        .collect::<Vec<String>>()
+    if let Ok(cm) = class_map.lock() {
+        return cm
+            .keys()
+            .filter(infl)
+            .map(ToString::to_string)
+            .collect::<Vec<String>>();
+    }
+    Vec::new()
 }
 
 pub fn resolve_var(
     extend: &LocalVariable,
     imports: &[ImportUnit],
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
 ) -> Result<ResolveState, TyresError> {
     resolve_jtype(&extend.jtype, imports, class_map)
 }
@@ -179,7 +203,7 @@ pub fn resolve_params(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
 ) -> Vec<Result<ResolveState, TyresError>> {
     params
         .iter()
@@ -192,7 +216,7 @@ pub fn resolve_call_chain(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
 ) -> Result<ResolveState, TyresError> {
     if call_chain.is_empty() {
         return Err(TyresError::CallChainEmpty);
@@ -221,7 +245,7 @@ pub fn resolve_call_chain_value(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
 ) -> Result<ResolveState, TyresError> {
     if call_chain.is_empty() {
         return Err(TyresError::CallChainEmpty);
@@ -244,7 +268,7 @@ pub fn resolve_call_chain_to_point(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
     point: &AstPoint,
 ) -> Result<ResolveState, TyresError> {
     if call_chain.is_empty() {
@@ -282,7 +306,7 @@ fn call_chain_op(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
     resolve_argument: bool,
     return_value: bool,
 ) -> Result<ResolveState, TyresError> {
@@ -351,7 +375,7 @@ fn call_chain_op_self(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
     resolve_argument: bool,
 ) -> Result<ResolveState, TyresError> {
     match item {
@@ -421,7 +445,7 @@ fn call_chain_op_self(
 pub fn resolve_jtype(
     jtype: &JType,
     imports: &[ImportUnit],
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
 ) -> Result<ResolveState, TyresError> {
     match jtype {
         JType::Void => Ok(ResolveState {
@@ -531,16 +555,19 @@ pub fn resolve_jtype(
         JType::Access { base, inner } => {
             let query = format!("{}${}", &base, &inner);
             eprintln!("Resolve JType::Access: {query}");
-            let Some(out) = class_map.get(&query) else {
-                return Err(TyresError::ClassNotFound { class_path: query });
-            };
-            Ok(ResolveState {
-                class: out.deref().to_owned(),
-                jtype: JType::Access {
-                    base: base.clone(),
-                    inner: inner.clone(),
-                },
-            })
+            if let Ok(cm) = class_map.lock()
+                && let Some(out) = cm.get(&query)
+            {
+                Ok(ResolveState {
+                    class: out.to_owned(),
+                    jtype: JType::Access {
+                        base: base.clone(),
+                        inner: inner.clone(),
+                    },
+                })
+            } else {
+                Err(TyresError::ClassNotFound { class_path: query })
+            }
         }
     }
 }

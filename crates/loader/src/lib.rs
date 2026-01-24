@@ -203,10 +203,10 @@ async fn base_load_classes_zip(
     buf: Vec<u8>,
     trim_prefix: Option<&str>,
 ) -> Result<ClassFolder, LoaderError> {
-    let zip = buf
-        .read_zip()
-        .await
-        .map_err(|e| LoaderError::Zip { e, path })?;
+    let zip = buf.read_zip().await.map_err(|e| LoaderError::Zip {
+        e,
+        path: path.clone(),
+    })?;
     let mut classes = vec![];
 
     for entry in zip.entries() {
@@ -238,7 +238,7 @@ async fn base_load_classes_zip(
         match load_class(buf.as_slice(), class_path, source.clone()) {
             Ok(c) => classes.push(c),
             Err(e) => {
-                eprintln!("Unable to load class: {file_name} {e:?}");
+                eprintln!("Unable to load class: (in:{path}) {file_name} {e:?}");
             }
         }
     }

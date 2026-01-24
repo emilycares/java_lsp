@@ -1,6 +1,10 @@
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
+
 use ast::types::{AstFile, AstPoint};
 use call_chain::{self, CallItem};
-use dashmap::DashMap;
 use document::get_class_path;
 use lsp_extra::{ToLspRangeError, to_lsp_range};
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
@@ -32,7 +36,7 @@ pub fn base(
     point: &AstPoint,
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
 ) -> Result<Hover, HoverError> {
     match class_action(ast, point, lo_va, imports, class_map) {
         Ok((class, range)) => {
@@ -45,21 +49,18 @@ pub fn base(
         eprintln!("Could not get class_path");
         return Err(HoverError::CouldNotFindClassPath);
     };
-    let Some(class) = class_map.get(&class_path) else {
+    let class;
+    if let Ok(cm) = class_map.lock()
+        && let Some(c) = cm.get(&class_path)
+    {
+        class = c.clone();
+    } else {
         return Err(HoverError::NoClass(class_path));
-    };
+    }
 
     let call_chain = call_chain::get_call_chain(ast, point);
 
-    call_chain_hover(
-        ast,
-        &call_chain,
-        point,
-        lo_va,
-        imports,
-        class.value(),
-        class_map,
-    )
+    call_chain_hover(ast, &call_chain, point, lo_va, imports, &class, class_map)
 }
 
 #[allow(dead_code)]
@@ -82,7 +83,7 @@ pub fn class_action(
     point: &AstPoint,
     _lo_va: &[LocalVariable],
     imports: &[ImportUnit],
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
 ) -> Result<(Class, Range), ClassActionError> {
     if let Some(class) = get_class::get_class(ast, point) {
         let range = to_lsp_range(&class.range).map_err(ClassActionError::ToLspRange)?;
@@ -101,14 +102,19 @@ pub fn call_chain_hover(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &DashMap<MyString, Class>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
 ) -> Result<Hover, HoverError> {
     let (item, relevant) = call_chain::validate(call_chain, point);
     let Some(el) = call_chain.get(item) else {
         return Err(HoverError::ValidatedItemDoesNotExists);
     };
     let resolve_state = match tyres::resolve_call_chain_to_point(
-        &relevant, lo_va, imports, class, class_map, point,
+        &relevant,
+        lo_va,
+        imports,
+        class,
+        &class_map.clone(),
+        point,
     ) {
         Ok(c) => Ok(c),
         Err(e) => Err(HoverError::Tyres(e)),
@@ -342,10 +348,13 @@ fn class_to_hover(class: &Class, range: Range) -> Hover {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{
+        collections::HashMap,
+        path::PathBuf,
+        sync::{Arc, Mutex},
+    };
 
     use ast::types::AstPoint;
-    use dashmap::DashMap;
     use document::Document;
     use my_string::MyString;
     use parser::dto::{Access, Class, JType, Method};
@@ -420,8 +429,8 @@ public class Test {
         assert!(out.is_ok());
     }
 
-    fn string_class_map() -> DashMap<MyString, Class> {
-        let class_map: DashMap<MyString, Class> = DashMap::new();
+    fn string_class_map() -> Arc<Mutex<HashMap<MyString, Class>>> {
+        let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
             "java.lang.String".into(),
             Class {
@@ -436,6 +445,6 @@ public class Test {
                 ..Default::default()
             },
         );
-        class_map
+        Arc::new(Mutex::new(class_map))
     }
 }

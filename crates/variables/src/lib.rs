@@ -7,10 +7,10 @@
 #![allow(clippy::too_many_lines)]
 use ast::types::{
     AstBlock, AstBlockEntry, AstBlockExpression, AstBlockVariable, AstClassMethod, AstExpression,
-    AstExpressionKind, AstFile, AstFor, AstForContent, AstForEnhanced, AstIf, AstIfContent,
-    AstInterfaceConstant, AstLambda, AstLambdaRhs, AstMethodParameter, AstPoint, AstRange,
-    AstRecursiveExpression, AstSwitch, AstSwitchCaseArrowContent, AstThing, AstTryCatch, AstWhile,
-    AstWhileContent,
+    AstExpressionKind, AstExpressionOrValue, AstFile, AstFor, AstForContent, AstForEnhanced, AstIf,
+    AstIfContent, AstInterfaceConstant, AstLambda, AstLambdaRhs, AstMethodParameter, AstPoint,
+    AstRange, AstRecursiveExpression, AstSwitch, AstSwitchCaseArrowContent, AstThing, AstTryCatch,
+    AstWhile, AstWhileContent,
 };
 use my_string::MyString;
 use parser::dto::JType;
@@ -151,10 +151,8 @@ fn get_block_entry_vars(
     out: &mut Vec<LocalVariable>,
 ) {
     match block_entry {
-        AstBlockEntry::Return(_)
-        | AstBlockEntry::Break(_)
+        AstBlockEntry::Break(_)
         | AstBlockEntry::Continue(_)
-        | AstBlockEntry::Throw(_)
         | AstBlockEntry::SwitchCase(_)
         | AstBlockEntry::SwitchDefault(_)
         | AstBlockEntry::Yield(_)
@@ -166,6 +164,8 @@ fn get_block_entry_vars(
                     .map(|i| LocalVariable::from_block_variable(i, level)),
             );
         }
+        AstBlockEntry::Throw(t) => expression(&t.expression, point, level, out),
+        AstBlockEntry::Return(r) => expression_or_value(&r.expression, point, level, out),
         AstBlockEntry::Expression(ast_expression) => block_expr(ast_expression, point, level, out),
         AstBlockEntry::If(ast_if) => if_vars(ast_if, point, level, out),
         AstBlockEntry::While(ast_while) => while_vars(ast_while, point, level, out),
@@ -208,6 +208,19 @@ fn switch_case_arrow_content(
         }
     }
 }
+fn expression_or_value(
+    e: &AstExpressionOrValue,
+    point: &AstPoint,
+    level: usize,
+    out: &mut Vec<LocalVariable>,
+) {
+    match e {
+        AstExpressionOrValue::None | AstExpressionOrValue::Value(_) => (),
+        AstExpressionOrValue::Expression(ast_expression_kinds) => {
+            expression(ast_expression_kinds, point, level, out);
+        }
+    }
+}
 
 fn block_expr(
     ast_expression: &AstBlockExpression,
@@ -234,9 +247,9 @@ fn recursive_expr(
     if let Some(v) = &expr.values
         && !v.values.is_empty()
     {
-        v.values
-            .iter()
-            .for_each(|i| expression(i, point, level, out));
+        for v in &v.values {
+            expression(v, point, level, out);
+        }
     }
 }
 
@@ -619,6 +632,24 @@ public class Test {
         let ast = ast::parse_file(&tokens).unwrap();
 
         let out = get_vars(&ast, &AstPoint::new(5, 22)).unwrap();
+        insta::assert_debug_snapshot!(out);
+    }
+
+    #[test]
+    fn in_lambda() {
+        let content = r#"
+public class Test {
+    public Uni<Response> test() {
+        return Thing.dothing(t -> {
+                    Definition q = new Definition();
+                    
+                    });
+    }
+}
+"#;
+        let tokens = ast::lexer::lex(content).unwrap();
+        let ast = ast::parse_file(&tokens).unwrap();
+        let out = get_vars(&ast, &AstPoint::new(4, 21)).unwrap();
         insta::assert_debug_snapshot!(out);
     }
 }

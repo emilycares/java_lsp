@@ -1,3 +1,8 @@
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
+
 use ast::types::{AstFile, AstPoint};
 use call_chain::CallItem;
 use dashmap::DashMap;
@@ -32,7 +37,7 @@ pub struct DefinitionContext<'a> {
     pub vars: &'a [LocalVariable],
     pub imports: &'a [ImportUnit],
     pub class: &'a Class,
-    pub class_map: &'a DashMap<MyString, Class>,
+    pub class_map: Arc<Mutex<HashMap<MyString, Class>>>,
     pub document_map: &'a DashMap<MyString, Document>,
 }
 
@@ -46,7 +51,7 @@ pub fn class(
         context.point,
         context.vars,
         context.imports,
-        context.class_map,
+        &context.class_map,
     ) {
         Ok((class, _range)) => {
             let mut ranges = vec![];
@@ -74,7 +79,7 @@ pub fn call_chain_definition(
         context.vars,
         context.imports,
         context.class,
-        context.class_map,
+        &context.class_map,
         context.point,
     )
     .map_err(DefinitionError::Tyres)?;
@@ -250,7 +255,7 @@ public class Test {
             vars: &vars,
             imports: &imports,
             class: &class,
-            class_map: &get_class_map(),
+            class_map: get_class_map(),
             document_map: &DashMap::new(),
         };
         let out = call_chain_definition(&call_chain, &context);
@@ -285,14 +290,14 @@ public class Test {
             vars: &vars,
             imports: &imports,
             class: &class,
-            class_map: &get_class_map(),
+            class_map: get_class_map(),
             document_map: &DashMap::new(),
         };
         let out = call_chain_definition(&call_chain, &context);
         assert!(out.is_err());
     }
-    fn get_class_map() -> DashMap<MyString, Class> {
-        let class_map: DashMap<MyString, Class> = DashMap::new();
+    fn get_class_map() -> Arc<Mutex<HashMap<MyString, Class>>> {
+        let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
             "org.jboss.logging.Logger".into(),
             Class {
@@ -352,6 +357,6 @@ public class Test {
                 ..Default::default()
             },
         );
-        class_map
+        Arc::new(Mutex::new(class_map))
     }
 }

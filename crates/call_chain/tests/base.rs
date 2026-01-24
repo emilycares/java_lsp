@@ -479,7 +479,6 @@ public class Test {
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 18));
     assert_eq!(
-        out,
         vec![CallItem::ArgumentList {
             prev: vec![
                 CallItem::ClassOrVariable {
@@ -503,7 +502,8 @@ public class Test {
             },
             filled_params: vec![vec![]],
             active_param: Some(0)
-        }]
+        }],
+        out,
     );
 }
 
@@ -524,7 +524,6 @@ public class Test {
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 23));
     assert_eq!(
-        out,
         vec![
             CallItem::ArgumentList {
                 prev: vec![
@@ -579,7 +578,8 @@ public class Test {
                     end: AstPoint { line: 5, col: 20 },
                 }
             },
-        ]
+        ],
+        out,
     );
 }
 
@@ -602,14 +602,14 @@ public class Test {
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 14));
     assert_eq!(
-        out,
         vec![CallItem::ClassOrVariable {
             name: "a".into(),
             range: AstRange {
                 start: AstPoint { line: 4, col: 12 },
                 end: AstPoint { line: 4, col: 13 },
             }
-        }]
+        }],
+        out,
     );
 }
 
@@ -649,14 +649,14 @@ public class Test {
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 18));
     assert_eq!(
-        out,
         vec![CallItem::ClassOrVariable {
             name: "a".into(),
             range: AstRange {
                 start: AstPoint { line: 4, col: 15 },
                 end: AstPoint { line: 4, col: 16 }
             }
-        },]
+        },],
+        out,
     );
 }
 
@@ -675,7 +675,6 @@ public class Test {
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 22));
     assert_eq!(
-        out,
         vec![
             CallItem::ClassOrVariable {
                 name: "a".into(),
@@ -691,7 +690,8 @@ public class Test {
                     end: AstPoint { line: 4, col: 18 },
                 }
             }
-        ]
+        ],
+        out,
     );
 }
 
@@ -753,7 +753,6 @@ public class Test {
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 25));
     assert_eq!(
-        out,
         vec![
             CallItem::Class {
                 name: "String".into(),
@@ -769,7 +768,8 @@ public class Test {
                     end: AstPoint { line: 4, col: 22 },
                 }
             }
-        ]
+        ],
+        out,
     );
 }
 
@@ -786,7 +786,6 @@ public class Test {
 
     let out = get_call_chain(&ast, &AstPoint::new(3, 43));
     assert_eq!(
-        out,
         vec![
             CallItem::ClassOrVariable {
                 name: "Logger".into(),
@@ -802,7 +801,8 @@ public class Test {
                     end: AstPoint { line: 3, col: 48 },
                 }
             }
-        ]
+        ],
+        out,
     );
 }
 
@@ -825,7 +825,6 @@ public class Test {
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 27));
     assert_eq!(
-        out,
         vec![
             CallItem::ClassOrVariable {
                 name: "MediaType".into(),
@@ -841,7 +840,8 @@ public class Test {
                     end: AstPoint { line: 4, col: 34 },
                 }
             }
-        ]
+        ],
+        out,
     );
 }
 
@@ -862,7 +862,6 @@ public class Test {
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 27));
     assert_eq!(
-        out,
         vec![
             CallItem::This {
                 range: AstRange {
@@ -884,7 +883,8 @@ public class Test {
                     end: AstPoint { line: 4, col: 28 }
                 }
             }
-        ]
+        ],
+        out,
     );
 }
 
@@ -904,7 +904,6 @@ public class Test {
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 15));
     assert_eq!(
-        out,
         vec![
             CallItem::This {
                 range: AstRange {
@@ -919,7 +918,8 @@ public class Test {
                     end: AstPoint { line: 4, col: 14 }
                 }
             },
-        ]
+        ],
+        out,
     );
 }
 
@@ -939,13 +939,40 @@ public class Test {
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 48));
     assert_eq!(
-        out,
         vec![CallItem::Class {
             name: "FileInputStream".to_string(),
             range: AstRange {
                 start: AstPoint { line: 4, col: 14 },
                 end: AstPoint { line: 4, col: 47 },
             },
-        },]
+        },],
+        out,
+    );
+}
+#[test]
+fn call_chain_in_lambda() {
+    let content = r#"
+public class Test {
+    public Uni<Response> test() {
+        return Thing.dothing(t -> {
+                    Definition q = new Definition();
+                    q.
+                });
+    }
+}
+"#;
+    let tokens = ast::lexer::lex(content).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
+
+    let out = get_call_chain(&ast, &AstPoint::new(5, 23));
+    assert_eq!(
+        vec![CallItem::ClassOrVariable {
+            name: "q".to_string(),
+            range: AstRange {
+                start: AstPoint { line: 5, col: 20 },
+                end: AstPoint { line: 5, col: 21 },
+            },
+        },],
+        out,
     );
 }

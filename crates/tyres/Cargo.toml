@@ -10,7 +10,6 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
-dashmap.workspace = true
 parser = { path = "../parser"}
 call_chain = { path = "../call_chain"}
 variables = { path = "../variables"}

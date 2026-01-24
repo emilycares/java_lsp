@@ -5,20 +5,21 @@
 #![deny(clippy::nursery)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
+#![allow(clippy::implicit_hasher)]
 use std::{
+    collections::HashMap,
     env,
     ffi::OsString,
     fs::{self},
     path::{Path, PathBuf},
     str::Utf8Error,
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicU32, Ordering},
     },
 };
 
 use common::TaskProgress;
-use dashmap::DashMap;
 use loader::CFC_VERSION;
 use my_string::MyString;
 use parser::{
@@ -49,7 +50,7 @@ pub enum JdkError {
 }
 
 pub async fn load_classes(
-    class_map: &DashMap<MyString, Class>,
+    class_map: Arc<Mutex<HashMap<MyString, Class>>>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
     path: &OsString,
 ) -> Result<(), JdkError> {
@@ -59,8 +60,10 @@ pub async fn load_classes(
     if cache_path.exists()
         && let Ok(classes) = loader::load_class_folder(&cache_path)
     {
-        for class in classes.classes {
-            class_map.insert(class.class_path.clone(), class);
+        if let Ok(mut cm) = class_map.lock() {
+            for class in classes.classes {
+                cm.insert(class.class_path.clone(), class);
+            }
         }
         return Ok(());
     }
@@ -68,8 +71,10 @@ pub async fn load_classes(
     if let Err(e) = loader::save_class_folder(cache_path, &class_folder) {
         eprintln!("Failed to save {JDK_CFC} because: {e:?}");
     }
-    for class in class_folder.classes {
-        class_map.insert(class.class_path.clone(), class);
+    if let Ok(mut cm) = class_map.lock() {
+        for class in class_folder.classes {
+            cm.insert(class.class_path.clone(), class);
+        }
     }
     Ok(())
 }

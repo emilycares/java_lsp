@@ -5,6 +5,7 @@
 #![deny(clippy::nursery)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
+#![allow(clippy::implicit_hasher)]
 mod backend;
 mod codeaction;
 pub mod command;
@@ -93,7 +94,7 @@ fn main_loop(
             params.work_done_progress_params.work_done_token,
             connection,
             project_kind,
-            class_map.clone(),
+            &class_map,
             reference_map,
             &project_dir,
             &path,

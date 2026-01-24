@@ -1,11 +1,11 @@
 use std::{
+    collections::HashMap,
     fs,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
 
 use common::{Dependency, TaskProgress, project_cache_dir, project_kind::ProjectKind};
-use dashmap::DashMap;
 use gradle::tree::GradleTreeError;
 use lsp_extra::SERVER_NAME;
 use lsp_server::Connection;
@@ -24,7 +24,7 @@ pub fn reload_dependencies(
     con: &Arc<Connection>,
     progress: Option<ProgressToken>,
     project_kind: &ProjectKind,
-    class_map: &Arc<DashMap<MyString, Class>>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
     project_dir: &Path,
 ) -> Option<serde_json::Value> {
     let repos = Arc::new(repos(project_kind, project_dir));
@@ -68,14 +68,14 @@ pub fn update_dependencies(
     con: &Arc<Connection>,
     progress: Option<ProgressToken>,
     project_kind: &ProjectKind,
-    class_map: &Arc<DashMap<MyString, Class>>,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
     project_dir: &Path,
 ) {
     let repos = Arc::new(repos(project_kind, project_dir));
     let con = con.clone();
     let project_kind = project_kind.clone();
-    let class_map = class_map.clone();
     let project_dir = project_dir.to_owned();
+    let class_map = class_map.clone();
     tokio::spawn(async move {
         let progress = Arc::new(progress);
 
