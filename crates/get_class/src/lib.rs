@@ -9,10 +9,11 @@ use ast::{
     range::AstInRange,
     types::{
         AstAnnotated, AstAnnotatedParameter, AstAnnotatedParameterKind, AstAnnotation, AstBlock,
-        AstBlockEntry, AstClassBlock, AstEnumeration, AstExpressionIdentifier, AstExpressionKind,
-        AstExpressionOrAnnotated, AstExpressionOrValue, AstFile, AstImportUnit, AstJType,
-        AstJTypeKind, AstLambdaRhs, AstNewRhs, AstPoint, AstRange, AstRecursiveExpression,
-        AstThing, AstValuesWithAnnotated,
+        AstBlockEntry, AstBlockVariable, AstClassBlock, AstEnumeration, AstExpressionIdentifier,
+        AstExpressionKind, AstExpressionOrAnnotated, AstExpressionOrDefault, AstExpressionOrValue,
+        AstFile, AstForContent, AstIf, AstIfContent, AstImportUnit, AstJType, AstJTypeKind,
+        AstLambdaRhs, AstNewRhs, AstPoint, AstRange, AstRecursiveExpression,
+        AstSwitchCaseArrowContent, AstThing, AstValuesWithAnnotated, AstWhileContent,
     },
 };
 pub struct FoundClass {
@@ -396,68 +397,287 @@ fn get_class_block(block: &AstBlock, point: &AstPoint) -> Option<FoundClass> {
         return None;
     }
     for entry in &block.entries {
-        match entry {
-            AstBlockEntry::Return(ast_block_return) => {
-                if let Some(o) = get_class_expression_or_value(&ast_block_return.expression, point)
+        if let Some(value) = get_class_block_entry(entry, point) {
+            return Some(value);
+        }
+    }
+    None
+}
+
+fn get_class_block_entry(entry: &AstBlockEntry, point: &AstPoint) -> Option<FoundClass> {
+    if !entry.is_in_range(point) {
+        return None;
+    }
+    match entry {
+        AstBlockEntry::Yield(ast_yield) => {
+            if let Some(o) = get_class_expression_or_value(&ast_yield.expression, point) {
+                return Some(o);
+            }
+        }
+        AstBlockEntry::Throw(ast_throw) => {
+            if let Some(o) = get_class_expression(&ast_throw.expression, point) {
+                return Some(o);
+            }
+        }
+        AstBlockEntry::Return(ast_block_return) => {
+            if let Some(o) = get_class_expression_or_value(&ast_block_return.expression, point) {
+                return Some(o);
+            }
+        }
+        AstBlockEntry::Variable(ast_block_variable) => {
+            if let Some(value) = get_class_block_variables(ast_block_variable, point) {
+                return Some(value);
+            }
+        }
+        AstBlockEntry::Expression(ast_block_expression) => {
+            if let Some(o) = get_class_expression(&ast_block_expression.value, point) {
+                return Some(o);
+            }
+        }
+        AstBlockEntry::Assign(ast_block_assign) => {
+            if let Some(o) = get_class_expression(&ast_block_assign.expression, point) {
+                return Some(o);
+            }
+        }
+        AstBlockEntry::If(ast_if) => match ast_if {
+            AstIf::If {
+                range: _,
+                control,
+                control_range: _,
+                content,
+            }
+            | AstIf::ElseIf {
+                range: _,
+                control,
+                control_range: _,
+                content,
+            } => {
+                if let Some(o) = get_class_expression(control, point) {
+                    return Some(o);
+                }
+                if let Some(o) = get_class_if_content(content, point) {
+                    return Some(o);
+                }
+            }
+            AstIf::Else { range: _, content } => {
+                if let Some(o) = get_class_if_content(content, point) {
+                    return Some(o);
+                }
+            }
+        },
+        AstBlockEntry::While(ast_while) => {
+            if let Some(o) = get_class_expression(&ast_while.control, point) {
+                return Some(o);
+            }
+            match &ast_while.content {
+                AstWhileContent::None => (),
+                AstWhileContent::Block(ast_block) => {
+                    if let Some(o) = get_class_block(ast_block, point) {
+                        return Some(o);
+                    }
+                }
+                AstWhileContent::BlockEntry(ast_block_entry) => {
+                    if let Some(o) = get_class_block_entry(ast_block_entry, point) {
+                        return Some(o);
+                    }
+                }
+            }
+        }
+        AstBlockEntry::For(ast_for) => {
+            for e in &ast_for.vars {
+                if let Some(o) = get_class_block_entry(e, point) {
+                    return Some(o);
+                }
+            }
+            for e in &ast_for.check {
+                if let Some(o) = get_class_block_entry(e, point) {
+                    return Some(o);
+                }
+            }
+            for e in &ast_for.changes {
+                if let Some(o) = get_class_block_entry(e, point) {
+                    return Some(o);
+                }
+            }
+            if let Some(value) = get_class_ast_for_content(&ast_for.content, point) {
+                return Some(value);
+            }
+        }
+        AstBlockEntry::ForEnhanced(ast_for_enhanced) => {
+            if let Some(value) = get_class_block_variables(&ast_for_enhanced.var, point) {
+                return Some(value);
+            }
+            if let Some(value) = get_class_expression(&ast_for_enhanced.rhs, point) {
+                return Some(value);
+            }
+            if let Some(value) = get_class_ast_for_content(&ast_for_enhanced.content, point) {
+                return Some(value);
+            }
+        }
+        AstBlockEntry::Break(_ast_block_break) => (),
+        AstBlockEntry::Continue(_ast_block_continue) => (),
+        AstBlockEntry::Switch(ast_switch) => {
+            if let Some(o) = get_class_expression(&ast_switch.check, point) {
+                return Some(o);
+            }
+            if let Some(o) = get_class_block(&ast_switch.block, point) {
+                return Some(o);
+            }
+        }
+        AstBlockEntry::SwitchCase(ast_switch_case) => {
+            if let Some(o) = get_class_expression_or_defaults(&ast_switch_case.expressions, point) {
+                return Some(o);
+            }
+        }
+        AstBlockEntry::SwitchDefault(_ast_switch_default) => (),
+        AstBlockEntry::SwitchCaseArrowValues(ast_switch_case_arrow) => {
+            if let Some(o) = get_class_expression_or_defaults(&ast_switch_case_arrow.values, point)
+            {
+                return Some(o);
+            }
+            if let Some(o) =
+                get_class_switch_case_arrow_content(&ast_switch_case_arrow.content, point)
+            {
+                return Some(o);
+            }
+        }
+        AstBlockEntry::SwitchCaseArrowDefault(ast_switch_case_arrow_default) => {
+            if let Some(o) =
+                get_class_switch_case_arrow_content(&ast_switch_case_arrow_default.content, point)
+            {
+                return Some(o);
+            }
+        }
+        AstBlockEntry::TryCatch(ast_try_catch) => {
+            if let Some(b) = &ast_try_catch.resources_block
+                && let Some(o) = get_class_block(b, point)
+            {
+                return Some(o);
+            }
+            if let Some(o) = get_class_block(&ast_try_catch.block, point) {
+                return Some(o);
+            }
+            for c in &ast_try_catch.cases {
+                for t in &c.variable.jtypes {
+                    if let Some(o) = get_class_jtype(t, point) {
+                        return Some(o);
+                    }
+                }
+                if let Some(e) = &c.variable.expression
+                    && let Some(o) = get_class_expression(e, point)
                 {
                     return Some(o);
                 }
-            }
-            AstBlockEntry::Variable(_ast_block_variable) => (),
-            AstBlockEntry::Expression(ast_block_expression) => {
-                if let Some(o) = get_class_expression(&ast_block_expression.value, point) {
+                if let Some(o) = get_class_block(&c.block, point) {
                     return Some(o);
                 }
             }
-            AstBlockEntry::Assign(ast_block_assign) => {
-                if let Some(o) = get_class_expression(&ast_block_assign.expression, point) {
-                    return Some(o);
-                }
+
+            if let Some(b) = &ast_try_catch.finally_block
+                && let Some(o) = get_class_block(b, point)
+            {
+                return Some(o);
             }
-            AstBlockEntry::If(_ast_if) => (),
-            AstBlockEntry::While(_ast_while) => (),
-            AstBlockEntry::For(_ast_for) => (),
-            AstBlockEntry::ForEnhanced(_ast_for_enhanced) => (),
-            AstBlockEntry::Break(_ast_block_break) => (),
-            AstBlockEntry::Continue(_ast_block_continue) => (),
-            AstBlockEntry::Switch(_ast_switch) => (),
-            AstBlockEntry::SwitchCase(_ast_switch_case) => (),
-            AstBlockEntry::SwitchDefault(_ast_switch_default) => (),
-            AstBlockEntry::SwitchCaseArrowValues(_ast_switch_case_arrow) => (),
-            AstBlockEntry::SwitchCaseArrowDefault(_ast_switch_case_arrow_default) => (),
-            AstBlockEntry::TryCatch(_ast_try_catch) => (),
-            AstBlockEntry::Throw(_ast_throw) => (),
-            AstBlockEntry::Yield(_ast_block_yield) => (),
-            AstBlockEntry::SynchronizedBlock(ast_synchronized_block) => {
-                if let Some(o) = get_class_expression(&ast_synchronized_block.expression, point) {
-                    return Some(o);
-                }
-                if let Some(o) = get_class_block(&ast_synchronized_block.block, point) {
-                    return Some(o);
-                }
+        }
+        AstBlockEntry::SynchronizedBlock(ast_synchronized_block) => {
+            if let Some(o) = get_class_expression(&ast_synchronized_block.expression, point) {
+                return Some(o);
             }
-            AstBlockEntry::Thing(ast_thing) => {
-                if let Some(o) = thing(ast_thing, point) {
+            if let Some(o) = get_class_block(&ast_synchronized_block.block, point) {
+                return Some(o);
+            }
+        }
+        AstBlockEntry::Thing(ast_thing) => {
+            if let Some(o) = thing(ast_thing, point) {
+                return Some(o);
+            }
+        }
+        AstBlockEntry::InlineBlock(ast_block) => {
+            if let Some(o) = get_class_block(&ast_block.block, point) {
+                return Some(o);
+            }
+        }
+        AstBlockEntry::Semicolon(_ast_range) => (),
+        AstBlockEntry::SwitchCaseArrowType(ast_switch_case_arrow_type) => {
+            if let Some(o) = get_class_jtype(&ast_switch_case_arrow_type.var.jtype, point) {
+                return Some(o);
+            }
+        }
+        AstBlockEntry::Assert(ast_block_assert) => {
+            return get_class_expression(&ast_block_assert.expression, point);
+        }
+    }
+    None
+}
+
+fn get_class_switch_case_arrow_content(
+    content: &AstSwitchCaseArrowContent,
+    point: &AstPoint,
+) -> Option<FoundClass> {
+    match content {
+        AstSwitchCaseArrowContent::Block(ast_block) => get_class_block(ast_block, point),
+        AstSwitchCaseArrowContent::Entry(ast_block_entry) => {
+            get_class_block_entry(ast_block_entry, point)
+        }
+    }
+}
+
+fn get_class_expression_or_defaults(
+    expressions: &[AstExpressionOrDefault],
+    point: &AstPoint,
+) -> Option<FoundClass> {
+    for e in expressions {
+        match e {
+            AstExpressionOrDefault::Default => (),
+            AstExpressionOrDefault::Expression(ast_expression_kinds) => {
+                if let Some(o) = get_class_expression(ast_expression_kinds, point) {
                     return Some(o);
                 }
-            }
-            AstBlockEntry::InlineBlock(ast_block) => {
-                if let Some(o) = get_class_block(&ast_block.block, point) {
-                    return Some(o);
-                }
-            }
-            AstBlockEntry::Semicolon(_ast_range) => (),
-            AstBlockEntry::SwitchCaseArrowType(ast_switch_case_arrow_type) => {
-                if let Some(o) = get_class_jtype(&ast_switch_case_arrow_type.var.jtype, point) {
-                    return Some(o);
-                }
-            }
-            AstBlockEntry::Assert(ast_block_assert) => {
-                return get_class_expression(&ast_block_assert.expression, point);
             }
         }
     }
     None
+}
+
+fn get_class_ast_for_content(content: &AstForContent, point: &AstPoint) -> Option<FoundClass> {
+    match content {
+        AstForContent::None => (),
+        AstForContent::Block(ast_block) => {
+            if let Some(o) = get_class_block(ast_block, point) {
+                return Some(o);
+            }
+        }
+        AstForContent::BlockEntry(ast_block_entry) => {
+            if let Some(o) = get_class_block_entry(ast_block_entry, point) {
+                return Some(o);
+            }
+        }
+    }
+    None
+}
+
+fn get_class_block_variables(
+    ast_block_variable: &[AstBlockVariable],
+    point: &AstPoint,
+) -> Option<FoundClass> {
+    for v in ast_block_variable {
+        if let Some(o) = get_class_jtype(&v.jtype, point) {
+            return Some(o);
+        }
+        if let Some(expr) = &v.value
+            && let Some(o) = get_class_expression(expr, point)
+        {
+            return Some(o);
+        }
+    }
+    None
+}
+
+fn get_class_if_content(content: &AstIfContent, point: &AstPoint) -> Option<FoundClass> {
+    match content {
+        AstIfContent::Block(ast_block) => get_class_block(ast_block, point),
+        AstIfContent::BlockEntry(ast_block_entry) => get_class_block_entry(ast_block_entry, point),
+    }
 }
 
 fn get_class_expression_or_value(
