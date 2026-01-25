@@ -476,7 +476,7 @@ public class Test {
     }
 }
         ";
-        let tokens = ast::lexer::lex(content).unwrap();
+        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
 
         let out = get_vars(&ast, &AstPoint::new(12, 17)).unwrap();
@@ -492,7 +492,7 @@ public class Test {
      
 }
         ";
-        let tokens = ast::lexer::lex(content).unwrap();
+        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
 
         let out = get_vars(&ast, &AstPoint::new(4, 6)).unwrap();
@@ -519,7 +519,7 @@ public class Test {
     }
 }
         ";
-        let tokens = ast::lexer::lex(content).unwrap();
+        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens);
         ast.print_err(content, &tokens);
         let ast = ast.unwrap();
@@ -547,7 +547,7 @@ public class Test {
     }
 }
         ";
-        let tokens = ast::lexer::lex(content).unwrap();
+        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
 
         let out = get_vars(&ast, &AstPoint::new(8, 54)).unwrap();
@@ -590,7 +590,7 @@ public class Test {
     }
 }
         "#;
-        let tokens = ast::lexer::lex(content).unwrap();
+        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
 
         let out = get_vars(&ast, &AstPoint::new(8, 54)).unwrap();
@@ -609,7 +609,7 @@ public class Test {
     }
 }
         "#;
-        let tokens = ast::lexer::lex(content).unwrap();
+        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
 
         let out = get_vars(&ast, &AstPoint::new(6, 46)).unwrap();
@@ -628,7 +628,7 @@ public class Test {
     }
 }
         "#;
-        let tokens = ast::lexer::lex(content).unwrap();
+        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
 
         let out = get_vars(&ast, &AstPoint::new(5, 22)).unwrap();
@@ -647,7 +647,7 @@ public class Test {
     }
 }
 "#;
-        let tokens = ast::lexer::lex(content).unwrap();
+        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         let out = get_vars(&ast, &AstPoint::new(4, 21)).unwrap();
         insta::assert_debug_snapshot!(out);

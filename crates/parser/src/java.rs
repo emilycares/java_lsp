@@ -27,8 +27,7 @@ pub enum ParseJavaError {
     Lexer(ast::lexer::LexerError),
 }
 pub fn load_java(bytes: &[u8], source: SourceDestination) -> Result<Class, ParseJavaError> {
-    let str = str::from_utf8(bytes).map_err(ParseJavaError::Utf8)?;
-    let tokens = lexer::lex(str).map_err(ParseJavaError::Lexer)?;
+    let tokens = lexer::lex(bytes).map_err(ParseJavaError::Lexer)?;
     let parsed = ast::parse_file(&tokens).map_err(ParseJavaError::Ast)?;
     Ok(load_java_tree(&parsed, source))
 }

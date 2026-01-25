@@ -49,7 +49,7 @@ similar.opt-level = 3
 [profile.release]
 # debug = true
 # incremental = true
-lto = "fat"
+# lto = "fat"
 
 [workspace.dependencies]
 bitflags = { version = "2.10.0", features = ["serde"] }
@@ -72,5 +72,6 @@ phf = { version = "0.13.1", features = ["macros"] }
 rayon = "1.11.0"
 insta = { version = "1.46.0", default-features = false }
 memmap2 = "0.9.9"
+memchr = "2.7.6"
 sha1_smol = "1.0.1"
 reqwest = "0.13.1"

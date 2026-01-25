@@ -121,7 +121,7 @@ impl Document {
         self.reparse()
     }
     fn reparse(&mut self) -> Result<(), DocumentError> {
-        match ast::lexer::lex(&self.rope.to_string()) {
+        match ast::lexer::lex(self.rope.to_string().as_bytes()) {
             Ok(tokens) => {
                 let ast = ast::parse_file(&tokens);
                 match ast {

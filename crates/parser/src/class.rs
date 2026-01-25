@@ -17,10 +17,7 @@ pub fn load_class(
     class_path: MyString,
     source: SourceDestination,
 ) -> Result<Class, ClassError> {
-    let (_, c) = class_parser(bytes).map_err(|e| {
-        eprintln!("{e}");
-        ClassError::ParseError
-    })?;
+    let (_, c) = class_parser(bytes).map_err(|_| ClassError::ParseError)?;
     let code_attribute = parse_code_attribute(&c, &c.attributes);
     let mut used_classes = parse_used_classes(&c, code_attribute);
 

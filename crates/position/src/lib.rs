@@ -487,7 +487,7 @@ public class Test {
     }
 }
 ";
-        let tokens = ast::lexer::lex(content).unwrap();
+        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         let mut out = vec![];
         get_method_position_ast(&ast, Some("hello"), &mut out);
@@ -512,7 +512,7 @@ public class Test {
     public String a;
 }
 ";
-        let tokens = ast::lexer::lex(content).unwrap();
+        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         let mut out = vec![];
         get_field_position_ast(&ast, Some("a"), &mut out);
@@ -541,7 +541,7 @@ public class Test {
     }
 }
         "#;
-        let tokens = ast::lexer::lex(content).unwrap();
+        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         let mut out = vec![];
         get_field_position_ast(&ast, None, &mut out);
@@ -574,7 +574,7 @@ public class Test {
 package ch.emilycares;
 public class Test {}
 ";
-        let tokens = ast::lexer::lex(content).unwrap();
+        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         let mut out = vec![];
         get_class_position_ast(&ast, Some("Test"), &mut out);
@@ -599,7 +599,7 @@ public class Test {
 private StringBuilder sb = new StringBuilder();
 }
 "#;
-        let tokens = ast::lexer::lex(content).unwrap();
+        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         get_type_usage("StringBuilder", &ast);
         // assert here

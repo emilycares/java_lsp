@@ -13,6 +13,7 @@ license.workspace = true
 phf.workspace = true
 bitflags.workspace = true
 my_string = { path = "../my_string"}
+memchr.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

@@ -87,7 +87,7 @@ pub fn ast_check(path: &PathBuf) {
 }
 #[cfg(not(target_os = "windows"))]
 pub fn ast_check(path: &PathBuf, num: usize, tokens: &mut Vec<PositionToken>) {
-    use std::{fs::File, str::from_utf8};
+    use std::fs::File;
 
     match File::open(path) {
         Ok(file) => {
@@ -97,15 +97,7 @@ pub fn ast_check(path: &PathBuf, num: usize, tokens: &mut Vec<PositionToken>) {
                     #[cfg(unix)]
                     mmap.advise(memmap2::Advice::Sequential)
                         .expect("memmap advice to be accepted");
-                    match from_utf8(&mmap[..]) {
-                        Ok(text) => {
-                            lex_and_ast(path, text, num, tokens);
-                        }
-                        Err(e) => {
-                            eprintln!("invalid utf8: {:?}", e);
-                            std::process::exit(3);
-                        }
-                    };
+                    lex_and_ast(path, &mmap, num, tokens);
                 }
                 Err(e) => {
                     eprintln!("unable to memmap: {:?}", e);
@@ -121,14 +113,16 @@ pub fn ast_check(path: &PathBuf, num: usize, tokens: &mut Vec<PositionToken>) {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn lex_and_ast(file: &PathBuf, text: &str, num: usize, tokens: &mut Vec<PositionToken>) {
+fn lex_and_ast(file: &PathBuf, text: &[u8], num: usize, tokens: &mut Vec<PositionToken>) {
     // eprintln!("[{num}]Here: {:?}", file);
     match ast::lexer::lex_mut(text, tokens) {
         Ok(_) => {
             let ast = ast::parse_file(tokens);
             if ast.is_err() {
                 eprintln!("[{num}]Here: {:?}", file);
-                ast.print_err(text, tokens);
+                if let Ok(text) = str::from_utf8(text) {
+                    ast.print_err(text, tokens);
+                }
                 std::process::exit(3);
             }
         }
@@ -295,12 +289,12 @@ pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<String>) -> Resul
 }
 
 pub fn lex(file: PathBuf) {
-    let text = std::fs::read_to_string(&file).expect("File should exist");
-    let tokens = ast::lexer::lex(&text).expect("Ok to cratch if fail");
+    let bytes = std::fs::read(&file).expect("File should exist");
+    let tokens = ast::lexer::lex(&bytes).expect("Ok to cratch if fail");
     eprintln!("{:?}", tokens);
 }
 pub fn lex_pos(file: PathBuf, pos: usize) {
-    let text = std::fs::read_to_string(&file).expect("File should exist");
-    let tokens = ast::lexer::lex(&text).expect("Ok to cratch if fail");
+    let bytes = std::fs::read(&file).expect("File should exist");
+    let tokens = ast::lexer::lex(&bytes).expect("Ok to cratch if fail");
     eprintln!("{:?}", tokens[pos]);
 }

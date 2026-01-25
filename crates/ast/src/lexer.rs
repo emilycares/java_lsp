@@ -1,6 +1,9 @@
 //! Transform document into a token vector
 use core::fmt;
 
+use memchr::memchr;
+use memchr::memchr_iter;
+use memchr::memmem;
 use my_string::MyString;
 use phf::phf_map;
 
@@ -559,7 +562,7 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
     "open" => Token::Open,
 };
 /// Output token vec for document
-pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
+pub fn lex(input: &[u8]) -> Result<Vec<PositionToken>, LexerError> {
     let mut tokens = Vec::new();
 
     lex_mut(input, &mut tokens)?;
@@ -570,31 +573,32 @@ pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
 /// Fill tokens vec with tokens for document
 ///
 /// Use this instead of `lex` if there is already a vec of tokens that can be reused
-pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), LexerError> {
+pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), LexerError> {
     tokens.clear();
-    let chars: Vec<char> = input.chars().collect();
+    // let input: Vec<char> = input.input().collect();
     let mut line = 0;
     let mut col = 0;
     let mut index = 0;
 
     loop {
-        let ch = chars.get(index);
+        let ch = input.get(index);
         let Some(ch) = ch else {
             break;
         };
         match ch {
-            '\n' => {
+            b'\n' => {
                 line += 1;
                 col = 0;
                 index += 1;
                 continue;
             }
-            ch if ch.is_whitespace() => {
+
+            ch if is_whitespace(*ch) => {
                 col += 1;
                 index += 1;
                 continue;
             }
-            '(' => {
+            b'(' => {
                 tokens.push(PositionToken {
                     token: Token::LeftParen,
                     line,
@@ -602,7 +606,7 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 col += 1;
             }
-            ')' => {
+            b')' => {
                 tokens.push(PositionToken {
                     token: Token::RightParen,
                     line,
@@ -610,7 +614,7 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 col += 1;
             }
-            '{' => {
+            b'{' => {
                 tokens.push(PositionToken {
                     token: Token::LeftParenCurly,
                     line,
@@ -618,7 +622,7 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 col += 1;
             }
-            '}' => {
+            b'}' => {
                 tokens.push(PositionToken {
                     token: Token::RightParenCurly,
                     line,
@@ -626,7 +630,7 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 col += 1;
             }
-            '[' => {
+            b'[' => {
                 tokens.push(PositionToken {
                     token: Token::LeftParenSquare,
                     line,
@@ -634,7 +638,7 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 col += 1;
             }
-            ']' => {
+            b']' => {
                 tokens.push(PositionToken {
                     token: Token::RightParenSquare,
                     line,
@@ -642,7 +646,7 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 col += 1;
             }
-            '+' => {
+            b'+' => {
                 tokens.push(PositionToken {
                     token: Token::Plus,
                     line,
@@ -650,8 +654,8 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 col += 1;
             }
-            '-' => {
-                if matches!(chars.get(index + 1), Some('-')) {
+            b'-' => {
+                if matches!(input.get(index + 1), Some(b'-')) {
                     tokens.push(PositionToken {
                         token: Token::Dash,
                         line,
@@ -664,7 +668,7 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                     });
                     index += 1;
                     col += 2;
-                } else if matches!(chars.get(index + 1), Some('>')) {
+                } else if matches!(input.get(index + 1), Some(b'>')) {
                     tokens.push(PositionToken {
                         token: Token::Arrow,
                         line,
@@ -681,7 +685,7 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                     col += 1;
                 }
             }
-            '*' => {
+            b'*' => {
                 tokens.push(PositionToken {
                     token: Token::Star,
                     line,
@@ -689,7 +693,7 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 col += 1;
             }
-            '^' => {
+            b'^' => {
                 tokens.push(PositionToken {
                     token: Token::Caret,
                     line,
@@ -697,7 +701,7 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 col += 1;
             }
-            '~' => {
+            b'~' => {
                 tokens.push(PositionToken {
                     token: Token::Tilde,
                     line,
@@ -705,10 +709,9 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 col += 1;
             }
-            '@' => {
-                let interface = &chars[index + 1..index + 10];
-                let interface: String = interface.iter().collect();
-                if interface == "interface" {
+            b'@' => {
+                let interface = &input[index + 1..index + 10];
+                if interface == b"interface" {
                     tokens.push(PositionToken {
                         token: Token::AtInterface,
                         line,
@@ -725,7 +728,7 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                     col += 1;
                 }
             }
-            '.' => {
+            b'.' => {
                 tokens.push(PositionToken {
                     token: Token::Dot,
                     line,
@@ -733,7 +736,7 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 col += 1;
             }
-            ',' => {
+            b',' => {
                 tokens.push(PositionToken {
                     token: Token::Comma,
                     line,
@@ -741,7 +744,7 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 col += 1;
             }
-            ';' => {
+            b';' => {
                 tokens.push(PositionToken {
                     token: Token::Semicolon,
                     line,
@@ -749,7 +752,7 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 col += 1;
             }
-            ':' => {
+            b':' => {
                 tokens.push(PositionToken {
                     token: Token::Colon,
                     line,
@@ -757,7 +760,7 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 col += 1;
             }
-            '%' => {
+            b'%' => {
                 tokens.push(PositionToken {
                     token: Token::Percent,
                     line,
@@ -765,7 +768,7 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 col += 1;
             }
-            '&' => {
+            b'&' => {
                 tokens.push(PositionToken {
                     token: Token::Ampersand,
                     line,
@@ -773,7 +776,7 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 col += 1;
             }
-            '|' => {
+            b'|' => {
                 tokens.push(PositionToken {
                     token: Token::VerticalBar,
                     line,
@@ -781,7 +784,7 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 col += 1;
             }
-            '?' => {
+            b'?' => {
                 tokens.push(PositionToken {
                     token: Token::QuestionMark,
                     line,
@@ -789,56 +792,59 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 col += 1;
             }
-            '/' => {
-                let Some(peek) = chars.get(index + 1) else {
+            b'/' => {
+                let Some(peek) = input.get(index + 1) else {
                     break;
                 };
-                if peek == &'/' {
-                    // Inside line comment
-                    loop {
-                        let Some(ch) = chars.get(index) else {
-                            break;
-                        };
-                        if ch == &'\n' {
-                            line += 1;
-                            col = 0;
-                            break;
-                        }
-                        index += 1;
-                    }
-                } else if peek == &'*' {
+                if peek == &b'/' {
+                    let slice = &input[index + 2..];
+                    let Some(m) = memchr(b'\n', slice) else {
+                        break;
+                    };
+                    let length = m + 1;
+                    // slice is offset my 2
+                    index += length + 2;
+                    line += 1;
+                    col = 0;
+                    continue;
+                } else if peek == &b'*' {
                     // Inside multi line comment
-                    loop {
-                        let Some(ch) = chars.get(index) else {
-                            break;
-                        };
-                        if ch == &'\n' {
-                            line += 1;
-                            col = 0;
-                        }
-                        if ch == &'*' {
-                            let Some(ch) = chars.get(index + 1) else {
-                                break;
-                            };
-                            if ch == &'/' {
-                                col += 2;
-                                index += 1;
-                                break;
-                            }
-                        }
-                        col += 1;
-                        index += 1;
+                    let slice = &input[index + 2..];
+                    let finder = memmem::Finder::new("*/");
+                    let Some(m) = finder.find(slice) else {
+                        break;
+                    };
+                    // Include the last two chars
+                    let length = m + 2;
+                    let for_ln_count = &slice[..m];
+                    let mut ln = memchr_iter(b'\n', for_ln_count);
+                    if let Some(last) = ln.next_back() {
+                        // After last newline
+                        // let char_count = &slice[last + 1..length];
+                        // col += char_count.len();
+                        // debug_assert_eq!(char_count.len(), length - (last + 1));
+                        col += length - (last + 1);
+                    } else {
+                        // Full comment contains no newline
+                        // debug_assert!(ln_count == 0);
+                        // let char_count = &input[index..index + length + 2];
+                        // debug_assert_eq!(char_count.len(), length + 2);
+                        col += length + 2;
                     }
-                } else {
-                    tokens.push(PositionToken {
-                        token: Token::Slash,
-                        line,
-                        col,
-                    });
-                    col += 1;
+                    let ln_count = ln.count();
+                    line += ln_count;
+                    // slice is offset my 2
+                    index += length + 2;
+                    continue;
                 }
+                tokens.push(PositionToken {
+                    token: Token::Slash,
+                    line,
+                    col,
+                });
+                col += 1;
             }
-            '\\' => {
+            b'\\' => {
                 tokens.push(PositionToken {
                     token: Token::BackSlash,
                     line,
@@ -846,35 +852,35 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 col += 1;
             }
-            '"' => {
+            b'"' => {
                 index += 1;
                 let mut str = String::new();
                 let mut multi_line = false;
-                if matches!(chars.get(index), Some('"'))
-                    && matches!(chars.get(index + 1), Some('"'))
+                if matches!(input.get(index), Some(b'"'))
+                    && matches!(input.get(index + 1), Some(b'"'))
                 {
                     multi_line = true;
                     index += 2;
                 }
                 'string_literal: loop {
-                    let Some(ch) = chars.get(index) else {
+                    let Some(ch) = input.get(index) else {
                         break;
                     };
-                    if *ch == '\r' {
+                    if *ch == b'\r' {
                         index += 1;
                         continue;
                     }
-                    if *ch == '\\' {
-                        let Some(peek) = chars.get(index + 1) else {
+                    if *ch == b'\\' {
+                        let Some(peek) = input.get(index + 1) else {
                             break;
                         };
-                        if *peek == '\\' {
+                        if *peek == b'\\' {
                             str.push('\\');
                             str.push('\\');
                             col += 2;
                             index += 2;
                             continue;
-                        } else if *peek == '"' {
+                        } else if *peek == b'"' {
                             str.push('\\');
                             str.push('\"');
                             col += 2;
@@ -882,19 +888,19 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                             continue;
                         }
                     }
-                    if *ch == '"' {
+                    if *ch == b'"' {
                         if !multi_line {
                             col += 1;
                             break 'string_literal;
-                        } else if matches!(chars.get(index + 1), Some('"'))
-                            && matches!(chars.get(index + 2), Some('"'))
+                        } else if matches!(input.get(index + 1), Some(b'"'))
+                            && matches!(input.get(index + 2), Some(b'"'))
                         {
                             index += 2;
                             col += 2;
                             break 'string_literal;
                         }
                     }
-                    str.push(*ch);
+                    str.push(*ch as char);
                     index += 1;
                     col += 1;
                 }
@@ -905,24 +911,24 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 col += 1;
             }
-            '\'' => {
+            b'\'' => {
                 index += 1;
                 let mut char = MyString::new();
                 'char_literal: loop {
-                    let Some(ch) = chars.get(index) else {
+                    let Some(ch) = input.get(index) else {
                         break;
                     };
-                    if *ch == '\\' {
-                        let Some(peek) = chars.get(index + 1) else {
+                    if *ch == b'\\' {
+                        let Some(peek) = input.get(index + 1) else {
                             break;
                         };
-                        if *peek == '\\' {
+                        if *peek == b'\\' {
                             char.push('\\');
                             char.push('\\');
                             col += 2;
                             index += 2;
                             continue;
-                        } else if *peek == '\'' {
+                        } else if *peek == b'\'' {
                             char.push('\\');
                             char.push('\'');
                             col += 2;
@@ -930,10 +936,10 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                             continue;
                         }
                     }
-                    if *ch == '\'' {
+                    if *ch == b'\'' {
                         break 'char_literal;
                     }
-                    char.push(*ch);
+                    char.push(*ch as char);
                     index += 1;
                     col += 1;
                 }
@@ -944,8 +950,8 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 col += 1;
             }
-            '=' => {
-                if matches!(chars.get(index + 1), Some('=')) {
+            b'=' => {
+                if matches!(input.get(index + 1), Some(b'=')) {
                     tokens.push(PositionToken {
                         token: Token::EqualDouble,
                         line,
@@ -962,8 +968,8 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                     });
                 }
             }
-            '!' => {
-                if matches!(chars.get(index + 1), Some('=')) {
+            b'!' => {
+                if matches!(input.get(index + 1), Some(b'=')) {
                     tokens.push(PositionToken {
                         token: Token::Ne,
                         line,
@@ -980,8 +986,8 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                     col += 1;
                 }
             }
-            '<' => {
-                if matches!(chars.get(index + 1), Some('=')) {
+            b'<' => {
+                if matches!(input.get(index + 1), Some(b'=')) {
                     tokens.push(PositionToken {
                         token: Token::Le,
                         line,
@@ -998,8 +1004,8 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                     col += 1;
                 }
             }
-            '>' => {
-                if matches!(chars.get(index + 1), Some('=')) {
+            b'>' => {
+                if matches!(input.get(index + 1), Some(b'=')) {
                     tokens.push(PositionToken {
                         token: Token::Ge,
                         line,
@@ -1016,23 +1022,23 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                     col += 1;
                 }
             }
-            '0'..='9' => {
-                if matches!(chars.get(index + 1), Some('0')) {
-                    match chars.get(index + 1) {
-                        Some('x' | 'X') => {
+            b'0'..=b'9' => {
+                if matches!(input.get(index + 1), Some(b'0')) {
+                    match input.get(index + 1) {
+                        Some(b'x' | b'X') => {
                             index += 2;
                             let mut string = MyString::new();
                             loop {
-                                let Some(ch) = chars.get(index) else {
+                                let Some(ch) = input.get(index) else {
                                     break;
                                 };
                                 if ch.is_ascii_hexdigit()
-                                    || ch == &'_'
-                                    || ch == &'.'
-                                    || ch == &'p'
-                                    || ch == &'-'
+                                    || ch == &b'_'
+                                    || ch == &b'.'
+                                    || ch == &b'p'
+                                    || ch == &b'-'
                                 {
-                                    string.push(*ch);
+                                    string.push(*ch as char);
                                     index += 1;
                                 } else {
                                     break;
@@ -1046,15 +1052,15 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                             });
                             continue;
                         }
-                        Some('b' | 'B') => {
+                        Some(b'b' | b'B') => {
                             index += 2;
                             let mut string = MyString::new();
                             loop {
-                                let Some(ch) = chars.get(index) else {
+                                let Some(ch) = input.get(index) else {
                                     break;
                                 };
-                                if ch == &'_' || ch == &'0' || ch == &'1' {
-                                    string.push(*ch);
+                                if ch == &b'_' || ch == &b'0' || ch == &b'1' {
+                                    string.push(*ch as char);
                                     index += 1;
                                 } else {
                                     break;
@@ -1073,11 +1079,11 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 }
                 let mut string = MyString::new();
                 loop {
-                    let Some(ch) = chars.get(index) else {
+                    let Some(ch) = input.get(index) else {
                         break;
                     };
-                    if ch.is_ascii_digit() || ch == &'_' {
-                        string.push(*ch);
+                    if ch.is_ascii_digit() || ch == &b'_' {
+                        string.push(*ch as char);
                     } else {
                         break;
                     }
@@ -1092,16 +1098,16 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 });
                 continue;
             }
-            'A'..='Z' | 'a'..='z' | '_' | '$' => {
+            b'A'..=b'Z' | b'a'..=b'z' | b'_' | b'$' => {
                 let mut ident = MyString::new();
                 loop {
-                    let Some(ch) = chars.get(index) else {
+                    let Some(ch) = input.get(index) else {
                         break;
                     };
-                    if !ch.is_ascii_alphanumeric() && ch != &'_' && ch != &'$' {
+                    if !ch.is_ascii_alphanumeric() && ch != &b'_' && ch != &b'$' {
                         break;
                     }
-                    ident.push(*ch);
+                    ident.push(*ch as char);
                     index += 1;
                 }
                 let len = ident.len();
@@ -1120,12 +1126,16 @@ pub fn lex_mut(input: &str, tokens: &mut Vec<PositionToken>) -> Result<(), Lexer
                 col += len;
                 continue;
             }
-            _ => return Err(LexerError::UnknownChar(*ch, line, col)),
+            _ => return Err(LexerError::UnknownChar(*ch as char, line, col)),
         }
         index += 1;
     }
 
     Ok(())
+}
+
+fn is_whitespace(ch: u8) -> bool {
+    ch == b' ' || (b'\x09'..b'\x0d').contains(&ch)
 }
 
 /// tests
@@ -1136,47 +1146,47 @@ pub mod tests {
     #[test]
     fn local_variable_table() {
         let content = include_str!("../../parser/test/LocalVariableTable.java");
-        let tokens = lexer::lex(content).expect("Test");
+        let tokens = lexer::lex(content.as_bytes()).expect("Test");
         insta::assert_debug_snapshot!(tokens);
     }
 
     #[test]
     fn supere() {
         let content = include_str!("../../parser/test/Super.java");
-        let tokens = lexer::lex(content).expect("Test");
+        let tokens = lexer::lex(content.as_bytes()).expect("Test");
         insta::assert_debug_snapshot!(tokens);
     }
 
     #[test]
     fn super_interface() {
         let content = include_str!("../../parser/test/SuperInterface.java");
-        let tokens = lexer::lex(content).expect("Test");
+        let tokens = lexer::lex(content.as_bytes()).expect("Test");
         insta::assert_debug_snapshot!(tokens);
     }
 
     #[test]
     fn everything() {
         let content = include_str!("../../parser/test/Everything.java");
-        let tokens = lexer::lex(content).expect("Test");
+        let tokens = lexer::lex(content.as_bytes()).expect("Test");
         insta::assert_debug_snapshot!(tokens);
     }
 
     #[test]
     fn thrower() {
         let content = include_str!("../../parser/test/Thrower.java");
-        let tokens = lexer::lex(content).expect("Test");
+        let tokens = lexer::lex(content.as_bytes()).expect("Test");
         insta::assert_debug_snapshot!(tokens);
     }
     #[test]
     fn escaped_double_quetes() {
         let content = r#"return "\"" + s + "\"";"#;
-        let tokens = lexer::lex(content).expect("Test");
+        let tokens = lexer::lex(content.as_bytes()).expect("Test");
         insta::assert_debug_snapshot!(tokens);
     }
     #[test]
     fn escaped_backslash() {
         let content = r#" "\\" "#;
-        let tokens = lexer::lex(content).expect("Test");
+        let tokens = lexer::lex(content.as_bytes()).expect("Test");
         insta::assert_debug_snapshot!(tokens);
     }
     #[test]
@@ -1190,7 +1200,7 @@ pub mod tests {
             '\"' +
             '\\' + 
          "#;
-        let tokens = lexer::lex(content).expect("Test");
+        let tokens = lexer::lex(content.as_bytes()).expect("Test");
         insta::assert_debug_snapshot!(tokens);
     }
 }
