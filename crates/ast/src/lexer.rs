@@ -575,7 +575,6 @@ pub fn lex(input: &[u8]) -> Result<Vec<PositionToken>, LexerError> {
 /// Use this instead of `lex` if there is already a vec of tokens that can be reused
 pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), LexerError> {
     tokens.clear();
-    // let input: Vec<char> = input.input().collect();
     let mut line = 0;
     let mut col = 0;
     let mut index = 0;
@@ -592,7 +591,6 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
                 index += 1;
                 continue;
             }
-
             ch if is_whitespace(*ch) => {
                 col += 1;
                 index += 1;
@@ -824,15 +822,14 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
                         // col += char_count.len();
                         // debug_assert_eq!(char_count.len(), length - (last + 1));
                         col += length - (last + 1);
+                        let ln_count = ln.count() + 1;
+                        line += ln_count;
                     } else {
                         // Full comment contains no newline
-                        // debug_assert!(ln_count == 0);
                         // let char_count = &input[index..index + length + 2];
                         // debug_assert_eq!(char_count.len(), length + 2);
                         col += length + 2;
                     }
-                    let ln_count = ln.count();
-                    line += ln_count;
                     // slice is offset my 2
                     index += length + 2;
                     continue;
