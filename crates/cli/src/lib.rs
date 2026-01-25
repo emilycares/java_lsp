@@ -53,25 +53,14 @@ pub enum Commands {
 
 #[cfg(target_os = "windows")]
 pub fn ast_check(path: &PathBuf) {
-    use std::{fs::File, str::from_utf8};
+    use std::fs::File;
 
     match File::open(path) {
         Ok(file) => {
             let mmap = unsafe { memmap2::Mmap::map(&file) };
             match mmap {
                 Ok(mmap) => {
-                    #[cfg(unix)]
-                    mmap.advise(memmap2::Advice::Sequential)
-                        .expect("memmap advice to be accepted");
-                    match from_utf8(&mmap[..]) {
-                        Ok(text) => {
-                            lex_and_ast(path, text);
-                        }
-                        Err(e) => {
-                            eprintln!("invalid utf8: {:?}", e);
-                            std::process::exit(3);
-                        }
-                    };
+                    lex_and_ast(path, &mmap);
                 }
                 Err(e) => {
                     eprintln!("unable to memmap: {:?}", e);
@@ -133,14 +122,24 @@ fn lex_and_ast(file: &PathBuf, text: &[u8], num: usize, tokens: &mut Vec<Positio
     }
 }
 #[cfg(target_os = "windows")]
-fn lex_and_ast(file: &PathBuf, text: &str) {
+fn lex_and_ast(file: &PathBuf, text: &[u8]) {
     // eprintln!("Here: {:?}", file);
     match ast::lexer::lex(text) {
         Ok(tokens) => {
             let ast = ast::parse_file(&tokens);
             if ast.is_err() {
+                use std::str::from_utf8;
+
                 eprintln!("Here: {:?}", file);
-                ast.print_err(text, &tokens);
+                match from_utf8(text) {
+                    Ok(text) => {
+                        ast.print_err(text, &tokens);
+                    }
+                    Err(e) => {
+                        eprintln!("invalid utf8: {:?}", e);
+                        std::process::exit(3);
+                    }
+                };
                 std::process::exit(3);
             }
         }
