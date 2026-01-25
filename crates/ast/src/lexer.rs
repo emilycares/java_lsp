@@ -591,6 +591,10 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
                 index += 1;
                 continue;
             }
+            b'\r' => {
+                index += 1;
+                continue;
+            }
             ch if is_whitespace(*ch) => {
                 col += 1;
                 index += 1;
