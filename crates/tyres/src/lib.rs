@@ -172,7 +172,12 @@ pub fn resolve_import(
     jtype: &str,
     class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
 ) -> Vec<String> {
-    resolve_class_key(class_map, |p| p.starts_with(jtype))
+    resolve_class_key(class_map, |class_path| {
+        let Some((_, class_name)) = class_path.rsplit_once('.') else {
+            return false;
+        };
+        class_name == jtype
+    })
 }
 
 pub fn resolve_class_key(

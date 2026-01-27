@@ -1,4 +1,5 @@
 use std::{
+    cmp::Ordering,
     collections::HashMap,
     num::TryFromIntError,
     sync::{Arc, Mutex},
@@ -278,7 +279,22 @@ pub fn import_jtype(
     if let Some(class) = get_class::get_class(ast, context.point)
         && !tyres::is_imported_class_name(&class.name, context.imports, &context.class_map)
     {
-        let i = tyres::resolve_import(&class.name, &context.class_map)
+        let mut resolve_import: Vec<String> =
+            tyres::resolve_import(&class.name, &context.class_map);
+        // Prefer java imports
+        resolve_import.sort_by(|a, b| {
+            let a_j = a.starts_with("java");
+            let b_j = b.starts_with("java");
+            if a_j && !b_j {
+                Ordering::Less
+            } else if !a_j && b_j {
+                Ordering::Greater
+            } else {
+                a.cmp(b)
+            }
+        });
+
+        let i = resolve_import
             .iter()
             .map(|a| import_to_code_action(context.current_file, a, ast))
             .collect();
@@ -323,7 +339,7 @@ pub fn import_text_edit(classpath: &str, ast: &AstFile) -> Vec<TextEdit> {
 
     vec![TextEdit {
         range: Range::new(pos, pos),
-        new_text: format!("\nimport {classpath};"),
+        new_text: format!("import {classpath};\n"),
     }]
 }
 

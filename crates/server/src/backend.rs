@@ -383,6 +383,12 @@ impl Backend {
     }
 
     pub fn did_open(&self, params: &DidOpenTextDocumentParams) {
+        let path = params.text_document.uri.path();
+        let path_str = path.as_str();
+        let errors = self.compile(path_str);
+        let mut current_file_diagnostics =
+            self.publish_compile_errors(errors, &params.text_document.uri);
+
         let document_map_key = get_document_map_key(&params.text_document.uri);
         match open_document(
             &document_map_key,
@@ -391,12 +397,17 @@ impl Backend {
         ) {
             Ok(()) => {}
             Err(DocumentError::Diagnostic(diag)) => {
-                self.handle_diagnostic(params.text_document.uri.clone(), Some(*diag));
+                current_file_diagnostics.push(*diag);
             }
             Err(e) => {
                 eprintln!("Error while on_open: {e:?}");
             }
         }
+        Self::send_diagnostic(
+            &self.connection,
+            params.text_document.uri.clone(),
+            current_file_diagnostics,
+        );
     }
     pub fn did_close(&self, params: &DidCloseTextDocumentParams) {
         let key = get_document_map_key(&params.text_document.uri);

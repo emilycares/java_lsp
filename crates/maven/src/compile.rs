@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::config::overwrite_settings_xml;
-pub const CLASSPATH_FILE: &str = "target/classpath.txt";
+pub const CLASSPATH_FILE: &str = "./target/classpath.txt";
 
 #[derive(Debug)]
 pub enum MavenClasspathError {
@@ -22,6 +22,10 @@ pub fn generate_classpath(maven_executable: &str) -> Result<String, MavenClasspa
         let classpath =
             read_to_string(CLASSPATH_FILE).map_err(MavenClasspathError::ReadExisting)?;
         return Ok(classpath.trim().to_string());
+    }
+    let target = Path::new("./target");
+    if !target.exists() {
+        let _ = fs::create_dir(target);
     }
 
     // mvn dependency:build-classpath -Dmdep.outputFile=target/classpath.txt

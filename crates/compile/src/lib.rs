@@ -72,7 +72,7 @@ pub fn parse_compile_errors(input: &str) -> Vec<CompileErrorMessage> {
             path.push(*ch);
             index += 1;
         }
-        if path.starts_with("error") {
+        if path.starts_with("error") || path == "Note" {
             break;
         }
         index += 1;
@@ -249,5 +249,15 @@ src/main/java/org/acme/GreetingResource.java:15: error: > or ',' expected
                 col: 66,
             },
         ]);
+    }
+    #[test]
+    fn parse_compile_errors_end_note() {
+        let input = r#"
+Note: Some messages have been simplified; recompile with -Xdiags:verbose to get full output
+100 errors
+only showing the first 100 errors, of 115 total; use -Xmaxerrs if you would like to see more
+"#;
+        let out = parse_compile_errors(input);
+        assert_eq!(out, vec![]);
     }
 }
