@@ -10,6 +10,9 @@ use parser::dto::ImportUnit;
 
 #[must_use]
 pub fn is_imported(imports: &[ImportUnit], class_path: &str) -> bool {
+    if class_path.starts_with("java.lang") {
+        return true;
+    }
     for inp in imports {
         match inp {
             ImportUnit::StaticClassMethod(c, _)

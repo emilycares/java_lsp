@@ -42,7 +42,7 @@ pub fn complete_vars(vars: &[LocalVariable]) -> Vec<CompletionItem> {
 
 /// Preview class with the description of methods
 #[must_use]
-pub fn class_describe(val: &Class, ast: Option<&AstFile>) -> CompletionItem {
+pub fn class_describe(val: &Class, imp: bool, ast: Option<&AstFile>) -> CompletionItem {
     let methods: Vec<_> = val
         .methods
         .iter()
@@ -58,9 +58,12 @@ pub fn class_describe(val: &Class, ast: Option<&AstFile>) -> CompletionItem {
         })
         .collect();
 
-    let addi = ast
-        .as_ref()
-        .map(|ast| codeaction::import_text_edit(&val.class_path, ast));
+    let addi = if imp {
+        ast.as_ref()
+            .map(|ast| codeaction::import_text_edit(&val.class_path, ast))
+    } else {
+        None
+    };
     let detail = format!("package {};\n{}", val.class_path, methods.join(", "));
     CompletionItem {
         label: val.name.clone(),
@@ -252,10 +255,12 @@ pub fn classes(
         return vec![];
     }
     let mut out = vec![];
+    let mut point = *point;
+    point.col -= 1;
     if let Some(FoundClass {
         name: text,
         range: _,
-    }) = get_class::get_class(&document.ast, point)
+    }) = get_class::get_class(&document.ast, &point)
         && let Ok(class_map) = class_map.lock()
     {
         out.extend(
@@ -275,21 +280,24 @@ pub fn classes(
                     cname.starts_with(&text)
                 })
                 .filter_map(|class_path| class_map.get(class_path))
-                .map(|c| class_describe(c, None)),
+                .map(|c| class_describe(c, false, None)),
         );
         out.extend(
             class_map
                 .iter()
                 .filter(|(_, c)| c.name.starts_with(&text))
                 .filter(|(_, i)| !i.name.contains('&'))
-                .filter(|(_, v)| {
-                    let class_path = v.class_path.as_str();
-                    !imports::is_imported(imports, class_path)
+                .map(|(_, v)| {
+                    class_describe(
+                        v,
+                        !imports::is_imported(imports, &v.class_path),
+                        Some(&document.ast),
+                    )
                 })
-                .map(|(_, v)| class_describe(v, Some(&document.ast)))
                 .take(20),
         );
     }
+    out.dedup();
     out
 }
 
@@ -578,9 +586,8 @@ public class Test {
         );
     }
 
-    #[ignore = "todo"]
     #[test]
-    fn class_completion_base() {
+    fn class_completion_base_java_lang() {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
             "java.lang.StringBuilder".into(),
@@ -612,6 +619,44 @@ public class Test {
                 label: "StringBuilder".into(),
                 detail: Some("package java.lang.StringBuilder;\n".into()),
                 kind: Some(CompletionItemKind::CLASS),
+                additional_text_edits: None,
+                ..Default::default()
+            }]
+        );
+    }
+    #[test]
+    fn class_completion_base_optional() {
+        let mut class_map: HashMap<MyString, Class> = HashMap::new();
+        class_map.insert(
+            "java.util.Optional".into(),
+            Class {
+                class_path: "java.util.Optional".into(),
+                access: Access::Public,
+                name: "Optional".into(),
+                ..Default::default()
+            },
+        );
+        let class_map = Arc::new(Mutex::new(class_map));
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+        String local = other.toString();
+        Optio 
+
+        return;
+    }
+}
+";
+        let doc = Document::setup(content, PathBuf::new()).unwrap();
+
+        let out = classes(&doc, &AstPoint::new(5, 14), &[], &class_map);
+        assert_eq!(
+            out,
+            vec![CompletionItem {
+                label: "Optional".into(),
+                detail: Some("package java.util.Optional;\n".into()),
+                kind: Some(CompletionItemKind::CLASS),
                 additional_text_edits: Some(vec![TextEdit {
                     range: Range {
                         start: Position {
@@ -623,14 +668,13 @@ public class Test {
                             character: 0,
                         },
                     },
-                    new_text: "\nimport java.lang.StringBuilder;".into(),
+                    new_text: "import java.util.Optional;\n".into(),
                 },],),
                 ..Default::default()
             }]
         );
     }
 
-    #[ignore = "todo"]
     #[test]
     fn class_completion_imported() {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();

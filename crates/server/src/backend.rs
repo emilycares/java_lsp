@@ -582,7 +582,7 @@ impl Backend {
             &self.class_map.clone(),
         ) {
             Ok(call_chain) => {
-                if !call_chain.is_empty() {
+                if call_chain.is_empty() {
                     do_rest = false;
                 }
                 out.extend(call_chain);
