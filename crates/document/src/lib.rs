@@ -6,13 +6,18 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
 #![allow(clippy::unnecessary_wraps)]
-use std::{fs, path::PathBuf};
+#![allow(clippy::implicit_hasher)]
+use std::{
+    collections::HashMap,
+    fs,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 use ast::{
     error::PrintErr,
     types::{AstFile, AstThing},
 };
-use dashmap::{DashMap, mapref::one::RefMut};
 use lsp_types::{Diagnostic, TextDocumentContentChangeEvent};
 use my_string::MyString;
 use ropey::Rope;
@@ -28,6 +33,7 @@ pub struct Document {
 pub enum DocumentError {
     Io(std::io::Error),
     Diagnostic(Box<Diagnostic>),
+    Locked,
 }
 
 impl Document {
@@ -164,52 +170,41 @@ pub fn get_class_path(ast: &AstFile) -> Option<String> {
     None
 }
 
-pub enum ClassSource<'a> {
-    Owned(Box<Document>),
-    Ref(RefMut<'a, MyString, Document>),
-}
-impl ClassSource<'_> {
-    pub fn get_ast(&self) -> Result<&AstFile, DocumentError> {
-        match self {
-            ClassSource::Owned(document) => Ok(&document.ast),
-            ClassSource::Ref(ref_mut) => Ok(&ref_mut.ast),
-        }
-    }
-}
 pub fn open_document(
     key: &str,
     content: &str,
-    document_map: &DashMap<MyString, Document>,
+    document_map: &Arc<Mutex<HashMap<MyString, Document>>>,
 ) -> Result<(), DocumentError> {
     let path = path_without_subclass(key);
     let doc = Document::setup(content, path)?;
-    document_map.insert(key.to_owned(), doc);
+
+    let Ok(mut dm) = document_map.lock() else {
+        return Err(DocumentError::Locked);
+    };
+    dm.insert(key.to_owned(), doc);
     Ok(())
 }
-pub fn read_document_or_open_class<'a>(
+pub fn read_document_or_open_class(
     source: &str,
-    document_map: &'a DashMap<MyString, Document>,
-) -> Result<ClassSource<'a>, DocumentError> {
-    document_map.get_mut(source).map_or_else(
-        || {
-            let path = path_without_subclass(source);
-            Document::setup_read(path).map(|doc| {
-                document_map.insert(source.to_string(), doc.clone());
-                ClassSource::Owned(Box::new(doc))
-            })
-        },
-        |i| Ok(ClassSource::Ref(i)),
-    )
+    document_map: &Arc<Mutex<HashMap<MyString, Document>>>,
+) -> Result<Document, DocumentError> {
+    let Ok(mut dm) = document_map.lock() else {
+        return Err(DocumentError::Locked);
+    };
+    if let Some(document) = dm.get(source) {
+        return Ok(document.clone());
+    }
+    let path = path_without_subclass(source);
+    Document::setup_read(path).inspect(|doc| {
+        dm.insert(source.to_string(), doc.clone());
+    })
 }
 
 pub fn get_ast(
     source: &str,
-    document_map: &DashMap<MyString, Document>,
+    document_map: &Arc<Mutex<HashMap<MyString, Document>>>,
 ) -> Result<AstFile, DocumentError> {
-    match read_document_or_open_class(source, document_map)? {
-        ClassSource::Owned(d) => Ok(d.ast),
-        ClassSource::Ref(d) => Ok(d.ast.clone()),
-    }
+    read_document_or_open_class(source, document_map).map(|i| i.ast)
 }
 fn path_without_subclass(source: &str) -> PathBuf {
     let mut path = PathBuf::from(source);

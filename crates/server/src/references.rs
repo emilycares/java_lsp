@@ -5,7 +5,6 @@ use std::{
 
 use ast::types::{AstFile, AstPoint};
 use call_chain::CallItem;
-use dashmap::DashMap;
 use document::{Document, DocumentError};
 use lsp_extra::{SourceToUriError, ToLspRangeError, source_to_uri, to_lsp_range};
 use lsp_types::Location;
@@ -26,6 +25,7 @@ pub enum ReferencesError {
     Document(DocumentError),
     ToLspRange(ToLspRangeError),
     SourceToUri(SourceToUriError),
+    Locked,
 }
 
 #[derive(Debug)]
@@ -47,12 +47,14 @@ pub struct ReferencesContext<'a> {
 #[must_use]
 pub fn class_path(
     class_path: &str,
-    reference_map: &DashMap<MyString, Vec<ReferenceUnit>>,
+    reference_map: &Arc<Mutex<HashMap<MyString, Vec<ReferenceUnit>>>>,
     class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
-    document_map: &DashMap<MyString, Document>,
+    document_map: &Arc<Mutex<HashMap<MyString, Document>>>,
 ) -> Option<Vec<Location>> {
     if let Ok(class_map) = class_map.lock()
+        && let Ok(reference_map) = reference_map.lock()
         && let Some(crefs) = reference_map.get(class_path)
+        && let Ok(document_map) = document_map.lock()
     {
         let refs = crefs
             .iter()
@@ -87,8 +89,8 @@ pub fn class_path(
 pub fn call_chain_references(
     call_chain: &[CallItem],
     context: &ReferencesContext,
-    reference_map: &DashMap<MyString, Vec<ReferenceUnit>>,
-    document_map: &DashMap<MyString, Document>,
+    reference_map: &Arc<Mutex<HashMap<MyString, Vec<ReferenceUnit>>>>,
+    document_map: &Arc<Mutex<HashMap<MyString, Document>>>,
 ) -> Result<Vec<Location>, ReferencesError> {
     let (item, relevant) = call_chain::validate(call_chain, context.point);
 
@@ -104,31 +106,29 @@ pub fn call_chain_references(
     match relevant.get(item) {
         Some(CallItem::MethodCall { name, range: _ }) => {
             let mut locations = vec![];
-            if let Some(used_in) = reference_map.get(&reference_state.class.class_path) {
-                let used_in = used_in.value();
-                if let Ok(class_map) = context.class_map.lock() {
-                    for ref_unit in used_in {
-                        let Some(class) = (match ref_unit {
-                            ReferenceUnit::Class(c) | ReferenceUnit::StaticClass(c) => {
-                                class_map.get(c)
-                            }
-                        }) else {
-                            continue;
-                        };
-                        let method_refs = method_references(class, name, document_map)?;
-                        let uri = source_to_uri(&class.source).map_err(|e| {
-                            eprintln!("Got into definition error: {e:?}");
-                            ReferencesError::SourceToUri(e)
-                        })?;
-                        for i in method_refs {
-                            let r =
-                                to_lsp_range(&i.0.range).map_err(ReferencesError::ToLspRange)?;
-                            let loc = Location::new(uri.clone(), r);
-                            locations.push(loc);
-                        }
+            if let Ok(reference_map) = reference_map.lock()
+                && let Some(used_in) = reference_map.get(&reference_state.class.class_path)
+                && let Ok(class_map) = context.class_map.lock()
+            {
+                for ref_unit in used_in {
+                    let Some(class) = (match ref_unit {
+                        ReferenceUnit::Class(c) | ReferenceUnit::StaticClass(c) => class_map.get(c),
+                    }) else {
+                        continue;
+                    };
+                    let method_refs = method_references(class, name, document_map)?;
+                    let uri = source_to_uri(&class.source).map_err(|e| {
+                        eprintln!("Got into definition error: {e:?}");
+                        ReferencesError::SourceToUri(e)
+                    })?;
+                    for i in method_refs {
+                        let r = to_lsp_range(&i.0.range).map_err(ReferencesError::ToLspRange)?;
+                        let loc = Location::new(uri.clone(), r);
+                        locations.push(loc);
                     }
                 }
             }
+
             Ok(locations)
         }
         Some(CallItem::ArgumentList {
@@ -154,7 +154,7 @@ pub fn call_chain_references(
 fn method_references(
     _class: &Class,
     _query_method_name: &str,
-    _document_map: &DashMap<MyString, Document>,
+    _document_map: &Arc<Mutex<HashMap<MyString, Document>>>,
 ) -> Result<Vec<ReferencePosition>, ReferencesError> {
     //TODO
     Ok(Vec::new())
@@ -163,7 +163,7 @@ fn method_references(
 pub fn init_reference_map(
     project_classes: &[Class],
     class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
-    reference_map: &DashMap<MyString, Vec<ReferenceUnit>>,
+    reference_map: &Arc<Mutex<HashMap<MyString, Vec<ReferenceUnit>>>>,
 ) -> Result<(), ReferencesError> {
     for class in project_classes {
         reference_update_class(class, class_map, reference_map)?;
@@ -174,22 +174,25 @@ pub fn init_reference_map(
 pub fn reference_update_class(
     class: &Class,
     class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
-    reference_map: &DashMap<MyString, Vec<ReferenceUnit>>,
+    reference_map: &Arc<Mutex<HashMap<MyString, Vec<ReferenceUnit>>>>,
 ) -> Result<(), ReferencesError> {
     let class_path = class.class_path.clone();
+    let Ok(mut reference_map) = reference_map.lock() else {
+        return Err(ReferencesError::Locked);
+    };
     for import in &class.imports {
         match import {
             ImportUnit::Package(p) | ImportUnit::Prefix(p) => {
                 let implicit_imports = get_implicit_imports(class_map, class, p);
                 for s in implicit_imports {
-                    if let Some(mut a) = reference_map.get_mut(&s) {
+                    if let Some(a) = reference_map.get_mut(&s) {
                         a.push(ReferenceUnit::Class(class_path.clone()));
                     }
                 }
             }
             ImportUnit::Class(s) => {
                 if reference_map.contains_key(s) {
-                    if let Some(mut a) = reference_map.get_mut(s) {
+                    if let Some(a) = reference_map.get_mut(s) {
                         a.push(ReferenceUnit::Class(class.class_path.clone()));
                     }
                 } else {
@@ -201,7 +204,7 @@ pub fn reference_update_class(
             }
             ImportUnit::StaticClass(s) => {
                 if reference_map.contains_key(s) {
-                    if let Some(mut a) = reference_map.get_mut(s) {
+                    if let Some(a) = reference_map.get_mut(s) {
                         a.push(ReferenceUnit::StaticClass(class.class_path.clone()));
                     }
                 } else {

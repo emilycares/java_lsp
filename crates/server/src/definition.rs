@@ -5,7 +5,6 @@ use std::{
 
 use ast::types::{AstFile, AstPoint};
 use call_chain::CallItem;
-use dashmap::DashMap;
 use document::{Document, DocumentError, read_document_or_open_class};
 use lsp_extra::{SourceToUriError, ToLspRangeError, source_to_uri, to_lsp_range};
 use lsp_types::{GotoDefinitionResponse, Location, SymbolKind, Uri};
@@ -38,13 +37,13 @@ pub struct DefinitionContext<'a> {
     pub imports: &'a [ImportUnit],
     pub class: &'a Class,
     pub class_map: Arc<Mutex<HashMap<MyString, Class>>>,
-    pub document_map: &'a DashMap<MyString, Document>,
+    pub document_map: &'a Arc<Mutex<HashMap<MyString, Document>>>,
 }
 
 pub fn class(
     ast: &AstFile,
     context: &DefinitionContext,
-    document_map: &DashMap<MyString, Document>,
+    document_map: &Arc<Mutex<HashMap<MyString, Document>>>,
 ) -> Result<GotoDefinitionResponse, DefinitionError> {
     match class_action(
         ast,
@@ -56,10 +55,8 @@ pub fn class(
         Ok((class, _range)) => {
             let mut ranges = vec![];
             let uri = class_to_uri(&class)?;
-            if let Ok(c) = read_document_or_open_class(&class.source, document_map)
-                && let Ok(ast) = c.get_ast()
-            {
-                position::get_class_position_ast(ast, Some(&class.name), &mut ranges);
+            if let Ok(c) = read_document_or_open_class(&class.source, document_map) {
+                position::get_class_position_ast(&c.ast, Some(&class.name), &mut ranges);
             }
             Ok(go_to_definition_range(uri, &ranges)?)
         }
@@ -224,7 +221,6 @@ fn go_to_definition_range(
 mod tests {
     use std::{path::PathBuf, str::FromStr};
 
-    use dashmap::DashMap;
     use parser::dto::{Access, JType, Method};
 
     use super::*;
@@ -256,7 +252,7 @@ public class Test {
             imports: &imports,
             class: &class,
             class_map: get_class_map(),
-            document_map: &DashMap::new(),
+            document_map: &Arc::new(Mutex::new(HashMap::new())),
         };
         let out = call_chain_definition(&call_chain, &context);
         assert!(out.is_err());
@@ -291,7 +287,7 @@ public class Test {
             imports: &imports,
             class: &class,
             class_map: get_class_map(),
-            document_map: &DashMap::new(),
+            document_map: &Arc::new(Mutex::new(HashMap::new())),
         };
         let out = call_chain_definition(&call_chain, &context);
         assert!(out.is_err());

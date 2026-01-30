@@ -56,7 +56,6 @@ bitflags = { version = "2.10.0", features = ["serde"] }
 clap = { version = "4.5.54", features = ["derive"] }
 classfile-parser = { git = "https://github.com/emilycares/classfile-parser.git" }
 # classfile-parser = { path = "../classfile-parser" }
-dashmap = "6.1.0"
 postcard = { version = "1.1.3", features = ["alloc"] }
 pretty_assertions = "1.4.1"
 ropey = "1.6.1"

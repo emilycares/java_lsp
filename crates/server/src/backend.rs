@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     ffi::OsString,
     fs,
     path::{Path, PathBuf},
@@ -9,11 +9,7 @@ use std::{
 use call_chain::get_call_chain;
 use common::{Dependency, TaskProgress, project_cache_dir, project_kind::ProjectKind};
 use compile::CompileErrorMessage;
-use dashmap::{DashMap, DashSet};
-use document::{
-    ClassSource, Document, DocumentError, get_class_path, open_document,
-    read_document_or_open_class,
-};
+use document::{Document, DocumentError, get_class_path, open_document};
 use gradle::project::get_gradle_cache_path;
 use lsp_extra::{SERVER_NAME, source_to_uri, to_ast_point};
 use lsp_server::{Connection, Message};
@@ -50,11 +46,11 @@ use crate::{
 };
 
 pub struct Backend {
-    pub error_files: DashSet<String>,
+    pub error_files: Arc<Mutex<HashSet<String>>>,
     pub project_kind: ProjectKind,
-    pub document_map: DashMap<MyString, Document>,
+    pub document_map: Arc<Mutex<HashMap<MyString, Document>>>,
     pub class_map: Arc<Mutex<HashMap<MyString, Class>>>,
-    pub reference_map: Arc<DashMap<MyString, Vec<ReferenceUnit>>>,
+    pub reference_map: Arc<Mutex<HashMap<MyString, Vec<ReferenceUnit>>>>,
     pub client_capabilities: Arc<Option<ClientCapabilities>>,
     pub connection: Arc<Connection>,
     pub project_dir: PathBuf,
@@ -64,11 +60,11 @@ impl Backend {
     pub fn new(connection: Connection, project_kind: ProjectKind, project_dir: PathBuf) -> Self {
         Self {
             connection: Arc::new(connection),
-            error_files: DashSet::new(),
+            error_files: Arc::new(Mutex::new(HashSet::new())),
             project_kind,
-            document_map: DashMap::new(),
+            document_map: Arc::new(Mutex::new(HashMap::new())),
             class_map: Arc::new(Mutex::new(HashMap::new())),
-            reference_map: Arc::new(DashMap::new()),
+            reference_map: Arc::new(Mutex::new(HashMap::new())),
             client_capabilities: Arc::new(None),
             project_dir,
         }
@@ -235,8 +231,11 @@ impl Backend {
     ) -> Vec<Diagnostic> {
         let mut out = Vec::new();
         let mut emap = HashMap::<String, Vec<CompileErrorMessage>>::new();
+        let Ok(mut error_files) = self.error_files.lock() else {
+            return Vec::new();
+        };
         for e in errors {
-            self.error_files.insert(e.path.clone());
+            error_files.insert(e.path.clone());
             if let Some(list) = emap.get_mut(&e.path) {
                 list.push(e);
             } else {
@@ -244,7 +243,7 @@ impl Backend {
             }
         }
 
-        for path in self.error_files.iter() {
+        for path in error_files.iter() {
             let Some(path) = path.get(..) else {
                 continue;
             };
@@ -270,7 +269,7 @@ impl Backend {
         con: Arc<Connection>,
         project_kind: ProjectKind,
         class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
-        reference_map: Arc<DashMap<MyString, Vec<ReferenceUnit>>>,
+        reference_map: Arc<Mutex<HashMap<MyString, Vec<ReferenceUnit>>>>,
         project_dir: &Path,
         path: &OsString,
     ) {
@@ -412,14 +411,18 @@ impl Backend {
     pub fn did_close(&self, params: &DidCloseTextDocumentParams) {
         let key = get_document_map_key(&params.text_document.uri);
         eprintln!("Closing file: {key}");
-        self.document_map.remove(&key);
+
+        let Ok(mut dm) = self.document_map.lock() else {
+            return;
+        };
+        dm.remove(&key);
     }
 
     pub fn did_change(&self, params: &DidChangeTextDocumentParams) {
-        let Some(mut document) = self
-            .document_map
-            .get_mut(&get_document_map_key(&params.text_document.uri))
-        else {
+        let Ok(mut dm) = self.document_map.lock() else {
+            return;
+        };
+        let Some(document) = dm.get_mut(&get_document_map_key(&params.text_document.uri)) else {
             eprintln!("on_change document not found");
             return;
         };
@@ -440,49 +443,25 @@ impl Backend {
         let path = params.text_document.uri.path();
         let path_str = path.as_str();
         let errors = self.compile(path_str);
-        let mut current_file_diagnostics =
+        let current_file_diagnostics =
             self.publish_compile_errors(errors, &params.text_document.uri);
-
-        match read_document_or_open_class(path.as_str(), &self.document_map) {
-            Ok(ClassSource::Owned(doc)) => {
-                let class =
-                    parser::update_project_java_file(PathBuf::from(path.as_str()), &doc.ast);
-                let class_path = class.class_path.clone();
-                match references::reference_update_class(
-                    &class,
-                    &self.class_map,
-                    &self.reference_map,
-                ) {
-                    Ok(()) => {}
-                    Err(e) => eprintln!("Got reference error: {e:?}"),
-                }
-                if let Ok(class_map) = self.class_map.lock().as_mut() {
-                    class_map.insert(class_path, class);
-                }
-            }
-            Ok(ClassSource::Ref(doc)) => {
-                let class =
-                    parser::update_project_java_file(PathBuf::from(path.as_str()), &doc.ast);
-                let class_path = class.class_path.clone();
-                match references::reference_update_class(
-                    &class,
-                    &self.class_map,
-                    &self.reference_map,
-                ) {
-                    Ok(()) => {}
-                    Err(e) => eprintln!("Got reference error: {e:?}"),
-                }
-                if let Ok(class_map) = self.class_map.lock().as_mut() {
-                    class_map.insert(class_path, class);
-                }
-            }
-            Err(DocumentError::Diagnostic(diag)) => {
-                current_file_diagnostics.push(*diag);
-            }
-            Err(e) => {
-                eprintln!("Error while save: {e:?}");
-            }
+        let Ok(dm) = self.document_map.lock() else {
+            return;
+        };
+        let Some(document) = dm.get(&get_document_map_key(&params.text_document.uri)) else {
+            eprintln!("on_change document not found");
+            return;
+        };
+        let class = parser::update_project_java_file(PathBuf::from(path.as_str()), &document.ast);
+        let class_path = class.class_path.clone();
+        match references::reference_update_class(&class, &self.class_map, &self.reference_map) {
+            Ok(()) => {}
+            Err(e) => eprintln!("Got reference error: {e:?}"),
         }
+        if let Ok(class_map) = self.class_map.lock().as_mut() {
+            class_map.insert(class_path, class);
+        }
+
         Self::send_diagnostic(
             &self.connection,
             params.text_document.uri.clone(),
@@ -492,7 +471,10 @@ impl Backend {
 
     pub fn hover(&self, params: HoverParams) -> Option<Hover> {
         let uri = params.text_document_position_params.text_document.uri;
-        let document = self.document_map.get(&get_document_map_key(&uri))?;
+        let Ok(dm) = self.document_map.lock() else {
+            return None;
+        };
+        let document = dm.get(&get_document_map_key(&uri))?;
         let point = to_ast_point(params.text_document_position_params.position);
         let imports = imports::imports(&document.ast);
         let vars = match variables::get_vars(&document.ast, &point) {
@@ -514,7 +496,10 @@ impl Backend {
 
     pub fn formatting(&self, params: DocumentFormattingParams) -> Option<Vec<TextEdit>> {
         let uri = params.text_document.uri;
-        let Some(mut document) = self.document_map.get_mut(&get_document_map_key(&uri)) else {
+        let Ok(mut dm) = self.document_map.lock() else {
+            return None;
+        };
+        let Some(document) = dm.get_mut(&get_document_map_key(&uri)) else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -540,7 +525,9 @@ impl Backend {
         let params = params.text_document_position;
         let uri = params.text_document.uri;
         let document;
-        if let Some(doc) = self.document_map.get(&get_document_map_key(&uri)) {
+        if let Ok(dm) = self.document_map.lock()
+            && let Some(doc) = dm.get(&get_document_map_key(&uri))
+        {
             document = doc.clone();
         } else {
             eprintln!("Document is not opened.");
@@ -616,7 +603,9 @@ impl Backend {
         let params = params.text_document_position_params;
         let uri = params.text_document.uri;
         let document;
-        if let Some(doc) = self.document_map.get(&get_document_map_key(&uri)) {
+        if let Ok(dm) = self.document_map.lock()
+            && let Some(doc) = dm.get(&get_document_map_key(&uri))
+        {
             document = doc.clone();
         } else {
             eprintln!("Document is not opened.");
@@ -676,7 +665,9 @@ impl Backend {
         let params = params.text_document_position;
         let uri = params.text_document.uri;
         let document;
-        if let Some(doc) = self.document_map.get(&get_document_map_key(&uri)) {
+        if let Ok(dm) = self.document_map.lock()
+            && let Some(doc) = dm.get(&get_document_map_key(&uri))
+        {
             document = doc.clone();
         } else {
             eprintln!("Document is not opened.");
@@ -746,9 +737,8 @@ impl Backend {
 
     pub fn code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
         let document;
-        if let Some(doc) = self
-            .document_map
-            .get(&get_document_map_key(&params.text_document.uri))
+        if let Ok(dm) = self.document_map.lock()
+            && let Some(doc) = dm.get(&get_document_map_key(&params.text_document.uri))
         {
             document = doc.clone();
         } else {
@@ -806,9 +796,8 @@ impl Backend {
 
     pub fn document_symbol(&self, params: DocumentSymbolParams) -> Option<DocumentSymbolResponse> {
         let document;
-        if let Some(doc) = self
-            .document_map
-            .get(&get_document_map_key(&params.text_document.uri))
+        if let Ok(dm) = self.document_map.lock()
+            && let Some(doc) = dm.get(&get_document_map_key(&params.text_document.uri))
         {
             document = doc.clone();
         } else {
@@ -845,18 +834,11 @@ impl Backend {
             .filter_map(|i| {
                 let class_source =
                     document::read_document_or_open_class(&i, &self.document_map).ok()?;
-                Some((i.clone(), class_source))
+                Some((i, class_source))
             })
             .filter_map(|(path, source)| {
                 let mut out = vec![];
-                match source {
-                    ClassSource::Owned(d) => {
-                        position::get_class_position_ast(&d.ast, None, &mut out);
-                    }
-                    ClassSource::Ref(d) => {
-                        position::get_class_position_ast(&d.ast, None, &mut out);
-                    }
-                }
+                position::get_class_position_ast(&source.ast, None, &mut out);
                 Some((path, out))
             })
             .map(|(path, symbols)| {
@@ -880,7 +862,9 @@ impl Backend {
     pub fn signature_help(&self, params: SignatureHelpParams) -> Option<SignatureHelp> {
         let uri = params.text_document_position_params.text_document.uri;
         let document;
-        if let Some(doc) = self.document_map.get(&get_document_map_key(&uri)) {
+        if let Ok(dm) = self.document_map.lock()
+            && let Some(doc) = dm.get(&get_document_map_key(&uri))
+        {
             document = doc.clone();
         } else {
             eprintln!("Document is not opened.");
