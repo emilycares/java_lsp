@@ -379,7 +379,7 @@ fn lookup_string(c: &ClassFile, index: u16) -> Option<MyString> {
     }
     let con = &c.const_pool[(index - 1) as usize];
     match con {
-        ConstantInfo::Utf8(utf8) => Some((&utf8.utf8_string).into()),
+        ConstantInfo::Utf8(utf8) => Some(utf8.utf8_string.to_string()),
         _ => None,
     }
 }

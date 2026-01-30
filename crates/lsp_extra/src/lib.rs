@@ -71,11 +71,8 @@ pub enum SourceToUriError {
 }
 pub fn source_to_uri(source: &str) -> Result<Uri, SourceToUriError> {
     #[cfg(windows)]
-    let source = &source.replace('\\', "/");
+    let source = &source.trim_start_matches("//?/").replace('\\', "/");
     let source = path_without_subclass(source);
-    #[cfg(windows)]
-    let str_uri = format!("file:///{source}");
-    #[cfg(unix)]
     let str_uri = format!("file://{source}");
     let uri = Uri::from_str(&str_uri);
     match uri {
