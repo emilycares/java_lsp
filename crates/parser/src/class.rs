@@ -458,16 +458,17 @@ pub fn load_module(bytes: &[u8]) -> Result<ModuleInfo, ClassError> {
             && name == "Module"
             && let Ok((_, module)) =
                 classfile_parser::attribute_info::module_attribute_parser(&a.info)
+            && let Some(module_name) = lookup_string(&c, module.module_name_index)
         {
-            let mut exports = Vec::new();
+            let mut exports = vec![module_name.replace('.', "/")];
             for e in module.exports {
                 if !e.exports_to_index.is_empty() {
                     continue;
                 }
-                let get = c.const_pool.get(e.exports_index as usize);
-                if let Some(ConstantInfo::Utf8(p)) = get {
+                let exp = c.const_pool.get(e.exports_index as usize);
+                if let Some(ConstantInfo::Utf8(p)) = exp {
                     let package = p.utf8_string.to_string();
-                    exports.push(package);
+                    exports.push(package.replace('.', "/"));
                 }
             }
             return Ok(ModuleInfo { exports });
@@ -546,7 +547,12 @@ mod tests {
 
     #[test]
     fn module_java_desktop() {
-        let result = load_module(include_bytes!("../test/module-info.class"));
+        let result = load_module(include_bytes!("../test/module-info-java-desktop.class"));
+        insta::assert_debug_snapshot!(result.unwrap());
+    }
+    #[test]
+    fn module_jakarta() {
+        let result = load_module(include_bytes!("../test/module-info-jakarta.class"));
         insta::assert_debug_snapshot!(result.unwrap());
     }
 }

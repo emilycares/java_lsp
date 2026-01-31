@@ -4,6 +4,7 @@ expression: result.unwrap()
 ---
 ModuleInfo {
     exports: [
+        "java/desktop",
         "java/applet",
         "java/awt",
         "java/awt/color",

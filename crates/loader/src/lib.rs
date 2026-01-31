@@ -26,7 +26,7 @@ use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
 use std::fmt::Debug;
 use tokio::fs::read;
 
-pub const CFC_VERSION: usize = 0;
+pub const CFC_VERSION: usize = 1;
 
 #[derive(Debug)]
 pub enum LoaderError {
@@ -246,7 +246,7 @@ async fn base_load_classes_zip(
             continue;
         }
         for r in &rules {
-            let p = &file_name[8..];
+            let p = trim_prefix.map_or(file_name, |prefix| file_name.trim_start_matches(prefix));
             if file_name.starts_with(&r.0) && !r.1.exports.iter().any(|e| p.starts_with(e)) {
                 continue 'entries;
             }

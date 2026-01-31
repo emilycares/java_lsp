@@ -1,0 +1,10 @@
+---
+source: crates/parser/src/class.rs
+expression: result.unwrap()
+---
+ModuleInfo {
+    exports: [
+        "jakarta/inject",
+        "java/base",
+    ],
+}
