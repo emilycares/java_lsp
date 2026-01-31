@@ -380,6 +380,8 @@ fn lookup_string(c: &ClassFile, index: u16) -> Option<MyString> {
     let con = &c.const_pool[(index - 1) as usize];
     match con {
         ConstantInfo::Utf8(utf8) => Some(utf8.utf8_string.to_string()),
+        ConstantInfo::Module(m) => lookup_string(c, m.name_index),
+        ConstantInfo::Package(p) => lookup_string(c, p.name_index),
         _ => None,
     }
 }
@@ -444,10 +446,42 @@ fn parse_field_type(c: Option<char>, chars: &mut std::str::Chars) -> JType {
         }
     }
 }
+#[derive(Debug)]
+pub struct ModuleInfo {
+    pub exports: Vec<MyString>,
+}
+
+pub fn load_module(bytes: &[u8]) -> Result<ModuleInfo, ClassError> {
+    let (_, c) = class_parser(bytes).map_err(|_| ClassError::ParseError)?;
+    for a in &c.attributes {
+        if let Some(name) = lookup_string(&c, a.attribute_name_index)
+            && name == "Module"
+            && let Ok((_, module)) =
+                classfile_parser::attribute_info::module_attribute_parser(&a.info)
+        {
+            let mut exports = Vec::new();
+            for e in module.exports {
+                if !e.exports_to_index.is_empty() {
+                    continue;
+                }
+                let get = c.const_pool.get(e.exports_index as usize);
+                if let Some(ConstantInfo::Utf8(p)) = get {
+                    let package = p.utf8_string.to_string();
+                    exports.push(package);
+                }
+            }
+            return Ok(ModuleInfo { exports });
+        }
+    }
+    Err(ClassError::NoModuleAttribute)
+}
 
 #[cfg(test)]
 mod tests {
-    use crate::{SourceDestination, class::load_class};
+    use crate::{
+        SourceDestination,
+        class::{load_class, load_module},
+    };
 
     #[cfg(not(windows))]
     #[test]
@@ -507,6 +541,12 @@ mod tests {
             SourceDestination::None,
         );
 
+        insta::assert_debug_snapshot!(result.unwrap());
+    }
+
+    #[test]
+    fn module_java_desktop() {
+        let result = load_module(include_bytes!("../test/module-info.class"));
         insta::assert_debug_snapshot!(result.unwrap());
     }
 }

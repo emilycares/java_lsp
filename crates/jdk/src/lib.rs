@@ -33,7 +33,7 @@ const EXECUTABLE_JAVA: &str = "java";
 #[cfg(target_os = "windows")]
 const EXECUTABLE_JAVA: &str = "java.exe";
 
-const JDK_CFC: &str = ".jdk.cfc";
+const JDK_CFC: &str = "jdk.cfc";
 
 #[derive(Debug)]
 pub enum JdkError {

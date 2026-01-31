@@ -17,7 +17,7 @@ use jwalk::WalkDir;
 use my_string::MyString;
 use parser::{
     SourceDestination,
-    class::{self, load_class},
+    class::{self, ModuleInfo, load_class, load_module},
     dto::{Class, ClassError, ClassFolder},
     java::{self, ParseJavaError},
 };
@@ -209,7 +209,27 @@ async fn base_load_classes_zip(
     })?;
     let mut classes = vec![];
 
+    // Prefix for module info
+    let mut rules: Vec<(String, ModuleInfo)> = Vec::new();
+
     for entry in zip.entries() {
+        if !matches!(entry.kind(), EntryKind::Directory)
+            && let Some(file_name) = entry.sanitized_name()
+            && file_name.ends_with("module-info.class")
+        {
+            let prefix = file_name.trim_end_matches("module-info.class");
+            let buf = entry.bytes().await.map_err(LoaderError::IO)?;
+            match load_module(buf.as_slice()) {
+                Ok(c) => {
+                    rules.push((prefix.to_string(), c));
+                }
+                Err(e) => {
+                    eprintln!("Unable to load class: (in:{path}) {e:?}");
+                }
+            }
+        }
+    }
+    'entries: for entry in zip.entries() {
         if matches!(entry.kind(), EntryKind::Directory) {
             continue;
         }
@@ -225,7 +245,12 @@ async fn base_load_classes_zip(
         if file_name.ends_with("module-info.class") {
             continue;
         }
-
+        for r in &rules {
+            let p = &file_name[8..];
+            if file_name.starts_with(&r.0) && !r.1.exports.iter().any(|e| p.starts_with(e)) {
+                continue 'entries;
+            }
+        }
         let class_path = file_name.trim_start_matches('/');
         let class_path = class_path.trim_end_matches(".class");
         let mut class_path = class_path.replace('/', ".");

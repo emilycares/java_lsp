@@ -290,7 +290,7 @@ checksum = "c3e64b0cc0439b12df2fa678eae89a1c56a529fd067a9115f7827f1fffd22b32"
 [[package]]
 name = "classfile-parser"
 version = "0.3.9"
-source = "git+https://github.com/emilycares/classfile-parser.git#df04353ccb6360f1172ce6b5aa7e1b6dbcaf5da8"
+source = "git+https://github.com/emilycares/classfile-parser.git?branch=module#a8c5fb743d557fa0dbed6683f40d0d68b56270a4"
 dependencies = [
  "binrw",
  "bitflags 2.10.0",

@@ -14,6 +14,7 @@ pub enum ClassError {
     UnknownClassName,
     UnknownClassPath,
     InvalidClassPath,
+    NoModuleAttribute,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
