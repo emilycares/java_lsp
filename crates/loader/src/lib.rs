@@ -13,14 +13,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use jwalk::WalkDir;
 use parser::{
     SourceDestination,
     class::{ModuleInfo, load_class, load_module},
     dto::{Class, ClassError, ClassFolder},
     java::{self, ParseJavaError},
 };
-use rayon::iter::{ParallelBridge, ParallelIterator};
 use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
 use std::fmt::Debug;
 use tokio::fs::read;
@@ -85,6 +83,9 @@ pub fn load_class_folder<P: AsRef<Path> + Debug>(path: P) -> Result<ClassFolder,
 
 #[cfg(not(target_os = "windows"))]
 pub fn load_java_files(folder: PathBuf) -> Vec<Class> {
+    use jwalk::WalkDir;
+    use rayon::iter::{ParallelBridge, ParallelIterator};
+
     WalkDir::new(folder)
         .into_iter()
         .par_bridge()
