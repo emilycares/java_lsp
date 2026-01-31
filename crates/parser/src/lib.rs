@@ -12,7 +12,6 @@ pub mod java;
 use std::{fmt::Debug, path::Path};
 
 use ast::types::AstFile;
-use dto::ClassError;
 use my_string::MyString;
 
 use crate::dto::Class;
@@ -29,16 +28,4 @@ pub fn update_project_java_file<T: AsRef<Path>>(file: T, ast: &AstFile) -> Class
         ast,
         SourceDestination::Here(file.as_ref().to_str().unwrap_or_default().into()),
     )
-}
-
-pub fn load_class_fs<T>(
-    path: T,
-    class_path: MyString,
-    source: SourceDestination,
-) -> Result<Class, ClassError>
-where
-    T: AsRef<Path> + Debug,
-{
-    let bytes = std::fs::read(path).map_err(ClassError::IO)?;
-    class::load_class(&bytes, class_path, source)
 }

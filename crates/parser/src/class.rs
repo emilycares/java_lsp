@@ -16,14 +16,27 @@ pub fn load_class(
     bytes: &[u8],
     class_path: MyString,
     source: SourceDestination,
+    filter: bool,
 ) -> Result<Class, ClassError> {
     let (_, c) = class_parser(bytes).map_err(|_| ClassError::ParseError)?;
+    let name = lookup_class_name(&c, c.this_class.into()).ok_or(ClassError::UnknownClassName)?;
+
+    if filter && !c.access_flags.intersects(ClassAccessFlags::PUBLIC) {
+        return Err(ClassError::Private);
+    }
     let code_attribute = parse_code_attribute(&c, &c.attributes);
     let mut used_classes = parse_used_classes(&c, code_attribute);
 
     let methods: Vec<_> = c
         .methods
         .iter()
+        .filter(|i| {
+            if !filter {
+                return true;
+            }
+            i.access_flags
+                .intersects(MethodAccessFlags::PRIVATE | MethodAccessFlags::PROTECTED)
+        })
         .filter_map(|method| {
             let code_attribute = parse_code_attribute(&c, &method.attributes);
             used_classes.extend(parse_used_classes(&c, code_attribute));
@@ -45,11 +58,17 @@ pub fn load_class(
             }
             method
         })
-        //.filter(|f| !f.access.contains(&Access::Private))
         .collect();
     let fields: Vec<_> = c
         .fields
         .iter()
+        .filter(|i| {
+            if !filter {
+                return true;
+            }
+            i.access_flags
+                .intersects(FieldAccessFlags::PRIVATE | FieldAccessFlags::PROTECTED)
+        })
         .filter_map(|field| {
             let field = parse_field(&c, field);
 
@@ -59,10 +78,8 @@ pub fn load_class(
 
             field
         })
-        //.filter(|f| !f.access.contains(&Access::Private))
         .collect();
 
-    let name = lookup_class_name(&c, c.this_class.into()).ok_or(ClassError::UnknownClassName)?;
     let package = class_path
         .trim_end_matches(name.as_str())
         .trim_end_matches('.');
@@ -491,6 +508,7 @@ mod tests {
             include_bytes!("../test/Everything.class"),
             "ch.emilycares.Everything".into(),
             SourceDestination::RelativeInFolder("/source".into()),
+            false,
         );
         insta::assert_debug_snapshot!(result.unwrap());
     }
@@ -501,6 +519,7 @@ mod tests {
             include_bytes!("../test/Everything.class"),
             "ch.emilycares.Everything".into(),
             SourceDestination::None,
+            false,
         );
 
         insta::assert_debug_snapshot!(result.unwrap());
@@ -511,6 +530,7 @@ mod tests {
             include_bytes!("../test/Super.class"),
             "ch.emilycares.Super".into(),
             SourceDestination::None,
+            false,
         );
 
         insta::assert_debug_snapshot!(result.unwrap());
@@ -521,6 +541,7 @@ mod tests {
             include_bytes!("../test/Thrower.class"),
             "ch.emilycares.Thrower".into(),
             SourceDestination::Here("/path/to/source/Thrower.java".into()),
+            false,
         );
         insta::assert_debug_snapshot!(result.unwrap());
     }
@@ -530,6 +551,7 @@ mod tests {
             include_bytes!("../test/SuperInterface.class"),
             "ch.emilycares.SuperInterface".into(),
             SourceDestination::None,
+            false,
         );
 
         insta::assert_debug_snapshot!(result.unwrap());
@@ -540,6 +562,7 @@ mod tests {
             include_bytes!("../test/LocalVariableTable.class"),
             "ch.emilycares.LocalVariableTable".into(),
             SourceDestination::None,
+            false,
         );
 
         insta::assert_debug_snapshot!(result.unwrap());

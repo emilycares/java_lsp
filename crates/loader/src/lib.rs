@@ -10,14 +10,13 @@ use std::sync::{Arc, mpsc};
 use std::{
     fs::{File, OpenOptions},
     io::Write,
-    path::{MAIN_SEPARATOR, Path, PathBuf},
+    path::{Path, PathBuf},
 };
 
 use jwalk::WalkDir;
-use my_string::MyString;
 use parser::{
     SourceDestination,
-    class::{self, ModuleInfo, load_class, load_module},
+    class::{ModuleInfo, load_class, load_module},
     dto::{Class, ClassError, ClassFolder},
     java::{self, ParseJavaError},
 };
@@ -26,7 +25,7 @@ use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
 use std::fmt::Debug;
 use tokio::fs::read;
 
-pub const CFC_VERSION: usize = 1;
+pub const CFC_VERSION: usize = 2;
 
 #[derive(Debug)]
 pub enum LoaderError {
@@ -36,19 +35,6 @@ pub enum LoaderError {
         path: String,
     },
     InvalidCfcCache,
-}
-
-pub fn load_class_fs<T>(
-    path: T,
-    class_path: MyString,
-    source: SourceDestination,
-) -> Result<Class, ClassError>
-where
-    T: AsRef<Path> + Debug,
-{
-    let file = File::open(path).map_err(ClassError::IO)?;
-    let mmap = unsafe { memmap2::Mmap::map(&file) }.map_err(ClassError::IO)?;
-    class::load_class(&mmap[..], class_path, source)
 }
 
 pub fn load_java_fs<T>(path: T, source: SourceDestination) -> Result<Class, ParseJavaError>
@@ -95,10 +81,6 @@ pub fn load_class_folder<P: AsRef<Path> + Debug>(path: P) -> Result<ClassFolder,
         eprintln!("Detected invalid cfc cache: {path:?}");
         Err(LoaderError::InvalidCfcCache)
     }
-}
-
-pub fn get_java_files_from_folder<P: AsRef<Path>>(path: P) -> Vec<String> {
-    get_files(&path, ".java")
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -260,8 +242,9 @@ async fn base_load_classes_zip(
 
         let buf = entry.bytes().await.map_err(LoaderError::IO)?;
 
-        match load_class(buf.as_slice(), class_path, source.clone()) {
+        match load_class(buf.as_slice(), class_path, source.clone(), true) {
             Ok(c) => classes.push(c),
+            Err(ClassError::Private) => (),
             Err(e) => {
                 eprintln!("Unable to load class: (in:{path}) {file_name} {e:?}");
             }
@@ -272,44 +255,6 @@ async fn base_load_classes_zip(
         version: CFC_VERSION,
         classes,
     })
-}
-
-pub fn load_classes<P: AsRef<Path>>(path: P, source: &SourceDestination) -> ClassFolder {
-    let Some(str_path) = &path.as_ref().to_str() else {
-        eprintln!("load_classes failed could not make path into str");
-        return ClassFolder::default();
-    };
-    ClassFolder {
-        version: CFC_VERSION,
-        classes: get_files(&path, ".class")
-            .into_iter()
-            .filter(|p| !p.ends_with("module-info.class"))
-            .filter_map(|p| {
-                let class_path = &p.trim_start_matches(str_path);
-                let class_path = class_path.trim_start_matches(MAIN_SEPARATOR);
-                let class_path = class_path.trim_end_matches(".class");
-                let class_path = class_path.replace(MAIN_SEPARATOR, ".");
-                match load_class_fs(p.as_str(), class_path, source.clone()) {
-                    Ok(c) => Some(c),
-                    Err(e) => {
-                        eprintln!("Unable to load class: {p}: {e:?}");
-                        None
-                    }
-                }
-            })
-            .collect(),
-    }
-}
-
-fn get_files<P: AsRef<Path>>(dir: P, ending: &str) -> Vec<String> {
-    WalkDir::new(dir)
-        .into_iter()
-        .par_bridge()
-        .filter_map(Result::ok)
-        .filter(|e| !e.file_type().is_dir())
-        .filter_map(|e| e.path().to_str().map(ToString::to_string))
-        .filter(|e| e.ends_with(ending))
-        .collect::<Vec<_>>()
 }
 
 #[cfg(test)]
