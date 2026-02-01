@@ -23,7 +23,7 @@ use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
 use std::fmt::Debug;
 use tokio::fs::read;
 
-pub const CFC_VERSION: usize = 2;
+pub const CFC_VERSION: usize = 3;
 
 #[derive(Debug)]
 pub enum LoaderError {
@@ -62,7 +62,8 @@ pub fn save_class_folder<P: AsRef<Path> + Debug>(
         .map_err(LoaderError::IO)?;
     let data = postcard::to_allocvec(class_folder).map_err(|_| LoaderError::InvalidCfcCache)?;
 
-    let _ = file.write_all(&data);
+    file.write_all(&data).map_err(LoaderError::IO)?;
+    file.flush().map_err(LoaderError::IO)?;
     Ok(())
 }
 
@@ -212,6 +213,7 @@ async fn base_load_classes_zip(
             }
         }
     }
+    let trim_prefix_path = trim_prefix.map(|i| i.replace('.', "/"));
     'entries: for entry in zip.entries() {
         if matches!(entry.kind(), EntryKind::Directory) {
             continue;
@@ -229,7 +231,9 @@ async fn base_load_classes_zip(
             continue;
         }
         for r in &rules {
-            let p = trim_prefix.map_or(file_name, |prefix| file_name.trim_start_matches(prefix));
+            let p = trim_prefix_path
+                .as_ref()
+                .map_or(file_name, |prefix| file_name.trim_start_matches(prefix));
             if file_name.starts_with(&r.0) && !r.1.exports.iter().any(|e| p.starts_with(e)) {
                 continue 'entries;
             }

@@ -18,14 +18,14 @@ pub enum MavenClasspathError {
 }
 
 pub fn generate_classpath(maven_executable: &str) -> Result<String, MavenClasspathError> {
+    let target = Path::new("./target");
+    if !target.exists() {
+        let _ = fs::create_dir(target);
+    }
     if Path::new(&CLASSPATH_FILE).exists() {
         let classpath =
             read_to_string(CLASSPATH_FILE).map_err(MavenClasspathError::ReadExisting)?;
         return Ok(classpath.trim().to_string());
-    }
-    let target = Path::new("./target");
-    if !target.exists() {
-        let _ = fs::create_dir(target);
     }
 
     // mvn dependency:build-classpath -Dmdep.outputFile=target/classpath.txt
