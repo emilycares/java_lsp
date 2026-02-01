@@ -35,6 +35,10 @@ pub struct Args {
 pub enum Commands {
     /// Start the lsp server over stdio
     Server,
+    /// Reloads the dependencies of project
+    ReloadDependencies,
+    /// Update the dependencies of project
+    UpdateDependencies,
     /// Get tokens from file
     Lex { file: PathBuf },
     /// Get tokens from file at pos

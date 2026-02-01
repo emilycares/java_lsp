@@ -5,7 +5,10 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use common::{Dependency, TaskProgress, project_cache_dir, project_kind::ProjectKind};
+use common::{
+    Dependency, TaskProgress, project_cache_dir,
+    project_kind::{ProjectKind, get_project_kind},
+};
 use gradle::tree::GradleTreeError;
 use lsp_extra::SERVER_NAME;
 use lsp_server::Connection;
@@ -63,6 +66,49 @@ pub fn reload_dependencies(
     });
     None
 }
+pub async fn reload_dependencies_cli() {
+    let (con, _) = Connection::memory();
+    let con = Arc::new(con);
+    let Ok(project_dir) = std::env::current_dir() else {
+        return;
+    };
+    let Some(path) = std::env::var_os("PATH") else {
+        return;
+    };
+    let Ok(project_kind) = get_project_kind(&project_dir, &path) else {
+        return;
+    };
+    let progress = Arc::new(None);
+    let class_map = Arc::new(Mutex::new(HashMap::new()));
+    let repos = Arc::new(repos(&project_kind, &project_dir));
+    let tree_task = "Load Dependencies".to_string();
+    Backend::progress_start_option_token(&con.clone(), &progress, &tree_task);
+    let tree = get_tree(&project_kind, &con).await;
+    Backend::progress_end_option_token(&con.clone(), &progress, &tree_task);
+
+    let task = format!("Command: {COMMAND_RELOAD_DEPENDENCIES}");
+    Backend::progress_start_option_token(&con.clone(), &progress, &task);
+    let (sender, receiver) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
+        percentage: 0,
+        error: false,
+        message: "...".to_string(),
+    });
+    if let ProjectKind::Maven { executable: _ } = project_kind {
+        let cache = PathBuf::from(maven::compile::CLASSPATH_FILE);
+        if cache.exists() {
+            let _ = fs::remove_file(cache);
+        }
+    }
+    if let Some(tree) = tree {
+        let cache = project_cache_dir();
+        tokio::select! {
+            () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
+            () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree, repos) => {}
+        }
+    }
+    Backend::progress_end_option_token(&con.clone(), &progress, &task);
+}
+
 pub const UPDATE_DEPENDENCIES: &str = "UpdateDependencies";
 pub fn update_dependencies(
     con: &Arc<Connection>,
@@ -112,6 +158,55 @@ pub fn update_dependencies(
         }
         Backend::progress_end_option_token(&con.clone(), &progress, &task);
     });
+}
+pub async fn update_dependencies_cli() {
+    let (con, _) = Connection::memory();
+    let con = Arc::new(con);
+    let Ok(project_dir) = std::env::current_dir() else {
+        return;
+    };
+    let Some(path) = std::env::var_os("PATH") else {
+        return;
+    };
+    let Ok(project_kind) = get_project_kind(&project_dir, &path) else {
+        return;
+    };
+    let class_map = Arc::new(Mutex::new(HashMap::new()));
+    let repos = Arc::new(repos(&project_kind, &project_dir));
+    let progress = Arc::new(None);
+
+    let mut task = "Load Dependencies".to_string();
+    Backend::progress_start_option_token(&con.clone(), &progress, &task);
+    let tree = get_tree(&project_kind, &con).await;
+    Backend::progress_end_option_token(&con.clone(), &progress, &task);
+
+    task = format!("Command: {UPDATE_DEPENDENCIES}");
+    Backend::progress_start_option_token(&con.clone(), &progress, &task);
+    if let Some(tree) = tree {
+        let (sender, receiver) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
+            percentage: 0,
+            error: false,
+            message: "...".to_string(),
+        });
+        tokio::select! {
+            () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
+            () = update_report(project_kind.clone(), con.clone(), repos.clone(), &tree, sender) => {},
+        }
+        let (sender, receiver) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
+            percentage: 0,
+            error: false,
+            message: "...".to_string(),
+        });
+        let cache = project_cache_dir();
+        task = format!("Command: {COMMAND_RELOAD_DEPENDENCIES}");
+        Backend::progress_start_option_token(&con.clone(), &progress, &task);
+        tokio::select! {
+            () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
+            () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree, repos) => {}
+        }
+        Backend::progress_end_option_token(&con.clone(), &progress, &task);
+    }
+    Backend::progress_end_option_token(&con.clone(), &progress, &task);
 }
 
 #[must_use]

@@ -3,6 +3,7 @@
 use clap::Parser;
 use cli::{Args, Commands};
 use common::TaskProgress;
+use server::command::{reload_dependencies_cli, update_dependencies_cli};
 
 #[tokio::main]
 async fn main() {
@@ -16,6 +17,8 @@ async fn main() {
             };
             let _ = server::stdio();
         }
+        Some(Commands::ReloadDependencies) => reload_dependencies_cli().await,
+        Some(Commands::UpdateDependencies) => update_dependencies_cli().await,
         Some(Commands::Lex { file }) => {
             cli::lex(file);
         }
