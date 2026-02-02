@@ -50,16 +50,20 @@ pub async fn update(
     let mut handles = JoinSet::new();
     let tasks_number = u32::try_from(tree.len() + 1).unwrap_or(1);
     let completed_number = Arc::new(AtomicU32::new(0));
+    let deps_path = deps_dir();
 
     for pom in tree {
-        let deps_path = deps_dir();
         let deps_bas = Arc::new(deps_base(pom, &deps_path));
         let pom_mtwo = Arc::new(pom_m2(pom, &m2));
         let one = stage_one(pom, &deps_bas, &pom_mtwo);
         let mut ignore_etag = false;
+        let f_source = Arc::new(pom_sources_jar(pom, &pom_mtwo));
+        let d_source = Arc::new(deps_get_source(&deps_bas));
         match one {
             UpdateStateOne::WasUpdated | UpdateStateOne::JarNotFound => ignore_etag = true,
-            UpdateStateOne::NoOwnHash | UpdateStateOne::CheckUpdate => (),
+            UpdateStateOne::NoOwnHash
+            | UpdateStateOne::CheckUpdate
+            | UpdateStateOne::SourceNotFound => (),
             UpdateStateOne::FailedToReadSha
             | UpdateStateOne::FailedToReadOwnHash
             | UpdateStateOne::FailedToReadJar => continue,
@@ -67,10 +71,27 @@ pub async fn update(
 
         let pom = Arc::new(pom.to_owned());
         let jar = Arc::new(pom_classes_jar(&pom, &pom_mtwo));
-        let f_source = Arc::new(pom_sources_jar(&pom, &pom_mtwo));
-        let d_source = Arc::new(deps_get_source(&deps_bas));
         let mut found = false;
         for repo in repos.as_ref() {
+            {
+                let repo = Arc::new(repo.clone());
+                let source_url = pom_source_jar_url(&pom, &repo.url);
+                if matches!(one, UpdateStateOne::SourceNotFound) {
+                    let fetched = fetch_extract_source(
+                        f_source.clone(),
+                        pom_mtwo.clone(),
+                        d_source.clone(),
+                        deps_bas.clone(),
+                        client.clone(),
+                        repo.clone(),
+                        &source_url,
+                    )
+                    .await;
+                    if fetched {
+                        break;
+                    }
+                }
+            }
             let jar_url = pom_jar_url(&pom, &repo.url);
             let mut two = stage_two(
                 pom.clone(),
@@ -123,7 +144,7 @@ pub async fn update(
                 error: false,
                 message: pom.artivact_id.clone(),
             });
-            let repo = Arc::new(repo.to_owned());
+            let repo = Arc::new(repo.clone());
             let res = handle_repo_retry(
                 &mut handles,
                 two,
@@ -215,7 +236,7 @@ async fn fetch_extract_source(
     client: Arc<Client>,
     repo: Arc<Repository>,
     url: &str,
-) {
+) -> bool {
     match fetch_source(&pom_mtwo, &repo, &f_source, &deps_bas, &client, url).await {
         Ok(UpdateStateSource::Updated) => {
             let _ = tokio::fs::remove_dir(&d_source.as_path()).await;
@@ -224,10 +245,12 @@ async fn fetch_extract_source(
                 Ok(()) => (),
                 Err(e) => eprintln!("unable to extract jar {e:?}"),
             }
+            return true;
         }
         Ok(UpdateStateSource::NotFound) => {}
         Err(e) => eprintln!("Get error: {e:?}"),
     }
+    false
 }
 
 async fn index_jar(pom: Arc<Dependency>, deps_bas: &PathBuf, jar: &PathBuf, d_source: &DepsSource) {
@@ -253,6 +276,7 @@ pub enum UpdateStateOne {
     WasUpdated,
     CheckUpdate,
     JarNotFound,
+    SourceNotFound,
     FailedToReadSha,
     FailedToReadOwnHash,
     FailedToReadJar,
@@ -263,6 +287,10 @@ pub fn stage_one(pom: &Dependency, deps_bas: &DepsBas, pom_mtwo: &PomMTwo) -> Up
     let own_hash = deps_get_hash(deps_bas, pom);
     if !own_hash.exists() {
         return UpdateStateOne::NoOwnHash;
+    }
+    let source = deps_get_source(deps_bas);
+    if !source.exists() {
+        return UpdateStateOne::SourceNotFound;
     }
     let jar = pom_classes_jar(pom, pom_mtwo);
     if !jar.exists() {

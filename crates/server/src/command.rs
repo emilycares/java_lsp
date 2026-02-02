@@ -13,7 +13,7 @@ use gradle::tree::GradleTreeError;
 use lsp_extra::SERVER_NAME;
 use lsp_server::Connection;
 use lsp_types::{Diagnostic, DiagnosticSeverity, ProgressToken, Range};
-use maven::tree::MavenTreeError;
+use maven::{tree::MavenTreeError, update};
 use my_string::MyString;
 use parser::dto::Class;
 
@@ -183,28 +183,23 @@ pub async fn update_dependencies_cli() {
     task = format!("Command: {UPDATE_DEPENDENCIES}");
     Backend::progress_start_option_token(&con.clone(), &progress, &task);
     if let Some(tree) = tree {
-        let (sender, receiver) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
-            percentage: 0,
-            error: false,
-            message: "...".to_string(),
-        });
-        tokio::select! {
-            () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-            () = update_report(project_kind.clone(), con.clone(), repos.clone(), &tree, sender) => {},
-        }
-        let (sender, receiver) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
-            percentage: 0,
-            error: false,
-            message: "...".to_string(),
-        });
+        let sender = tokio::sync::watch::Sender::default();
+        let _ = update::update(repos.clone(), &tree, sender).await;
+        let sender = tokio::sync::watch::Sender::default();
         let cache = project_cache_dir();
         task = format!("Command: {COMMAND_RELOAD_DEPENDENCIES}");
         Backend::progress_start_option_token(&con.clone(), &progress, &task);
-        tokio::select! {
-            () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-            () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree, repos) => {}
-        }
-        Backend::progress_end_option_token(&con.clone(), &progress, &task);
+        project_deps(
+            sender,
+            project_kind,
+            class_map.clone(),
+            false,
+            &project_dir,
+            &cache,
+            &tree,
+            repos,
+        )
+        .await;
     }
     Backend::progress_end_option_token(&con.clone(), &progress, &task);
 }

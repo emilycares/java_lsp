@@ -24,6 +24,7 @@ use std::fmt::Debug;
 use tokio::fs::read;
 
 pub const CFC_VERSION: usize = 3;
+pub const DEBUGGING: bool = false;
 
 #[derive(Debug)]
 pub enum LoaderError {
@@ -68,6 +69,10 @@ pub fn save_class_folder<P: AsRef<Path> + Debug>(
 }
 
 pub fn load_class_folder<P: AsRef<Path> + Debug>(path: P) -> Result<ClassFolder, LoaderError> {
+    if DEBUGGING {
+        eprintln!("Ignoring cfc cache DEBUGGING: {path:?}");
+        return Err(LoaderError::InvalidCfcCache);
+    }
     let file = File::open(&path).map_err(LoaderError::IO)?;
     let mmap = unsafe { memmap2::Mmap::map(&file) }.map_err(LoaderError::IO)?;
     if let Ok(o) = postcard::from_bytes::<ClassFolder>(&mmap[..]) {
