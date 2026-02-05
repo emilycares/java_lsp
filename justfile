@@ -20,4 +20,7 @@ doc:
   typos
   cargo doc --no-deps --workspace
 
-precommit: fmt check test clippy doc dev
+nix:
+  nix flake check
+
+precommit: fmt check test clippy doc dev nix

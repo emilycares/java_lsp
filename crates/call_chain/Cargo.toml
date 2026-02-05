@@ -1,6 +1,6 @@
 [package]
 name = "call_chain"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
@@ -12,6 +12,7 @@ license.workspace = true
 [dependencies]
 ast = { path = "../ast"}
 my_string = { path = "../my_string"}
+workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]
 insta.workspace = true

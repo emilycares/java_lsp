@@ -1,6 +1,6 @@
 [package]
 name = "document"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
@@ -16,6 +16,7 @@ ast = { path = "../ast"}
 parser = { path = "../parser"}
 lsp_extra = { path = "../lsp_extra"}
 my_string = { path = "../my_string"}
+workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]
 pretty_assertions.workspace = true

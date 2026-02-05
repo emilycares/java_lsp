@@ -1,6 +1,6 @@
 [package]
 name = "ast"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
@@ -8,12 +8,15 @@ repository.workspace = true
 documentation.workspace = true
 readme.workspace = true
 license.workspace = true
+publish = false
+
 
 [dependencies]
 phf.workspace = true
 bitflags.workspace = true
-my_string = { path = "../my_string"}
+my_string.workspace = true
 memchr.workspace = true
+workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]
 insta.workspace = true

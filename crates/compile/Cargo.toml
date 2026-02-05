@@ -1,6 +1,6 @@
 [package]
 name = "compile"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
@@ -11,3 +11,6 @@ license.workspace = true
 
 [dev-dependencies]
 pretty_assertions.workspace = true
+
+[dependencies]
+workspace_hack = { version = "0.1", path = "../workspace_hack" }
