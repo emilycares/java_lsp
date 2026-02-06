@@ -9,6 +9,7 @@ use std::{
 };
 
 use common::{Dependency, TaskProgress, deps_dir};
+use my_string::smol_str::ToSmolStr;
 use parser::SourceDestination;
 use reqwest::{Client, StatusCode};
 use tokio::task::JoinSet;
@@ -257,8 +258,11 @@ async fn index_jar(pom: Arc<Dependency>, deps_bas: &PathBuf, jar: &PathBuf, d_so
     let Some(source) = d_source.as_path().to_str() else {
         return;
     };
-    match loader::load_classes_jar(jar, SourceDestination::RelativeInFolder(source.to_owned()))
-        .await
+    match loader::load_classes_jar(
+        jar,
+        SourceDestination::RelativeInFolder(source.to_smolstr()),
+    )
+    .await
     {
         Ok(classes) => {
             let cfc = deps_get_cfc(deps_bas, &pom);

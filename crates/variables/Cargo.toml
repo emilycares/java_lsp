@@ -11,7 +11,7 @@ license.workspace = true
 
 [dependencies]
 parser = {path = "../parser"}
-my_string = { path = "../my_string"}
+my_string.workspace = true
 ast = {path = "../ast"}
 workspace_hack = { version = "0.1", path = "../workspace_hack" }
 

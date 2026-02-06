@@ -19,7 +19,10 @@ use ast::{
     types::{AstFile, AstThing},
 };
 use lsp_types::{Diagnostic, TextDocumentContentChangeEvent};
-use my_string::MyString;
+use my_string::{
+    MyString,
+    smol_str::{ToSmolStr, format_smolstr},
+};
 use ropey::Rope;
 
 #[derive(Debug, Clone)]
@@ -41,21 +44,13 @@ impl Document {
         eprintln!("Reload file from disk: {:?}", self.path.display());
         let text = fs::read_to_string(&self.path).map_err(DocumentError::Io)?;
         self.rope = Rope::from_str(&text);
-        self.reparse()?;
+        self.reparse(text.as_bytes())?;
         Ok(())
     }
     pub fn setup_read(path: PathBuf) -> Result<Self, DocumentError> {
         eprintln!("Read file from disk: {:?}", path.display());
         let text = fs::read_to_string(&path).map_err(DocumentError::Io)?;
         let rope = Rope::from_str(&text);
-        Self::setup_rope(path, rope)
-    }
-    pub fn setup(text: &str, path: PathBuf) -> Result<Self, DocumentError> {
-        let rope = Rope::from_str(text);
-        Self::setup_rope(path, rope)
-    }
-
-    pub fn setup_rope(path: PathBuf, rope: Rope) -> Result<Self, DocumentError> {
         let mut o = Self {
             rope,
             ast: AstFile {
@@ -67,21 +62,24 @@ impl Document {
             path,
         };
 
-        if let Err(DocumentError::Diagnostic(diag)) = o.reparse() {
-            return Err(DocumentError::Diagnostic(diag));
-        }
+        o.reparse(text.as_bytes())?;
         Ok(o)
     }
-
-    pub fn replace_rope(&mut self, text: Rope) -> Result<(), DocumentError> {
-        self.rope = text;
-        self.reparse()
-    }
-
-    pub fn replace_string(&mut self, text: &str) -> Result<(), DocumentError> {
+    pub fn setup(text: &str, path: PathBuf) -> Result<Self, DocumentError> {
         let rope = Rope::from_str(text);
-        self.rope = rope;
-        self.reparse()
+        let mut o = Self {
+            rope,
+            ast: AstFile {
+                package: None,
+                imports: None,
+                things: Vec::new(),
+                modules: Vec::new(),
+            },
+            path,
+        };
+
+        o.reparse(text.as_bytes())?;
+        Ok(o)
     }
 
     pub fn apply_text_changes(
@@ -124,10 +122,10 @@ impl Document {
                 self.rope = Rope::from_str(&change.text);
             }
         }
-        self.reparse()
+        self.reparse(self.rope.to_string().as_bytes())
     }
-    fn reparse(&mut self) -> Result<(), DocumentError> {
-        match ast::lexer::lex(self.rope.to_string().as_bytes()) {
+    fn reparse(&mut self, bytes: &[u8]) -> Result<(), DocumentError> {
+        match ast::lexer::lex(bytes) {
             Ok(tokens) => {
                 let ast = ast::parse_file(&tokens);
                 match ast {
@@ -154,7 +152,7 @@ impl Document {
 }
 
 #[must_use]
-pub fn get_class_path(ast: &AstFile) -> Option<String> {
+pub fn get_class_path(ast: &AstFile) -> Option<MyString> {
     if let Some(package) = &ast.package
         && let Some(thing) = &ast.things.first()
     {
@@ -165,7 +163,7 @@ pub fn get_class_path(ast: &AstFile) -> Option<String> {
             AstThing::Enumeration(ast_enumeration) => &ast_enumeration.name.value,
             AstThing::Annotation(ast_annotation) => &ast_annotation.name.value,
         };
-        return Some(format!("{}.{}", package.name.value, name));
+        return Some(format_smolstr!("{}.{}", package.name.value, name));
     }
     None
 }
@@ -181,7 +179,7 @@ pub fn open_document(
     let Ok(mut dm) = document_map.lock() else {
         return Err(DocumentError::Locked);
     };
-    dm.insert(key.to_owned(), doc);
+    dm.insert(key.to_smolstr(), doc);
     Ok(())
 }
 pub fn read_document_or_open_class(
@@ -196,7 +194,7 @@ pub fn read_document_or_open_class(
     }
     let path = path_without_subclass(source);
     Document::setup_read(path).inspect(|doc| {
-        dm.insert(source.to_string(), doc.clone());
+        dm.insert(source.to_smolstr(), doc.clone());
     })
 }
 

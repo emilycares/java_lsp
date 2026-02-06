@@ -10,9 +10,9 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
-parser = { path = "../parser"}
-call_chain = { path = "../call_chain"}
-variables = { path = "../variables"}
-ast = { path = "../ast"}
-my_string = { path = "../my_string"}
+parser.workspace = true
+call_chain.workspace = true
+variables.workspace = true
+ast.workspace = true
+my_string.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }

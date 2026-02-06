@@ -13,6 +13,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use my_string::smol_str::ToSmolStr;
 use parser::{
     SourceDestination,
     class::{ModuleInfo, load_class, load_module},
@@ -23,7 +24,7 @@ use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
 use std::fmt::Debug;
 use tokio::fs::read;
 
-pub const CFC_VERSION: usize = 3;
+pub const CFC_VERSION: usize = 4;
 pub const DEBUGGING: bool = false;
 
 #[derive(Debug)]
@@ -90,6 +91,7 @@ pub fn load_class_folder<P: AsRef<Path> + Debug>(path: P) -> Result<ClassFolder,
 #[cfg(not(target_os = "windows"))]
 pub fn load_java_files(folder: PathBuf) -> Vec<Class> {
     use jwalk::WalkDir;
+    use my_string::smol_str::ToSmolStr;
     use rayon::iter::{ParallelBridge, ParallelIterator};
 
     WalkDir::new(folder)
@@ -109,7 +111,7 @@ pub fn load_java_files(folder: PathBuf) -> Vec<Class> {
                 .map(|i| i.replace('\\', "/"))
         })
         .filter_map(
-            |p| match load_java_fs(&p, SourceDestination::Here(p.clone())) {
+            |p| match load_java_fs(&p, SourceDestination::Here(p.to_smolstr())) {
                 Ok(c) => Some(c),
                 Err(e) => {
                     eprintln!("Unable to load java: {p}: {e:?}");
@@ -239,15 +241,16 @@ async fn base_load_classes_zip(
             let p = trim_prefix_path
                 .as_ref()
                 .map_or(file_name, |prefix| file_name.trim_start_matches(prefix));
-            if file_name.starts_with(&r.0) && !r.1.exports.iter().any(|e| p.starts_with(e)) {
+            if file_name.starts_with(&r.0) && !r.1.exports.iter().any(|e| p.starts_with(e.as_str()))
+            {
                 continue 'entries;
             }
         }
         let class_path = file_name.trim_start_matches('/');
         let class_path = class_path.trim_end_matches(".class");
-        let mut class_path = class_path.replace('/', ".");
+        let mut class_path = class_path.replace('/', ".").to_smolstr();
         if let Some(trim_prefix) = trim_prefix {
-            class_path = class_path.replace(trim_prefix, "");
+            class_path = class_path.replace(trim_prefix, "").to_smolstr();
         }
 
         let buf = entry.bytes().await.map_err(LoaderError::IO)?;

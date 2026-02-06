@@ -14,7 +14,7 @@ use enumeration::parse_enumeration;
 use error::{AstError, ExpectedToken, InvalidToken, assert_semicolon, assert_token};
 use interface::parse_interface;
 use lexer::{PositionToken, Token};
-use my_string::MyString;
+use my_string::smol_str::{SmolStrBuilder, ToSmolStr, format_smolstr};
 use types::{
     AstAnnotated, AstAvailability, AstBlock, AstBlockAssign, AstBlockBreak, AstBlockContinue,
     AstBlockEntry, AstBlockExpression, AstBlockReturn, AstBlockVariable, AstBlockVariableMultiType,
@@ -587,7 +587,7 @@ fn parse_value_nuget(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, 
             if let Ok(pos) = assert_token(tokens, pos + 1, Token::Dot) {
                 let current = tokens.get(pos).ok_or_else(AstError::eof)?;
                 if let Token::Number(n) = &current.token {
-                    let value = format!("{num}.{n}");
+                    let value = format_smolstr!("{num}.{n}");
                     let pos = pos + 1;
                     let current = tokens.get(pos).ok_or_else(AstError::eof)?;
                     match &current.token {
@@ -3082,7 +3082,7 @@ pub fn parse_name(
             pos += 1;
         }
         _ if can_be_ident(&start.token) => {
-            value = start.token.to_string();
+            value = start.token.to_smolstr();
             pos += 1;
         }
         _ => {
@@ -3107,7 +3107,7 @@ pub fn parse_name_dot(
     let start = tokens.start(pos)?;
     let init_pos = pos;
     let mut pos = pos;
-    let mut ident = MyString::new();
+    let mut ident = SmolStrBuilder::new();
     loop {
         let Ok(t) = tokens.get(pos).ok_or_else(AstError::eof) else {
             break;
@@ -3133,6 +3133,7 @@ pub fn parse_name_dot(
             }
         }
     }
+    let ident = ident.finish();
     if ident.is_empty() {
         return Err(AstError::IdentifierEmpty(InvalidToken(pos)));
     }
@@ -3140,7 +3141,7 @@ pub fn parse_name_dot(
     Ok((
         AstIdentifier {
             range: AstRange::from_position_token(start, end),
-            value: ident.clone(),
+            value: ident,
         },
         pos,
     ))
@@ -3152,7 +3153,7 @@ pub fn parse_name_dot_logical(
 ) -> Result<(AstIdentifier, usize), AstError> {
     let start = tokens.start(pos)?;
     let mut pos = pos;
-    let mut ident = MyString::new();
+    let mut ident = SmolStrBuilder::new();
     let mut first = true;
     loop {
         let Ok(t) = tokens.get(pos).ok_or_else(AstError::eof) else {
@@ -3214,6 +3215,7 @@ pub fn parse_name_dot_logical(
             }
         }
     }
+    let ident = ident.finish();
     if ident.is_empty() {
         return Err(AstError::IdentifierEmpty(InvalidToken(pos)));
     }
@@ -3221,7 +3223,7 @@ pub fn parse_name_dot_logical(
     Ok((
         AstIdentifier {
             range: AstRange::from_position_token(start, end),
-            value: ident.clone(),
+            value: ident,
         },
         pos,
     ))
@@ -3266,7 +3268,7 @@ fn parse_identifier(
 ) -> Result<(AstIdentifier, usize), AstError> {
     let start = tokens.start(pos)?;
     let mut pos = pos;
-    let mut ident = MyString::new();
+    let mut ident = SmolStrBuilder::new();
     let mut modded = false;
     loop {
         let t = tokens.get(pos).ok_or_else(AstError::eof)?;
@@ -3291,7 +3293,7 @@ fn parse_identifier(
     Ok((
         AstIdentifier {
             range: AstRange::from_position_token(start, end),
-            value: ident,
+            value: ident.finish(),
         },
         pos,
     ))
@@ -3409,7 +3411,7 @@ pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, us
         if let Token::Identifier(ident) = &current.token {
             let ast_identifier = AstIdentifier {
                 range: AstRange::from_position_token(current, current),
-                value: ident.into(),
+                value: ident.to_owned(),
             };
             pos += 1;
             if let Ok((generic_argmuants, npos)) = parse_jtype_generics(tokens, pos) {

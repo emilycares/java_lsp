@@ -5,6 +5,9 @@ use std::{
     str::{Utf8Error, from_utf8},
 };
 
+use common::Dependency;
+use tokio::sync::OnceCell;
+
 use crate::config::overwrite_settings_xml;
 pub const CLASSPATH_FILE: &str = "./target/classpath.txt";
 
@@ -16,6 +19,8 @@ pub enum MavenClasspathError {
     Utf8(Utf8Error),
     Overwrite(std::io::Error),
 }
+
+pub static TREE: OnceCell<Vec<Dependency>> = OnceCell::const_new();
 
 pub fn generate_classpath(maven_executable: &str) -> Result<String, MavenClasspathError> {
     let target = Path::new("./target");

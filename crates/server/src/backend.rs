@@ -29,7 +29,7 @@ use maven::{
     repository::Repository,
     update::{self, MavenUpdateError},
 };
-use my_string::MyString;
+use my_string::{MyString, smol_str::ToSmolStr};
 use parser::dto::Class;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use serde_json::Value;
@@ -415,14 +415,16 @@ impl Backend {
         let Ok(mut dm) = self.document_map.lock() else {
             return;
         };
-        dm.remove(&key);
+        dm.remove(&key.to_smolstr());
     }
 
     pub fn did_change(&self, params: &DidChangeTextDocumentParams) {
         let Ok(mut dm) = self.document_map.lock() else {
             return;
         };
-        let Some(document) = dm.get_mut(&get_document_map_key(&params.text_document.uri)) else {
+        let Some(document) =
+            dm.get_mut(&get_document_map_key(&params.text_document.uri).to_smolstr())
+        else {
             eprintln!("on_change document not found");
             return;
         };
@@ -448,7 +450,8 @@ impl Backend {
         let Ok(dm) = self.document_map.lock() else {
             return;
         };
-        let Some(document) = dm.get(&get_document_map_key(&params.text_document.uri)) else {
+        let Some(document) = dm.get(&get_document_map_key(&params.text_document.uri).to_smolstr())
+        else {
             eprintln!("on_change document not found");
             return;
         };
@@ -474,7 +477,7 @@ impl Backend {
         let Ok(dm) = self.document_map.lock() else {
             return None;
         };
-        let document = dm.get(&get_document_map_key(&uri))?;
+        let document = dm.get(&get_document_map_key(&uri).to_smolstr())?;
         let point = to_ast_point(params.text_document_position_params.position);
         let imports = imports::imports(&document.ast);
         let vars = match variables::get_vars(&document.ast, &point) {
@@ -499,7 +502,7 @@ impl Backend {
         let Ok(mut dm) = self.document_map.lock() else {
             return None;
         };
-        let Some(document) = dm.get_mut(&get_document_map_key(&uri)) else {
+        let Some(document) = dm.get_mut(&get_document_map_key(&uri).to_smolstr()) else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -526,7 +529,7 @@ impl Backend {
         let uri = params.text_document.uri;
         let document;
         if let Ok(dm) = self.document_map.lock()
-            && let Some(doc) = dm.get(&get_document_map_key(&uri))
+            && let Some(doc) = dm.get(&get_document_map_key(&uri).to_smolstr())
         {
             document = doc.clone();
         } else {
@@ -944,8 +947,8 @@ fn compile_error_to_diagnostic(e: &CompileErrorMessage) -> Diagnostic {
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn get_document_map_key(uri: &Uri) -> String {
-    uri.path().as_str().to_owned()
+pub fn get_document_map_key(uri: &Uri) -> MyString {
+    uri.path().as_str().to_smolstr()
 }
 #[cfg(target_os = "windows")]
 pub fn get_document_map_key(uri: &Uri) -> String {

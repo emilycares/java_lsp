@@ -185,8 +185,11 @@ fn get_args(call_chain: &[CallItem]) -> Option<&CallItem> {
     })
 }
 
-fn method_to_signature_information(method: &Method, class_name: &String) -> SignatureInformation {
-    let mut label = format!("{}(", method.name.as_ref().unwrap_or(class_name));
+fn method_to_signature_information(method: &Method, class_name: &str) -> SignatureInformation {
+    let mut label = method
+        .name
+        .as_ref()
+        .map_or_else(|| format!("{class_name}("), |n| format!("{n}("));
     let mut parameters = Vec::with_capacity(method.parameters.len());
     let mut peekable = method.parameters.iter().peekable();
     while let Some(param) = peekable.next() {

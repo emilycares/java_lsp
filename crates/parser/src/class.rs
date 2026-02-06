@@ -11,6 +11,7 @@ use classfile_parser::field_info::{FieldAccessFlags, FieldInfo};
 use classfile_parser::method_info::MethodAccessFlags;
 use classfile_parser::{ClassAccessFlags, ClassFile, class_parser};
 use my_string::MyString;
+use my_string::smol_str::{SmolStr, ToSmolStr, format_smolstr};
 
 pub fn load_class(
     bytes: &[u8],
@@ -92,14 +93,14 @@ pub fn load_class(
     );
 
     let source = match source {
-        SourceDestination::RelativeInFolder(e) => format!(
+        SourceDestination::RelativeInFolder(e) => format_smolstr!(
             "{}{}{}.java",
             e,
             MAIN_SEPARATOR,
             &class_path.replace('.', MAIN_SEPARATOR_STR)
         ),
         SourceDestination::Here(e) => e,
-        SourceDestination::None => String::new(),
+        SourceDestination::None => SmolStr::new(""),
     };
     let super_interfaces: Vec<_> = c
         .interfaces
@@ -396,7 +397,7 @@ fn lookup_string(c: &ClassFile, index: u16) -> Option<MyString> {
     }
     let con = &c.const_pool[(index - 1) as usize];
     match con {
-        ConstantInfo::Utf8(utf8) => Some(utf8.utf8_string.to_string()),
+        ConstantInfo::Utf8(utf8) => Some(utf8.utf8_string.to_smolstr()),
         ConstantInfo::Module(m) => lookup_string(c, m.name_index),
         ConstantInfo::Package(p) => lookup_string(c, p.name_index),
         _ => None,
@@ -454,7 +455,7 @@ fn parse_field_type(c: Option<char>, chars: &mut std::str::Chars) -> JType {
                 }
                 class_name.push(ch);
             }
-            JType::Class(class_name.replace('/', "."))
+            JType::Class(class_name.replace('/', ".").to_smolstr())
         }
         '[' => JType::Array(Box::new(parse_field_type(chars.next(), chars))),
         _ => {
@@ -477,7 +478,7 @@ pub fn load_module(bytes: &[u8]) -> Result<ModuleInfo, ClassError> {
                 classfile_parser::attribute_info::module_attribute_parser(&a.info)
             && let Some(module_name) = lookup_string(&c, module.module_name_index)
         {
-            let mut exports = vec![module_name.replace('.', "/")];
+            let mut exports = vec![module_name.replace('.', "/").to_smolstr()];
             for e in module.exports {
                 if !e.exports_to_index.is_empty() {
                     continue;
@@ -485,7 +486,7 @@ pub fn load_module(bytes: &[u8]) -> Result<ModuleInfo, ClassError> {
                 let exp = c.const_pool.get(e.exports_index as usize);
                 if let Some(ConstantInfo::Utf8(p)) = exp {
                     let package = p.utf8_string.to_string();
-                    exports.push(package.replace('.', "/"));
+                    exports.push(package.replace('.', "/").to_smolstr());
                 }
             }
             return Ok(ModuleInfo { exports });

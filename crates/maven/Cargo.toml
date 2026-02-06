@@ -18,7 +18,7 @@ sha1_smol.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 serde-xml-rs.workspace = true
-my_string = { path = "../my_string"}
+my_string.workspace = true
 common = { path = "../common" }
 parser = {path = "../parser"}
 loader = {path = "../loader"}

@@ -13,8 +13,8 @@ publish = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ast = { path = "../ast"}
-my_string = { path = "../my_string"}
+ast.workspace = true
+my_string.workspace = true
 classfile-parser.workspace = true
 serde.workspace = true
 bitflags.workspace = true

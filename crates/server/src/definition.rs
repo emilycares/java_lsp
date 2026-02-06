@@ -143,7 +143,9 @@ pub fn call_chain_definition(
                 .find(|n| n.name == *name)
                 .map(|v| v.range)
             else {
-                return Err(DefinitionError::LocalVariableNotFound { name: name.clone() });
+                return Err(DefinitionError::LocalVariableNotFound {
+                    name: name.to_string(),
+                });
             };
             let range = to_lsp_range(&range).map_err(DefinitionError::ToLspRange)?;
             Ok(GotoDefinitionResponse::Scalar(Location {

@@ -16,8 +16,9 @@ use ast::{
         AstSwitchCaseArrowContent, AstThing, AstValuesWithAnnotated, AstWhileContent,
     },
 };
+use my_string::MyString;
 pub struct FoundClass {
-    pub name: String,
+    pub name: MyString,
     pub range: AstRange,
 }
 

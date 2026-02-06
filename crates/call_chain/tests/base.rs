@@ -3,6 +3,7 @@ use ast::{
     types::{AstPoint, AstRange},
 };
 use call_chain::{CallItem, get_call_chain};
+use my_string::smol_str::SmolStr;
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -940,7 +941,7 @@ public class Test {
     let out = get_call_chain(&ast, &AstPoint::new(4, 48));
     assert_eq!(
         vec![CallItem::Class {
-            name: "FileInputStream".to_string(),
+            name: SmolStr::new_inline("FileInputStream"),
             range: AstRange {
                 start: AstPoint { line: 4, col: 14 },
                 end: AstPoint { line: 4, col: 47 },
@@ -967,7 +968,7 @@ public class Test {
     let out = get_call_chain(&ast, &AstPoint::new(5, 23));
     assert_eq!(
         vec![CallItem::ClassOrVariable {
-            name: "q".to_string(),
+            name: SmolStr::new_inline("q"),
             range: AstRange {
                 start: AstPoint { line: 5, col: 20 },
                 end: AstPoint { line: 5, col: 21 },

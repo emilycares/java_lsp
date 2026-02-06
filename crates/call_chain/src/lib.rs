@@ -18,6 +18,7 @@ use ast::types::{
     AstValuesWithAnnotated, AstWhileContent,
 };
 use my_string::MyString;
+use my_string::smol_str::ToSmolStr;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum CallItem {
@@ -742,7 +743,7 @@ fn cc_jtype(jtype: &AstJType, out: &mut Vec<CallItem>) {
         | AstJTypeKind::Var
         | AstJTypeKind::Wildcard
         | AstJTypeKind::Void => out.push(CallItem::Class {
-            name: jtype.value.to_string(),
+            name: jtype.value.to_smolstr(),
             range: jtype.range,
         }),
         AstJTypeKind::Class(ast_identifier) => out.push(CallItem::Class {
@@ -774,7 +775,7 @@ fn cc_jtype_not_sure_class(jtype: &AstJType, out: &mut Vec<CallItem>) {
         | AstJTypeKind::Var
         | AstJTypeKind::Wildcard
         | AstJTypeKind::Void => out.push(CallItem::Class {
-            name: jtype.value.to_string(),
+            name: jtype.value.to_smolstr(),
             range: jtype.range,
         }),
         AstJTypeKind::Class(ast_identifier) => out.push(CallItem::ClassOrVariable {

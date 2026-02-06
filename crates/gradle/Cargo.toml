@@ -11,7 +11,7 @@ license.workspace = true
 
 [dependencies]
 tokio.workspace = true
-my_string = { path = "../my_string"}
+my_string.workspace = true
 compile = {path = "../compile"}
 common = {path = "../common"}
 parser = {path = "../parser"}

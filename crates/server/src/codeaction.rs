@@ -124,7 +124,7 @@ pub fn replace_with_value_type(
             context.current_file.to_owned(),
             vec![TextEdit {
                 range,
-                new_text: value_resolve_state.class.name.clone(),
+                new_text: value_resolve_state.class.name.to_string(),
             }],
         );
         let action = CodeActionOrCommand::CodeAction(CodeAction {

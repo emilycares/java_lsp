@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use my_string::MyString;
+use my_string::{MyString, smol_str::format_smolstr};
 use parser::dto::{Access, Class, ImportUnit, SuperClass};
 
 use crate::{ImportResult, is_imported};
@@ -94,7 +94,7 @@ fn load_parent(
     match super_class {
         SuperClass::None => None,
         SuperClass::Name(n) => {
-            let key = format!("java.util.{n}");
+            let key = format_smolstr!("java.util.{n}");
             if let Ok(class_map) = class_map.lock()
                 && let Some(o) = class_map.get(&key).map(ToOwned::to_owned)
             {

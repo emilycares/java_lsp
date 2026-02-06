@@ -14,5 +14,5 @@ cli = { path = "../cli" }
 server = { path = "../server" }
 common = { path = "../common" }
 format = { path = "../format" }
-jdk = { path = "../jdk"}
+jdk.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }

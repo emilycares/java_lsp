@@ -25,7 +25,7 @@ pub enum CompletionError {
 pub fn complete_vars(vars: &[LocalVariable]) -> Vec<CompletionItem> {
     vars.iter()
         .map(|a| CompletionItem {
-            label: a.name.clone(),
+            label: a.name.to_string(),
             label_details: Some(CompletionItemLabelDetails {
                 detail: Some(a.jtype.to_string()),
                 ..Default::default()
@@ -66,7 +66,7 @@ pub fn class_describe(val: &Class, imp: bool, ast: Option<&AstFile>) -> Completi
     };
     let detail = format!("package {};\n{}", val.class_path, methods.join(", "));
     CompletionItem {
-        label: val.name.clone(),
+        label: val.name.to_string(),
         detail: Some(detail),
         kind: Some(CompletionItemKind::CLASS),
         additional_text_edits: addi,
@@ -108,7 +108,7 @@ pub fn class_unpack(val: &Class, imports: &[ImportUnit], ast: &AstFile) -> Vec<C
                 i.access.contains(Access::Public)
             })
             .map(|f| CompletionItem {
-                label: f.name.clone(),
+                label: f.name.to_string(),
                 label_details: Some(CompletionItemLabelDetails {
                     detail: Some(f.jtype.to_string()),
                     ..Default::default()
@@ -140,7 +140,7 @@ fn complete_method(m: &Method, imports: &[ImportUnit], ast: &AstFile) -> Option<
 
     match method_snippet(m) {
         Some(Snippet::Simple(snippet)) => Some(CompletionItem {
-            label: method_name.clone(),
+            label: method_name.to_string(),
             label_details: Some(CompletionItemLabelDetails {
                 detail: Some(format!("{} ({})", m.ret, params_detail.join(", "))),
                 ..Default::default()
@@ -160,7 +160,7 @@ fn complete_method(m: &Method, imports: &[ImportUnit], ast: &AstFile) -> Option<
             };
 
             Some(CompletionItem {
-                label: method_name.clone(),
+                label: method_name.to_string(),
                 label_details: Some(CompletionItemLabelDetails {
                     detail: Some(format!("{} ({})", m.ret, params_detail.join(", "))),
                     ..Default::default()
@@ -277,7 +277,7 @@ pub fn classes(
                     let Some((_, cname)) = c.rsplit_once('.') else {
                         return false;
                     };
-                    cname.starts_with(&text)
+                    cname.starts_with(&*text)
                 })
                 .filter_map(|class_path| class_map.get(class_path))
                 .map(|c| class_describe(c, false, None)),
@@ -285,7 +285,7 @@ pub fn classes(
         out.extend(
             class_map
                 .iter()
-                .filter(|(_, c)| c.name.starts_with(&text))
+                .filter(|(_, c)| c.name.starts_with(&*text))
                 .filter(|(_, i)| !i.name.contains('&'))
                 .map(|(_, v)| {
                     class_describe(

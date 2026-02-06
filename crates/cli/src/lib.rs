@@ -1,6 +1,10 @@
 #![deny(warnings)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
+#![allow(clippy::missing_errors_doc)]
+use std::path::Path;
 use std::time::Instant;
 use std::{fs::canonicalize, path::PathBuf};
 
@@ -67,16 +71,16 @@ pub fn ast_check(path: &PathBuf) {
                     lex_and_ast(path, &mmap);
                 }
                 Err(e) => {
-                    eprintln!("unable to memmap: {:?}", e);
+                    eprintln!("unable to memmap: {e:?}");
                     std::process::exit(2);
                 }
-            };
+            }
         }
         Err(e) => {
-            eprintln!("unable to open file: {:?}", e);
+            eprintln!("unable to open file: {e:?}");
             std::process::exit(1);
         }
-    };
+    }
 }
 #[cfg(not(target_os = "windows"))]
 pub fn ast_check(path: &PathBuf, num: usize, tokens: &mut Vec<PositionToken>) {
@@ -88,31 +92,30 @@ pub fn ast_check(path: &PathBuf, num: usize, tokens: &mut Vec<PositionToken>) {
             match mmap {
                 Ok(mmap) => {
                     #[cfg(unix)]
-                    mmap.advise(memmap2::Advice::Sequential)
-                        .expect("memmap advice to be accepted");
+                    let _ = mmap.advise(memmap2::Advice::Sequential);
                     lex_and_ast(path, &mmap, num, tokens);
                 }
                 Err(e) => {
-                    eprintln!("unable to memmap: {:?}", e);
+                    eprintln!("unable to memmap: {e:?}");
                     std::process::exit(2);
                 }
-            };
+            }
         }
         Err(e) => {
-            eprintln!("unable to open file: {:?}", e);
+            eprintln!("unable to open file: {e:?}");
             std::process::exit(1);
         }
-    };
+    }
 }
 
 #[cfg(not(target_os = "windows"))]
-fn lex_and_ast(file: &PathBuf, text: &[u8], num: usize, tokens: &mut Vec<PositionToken>) {
+fn lex_and_ast(file: &Path, text: &[u8], num: usize, tokens: &mut Vec<PositionToken>) {
     // eprintln!("[{num}]Here: {:?}", file);
     match ast::lexer::lex_mut(text, tokens) {
-        Ok(_) => {
+        Ok(()) => {
             let ast = ast::parse_file(tokens);
             if ast.is_err() {
-                eprintln!("[{num}]Here: {:?}", file);
+                eprintln!("[{num}]Here: {}", file.display());
                 if let Ok(text) = str::from_utf8(text) {
                     ast.print_err(text, tokens);
                 }
@@ -120,13 +123,13 @@ fn lex_and_ast(file: &PathBuf, text: &[u8], num: usize, tokens: &mut Vec<Positio
             }
         }
         Err(e) => {
-            eprintln!("[{num}]Lexer error: {:?}", e);
+            eprintln!("[{num}]Lexer error: {e:?}");
             std::process::exit(2);
         }
     }
 }
 #[cfg(target_os = "windows")]
-fn lex_and_ast(file: &PathBuf, text: &[u8]) {
+fn lex_and_ast(file: &Path, text: &[u8]) {
     // eprintln!("Here: {:?}", file);
     match ast::lexer::lex(text) {
         Ok(tokens) => {
@@ -134,36 +137,37 @@ fn lex_and_ast(file: &PathBuf, text: &[u8]) {
             if ast.is_err() {
                 use std::str::from_utf8;
 
-                eprintln!("Here: {:?}", file);
+                eprintln!("Here: {}", file.display());
                 match from_utf8(text) {
                     Ok(text) => {
                         ast.print_err(text, &tokens);
                     }
                     Err(e) => {
-                        eprintln!("invalid utf8: {:?}", e);
+                        eprintln!("invalid utf8: {e:?}");
                         std::process::exit(3);
                     }
-                };
+                }
                 std::process::exit(3);
             }
         }
         Err(e) => {
-            eprintln!("Lexer error: {:?}", e);
+            eprintln!("Lexer error: {e:?}");
             std::process::exit(2);
         }
     }
 }
 #[cfg(not(target_os = "windows"))]
-pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
+pub fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
     let mut count = 0;
     let time = Instant::now();
     let mut tokens = Vec::new();
-    for i in jwalk::WalkDir::new(canonicalize(folder).expect("Canonicalize fail"))
+    let root = canonicalize(folder).map_err(CheckError::IO)?;
+    for i in jwalk::WalkDir::new(root)
         // Check in the same order always
         .sort(true)
         // .follow_links(true)
         .into_iter()
-        .filter_map(|a| a.ok())
+        .filter_map(Result::ok)
         .filter(|e| !e.file_type().is_dir())
         .map(|i| i.path())
         .filter(|i| {
@@ -181,21 +185,22 @@ pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
     Ok(())
 }
 #[cfg(not(target_os = "windows"))]
-pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<String>) -> Result<(), CheckError> {
+pub fn ast_check_dir_ignore(folder: PathBuf, ignore: &[String]) -> Result<(), CheckError> {
     let mut count = 0;
     let time = Instant::now();
     let mut tokens = Vec::new();
-    for i in jwalk::WalkDir::new(canonicalize(folder).expect("Canonicalize fail"))
+    let root = canonicalize(folder).map_err(CheckError::IO)?;
+    for i in jwalk::WalkDir::new(root)
         // Check in the same order always
         .sort(true)
         // .follow_links(true)
         .into_iter()
-        .filter_map(|a| a.ok())
+        .filter_map(Result::ok)
         .filter(|e| !e.file_type().is_dir())
         .map(|i| i.path())
         .filter(|i| {
             if let Some(s) = i.to_str() {
-                for ig in &ignore {
+                for ig in ignore {
                     if s.contains(ig) {
                         return false;
                     }
@@ -218,13 +223,13 @@ pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<String>) -> Resul
 #[cfg(target_os = "windows")]
 fn visit_java_fies(
     dir: &PathBuf,
-    tx: Arc<mpsc::Sender<PathBuf>>,
+    tx: &Arc<mpsc::Sender<PathBuf>>,
     cb: impl Fn(&PathBuf),
 ) -> Result<(), CheckError> {
     let read_dir = std::fs::read_dir(dir)
         .map_err(CheckError::IO)?
         .map(|res| res.map(|e| e.path()))
-        .filter_map(|a| a.ok());
+        .filter_map(Result::ok);
     for entry in read_dir {
         if entry.is_dir() {
             tx.send(entry).map_err(CheckError::ChannelSend)?;
@@ -250,7 +255,7 @@ pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
     let mut handles = JoinSet::new();
     while let Ok(dir) = rx.recv_timeout(Duration::from_millis(300)) {
         let tx = tx.clone();
-        handles.spawn(async move { visit_java_fies(&dir, tx, ast_check) });
+        handles.spawn(async move { visit_java_fies(&dir, &tx, ast_check) });
     }
     let _ = handles.join_all().await;
 
@@ -274,7 +279,7 @@ pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<String>) -> Resul
         let tx = tx.clone();
         let ignore = ignore.clone();
         handles.spawn(async move {
-            visit_java_fies(&dir, tx, |i| {
+            visit_java_fies(&dir, &tx, |i| {
                 if let Some(s) = i.to_str() {
                     for ig in ignore.iter() {
                         if s.contains(ig) {
@@ -282,7 +287,7 @@ pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<String>) -> Resul
                         }
                     }
                 }
-                ast_check(i)
+                ast_check(i);
             })
         });
     }
@@ -291,13 +296,17 @@ pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<String>) -> Resul
     Ok(())
 }
 
-pub fn lex(file: PathBuf) {
-    let bytes = std::fs::read(&file).expect("File should exist");
+/// # Panics
+/// When lexer fails or file issue
+pub fn lex(file: &PathBuf) {
+    let bytes = std::fs::read(file).expect("File should exist");
     let tokens = ast::lexer::lex(&bytes).expect("Ok to cratch if fail");
-    eprintln!("{:?}", tokens);
+    eprintln!("{tokens:?}");
 }
-pub fn lex_pos(file: PathBuf, pos: usize) {
-    let bytes = std::fs::read(&file).expect("File should exist");
+/// # Panics
+/// When lexer fails or file issue
+pub fn lex_pos(file: &PathBuf, pos: usize) {
+    let bytes = std::fs::read(file).expect("File should exist");
     let tokens = ast::lexer::lex(&bytes).expect("Ok to cratch if fail");
     eprintln!("{:?}", tokens[pos]);
 }

@@ -12,11 +12,12 @@ use ast::types::{
 };
 use lsp_extra::to_lsp_range;
 use lsp_types::{Location, SymbolInformation, SymbolKind, Uri};
+use my_string::MyString;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct PositionSymbol {
     pub range: AstRange,
-    pub name: String,
+    pub name: MyString,
     pub kind: SymbolKind,
 }
 
@@ -450,7 +451,7 @@ pub fn symbols_to_document_symbols(
             };
             #[allow(deprecated)]
             Some(SymbolInformation {
-                name: r.name.clone(),
+                name: r.name.to_string(),
                 kind: r.kind,
                 tags: Some(vec![]),
                 deprecated: None,
@@ -468,6 +469,7 @@ pub fn symbols_to_document_symbols(
 mod tests {
     use ast::types::{AstPoint, AstRange};
     use lsp_types::SymbolKind;
+    use my_string::smol_str::ToSmolStr;
     use pretty_assertions::assert_eq;
 
     use crate::{
@@ -498,7 +500,7 @@ public class Test {
                     start: AstPoint { line: 3, col: 4 },
                     end: AstPoint { line: 7, col: 5 },
                 },
-                name: "hello".to_string(),
+                name: "hello".to_smolstr(),
                 kind: SymbolKind::METHOD,
             },]
         );
@@ -522,7 +524,7 @@ public class Test {
                     start: AstPoint { line: 3, col: 4 },
                     end: AstPoint { line: 3, col: 19 },
                 },
-                name: "a".to_string(),
+                name: "a".to_smolstr(),
                 kind: SymbolKind::FIELD,
             },],
             out
@@ -552,7 +554,7 @@ public class Test {
                         start: AstPoint { line: 3, col: 29 },
                         end: AstPoint { line: 3, col: 30 },
                     },
-                    name: "t".to_string(),
+                    name: "t".to_smolstr(),
                     kind: SymbolKind::FIELD,
                 },
                 PositionSymbol {
@@ -560,7 +562,7 @@ public class Test {
                         start: AstPoint { line: 4, col: 20 },
                         end: AstPoint { line: 4, col: 51 },
                     },
-                    name: "q".to_string(),
+                    name: "q".to_smolstr(),
                     kind: SymbolKind::FIELD,
                 },
             ],
@@ -585,7 +587,7 @@ public class Test {}
                     start: AstPoint { line: 2, col: 0 },
                     end: AstPoint { line: 2, col: 20 },
                 },
-                name: "Test".to_string(),
+                name: "Test".to_smolstr(),
                 kind: SymbolKind::CLASS,
             },]
         );

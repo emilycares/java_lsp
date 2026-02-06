@@ -9,7 +9,10 @@ use ast::{
         AstTypeParameters,
     },
 };
-use my_string::MyString;
+use my_string::{
+    MyString,
+    smol_str::{SmolStr, SmolStrBuilder, ToSmolStr, format_smolstr},
+};
 
 use crate::{
     SourceDestination,
@@ -38,8 +41,8 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
     let class_path_base: MyString = ast
         .package
         .as_ref()
-        .map_or_else(MyString::new, |p| (&p.name).into());
-    let mut name: MyString = String::new();
+        .map_or_else(|| MyString::new(""), |p| (&p.name).into());
+    let mut name = SmolStr::new("");
     let mut super_class = SuperClass::None;
     let mut super_interfaces = vec![];
     let imports: Vec<ImportUnit> = ast.imports.as_ref().map_or_else(Vec::new, |imports| {
@@ -103,15 +106,16 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
     }
     let source = match source {
         SourceDestination::RelativeInFolder(e) => {
-            format!("{}/{}/{}.java", e, &class_path_base.replace('.', "/"), name)
+            format_smolstr!("{}/{}/{}.java", e, &class_path_base.replace('.', "/"), name)
         }
-        SourceDestination::Here(e) => e.replace('\\', "/"),
-        SourceDestination::None => String::new(),
+        SourceDestination::Here(e) => e.replace('\\', "/").to_smolstr(),
+        SourceDestination::None => SmolStr::new(""),
     };
-    let mut class_path = String::new();
+    let mut class_path = SmolStrBuilder::new();
     class_path.push_str(&class_path_base);
     class_path.push('.');
     class_path.push_str(&name);
+    let class_path = class_path.finish();
 
     Class {
         source,

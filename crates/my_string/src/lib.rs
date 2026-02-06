@@ -1,1 +1,2 @@
-pub type MyString = String;
+pub use smol_str;
+pub type MyString = smol_str::SmolStr;

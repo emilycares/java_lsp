@@ -12,10 +12,10 @@ license.workspace = true
 [dependencies]
 lsp-types.workspace = true
 ropey.workspace = true
-ast = { path = "../ast"}
-parser = { path = "../parser"}
-lsp_extra = { path = "../lsp_extra"}
-my_string = { path = "../my_string"}
+ast.workspace = true
+parser.workspace = true
+lsp_extra.workspace = true
+my_string.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]

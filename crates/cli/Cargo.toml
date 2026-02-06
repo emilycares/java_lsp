@@ -14,6 +14,6 @@ clap.workspace = true
 jwalk.workspace = true
 tokio.workspace = true
 memmap2.workspace = true
-ast = { path = "../ast"}
+ast.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }
 

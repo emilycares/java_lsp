@@ -10,5 +10,6 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
-ast = { path = "../ast"}
+ast.workspace = true
+my_string.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }

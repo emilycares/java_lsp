@@ -12,7 +12,7 @@ license.workspace = true
 [dependencies]
 tokio.workspace = true
 dirs.workspace = true
-my_string = { path = "../my_string"}
+my_string.workspace = true
 parser = { path = "../parser" }
 loader = {path = "../loader"}
 zip_util = { path = "../zip_util" }

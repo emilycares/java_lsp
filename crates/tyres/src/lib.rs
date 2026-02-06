@@ -15,7 +15,10 @@ use std::{
 
 use ast::types::AstPoint;
 use call_chain::CallItem;
-use my_string::MyString;
+use my_string::{
+    MyString,
+    smol_str::{SmolStrBuilder, format_smolstr},
+};
 use parser::dto::{Access, Class, Field, ImportUnit, JType, Method};
 use variables::LocalVariable;
 
@@ -79,11 +82,11 @@ pub fn is_imported<'a>(
             None
         }
         ImportUnit::Package(p) | ImportUnit::Prefix(p) => {
-            let mut possible_class_path = MyString::new();
+            let mut possible_class_path = SmolStrBuilder::new();
             possible_class_path.push_str(p);
             possible_class_path.push('.');
             possible_class_path.push_str(jtype);
-            let possible_class_path = possible_class_path;
+            let possible_class_path = possible_class_path.finish();
 
             if let Ok(class_map) = class_map.lock()
                 && class_map.contains_key(&possible_class_path)
@@ -93,11 +96,11 @@ pub fn is_imported<'a>(
             None
         }
         ImportUnit::StaticPrefix(p) => {
-            let mut possible_class_path = MyString::new();
+            let mut possible_class_path = SmolStrBuilder::new();
             possible_class_path.push_str(p);
             possible_class_path.push('.');
             possible_class_path.push_str(jtype);
-            let possible_class_path = possible_class_path;
+            let possible_class_path = possible_class_path.finish();
             if let Ok(class_map) = class_map.lock()
                 && class_map.contains_key(&possible_class_path)
             {
@@ -133,10 +136,10 @@ pub fn resolve(
         });
     }
 
-    let mut lang_class_key = MyString::new();
+    let mut lang_class_key = SmolStrBuilder::new();
     lang_class_key.push_str("java.lang.");
     lang_class_key.push_str(class_name);
-    let lang_class_key = lang_class_key;
+    let lang_class_key = lang_class_key.finish();
     if let Ok(cm) = class_map.lock()
         && let Some(ic) = cm.get(&lang_class_key)
     {
@@ -543,11 +546,11 @@ pub fn resolve_jtype(
         }),
         JType::Class(c) | JType::Generic(c, _) => resolve(c, imports, class_map),
         JType::Parameter(p) => {
-            let mut name = MyString::new();
+            let mut name = SmolStrBuilder::new();
             name.push('<');
             name.push_str(p);
             name.push('>');
-            let name = name;
+            let name = name.finish();
             Ok(ResolveState {
                 jtype: jtype.clone(),
                 class: Class {
@@ -558,7 +561,7 @@ pub fn resolve_jtype(
         }
         JType::Var => Err(TyresError::CheckValue),
         JType::Access { base, inner } => {
-            let query = format!("{}${}", &base, &inner);
+            let query = format_smolstr!("{}${}", &base, &inner);
             eprintln!("Resolve JType::Access: {query}");
             if let Ok(cm) = class_map.lock()
                 && let Some(out) = cm.get(&query)

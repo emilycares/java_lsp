@@ -257,7 +257,7 @@ fn jtype_hover_display(jtype: &JType) -> String {
     }
 }
 
-fn class_name_hover(s: &String) -> String {
+fn class_name_hover(s: &str) -> String {
     if let Some((_, s)) = s.rsplit_once('.') {
         return s.replace('$', ".");
     }

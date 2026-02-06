@@ -5,6 +5,7 @@ use memchr::memchr;
 use memchr::memchr_iter;
 use memchr::memmem;
 use my_string::MyString;
+use my_string::smol_str::SmolStrBuilder;
 use phf::phf_map;
 
 use crate::types::AstPoint;
@@ -855,7 +856,7 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
             }
             b'"' => {
                 index += 1;
-                let mut str = String::new();
+                let mut str = SmolStrBuilder::new();
                 let mut multi_line = false;
                 if matches!(input.get(index), Some(b'"'))
                     && matches!(input.get(index + 1), Some(b'"'))
@@ -906,7 +907,7 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
                     col += 1;
                 }
                 tokens.push(PositionToken {
-                    token: Token::StringLiteral(str),
+                    token: Token::StringLiteral(str.finish()),
                     line,
                     col,
                 });
@@ -914,7 +915,7 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
             }
             b'\'' => {
                 index += 1;
-                let mut char = MyString::new();
+                let mut char = SmolStrBuilder::new();
                 'char_literal: loop {
                     let Some(ch) = input.get(index) else {
                         break;
@@ -945,7 +946,7 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
                     col += 1;
                 }
                 tokens.push(PositionToken {
-                    token: Token::CharLiteral(char),
+                    token: Token::CharLiteral(char.finish()),
                     line,
                     col,
                 });
@@ -1028,7 +1029,7 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
                     match input.get(index + 1) {
                         Some(b'x' | b'X') => {
                             index += 2;
-                            let mut string = MyString::new();
+                            let mut string = SmolStrBuilder::new();
                             loop {
                                 let Some(ch) = input.get(index) else {
                                     break;
@@ -1045,6 +1046,7 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
                                     break;
                                 }
                             }
+                            let string = string.finish();
                             col += string.len();
                             tokens.push(PositionToken {
                                 token: Token::HexLiteral(string),
@@ -1055,7 +1057,7 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
                         }
                         Some(b'b' | b'B') => {
                             index += 2;
-                            let mut string = MyString::new();
+                            let mut string = SmolStrBuilder::new();
                             loop {
                                 let Some(ch) = input.get(index) else {
                                     break;
@@ -1067,9 +1069,10 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
                                     break;
                                 }
                             }
-                            col += string.len();
+                            let finish = string.finish();
+                            col += finish.len();
                             tokens.push(PositionToken {
-                                token: Token::BinaryLiteral(string),
+                                token: Token::BinaryLiteral(finish),
                                 line,
                                 col,
                             });
@@ -1078,7 +1081,7 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
                         _ => (),
                     }
                 }
-                let mut string = MyString::new();
+                let mut string = SmolStrBuilder::new();
                 loop {
                     let Some(ch) = input.get(index) else {
                         break;
@@ -1091,6 +1094,7 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
                     index += 1;
                 }
 
+                let string = string.finish();
                 col += string.len();
                 tokens.push(PositionToken {
                     token: Token::Number(string),
@@ -1100,7 +1104,7 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
                 continue;
             }
             b'A'..=b'Z' | b'a'..=b'z' | b'_' | b'$' => {
-                let mut ident = MyString::new();
+                let mut ident = SmolStrBuilder::new();
                 loop {
                     let Some(ch) = input.get(index) else {
                         break;
@@ -1111,6 +1115,7 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
                     ident.push(*ch as char);
                     index += 1;
                 }
+                let ident = ident.finish();
                 let len = ident.len();
                 match KEYWORDS.get(&ident) {
                     Some(t) => tokens.push(PositionToken {
