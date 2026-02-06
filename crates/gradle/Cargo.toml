@@ -1,6 +1,6 @@
 [package]
 name = "gradle"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
@@ -17,6 +17,7 @@ common = {path = "../common"}
 parser = {path = "../parser"}
 loader = {path = "../loader"}
 maven = {path = "../maven"}
+workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]
 pretty_assertions.workspace = true

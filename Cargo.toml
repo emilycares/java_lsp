@@ -6,7 +6,10 @@ homepage = "https://github.com/emilycares/java_lsp"
 repository = "https://github.com/emilycares/java_lsp"
 documentation = "https://github.com/emilycares/java_lsp"
 readme = "README.md"
-license = "GPL 3"
+license = "GPL-3.0-or-later"
+
+[workspace.metadata.crane]
+name = "java_lsp"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -29,6 +32,7 @@ members = [
     "crates/position",
     "crates/imports",
     "crates/java_lsp",
+    "crates/workspace_hack",
     "crates/zip_util",
     "crates/ast",
     "crates/get_class",
@@ -52,6 +56,32 @@ similar.opt-level = 3
 # lto = "fat"
 
 [workspace.dependencies]
+# In this project
+parser = { path = "crates/parser"}
+maven = { path = "crates/maven"}
+server = { path = "crates/server"}
+format = { path = "crates/format"}
+gradle = { path = "crates/gradle"}
+common = { path = "crates/common"}
+compile = { path = "crates/compile"}
+jdk = { path = "crates/jdk"}
+config = { path = "crates/config"}
+cli = { path = "crates/cli"}
+call_chain = { path = "crates/call_chain"}
+variables = { path = "crates/variables"}
+document = { path = "crates/document"}
+tyres = { path = "crates/tyres"}
+position = { path = "crates/position"}
+imports = { path = "crates/imports"}
+java_lsp = { path = "crates/java_lsp"}
+zip_util = { path = "crates/zip_util"}
+ast = { path = "crates/ast"}
+get_class = { path = "crates/get_class"}
+loader = { path = "crates/loader"}
+my_string = { path = "crates/my_string"}
+lsp_extra = { path = "crates/lsp_extra"}
+
+# Rest
 bitflags = { version = "2.10.0", features = ["serde"] }
 clap = { version = "4.5.54", features = ["derive"] }
 classfile-parser = { git = "https://github.com/emilycares/classfile-parser.git", branch = "module" }

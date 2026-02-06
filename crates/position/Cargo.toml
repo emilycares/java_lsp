@@ -1,6 +1,6 @@
 [package]
 name = "position"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
@@ -13,6 +13,7 @@ license.workspace = true
 lsp-types.workspace = true
 ast = { path = "../ast"}
 lsp_extra = { path = "../lsp_extra"}
+workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]
 pretty_assertions.workspace = true

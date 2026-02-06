@@ -205,11 +205,11 @@ src/main/java/org/acme/GreetingResource.java:15: error: > or ',' expected
 
     #[test]
     fn parse_compile_errors_real() {
-        let input = r#"/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java:16: error: > or ',' expected
+        let input = r"/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java:16: error: > or ',' expected
 	var hash = new HashMap<String, String();
 	                                     ^
 1 error
-"#;
+";
         let out = parse_compile_errors(input);
         assert_eq!(out, vec![
             CompileErrorMessage {
@@ -252,11 +252,11 @@ src/main/java/org/acme/GreetingResource.java:15: error: > or ',' expected
     }
     #[test]
     fn parse_compile_errors_end_note() {
-        let input = r#"
+        let input = r"
 Note: Some messages have been simplified; recompile with -Xdiags:verbose to get full output
 100 errors
 only showing the first 100 errors, of 115 total; use -Xmaxerrs if you would like to see more
-"#;
+";
         let out = parse_compile_errors(input);
         assert_eq!(out, vec![]);
     }

@@ -1,6 +1,6 @@
 [package]
 name = "server"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
@@ -18,24 +18,25 @@ lsp-types.workspace = true
 serde_json.workspace = true
 rayon.workspace = true
 jwalk.workspace = true
-format = { path = "../format"}
-parser = { path = "../parser"}
-loader = { path = "../loader"}
-maven = { path = "../maven"}
-gradle = { path = "../gradle"}
-imports = { path = "../imports"}
-tyres = { path = "../tyres"}
-position = { path = "../position"}
-document = { path = "../document"}
-variables = { path = "../variables"}
-jdk = { path = "../jdk"}
-compile = { path = "../compile"}
-call_chain = { path = "../call_chain" }
-common = { path = "../common"}
-ast = { path = "../ast"}
-get_class = { path = "../get_class"}
-my_string = { path = "../my_string"}
-lsp_extra = { path = "../lsp_extra"}
+format.workspace = true
+parser.workspace = true
+loader.workspace = true
+maven.workspace = true
+gradle.workspace = true
+imports.workspace = true
+tyres.workspace = true
+position.workspace = true
+document.workspace = true
+variables.workspace = true
+jdk.workspace = true
+compile.workspace = true
+call_chain.workspace = true
+common.workspace = true
+ast.workspace = true
+get_class.workspace = true
+my_string.workspace = true
+lsp_extra.workspace = true
+workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]
 pretty_assertions.workspace = true

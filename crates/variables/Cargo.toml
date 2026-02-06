@@ -1,6 +1,6 @@
 [package]
 name = "variables"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
@@ -13,6 +13,7 @@ license.workspace = true
 parser = {path = "../parser"}
 my_string = { path = "../my_string"}
 ast = {path = "../ast"}
+workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]
 insta.workspace = true
