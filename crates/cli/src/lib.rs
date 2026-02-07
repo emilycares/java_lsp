@@ -4,6 +4,7 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::nursery)]
 #![allow(clippy::missing_errors_doc)]
+#![allow(clippy::unused_async)]
 use std::path::Path;
 use std::time::Instant;
 use std::{fs::canonicalize, path::PathBuf};
@@ -157,7 +158,7 @@ fn lex_and_ast(file: &Path, text: &[u8]) {
     }
 }
 #[cfg(not(target_os = "windows"))]
-pub fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
+pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
     let mut count = 0;
     let time = Instant::now();
     let mut tokens = Vec::new();
@@ -185,7 +186,7 @@ pub fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
     Ok(())
 }
 #[cfg(not(target_os = "windows"))]
-pub fn ast_check_dir_ignore(folder: PathBuf, ignore: &[String]) -> Result<(), CheckError> {
+pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: &[String]) -> Result<(), CheckError> {
     let mut count = 0;
     let time = Instant::now();
     let mut tokens = Vec::new();
@@ -263,7 +264,7 @@ pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
     Ok(())
 }
 #[cfg(target_os = "windows")]
-pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<String>) -> Result<(), CheckError> {
+pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: &[String]) -> Result<(), CheckError> {
     use std::time::Duration;
 
     use tokio::task::JoinSet;
@@ -274,7 +275,7 @@ pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: Vec<String>) -> Resul
     tx.send(dir).map_err(CheckError::ChannelSend)?;
     let tx = Arc::new(tx);
     let mut handles = JoinSet::new();
-    let ignore = Arc::new(ignore);
+    let ignore = Arc::new(ignore.to_vec());
     while let Ok(dir) = rx.recv_timeout(Duration::from_millis(300)) {
         let tx = tx.clone();
         let ignore = ignore.clone();

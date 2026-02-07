@@ -134,7 +134,7 @@ pub fn load_java_files(dir: PathBuf) -> Vec<Class> {
         let tx = tx.clone();
         if let Ok(o) = visit_java_files(&dir, &tx, |p| {
             if let Some(s) = p.to_str() {
-                return load_java_fs(p, SourceDestination::Here(s.to_owned())).ok();
+                return load_java_fs(p, SourceDestination::Here(s.to_smolstr())).ok();
             }
             None
         }) {

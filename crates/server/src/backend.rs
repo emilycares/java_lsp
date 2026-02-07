@@ -951,13 +951,14 @@ pub fn get_document_map_key(uri: &Uri) -> MyString {
     uri.path().as_str().to_smolstr()
 }
 #[cfg(target_os = "windows")]
-pub fn get_document_map_key(uri: &Uri) -> String {
+pub fn get_document_map_key(uri: &Uri) -> MyString {
     uri.path()
         .as_str()
         // remove leading slash
         .trim_start_matches('/')
         // url encoded colon
         .replacen("%3A", ":", 1)
+        .to_smolstr()
 }
 
 pub async fn read_forward(

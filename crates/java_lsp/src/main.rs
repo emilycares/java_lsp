@@ -34,9 +34,9 @@ async fn main() {
         Some(Commands::AstCheckDir { folder, ignore }) => {
             if let Some(ignore) = ignore {
                 let collect: Vec<String> = ignore.split(',').map(|i| i.to_string()).collect();
-                cli::ast_check_dir_ignore(folder, &collect).unwrap();
+                cli::ast_check_dir_ignore(folder, &collect).await.unwrap();
             } else {
-                cli::ast_check_dir(folder).unwrap();
+                cli::ast_check_dir(folder).await.unwrap();
             }
         }
         Some(Commands::AstCheckJdk) => {
@@ -46,7 +46,7 @@ async fn main() {
             let (java_path, op_dir) = jdk::get_work_dirs(&path).await.unwrap();
             let (sender, _) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress::default());
             jdk::load_jdk(java_path, &op_dir, sender).await.unwrap();
-            cli::ast_check_dir(op_dir.join("src")).unwrap();
+            cli::ast_check_dir(op_dir.join("src")).await.unwrap();
         }
     }
 }
