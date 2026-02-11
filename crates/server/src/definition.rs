@@ -229,7 +229,7 @@ mod tests {
 
     #[test]
     fn definition_base() {
-        let content = r#"
+        let cont = r#"
 package ch.emilycares;
 import org.jboss.logging.Logger;
 public class Test {
@@ -241,7 +241,7 @@ public class Test {
 }
         "#;
         let point = AstPoint::new(6, 16);
-        let document = Document::setup(content, PathBuf::from_str("/Test.java").unwrap()).unwrap();
+        let document = Document::setup(cont, PathBuf::from_str("/Test.java").unwrap()).unwrap();
         let document_uri = Uri::from_str("file:///Test.java").unwrap();
         let class = parser::java::load_java_tree(&document.ast, parser::SourceDestination::None);
         let vars = variables::get_vars(&document.ast, &point).unwrap();
@@ -261,7 +261,7 @@ public class Test {
     }
     #[test]
     fn definition_stream_map() {
-        let content = r#"
+        let cont = r#"
 package ch.emilycares;
 import java.util.ArrayList;
 import java.util.List;
@@ -276,7 +276,7 @@ public class Test {
 }
         "#;
         let point = AstPoint::new(8, 24);
-        let document = Document::setup(content, PathBuf::from_str("/Test.java").unwrap()).unwrap();
+        let document = Document::setup(cont, PathBuf::from_str("/Test.java").unwrap()).unwrap();
         let document_uri = Uri::from_str("file:///Test.java").unwrap();
         let class = parser::java::load_java_tree(&document.ast, parser::SourceDestination::None);
         let vars = variables::get_vars(&document.ast, &point).unwrap();

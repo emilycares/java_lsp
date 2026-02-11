@@ -80,6 +80,7 @@ fn parse_record_entry(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstRecordEntry, usize), AstError> {
+    let start = tokens.start(pos)?;
     let (annotated, pos) = parse_annotated_list(tokens, pos)?;
     let (jtype, mut pos) = parse_jtype(tokens, pos)?;
     let mut variadic = false;
@@ -88,8 +89,10 @@ fn parse_record_entry(
         pos = npos;
     }
     let (name, pos) = parse_name(tokens, pos)?;
+    let end = tokens.end(pos)?;
     Ok((
         AstRecordEntry {
+            range: AstRange::from_position_token(start, end),
             annotated,
             jtype,
             variadic,

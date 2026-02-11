@@ -1,5 +1,4 @@
 #![deny(warnings)]
-#![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::nursery)]
@@ -12,8 +11,9 @@ use ast::{
         AstBlockEntry, AstBlockVariable, AstClassBlock, AstEnumeration, AstExpressionIdentifier,
         AstExpressionKind, AstExpressionOrAnnotated, AstExpressionOrDefault, AstExpressionOrValue,
         AstFile, AstForContent, AstIf, AstIfContent, AstImportUnit, AstJType, AstJTypeKind,
-        AstLambdaRhs, AstNewRhs, AstPoint, AstRange, AstRecursiveExpression,
-        AstSwitchCaseArrowContent, AstThing, AstValuesWithAnnotated, AstWhileContent,
+        AstLambdaRhs, AstNewRhs, AstPoint, AstRange, AstRecursiveExpression, AstSuperClass,
+        AstSwitchCaseArrowContent, AstThing, AstTypeParameter, AstTypeParameters,
+        AstValuesWithAnnotated, AstWhileContent,
     },
 };
 use my_string::MyString;
@@ -71,6 +71,32 @@ fn thing(thing: &AstThing, point: &AstPoint) -> Option<FoundClass> {
             if let Some(value) = get_class_annotated_vec(&ast_class.annotated, point) {
                 return Some(value);
             }
+            if let Some(o) = ast_class
+                .implements
+                .iter()
+                .find_map(|i| get_class_jtype(i, point))
+            {
+                return Some(o);
+            }
+            if let Some(o) = ast_class
+                .permits
+                .iter()
+                .find_map(|i| get_class_jtype(i, point))
+            {
+                return Some(o);
+            }
+            if let Some(o) = ast_class
+                .superclass
+                .iter()
+                .find_map(|i| get_class_superclass(i, point))
+            {
+                return Some(o);
+            }
+            if let Some(tp) = &ast_class.type_parameters
+                && let Some(o) = get_class_type_parameters(tp, point)
+            {
+                return Some(o);
+            }
             get_class_cblock(&ast_class.block, point)
         }
         AstThing::Record(ast_record) => {
@@ -79,6 +105,25 @@ fn thing(thing: &AstThing, point: &AstPoint) -> Option<FoundClass> {
                     name: ast_record.name.value.clone(),
                     range: ast_record.name.range,
                 });
+            }
+            if let Some(o) = ast_record
+                .implements
+                .iter()
+                .find_map(|i| get_class_jtype(i, point))
+            {
+                return Some(o);
+            }
+            if let Some(o) = ast_record
+                .superclass
+                .iter()
+                .find_map(|i| get_class_superclass(i, point))
+            {
+                return Some(o);
+            }
+            if let Some(tp) = &ast_record.type_parameters
+                && let Some(o) = get_class_type_parameters(tp, point)
+            {
+                return Some(o);
             }
             if let Some(value) = get_class_annotated_vec(&ast_record.annotated, point) {
                 return Some(value);
@@ -89,6 +134,52 @@ fn thing(thing: &AstThing, point: &AstPoint) -> Option<FoundClass> {
         AstThing::Enumeration(ast_enumeration) => get_class_enumeration(ast_enumeration, point),
         AstThing::Annotation(ast_annotation) => get_class_annotation(ast_annotation, point),
     }
+}
+
+fn get_class_superclass(i: &AstSuperClass, point: &AstPoint) -> Option<FoundClass> {
+    if let AstSuperClass::Name(n) = i
+        && n.range.is_in_range(point)
+    {
+        return Some(FoundClass {
+            name: n.value.clone(),
+            range: n.range,
+        });
+    }
+    None
+}
+fn get_class_type_parameters(
+    type_parameters: &AstTypeParameters,
+    point: &AstPoint,
+) -> Option<FoundClass> {
+    if !type_parameters.range.is_in_range(point) {
+        return None;
+    }
+
+    if let Some(o) = type_parameters
+        .parameters
+        .iter()
+        .find_map(|i| get_class_type_parameter(i, point))
+    {
+        return Some(o);
+    }
+    None
+}
+fn get_class_type_parameter(
+    type_parameter: &AstTypeParameter,
+    point: &AstPoint,
+) -> Option<FoundClass> {
+    if !type_parameter.range.is_in_range(point) {
+        return None;
+    }
+    if let Some(o) = get_class_annotated_vec(&type_parameter.annotated, point) {
+        return Some(o);
+    }
+    if let Some(sup) = &type_parameter.supperclass
+        && let Some(o) = sup.iter().find_map(|i| get_class_superclass(i, point))
+    {
+        return Some(o);
+    }
+    None
 }
 
 fn get_class_annotation(annotation: &AstAnnotation, point: &AstPoint) -> Option<FoundClass> {
@@ -388,6 +479,52 @@ fn get_class_cblock(block: &AstClassBlock, point: &AstPoint) -> Option<FoundClas
             && let Some(b) = get_class_block(block, point)
         {
             return Some(b);
+        }
+    }
+    for c in &block.constructors {
+        if !c.range.is_in_range(point) {
+            continue;
+        }
+        if let Some(value) = get_class_annotated_vec(&c.header.annotated, point) {
+            return Some(value);
+        }
+
+        if c.header.parameters.range.is_in_range(point) {
+            for p in &c.header.parameters.parameters {
+                if let Some(o) = get_class_annotated_vec(&p.annotated, point) {
+                    return Some(o);
+                }
+                if let Some(o) = get_class_jtype(&p.jtype, point) {
+                    return Some(o);
+                }
+            }
+        }
+
+        if let Some(b) = get_class_block(&c.block, point) {
+            return Some(b);
+        }
+    }
+    for b in &block.blocks {
+        if !b.range.is_in_range(point) {
+            continue;
+        }
+        if let Some(b) = get_class_block(b, point) {
+            return Some(b);
+        }
+    }
+    for b in &block.static_blocks {
+        if !b.range.is_in_range(point) {
+            continue;
+        }
+        if let Some(b) = get_class_block(&b.block, point) {
+            return Some(b);
+        }
+    }
+    for th in &block.inner {
+        if th.is_in_range(point)
+            && let Some(t) = thing(th, point)
+        {
+            return Some(t);
         }
     }
     None

@@ -191,6 +191,7 @@ pub struct AstRecordEntries {
 }
 #[derive(Debug, Clone)]
 pub struct AstRecordEntry {
+    pub range: AstRange,
     pub annotated: Vec<AstAnnotated>,
     pub jtype: AstJType,
     pub variadic: bool,

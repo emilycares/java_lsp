@@ -49,6 +49,11 @@ jobs:
         with:
           shared-key: "build"
 
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
       - name: Run cargo test
         run: cargo test --workspace
 

@@ -45,7 +45,9 @@ async fn main() {
             };
             let (java_path, op_dir) = jdk::get_work_dirs(&path).await.unwrap();
             let (sender, _) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress::default());
-            jdk::load_jdk(java_path, &op_dir, sender).await.unwrap();
+            jdk::load_jdk(&java_path, &op_dir, false, sender)
+                .await
+                .unwrap();
             cli::ast_check_dir(op_dir.join("src")).await.unwrap();
         }
     }

@@ -355,10 +355,10 @@ pub mod tests {
 
     #[test]
     fn super_class() {
-        let content = r#"
+        let content = "
 package a.test;
 public class Test extends AThing { }
-        "#;
+        ";
         let result = load_java(
             content.as_bytes(),
             SourceDestination::Here("/path/to/source/Test.java".into()),
@@ -368,12 +368,12 @@ public class Test extends AThing { }
 
     #[test]
     fn generic_type_declare() {
-        let content = r#"
+        let content = "
 package a.test;
 public class Test {
   public static <T> int add(Collection<T> list, T item){}
 }
-        "#;
+        ";
         let result = load_java(
             content.as_bytes(),
             SourceDestination::Here("/path/to/source/Test.java".into()),
@@ -440,7 +440,7 @@ public class Test {
 
     #[test]
     fn int() {
-        let src = r#"
+        let src = "
 package a.test;
 
 import jakarta.inject.Inject;
@@ -450,7 +450,7 @@ import jakarta.ws.rs.Path;
 
 public class Test {
 }
- "#;
+ ";
         let result = load_java(
             src.as_bytes(),
             SourceDestination::RelativeInFolder("/path/to/source".into()),

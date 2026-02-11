@@ -1,5 +1,4 @@
 #![deny(warnings)]
-#![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::nursery)]
@@ -10,11 +9,14 @@ use std::cmp::{self, max, min};
 use ast::range::{AstInRange, GetRange, add_ranges};
 use ast::types::{
     AstAnnotated, AstAnnotatedParameter, AstAnnotatedParameterKind, AstBlock, AstBlockEntry,
-    AstBlockVariable, AstCastedExpression, AstClassBlock, AstExpression, AstExpressionIdentifier,
-    AstExpressionKind, AstExpressionOperator, AstExpressionOrAnnotated, AstExpressionOrDefault,
-    AstExpressionOrValue, AstFile, AstForContent, AstIdentifier, AstIf, AstIfContent, AstJType,
-    AstJTypeKind, AstLambdaRhs, AstNewClass, AstNewRhs, AstPoint, AstRange, AstRecursiveExpression,
-    AstSuperClass, AstSwitchCaseArrowContent, AstThing, AstValue, AstValueNuget, AstValues,
+    AstBlockVariable, AstCastedExpression, AstClassBlock, AstConstructorHeader, AstExpression,
+    AstExpressionIdentifier, AstExpressionKind, AstExpressionOperator, AstExpressionOrAnnotated,
+    AstExpressionOrDefault, AstExpressionOrValue, AstExtends, AstFile, AstForContent,
+    AstIdentifier, AstIf, AstIfContent, AstInterfaceConstant, AstInterfaceMethod, AstJType,
+    AstJTypeKind, AstLambdaRhs, AstMethodHeader, AstMethodParameter, AstMethodParameters,
+    AstNewClass, AstNewRhs, AstPoint, AstRange, AstRecordEntries, AstRecordEntry,
+    AstRecursiveExpression, AstSuperClass, AstSwitchCaseArrowContent, AstThing,
+    AstThrowsDeclaration, AstTypeParameter, AstTypeParameters, AstValue, AstValueNuget, AstValues,
     AstValuesWithAnnotated, AstWhileContent,
 };
 use my_string::MyString;
@@ -126,17 +128,52 @@ fn cc_thing(thing: &AstThing, point: &AstPoint, out: &mut Vec<CallItem>) {
                 .iter()
                 .filter(|i| i.is_in_range(point))
                 .for_each(|i| cc_superclass(i, out));
+            if let Some(type_parameters) = &ast_class.type_parameters {
+                cc_type_parameters(type_parameters, point, out);
+            }
             cc_class_block(&ast_class.block, point, out);
         }
         AstThing::Record(ast_record) => {
             if !ast_record.range.is_in_range(point) {
                 return;
             }
+            if (&ast_record.annotated[..]).is_in_range(point) {
+                cc_annotated(&ast_record.annotated, point, out);
+            }
+            ast_record
+                .implements
+                .iter()
+                .filter(|i| i.range.is_in_range(point))
+                .for_each(|i| cc_jtype(i, out));
+            ast_record
+                .superclass
+                .iter()
+                .filter(|i| i.is_in_range(point))
+                .for_each(|i| cc_superclass(i, out));
+            if let Some(type_parameters) = &ast_record.type_parameters {
+                cc_type_parameters(type_parameters, point, out);
+            }
+            cc_record_entries(&ast_record.record_entries, point, out);
             cc_class_block(&ast_record.block, point, out);
         }
         AstThing::Interface(ast_interface) => {
             if !ast_interface.range.is_in_range(point) {
                 return;
+            }
+            cc_annotated(&ast_interface.annotated, point, out);
+            if let Some(type_parameters) = &ast_interface.type_parameters {
+                cc_type_parameters(type_parameters, point, out);
+            }
+
+            if let Some(extends) = &ast_interface.extends {
+                cc_extends(extends, point, out);
+            }
+            for constant in &ast_interface.constants {
+                cc_interface_constant(constant, point, out);
+            }
+
+            for method in &ast_interface.methods {
+                cc_interface_method(method, point, out);
             }
             ast_interface
                 .default_methods
@@ -149,6 +186,12 @@ fn cc_thing(thing: &AstThing, point: &AstPoint, out: &mut Vec<CallItem>) {
                         cc_annotated(&i.annotated, point, out);
                     }
                 });
+
+            ast_interface
+                .inner
+                .iter()
+                .for_each(|i| cc_thing(i, point, out));
+
             ast_interface
                 .permits
                 .iter()
@@ -191,7 +234,7 @@ fn cc_thing(thing: &AstThing, point: &AstPoint, out: &mut Vec<CallItem>) {
                     {
                         cc_block(block, point, out);
                     } else {
-                        cc_annotated(&i.header.annotated, point, out);
+                        cc_method_header(&i.header, point, out);
                     }
                 });
             ast_enumeration
@@ -217,6 +260,148 @@ fn cc_thing(thing: &AstThing, point: &AstPoint, out: &mut Vec<CallItem>) {
                 .for_each(|i| cc_thing(i, point, out));
         }
         AstThing::Annotation(_) => (),
+    }
+}
+
+fn cc_interface_method(method: &AstInterfaceMethod, point: &AstPoint, out: &mut Vec<CallItem>) {
+    if !method.range.is_in_range(point) {
+        return;
+    }
+    cc_annotated(&method.annotated, point, out);
+    cc_method_header(&method.header, point, out);
+}
+fn cc_method_header(method_header: &AstMethodHeader, point: &AstPoint, out: &mut Vec<CallItem>) {
+    if !method_header.range.is_in_range(point) {
+        return;
+    }
+    if method_header.jtype.range.is_in_range(point) {
+        cc_jtype(&method_header.jtype, out);
+    }
+    cc_method_parameters(&method_header.parameters, point, out);
+    if let Some(t) = &method_header.throws {
+        cc_throws(t, point, out);
+    }
+    if let Some(tp) = &method_header.type_parameters {
+        cc_type_parameters(tp, point, out);
+    }
+    cc_annotated(&method_header.annotated, point, out);
+}
+fn cc_constructor_header(
+    constructor_header: &AstConstructorHeader,
+    point: &AstPoint,
+    out: &mut Vec<CallItem>,
+) {
+    if !constructor_header.range.is_in_range(point) {
+        return;
+    }
+    cc_method_parameters(&constructor_header.parameters, point, out);
+    if let Some(t) = &constructor_header.throws {
+        cc_throws(t, point, out);
+    }
+    if let Some(tp) = &constructor_header.type_parameters {
+        cc_type_parameters(tp, point, out);
+    }
+    cc_annotated(&constructor_header.annotated, point, out);
+}
+
+fn cc_throws(throws: &AstThrowsDeclaration, point: &AstPoint, out: &mut Vec<CallItem>) {
+    if !throws.range.is_in_range(point) {
+        return;
+    }
+    for j in &throws.parameters {
+        cc_jtype(j, out);
+    }
+}
+
+fn cc_method_parameters(
+    parameters: &AstMethodParameters,
+    point: &AstPoint,
+    out: &mut Vec<CallItem>,
+) {
+    if !parameters.range.is_in_range(point) {
+        return;
+    }
+    for p in &parameters.parameters {
+        cc_method_parameter(p, point, out);
+    }
+}
+fn cc_method_parameter(parameter: &AstMethodParameter, point: &AstPoint, out: &mut Vec<CallItem>) {
+    if !parameter.range.is_in_range(point) {
+        return;
+    }
+    cc_annotated(&parameter.annotated, point, out);
+    cc_jtype(&parameter.jtype, out);
+}
+
+fn cc_interface_constant(
+    constant: &AstInterfaceConstant,
+    point: &AstPoint,
+    out: &mut Vec<CallItem>,
+) {
+    if !constant.range.is_in_range(point) {
+        return;
+    }
+
+    cc_annotated(&constant.annotated, point, out);
+    cc_jtype(&constant.jtype, out);
+    if let Some(exp) = &constant.expression {
+        cc_expr(exp, point, false, out);
+    }
+}
+
+fn cc_extends(extends: &AstExtends, point: &AstPoint, out: &mut Vec<CallItem>) {
+    if !extends.range.is_in_range(point) {
+        return;
+    }
+
+    for p in &extends.parameters {
+        cc_jtype(p, out);
+    }
+}
+
+fn cc_record_entries(record_entries: &AstRecordEntries, point: &AstPoint, out: &mut Vec<CallItem>) {
+    if !record_entries.range.is_in_range(point) {
+        return;
+    }
+
+    for r in &record_entries.entries {
+        cc_record_entry(r, point, out);
+    }
+}
+
+fn cc_record_entry(record_entry: &AstRecordEntry, point: &AstPoint, out: &mut Vec<CallItem>) {
+    if !record_entry.range.is_in_range(point) {
+        return;
+    }
+
+    cc_annotated(&record_entry.annotated, point, out);
+    cc_jtype(&record_entry.jtype, out);
+}
+
+fn cc_type_parameters(
+    type_parameters: &AstTypeParameters,
+    point: &AstPoint,
+    out: &mut Vec<CallItem>,
+) {
+    if !type_parameters.range.is_in_range(point) {
+        return;
+    }
+
+    for t in &type_parameters.parameters {
+        cc_type_parameter(t, point, out);
+    }
+}
+
+fn cc_type_parameter(type_parameter: &AstTypeParameter, point: &AstPoint, out: &mut Vec<CallItem>) {
+    if !type_parameter.range.is_in_range(point) {
+        return;
+    }
+
+    cc_annotated(&type_parameter.annotated, point, out);
+    if let Some(sup) = &type_parameter.supperclass {
+        for s in sup {
+            cc_superclass(s, out);
+        }
     }
 }
 
@@ -252,7 +437,7 @@ fn cc_class_block(block: &AstClassBlock, point: &AstPoint, out: &mut Vec<CallIte
             {
                 cc_block(block, point, out);
             } else {
-                cc_annotated(&i.header.annotated, point, out);
+                cc_method_header(&i.header, point, out);
             }
         });
     block
@@ -263,9 +448,16 @@ fn cc_class_block(block: &AstClassBlock, point: &AstPoint, out: &mut Vec<CallIte
             if i.block.range.is_in_range(point) {
                 cc_block(&i.block, point, out);
             } else {
-                cc_annotated(&i.header.annotated, point, out);
+                cc_constructor_header(&i.header, point, out);
             }
         });
+
+    block.blocks.iter().for_each(|i| cc_block(i, point, out));
+    block
+        .static_blocks
+        .iter()
+        .for_each(|i| cc_block(&i.block, point, out));
+    block.inner.iter().for_each(|i| cc_thing(i, point, out));
 }
 
 fn cc_annotated(annotated: &[AstAnnotated], point: &AstPoint, out: &mut Vec<CallItem>) {

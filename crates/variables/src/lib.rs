@@ -1,5 +1,4 @@
 #![deny(warnings)]
-#![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::nursery)]
@@ -598,7 +597,7 @@ public class Test {
     }
     #[test]
     fn get_catch_val_with_throws_method() {
-        let content = r#"
+        let content = "
 package ch.emilycares;
 public class Test {
     protected void ioStuff() throws IOException {
@@ -608,7 +607,7 @@ public class Test {
         }
     }
 }
-        "#;
+        ";
         let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
 
@@ -637,7 +636,7 @@ public class Test {
 
     #[test]
     fn in_lambda() {
-        let content = r#"
+        let content = "
 public class Test {
     public Uni<Response> test() {
         return Thing.dothing(t -> {
@@ -646,7 +645,7 @@ public class Test {
                     });
     }
 }
-"#;
+";
         let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         let out = get_vars(&ast, &AstPoint::new(4, 21)).unwrap();

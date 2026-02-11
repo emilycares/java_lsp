@@ -39,7 +39,7 @@ mod tests {
 
     #[test]
     fn load() {
-        let content = r#"
+        let content = "
         <project>
             <repositories>
                 <repository>
@@ -52,7 +52,7 @@ mod tests {
                 </repository>
             </repositories>
         </project>
-        "#;
+        ";
         let expect = Pom {
             repositories: Some(PomRepositories {
                 repository: vec![
@@ -75,10 +75,10 @@ mod tests {
 
     #[test]
     fn no_repositories() {
-        let content = r#"
+        let content = "
         <project>
         </project>
-        "#;
+        ";
         let expect = Pom { repositories: None };
 
         let out: Pom = serde_xml_rs::from_str(content).unwrap();

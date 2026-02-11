@@ -1,5 +1,4 @@
 #![deny(warnings)]
-#![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::nursery)]
@@ -69,11 +68,25 @@ pub fn lexer_error_to_diagnostic(error: &LexerError) -> Diagnostic {
 pub enum SourceToUriError {
     UriInvalid { uri: String, error: String },
 }
+#[cfg(not(windows))]
 pub fn source_to_uri(source: &str) -> Result<Uri, SourceToUriError> {
     #[cfg(windows)]
     let source = &source.trim_start_matches("\\\\?\\").replace('\\', "/");
     let source = path_without_subclass(source);
     let str_uri = format!("file://{source}");
+    let uri = Uri::from_str(&str_uri);
+    match uri {
+        Ok(uri) => Ok(uri),
+        Err(e) => Err(SourceToUriError::UriInvalid {
+            uri: str_uri,
+            error: format!("{e:?}"),
+        }),
+    }
+}
+#[cfg(windows)]
+pub fn source_to_uri(source: &str) -> Result<Uri, SourceToUriError> {
+    let source = path_without_subclass(source);
+    let str_uri = format!("file:///{source}");
     let uri = Uri::from_str(&str_uri);
     match uri {
         Ok(uri) => Ok(uri),

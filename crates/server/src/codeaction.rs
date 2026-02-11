@@ -385,7 +385,7 @@ pub mod tests {
 
     #[test]
     fn replace_type_base() {
-        let content = r#"
+        let cont = r#"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -394,7 +394,7 @@ public class Test {
 }
         "#;
         let point = AstPoint::new(4, 10);
-        let doc = Document::setup(content, PathBuf::from_str("./").unwrap()).unwrap();
+        let doc = Document::setup(cont, PathBuf::from_str("./").unwrap()).unwrap();
         let imports = vec![];
         let class = parser::java::load_java_tree(&doc.ast, parser::SourceDestination::None);
         let uri = Uri::from_str("file:///a").unwrap();
@@ -412,13 +412,13 @@ public class Test {
             lsp_types::CodeActionOrCommand::CodeAction(code_action) => {
                 assert_eq!(code_action.title, "Replace variable type with: String");
             }
-            _ => unreachable!(),
+            lsp_types::CodeActionOrCommand::Command(_) => panic!(),
         }
     }
 
     #[test]
     fn replace_type_with_argument() {
-        let content = r#"
+        let cont = r#"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -427,7 +427,7 @@ public class Test {
 }
         "#;
         let point = AstPoint::new(4, 10);
-        let doc = Document::setup(content, PathBuf::from_str("./").unwrap()).unwrap();
+        let doc = Document::setup(cont, PathBuf::from_str("./").unwrap()).unwrap();
         let imports = vec![
             ImportUnit::Class("java.io.FileInputStream".into()),
             ImportUnit::Class("java.io.File".into()),
@@ -451,13 +451,13 @@ public class Test {
                     "Replace variable type with: java.io.FileInputStream"
                 );
             }
-            _ => unreachable!(),
+            lsp_types::CodeActionOrCommand::Command(_) => panic!(),
         }
     }
 
     #[test]
     fn replace_type_method() {
-        let content = r#"
+        let cont = r#"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -467,7 +467,7 @@ public class Test {
 }
         "#;
         let point = AstPoint::new(5, 10);
-        let doc = Document::setup(content, PathBuf::from_str("./").unwrap()).unwrap();
+        let doc = Document::setup(cont, PathBuf::from_str("./").unwrap()).unwrap();
         let imports = vec![];
         let class = parser::java::load_java_tree(&doc.ast, parser::SourceDestination::None);
         let uri = Uri::from_str("file:///a").unwrap();
@@ -485,7 +485,7 @@ public class Test {
             lsp_types::CodeActionOrCommand::CodeAction(code_action) => {
                 assert_eq!(code_action.title, "Replace variable type with: int");
             }
-            _ => unreachable!(),
+            lsp_types::CodeActionOrCommand::Command(_) => panic!(),
         }
     }
     fn get_class_map() -> Arc<Mutex<HashMap<MyString, Class>>> {

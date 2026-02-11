@@ -3,9 +3,9 @@ use lsp_types::{
     CompletionOptions, CompletionParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
     DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentFormattingParams,
     DocumentSymbolParams, ExecuteCommandOptions, ExecuteCommandParams, GotoDefinitionParams,
-    HoverParams, HoverProviderCapability, OneOf, PositionEncodingKind, ReferenceParams,
-    ServerCapabilities, SignatureHelpOptions, SignatureHelpParams, TextDocumentSyncCapability,
-    TextDocumentSyncKind, TextDocumentSyncOptions, WorkspaceSymbolParams,
+    HoverParams, HoverProviderCapability, OneOf, ReferenceParams, ServerCapabilities,
+    SignatureHelpOptions, SignatureHelpParams, TextDocumentSyncCapability, TextDocumentSyncKind,
+    TextDocumentSyncOptions, WorkspaceSymbolParams,
     notification::{
         DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, DidSaveTextDocument,
         Notification,
@@ -26,7 +26,6 @@ use crate::{
 
 pub fn get_server_capabilities() -> ServerCapabilities {
     ServerCapabilities {
-        position_encoding: Some(PositionEncodingKind::UTF8),
         text_document_sync: Some(TextDocumentSyncCapability::Options(
             TextDocumentSyncOptions {
                 open_close: Some(true),

@@ -1,5 +1,4 @@
 #![deny(warnings)]
-#![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::nursery)]
@@ -533,7 +532,7 @@ public class Test {
 
     #[test]
     fn field_pos_in_lambda() {
-        let content = r#"
+        let content = "
 public class Test {
     public Uni<Response> test() {
         return Thing.dothing(t -> {
@@ -542,7 +541,7 @@ public class Test {
                     });
     }
 }
-        "#;
+        ";
         let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         let mut out = vec![];
@@ -595,12 +594,12 @@ public class Test {}
     #[ignore = "todo"]
     #[test]
     fn type_usage_base() {
-        let content = r#"
+        let content = "
 package ch.emilycares;
 public class Test {
 private StringBuilder sb = new StringBuilder();
 }
-"#;
+";
         let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         get_type_usage("StringBuilder", &ast);

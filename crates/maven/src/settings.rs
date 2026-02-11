@@ -53,7 +53,7 @@ mod tests {
 
     #[test]
     fn load() {
-        let content = r#"
+        let content = "
         <settings>
           <servers>
             <server>
@@ -68,7 +68,7 @@ mod tests {
             </server>
           </servers>
         </settings>
-        "#;
+        ";
         let expect = M2Settings {
             servers: Some(M2Servers {
                 server: vec![
@@ -94,7 +94,7 @@ mod tests {
 
     #[test]
     fn load_mirrors() {
-        let content = r#"
+        let content = "
         <settings>
           <mirrors>
             <mirror>
@@ -104,7 +104,7 @@ mod tests {
             </mirror>
           </mirrors>
         </settings>
-        "#;
+        ";
         let expect = M2Settings {
             servers: None,
             mirrors: Some(M2Mirrors {
@@ -123,10 +123,10 @@ mod tests {
 
     #[test]
     fn no_servers() {
-        let content = r#"
+        let content = "
         <settings>
         </settings>
-        "#;
+        ";
         let expect = M2Settings {
             servers: None,
             mirrors: None,

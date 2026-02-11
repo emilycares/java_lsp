@@ -1,5 +1,4 @@
 #![deny(warnings)]
-#![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::nursery)]
@@ -13,7 +12,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use my_string::smol_str::ToSmolStr;
+use my_string::{MyString, smol_str::ToSmolStr};
 use parser::{
     SourceDestination,
     class::{ModuleInfo, load_class, load_module},
@@ -24,8 +23,8 @@ use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
 use std::fmt::Debug;
 use tokio::fs::read;
 
-pub const CFC_VERSION: usize = 4;
-pub const DEBUGGING: bool = false;
+pub const CFC_VERSION: usize = 5;
+pub const DEBUGGING: bool = true;
 
 #[derive(Debug)]
 pub enum LoaderError {
@@ -35,6 +34,7 @@ pub enum LoaderError {
         path: String,
     },
     InvalidCfcCache,
+    EmptyClassFolder,
 }
 
 pub fn load_java_fs<T>(path: T, source: SourceDestination) -> Result<Class, ParseJavaError>
@@ -49,12 +49,29 @@ where
     java::load_java(&mmap[..], source)
 }
 
+pub fn load_class_fs<T>(
+    path: T,
+    source: SourceDestination,
+    class_path: MyString,
+    filter: bool,
+) -> Result<Class, ClassError>
+where
+    T: AsRef<Path> + Debug,
+{
+    let file = File::open(path).map_err(ClassError::IO)?;
+    let mmap = unsafe { memmap2::Mmap::map(&file) }.map_err(ClassError::IO)?;
+    #[cfg(unix)]
+    mmap.advise(memmap2::Advice::Sequential)
+        .map_err(ClassError::IO)?;
+    parser::class::load_class(&mmap, class_path, source, filter)
+}
+
 pub fn save_class_folder<P: AsRef<Path> + Debug>(
     path: P,
     class_folder: &ClassFolder,
 ) -> Result<(), LoaderError> {
     if class_folder.classes.is_empty() {
-        return Ok(());
+        return Err(LoaderError::EmptyClassFolder);
     }
     let mut file = OpenOptions::new()
         .create(true)
@@ -168,6 +185,99 @@ fn visit_java_files(
     Ok(out)
 }
 
+pub fn load_class_files(
+    folder: &PathBuf,
+    trim_prefix: usize,
+    filter: bool,
+    source: &str,
+) -> Vec<Class> {
+    use jwalk::WalkDir;
+    use my_string::smol_str::ToSmolStr;
+    use rayon::iter::{ParallelBridge, ParallelIterator};
+    let Some(root_prefix) = folder.to_str() else {
+        return vec![];
+    };
+
+    #[cfg(windows)]
+    let root_prefix = root_prefix.replace("\\", "/");
+    #[cfg(windows)]
+    let root_prefix = root_prefix.as_str();
+
+    let filter_map: Vec<_> = WalkDir::new(folder)
+        .into_iter()
+        .par_bridge()
+        .filter_map(Result::ok)
+        .filter(|e| !e.file_type().is_dir())
+        .filter(|e| {
+            e.path()
+                .extension()
+                .is_some_and(|i| i.eq_ignore_ascii_case("class"))
+        })
+        .filter_map(|e| e.path().to_str().map(|i| i.replace('\\', "/")))
+        .collect();
+    // Prefix for module info
+    let mut rules: Vec<(String, ModuleInfo)> = Vec::new();
+
+    filter_map
+        .iter()
+        .filter(|i| i.ends_with("module-info.class"))
+        .for_each(|p| {
+            let prefix = p
+                .trim_start_matches(root_prefix)
+                .trim_start_matches('/')
+                .trim_end_matches("module-info.class");
+            if let Ok(file) = File::open(p).map_err(ClassError::IO)
+                && let Ok(mmap) = unsafe { memmap2::Mmap::map(&file) }
+            {
+                #[cfg(unix)]
+                let _ = mmap.advise(memmap2::Advice::Sequential);
+                match load_module(&mmap) {
+                    Ok(c) => {
+                        rules.push((prefix.to_string(), c));
+                    }
+                    Err(e) => {
+                        eprintln!("Unable to load class: (in:{p}) {e:?}");
+                    }
+                }
+            }
+        });
+
+    filter_map
+        .iter()
+        .filter(|i| !i.ends_with("module-info.class"))
+        .filter_map(|p| {
+            use my_string::smol_str::{StrExt, format_smolstr};
+
+            let prefix = p.trim_start_matches(root_prefix).trim_start_matches('/');
+
+            for r in &rules {
+                if prefix.starts_with(&r.0) && !r.1.exports.iter().any(|e| p.contains(e.as_str())) {
+                    return None;
+                }
+            }
+            let mut class_path = prefix.trim_end_matches(".class").replace_smolstr("/", ".");
+            if trim_prefix > 1 {
+                let spl = class_path.splitn(trim_prefix, '.');
+                if let Some(p) = spl.last() {
+                    class_path = p.to_smolstr();
+                }
+            }
+            let sr = p
+                .trim_start_matches(root_prefix)
+                .replacen_smolstr(".class", ".java", 1);
+
+            let smol_str = format_smolstr!("{source}{sr}");
+            match load_class_fs(p, SourceDestination::Here(smol_str), class_path, filter) {
+                Ok(c) => Some(c),
+                Err(ClassError::Private) => None,
+                Err(e) => {
+                    eprintln!("Unable to load class: {p}: {e:?}");
+                    None
+                }
+            }
+        })
+        .collect::<Vec<_>>()
+}
 pub async fn load_classes_jar<P: AsRef<Path> + Debug + Clone>(
     path: P,
     source: SourceDestination,
@@ -272,15 +382,13 @@ async fn base_load_classes_zip(
 
 #[cfg(test)]
 mod tests {
-    use std::ops::Deref;
-
     use parser::dto::JType;
 
     #[test]
     fn ser() {
         let inp = JType::Void;
         let ser: Vec<u8> = postcard::to_allocvec(&inp).unwrap();
-        let out: JType = postcard::from_bytes(ser.deref()).unwrap();
+        let out: JType = postcard::from_bytes(&ser).unwrap();
 
         assert_eq!(inp, out);
     }

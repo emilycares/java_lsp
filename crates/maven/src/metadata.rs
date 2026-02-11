@@ -153,7 +153,7 @@ mod tests {
             },
         };
 
-        let out: MavenMetadata = serde_xml_rs::from_str(&content).unwrap();
+        let out: MavenMetadata = serde_xml_rs::from_str(content).unwrap();
         assert_eq!(out, expect);
 
         let info = get_metadata_info(content, "org-api").unwrap();

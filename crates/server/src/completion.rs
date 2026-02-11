@@ -254,6 +254,7 @@ pub fn classes(
     if point.col < 3 {
         return vec![];
     }
+
     let mut out = vec![];
     let mut point = *point;
     point.col -= 1;
@@ -342,6 +343,7 @@ pub fn static_methods(
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::literal_string_with_formatting_args)]
     use std::{
         collections::HashMap,
         path::PathBuf,

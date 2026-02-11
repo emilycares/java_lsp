@@ -2,7 +2,6 @@
 #![deny(warnings)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::nursery)]
-#![deny(clippy::unwrap_used)]
 #![deny(clippy::redundant_clone)]
 #![deny(clippy::enum_glob_use)]
 #![allow(clippy::missing_errors_doc)]
