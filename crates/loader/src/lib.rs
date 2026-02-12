@@ -24,7 +24,7 @@ use std::fmt::Debug;
 use tokio::fs::read;
 
 pub const CFC_VERSION: usize = 5;
-pub const DEBUGGING: bool = true;
+pub const DEBUGGING: bool = false;
 
 #[derive(Debug)]
 pub enum LoaderError {
@@ -383,6 +383,12 @@ async fn base_load_classes_zip(
 #[cfg(test)]
 mod tests {
     use parser::dto::JType;
+
+    use crate::DEBUGGING;
+    #[test]
+    fn debugging() {
+        assert_eq!(DEBUGGING, false)
+    }
 
     #[test]
     fn ser() {
