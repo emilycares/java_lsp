@@ -340,7 +340,7 @@ async fn extract_source_zip(path: &Path, op_dir: &Path) -> Result<(), JdkError> 
 }
 
 async fn unzip_to_dir(dir: &Path, zip: &PathBuf) -> Result<(), JdkError> {
-    if !std::fs::exists(&zip).unwrap_or(false) {
+    if !std::fs::exists(zip).unwrap_or(false) {
         return Err(JdkError::Unzip(zip.to_str().map(ToOwned::to_owned)));
     }
     if !dir.exists() {

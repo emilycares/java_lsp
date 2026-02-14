@@ -35,7 +35,7 @@ pub fn load_class(
             if !filter {
                 return true;
             }
-            i.access_flags
+            !i.access_flags
                 .intersects(MethodAccessFlags::PRIVATE | MethodAccessFlags::PROTECTED)
         })
         .filter_map(|method| {
@@ -67,7 +67,7 @@ pub fn load_class(
             if !filter {
                 return true;
             }
-            i.access_flags
+            !i.access_flags
                 .intersects(FieldAccessFlags::PRIVATE | FieldAccessFlags::PROTECTED)
         })
         .filter_map(|field| {

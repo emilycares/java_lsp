@@ -1,5 +1,4 @@
 #![deny(missing_docs)]
-#![deny(warnings)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::nursery)]
 #![deny(clippy::redundant_clone)]

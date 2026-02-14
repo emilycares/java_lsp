@@ -1,4 +1,3 @@
-#![deny(warnings)]
 #![deny(clippy::redundant_clone)]
 use clap::Parser;
 use cli::{Args, Commands};

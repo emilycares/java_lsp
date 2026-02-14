@@ -1,4 +1,3 @@
-#![deny(warnings)]
 #![deny(clippy::redundant_clone)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::nursery)]

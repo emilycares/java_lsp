@@ -2,7 +2,7 @@ dev:
   cargo build
 
 clippy: 
-  cargo clippy --workspace
+  cargo clippy --workspace -- -Dwarnings
 
 test:
   cargo nextest run --workspace

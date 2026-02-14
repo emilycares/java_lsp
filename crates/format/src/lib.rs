@@ -1,4 +1,3 @@
-#![deny(warnings)]
 #![deny(clippy::redundant_clone)]
 use std::{path::PathBuf, process::Command};
 

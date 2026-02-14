@@ -1,4 +1,3 @@
-#![deny(warnings)]
 #![deny(clippy::redundant_clone)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::nursery)]
@@ -23,7 +22,7 @@ use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
 use std::fmt::Debug;
 use tokio::fs::read;
 
-pub const CFC_VERSION: usize = 5;
+pub const CFC_VERSION: usize = 6;
 pub const DEBUGGING: bool = false;
 
 #[derive(Debug)]
@@ -386,8 +385,8 @@ mod tests {
 
     use crate::DEBUGGING;
     #[test]
-    fn debugging() {
-        assert_eq!(DEBUGGING, false)
+    fn not_debugging() {
+        assert!(!DEBUGGING);
     }
 
     #[test]

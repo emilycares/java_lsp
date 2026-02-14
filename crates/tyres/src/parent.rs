@@ -100,6 +100,17 @@ fn load_parent(
             {
                 return Some(o);
             }
+            if let Some(package) = imports.iter().find_map(|i| match i {
+                ImportUnit::Package(smol_str) => Some(smol_str),
+                _ => None,
+            }) {
+                let key = format_smolstr!("{package}.{n}");
+                if let Ok(cm) = class_map.lock()
+                    && let Some(o) = cm.get(&key)
+                {
+                    return Some(o.clone());
+                }
+            }
             let import_result = is_imported(n, imports, class_map);
             match import_result {
                 Some(ImportResult::Class(imp) | ImportResult::StaticClass(imp)) => {
