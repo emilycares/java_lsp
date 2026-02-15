@@ -125,6 +125,7 @@ AstFile {
                                     value: "main",
                                 },
                                 jtype: AstJType {
+                                    annotated: [],
                                     range: AstRange {
                                         start: AstPoint {
                                             line: 2,
@@ -162,6 +163,7 @@ AstFile {
                                             },
                                             annotated: [],
                                             jtype: AstJType {
+                                                annotated: [],
                                                 range: AstRange {
                                                     start: AstPoint {
                                                         line: 2,
@@ -174,6 +176,7 @@ AstFile {
                                                 },
                                                 value: Array(
                                                     AstJType {
+                                                        annotated: [],
                                                         range: AstRange {
                                                             start: AstPoint {
                                                                 line: 2,
@@ -630,6 +633,7 @@ AstFile {
                                                                 fin: false,
                                                                 annotated: [],
                                                                 jtype: AstJType {
+                                                                    annotated: [],
                                                                     range: AstRange {
                                                                         start: AstPoint {
                                                                             line: 13,
@@ -942,6 +946,7 @@ AstFile {
                                                                 fin: false,
                                                                 annotated: [],
                                                                 jtype: AstJType {
+                                                                    annotated: [],
                                                                     range: AstRange {
                                                                         start: AstPoint {
                                                                             line: 15,
@@ -1255,6 +1260,7 @@ AstFile {
                                                     fin: false,
                                                     annotated: [],
                                                     jtype: AstJType {
+                                                        annotated: [],
                                                         range: AstRange {
                                                             start: AstPoint {
                                                                 line: 17,
@@ -1267,6 +1273,7 @@ AstFile {
                                                         },
                                                         value: Array(
                                                             AstJType {
+                                                                annotated: [],
                                                                 range: AstRange {
                                                                     start: AstPoint {
                                                                         line: 17,
@@ -1800,6 +1807,7 @@ AstFile {
                                                     fin: false,
                                                     annotated: [],
                                                     jtype: AstJType {
+                                                        annotated: [],
                                                         range: AstRange {
                                                             start: AstPoint {
                                                                 line: 19,
@@ -1812,6 +1820,7 @@ AstFile {
                                                         },
                                                         value: Array(
                                                             AstJType {
+                                                                annotated: [],
                                                                 range: AstRange {
                                                                     start: AstPoint {
                                                                         line: 19,
@@ -1824,6 +1833,7 @@ AstFile {
                                                                 },
                                                                 value: Array(
                                                                     AstJType {
+                                                                        annotated: [],
                                                                         range: AstRange {
                                                                             start: AstPoint {
                                                                                 line: 19,
@@ -2444,6 +2454,7 @@ AstFile {
                                                         fin: false,
                                                         annotated: [],
                                                         jtype: AstJType {
+                                                            annotated: [],
                                                             range: AstRange {
                                                                 start: AstPoint {
                                                                     line: 21,
@@ -2715,6 +2726,7 @@ AstFile {
                                                                                     },
                                                                                 },
                                                                                 cast: AstJType {
+                                                                                    annotated: [],
                                                                                     range: AstRange {
                                                                                         start: AstPoint {
                                                                                             line: 22,
@@ -2768,6 +2780,7 @@ AstFile {
                                                     fin: false,
                                                     annotated: [],
                                                     jtype: AstJType {
+                                                        annotated: [],
                                                         range: AstRange {
                                                             start: AstPoint {
                                                                 line: 24,
@@ -2853,6 +2866,7 @@ AstFile {
                                                     fin: false,
                                                     annotated: [],
                                                     jtype: AstJType {
+                                                        annotated: [],
                                                         range: AstRange {
                                                             start: AstPoint {
                                                                 line: 25,
@@ -2893,6 +2907,7 @@ AstFile {
                                                                         },
                                                                     },
                                                                     cast: AstJType {
+                                                                        annotated: [],
                                                                         range: AstRange {
                                                                             start: AstPoint {
                                                                                 line: 25,
@@ -2961,6 +2976,7 @@ AstFile {
                                                     fin: false,
                                                     annotated: [],
                                                     jtype: AstJType {
+                                                        annotated: [],
                                                         range: AstRange {
                                                             start: AstPoint {
                                                                 line: 26,
@@ -4761,6 +4777,7 @@ AstFile {
                                                     fin: false,
                                                     annotated: [],
                                                     jtype: AstJType {
+                                                        annotated: [],
                                                         range: AstRange {
                                                             start: AstPoint {
                                                                 line: 39,
@@ -4860,6 +4877,7 @@ AstFile {
                                                     fin: false,
                                                     annotated: [],
                                                     jtype: AstJType {
+                                                        annotated: [],
                                                         range: AstRange {
                                                             start: AstPoint {
                                                                 line: 40,
@@ -5958,6 +5976,7 @@ AstFile {
                                                             },
                                                             jtypes: [
                                                                 AstJType {
+                                                                    annotated: [],
                                                                     range: AstRange {
                                                                         start: AstPoint {
                                                                             line: 62,
@@ -6046,6 +6065,7 @@ AstFile {
                                                                     fin: false,
                                                                     annotated: [],
                                                                     jtype: AstJType {
+                                                                        annotated: [],
                                                                         range: AstRange {
                                                                             start: AstPoint {
                                                                                 line: 66,
@@ -6058,6 +6078,7 @@ AstFile {
                                                                         },
                                                                         value: Array(
                                                                             AstJType {
+                                                                                annotated: [],
                                                                                 range: AstRange {
                                                                                     start: AstPoint {
                                                                                         line: 66,
@@ -6563,6 +6584,7 @@ AstFile {
                                                             },
                                                             jtypes: [
                                                                 AstJType {
+                                                                    annotated: [],
                                                                     range: AstRange {
                                                                         start: AstPoint {
                                                                             line: 68,
@@ -7151,6 +7173,7 @@ AstFile {
                                                                     fin: false,
                                                                     annotated: [],
                                                                     jtype: AstJType {
+                                                                        annotated: [],
                                                                         range: AstRange {
                                                                             start: AstPoint {
                                                                                 line: 74,
@@ -7275,6 +7298,7 @@ AstFile {
                                                             },
                                                             jtypes: [
                                                                 AstJType {
+                                                                    annotated: [],
                                                                     range: AstRange {
                                                                         start: AstPoint {
                                                                             line: 75,
@@ -7302,6 +7326,7 @@ AstFile {
                                                                     ),
                                                                 },
                                                                 AstJType {
+                                                                    annotated: [],
                                                                     range: AstRange {
                                                                         start: AstPoint {
                                                                             line: 75,
@@ -7359,6 +7384,7 @@ AstFile {
                                                                             fin: false,
                                                                             annotated: [],
                                                                             jtype: AstJType {
+                                                                                annotated: [],
                                                                                 range: AstRange {
                                                                                     start: AstPoint {
                                                                                         line: 76,
@@ -7483,6 +7509,7 @@ AstFile {
                                                             },
                                                             jtypes: [
                                                                 AstJType {
+                                                                    annotated: [],
                                                                     range: AstRange {
                                                                         start: AstPoint {
                                                                             line: 77,
@@ -7540,6 +7567,7 @@ AstFile {
                                                                             fin: false,
                                                                             annotated: [],
                                                                             jtype: AstJType {
+                                                                                annotated: [],
                                                                                 range: AstRange {
                                                                                     start: AstPoint {
                                                                                         line: 78,
@@ -7656,6 +7684,7 @@ AstFile {
                                                                         fin: false,
                                                                         annotated: [],
                                                                         jtype: AstJType {
+                                                                            annotated: [],
                                                                             range: AstRange {
                                                                                 start: AstPoint {
                                                                                     line: 80,
@@ -7830,6 +7859,7 @@ AstFile {
                                                                                 },
                                                                             },
                                                                             jtype: AstJType {
+                                                                                annotated: [],
                                                                                 range: AstRange {
                                                                                     start: AstPoint {
                                                                                         line: 83,
@@ -7882,6 +7912,7 @@ AstFile {
                                                                                                     },
                                                                                                 },
                                                                                                 jtype: AstJType {
+                                                                                                    annotated: [],
                                                                                                     range: AstRange {
                                                                                                         start: AstPoint {
                                                                                                             line: 83,
@@ -8500,6 +8531,7 @@ AstFile {
                                                             },
                                                             jtypes: [
                                                                 AstJType {
+                                                                    annotated: [],
                                                                     range: AstRange {
                                                                         start: AstPoint {
                                                                             line: 87,
@@ -9022,6 +9054,7 @@ AstFile {
                                                                         fin: false,
                                                                         annotated: [],
                                                                         jtype: AstJType {
+                                                                            annotated: [],
                                                                             range: AstRange {
                                                                                 start: AstPoint {
                                                                                     line: 94,
@@ -9076,6 +9109,7 @@ AstFile {
                                                                                             },
                                                                                         },
                                                                                         jtype: AstJType {
+                                                                                            annotated: [],
                                                                                             range: AstRange {
                                                                                                 start: AstPoint {
                                                                                                     line: 94,
@@ -9138,6 +9172,7 @@ AstFile {
                                                                         fin: false,
                                                                         annotated: [],
                                                                         jtype: AstJType {
+                                                                            annotated: [],
                                                                             range: AstRange {
                                                                                 start: AstPoint {
                                                                                     line: 95,
@@ -9192,6 +9227,7 @@ AstFile {
                                                                                             },
                                                                                         },
                                                                                         jtype: AstJType {
+                                                                                            annotated: [],
                                                                                             range: AstRange {
                                                                                                 start: AstPoint {
                                                                                                     line: 95,
@@ -9567,6 +9603,7 @@ AstFile {
                                                                 },
                                                             },
                                                             jtype: AstJType {
+                                                                annotated: [],
                                                                 range: AstRange {
                                                                     start: AstPoint {
                                                                         line: 100,
@@ -10031,6 +10068,7 @@ AstFile {
                                                                                                                         },
                                                                                                                     },
                                                                                                                     cast: AstJType {
+                                                                                                                        annotated: [],
                                                                                                                         range: AstRange {
                                                                                                                             start: AstPoint {
                                                                                                                                 line: 101,
@@ -10093,6 +10131,7 @@ AstFile {
                                                     fin: false,
                                                     annotated: [],
                                                     jtype: AstJType {
+                                                        annotated: [],
                                                         range: AstRange {
                                                             start: AstPoint {
                                                                 line: 102,
@@ -10627,6 +10666,7 @@ AstFile {
                                                     fin: false,
                                                     annotated: [],
                                                     jtype: AstJType {
+                                                        annotated: [],
                                                         range: AstRange {
                                                             start: AstPoint {
                                                                 line: 114,
@@ -10681,6 +10721,7 @@ AstFile {
                                                                         },
                                                                     },
                                                                     jtype: AstJType {
+                                                                        annotated: [],
                                                                         range: AstRange {
                                                                             start: AstPoint {
                                                                                 line: 114,
@@ -10761,6 +10802,7 @@ AstFile {
                                                                                             value: "getAge",
                                                                                         },
                                                                                         jtype: AstJType {
+                                                                                            annotated: [],
                                                                                             range: AstRange {
                                                                                                 start: AstPoint {
                                                                                                     line: 116,
@@ -11271,6 +11313,7 @@ AstFile {
                                                                 },
                                                             },
                                                             cast: AstJType {
+                                                                annotated: [],
                                                                 range: AstRange {
                                                                     start: AstPoint {
                                                                         line: 121,
@@ -11638,6 +11681,7 @@ AstFile {
                                 value: "x",
                             },
                             jtype: AstJType {
+                                annotated: [],
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 127,
@@ -11767,6 +11811,7 @@ AstFile {
                                                 value: "y",
                                             },
                                             jtype: AstJType {
+                                                annotated: [],
                                                 range: AstRange {
                                                     start: AstPoint {
                                                         line: 130,
@@ -11916,6 +11961,7 @@ AstFile {
                                     value: "animalSound",
                                 },
                                 jtype: AstJType {
+                                    annotated: [],
                                     range: AstRange {
                                         start: AstPoint {
                                             line: 134,
@@ -11986,6 +12032,7 @@ AstFile {
                                     value: "sleep",
                                 },
                                 jtype: AstJType {
+                                    annotated: [],
                                     range: AstRange {
                                         start: AstPoint {
                                             line: 135,

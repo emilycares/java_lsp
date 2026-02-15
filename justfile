@@ -5,7 +5,7 @@ clippy:
   cargo clippy --workspace -- -Dwarnings
 
 test:
-  cargo nextest run --workspace
+  cargo-nextest nextest run --workspace
 
 wtest:
   watchexec -e rs cargo nextest run --workspace

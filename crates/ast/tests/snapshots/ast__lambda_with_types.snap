@@ -1,7 +1,6 @@
 ---
-source: ast/tests/ast.rs
+source: crates/ast/tests/ast.rs
 expression: parsed
-snapshot_kind: text
 ---
 (
     AstLambda {
@@ -40,6 +39,7 @@ snapshot_kind: text
                     },
                     jtype: Some(
                         AstJType {
+                            annotated: [],
                             range: AstRange {
                                 start: AstPoint {
                                     line: 0,
@@ -94,6 +94,7 @@ snapshot_kind: text
                     },
                     jtype: Some(
                         AstJType {
+                            annotated: [],
                             range: AstRange {
                                 start: AstPoint {
                                     line: 0,

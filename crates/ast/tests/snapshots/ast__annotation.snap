@@ -1,5 +1,5 @@
 ---
-source: ast/tests/ast.rs
+source: crates/ast/tests/ast.rs
 expression: parsed.unwrap()
 ---
 AstFile {
@@ -96,6 +96,7 @@ AstFile {
                         ),
                         annotated: [],
                         jtype: AstJType {
+                            annotated: [],
                             range: AstRange {
                                 start: AstPoint {
                                     line: 2,
@@ -179,6 +180,7 @@ AstFile {
                         ),
                         annotated: [],
                         jtype: AstJType {
+                            annotated: [],
                             range: AstRange {
                                 start: AstPoint {
                                     line: 3,

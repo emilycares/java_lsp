@@ -1,5 +1,5 @@
 ---
-source: ast/tests/ast.rs
+source: crates/ast/tests/ast.rs
 expression: parsed.unwrap()
 ---
 AstFile {
@@ -247,6 +247,7 @@ AstFile {
                         },
                         parameters: [
                             AstJType {
+                                annotated: [],
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 8,
@@ -274,6 +275,7 @@ AstFile {
                                 ),
                             },
                             AstJType {
+                                annotated: [],
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 8,
@@ -346,6 +348,7 @@ AstFile {
                                 value: "stream",
                             },
                             jtype: AstJType {
+                                annotated: [],
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 9,
@@ -372,6 +375,7 @@ AstFile {
                                     },
                                     [
                                         AstJType {
+                                            annotated: [],
                                             range: AstRange {
                                                 start: AstPoint {
                                                     line: 9,

@@ -1,9 +1,10 @@
 ---
-source: ast/tests/ast.rs
+source: crates/ast/tests/ast.rs
 expression: parsed
 ---
 (
     AstJType {
+        annotated: [],
         range: AstRange {
             start: AstPoint {
                 line: 0,
@@ -16,6 +17,7 @@ expression: parsed
         },
         value: Array(
             AstJType {
+                annotated: [],
                 range: AstRange {
                     start: AstPoint {
                         line: 0,

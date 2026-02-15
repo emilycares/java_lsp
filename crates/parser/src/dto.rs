@@ -309,6 +309,7 @@ mod tests {
     #[test]
     fn jtype_map() {
         let inp = AstJType {
+            annotated: Vec::new(),
             range: AstRange::default(),
             value: AstJTypeKind::Generic(
                 AstIdentifier {
@@ -320,6 +321,7 @@ mod tests {
                 },
                 vec![
                     AstJType {
+                        annotated: Vec::new(),
                         range: AstRange {
                             start: AstPoint { line: 6, col: 39 },
                             end: AstPoint { line: 6, col: 50 },
@@ -327,6 +329,7 @@ mod tests {
                         value: AstJTypeKind::Wildcard,
                     },
                     AstJType {
+                        annotated: Vec::new(),
                         range: AstRange {
                             start: AstPoint { line: 6, col: 49 },
                             end: AstPoint { line: 6, col: 50 },

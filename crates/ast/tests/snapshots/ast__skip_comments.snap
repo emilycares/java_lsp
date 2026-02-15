@@ -1,5 +1,5 @@
 ---
-source: ast/tests/ast.rs
+source: crates/ast/tests/ast.rs
 expression: parsed.unwrap()
 ---
 AstFile {
@@ -114,6 +114,7 @@ AstFile {
                                 value: "publicproperty",
                             },
                             jtype: AstJType {
+                                annotated: [],
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 5,
@@ -160,6 +161,7 @@ AstFile {
                                 value: "privateproperty",
                             },
                             jtype: AstJType {
+                                annotated: [],
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 7,
@@ -206,6 +208,7 @@ AstFile {
                                 value: "privateproperty",
                             },
                             jtype: AstJType {
+                                annotated: [],
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 12,

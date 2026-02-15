@@ -1736,6 +1736,7 @@ fn parse_array_type_on_name(tokens: &[PositionToken], pos: usize, jtype: &mut As
         pos = npos;
         let orig = jtype.clone();
         *jtype = AstJType {
+            annotated: Vec::new(),
             range: jtype.range,
             value: AstJTypeKind::Array(Box::new(orig)),
         };
@@ -3376,6 +3377,7 @@ pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, us
         pos = npos;
         let end = tokens.end(pos)?;
         let mut out = AstJType {
+            annotated: annotated.clone(),
             range: AstRange::from_position_token(start, end),
             value: primitive,
         };
@@ -3388,21 +3390,24 @@ pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, us
             if let Ok(npos) = assert_token(tokens, npos, Token::RightParenSquare) {
                 pos = npos;
                 let end = tokens.end(pos)?;
-                out = AstJType {
-                    range: AstRange::from_position_token(start, end),
-                    value: AstJTypeKind::Array(Box::new(out)),
-                };
                 if let Ok((anno, npos)) = parse_annotated_list(tokens, pos) {
                     annotated.extend(anno);
                     pos = npos;
                 }
+                out = AstJType {
+                    annotated: annotated.clone(),
+                    range: AstRange::from_position_token(start, end),
+                    value: AstJTypeKind::Array(Box::new(out)),
+                };
             } else {
                 break;
             }
         }
+        out.annotated = annotated;
         Ok((out, pos))
     } else if let Ok(current) = tokens.get(pos).ok_or_else(AstError::eof) {
         let mut out = AstJType {
+            annotated: Vec::new(),
             range: AstRange::default(),
             value: AstJTypeKind::Void,
         };
@@ -3430,6 +3435,7 @@ pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, us
                     pos = npos;
                     let end = tokens.end(pos)?;
                     out = AstJType {
+                        annotated: Vec::new(),
                         range: AstRange::from_position_token(start, end),
                         value: AstJTypeKind::Array(Box::new(out)),
                     };
@@ -3444,24 +3450,31 @@ pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, us
             let end = tokens.end(pos)?;
             out.range = AstRange::from_position_token(start, end);
 
-            if let Ok(npos) = assert_token(tokens, pos, Token::Dot)
-                && let Ok((inner, npos)) = parse_jtype(tokens, npos)
-            {
-                out.value = AstJTypeKind::Access {
-                    base: Box::new(AstJType {
-                        range: AstRange::from_position_token(start, end),
-                        value: out.value,
-                    }),
-                    inner: Box::new(inner),
-                };
-                pos = npos;
-                let end = tokens.end(pos)?;
-                out.range = AstRange::from_position_token(start, end);
+            if let Ok(npos) = assert_token(tokens, pos, Token::Dot) {
+                let mut npos = npos;
+                if let Ok((anno, nnpos)) = parse_annotated_list(tokens, npos) {
+                    annotated.extend(anno);
+                    npos = nnpos;
+                }
+                if let Ok((inner, npos)) = parse_jtype(tokens, npos) {
+                    out.value = AstJTypeKind::Access {
+                        base: Box::new(AstJType {
+                            annotated: Vec::new(),
+                            range: AstRange::from_position_token(start, end),
+                            value: out.value,
+                        }),
+                        inner: Box::new(inner),
+                    };
+                    pos = npos;
+                    let end = tokens.end(pos)?;
+                    out.range = AstRange::from_position_token(start, end);
+                }
             }
         }
-        if AstJTypeKind::Void == out.value {
+        if matches!(out.value, AstJTypeKind::Void) {
             return Err(AstError::InvalidJtype(InvalidToken(pos)));
         }
+        out.annotated = annotated;
         Ok((out, pos))
     } else {
         Err(AstError::InvalidJtype(InvalidToken(pos)))
@@ -3497,6 +3510,7 @@ fn parse_jtype_generics(
             }
             let end = tokens.get(pos).ok_or_else(AstError::eof)?;
             generic_arguments.push(AstJType {
+                annotated: Vec::new(),
                 range: AstRange::from_position_token(start, end),
                 value: AstJTypeKind::Wildcard,
             });

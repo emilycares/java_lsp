@@ -1,5 +1,5 @@
 ---
-source: ast/tests/ast.rs
+source: crates/ast/tests/ast.rs
 expression: parsed
 ---
 (
@@ -42,6 +42,7 @@ expression: parsed
                 value: "create",
             },
             jtype: AstJType {
+                annotated: [],
                 range: AstRange {
                     start: AstPoint {
                         line: 0,
@@ -93,6 +94,7 @@ expression: parsed
                         },
                         annotated: [],
                         jtype: AstJType {
+                            annotated: [],
                             range: AstRange {
                                 start: AstPoint {
                                     line: 0,

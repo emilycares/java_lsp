@@ -1,5 +1,5 @@
 ---
-source: ast/tests/ast.rs
+source: crates/ast/tests/ast.rs
 expression: parsed.unwrap()
 ---
 AstFile {
@@ -114,6 +114,7 @@ AstFile {
                                 value: "noprop",
                             },
                             jtype: AstJType {
+                                annotated: [],
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 3,
@@ -160,6 +161,7 @@ AstFile {
                                 value: "publicproperty",
                             },
                             jtype: AstJType {
+                                annotated: [],
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 7,
@@ -206,6 +208,7 @@ AstFile {
                                 value: "privateproperty",
                             },
                             jtype: AstJType {
+                                annotated: [],
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 8,
@@ -264,6 +267,7 @@ AstFile {
                                     value: "method",
                                 },
                                 jtype: AstJType {
+                                    annotated: [],
                                     range: AstRange {
                                         start: AstPoint {
                                             line: 10,
@@ -348,6 +352,7 @@ AstFile {
                                     value: "public_method",
                                 },
                                 jtype: AstJType {
+                                    annotated: [],
                                     range: AstRange {
                                         start: AstPoint {
                                             line: 13,
@@ -432,6 +437,7 @@ AstFile {
                                     value: "private_method",
                                 },
                                 jtype: AstJType {
+                                    annotated: [],
                                     range: AstRange {
                                         start: AstPoint {
                                             line: 16,
@@ -516,6 +522,7 @@ AstFile {
                                     value: "out",
                                 },
                                 jtype: AstJType {
+                                    annotated: [],
                                     range: AstRange {
                                         start: AstPoint {
                                             line: 19,
@@ -656,6 +663,7 @@ AstFile {
                                     value: "add",
                                 },
                                 jtype: AstJType {
+                                    annotated: [],
                                     range: AstRange {
                                         start: AstPoint {
                                             line: 29,
@@ -693,6 +701,7 @@ AstFile {
                                             },
                                             annotated: [],
                                             jtype: AstJType {
+                                                annotated: [],
                                                 range: AstRange {
                                                     start: AstPoint {
                                                         line: 29,
@@ -734,6 +743,7 @@ AstFile {
                                             },
                                             annotated: [],
                                             jtype: AstJType {
+                                                annotated: [],
                                                 range: AstRange {
                                                     start: AstPoint {
                                                         line: 29,
@@ -936,6 +946,7 @@ AstFile {
                                     value: "sadd",
                                 },
                                 jtype: AstJType {
+                                    annotated: [],
                                     range: AstRange {
                                         start: AstPoint {
                                             line: 33,
@@ -973,6 +984,7 @@ AstFile {
                                             },
                                             annotated: [],
                                             jtype: AstJType {
+                                                annotated: [],
                                                 range: AstRange {
                                                     start: AstPoint {
                                                         line: 33,
@@ -1014,6 +1026,7 @@ AstFile {
                                             },
                                             annotated: [],
                                             jtype: AstJType {
+                                                annotated: [],
                                                 range: AstRange {
                                                     start: AstPoint {
                                                         line: 33,

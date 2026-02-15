@@ -1,5 +1,5 @@
 ---
-source: ast/tests/ast.rs
+source: crates/ast/tests/ast.rs
 expression: parsed.unwrap()
 ---
 AstFile {
@@ -142,6 +142,7 @@ AstFile {
                                 value: "a",
                             },
                             jtype: AstJType {
+                                annotated: [],
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 4,
@@ -168,6 +169,7 @@ AstFile {
                                     },
                                     [
                                         AstJType {
+                                            annotated: [],
                                             range: AstRange {
                                                 start: AstPoint {
                                                     line: 4,
@@ -212,6 +214,7 @@ AstFile {
                                                 },
                                             },
                                             jtype: AstJType {
+                                                annotated: [],
                                                 range: AstRange {
                                                     start: AstPoint {
                                                         line: 4,
@@ -301,6 +304,7 @@ AstFile {
                                     value: "hereIsCode",
                                 },
                                 jtype: AstJType {
+                                    annotated: [],
                                     range: AstRange {
                                         start: AstPoint {
                                             line: 6,
@@ -359,6 +363,7 @@ AstFile {
                                                     fin: false,
                                                     annotated: [],
                                                     jtype: AstJType {
+                                                        annotated: [],
                                                         range: AstRange {
                                                             start: AstPoint {
                                                                 line: 7,
@@ -385,6 +390,7 @@ AstFile {
                                                             },
                                                             [
                                                                 AstJType {
+                                                                    annotated: [],
                                                                     range: AstRange {
                                                                         start: AstPoint {
                                                                             line: 7,
@@ -412,6 +418,7 @@ AstFile {
                                                                     ),
                                                                 },
                                                                 AstJType {
+                                                                    annotated: [],
                                                                     range: AstRange {
                                                                         start: AstPoint {
                                                                             line: 7,
@@ -469,6 +476,7 @@ AstFile {
                                                                         },
                                                                     },
                                                                     jtype: AstJType {
+                                                                        annotated: [],
                                                                         range: AstRange {
                                                                             start: AstPoint {
                                                                                 line: 7,
@@ -779,6 +787,7 @@ AstFile {
                                     value: "hereIsCode",
                                 },
                                 jtype: AstJType {
+                                    annotated: [],
                                     range: AstRange {
                                         start: AstPoint {
                                             line: 10,
@@ -816,6 +825,7 @@ AstFile {
                                             },
                                             annotated: [],
                                             jtype: AstJType {
+                                                annotated: [],
                                                 range: AstRange {
                                                     start: AstPoint {
                                                         line: 10,
@@ -857,6 +867,7 @@ AstFile {
                                             },
                                             annotated: [],
                                             jtype: AstJType {
+                                                annotated: [],
                                                 range: AstRange {
                                                     start: AstPoint {
                                                         line: 10,
@@ -920,6 +931,7 @@ AstFile {
                                                     fin: false,
                                                     annotated: [],
                                                     jtype: AstJType {
+                                                        annotated: [],
                                                         range: AstRange {
                                                             start: AstPoint {
                                                                 line: 11,

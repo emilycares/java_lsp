@@ -4,6 +4,7 @@ expression: parsed
 ---
 (
     AstJType {
+        annotated: [],
         range: AstRange {
             start: AstPoint {
                 line: 0,
@@ -16,6 +17,7 @@ expression: parsed
         },
         value: Array(
             AstJType {
+                annotated: [],
                 range: AstRange {
                     start: AstPoint {
                         line: 0,
@@ -42,6 +44,7 @@ expression: parsed
                     },
                     [
                         AstJType {
+                            annotated: [],
                             range: AstRange {
                                 start: AstPoint {
                                     line: 0,

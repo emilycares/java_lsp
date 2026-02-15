@@ -632,12 +632,13 @@ pub enum AstThing {
     Annotation(AstAnnotation),
 }
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone)]
 pub struct AstJType {
+    pub annotated: Vec<AstAnnotated>,
     pub range: AstRange,
     pub value: AstJTypeKind,
 }
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default)]
 pub enum AstJTypeKind {
     #[default]
     Void,

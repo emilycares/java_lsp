@@ -1,5 +1,5 @@
 ---
-source: ast/tests/ast.rs
+source: crates/ast/tests/ast.rs
 expression: parsed
 ---
 (
@@ -33,6 +33,7 @@ expression: parsed
                 value: "pdStore",
             },
             jtype: AstJType {
+                annotated: [],
                 range: AstRange {
                     start: AstPoint {
                         line: 0,
@@ -59,6 +60,7 @@ expression: parsed
                     },
                     [
                         AstJType {
+                            annotated: [],
                             range: AstRange {
                                 start: AstPoint {
                                     line: 0,
@@ -86,6 +88,7 @@ expression: parsed
                             ),
                         },
                         AstJType {
+                            annotated: [],
                             range: AstRange {
                                 start: AstPoint {
                                     line: 0,
@@ -112,6 +115,7 @@ expression: parsed
                                 },
                                 [
                                     AstJType {
+                                        annotated: [],
                                         range: AstRange {
                                             start: AstPoint {
                                                 line: 0,
@@ -159,6 +163,7 @@ expression: parsed
                                 },
                             },
                             jtype: AstJType {
+                                annotated: [],
                                 range: AstRange {
                                     start: AstPoint {
                                         line: 0,

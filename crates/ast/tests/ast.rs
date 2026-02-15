@@ -536,3 +536,13 @@ fn colon_colon_new() {
     assert_eq!(tokens.len(), parsed.1);
     insta::assert_debug_snapshot!(parsed);
 }
+#[test]
+fn complicated_type() {
+    let content = r#"CustomPacketPayload.@NotNull Type<? extends @NotNull CustomPacketPayload>"#;
+    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let parsed = parse_jtype(&tokens, 0);
+    parsed.print_err(content, &tokens);
+    let parsed = parsed.unwrap();
+    assert_eq!(tokens.len(), parsed.1);
+    insta::assert_debug_snapshot!(parsed);
+}

@@ -1,0 +1,176 @@
+---
+source: crates/ast/tests/ast.rs
+expression: parsed
+---
+(
+    AstJType {
+        annotated: [
+            AstAnnotated {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 20,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 28,
+                    },
+                },
+                name: AstIdentifier {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 0,
+                            col: 21,
+                        },
+                        end: AstPoint {
+                            line: 0,
+                            col: 28,
+                        },
+                    },
+                    value: "NotNull",
+                },
+                parameters: None,
+            },
+        ],
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 0,
+                col: 73,
+            },
+        },
+        value: Access {
+            base: AstJType {
+                annotated: [],
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 0,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 19,
+                    },
+                },
+                value: Class(
+                    AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 0,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 19,
+                            },
+                        },
+                        value: "CustomPacketPayload",
+                    },
+                ),
+            },
+            inner: AstJType {
+                annotated: [],
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 29,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 73,
+                    },
+                },
+                value: Generic(
+                    AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint {
+                                line: 0,
+                                col: 29,
+                            },
+                            end: AstPoint {
+                                line: 0,
+                                col: 33,
+                            },
+                        },
+                        value: "Type",
+                    },
+                    [
+                        AstJType {
+                            annotated: [],
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 34,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 45,
+                                },
+                            },
+                            value: Wildcard,
+                        },
+                        AstJType {
+                            annotated: [
+                                AstAnnotated {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 0,
+                                            col: 44,
+                                        },
+                                        end: AstPoint {
+                                            line: 0,
+                                            col: 52,
+                                        },
+                                    },
+                                    name: AstIdentifier {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 0,
+                                                col: 45,
+                                            },
+                                            end: AstPoint {
+                                                line: 0,
+                                                col: 52,
+                                            },
+                                        },
+                                        value: "NotNull",
+                                    },
+                                    parameters: None,
+                                },
+                            ],
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 0,
+                                    col: 44,
+                                },
+                                end: AstPoint {
+                                    line: 0,
+                                    col: 72,
+                                },
+                            },
+                            value: Class(
+                                AstIdentifier {
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 0,
+                                            col: 53,
+                                        },
+                                        end: AstPoint {
+                                            line: 0,
+                                            col: 72,
+                                        },
+                                    },
+                                    value: "CustomPacketPayload",
+                                },
+                            ),
+                        },
+                    ],
+                ),
+            },
+        },
+    },
+    12,
+)

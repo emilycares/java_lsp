@@ -1,7 +1,6 @@
 ---
-source: ast/tests/ast.rs
+source: crates/ast/tests/ast.rs
 expression: parsed.unwrap()
-snapshot_kind: text
 ---
 (
     AstNewClass {
@@ -16,6 +15,7 @@ snapshot_kind: text
             },
         },
         jtype: AstJType {
+            annotated: [],
             range: AstRange {
                 start: AstPoint {
                     line: 0,
@@ -28,6 +28,7 @@ snapshot_kind: text
             },
             value: Array(
                 AstJType {
+                    annotated: [],
                     range: AstRange {
                         start: AstPoint {
                             line: 0,
@@ -69,6 +70,7 @@ snapshot_kind: text
                                     },
                                 },
                                 cast: AstJType {
+                                    annotated: [],
                                     range: AstRange {
                                         start: AstPoint {
                                             line: 0,
