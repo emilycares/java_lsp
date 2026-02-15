@@ -69,8 +69,6 @@ pub enum SourceToUriError {
 }
 #[cfg(not(windows))]
 pub fn source_to_uri(source: &str) -> Result<Uri, SourceToUriError> {
-    #[cfg(windows)]
-    let source = &source.trim_start_matches("\\\\?\\").replace('\\', "/");
     let source = path_without_subclass(source);
     let str_uri = format!("file://{source}");
     let uri = Uri::from_str(&str_uri);
@@ -84,6 +82,8 @@ pub fn source_to_uri(source: &str) -> Result<Uri, SourceToUriError> {
 }
 #[cfg(windows)]
 pub fn source_to_uri(source: &str) -> Result<Uri, SourceToUriError> {
+    #[cfg(windows)]
+    let source = &source.trim_start_matches("\\\\?\\").replace('\\', "/");
     let source = path_without_subclass(source);
     let str_uri = format!("file:///{source}");
     let uri = Uri::from_str(&str_uri);
