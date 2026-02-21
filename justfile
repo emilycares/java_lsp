@@ -23,4 +23,7 @@ doc:
 nix:
   nix flake check
 
+jdk:
+  cargo run --release -- ast-check-jdk
+
 precommit: fmt check test clippy doc dev nix

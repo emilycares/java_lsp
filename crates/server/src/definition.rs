@@ -55,7 +55,7 @@ pub fn class(
         Ok((class, _range)) => {
             let mut ranges = vec![];
             let uri = class_to_uri(&class)?;
-            if let Ok(c) = read_document_or_open_class(&class.source, document_map) {
+            if let Ok(c) = read_document_or_open_class(&class.get_source(), document_map) {
                 position::get_class_position_ast(&c.ast, Some(&class.name), &mut ranges);
             }
             Ok(go_to_definition_range(uri, &ranges)?)
@@ -82,18 +82,18 @@ pub fn call_chain_definition(
     .map_err(DefinitionError::Tyres)?;
     match relevant.get(item) {
         Some(CallItem::This { range: _ }) => {
-            let uri =
-                source_to_uri(&resolve_state.class.source).map_err(DefinitionError::SourceToUri)?;
-            let ast = document::get_ast(&resolve_state.class.source, context.document_map)
+            let uri = source_to_uri(&resolve_state.class.get_source())
+                .map_err(DefinitionError::SourceToUri)?;
+            let ast = document::get_ast(&resolve_state.class.get_source(), context.document_map)
                 .map_err(DefinitionError::Document)?;
             let mut ranges = Vec::new();
             position::get_class_position_ast(&ast, None, &mut ranges);
             Ok(go_to_definition_range(uri, &ranges)?)
         }
         Some(CallItem::Class { name, range: _ }) => {
-            let uri =
-                source_to_uri(&resolve_state.class.source).map_err(DefinitionError::SourceToUri)?;
-            let ast = document::get_ast(&resolve_state.class.source, context.document_map)
+            let uri = source_to_uri(&resolve_state.class.get_source())
+                .map_err(DefinitionError::SourceToUri)?;
+            let ast = document::get_ast(&resolve_state.class.get_source(), context.document_map)
                 .map_err(DefinitionError::Document)?;
             let mut ranges = Vec::new();
             position::get_class_position_ast(&ast, Some(name), &mut ranges);
@@ -108,7 +108,7 @@ pub fn call_chain_definition(
                 .find_map(|i| i.source.clone())
             {
                 Some(method_source) => method_source,
-                None => resolve_state.class.source,
+                None => resolve_state.class.get_source(),
             };
 
             let ast = document::get_ast(&source_file, context.document_map)
@@ -127,7 +127,7 @@ pub fn call_chain_definition(
                 .find_map(|i| i.source.clone())
             {
                 Some(method_source) => method_source,
-                None => resolve_state.class.source,
+                None => resolve_state.class.get_source(),
             };
             let ast = document::get_ast(&source_file, context.document_map)
                 .map_err(DefinitionError::Document)?;
@@ -188,7 +188,7 @@ pub fn call_chain_definition(
 }
 
 pub fn class_to_uri(class: &Class) -> Result<Uri, DefinitionError> {
-    source_to_uri(&class.source).map_err(DefinitionError::SourceToUri)
+    source_to_uri(&class.get_source()).map_err(DefinitionError::SourceToUri)
 }
 
 fn go_to_definition_range(
@@ -223,7 +223,7 @@ fn go_to_definition_range(
 mod tests {
     use std::{path::PathBuf, str::FromStr};
 
-    use parser::dto::{Access, JType, Method};
+    use parser::dto::{Access, JType, Method, SourceDestination};
 
     use super::*;
 
@@ -243,7 +243,7 @@ public class Test {
         let point = AstPoint::new(6, 16);
         let document = Document::setup(cont, PathBuf::from_str("/Test.java").unwrap()).unwrap();
         let document_uri = Uri::from_str("file:///Test.java").unwrap();
-        let class = parser::java::load_java_tree(&document.ast, parser::SourceDestination::None);
+        let class = parser::java::load_java_tree(&document.ast, SourceDestination::None);
         let vars = variables::get_vars(&document.ast, &point).unwrap();
         let imports = imports::imports(&document.ast);
         let call_chain = call_chain::get_call_chain(&document.ast, &point);
@@ -278,7 +278,7 @@ public class Test {
         let point = AstPoint::new(8, 24);
         let document = Document::setup(cont, PathBuf::from_str("/Test.java").unwrap()).unwrap();
         let document_uri = Uri::from_str("file:///Test.java").unwrap();
-        let class = parser::java::load_java_tree(&document.ast, parser::SourceDestination::None);
+        let class = parser::java::load_java_tree(&document.ast, SourceDestination::None);
         let vars = variables::get_vars(&document.ast, &point).unwrap();
         let imports = imports::imports(&document.ast);
         let call_chain = call_chain::get_call_chain(&document.ast, &point);
@@ -299,7 +299,7 @@ public class Test {
         class_map.insert(
             "org.jboss.logging.Logger".into(),
             Class {
-                source: "/Logger.java".into(),
+                source: SourceDestination::None,
                 access: Access::Public,
                 name: "Logger".into(),
                 methods: vec![Method {
@@ -314,7 +314,7 @@ public class Test {
         class_map.insert(
             "java.util.List".into(),
             Class {
-                source: "/List.java".into(),
+                source: SourceDestination::None,
                 access: Access::Public,
                 name: "List".into(),
                 methods: vec![Method {
@@ -329,7 +329,7 @@ public class Test {
         class_map.insert(
             "java.util.stream.Stream".into(),
             Class {
-                source: "/Stream.java".into(),
+                source: SourceDestination::None,
                 access: Access::Public,
                 name: "Stream".into(),
                 methods: vec![Method {

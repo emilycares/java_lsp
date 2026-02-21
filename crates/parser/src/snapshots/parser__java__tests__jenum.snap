@@ -4,7 +4,7 @@ expression: result.unwrap()
 ---
 Class {
     class_path: "ch.emilycares.Variants",
-    source: "/path/to/source/ch/emilycares/Variants.java",
+    source: None,
     access: Access(
         Public,
     ),

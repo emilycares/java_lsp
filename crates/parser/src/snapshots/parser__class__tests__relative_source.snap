@@ -1,10 +1,10 @@
 ---
-source: parser/src/class.rs
+source: crates/parser/src/class.rs
 expression: result.unwrap()
 ---
 Class {
     class_path: "ch.emilycares.Everything",
-    source: "/source/ch/emilycares/Everything.java",
+    source: None,
     access: Access(
         0x0,
     ),

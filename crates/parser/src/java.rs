@@ -11,12 +11,12 @@ use ast::{
 };
 use my_string::{
     MyString,
-    smol_str::{SmolStr, SmolStrBuilder, ToSmolStr, format_smolstr},
+    smol_str::{SmolStr, SmolStrBuilder},
 };
 
-use crate::{
-    SourceDestination,
-    dto::{Access, Class, ClassError, Field, ImportUnit, JType, Method, Parameter, SuperClass},
+use crate::dto::{
+    Access, Class, ClassError, Field, ImportUnit, JType, Method, Parameter, SourceDestination,
+    SuperClass,
 };
 
 #[derive(Debug)]
@@ -104,13 +104,6 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
             }
         }
     }
-    let source = match source {
-        SourceDestination::RelativeInFolder(e) => {
-            format_smolstr!("{}/{}/{}.java", e, &class_path_base.replace('.', "/"), name)
-        }
-        SourceDestination::Here(e) => e.replace('\\', "/").to_smolstr(),
-        SourceDestination::None => SmolStr::new(""),
-    };
     let mut class_path = SmolStrBuilder::new();
     class_path.push_str(&class_path_base);
     class_path.push('.');
@@ -340,7 +333,7 @@ fn check_type_parameters(
 
 #[cfg(test)]
 pub mod tests {
-    use crate::SourceDestination;
+    use crate::dto::SourceDestination;
 
     use super::load_java;
 
@@ -348,7 +341,7 @@ pub mod tests {
     fn jtype_recognition() {
         let result = load_java(
             include_bytes!("../test/Types.java"),
-            SourceDestination::Here("/path/to/source/Test.java".into()),
+            SourceDestination::None,
         );
         insta::assert_debug_snapshot!(result.unwrap());
     }
@@ -359,10 +352,7 @@ pub mod tests {
 package a.test;
 public class Test extends AThing { }
         ";
-        let result = load_java(
-            content.as_bytes(),
-            SourceDestination::Here("/path/to/source/Test.java".into()),
-        );
+        let result = load_java(content.as_bytes(), SourceDestination::None);
         insta::assert_debug_snapshot!(result.unwrap());
     }
 
@@ -374,20 +364,14 @@ public class Test {
   public static <T> int add(Collection<T> list, T item){}
 }
         ";
-        let result = load_java(
-            content.as_bytes(),
-            SourceDestination::Here("/path/to/source/Test.java".into()),
-        );
+        let result = load_java(content.as_bytes(), SourceDestination::None);
         insta::assert_debug_snapshot!(result.unwrap());
     }
 
     #[test]
     fn thrower() {
         let content = include_str!("../test/Thrower.java");
-        let result = load_java(
-            content.as_bytes(),
-            SourceDestination::Here("/path/to/source/Thrower.java".into()),
-        );
+        let result = load_java(content.as_bytes(), SourceDestination::None);
         insta::assert_debug_snapshot!(result.unwrap());
     }
 
@@ -395,7 +379,7 @@ public class Test {
     fn interface_constants() {
         let result = load_java(
             include_bytes!("../test/Constants.java"),
-            SourceDestination::RelativeInFolder("/path/to/source".into()),
+            SourceDestination::None,
         );
 
         insta::assert_debug_snapshot!(result.unwrap());
@@ -405,7 +389,7 @@ public class Test {
     fn interface_base() {
         let result = load_java(
             include_bytes!("../test/InterfaceBase.java"),
-            SourceDestination::RelativeInFolder("/path/to/source".into()),
+            SourceDestination::None,
         );
 
         insta::assert_debug_snapshot!(result.unwrap());
@@ -415,7 +399,7 @@ public class Test {
     fn jenum() {
         let result = load_java(
             include_bytes!("../test/Variants.java"),
-            SourceDestination::RelativeInFolder("/path/to/source".into()),
+            SourceDestination::None,
         );
         insta::assert_debug_snapshot!(result.unwrap());
     }
@@ -424,7 +408,7 @@ public class Test {
     fn jannotation() {
         let result = load_java(
             include_bytes!("../test/Annotation.java"),
-            SourceDestination::RelativeInFolder("/path/to/source".into()),
+            SourceDestination::None,
         );
         insta::assert_debug_snapshot!(result.unwrap());
     }
@@ -451,10 +435,7 @@ import jakarta.ws.rs.Path;
 public class Test {
 }
  ";
-        let result = load_java(
-            src.as_bytes(),
-            SourceDestination::RelativeInFolder("/path/to/source".into()),
-        );
+        let result = load_java(src.as_bytes(), SourceDestination::None);
 
         insta::assert_debug_snapshot!(result.unwrap());
     }

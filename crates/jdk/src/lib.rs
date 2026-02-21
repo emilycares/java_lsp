@@ -19,10 +19,7 @@ use std::{
 use common::TaskProgress;
 use loader::{CFC_VERSION, load_class_files};
 use my_string::MyString;
-use parser::{
-    SourceDestination,
-    dto::{Class, ClassFolder},
-};
+use parser::dto::{Class, ClassFolder, SourceDestination};
 use tokio::{process::Command, task::JoinSet};
 
 #[cfg(not(target_os = "windows"))]
@@ -408,7 +405,7 @@ mod tests {
         let string = out.classes.iter().find(|i| i.name == "String");
         assert!(string.is_some());
         assert_eq!(string.unwrap().class_path, "java.lang.String");
-        let source = &string.unwrap().source;
+        let source = &string.unwrap().get_source();
         assert!(source.ends_with("src/java.base/java/lang/String.java"));
         assert!(fs::exists(source).unwrap());
     }
@@ -425,7 +422,7 @@ mod tests {
         let string = out.classes.iter().find(|i| i.name == "String");
         assert!(string.is_some());
         assert_eq!(string.unwrap().class_path, "java.lang.String");
-        let source = &string.unwrap().source;
+        let source = &string.unwrap().get_source();
         assert!(
             source
                 .replace("\\", "/")

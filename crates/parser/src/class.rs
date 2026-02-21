@@ -1,6 +1,4 @@
-use std::path::{MAIN_SEPARATOR, MAIN_SEPARATOR_STR};
-
-use crate::SourceDestination;
+use crate::dto::SourceDestination;
 use crate::dto::{
     Access, Class, ClassError, Field, ImportUnit, JType, Method, Parameter, SuperClass,
 };
@@ -11,7 +9,7 @@ use classfile_parser::field_info::{FieldAccessFlags, FieldInfo};
 use classfile_parser::method_info::MethodAccessFlags;
 use classfile_parser::{ClassAccessFlags, ClassFile, class_parser};
 use my_string::MyString;
-use my_string::smol_str::{SmolStr, ToSmolStr, format_smolstr};
+use my_string::smol_str::ToSmolStr;
 
 pub fn load_class(
     bytes: &[u8],
@@ -92,16 +90,6 @@ pub fn load_class(
             .map(ImportUnit::Class),
     );
 
-    let source = match source {
-        SourceDestination::RelativeInFolder(e) => format_smolstr!(
-            "{}{}{}.java",
-            e,
-            MAIN_SEPARATOR,
-            &class_path.replace('.', MAIN_SEPARATOR_STR)
-        ),
-        SourceDestination::Here(e) => e,
-        SourceDestination::None => SmolStr::new(""),
-    };
     let super_interfaces: Vec<_> = c
         .interfaces
         .iter()
@@ -497,10 +485,8 @@ pub fn load_module(bytes: &[u8]) -> Result<ModuleInfo, ClassError> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        SourceDestination,
-        class::{load_class, load_module},
-    };
+    use crate::class::{load_class, load_module};
+    use crate::dto::SourceDestination;
 
     #[cfg(not(windows))]
     #[test]
@@ -508,7 +494,7 @@ mod tests {
         let result = load_class(
             include_bytes!("../test/Everything.class"),
             "ch.emilycares.Everything".into(),
-            SourceDestination::RelativeInFolder("/source".into()),
+            SourceDestination::None,
             false,
         );
         insta::assert_debug_snapshot!(result.unwrap());
@@ -541,7 +527,7 @@ mod tests {
         let result = load_class(
             include_bytes!("../test/Thrower.class"),
             "ch.emilycares.Thrower".into(),
-            SourceDestination::Here("/path/to/source/Thrower.java".into()),
+            SourceDestination::None,
             false,
         );
         insta::assert_debug_snapshot!(result.unwrap());

@@ -10,7 +10,7 @@ use std::{
 
 use common::{Dependency, TaskProgress, deps_dir};
 use my_string::smol_str::ToSmolStr;
-use parser::SourceDestination;
+use parser::dto::SourceDestination;
 use reqwest::{Client, StatusCode};
 use tokio::task::JoinSet;
 

@@ -13,16 +13,15 @@ use std::{
 
 use my_string::{MyString, smol_str::ToSmolStr};
 use parser::{
-    SourceDestination,
     class::{ModuleInfo, load_class, load_module},
-    dto::{Class, ClassError, ClassFolder},
+    dto::{Class, ClassError, ClassFolder, SourceDestination},
     java::{self, ParseJavaError},
 };
 use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
 use std::fmt::Debug;
 use tokio::fs::read;
 
-pub const CFC_VERSION: usize = 6;
+pub const CFC_VERSION: usize = 7;
 pub const DEBUGGING: bool = false;
 
 #[derive(Debug)]

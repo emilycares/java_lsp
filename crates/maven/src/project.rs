@@ -12,7 +12,7 @@ use std::{
 use common::{Dependency, TaskProgress, deps_dir};
 use loader::{CFC_VERSION, LoaderError};
 use my_string::{MyString, smol_str::ToSmolStr};
-use parser::dto::{Class, ClassFolder};
+use parser::dto::{Class, ClassFolder, SourceDestination};
 use tokio::task::JoinSet;
 
 use crate::{
@@ -171,7 +171,7 @@ async fn reindex(
     if let Some(source) = source.as_path().to_str() {
         match loader::load_classes_jar(
             &jar,
-            parser::SourceDestination::RelativeInFolder(source.to_smolstr()),
+            SourceDestination::RelativeInFolder(source.to_smolstr()),
         )
         .await
         {

@@ -10,7 +10,7 @@ use lsp_extra::{ToLspRangeError, to_lsp_range};
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
 use my_string::MyString;
 use parser::{
-    dto::{Access, Class, Field, ImportUnit, JType, Method},
+    dto::{Access, Class, Field, ImportUnit, JType, Method, SourceDestination},
     java::load_java_tree,
 };
 use tyres::TyresError;
@@ -155,7 +155,7 @@ pub fn call_chain_hover(
                 return Ok(class_to_hover(&resolve_state.class, range));
             }
 
-            let local_class = load_java_tree(ast, parser::SourceDestination::None);
+            let local_class = load_java_tree(ast, SourceDestination::None);
             Ok(class_to_hover(&local_class, range))
         }
         CallItem::ArgumentList {

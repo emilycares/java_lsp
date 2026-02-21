@@ -376,7 +376,7 @@ pub mod tests {
     use document::Document;
     use lsp_types::Uri;
     use my_string::MyString;
-    use parser::dto::{Access, Class, ImportUnit, JType, Method};
+    use parser::dto::{Access, Class, ImportUnit, JType, Method, SourceDestination};
     use pretty_assertions::assert_eq;
 
     use crate::codeaction::replace_with_value_type;
@@ -396,7 +396,7 @@ public class Test {
         let point = AstPoint::new(4, 10);
         let doc = Document::setup(cont, PathBuf::from_str("./").unwrap()).unwrap();
         let imports = vec![];
-        let class = parser::java::load_java_tree(&doc.ast, parser::SourceDestination::None);
+        let class = parser::java::load_java_tree(&doc.ast, SourceDestination::None);
         let uri = Uri::from_str("file:///a").unwrap();
         let context = CodeActionContext {
             point: &point,
@@ -432,7 +432,7 @@ public class Test {
             ImportUnit::Class("java.io.FileInputStream".into()),
             ImportUnit::Class("java.io.File".into()),
         ];
-        let class = parser::java::load_java_tree(&doc.ast, parser::SourceDestination::None);
+        let class = parser::java::load_java_tree(&doc.ast, SourceDestination::None);
         let uri = Uri::from_str("file:///a").unwrap();
         let context = CodeActionContext {
             point: &point,
@@ -469,7 +469,7 @@ public class Test {
         let point = AstPoint::new(5, 10);
         let doc = Document::setup(cont, PathBuf::from_str("./").unwrap()).unwrap();
         let imports = vec![];
-        let class = parser::java::load_java_tree(&doc.ast, parser::SourceDestination::None);
+        let class = parser::java::load_java_tree(&doc.ast, SourceDestination::None);
         let uri = Uri::from_str("file:///a").unwrap();
         let context = CodeActionContext {
             point: &point,

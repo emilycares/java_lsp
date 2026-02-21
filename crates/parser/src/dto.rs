@@ -1,8 +1,14 @@
-use std::fmt::Display;
+use std::{
+    fmt::Display,
+    path::{MAIN_SEPARATOR, MAIN_SEPARATOR_STR},
+};
 
 use ast::types::{AstAvailability, AstImport, AstImportUnit, AstJType, AstJTypeKind};
 use bitflags::bitflags;
-use my_string::MyString;
+use my_string::{
+    MyString,
+    smol_str::{SmolStr, format_smolstr},
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
@@ -33,7 +39,7 @@ impl ClassFolder {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
 pub struct Class {
     pub class_path: MyString,
-    pub source: MyString,
+    pub source: SourceDestination,
     pub access: Access,
     pub imports: Vec<ImportUnit>,
     pub name: MyString,
@@ -48,6 +54,28 @@ impl Class {
         self.imports = vec![];
         self
     }
+
+    #[must_use]
+    pub fn get_source(&self) -> MyString {
+        match &self.source {
+            SourceDestination::RelativeInFolder(e) => format_smolstr!(
+                "{}{}{}.java",
+                e,
+                MAIN_SEPARATOR,
+                &self.class_path.replace('.', MAIN_SEPARATOR_STR)
+            ),
+            SourceDestination::Here(e) => e.clone(),
+            SourceDestination::None => SmolStr::new(""),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum SourceDestination {
+    Here(MyString),
+    RelativeInFolder(MyString),
+    #[default]
+    None,
 }
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone, Default)]

@@ -4,7 +4,7 @@ expression: result.unwrap()
 ---
 Class {
     class_path: "ch.emilycares.Thrower",
-    source: "/path/to/source/Thrower.java",
+    source: None,
     access: Access(
         Public,
     ),

@@ -7,19 +7,11 @@ pub mod class;
 pub mod dto;
 pub mod java;
 
-use std::{fmt::Debug, path::Path};
+use std::path::Path;
 
 use ast::types::AstFile;
-use my_string::MyString;
 
-use crate::dto::Class;
-
-#[derive(Debug, Clone)]
-pub enum SourceDestination {
-    Here(MyString),
-    RelativeInFolder(MyString),
-    None,
-}
+use crate::dto::{Class, SourceDestination};
 
 pub fn update_project_java_file<T: AsRef<Path>>(file: T, ast: &AstFile) -> Class {
     java::load_java_tree(
