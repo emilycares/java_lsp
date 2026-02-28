@@ -9,7 +9,7 @@ impl zed::Extension for JavaLsp {
         _worktree: &Worktree,
     ) -> Result<Command> {
         Ok(zed::Command {
-            command: r#"../../../target/debug/java_lsp"#.to_owned(),
+            command: r#"java_lsp.exe"#.to_owned(),
             args: vec![],
             env: vec![],
         })
