@@ -35,7 +35,12 @@ export function activate(context: ExtensionContext) {
   // Options to control the language client
   const clientOptions: LanguageClientOptions = {
     // Register the server for plain text documents
-    documentSelector: [{ scheme: "file", language: "java" }],
+    documentSelector: [
+      { scheme: "file", language: "java" },
+      { scheme: "file", language: "xml" },
+      { scheme: "file", language: 'gradle' },
+      { scheme: "file", language: 'kotlin' }
+    ],
     synchronize: {
       configurationSection: "java",
     },

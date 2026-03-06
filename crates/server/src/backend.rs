@@ -14,14 +14,15 @@ use gradle::project::get_gradle_cache_path;
 use lsp_extra::{SERVER_NAME, source_to_uri, to_ast_point};
 use lsp_server::{Connection, Message};
 use lsp_types::{
-    ClientCapabilities, CodeActionParams, CodeActionResponse, CompletionParams, CompletionResponse,
-    Diagnostic, DiagnosticSeverity, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
-    DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentFormattingParams,
-    DocumentSymbolParams, DocumentSymbolResponse, ExecuteCommandParams, GotoDefinitionParams,
-    GotoDefinitionResponse, Hover, HoverParams, Location, Position, ProgressParams,
-    ProgressParamsValue, ProgressToken, PublishDiagnosticsParams, Range, ReferenceParams,
-    SignatureHelp, SignatureHelpParams, TextEdit, Uri, WorkDoneProgress, WorkDoneProgressBegin,
-    WorkDoneProgressEnd, WorkDoneProgressReport, WorkspaceSymbolParams, WorkspaceSymbolResponse,
+    ClientCapabilities, CodeActionOrCommand, CodeActionParams, CodeActionResponse, Command,
+    CompletionParams, CompletionResponse, Diagnostic, DiagnosticSeverity,
+    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+    DidSaveTextDocumentParams, DocumentFormattingParams, DocumentSymbolParams,
+    DocumentSymbolResponse, ExecuteCommandParams, GotoDefinitionParams, GotoDefinitionResponse,
+    Hover, HoverParams, Location, Position, ProgressParams, ProgressParamsValue, ProgressToken,
+    PublishDiagnosticsParams, Range, ReferenceParams, SignatureHelp, SignatureHelpParams, TextEdit,
+    Uri, WorkDoneProgress, WorkDoneProgressBegin, WorkDoneProgressEnd, WorkDoneProgressReport,
+    WorkspaceSymbolParams, WorkspaceSymbolResponse,
     notification::{Notification, Progress, PublishDiagnostics},
 };
 use maven::{
@@ -153,7 +154,7 @@ impl Backend {
             token: token.to_owned(),
             value: ProgressParamsValue::WorkDone(WorkDoneProgress::Report(
                 WorkDoneProgressReport {
-                    cancellable: None,
+                    cancellable: Some(false),
                     message: Some(message),
                     percentage: Some(percentage),
                 },
@@ -382,8 +383,15 @@ impl Backend {
     }
 
     pub fn did_open(&self, params: &DidOpenTextDocumentParams) {
+        if !Path::new(params.text_document.uri.path().as_str())
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+        {
+            return;
+        }
         let path = params.text_document.uri.path();
         let path_str = path.as_str();
+
         let errors = self.compile(path_str);
         let mut current_file_diagnostics =
             self.publish_compile_errors(errors, &params.text_document.uri);
@@ -419,6 +427,13 @@ impl Backend {
     }
 
     pub fn did_change(&self, params: &DidChangeTextDocumentParams) {
+        if !Path::new(params.text_document.uri.path().as_str())
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+        {
+            return;
+        }
+
         let Ok(mut dm) = self.document_map.lock() else {
             return;
         };
@@ -444,6 +459,12 @@ impl Backend {
     pub fn did_save(&self, params: &DidSaveTextDocumentParams) {
         let path = params.text_document.uri.path();
         let path_str = path.as_str();
+        if !Path::new(path_str)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+        {
+            return;
+        }
         let errors = self.compile(path_str);
         let current_file_diagnostics =
             self.publish_compile_errors(errors, &params.text_document.uri);
@@ -473,6 +494,19 @@ impl Backend {
     }
 
     pub fn hover(&self, params: HoverParams) -> Option<Hover> {
+        if !Path::new(
+            params
+                .text_document_position_params
+                .text_document
+                .uri
+                .path()
+                .as_str(),
+        )
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+        {
+            return None;
+        }
         let uri = params.text_document_position_params.text_document.uri;
         let Ok(dm) = self.document_map.lock() else {
             return None;
@@ -498,6 +532,12 @@ impl Backend {
     }
 
     pub fn formatting(&self, params: DocumentFormattingParams) -> Option<Vec<TextEdit>> {
+        if !Path::new(params.text_document.uri.path().as_str())
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+        {
+            return None;
+        }
         let uri = params.text_document.uri;
         let Ok(mut dm) = self.document_map.lock() else {
             return None;
@@ -525,6 +565,19 @@ impl Backend {
     }
 
     pub fn completion(&self, params: CompletionParams) -> Option<CompletionResponse> {
+        if !Path::new(
+            params
+                .text_document_position
+                .text_document
+                .uri
+                .path()
+                .as_str(),
+        )
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+        {
+            return None;
+        }
         let params = params.text_document_position;
         let uri = params.text_document.uri;
         let document;
@@ -603,6 +656,19 @@ impl Backend {
     }
 
     pub fn goto_definition(&self, params: GotoDefinitionParams) -> Option<GotoDefinitionResponse> {
+        if !Path::new(
+            params
+                .text_document_position_params
+                .text_document
+                .uri
+                .path()
+                .as_str(),
+        )
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+        {
+            return None;
+        }
         let params = params.text_document_position_params;
         let uri = params.text_document.uri;
         let document;
@@ -665,6 +731,19 @@ impl Backend {
     }
 
     pub fn references(&self, params: ReferenceParams) -> Option<Vec<Location>> {
+        if !Path::new(
+            params
+                .text_document_position
+                .text_document
+                .uri
+                .path()
+                .as_str(),
+        )
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+        {
+            return None;
+        }
         let params = params.text_document_position;
         let uri = params.text_document.uri;
         let document;
@@ -739,6 +818,31 @@ impl Backend {
     }
 
     pub fn code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
+        let path_str = params.text_document.uri.path().as_str();
+        dbg!(&path_str);
+        if !Path::new(path_str)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+        {
+            if path_str.ends_with("pom.xml")
+                || path_str.ends_with("build.gradle")
+                || path_str.ends_with("build.gradle.kts")
+            {
+                return Some(vec![
+                    CodeActionOrCommand::Command(Command {
+                        title: "Reload Dependencies".to_string(),
+                        command: COMMAND_RELOAD_DEPENDENCIES.to_owned(),
+                        arguments: None,
+                    }),
+                    CodeActionOrCommand::Command(Command {
+                        title: "Update Dependencies".to_string(),
+                        command: UPDATE_DEPENDENCIES.to_owned(),
+                        arguments: None,
+                    }),
+                ]);
+            }
+            return None;
+        }
         let document;
         if let Ok(dm) = self.document_map.lock()
             && let Some(doc) = dm.get(&get_document_map_key(&params.text_document.uri))
@@ -798,6 +902,12 @@ impl Backend {
     }
 
     pub fn document_symbol(&self, params: DocumentSymbolParams) -> Option<DocumentSymbolResponse> {
+        if !Path::new(params.text_document.uri.path().as_str())
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+        {
+            return None;
+        }
         let document;
         if let Ok(dm) = self.document_map.lock()
             && let Some(doc) = dm.get(&get_document_map_key(&params.text_document.uri))
@@ -863,6 +973,19 @@ impl Backend {
     }
 
     pub fn signature_help(&self, params: SignatureHelpParams) -> Option<SignatureHelp> {
+        if !Path::new(
+            params
+                .text_document_position_params
+                .text_document
+                .uri
+                .path()
+                .as_str(),
+        )
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+        {
+            return None;
+        }
         let uri = params.text_document_position_params.text_document.uri;
         let document;
         if let Ok(dm) = self.document_map.lock()
