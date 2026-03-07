@@ -1,0 +1,42 @@
+---
+source: crates/server/src/hover.rs
+expression: out.unwrap()
+---
+(
+    Class {
+        class_path: "",
+        source: None,
+        access: Access(
+            Public,
+        ),
+        imports: [],
+        name: "String",
+        methods: [
+            Method {
+                access: Access(
+                    Public,
+                ),
+                name: Some(
+                    "length",
+                ),
+                parameters: [],
+                throws: [],
+                ret: Int,
+                source: None,
+            },
+        ],
+        fields: [],
+        super_class: None,
+        super_interfaces: [],
+    },
+    Range {
+        start: Position {
+            line: 3,
+            character: 11,
+        },
+        end: Position {
+            line: 3,
+            character: 17,
+        },
+    },
+)

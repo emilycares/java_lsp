@@ -240,7 +240,7 @@ public class Test {
     }
 }
         "#;
-        let point = AstPoint::new(6, 16);
+        let point = AstPoint::new(6, 14);
         let document = Document::setup(cont, PathBuf::from_str("/Test.java").unwrap()).unwrap();
         let document_uri = Uri::from_str("file:///Test.java").unwrap();
         let class = parser::java::load_java_tree(&document.ast, SourceDestination::None);
@@ -257,7 +257,7 @@ public class Test {
             document_map: &Arc::new(Mutex::new(HashMap::new())),
         };
         let out = call_chain_definition(&call_chain, &context);
-        assert!(out.is_err());
+        insta::assert_debug_snapshot!(out);
     }
     #[test]
     fn definition_stream_map() {
@@ -292,14 +292,55 @@ public class Test {
             document_map: &Arc::new(Mutex::new(HashMap::new())),
         };
         let out = call_chain_definition(&call_chain, &context);
-        assert!(out.is_err());
+        insta::assert_debug_snapshot!(out);
+    }
+    #[test]
+    fn definition_parent_method() {
+        let cont = r#"
+package ch.emilycares;
+import ch.emilycares.a.ParGreet;
+public class Test extends ParGreet {
+    public String hello() {
+        return greet();
+    }
+}
+        "#;
+        let point = AstPoint::new(5, 19);
+        let document = Document::setup(cont, PathBuf::from_str("/Test.java").unwrap()).unwrap();
+        let document_uri = Uri::from_str("file:///Test.java").unwrap();
+        let class = parser::java::load_java_tree(&document.ast, SourceDestination::None);
+        let vars = variables::get_vars(&document.ast, &point).unwrap();
+        let imports = imports::imports(&document.ast);
+        let call_chain = call_chain::get_call_chain(&document.ast, &point);
+        let context = DefinitionContext {
+            document_uri,
+            point: &point,
+            vars: &vars,
+            imports: &imports,
+            class: &class,
+            class_map: get_class_map(),
+            document_map: &Arc::new(Mutex::new(HashMap::new())),
+        };
+        let out = call_chain_definition(&call_chain, &context);
+        insta::assert_debug_snapshot!(out);
     }
     fn get_class_map() -> Arc<Mutex<HashMap<MyString, Class>>> {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
+            "ch.emilycares.a.ParGreet".into(),
+            Class {
+                methods: vec![Method {
+                    name: Some("greet".into()),
+                    source: Some("greet".into()),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+        );
+        class_map.insert(
             "org.jboss.logging.Logger".into(),
             Class {
-                source: SourceDestination::None,
+                source: SourceDestination::Here("Logger".into()),
                 access: Access::Public,
                 name: "Logger".into(),
                 methods: vec![Method {
@@ -314,7 +355,7 @@ public class Test {
         class_map.insert(
             "java.util.List".into(),
             Class {
-                source: SourceDestination::None,
+                source: SourceDestination::Here("List".into()),
                 access: Access::Public,
                 name: "List".into(),
                 methods: vec![Method {
@@ -329,7 +370,7 @@ public class Test {
         class_map.insert(
             "java.util.stream.Stream".into(),
             Class {
-                source: SourceDestination::None,
+                source: SourceDestination::Here("Stream".into()),
                 access: Access::Public,
                 name: "Stream".into(),
                 methods: vec![Method {
@@ -344,6 +385,7 @@ public class Test {
         class_map.insert(
             "java.lang.String".into(),
             Class {
+                source: SourceDestination::Here("String".into()),
                 access: Access::Public,
                 name: "String".into(),
                 methods: vec![Method {

@@ -15,10 +15,12 @@ use ast::types::AstPoint;
 use call_chain::CallItem;
 use my_string::{
     MyString,
-    smol_str::{SmolStrBuilder, format_smolstr},
+    smol_str::{SmolStr, SmolStrBuilder, format_smolstr},
 };
 use parser::dto::{Access, Class, Field, ImportUnit, JType, Method};
 use variables::LocalVariable;
+
+use crate::parent::{populate_super_class, populate_super_interfaces};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TyresError {
@@ -66,6 +68,7 @@ pub fn is_imported<'a>(
     if jtype.starts_with("java.lang") {
         return Some(ImportResult::Class(jtype.into()));
     }
+
     imports.iter().find_map(|i| match i {
         ImportUnit::Class(c) => {
             if ImportUnit::class_path_match_class_name(c, jtype) {
@@ -80,16 +83,8 @@ pub fn is_imported<'a>(
             None
         }
         ImportUnit::Package(p) | ImportUnit::Prefix(p) => {
-            let mut possible_class_path = SmolStrBuilder::new();
-            possible_class_path.push_str(p);
-            possible_class_path.push('.');
-            possible_class_path.push_str(jtype);
-            let possible_class_path = possible_class_path.finish();
-
-            if let Ok(class_map) = class_map.lock()
-                && class_map.contains_key(&possible_class_path)
-            {
-                return Some(ImportResult::Class(possible_class_path));
+            if let Some(value) = star_import_subclass(jtype, class_map, p) {
+                return Some(value);
             }
             None
         }
@@ -110,6 +105,103 @@ pub fn is_imported<'a>(
     })
 }
 
+#[derive(Debug)]
+struct ImportedField {
+    name: SmolStr,
+    resolve_state: ResolveState,
+}
+#[derive(Debug)]
+struct ImportedMethod {
+    name: SmolStr,
+    resolve_state: ResolveState,
+}
+
+/// Returns methods that are static imported and from parent
+fn get_methods_and_fields(
+    class: &Class,
+    imports: &[ImportUnit],
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+) -> (Vec<ImportedMethod>, Vec<ImportedField>) {
+    let mut methods = vec![];
+    let mut fields = vec![];
+
+    parent_t(class, class_map, &mut methods, &mut fields);
+
+    for i in imports {
+        match i {
+            ImportUnit::Package(_)
+            | ImportUnit::Class(_)
+            | ImportUnit::StaticClass(_)
+            | ImportUnit::Prefix(_)
+            | ImportUnit::StaticPrefix(_) => (),
+            ImportUnit::StaticClassMethod(c, name) => {
+                if let Ok(r) = resolve_classpath(c, class_map) {
+                    methods.push(ImportedMethod {
+                        name: name.clone(),
+                        resolve_state: r,
+                    });
+                }
+            }
+        }
+    }
+
+    (methods, fields)
+}
+
+fn parent_t(
+    class: &Class,
+    class_map: &Arc<Mutex<HashMap<SmolStr, Class>>>,
+    methods: &mut Vec<ImportedMethod>,
+    fields: &mut Vec<ImportedField>,
+) {
+    let mut pclasses = vec![];
+    populate_super_class(class, class_map, &mut pclasses);
+    populate_super_interfaces(class, class_map, &mut pclasses);
+
+    for c in pclasses {
+        for m in &c.methods {
+            let Some(name) = &m.name else {
+                continue;
+            };
+            methods.push(ImportedMethod {
+                name: name.clone(),
+                resolve_state: ResolveState {
+                    class: c.clone(),
+                    jtype: JType::Class(c.class_path.clone()),
+                },
+            });
+        }
+        for f in &c.fields {
+            fields.push(ImportedField {
+                name: f.name.clone(),
+                resolve_state: ResolveState {
+                    class: c.clone(),
+                    jtype: JType::Class(c.class_path.clone()),
+                },
+            });
+        }
+    }
+}
+
+fn star_import_subclass(
+    jtype: &str,
+    class_map: &Arc<Mutex<HashMap<my_string::smol_str::SmolStr, Class>>>,
+    p: &my_string::smol_str::SmolStr,
+) -> Option<ImportResult> {
+    let mut possible_class_path = SmolStrBuilder::new();
+    possible_class_path.push_str(p);
+    possible_class_path.push('.');
+    possible_class_path.push_str(jtype);
+    let possible_class_path = possible_class_path.finish();
+
+    if let Ok(class_map) = class_map.lock()
+        && class_map.contains_key(&possible_class_path)
+    {
+        return Some(ImportResult::Class(possible_class_path));
+    }
+    None
+}
+
 pub fn resolve(
     class_name: &str,
     imports: &[ImportUnit],
@@ -118,20 +210,7 @@ pub fn resolve(
     eprintln!("resolve: {class_name}");
 
     if class_name.contains('.') {
-        let imported_class;
-        if let Ok(cm) = class_map.lock()
-            && let Some(ic) = cm.get(class_name)
-        {
-            imported_class = ic.to_owned();
-        } else {
-            return Err(TyresError::ClassNotFound {
-                class_path: class_name.into(),
-            });
-        }
-        return Ok(ResolveState {
-            jtype: JType::Class(class_name.into()),
-            class: parent::include_parent(imported_class, class_map),
-        });
+        return resolve_classpath(class_name, class_map);
     }
 
     let mut lang_class_key = SmolStrBuilder::new();
@@ -166,6 +245,26 @@ pub fn resolve(
         }
         None => Err(TyresError::NotImported(class_name.into())),
     }
+}
+
+fn resolve_classpath(
+    class_path: &str,
+    class_map: &Arc<Mutex<HashMap<SmolStr, Class>>>,
+) -> Result<ResolveState, TyresError> {
+    let imported_class;
+    if let Ok(cm) = class_map.lock()
+        && let Some(ic) = cm.get(class_path)
+    {
+        imported_class = ic.to_owned();
+    } else {
+        return Err(TyresError::ClassNotFound {
+            class_path: class_path.into(),
+        });
+    }
+    Ok(ResolveState {
+        jtype: JType::Class(class_path.into()),
+        class: parent::include_parent(imported_class, class_map),
+    })
 }
 
 #[must_use]
@@ -231,12 +330,17 @@ pub fn resolve_call_chain(
         class: class.clone(),
         jtype: JType::Class(class.class_path.clone()),
     }];
+    let (methods, fields) = get_methods_and_fields(class, imports, class_map);
     let mut cc = call_chain.iter().peekable();
     while let Some(item) = cc.next() {
         let op = if cc.peek().is_some() {
-            call_chain_op(item, &ops, lo_va, imports, class, class_map, true, false)?
+            call_chain_op(
+                item, &ops, lo_va, imports, &methods, &fields, class, class_map, true, false,
+            )?
         } else {
-            call_chain_op_self(item, &ops, lo_va, imports, class, class_map, true)?
+            call_chain_op_self(
+                item, &ops, lo_va, imports, &methods, &fields, class, class_map, true,
+            )?
         };
 
         ops.push(op);
@@ -260,8 +364,11 @@ pub fn resolve_call_chain_value(
         class: class.clone(),
         jtype: JType::Class(class.class_path.clone()),
     }];
+    let (methods, fields) = get_methods_and_fields(class, imports, class_map);
     for item in call_chain {
-        let op = call_chain_op(item, &ops, lo_va, imports, class, class_map, false, true)?;
+        let op = call_chain_op(
+            item, &ops, lo_va, imports, &methods, &fields, class, class_map, false, true,
+        )?;
         ops.push(op);
     }
     ops.last().map_or_else(
@@ -284,15 +391,21 @@ pub fn resolve_call_chain_to_point(
         class: class.clone(),
         jtype: JType::Class(class.class_path.clone()),
     }];
+    let (methods, fields) = get_methods_and_fields(class, imports, class_map);
+
     let mut cc = call_chain.iter().peekable();
     while let Some(item) = cc.next() {
         if item.get_range().is_after_range(point) {
             break;
         }
         let op = if cc.peek().is_some() {
-            call_chain_op(item, &ops, lo_va, imports, class, class_map, true, false)
+            call_chain_op(
+                item, &ops, lo_va, imports, &methods, &fields, class, class_map, true, false,
+            )
         } else {
-            call_chain_op_self(item, &ops, lo_va, imports, class, class_map, true)
+            call_chain_op_self(
+                item, &ops, lo_va, imports, &methods, &fields, class, class_map, true,
+            )
         };
 
         if let Ok(op) = op {
@@ -311,6 +424,8 @@ fn call_chain_op(
     ops: &[ResolveState],
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
+    methods: &[ImportedMethod],
+    fields: &[ImportedField],
     class: &Class,
     class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
     resolve_argument: bool,
@@ -324,6 +439,9 @@ fn call_chain_op(
             if let Some(method) = class.methods.iter().find(|m| m.name == Some(name.clone())) {
                 return resolve_jtype(&method.ret, imports, class_map);
             }
+            if let Some(m) = methods.iter().find(|i| i.name == *name) {
+                return Ok(m.resolve_state.clone());
+            }
             Err(TyresError::MethodNotFound(name.clone()))
         }
         CallItem::FieldAccess { name, range: _ } => {
@@ -332,6 +450,9 @@ fn call_chain_op(
             };
             if let Some(method) = class.fields.iter().find(|m| m.name == *name) {
                 return resolve_jtype(&method.jtype, imports, class_map);
+            }
+            if let Some(m) = fields.iter().find(|m| &m.name == name) {
+                return Ok(m.resolve_state.clone());
             }
             Err(TyresError::FieldNotFound(name.clone()))
         }
@@ -375,11 +496,14 @@ fn call_chain_op(
         }
     }
 }
+#[allow(clippy::too_many_arguments)]
 fn call_chain_op_self(
     item: &CallItem,
     ops: &[ResolveState],
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
+    methods: &[ImportedMethod],
+    fields: &[ImportedField],
     class: &Class,
     class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
     resolve_argument: bool,
@@ -397,14 +521,20 @@ fn call_chain_op_self(
             {
                 return Ok(last.clone());
             }
+            if let Some(m) = methods.iter().find(|m| &m.name == name) {
+                return Ok(m.resolve_state.clone());
+            }
             Err(TyresError::MethodNotFound(name.clone()))
         }
         CallItem::FieldAccess { name, range: _ } => {
             let Some(last) = ops.last() else {
                 return Err(TyresError::NoClassInOps);
             };
-            if last.class.fields.iter().any(|m| m.name == *name) {
+            if last.class.fields.iter().any(|m| &m.name == name) {
                 return Ok(last.clone());
+            }
+            if let Some(m) = fields.iter().find(|m| &m.name == name) {
+                return Ok(m.resolve_state.clone());
             }
             Err(TyresError::FieldNotFound(name.clone()))
         }

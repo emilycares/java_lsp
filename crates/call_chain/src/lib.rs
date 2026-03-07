@@ -782,6 +782,11 @@ fn cc_new_class(ast_new_class: &AstNewClass, point: &AstPoint, out: &mut Vec<Cal
             name: c.value.clone(),
             range: ast_new_class.range,
         });
+    } else if let AstJTypeKind::Generic(c, _) = &ast_new_class.jtype.value {
+        out.push(CallItem::Class {
+            name: c.value.clone(),
+            range: ast_new_class.range,
+        });
     }
     match ast_new_class.rhs.as_ref() {
         AstNewRhs::None => (),

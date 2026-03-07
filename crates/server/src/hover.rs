@@ -184,7 +184,7 @@ pub fn call_chain_hover(
 }
 
 fn format_field(f: &Field) -> String {
-    format!("{} {}", jtype_hover_display(&f.jtype), f.name)
+    format!("{} {};", jtype_hover_display(&f.jtype), f.name)
 }
 
 fn format_method(m: &Method, class_name: &str) -> String {
@@ -221,6 +221,8 @@ fn format_method(m: &Method, class_name: &str) -> String {
             }
         }
     }
+
+    out.push(';');
     out
 }
 
@@ -316,13 +318,19 @@ fn class_to_hover(class: &Class, range: Range) -> Hover {
     let methods: Vec<_> = class
         .methods
         .iter()
-        .filter(|i| !i.access.intersects(Access::Private | Access::Deprecated))
+        .filter(|i| {
+            !i.access
+                .intersects(Access::Private | Access::Protected | Access::Deprecated)
+        })
         .map(|i| format_method(i, &class.name))
         .collect();
     let fields: Vec<_> = class
         .fields
         .iter()
-        .filter(|i| !i.access.contains(Access::Deprecated))
+        .filter(|i| {
+            !i.access
+                .contains(Access::Private | Access::Protected | Access::Deprecated)
+        })
         .map(format_field)
         .collect();
     let mut value = format!("# {}\n```java\n", class.name);
@@ -334,6 +342,7 @@ fn class_to_hover(class: &Class, range: Range) -> Hover {
         }
     }
     if has_fields {
+        value.push_str("// Fields\n");
         value.push_str(fields.join("\n").as_str());
     }
     value.push_str("\n```");
@@ -375,7 +384,7 @@ public class Test {
         let ast = &doc.ast;
 
         let out = class_action(ast, &AstPoint::new(3, 14), &[], &[], &string_class_map());
-        assert!(out.is_ok());
+        insta::assert_debug_snapshot!(out.unwrap());
     }
 
     #[test]
@@ -393,7 +402,7 @@ public class Test {
         let ast = &doc.ast;
 
         let out = class_action(ast, &AstPoint::new(3, 9), &[], &[], &string_class_map());
-        assert!(out.is_ok());
+        insta::assert_debug_snapshot!(out.unwrap());
     }
 
     #[test]
@@ -426,7 +435,7 @@ public class Test {
             &class,
             &string_class_map(),
         );
-        assert!(out.is_ok());
+        insta::assert_debug_snapshot!(out.unwrap());
     }
 
     fn string_class_map() -> Arc<Mutex<HashMap<MyString, Class>>> {

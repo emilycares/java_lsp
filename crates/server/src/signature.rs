@@ -233,12 +233,9 @@ pub mod tests {
     use super::signature_driver;
     use ast::types::AstPoint;
     use document::Document;
-    use lsp_types::{
-        Documentation, ParameterInformation, ParameterLabel, SignatureHelp, SignatureInformation,
-    };
+
     use my_string::MyString;
     use parser::dto::{Access, Class, JType, Method, Parameter};
-    use pretty_assertions::assert_eq;
 
     #[test]
     fn signarure_base() {
@@ -279,22 +276,7 @@ public class Test {
         let doc = Document::setup(content, PathBuf::new()).unwrap();
 
         let out = signature_driver(&doc, &AstPoint::new(5, 29), &class, &class_map).unwrap();
-        assert_eq!(
-            out,
-            SignatureHelp {
-                signatures: vec![SignatureInformation {
-                    label: "concat(String)".into(),
-                    documentation: Some(Documentation::String("String".into())),
-                    parameters: Some(vec![ParameterInformation {
-                        label: ParameterLabel::Simple("String".into()),
-                        documentation: None,
-                    }]),
-                    active_parameter: None,
-                }],
-                active_signature: Some(0),
-                active_parameter: Some(0),
-            },
-        );
+        insta::assert_debug_snapshot!(out);
     }
 
     #[test]
@@ -356,39 +338,7 @@ public class Test {
         let doc = Document::setup(content, PathBuf::new()).unwrap();
 
         let out = signature_driver(&doc, &AstPoint::new(5, 29), &class, &class_map).unwrap();
-        assert_eq!(
-            out,
-            SignatureHelp {
-                signatures: vec![
-                    SignatureInformation {
-                        label: "concat(String)".into(),
-                        documentation: Some(Documentation::String("String".into())),
-                        parameters: Some(vec![ParameterInformation {
-                            label: ParameterLabel::Simple("String".into()),
-                            documentation: None,
-                        }]),
-                        active_parameter: None,
-                    },
-                    SignatureInformation {
-                        label: "concat(String, String)".into(),
-                        documentation: Some(Documentation::String("String".into())),
-                        parameters: Some(vec![
-                            ParameterInformation {
-                                label: ParameterLabel::Simple("String".into()),
-                                documentation: None,
-                            },
-                            ParameterInformation {
-                                label: ParameterLabel::Simple("String".into()),
-                                documentation: None,
-                            },
-                        ],),
-                        active_parameter: None,
-                    }
-                ],
-                active_signature: Some(0),
-                active_parameter: Some(0),
-            },
-        );
+        insta::assert_debug_snapshot!(out);
     }
 
     #[test]
@@ -450,38 +400,47 @@ public class Test {
         let doc = Document::setup(content, PathBuf::new()).unwrap();
 
         let out = signature_driver(&doc, &AstPoint::new(5, 39), &class, &class_map).unwrap();
-        assert_eq!(
-            out,
-            SignatureHelp {
-                signatures: vec![
-                    SignatureInformation {
-                        label: "concat(String)".into(),
-                        documentation: Some(Documentation::String("String".into())),
-                        parameters: Some(vec![ParameterInformation {
-                            label: ParameterLabel::Simple("String".into()),
-                            documentation: None,
-                        }]),
-                        active_parameter: None,
-                    },
-                    SignatureInformation {
-                        label: "concat(String, String)".into(),
-                        documentation: Some(Documentation::String("String".into())),
-                        parameters: Some(vec![
-                            ParameterInformation {
-                                label: ParameterLabel::Simple("String".into()),
-                                documentation: None,
-                            },
-                            ParameterInformation {
-                                label: ParameterLabel::Simple("String".into()),
-                                documentation: None,
-                            },
-                        ],),
-                        active_parameter: None,
-                    }
-                ],
-                active_signature: Some(1),
-                active_parameter: Some(1),
+        insta::assert_debug_snapshot!(out);
+    }
+
+    #[test]
+    fn signature_field_constructor() {
+        let mut class_map: HashMap<MyString, Class> = HashMap::new();
+        class_map.insert(
+            "java.util.HashMap".into(),
+            Class {
+                access: Access::Public,
+                name: "HashMap".into(),
+                methods: vec![Method {
+                    access: Access::Public,
+                    name: None,
+                    parameters: vec![Parameter {
+                        name: None,
+                        jtype: JType::Class("java.lang.String".into()),
+                    }],
+                    ret: JType::Class("java.lang.String".into()),
+                    throws: vec![],
+                    source: None,
+                }],
+                ..Default::default()
             },
         );
+        let class_map = Arc::new(Mutex::new(class_map));
+        let class = Class {
+            access: Access::Public,
+            name: "Test".into(),
+            ..Default::default()
+        };
+        let content = r#"
+package ch.emilycares;
+import java.util.HashMap;
+public class Test {
+public static Map<Long, String> m = new HashMap<>( );
+}
+"#;
+        let doc = Document::setup(content, PathBuf::new()).unwrap();
+
+        let out = signature_driver(&doc, &AstPoint::new(4, 51), &class, &class_map).unwrap();
+        insta::assert_debug_snapshot!(out);
     }
 }

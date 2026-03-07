@@ -1,0 +1,13 @@
+---
+source: crates/server/src/definition.rs
+expression: out
+---
+Err(
+    Document(
+        IoNotFound(
+            Some(
+                "Logger",
+            ),
+        ),
+    ),
+)

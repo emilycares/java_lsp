@@ -1,0 +1,33 @@
+---
+source: crates/server/src/signature.rs
+expression: out
+---
+SignatureHelp {
+    signatures: [
+        SignatureInformation {
+            label: "concat(String)",
+            documentation: Some(
+                String(
+                    "String",
+                ),
+            ),
+            parameters: Some(
+                [
+                    ParameterInformation {
+                        label: Simple(
+                            "String",
+                        ),
+                        documentation: None,
+                    },
+                ],
+            ),
+            active_parameter: None,
+        },
+    ],
+    active_signature: Some(
+        0,
+    ),
+    active_parameter: Some(
+        0,
+    ),
+}

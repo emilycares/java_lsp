@@ -2157,6 +2157,7 @@ dependencies = [
  "get_class",
  "gradle",
  "imports",
+ "insta",
  "jdk",
  "jwalk",
  "loader",

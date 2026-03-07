@@ -34,7 +34,7 @@ pub fn include_parent(class: Class, class_map: &Arc<Mutex<HashMap<MyString, Clas
     class
 }
 
-fn populate_super_class(
+pub fn populate_super_class(
     class: &Class,
     class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
     s: &mut Vec<Class>,
@@ -46,7 +46,7 @@ fn populate_super_class(
     }
 }
 
-fn populate_super_interfaces(
+pub fn populate_super_interfaces(
     class: &Class,
     class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
     s: &mut Vec<Class>,

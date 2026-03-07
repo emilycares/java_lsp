@@ -35,6 +35,7 @@ pub enum DocumentError {
     Io(std::io::Error),
     Diagnostic(Box<Diagnostic>),
     Locked,
+    IoNotFound(Option<String>),
 }
 
 impl Document {
@@ -47,6 +48,11 @@ impl Document {
     }
     pub fn setup_read(path: PathBuf) -> Result<Self, DocumentError> {
         eprintln!("Read file from disk: {:?}", path.display());
+        if !path.exists() {
+            return Err(DocumentError::IoNotFound(
+                path.to_str().map(ToOwned::to_owned),
+            ));
+        }
         let text = fs::read_to_string(&path).map_err(DocumentError::Io)?;
         let rope = Rope::from_str(&text);
         let mut o = Self {

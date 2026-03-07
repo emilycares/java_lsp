@@ -383,9 +383,13 @@ impl Backend {
     }
 
     pub fn did_open(&self, params: &DidOpenTextDocumentParams) {
-        if !Path::new(params.text_document.uri.path().as_str())
-            .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+        if !params
+            .text_document
+            .uri
+            .path()
+            .as_str()
+            .to_lowercase()
+            .ends_with(".java")
         {
             return;
         }
@@ -427,9 +431,13 @@ impl Backend {
     }
 
     pub fn did_change(&self, params: &DidChangeTextDocumentParams) {
-        if !Path::new(params.text_document.uri.path().as_str())
-            .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+        if !params
+            .text_document
+            .uri
+            .path()
+            .as_str()
+            .to_lowercase()
+            .ends_with(".java")
         {
             return;
         }
@@ -459,9 +467,13 @@ impl Backend {
     pub fn did_save(&self, params: &DidSaveTextDocumentParams) {
         let path = params.text_document.uri.path();
         let path_str = path.as_str();
-        if !Path::new(path_str)
-            .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+        if !params
+            .text_document
+            .uri
+            .path()
+            .as_str()
+            .to_lowercase()
+            .ends_with(".java")
         {
             return;
         }
@@ -494,16 +506,14 @@ impl Backend {
     }
 
     pub fn hover(&self, params: HoverParams) -> Option<Hover> {
-        if !Path::new(
-            params
-                .text_document_position_params
-                .text_document
-                .uri
-                .path()
-                .as_str(),
-        )
-        .extension()
-        .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+        if !params
+            .text_document_position_params
+            .text_document
+            .uri
+            .path()
+            .as_str()
+            .to_lowercase()
+            .ends_with(".java")
         {
             return None;
         }
@@ -532,9 +542,13 @@ impl Backend {
     }
 
     pub fn formatting(&self, params: DocumentFormattingParams) -> Option<Vec<TextEdit>> {
-        if !Path::new(params.text_document.uri.path().as_str())
-            .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+        if !params
+            .text_document
+            .uri
+            .path()
+            .as_str()
+            .to_lowercase()
+            .ends_with(".java")
         {
             return None;
         }
@@ -565,16 +579,14 @@ impl Backend {
     }
 
     pub fn completion(&self, params: CompletionParams) -> Option<CompletionResponse> {
-        if !Path::new(
-            params
-                .text_document_position
-                .text_document
-                .uri
-                .path()
-                .as_str(),
-        )
-        .extension()
-        .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+        if !params
+            .text_document_position
+            .text_document
+            .uri
+            .path()
+            .as_str()
+            .to_lowercase()
+            .ends_with(".java")
         {
             return None;
         }
@@ -656,16 +668,14 @@ impl Backend {
     }
 
     pub fn goto_definition(&self, params: GotoDefinitionParams) -> Option<GotoDefinitionResponse> {
-        if !Path::new(
-            params
-                .text_document_position_params
-                .text_document
-                .uri
-                .path()
-                .as_str(),
-        )
-        .extension()
-        .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+        if !params
+            .text_document_position_params
+            .text_document
+            .uri
+            .path()
+            .as_str()
+            .to_lowercase()
+            .ends_with(".java")
         {
             return None;
         }
@@ -731,16 +741,14 @@ impl Backend {
     }
 
     pub fn references(&self, params: ReferenceParams) -> Option<Vec<Location>> {
-        if !Path::new(
-            params
-                .text_document_position
-                .text_document
-                .uri
-                .path()
-                .as_str(),
-        )
-        .extension()
-        .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+        if !params
+            .text_document_position
+            .text_document
+            .uri
+            .path()
+            .as_str()
+            .to_lowercase()
+            .ends_with(".java")
         {
             return None;
         }
@@ -818,12 +826,11 @@ impl Backend {
     }
 
     pub fn code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
-        let path_str = params.text_document.uri.path().as_str();
-        dbg!(&path_str);
-        if !Path::new(path_str)
-            .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
-        {
+        let path_str = params.text_document.uri.path().as_str().to_lowercase();
+
+        // Is already lowercase
+        #[allow(clippy::case_sensitive_file_extension_comparisons)]
+        if !path_str.ends_with(".java") {
             if path_str.ends_with("pom.xml")
                 || path_str.ends_with("build.gradle")
                 || path_str.ends_with("build.gradle.kts")
@@ -902,9 +909,13 @@ impl Backend {
     }
 
     pub fn document_symbol(&self, params: DocumentSymbolParams) -> Option<DocumentSymbolResponse> {
-        if !Path::new(params.text_document.uri.path().as_str())
-            .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+        if !params
+            .text_document
+            .uri
+            .path()
+            .as_str()
+            .to_lowercase()
+            .ends_with(".java")
         {
             return None;
         }
@@ -973,16 +984,14 @@ impl Backend {
     }
 
     pub fn signature_help(&self, params: SignatureHelpParams) -> Option<SignatureHelp> {
-        if !Path::new(
-            params
-                .text_document_position_params
-                .text_document
-                .uri
-                .path()
-                .as_str(),
-        )
-        .extension()
-        .is_some_and(|ext| ext.eq_ignore_ascii_case("java"))
+        if !params
+            .text_document_position_params
+            .text_document
+            .uri
+            .path()
+            .as_str()
+            .to_lowercase()
+            .ends_with(".java")
         {
             return None;
         }
