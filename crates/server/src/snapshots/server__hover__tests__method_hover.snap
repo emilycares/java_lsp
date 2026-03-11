@@ -6,7 +6,7 @@ Hover {
     contents: Markup(
         MarkupContent {
             kind: Markdown,
-            value: "",
+            value: "```java\nint length();\n```",
         },
     ),
     range: Some(

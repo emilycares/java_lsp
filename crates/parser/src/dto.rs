@@ -180,13 +180,13 @@ impl Access {
     pub fn from(value: &AstAvailability, def: Self) -> Self {
         let mut out = Self::empty();
 
-        if value.contains(AstAvailability::Public) {
+        if value.intersects(AstAvailability::Public) {
             out.insert(Self::Public);
         }
-        if value.contains(AstAvailability::Private) {
+        if value.intersects(AstAvailability::Private) {
             out.insert(Self::Private);
         }
-        if value.contains(AstAvailability::Protected) {
+        if value.intersects(AstAvailability::Protected) {
             out.insert(Self::Protected);
         }
         if !value.intersects(
@@ -195,13 +195,13 @@ impl Access {
             out.insert(def);
         }
 
-        if value.contains(AstAvailability::Synchronized) {
+        if value.intersects(AstAvailability::Synchronized) {
             out.insert(Self::Synchronized);
         }
-        if value.contains(AstAvailability::Final) {
+        if value.intersects(AstAvailability::Final) {
             out.insert(Self::Final);
         }
-        if value.contains(AstAvailability::Static) {
+        if value.intersects(AstAvailability::Static) {
             out.insert(Self::Static);
         }
         out

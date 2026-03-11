@@ -86,7 +86,7 @@ pub fn class_unpack(val: &Class, imports: &[ImportUnit], ast: &AstFile) -> Vec<C
                 if i.access.is_empty() {
                     return true;
                 }
-                i.access.contains(Access::Public)
+                i.access.intersects(Access::Public)
             })
             .filter_map(|i| complete_method(i, imports, ast)),
     );

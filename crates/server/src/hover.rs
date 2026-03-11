@@ -125,7 +125,7 @@ pub fn call_chain_hover(
                 .class
                 .methods
                 .into_iter()
-                .filter(|i| i.name.as_ref().filter(|i| *i == name).is_some())
+                .filter(|i| i.name.as_ref().filter(|i| i == &name).is_some())
                 .collect();
             let range = to_lsp_range(range).map_err(HoverError::ToLspRange)?;
             Ok(methods_to_hover(&methods, range, &resolve_state.class.name))
@@ -138,7 +138,7 @@ pub fn call_chain_hover(
             Ok(field_to_hover(method, range))
         }
         CallItem::Variable { name, range } => {
-            let Some(var) = lo_va.iter().find(|v| v.name == *name) else {
+            let Some(var) = lo_va.iter().find(|v| &v.name == name) else {
                 return Err(HoverError::LocalVariableNotFound { name: name.clone() });
             };
             let range = to_lsp_range(range).map_err(HoverError::ToLspRange)?;
@@ -291,24 +291,23 @@ fn field_to_hover(f: &Field, range: Range) -> Hover {
     Hover {
         contents: HoverContents::Markup(MarkupContent {
             kind: MarkupKind::Markdown,
-            value: format!("{} {}", f.jtype, f.name),
+            value: format!("```java\n{} {}\n```", f.jtype, f.name),
         }),
         range: Some(range),
     }
 }
 
 fn methods_to_hover(methods: &[Method], range: Range, class_name: &str) -> Hover {
+    let value = methods
+        .iter()
+        .filter(|i| !i.access.intersects(Access::Private | Access::Deprecated))
+        .map(|i| format_method(i, class_name))
+        .collect::<Vec<_>>()
+        .join("\n");
     Hover {
         contents: HoverContents::Markup(MarkupContent {
             kind: MarkupKind::Markdown,
-            value: methods
-                .iter()
-                .filter(|i| {
-                    i.access.contains(Access::Private) || i.access.contains(Access::Deprecated)
-                })
-                .map(|i| format_method(i, class_name))
-                .collect::<Vec<_>>()
-                .join("\n"),
+            value: format!("```java\n{value}\n```"),
         }),
         range: Some(range),
     }
@@ -329,7 +328,7 @@ fn class_to_hover(class: &Class, range: Range) -> Hover {
         .iter()
         .filter(|i| {
             !i.access
-                .contains(Access::Private | Access::Protected | Access::Deprecated)
+                .intersects(Access::Private | Access::Protected | Access::Deprecated)
         })
         .map(format_field)
         .collect();
