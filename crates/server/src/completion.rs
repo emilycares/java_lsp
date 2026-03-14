@@ -7,12 +7,15 @@ use ast::types::{AstFile, AstPoint};
 use call_chain::get_call_chain;
 use document::{Document, DocumentError};
 use get_class::FoundClass;
-use lsp_types::{CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat};
+use lsp_types::{
+    CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionItemTag,
+    InsertTextFormat,
+};
 use my_string::MyString;
 use parser::dto::{Access, Class, ImportUnit, JType, Method, Parameter};
 use variables::LocalVariable;
 
-use crate::codeaction;
+use crate::{codeaction, hover::class_to_markdown};
 
 #[derive(Debug)]
 pub enum CompletionError {
@@ -43,33 +46,20 @@ pub fn complete_vars(vars: &[LocalVariable]) -> Vec<CompletionItem> {
 /// Preview class with the description of methods
 #[must_use]
 pub fn class_describe(val: &Class, imp: bool, ast: Option<&AstFile>) -> CompletionItem {
-    let methods: Vec<_> = val
-        .methods
-        .iter()
-        .map(|m| {
-            format!(
-                "{}({:?})",
-                m.name.as_ref().unwrap_or(&val.name),
-                m.parameters
-                    .iter()
-                    .map(|p| format!("{}", p.jtype))
-                    .collect::<Vec<_>>()
-            )
-        })
-        .collect();
-
     let addi = if imp {
         ast.as_ref()
             .map(|ast| codeaction::import_text_edit(&val.class_path, ast))
     } else {
         None
     };
-    let detail = format!("package {};\n{}", val.class_path, methods.join(", "));
+    let tags = get_tags(&val.access);
+    let detail = format!("package {};\n{}", val.class_path, class_to_markdown(val));
     CompletionItem {
         label: val.name.to_string(),
         detail: Some(detail),
         kind: Some(CompletionItemKind::CLASS),
         additional_text_edits: addi,
+        tags,
         ..Default::default()
     }
 }
@@ -107,14 +97,18 @@ pub fn class_unpack(val: &Class, imports: &[ImportUnit], ast: &AstFile) -> Vec<C
                 }
                 i.access.contains(Access::Public)
             })
-            .map(|f| CompletionItem {
-                label: f.name.to_string(),
-                label_details: Some(CompletionItemLabelDetails {
-                    detail: Some(f.jtype.to_string()),
+            .map(|f| {
+                let tags = get_tags(&f.access);
+                CompletionItem {
+                    label: f.name.to_string(),
+                    label_details: Some(CompletionItemLabelDetails {
+                        detail: Some(f.jtype.to_string()),
+                        ..Default::default()
+                    }),
+                    kind: Some(CompletionItemKind::FIELD),
+                    tags,
                     ..Default::default()
-                }),
-                kind: Some(CompletionItemKind::FIELD),
-                ..Default::default()
+                }
             }),
     );
 
@@ -138,6 +132,8 @@ fn complete_method(m: &Method, imports: &[ImportUnit], ast: &AstFile) -> Option<
         })
         .collect();
 
+    let tags = get_tags(&m.access);
+
     match method_snippet(m) {
         Some(Snippet::Simple(snippet)) => Some(CompletionItem {
             label: method_name.to_string(),
@@ -148,6 +144,7 @@ fn complete_method(m: &Method, imports: &[ImportUnit], ast: &AstFile) -> Option<
             kind: Some(CompletionItemKind::FUNCTION),
             insert_text: Some(snippet),
             insert_text_format: Some(InsertTextFormat::SNIPPET),
+            tags,
             ..Default::default()
         }),
         Some(Snippet::Import { snippet, import }) => {
@@ -169,10 +166,19 @@ fn complete_method(m: &Method, imports: &[ImportUnit], ast: &AstFile) -> Option<
                 insert_text: Some(snippet),
                 insert_text_format: Some(InsertTextFormat::SNIPPET),
                 additional_text_edits,
+                tags,
                 ..Default::default()
             })
         }
         None => None,
+    }
+}
+
+fn get_tags(a: &Access) -> Option<Vec<CompletionItemTag>> {
+    if a.intersects(Access::Deprecated) {
+        Some(vec![CompletionItemTag::DEPRECATED])
+    } else {
+        None
     }
 }
 

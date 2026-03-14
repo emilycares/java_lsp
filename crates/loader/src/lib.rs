@@ -21,7 +21,7 @@ use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
 use std::fmt::Debug;
 use tokio::fs::read;
 
-pub const CFC_VERSION: usize = 7;
+pub const CFC_VERSION: usize = 8;
 pub const DEBUGGING: bool = false;
 
 #[derive(Debug)]

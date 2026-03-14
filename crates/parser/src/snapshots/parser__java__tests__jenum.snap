@@ -33,6 +33,36 @@ Class {
     fields: [
         Field {
             access: Access(
+                Public,
+            ),
+            name: "A",
+            jtype: Class(
+                "Variants",
+            ),
+            source: None,
+        },
+        Field {
+            access: Access(
+                Public,
+            ),
+            name: "B",
+            jtype: Class(
+                "Variants",
+            ),
+            source: None,
+        },
+        Field {
+            access: Access(
+                Public,
+            ),
+            name: "C",
+            jtype: Class(
+                "Variants",
+            ),
+            source: None,
+        },
+        Field {
+            access: Access(
                 Private | Final,
             ),
             name: "tag",

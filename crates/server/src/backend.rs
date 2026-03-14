@@ -627,7 +627,6 @@ impl Backend {
             return None;
         }
 
-        let mut do_rest = true;
         match completion::complete_call_chain(
             &document,
             &point,
@@ -637,32 +636,24 @@ impl Backend {
             &self.class_map.clone(),
         ) {
             Ok(call_chain) => {
-                if call_chain.is_empty() {
-                    do_rest = false;
-                }
                 out.extend(call_chain);
             }
             Err(e) => {
                 eprintln!("Error while completion: {e:?}");
             }
         }
-
-        // If there is any extend completion ignore completing vars
-        if do_rest {
-            eprintln!("Call chain is empty");
-            out.extend(completion::static_methods(
-                &document.ast,
-                &imports,
-                &self.class_map,
-            ));
-            out.extend(completion::complete_vars(&vars));
-            out.extend(completion::classes(
-                &document,
-                &point,
-                &imports,
-                &self.class_map,
-            ));
-        }
+        out.extend(completion::static_methods(
+            &document.ast,
+            &imports,
+            &self.class_map,
+        ));
+        out.extend(completion::complete_vars(&vars));
+        out.extend(completion::classes(
+            &document,
+            &point,
+            &imports,
+            &self.class_map,
+        ));
 
         Some(CompletionResponse::Array(out))
     }

@@ -314,6 +314,21 @@ fn methods_to_hover(methods: &[Method], range: Range, class_name: &str) -> Hover
 }
 
 fn class_to_hover(class: &Class, range: Range) -> Hover {
+    let value = format!(
+        "# {}\n```java\n{}\n```",
+        class.name,
+        class_to_markdown(class)
+    );
+    Hover {
+        contents: HoverContents::Markup(MarkupContent {
+            kind: MarkupKind::Markdown,
+            value,
+        }),
+        range: Some(range),
+    }
+}
+
+pub fn class_to_markdown(class: &Class) -> String {
     let methods: Vec<_> = class
         .methods
         .iter()
@@ -332,7 +347,7 @@ fn class_to_hover(class: &Class, range: Range) -> Hover {
         })
         .map(format_field)
         .collect();
-    let mut value = format!("# {}\n```java\n", class.name);
+    let mut value = String::new();
     let has_fields = !fields.is_empty();
     if !methods.is_empty() {
         value.push_str(methods.join("\n").as_str());
@@ -344,14 +359,7 @@ fn class_to_hover(class: &Class, range: Range) -> Hover {
         value.push_str("// Fields\n");
         value.push_str(fields.join("\n").as_str());
     }
-    value.push_str("\n```");
-    Hover {
-        contents: HoverContents::Markup(MarkupContent {
-            kind: MarkupKind::Markdown,
-            value,
-        }),
-        range: Some(range),
-    }
+    value
 }
 
 #[cfg(test)]

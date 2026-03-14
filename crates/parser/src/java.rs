@@ -4,9 +4,9 @@ use ast::{
     lexer,
     types::{
         AstAnnotated, AstAnnotationField, AstClassConstructor, AstClassMethod, AstClassVariable,
-        AstExtends, AstFile, AstImports, AstInterfaceConstant, AstInterfaceMethod,
-        AstInterfaceMethodDefault, AstJType, AstJTypeKind, AstSuperClass, AstThing,
-        AstTypeParameters,
+        AstEnumerationVariant, AstExtends, AstFile, AstImports, AstInterfaceConstant,
+        AstInterfaceMethod, AstInterfaceMethodDefault, AstJType, AstJTypeKind, AstSuperClass,
+        AstThing, AstTypeParameters,
     },
 };
 use my_string::{
@@ -72,12 +72,31 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
                     }
                 };
             }
-            AstThing::Record(_) => (),
+            AstThing::Record(record) => {
+                access = Access::from(&record.availability, Access::Public);
+                load_deprecated(&mut access, &record.annotated);
+                methods.extend(record.block.methods.iter().map(convert_class_method));
+                fields.extend(record.block.variables.iter().map(convert_class_field));
+                // TODO entries
+                super_class = match &record.superclass.first() {
+                    None | Some(AstSuperClass::None) => SuperClass::None,
+                    Some(AstSuperClass::Name(ast_identifier)) => {
+                        SuperClass::Name(ast_identifier.into())
+                    }
+                };
+            }
             AstThing::Enumeration(enumeration) => {
                 access = Access::from(&enumeration.availability, Access::Public);
                 load_deprecated(&mut access, &enumeration.annotated);
                 name = (&enumeration.name).into();
                 methods.extend(enumeration.methods.iter().map(convert_class_method));
+                let jtype = JType::Class(enumeration.name.value.clone());
+                fields.extend(
+                    enumeration
+                        .variants
+                        .iter()
+                        .map(|i| convert_enum_variant(i, &jtype)),
+                );
                 fields.extend(enumeration.variables.iter().map(convert_class_field));
             }
             AstThing::Interface(interface) => {
@@ -288,6 +307,15 @@ fn convert_class_field(c: &AstClassVariable) -> Field {
     Field {
         access,
         jtype,
+        name: c.name.value.clone(),
+        source: None,
+    }
+}
+
+fn convert_enum_variant(c: &AstEnumerationVariant, jtype: &JType) -> Field {
+    Field {
+        access: Access::Public,
+        jtype: jtype.clone(),
         name: c.name.value.clone(),
         source: None,
     }

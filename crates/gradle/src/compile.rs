@@ -21,6 +21,9 @@ pub fn cut_log(inp: &str) -> String {
         if line.starts_with("FAILURE:") {
             break;
         }
+        if line.starts_with("WARNING:") {
+            break;
+        }
         out.push_str(line);
         out.push('\n');
     }
