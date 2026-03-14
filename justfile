@@ -26,4 +26,10 @@ nix:
 jdk:
   cargo run --release -- ast-check-jdk
 
+audit:
+  cargo audit fix
+  cd ./editor/vscode && pnpm audit --fix
+  cd ./editor/vscode && pnpm install
+  cd ./editor/vscode/client && npm audit fix
+
 precommit: fmt check test clippy doc dev nix

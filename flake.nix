@@ -225,6 +225,9 @@
                 hyperfine
                 just
                 typos
+                # For vscode addon
+                pnpm
+                nodejs
               ]
               ++ (lib.optional (stdenv.isx86_64 && stdenv.isLinux) cargo-tarpaulin)
               ++ (lib.optional stdenv.isLinux lldb)
