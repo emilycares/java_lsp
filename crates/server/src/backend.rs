@@ -162,7 +162,7 @@ impl Backend {
         }) {
             let _ = con
                 .sender
-                .send(Message::Notification(lsp_server::Notification {
+                .try_send(Message::Notification(lsp_server::Notification {
                     method: Progress::METHOD.to_string(),
                     params,
                 }));

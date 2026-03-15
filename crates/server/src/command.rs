@@ -125,12 +125,12 @@ pub fn update_dependencies(
     tokio::spawn(async move {
         let progress = Arc::new(progress);
 
-        let mut task = "Load Dependencies".to_string();
+        let task = "Load Dependency Tree".to_string();
         Backend::progress_start_option_token(&con.clone(), &progress, &task);
         let tree = get_tree(&project_kind, &con).await;
         Backend::progress_end_option_token(&con.clone(), &progress, &task);
 
-        task = format!("Command: {UPDATE_DEPENDENCIES}");
+        let task = format!("Command: {UPDATE_DEPENDENCIES}");
         Backend::progress_start_option_token(&con.clone(), &progress, &task);
         if let Some(tree) = tree {
             let (sender, receiver) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
@@ -148,7 +148,7 @@ pub fn update_dependencies(
                 message: "...".to_string(),
             });
             let cache = project_cache_dir();
-            task = format!("Command: {COMMAND_RELOAD_DEPENDENCIES}");
+            let task = format!("Command: {COMMAND_RELOAD_DEPENDENCIES}");
             Backend::progress_start_option_token(&con.clone(), &progress, &task);
             tokio::select! {
                 () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
@@ -175,19 +175,19 @@ pub async fn update_dependencies_cli() {
     let repos = Arc::new(repos(&project_kind, &project_dir));
     let progress = Arc::new(None);
 
-    let mut task = "Load Dependencies".to_string();
+    let task = "Load Dependency tree".to_string();
     Backend::progress_start_option_token(&con.clone(), &progress, &task);
     let tree = get_tree(&project_kind, &con).await;
     Backend::progress_end_option_token(&con.clone(), &progress, &task);
 
-    task = format!("Command: {UPDATE_DEPENDENCIES}");
+    let task = format!("Command: {UPDATE_DEPENDENCIES}");
     Backend::progress_start_option_token(&con.clone(), &progress, &task);
     if let Some(tree) = tree {
         let sender = tokio::sync::watch::Sender::default();
         let _ = update::update(repos.clone(), &tree, sender).await;
         let sender = tokio::sync::watch::Sender::default();
         let cache = project_cache_dir();
-        task = format!("Command: {COMMAND_RELOAD_DEPENDENCIES}");
+        let task = format!("Command: {COMMAND_RELOAD_DEPENDENCIES}");
         Backend::progress_start_option_token(&con.clone(), &progress, &task);
         project_deps(
             sender,
@@ -200,6 +200,7 @@ pub async fn update_dependencies_cli() {
             repos,
         )
         .await;
+        Backend::progress_end_option_token(&con.clone(), &progress, &task);
     }
     Backend::progress_end_option_token(&con.clone(), &progress, &task);
 }

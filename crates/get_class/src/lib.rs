@@ -442,6 +442,9 @@ fn get_class_cblock(block: &AstClassBlock, point: &AstPoint) -> Option<FoundClas
         if !v.range.is_in_range(point) {
             continue;
         }
+        if let Some(o) = get_class_annotated_vec(&v.annotated, point) {
+            return Some(o);
+        }
 
         if let Some(o) = get_class_jtype(&v.jtype, point) {
             return Some(o);

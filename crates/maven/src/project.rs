@@ -86,7 +86,7 @@ pub async fn project_deps(
                 Ok(classes) => {
                     let a = completed_number.fetch_add(1, Ordering::Relaxed);
                     let _ = sender.send(TaskProgress {
-                        percentage: (100 * a) / (tasks_number + 1),
+                        percentage: (100 * a) / tasks_number,
                         error: false,
                         message: dep.artivact_id.clone(),
                     });
@@ -178,7 +178,7 @@ async fn reindex(
             Ok(classes) => {
                 let a = completed_number.fetch_add(1, Ordering::Relaxed);
                 let _ = sender.send(TaskProgress {
-                    percentage: (100 * a) / (tasks_number + 1),
+                    percentage: (100 * a) / tasks_number,
                     error: false,
                     message: dep.artivact_id.clone(),
                 });

@@ -141,7 +141,7 @@ pub async fn update(
 
             let a = completed_number.fetch_add(1, Ordering::Relaxed);
             let _ = sender.send(TaskProgress {
-                percentage: (100 * a) / (tasks_number + 1),
+                percentage: (100 * a) / tasks_number,
                 error: false,
                 message: pom.artivact_id.clone(),
             });
@@ -349,7 +349,6 @@ pub async fn stage_two(
     client: &Arc<Client>,
     jar_url: &str,
 ) -> Result<UpdateStateTwo, MavenUpdateError> {
-    eprintln!("Fetch jar: {jar_url}");
     let mut builder = client.get(jar_url);
     if let Some(cred) = &repo.credentials {
         builder = builder.basic_auth(cred.username.clone(), Some(cred.password.clone()));
