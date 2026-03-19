@@ -9,7 +9,7 @@ use crate::types::{
 /// Join two ranges a must be before b
 #[must_use]
 pub fn add_ranges(a: AstRange, b: AstRange) -> AstRange {
-    debug_assert!(a.end < b.start);
+    debug_assert!(a.start.line <= b.end.line);
     AstRange {
         start: a.start,
         end: b.end,
@@ -344,6 +344,21 @@ impl GetRange for AstValues {
             };
         }
         AstRange::default()
+    }
+}
+impl AstInRange for Vec<AstExpressionKind> {
+    fn is_in_range(&self, point: &AstPoint) -> bool {
+        let Some(first) = self.first().map(GetRange::get_range) else {
+            return false;
+        };
+        let Some(last) = self.last().map(GetRange::get_range) else {
+            return false;
+        };
+        if first == last {
+            return true;
+        }
+
+        add_ranges(first, last).is_in_range(point)
     }
 }
 impl GetRange for AstExpressionKind {

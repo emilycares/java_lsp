@@ -889,6 +889,8 @@ fn cc_expr(
     has_parent: bool,
     out: &mut Vec<CallItem>,
 ) {
+    let ast_expression = cut_expression(ast_expression, point);
+
     let Some(ex) = ast_expression.first() else {
         return;
     };
@@ -924,6 +926,70 @@ fn cc_expr(
         AstExpressionKind::InstanceOf(ast_instance_of) => cc_jtype(&ast_instance_of.jtype, out),
     }
     cc_expr(&ast_expression[1..], point, has_parent, out);
+}
+
+/// a.thing && b.thing && c.thing
+///               ^
+/// will return expression b.thing
+fn cut_expression<'a>(
+    ast_expression: &'a [AstExpressionKind],
+    point: &'a AstPoint,
+) -> Vec<AstExpressionKind> {
+    let mut all = vec![];
+    let mut current = vec![];
+    for ex in ast_expression {
+        match ex {
+            AstExpressionKind::Recursive(ast_recursive_expression) => {
+                match ast_recursive_expression.operator {
+                    AstExpressionOperator::None
+                    | AstExpressionOperator::PlusPlus(_)
+                    | AstExpressionOperator::MinusMinus(_)
+                    | AstExpressionOperator::Equal(_)
+                    | AstExpressionOperator::NotEqual(_)
+                    | AstExpressionOperator::Multiply(_)
+                    | AstExpressionOperator::Divide(_)
+                    | AstExpressionOperator::Modulo(_)
+                    | AstExpressionOperator::Le(_)
+                    | AstExpressionOperator::Lt(_)
+                    | AstExpressionOperator::Ge(_)
+                    | AstExpressionOperator::Gt(_)
+                    | AstExpressionOperator::Dot(_)
+                    | AstExpressionOperator::ExclamationMark(_)
+                    | AstExpressionOperator::QuestionMark(_)
+                    | AstExpressionOperator::Colon(_)
+                    | AstExpressionOperator::ColonColon(_)
+                    | AstExpressionOperator::Assign(_)
+                    | AstExpressionOperator::Tilde(_)
+                    | AstExpressionOperator::Caret(_) => current.push(ex.clone()),
+                    AstExpressionOperator::Ampersand(_)
+                    | AstExpressionOperator::AmpersandAmpersand(_)
+                    | AstExpressionOperator::Plus(_)
+                    | AstExpressionOperator::Minus(_)
+                    | AstExpressionOperator::VerticalBar(_)
+                    | AstExpressionOperator::VerticalBarVerticalBar(_) => {
+                        current.push(ex.clone());
+                        all.push(current.clone());
+                        current.clear();
+                    }
+                }
+            }
+            AstExpressionKind::Casted(_)
+            | AstExpressionKind::Lambda(_)
+            | AstExpressionKind::InlineSwitch(_)
+            | AstExpressionKind::NewClass(_)
+            | AstExpressionKind::Generics(_)
+            | AstExpressionKind::Array(_)
+            | AstExpressionKind::JType(_)
+            | AstExpressionKind::InstanceOf(_) => current.push(ex.clone()),
+        }
+    }
+    all.push(current.clone());
+    for current in all {
+        if current.is_in_range(point) {
+            return current;
+        }
+    }
+    ast_expression.to_vec()
 }
 
 fn cc_jtype(jtype: &AstJType, out: &mut Vec<CallItem>) {

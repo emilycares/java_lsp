@@ -1009,3 +1009,77 @@ public static Map<Long, String> m = new HashMap<>( );
         out,
     );
 }
+
+#[test]
+fn call_chain_and_expr() {
+    let content = r#"
+package ch.emilycares;
+public class Test {
+public boolean test(String a) {
+return a.length > 0
+         && Other.thing(a)
+         && Some.aaaa(a);
+}
+}
+"#;
+    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
+
+    let out = get_call_chain(&ast, &AstPoint::new(5, 20));
+    assert_eq!(
+        vec![
+            CallItem::ClassOrVariable {
+                name: SmolStr::new_inline("Other"),
+                range: AstRange {
+                    start: AstPoint { line: 5, col: 12 },
+                    end: AstPoint { line: 5, col: 17 },
+                },
+            },
+            CallItem::MethodCall {
+                name: SmolStr::new_inline("thing"),
+                range: AstRange {
+                    start: AstPoint { line: 5, col: 18 },
+                    end: AstPoint { line: 5, col: 23 },
+                }
+            }
+        ],
+        out,
+    );
+}
+
+#[test]
+fn call_chain_and_expr_last() {
+    let content = r#"
+package ch.emilycares;
+public class Test {
+public boolean test(String a) {
+return a.length > 0
+         && Other.thing(a)
+         && Some.aaaa(a);
+}
+}
+"#;
+    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
+
+    let out = get_call_chain(&ast, &AstPoint::new(6, 20));
+    assert_eq!(
+        vec![
+            CallItem::ClassOrVariable {
+                name: SmolStr::new_inline("Some"),
+                range: AstRange {
+                    start: AstPoint { line: 6, col: 12 },
+                    end: AstPoint { line: 6, col: 16 },
+                },
+            },
+            CallItem::MethodCall {
+                name: SmolStr::new_inline("aaaa"),
+                range: AstRange {
+                    start: AstPoint { line: 6, col: 17 },
+                    end: AstPoint { line: 6, col: 21 },
+                }
+            }
+        ],
+        out,
+    );
+}

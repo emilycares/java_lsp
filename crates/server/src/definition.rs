@@ -8,7 +8,10 @@ use call_chain::CallItem;
 use document::{Document, DocumentError, read_document_or_open_class};
 use lsp_extra::{SourceToUriError, ToLspRangeError, source_to_uri, to_lsp_range};
 use lsp_types::{GotoDefinitionResponse, Location, SymbolKind, Uri};
-use my_string::MyString;
+use my_string::{
+    MyString,
+    smol_str::{SmolStr, ToSmolStr},
+};
 use parser::dto::{Class, ImportUnit};
 use position::PositionSymbol;
 use tyres::TyresError;
@@ -21,14 +24,15 @@ use crate::hover::{ClassActionError, class_action};
 pub enum DefinitionError {
     Tyres(TyresError),
     ClassActon(ClassActionError),
-    NoSourceFile { file: String },
-    LocalVariableNotFound { name: String },
+    NoSourceFile { file: SmolStr },
+    LocalVariableNotFound { name: SmolStr },
     ValidatedItemDoesNotExists,
     NoCallChain,
     ArgumentNotFound,
     Document(DocumentError),
     ToLspRange(ToLspRangeError),
     SourceToUri(SourceToUriError),
+    FieldNotFound { name: SmolStr },
 }
 pub struct DefinitionContext<'a> {
     pub document_uri: Uri,
@@ -119,23 +123,9 @@ pub fn call_chain_definition(
             Ok(go_to_definition_range(uri, &ranges)?)
         }
         Some(CallItem::FieldAccess { name, range: _ }) => {
-            let source_file = match resolve_state
-                .class
-                .fields
-                .iter()
-                .filter(|i| i.name == *name)
-                .find_map(|i| i.source.clone())
-            {
-                Some(method_source) => method_source,
-                None => resolve_state.class.get_source(),
-            };
-            let ast = document::get_ast(&source_file, context.document_map)
-                .map_err(DefinitionError::Document)?;
-            let mut ranges = Vec::new();
-            position::get_field_position_ast(&ast, Some(name), &mut ranges);
-            let uri = source_to_uri(&source_file).map_err(DefinitionError::SourceToUri)?;
-            Ok(go_to_definition_range(uri, &ranges)?)
+            field_definition(context, &resolve_state, name)
         }
+
         Some(CallItem::Variable { name, range: _ }) => {
             let Some(range) = context
                 .vars
@@ -144,7 +134,7 @@ pub fn call_chain_definition(
                 .map(|v| v.range)
             else {
                 return Err(DefinitionError::LocalVariableNotFound {
-                    name: name.to_string(),
+                    name: name.to_smolstr(),
                 });
             };
             let range = to_lsp_range(&range).map_err(DefinitionError::ToLspRange)?;
@@ -154,6 +144,9 @@ pub fn call_chain_definition(
             }))
         }
         Some(CallItem::ClassOrVariable { name, range: _ }) => {
+            if let Ok(d) = field_definition(context, &resolve_state, name) {
+                return Ok(d);
+            }
             let ranges: Vec<_> = context
                 .vars
                 .iter()
@@ -185,6 +178,28 @@ pub fn call_chain_definition(
         }
         None => Err(DefinitionError::ValidatedItemDoesNotExists),
     }
+}
+
+fn field_definition(
+    context: &DefinitionContext<'_>,
+    resolve_state: &tyres::ResolveState,
+    name: &SmolStr,
+) -> Result<GotoDefinitionResponse, DefinitionError> {
+    if let Some(field) = resolve_state.class.fields.iter().find(|i| &i.name == name) {
+        let source = field
+            .source
+            .as_ref()
+            .map_or_else(|| resolve_state.class.get_source(), ToOwned::to_owned);
+        let ast =
+            document::get_ast(&source, context.document_map).map_err(DefinitionError::Document)?;
+        let mut ranges = Vec::new();
+        position::get_field_position_ast(&ast, Some(name), &mut ranges);
+        let uri = source_to_uri(&source).map_err(DefinitionError::SourceToUri)?;
+        return go_to_definition_range(uri, &ranges);
+    }
+    Err(DefinitionError::FieldNotFound {
+        name: name.to_smolstr(),
+    })
 }
 
 pub fn class_to_uri(class: &Class) -> Result<Uri, DefinitionError> {
@@ -296,7 +311,7 @@ public class Test {
     }
     #[test]
     fn definition_parent_method() {
-        let cont = r#"
+        let cont = "
 package ch.emilycares;
 import ch.emilycares.a.ParGreet;
 public class Test extends ParGreet {
@@ -304,7 +319,7 @@ public class Test extends ParGreet {
         return greet();
     }
 }
-        "#;
+        ";
         let point = AstPoint::new(5, 19);
         let document = Document::setup(cont, PathBuf::from_str("/Test.java").unwrap()).unwrap();
         let document_uri = Uri::from_str("file:///Test.java").unwrap();
