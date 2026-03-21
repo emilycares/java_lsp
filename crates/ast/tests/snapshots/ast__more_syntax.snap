@@ -109,7 +109,7 @@ AstFile {
                                     },
                                 },
                                 availability: AstAvailability(
-                                    Public | Static | Protected,
+                                    Public | Static,
                                 ),
                                 name: AstIdentifier {
                                     range: AstRange {
@@ -10786,7 +10786,7 @@ AstFile {
                                                                                             },
                                                                                         },
                                                                                         availability: AstAvailability(
-                                                                                            Public | Protected,
+                                                                                            Public,
                                                                                         ),
                                                                                         name: AstIdentifier {
                                                                                             range: AstRange {
@@ -11945,7 +11945,7 @@ AstFile {
                                     },
                                 },
                                 availability: AstAvailability(
-                                    Public | Protected | Abstract,
+                                    Public | Abstract,
                                 ),
                                 name: AstIdentifier {
                                     range: AstRange {
@@ -12016,7 +12016,7 @@ AstFile {
                                     },
                                 },
                                 availability: AstAvailability(
-                                    Public | Protected,
+                                    Public,
                                 ),
                                 name: AstIdentifier {
                                     range: AstRange {

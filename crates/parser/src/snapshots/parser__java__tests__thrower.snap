@@ -20,7 +20,7 @@ Class {
     methods: [
         Method {
             access: Access(
-                Public | Protected,
+                Public,
             ),
             name: Some(
                 "ioThrower",
@@ -36,7 +36,7 @@ Class {
         },
         Method {
             access: Access(
-                Public | Protected,
+                Public,
             ),
             name: Some(
                 "ioThrower",

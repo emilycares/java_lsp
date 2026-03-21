@@ -27,7 +27,7 @@ Class {
         },
         Method {
             access: Access(
-                Protected,
+                Public,
             ),
             name: Some(
                 "method",
@@ -39,7 +39,7 @@ Class {
         },
         Method {
             access: Access(
-                Public | Protected,
+                Public,
             ),
             name: Some(
                 "public_method",
@@ -51,7 +51,7 @@ Class {
         },
         Method {
             access: Access(
-                Private | Protected,
+                Private,
             ),
             name: Some(
                 "private_method",
@@ -63,7 +63,7 @@ Class {
         },
         Method {
             access: Access(
-                Protected,
+                Public,
             ),
             name: Some(
                 "out",
@@ -75,7 +75,7 @@ Class {
         },
         Method {
             access: Access(
-                Protected,
+                Public,
             ),
             name: Some(
                 "add",
@@ -100,7 +100,7 @@ Class {
         },
         Method {
             access: Access(
-                Protected | Static,
+                Public | Static,
             ),
             name: Some(
                 "sadd",

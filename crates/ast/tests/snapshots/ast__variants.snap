@@ -309,7 +309,7 @@ AstFile {
                                 },
                             },
                             availability: AstAvailability(
-                                Public | Protected,
+                                Public,
                             ),
                             name: AstIdentifier {
                                 range: AstRange {

@@ -334,7 +334,7 @@ pub fn parse_class_method(
     pos: usize,
 ) -> Result<(AstClassMethod, usize), AstError> {
     let start = tokens.start(pos)?;
-    let (header, pos) = parse_method_header(tokens, pos, AstAvailability::Protected)?;
+    let (header, pos) = parse_method_header(tokens, pos, AstAvailability::empty())?;
     let mut block = None;
     let mut pos = pos;
     if let Ok(npos) = assert_token(tokens, pos, Token::Semicolon) {

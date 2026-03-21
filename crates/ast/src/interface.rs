@@ -240,7 +240,7 @@ pub fn parse_interface_method(
 ) -> Result<(AstInterfaceMethod, usize), AstError> {
     let start = tokens.start(pos)?;
     let (annotated, pos) = parse_annotated_list(tokens, pos)?;
-    let (header, pos) = parse_method_header(tokens, pos, AstAvailability::Public)?;
+    let (header, pos) = parse_method_header(tokens, pos, AstAvailability::empty())?;
     let pos = assert_token(tokens, pos, Token::Semicolon)?;
     let end = tokens.end(pos)?;
     Ok((

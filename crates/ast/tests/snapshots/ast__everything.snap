@@ -251,7 +251,7 @@ AstFile {
                                     },
                                 },
                                 availability: AstAvailability(
-                                    Protected,
+                                    0x0,
                                 ),
                                 name: AstIdentifier {
                                     range: AstRange {
@@ -336,7 +336,7 @@ AstFile {
                                     },
                                 },
                                 availability: AstAvailability(
-                                    Public | Protected,
+                                    Public,
                                 ),
                                 name: AstIdentifier {
                                     range: AstRange {
@@ -421,7 +421,7 @@ AstFile {
                                     },
                                 },
                                 availability: AstAvailability(
-                                    Private | Protected,
+                                    Private,
                                 ),
                                 name: AstIdentifier {
                                     range: AstRange {
@@ -506,7 +506,7 @@ AstFile {
                                     },
                                 },
                                 availability: AstAvailability(
-                                    Protected,
+                                    0x0,
                                 ),
                                 name: AstIdentifier {
                                     range: AstRange {
@@ -647,7 +647,7 @@ AstFile {
                                     },
                                 },
                                 availability: AstAvailability(
-                                    Protected,
+                                    0x0,
                                 ),
                                 name: AstIdentifier {
                                     range: AstRange {
@@ -930,7 +930,7 @@ AstFile {
                                     },
                                 },
                                 availability: AstAvailability(
-                                    Static | Protected,
+                                    Static,
                                 ),
                                 name: AstIdentifier {
                                     range: AstRange {

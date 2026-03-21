@@ -17,7 +17,7 @@ Class {
     methods: [
         Method {
             access: Access(
-                Public | Protected,
+                Public,
             ),
             name: Some(
                 "getTag",

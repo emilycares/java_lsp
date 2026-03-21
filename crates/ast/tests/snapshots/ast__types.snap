@@ -1615,7 +1615,7 @@ AstFile {
                                     },
                                 },
                                 availability: AstAvailability(
-                                    Public | Static | Protected,
+                                    Public | Static,
                                 ),
                                 name: AstIdentifier {
                                     range: AstRange {
