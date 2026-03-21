@@ -15,7 +15,7 @@ jobs:
       - uses: MyAlbum/purge-cache@v2
       - uses: nixbuild/nix-quick-install-action@v34
       - name: Restore and save Nix store
-        uses: nix-community/cache-nix-action@v6
+        uses: nix-community/cache-nix-action@v7
         with:
           primary-key: build-${{ runner.os }}-${{ hashFiles('Cargo.lock', '**/Cargo.toml', 'flake.nix', 'flake.lock', 'rust-toolchain.toml') }}
           purge: true

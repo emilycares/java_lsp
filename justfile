@@ -30,6 +30,8 @@ audit:
   cargo audit fix
   cd ./editor/vscode && pnpm audit --fix
   cd ./editor/vscode && pnpm install
+  cd ./editor/vscode && pnpm audit
   cd ./editor/vscode/client && npm audit fix
+  cd ./editor/vscode/client && npm audit
 
 precommit: fmt check test clippy doc dev nix
