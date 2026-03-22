@@ -226,7 +226,7 @@ fn format_method(m: &Method, class_name: &str) -> String {
     out
 }
 
-fn jtype_hover_display(jtype: &JType) -> String {
+pub fn jtype_hover_display(jtype: &JType) -> String {
     match jtype {
         JType::Void => "void".to_owned(),
         JType::Byte => "byte".to_owned(),

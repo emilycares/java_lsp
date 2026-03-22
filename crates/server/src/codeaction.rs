@@ -18,6 +18,8 @@ use parser::dto::{Class, ImportUnit};
 use tyres::TyresError;
 use variables::LocalVariable;
 
+use crate::hover::jtype_hover_display;
+
 pub struct CodeActionContext<'a> {
     pub point: &'a AstPoint,
     pub imports: &'a [ImportUnit],
@@ -120,16 +122,15 @@ pub fn replace_with_value_type(
         #[allow(clippy::mutable_key_type)]
         let mut changes = HashMap::new();
         let range = to_lsp_range(&current_type.range).map_err(CodeActionError::ToLspRange)?;
+        let new_text = jtype_hover_display(&value_resolve_state.jtype);
+        let title = format!("Replace variable type with: {}", &new_text);
         changes.insert(
             context.current_file.to_owned(),
-            vec![TextEdit {
-                range,
-                new_text: value_resolve_state.class.name.to_string(),
-            }],
+            vec![TextEdit { range, new_text }],
         );
         let action = CodeActionOrCommand::CodeAction(CodeAction {
             kind: Some(CodeActionKind::QUICKFIX),
-            title: format!("Replace variable type with: {}", value_resolve_state.jtype),
+            title,
             edit: Some(WorkspaceEdit {
                 changes: Some(changes),
                 ..Default::default()
@@ -448,7 +449,7 @@ public class Test {
             lsp_types::CodeActionOrCommand::CodeAction(code_action) => {
                 assert_eq!(
                     code_action.title,
-                    "Replace variable type with: java.io.FileInputStream"
+                    "Replace variable type with: FileInputStream"
                 );
             }
             lsp_types::CodeActionOrCommand::Command(_) => panic!(),
