@@ -11,10 +11,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use dto::{Class, ClassError, ClassFolder, SourceDestination};
 use my_string::{MyString, smol_str::ToSmolStr};
 use parser::{
     class::{ModuleInfo, load_class, load_module},
-    dto::{Class, ClassError, ClassFolder, SourceDestination},
     java::{self, ParseJavaError},
 };
 use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
@@ -380,7 +380,7 @@ async fn base_load_classes_zip(
 
 #[cfg(test)]
 mod tests {
-    use parser::dto::JType;
+    use dto::JType;
 
     use crate::DEBUGGING;
     #[test]

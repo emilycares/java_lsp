@@ -10,9 +10,9 @@ use std::{
 };
 
 use common::{Dependency, TaskProgress, deps_dir};
+use dto::{Class, ClassFolder, SourceDestination};
 use loader::{CFC_VERSION, LoaderError};
 use my_string::{MyString, smol_str::ToSmolStr};
-use parser::dto::{Class, ClassFolder, SourceDestination};
 use tokio::task::JoinSet;
 
 use crate::{

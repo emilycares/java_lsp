@@ -10,8 +10,8 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
-ast = { path = "../ast" }
-parser.workspace = true
+ast.workspace = true
+dto.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]

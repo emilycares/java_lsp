@@ -12,11 +12,11 @@ license.workspace = true
 [dependencies]
 tokio.workspace = true
 my_string.workspace = true
-compile = {path = "../compile"}
-common = {path = "../common"}
-parser = {path = "../parser"}
-loader = {path = "../loader"}
-maven = {path = "../maven"}
+compile.workspace = true
+common.workspace = true
+dto.workspace = true
+loader.workspace = true
+maven.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]

@@ -9,8 +9,6 @@ documentation.workspace = true
 readme.workspace = true
 license.workspace = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 tokio.workspace = true
 lsp-server.workspace = true
@@ -19,6 +17,7 @@ serde_json.workspace = true
 rayon.workspace = true
 jwalk.workspace = true
 format.workspace = true
+dto.workspace = true
 parser.workspace = true
 loader.workspace = true
 maven.workspace = true

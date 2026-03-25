@@ -4,14 +4,13 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
 pub mod class;
-pub mod dto;
+
 pub mod java;
 
 use std::path::Path;
 
 use ast::types::AstFile;
-
-use crate::dto::{Class, SourceDestination};
+use dto::{Class, SourceDestination};
 
 pub fn update_project_java_file<T: AsRef<Path>>(file: T, ast: &AstFile) -> Class {
     java::load_java_tree(

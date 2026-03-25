@@ -1,13 +1,11 @@
-use crate::dto::SourceDestination;
-use crate::dto::{
-    Access, Class, ClassError, Field, ImportUnit, JType, Method, Parameter, SuperClass,
-};
 use classfile_parser::attribute_info::{AttributeInfo, CodeAttribute};
 use classfile_parser::code_attribute::LocalVariableTableAttribute;
 use classfile_parser::constant_info::ConstantInfo;
 use classfile_parser::field_info::{FieldAccessFlags, FieldInfo};
 use classfile_parser::method_info::MethodAccessFlags;
 use classfile_parser::{ClassAccessFlags, ClassFile, class_parser};
+use dto::SourceDestination;
+use dto::{Access, Class, ClassError, Field, ImportUnit, JType, Method, Parameter, SuperClass};
 use my_string::MyString;
 use my_string::smol_str::ToSmolStr;
 
@@ -265,7 +263,7 @@ fn parse_used_classes(c: &ClassFile, code_attribute: Option<CodeAttribute>) -> V
             .collect();
         return types
             .iter()
-            .flat_map(|i| jtype_class_names(i.clone()))
+            .flat_map(|i: &JType| jtype_class_names(i.clone()))
             .collect();
     }
     vec![]
@@ -486,7 +484,7 @@ pub fn load_module(bytes: &[u8]) -> Result<ModuleInfo, ClassError> {
 #[cfg(test)]
 mod tests {
     use crate::class::{load_class, load_module};
-    use crate::dto::SourceDestination;
+    use dto::SourceDestination;
 
     #[cfg(not(windows))]
     #[test]

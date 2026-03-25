@@ -10,7 +10,7 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
-parser.workspace = true
+dto.workspace = true
 call_chain.workspace = true
 variables.workspace = true
 ast.workspace = true

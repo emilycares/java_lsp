@@ -13,6 +13,7 @@ publish = false
 
 [dependencies]
 phf.workspace = true
+dto = {path="../dto"}
 bitflags.workspace = true
 my_string.workspace = true
 memchr.workspace = true

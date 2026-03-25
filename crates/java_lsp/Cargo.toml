@@ -8,11 +8,11 @@ license.workspace = true
 [dependencies]
 clap.workspace = true
 tokio.workspace = true
-document = { path = "../document" }
-variables = { path = "../variables" }
-cli = { path = "../cli" }
-server = { path = "../server" }
-common = { path = "../common" }
-format = { path = "../format" }
+document.workspace = true
+variables.workspace = true
+cli.workspace = true
+server.workspace = true
+common.workspace = true
+format.workspace = true
 jdk.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }

@@ -1,6 +1,6 @@
 [package]
-name = "jdk"
-version = "0.1.0"
+name = "jimage"
+version.workspace = true
 edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
@@ -10,15 +10,5 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
-tokio.workspace = true
-dirs.workspace = true
-my_string.workspace = true
-jimage.workspace = true
 dto.workspace = true
-loader.workspace = true
-zip_util.workspace = true
-common.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }
-
-[dev-dependencies]
-pretty_assertions.workspace = true

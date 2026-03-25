@@ -3,8 +3,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use dto::{Access, Class, ImportUnit, SuperClass};
 use my_string::{MyString, smol_str::format_smolstr};
-use parser::dto::{Access, Class, ImportUnit, SuperClass};
 
 use crate::{ImportResult, is_imported};
 

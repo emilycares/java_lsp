@@ -9,12 +9,12 @@ use ast::types::{
     AstBlockEntry, AstBlockVariable, AstFile, AstForContent, AstIf, AstIfContent, AstPoint,
     AstThing, AstWhileContent,
 };
+use dto::{Class, ImportUnit};
 use lsp_extra::{ToLspRangeError, to_lsp_range};
 use lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, Position, Range, TextEdit, Uri, WorkspaceEdit,
 };
 use my_string::MyString;
-use parser::dto::{Class, ImportUnit};
 use tyres::TyresError;
 use variables::LocalVariable;
 
@@ -375,9 +375,9 @@ pub mod tests {
 
     use ast::types::AstPoint;
     use document::Document;
+    use dto::{Access, Class, ImportUnit, JType, Method, SourceDestination};
     use lsp_types::Uri;
     use my_string::MyString;
-    use parser::dto::{Access, Class, ImportUnit, JType, Method, SourceDestination};
     use pretty_assertions::assert_eq;
 
     use crate::codeaction::replace_with_value_type;

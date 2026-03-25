@@ -10,11 +10,10 @@ readme.workspace = true
 license.workspace = true
 publish = false
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 ast.workspace = true
 my_string.workspace = true
+dto.workspace = true
 classfile-parser.workspace = true
 serde.workspace = true
 bitflags.workspace = true
@@ -23,3 +22,4 @@ workspace_hack = { version = "0.1", path = "../workspace_hack" }
 [dev-dependencies]
 pretty_assertions.workspace = true
 insta.workspace = true
+

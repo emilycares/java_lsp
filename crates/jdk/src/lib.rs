@@ -17,10 +17,10 @@ use std::{
 };
 
 use common::TaskProgress;
+use dto::{Class, ClassFolder, SourceDestination};
 use loader::{CFC_VERSION, load_class_files};
 use my_string::MyString;
-use parser::dto::{Class, ClassFolder, SourceDestination};
-use tokio::{process::Command, task::JoinSet};
+use tokio::{process::Command, sync::watch::Sender, task::JoinSet};
 
 #[cfg(not(target_os = "windows"))]
 const EXECUTABLE_JAVA: &str = "java";
@@ -44,6 +44,8 @@ pub enum JdkError {
     JavaNotInPath,
     Utf8(Utf8Error),
     Str,
+    Jimage(jimage::types::JimageError),
+    NoJimageExecutable,
 }
 
 pub async fn load_classes(
@@ -64,7 +66,7 @@ pub async fn load_classes(
         }
         return Ok(());
     }
-    let class_folder = load_jdk(&java_path, &op_dir, false, sender).await?;
+    let class_folder = load_jdk(&java_path, &op_dir, ForceLoader::None, sender).await?;
     if let Err(e) = loader::save_class_folder(cache_path, &class_folder) {
         eprintln!("Failed to save {JDK_CFC} because: {e:?}");
     }
@@ -87,16 +89,41 @@ fn java_executable_location(path: &OsString) -> Option<PathBuf> {
     })
 }
 
+#[derive(PartialEq, Eq)]
+pub enum ForceLoader {
+    None,
+    Jmod,
+    ModulesOwn,
+    ModulesExecutable,
+}
+
+impl ForceLoader {
+    #[must_use]
+    pub const fn is_jmod(&self) -> bool {
+        match self {
+            Self::None | Self::Jmod => true,
+            Self::ModulesOwn | Self::ModulesExecutable => false,
+        }
+    }
+    #[must_use]
+    pub const fn is_modules(&self) -> bool {
+        match self {
+            Self::Jmod => false,
+            Self::None | Self::ModulesOwn | Self::ModulesExecutable => true,
+        }
+    }
+}
+
 /// Extracts java jdk from from the java executable in path.
 /// returns folder of output
 pub async fn load_jdk(
     java_path: &Path,
     op_dir: &Path,
-    ignore_jmod: bool,
+    force_loader: ForceLoader,
     sender: tokio::sync::watch::Sender<TaskProgress>,
 ) -> Result<ClassFolder, JdkError> {
     extract_source_zip(java_path, op_dir).await?;
-    if !ignore_jmod {
+    if force_loader.is_jmod() {
         let jmods_dir = get_jmods_dir(java_path);
         if jmods_dir.exists() {
             let mut jmod_executable = java_path.to_path_buf();
@@ -109,16 +136,21 @@ pub async fn load_jdk(
             }
         }
     }
-    let modules_file = get_modules_file(java_path);
+    let modules_file = jimage::get_modules_path(java_path);
     if modules_file.exists() {
         let mut jimage_executable = java_path.to_path_buf();
         jimage_executable.push("jimage");
         if cfg!(windows) {
             jimage_executable.set_extension("exe");
         }
-        if jimage_executable.exists() {
-            return load_modules(jimage_executable, modules_file, op_dir, sender).await;
-        }
+        return load_modules(
+            jimage_executable,
+            modules_file,
+            op_dir,
+            sender,
+            force_loader,
+        )
+        .await;
     }
     eprintln!("There is no jmod in your jdk: {}", java_path.display());
     load_old(java_path, op_dir).await
@@ -128,11 +160,36 @@ async fn load_modules(
     jimage_executable: PathBuf,
     modules_file: PathBuf,
     op_dir: &Path,
-    _sender: tokio::sync::watch::Sender<TaskProgress>,
+    sender: tokio::sync::watch::Sender<TaskProgress>,
+    force_loader: ForceLoader,
 ) -> Result<ClassFolder, JdkError> {
     let source_dir = op_dir.join("src");
     let source_dir = source_dir.to_str().ok_or(JdkError::Str)?;
 
+    if matches!(force_loader, ForceLoader::ModulesOwn) {
+        return load_jimage(&modules_file, source_dir, sender);
+    }
+    if matches!(force_loader, ForceLoader::ModulesExecutable) {
+        return load_modules_with_command(jimage_executable, modules_file, op_dir, source_dir)
+            .await;
+    }
+    // let load = load_jimage(&modules_file, source_dir, sender);
+    // if load.is_ok() {
+    //     return load;
+    // }
+
+    load_modules_with_command(jimage_executable, modules_file, op_dir, source_dir).await
+}
+
+async fn load_modules_with_command(
+    jimage_executable: PathBuf,
+    modules_file: PathBuf,
+    op_dir: &Path,
+    source_dir: &str,
+) -> Result<ClassFolder, JdkError> {
+    if !jimage_executable.exists() {
+        return Err(JdkError::NoJimageExecutable);
+    }
     let out = op_dir.join("modules");
     if !fs::exists(&out).unwrap_or(false) {
         let _ = fs::create_dir_all(&out);
@@ -159,21 +216,14 @@ async fn load_modules(
     })
 }
 
-fn get_modules_file(java_path: &Path) -> PathBuf {
-    let mut java_path = java_path.to_path_buf();
-    java_path.pop();
-    let mut modules_file: PathBuf = java_path.join("lib").join("modules");
-    if !modules_file.exists() {
-        let lib_openjdk_lib_modules = java_path
-            .join("lib")
-            .join("openjdk")
-            .join("lib")
-            .join("modules");
-        if lib_openjdk_lib_modules.exists() {
-            modules_file = lib_openjdk_lib_modules;
-        }
-    }
-    modules_file
+fn load_jimage(
+    modules_file: &Path,
+    source_dir: &str,
+    _sender: Sender<TaskProgress>,
+) -> Result<ClassFolder, JdkError> {
+    let data = std::fs::read(modules_file).map_err(JdkError::IO)?;
+
+    jimage::parser(&data, 0, source_dir).map_err(JdkError::Jimage)
 }
 
 async fn load_old(java_path: &Path, op_dir: &Path) -> Result<ClassFolder, JdkError> {
@@ -394,13 +444,35 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[tokio::test]
-    async fn load_jdk_modules_integration() {
+    async fn load_jdk_modules_executable_integration() {
         let Some(path) = std::env::var_os("PATH") else {
             return;
         };
         let (java_path, op_dir) = get_work_dirs(&path).await.unwrap();
         let (sender, _) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress::default());
-        let out = load_jdk(&java_path, &op_dir, true, sender).await.unwrap();
+        let out = load_jdk(&java_path, &op_dir, ForceLoader::ModulesExecutable, sender)
+            .await
+            .unwrap();
+
+        let string = out.classes.iter().find(|i| i.name == "String");
+        assert!(string.is_some());
+        assert_eq!(string.unwrap().class_path, "java.lang.String");
+        let source = &string.unwrap().get_source();
+        assert!(source.ends_with("src/java.base/java/lang/String.java"));
+        assert!(fs::exists(source).unwrap());
+    }
+
+    #[tokio::test]
+    #[ignore = "todo"]
+    async fn load_jdk_modules_own_integration() {
+        let Some(path) = std::env::var_os("PATH") else {
+            return;
+        };
+        let (java_path, op_dir) = get_work_dirs(&path).await.unwrap();
+        let (sender, _) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress::default());
+        let out = load_jdk(&java_path, &op_dir, ForceLoader::ModulesOwn, sender)
+            .await
+            .unwrap();
 
         let string = out.classes.iter().find(|i| i.name == "String");
         assert!(string.is_some());
@@ -417,7 +489,9 @@ mod tests {
         };
         let (java_path, op_dir) = get_work_dirs(&path).await.unwrap();
         let (sender, _) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress::default());
-        let out = load_jdk(&java_path, &op_dir, false, sender).await.unwrap();
+        let out = load_jdk(&java_path, &op_dir, ForceLoader::Jmod, sender)
+            .await
+            .unwrap();
 
         let string = out.classes.iter().find(|i| i.name == "String");
         assert!(string.is_some());
@@ -425,7 +499,7 @@ mod tests {
         let source = &string.unwrap().get_source();
         assert!(
             source
-                .replace("\\", "/")
+                .replace('\\', "/")
                 .ends_with("src/java.base/java/lang/String.java")
         );
         assert!(fs::exists(source).unwrap());

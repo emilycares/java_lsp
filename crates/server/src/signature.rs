@@ -6,11 +6,11 @@ use std::{
 use ast::types::AstPoint;
 use call_chain::CallItem;
 use document::Document;
+use dto::{Class, ImportUnit, Method};
 use lsp_types::{
     Documentation, ParameterInformation, ParameterLabel, SignatureHelp, SignatureInformation,
 };
 use my_string::MyString;
-use parser::dto::{Class, ImportUnit, Method};
 use variables::{LocalVariable, VariablesError};
 
 #[derive(Debug)]
@@ -234,8 +234,8 @@ pub mod tests {
     use ast::types::AstPoint;
     use document::Document;
 
+    use dto::{Access, Class, JType, Method, Parameter};
     use my_string::MyString;
-    use parser::dto::{Access, Class, JType, Method, Parameter};
 
     #[test]
     fn signarure_base() {
@@ -431,13 +431,13 @@ public class Test {
             name: "Test".into(),
             ..Default::default()
         };
-        let content = r#"
+        let content = r"
 package ch.emilycares;
 import java.util.HashMap;
 public class Test {
 public static Map<Long, String> m = new HashMap<>( );
 }
-"#;
+";
         let doc = Document::setup(content, PathBuf::new()).unwrap();
 
         let out = signature_driver(&doc, &AstPoint::new(4, 51), &class, &class_map).unwrap();

@@ -4,7 +4,7 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
 use ast::types::AstFile;
-use parser::dto::ImportUnit;
+use dto::ImportUnit;
 
 #[must_use]
 pub fn is_imported(imports: &[ImportUnit], class_path: &str) -> bool {

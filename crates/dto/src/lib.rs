@@ -3,7 +3,6 @@ use std::{
     path::{MAIN_SEPARATOR, MAIN_SEPARATOR_STR},
 };
 
-use ast::types::{AstAvailability, AstImport, AstImportUnit, AstJType, AstJTypeKind};
 use bitflags::bitflags;
 use my_string::{
     MyString,
@@ -123,38 +122,6 @@ impl ImportUnit {
     }
 }
 
-impl From<AstImport> for ImportUnit {
-    fn from(value: AstImport) -> Self {
-        match value.unit {
-            AstImportUnit::Class(ast_identifier) => Self::Class(ast_identifier.into()),
-            AstImportUnit::StaticClass(ast_identifier) => Self::StaticClass(ast_identifier.into()),
-            AstImportUnit::StaticClassMethod(ast_identifier, ast_identifier1) => {
-                Self::StaticClassMethod(ast_identifier.into(), ast_identifier1.into())
-            }
-            AstImportUnit::Prefix(ast_identifier) => Self::Prefix(ast_identifier.into()),
-            AstImportUnit::StaticPrefix(ast_identifier) => {
-                Self::StaticPrefix(ast_identifier.into())
-            }
-        }
-    }
-}
-
-impl From<&AstImport> for ImportUnit {
-    fn from(value: &AstImport) -> Self {
-        match &value.unit {
-            AstImportUnit::Class(ast_identifier) => Self::Class(ast_identifier.into()),
-            AstImportUnit::StaticClass(ast_identifier) => Self::StaticClass(ast_identifier.into()),
-            AstImportUnit::StaticClassMethod(ast_identifier, ast_identifier1) => {
-                Self::StaticClassMethod(ast_identifier.into(), ast_identifier1.into())
-            }
-            AstImportUnit::Prefix(ast_identifier) => Self::Prefix(ast_identifier.into()),
-            AstImportUnit::StaticPrefix(ast_identifier) => {
-                Self::StaticPrefix(ast_identifier.into())
-            }
-        }
-    }
-}
-
 bitflags! {
    #[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Debug, Default)]
    pub struct Access: u16 {
@@ -174,38 +141,6 @@ bitflags! {
      const Synchronized = 0b0100_0000_0000_0000;
      const Deprecated   = 0b1000_0000_0000_0000;
    }
-}
-impl Access {
-    #[must_use]
-    pub fn from(value: &AstAvailability, def: Self) -> Self {
-        let mut out = Self::empty();
-
-        if value.intersects(AstAvailability::Public) {
-            out.insert(Self::Public);
-        }
-        if value.intersects(AstAvailability::Private) {
-            out.insert(Self::Private);
-        }
-        if value.intersects(AstAvailability::Protected) {
-            out.insert(Self::Protected);
-        }
-        if !value.intersects(
-            AstAvailability::Public | AstAvailability::Private | AstAvailability::Protected,
-        ) {
-            out.insert(def);
-        }
-
-        if value.intersects(AstAvailability::Synchronized) {
-            out.insert(Self::Synchronized);
-        }
-        if value.intersects(AstAvailability::Final) {
-            out.insert(Self::Final);
-        }
-        if value.intersects(AstAvailability::Static) {
-            out.insert(Self::Static);
-        }
-        out
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
@@ -257,33 +192,6 @@ pub enum JType {
         inner: Box<Self>,
     },
 }
-impl From<&AstJType> for JType {
-    fn from(value: &AstJType) -> Self {
-        match &value.value {
-            AstJTypeKind::Void => Self::Void,
-            AstJTypeKind::Byte => Self::Byte,
-            AstJTypeKind::Char => Self::Char,
-            AstJTypeKind::Double => Self::Double,
-            AstJTypeKind::Float => Self::Float,
-            AstJTypeKind::Int => Self::Int,
-            AstJTypeKind::Long => Self::Long,
-            AstJTypeKind::Short => Self::Short,
-            AstJTypeKind::Boolean => Self::Boolean,
-            AstJTypeKind::Wildcard => Self::Wildcard,
-            AstJTypeKind::Class(ast_identifier) => Self::Class(ast_identifier.into()),
-            AstJTypeKind::Array(ast_jtype) => Self::Array(Box::new(ast_jtype.as_ref().into())),
-            AstJTypeKind::Generic(ast_identifier, ast_jtypes) => Self::Generic(
-                ast_identifier.into(),
-                ast_jtypes.iter().map(Into::into).collect(),
-            ),
-            AstJTypeKind::Var => Self::Var,
-            AstJTypeKind::Access { base, inner } => Self::Access {
-                base: Box::new((&**base).into()),
-                inner: Box::new((&**inner).into()),
-            },
-        }
-    }
-}
 
 impl Display for JType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -319,67 +227,5 @@ impl Display for JType {
                 write!(f, "{}.{}", **base, **inner)
             }
         }
-    }
-}
-
-impl PartialEq<AstJType> for JType {
-    fn eq(&self, other: &AstJType) -> bool {
-        Into::<Self>::into(other) == *self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use ast::types::{AstIdentifier, AstJType, AstJTypeKind, AstPoint, AstRange};
-
-    use super::JType;
-
-    #[test]
-    fn jtype_map() {
-        let inp = AstJType {
-            annotated: Vec::new(),
-            range: AstRange::default(),
-            value: AstJTypeKind::Generic(
-                AstIdentifier {
-                    range: AstRange {
-                        start: AstPoint { line: 6, col: 27 },
-                        end: AstPoint { line: 6, col: 38 },
-                    },
-                    value: "IntFunction".into(),
-                },
-                vec![
-                    AstJType {
-                        annotated: Vec::new(),
-                        range: AstRange {
-                            start: AstPoint { line: 6, col: 39 },
-                            end: AstPoint { line: 6, col: 50 },
-                        },
-                        value: AstJTypeKind::Wildcard,
-                    },
-                    AstJType {
-                        annotated: Vec::new(),
-                        range: AstRange {
-                            start: AstPoint { line: 6, col: 49 },
-                            end: AstPoint { line: 6, col: 50 },
-                        },
-                        value: AstJTypeKind::Class(AstIdentifier {
-                            range: AstRange {
-                                start: AstPoint { line: 6, col: 49 },
-                                end: AstPoint { line: 6, col: 50 },
-                            },
-                            value: "U".into(),
-                        }),
-                    },
-                ],
-            ),
-        };
-        let out: JType = (&inp).into();
-        assert_eq!(
-            JType::Generic(
-                "IntFunction".into(),
-                vec![JType::Wildcard, JType::Class("U".into())]
-            ),
-            out
-        );
     }
 }

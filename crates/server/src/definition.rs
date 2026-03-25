@@ -6,13 +6,13 @@ use std::{
 use ast::types::{AstFile, AstPoint};
 use call_chain::CallItem;
 use document::{Document, DocumentError, read_document_or_open_class};
+use dto::{Class, ImportUnit};
 use lsp_extra::{SourceToUriError, ToLspRangeError, source_to_uri, to_lsp_range};
 use lsp_types::{GotoDefinitionResponse, Location, SymbolKind, Uri};
 use my_string::{
     MyString,
     smol_str::{SmolStr, ToSmolStr},
 };
-use parser::dto::{Class, ImportUnit};
 use position::PositionSymbol;
 use tyres::TyresError;
 use variables::LocalVariable;
@@ -238,7 +238,7 @@ fn go_to_definition_range(
 mod tests {
     use std::{path::PathBuf, str::FromStr};
 
-    use parser::dto::{Access, JType, Method, SourceDestination};
+    use dto::{Access, JType, Method, SourceDestination};
 
     use super::*;
 

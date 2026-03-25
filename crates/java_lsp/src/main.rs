@@ -2,6 +2,7 @@
 use clap::Parser;
 use cli::{Args, Commands};
 use common::TaskProgress;
+use jdk::ForceLoader;
 use server::command::{reload_dependencies_cli, update_dependencies_cli};
 
 #[tokio::main]
@@ -44,7 +45,7 @@ async fn main() {
             };
             let (java_path, op_dir) = jdk::get_work_dirs(&path).await.unwrap();
             let (sender, _) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress::default());
-            jdk::load_jdk(&java_path, &op_dir, false, sender)
+            jdk::load_jdk(&java_path, &op_dir, ForceLoader::None, sender)
                 .await
                 .unwrap();
             cli::ast_check_dir(op_dir.join("src")).await.unwrap();

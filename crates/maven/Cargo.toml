@@ -9,8 +9,6 @@ documentation.workspace = true
 readme.workspace = true
 license.workspace = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 dirs.workspace = true
 tokio.workspace = true
@@ -19,10 +17,10 @@ reqwest.workspace = true
 serde.workspace = true
 serde-xml-rs.workspace = true
 my_string.workspace = true
-common = { path = "../common" }
-parser = {path = "../parser"}
-loader = {path = "../loader"}
-zip_util = { path = "../zip_util" }
+common.workspace = true
+dto.workspace = true
+loader.workspace = true
+zip_util.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]

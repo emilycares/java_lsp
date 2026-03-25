@@ -13,11 +13,11 @@ use std::{
 
 use ast::types::AstPoint;
 use call_chain::CallItem;
+use dto::{Access, Class, Field, ImportUnit, JType, Method};
 use my_string::{
     MyString,
     smol_str::{SmolStr, SmolStrBuilder, format_smolstr},
 };
-use parser::dto::{Access, Class, Field, ImportUnit, JType, Method};
 use variables::LocalVariable;
 
 use crate::parent::{populate_super_class, populate_super_interfaces};

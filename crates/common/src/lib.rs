@@ -15,6 +15,7 @@ pub struct Dependency {
     pub group_id: String,
     pub artivact_id: String,
     pub version: String,
+    pub version_suffix: Option<String>,
 }
 
 pub fn project_cache_dir() -> PathBuf {

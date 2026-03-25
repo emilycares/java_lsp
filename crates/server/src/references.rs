@@ -6,10 +6,10 @@ use std::{
 use ast::types::{AstFile, AstPoint};
 use call_chain::CallItem;
 use document::{Document, DocumentError};
+use dto::{Class, ImportUnit};
 use lsp_extra::{SourceToUriError, ToLspRangeError, source_to_uri, to_lsp_range};
 use lsp_types::Location;
 use my_string::MyString;
-use parser::dto::{Class, ImportUnit};
 use position::PositionSymbol;
 use variables::LocalVariable;
 

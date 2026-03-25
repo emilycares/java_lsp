@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use parser::dto::Class;
+use dto::Class;
 
 #[must_use]
 pub fn load_project_folders(project_dir: &Path) -> Vec<Class> {

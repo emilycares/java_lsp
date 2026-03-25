@@ -1,6 +1,7 @@
 use std::str::Utf8Error;
 
 use ast::{
+    dto_extra::access_from_availability,
     lexer,
     types::{
         AstAnnotated, AstAnnotationField, AstClassConstructor, AstClassMethod, AstClassVariable,
@@ -14,7 +15,7 @@ use my_string::{
     smol_str::{SmolStr, SmolStrBuilder},
 };
 
-use crate::dto::{
+use dto::{
     Access, Class, ClassError, Field, ImportUnit, JType, Method, Parameter, SourceDestination,
     SuperClass,
 };
@@ -52,7 +53,7 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
     if let Some(thing) = ast.things.first() {
         match thing {
             AstThing::Class(class) => {
-                access = Access::from(&class.availability, Access::Public);
+                access = access_from_availability(&class.availability, Access::Public);
                 load_deprecated(&mut access, &class.annotated);
                 name.clone_from(&class.name.value);
                 methods.extend(
@@ -73,7 +74,7 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
                 };
             }
             AstThing::Record(record) => {
-                access = Access::from(&record.availability, Access::Public);
+                access = access_from_availability(&record.availability, Access::Public);
                 load_deprecated(&mut access, &record.annotated);
                 methods.extend(record.block.methods.iter().map(convert_class_method));
                 fields.extend(record.block.variables.iter().map(convert_class_field));
@@ -86,7 +87,7 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
                 };
             }
             AstThing::Enumeration(enumeration) => {
-                access = Access::from(&enumeration.availability, Access::Public);
+                access = access_from_availability(&enumeration.availability, Access::Public);
                 load_deprecated(&mut access, &enumeration.annotated);
                 name = (&enumeration.name).into();
                 methods.extend(enumeration.methods.iter().map(convert_class_method));
@@ -100,7 +101,7 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
                 fields.extend(enumeration.variables.iter().map(convert_class_field));
             }
             AstThing::Interface(interface) => {
-                access = Access::from(&interface.availability, Access::Public);
+                access = access_from_availability(&interface.availability, Access::Public);
                 load_deprecated(&mut access, &interface.annotated);
                 name = (&interface.name).into();
                 if let Some(ext) = &interface.extends {
@@ -116,7 +117,7 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
                 fields.extend(interface.constants.iter().map(convert_interface_constant));
             }
             AstThing::Annotation(annotation) => {
-                access = Access::from(&annotation.availability, Access::Public);
+                access = access_from_availability(&annotation.availability, Access::Public);
                 load_deprecated(&mut access, &annotation.annotated);
                 name = (&annotation.name).into();
                 fields.extend(annotation.fields.iter().map(convert_annotation_field));
@@ -153,7 +154,7 @@ fn fun_name(ext: &AstExtends, imports: &[ImportUnit]) -> impl Iterator<Item = Su
         if let AstJTypeKind::Class(c) = &i.value {
             return imports
                 .iter()
-                .find_map(|i| i.get_imported_class_package(&c.value))
+                .find_map(|i: &ImportUnit| i.get_imported_class_package(&c.value))
                 .map_or_else(
                     || Some(SuperClass::Name(c.into())),
                     |class_path| Some(SuperClass::ClassPath(class_path)),
@@ -172,7 +173,7 @@ fn convert_imports(imports: Option<&AstImports>, package: MyString) -> Vec<Impor
 }
 
 fn convert_class_method(m: &AstClassMethod) -> Method {
-    let mut access = Access::from(&m.header.availability, Access::Public);
+    let mut access = access_from_availability(&m.header.availability, Access::Public);
     load_deprecated(&mut access, &m.header.annotated);
     let parameters = m
         .header
@@ -199,7 +200,7 @@ fn convert_class_method(m: &AstClassMethod) -> Method {
     }
 }
 fn convert_class_constructor(m: &AstClassConstructor) -> Method {
-    let access = Access::from(&m.header.availability, Access::Public);
+    let access = access_from_availability(&m.header.availability, Access::Public);
     let parameters = m
         .header
         .parameters
@@ -225,7 +226,7 @@ fn convert_class_constructor(m: &AstClassConstructor) -> Method {
     }
 }
 fn convert_interface_method(m: &AstInterfaceMethod) -> Method {
-    let access = Access::from(&m.header.availability, Access::Public);
+    let access = access_from_availability(&m.header.availability, Access::Public);
     let parameters = m
         .header
         .parameters
@@ -252,7 +253,7 @@ fn convert_interface_method(m: &AstInterfaceMethod) -> Method {
     }
 }
 fn convert_interface_default_method(m: &AstInterfaceMethodDefault) -> Method {
-    let access = Access::from(&m.header.availability, Access::Public);
+    let access = access_from_availability(&m.header.availability, Access::Public);
     let parameters = m
         .header
         .parameters
@@ -280,7 +281,7 @@ fn convert_interface_default_method(m: &AstInterfaceMethodDefault) -> Method {
 }
 
 fn convert_interface_constant(c: &AstInterfaceConstant) -> Field {
-    let mut access = Access::from(&c.availability, Access::Public);
+    let mut access = access_from_availability(&c.availability, Access::Public);
     load_deprecated(&mut access, &c.annotated);
     Field {
         access,
@@ -290,7 +291,7 @@ fn convert_interface_constant(c: &AstInterfaceConstant) -> Field {
     }
 }
 fn convert_annotation_field(c: &AstAnnotationField) -> Field {
-    let mut access = Access::from(&c.availability, Access::Public);
+    let mut access = access_from_availability(&c.availability, Access::Public);
     load_deprecated(&mut access, &c.annotated);
     Field {
         access,
@@ -300,7 +301,7 @@ fn convert_annotation_field(c: &AstAnnotationField) -> Field {
     }
 }
 fn convert_class_field(c: &AstClassVariable) -> Field {
-    let mut access = Access::from(&c.availability, Access::Public);
+    let mut access = access_from_availability(&c.availability, Access::Public);
     load_deprecated(&mut access, &c.annotated);
     let jtype: JType = (&c.jtype).into();
 
@@ -341,7 +342,7 @@ fn check_type_parameters(
     if let JType::Generic(name, params) = jtype {
         let params = params
             .iter()
-            .map(|i| {
+            .map(|i: &JType| {
                 if let JType::Class(p) = i
                     && type_parameters
                         .parameters
@@ -361,7 +362,7 @@ fn check_type_parameters(
 
 #[cfg(test)]
 pub mod tests {
-    use crate::dto::SourceDestination;
+    use dto::SourceDestination;
 
     use super::load_java;
 

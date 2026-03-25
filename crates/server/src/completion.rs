@@ -6,13 +6,13 @@ use std::{
 use ast::types::{AstFile, AstPoint};
 use call_chain::get_call_chain;
 use document::{Document, DocumentError};
+use dto::{Access, Class, ImportUnit, JType, Method, Parameter};
 use get_class::FoundClass;
 use lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionItemTag,
     InsertTextFormat,
 };
 use my_string::MyString;
-use parser::dto::{Access, Class, ImportUnit, JType, Method, Parameter};
 use variables::LocalVariable;
 
 use crate::{codeaction, hover::class_to_markdown};
@@ -358,12 +358,12 @@ mod tests {
 
     use ast::types::{AstPoint, AstRange};
     use document::Document;
+    use dto::{Access, Class, ImportUnit, JType, Method, Parameter};
     use lsp_types::{
         CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat, Position,
         Range, TextEdit,
     };
     use my_string::MyString;
-    use parser::dto::{Access, Class, ImportUnit, JType, Method, Parameter};
     use pretty_assertions::assert_eq;
     use variables::LocalVariable;
 

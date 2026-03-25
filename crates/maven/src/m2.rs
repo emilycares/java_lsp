@@ -41,17 +41,18 @@ fn pom_m2_classifier_path(
     pom_mtwo: &PomMTwo,
     classifier: Option<&str>,
 ) -> PathBuf {
-    let mut p = pom_mtwo.join("a");
-
-    if let Some(classifier) = classifier {
-        let file_name = format!("{}-{}-{}.jar", pom.artivact_id, pom.version, classifier);
-        p.set_file_name(file_name);
-    } else {
-        let file_name = format!("{}-{}.jar", pom.artivact_id, pom.version);
-        p.set_file_name(file_name);
+    if classifier.is_none()
+        && let Some(suffix) = &pom.version_suffix
+    {
+        let file_name = format!("{}-{}-{}.jar", pom.artivact_id, pom.version, suffix);
+        return pom_mtwo.join(file_name);
     }
 
-    p
+    let file_name = classifier.map_or_else(
+        || format!("{}-{}.jar", pom.artivact_id, pom.version),
+        |classifier| format!("{}-{}-{}.jar", pom.artivact_id, pom.version, classifier),
+    );
+    pom_mtwo.join(file_name)
 }
 
 #[must_use]
@@ -81,7 +82,26 @@ mod tests {
     use common::Dependency;
     use pretty_assertions::assert_eq;
 
-    use crate::m2::{pom_javadoc_jar, pom_m2, pom_sources_jar};
+    use crate::m2::{pom_classes_jar, pom_javadoc_jar, pom_m2, pom_sources_jar};
+
+    #[test]
+    fn classes_path_base() {
+        let pom = Dependency {
+            group_id: "io.quarkus".to_string(),
+            artivact_id: "quarkus-resteasy-reactive".to_string(),
+            version: "3.7.2".to_string(),
+            version_suffix: None,
+        };
+        let pom_mtwo = pom_m2(&pom, &PathBuf::from("~/.m2/"));
+        let out = pom_classes_jar(&pom, &pom_mtwo);
+
+        assert_eq!(
+            out,
+            PathBuf::from(
+                "~/.m2/repository/io/quarkus/quarkus-resteasy-reactive/3.7.2/quarkus-resteasy-reactive-3.7.2.jar"
+            )
+        );
+    }
 
     #[test]
     fn sources_path_base() {
@@ -89,6 +109,7 @@ mod tests {
             group_id: "io.quarkus".to_string(),
             artivact_id: "quarkus-resteasy-reactive".to_string(),
             version: "3.7.2".to_string(),
+            version_suffix: None,
         };
         let pom_mtwo = pom_m2(&pom, &PathBuf::from("~/.m2/"));
         let out = pom_sources_jar(&pom, &pom_mtwo);
@@ -107,6 +128,64 @@ mod tests {
             group_id: "io.quarkus".to_string(),
             artivact_id: "quarkus-resteasy-reactive".to_string(),
             version: "3.7.2".to_string(),
+            version_suffix: None,
+        };
+        let pom_mtwo = pom_m2(&pom, &PathBuf::from("~/.m2/"));
+        let out = pom_javadoc_jar(&pom, &pom_mtwo);
+
+        assert_eq!(
+            out,
+            PathBuf::from(
+                "~/.m2/repository/io/quarkus/quarkus-resteasy-reactive/3.7.2/quarkus-resteasy-reactive-3.7.2-javadoc.jar"
+            )
+        );
+    }
+
+    #[test]
+    fn classes_path_suffix() {
+        let pom = Dependency {
+            group_id: "io.quarkus".to_string(),
+            artivact_id: "quarkus-resteasy-reactive".to_string(),
+            version: "3.7.2".to_string(),
+            version_suffix: Some("suffix".to_string()),
+        };
+        let pom_mtwo = pom_m2(&pom, &PathBuf::from("~/.m2/"));
+        let out = pom_classes_jar(&pom, &pom_mtwo);
+
+        assert_eq!(
+            out,
+            PathBuf::from(
+                "~/.m2/repository/io/quarkus/quarkus-resteasy-reactive/3.7.2/quarkus-resteasy-reactive-3.7.2-suffix.jar"
+            )
+        );
+    }
+
+    #[test]
+    fn sources_path_suffix() {
+        let pom = Dependency {
+            group_id: "io.quarkus".to_string(),
+            artivact_id: "quarkus-resteasy-reactive".to_string(),
+            version: "3.7.2".to_string(),
+            version_suffix: Some("suffix".to_string()),
+        };
+        let pom_mtwo = pom_m2(&pom, &PathBuf::from("~/.m2/"));
+        let out = pom_sources_jar(&pom, &pom_mtwo);
+
+        assert_eq!(
+            out,
+            PathBuf::from(
+                "~/.m2/repository/io/quarkus/quarkus-resteasy-reactive/3.7.2/quarkus-resteasy-reactive-3.7.2-sources.jar"
+            )
+        );
+    }
+
+    #[test]
+    fn javadoc_path_suffix() {
+        let pom = Dependency {
+            group_id: "io.quarkus".to_string(),
+            artivact_id: "quarkus-resteasy-reactive".to_string(),
+            version: "3.7.2".to_string(),
+            version_suffix: Some("suffix".to_string()),
         };
         let pom_mtwo = pom_m2(&pom, &PathBuf::from("~/.m2/"));
         let out = pom_javadoc_jar(&pom, &pom_mtwo);

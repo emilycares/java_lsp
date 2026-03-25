@@ -6,13 +6,11 @@ use std::{
 use ast::types::{AstFile, AstPoint};
 use call_chain::{self, CallItem};
 use document::get_class_path;
+use dto::{Access, Class, Field, ImportUnit, JType, Method, SourceDestination};
 use lsp_extra::{ToLspRangeError, to_lsp_range};
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
 use my_string::MyString;
-use parser::{
-    dto::{Access, Class, Field, ImportUnit, JType, Method, SourceDestination},
-    java::load_java_tree,
-};
+use parser::java::load_java_tree;
 use tyres::TyresError;
 use variables::LocalVariable;
 
@@ -372,8 +370,8 @@ mod tests {
 
     use ast::types::AstPoint;
     use document::Document;
+    use dto::{Access, Class, JType, Method};
     use my_string::MyString;
-    use parser::dto::{Access, Class, JType, Method};
 
     use crate::hover::{call_chain_hover, class_action};
 

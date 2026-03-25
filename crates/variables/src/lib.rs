@@ -10,8 +10,8 @@ use ast::types::{
     AstRange, AstRecursiveExpression, AstSwitch, AstSwitchCaseArrowContent, AstThing, AstTryCatch,
     AstWhile, AstWhileContent,
 };
+use dto::JType;
 use my_string::MyString;
-use parser::dto::JType;
 
 /// variable or function in a ast
 #[derive(Debug, PartialEq, Clone)]

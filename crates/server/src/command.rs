@@ -9,13 +9,13 @@ use common::{
     Dependency, TaskProgress, project_cache_dir,
     project_kind::{ProjectKind, get_project_kind},
 };
+use dto::Class;
 use gradle::tree::GradleTreeError;
 use lsp_extra::SERVER_NAME;
 use lsp_server::Connection;
 use lsp_types::{Diagnostic, DiagnosticSeverity, ProgressToken, Range};
 use maven::{tree::MavenTreeError, update};
 use my_string::MyString;
-use parser::dto::Class;
 
 use crate::backend::{
     Backend, project_deps, read_forward, report_maven_gradle_diagnostic, update_report,

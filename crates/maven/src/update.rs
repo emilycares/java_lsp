@@ -9,8 +9,8 @@ use std::{
 };
 
 use common::{Dependency, TaskProgress, deps_dir};
+use dto::SourceDestination;
 use my_string::smol_str::ToSmolStr;
-use parser::dto::SourceDestination;
 use reqwest::{Client, StatusCode};
 use tokio::task::JoinSet;
 

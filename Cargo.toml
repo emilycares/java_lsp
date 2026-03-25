@@ -6,12 +6,10 @@ homepage = "https://github.com/emilycares/java_lsp"
 repository = "https://github.com/emilycares/java_lsp"
 documentation = "https://github.com/emilycares/java_lsp"
 readme = "README.md"
-license = "GPL-3.0-or-later"
+license = "GPL-3.0"
 
 [workspace.metadata.crane]
 name = "java_lsp"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
 members = [
@@ -39,6 +37,8 @@ members = [
     "crates/loader",
     "crates/my_string",
     "crates/lsp_extra",
+    "crates/jimage",
+    "crates/dto",
 ]
 resolver = "3"
 
@@ -58,7 +58,10 @@ debug = "line-tables-only"
 
 [workspace.dependencies]
 # In this project
+dto = { path = "crates/dto"}
 parser = { path = "crates/parser"}
+ast = { path = "crates/ast"}
+jimage = { path = "crates/jimage"}
 maven = { path = "crates/maven"}
 server = { path = "crates/server"}
 format = { path = "crates/format"}
@@ -76,7 +79,6 @@ position = { path = "crates/position"}
 imports = { path = "crates/imports"}
 java_lsp = { path = "crates/java_lsp"}
 zip_util = { path = "crates/zip_util"}
-ast = { path = "crates/ast"}
 get_class = { path = "crates/get_class"}
 loader = { path = "crates/loader"}
 my_string = { path = "crates/my_string"}

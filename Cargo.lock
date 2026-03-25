@@ -75,6 +75,7 @@ name = "ast"
 version = "0.1.0"
 dependencies = [
  "bitflags 2.11.0",
+ "dto",
  "insta",
  "memchr",
  "my_string",
@@ -570,6 +571,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "dto"
+version = "0.1.0"
+dependencies = [
+ "bitflags 2.11.0",
+ "my_string",
+ "serde",
+ "workspace_hack",
+]
+
+[[package]]
 name = "dunce"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -781,10 +792,10 @@ version = "0.1.0"
 dependencies = [
  "common",
  "compile",
+ "dto",
  "loader",
  "maven",
  "my_string",
- "parser",
  "pretty_assertions",
  "tokio",
  "workspace_hack",
@@ -1074,7 +1085,7 @@ name = "imports"
 version = "0.1.0"
 dependencies = [
  "ast",
- "parser",
+ "dto",
  "pretty_assertions",
  "workspace_hack",
 ]
@@ -1152,13 +1163,22 @@ version = "0.1.0"
 dependencies = [
  "common",
  "dirs",
+ "dto",
+ "jimage",
  "loader",
  "my_string",
- "parser",
  "pretty_assertions",
  "tokio",
  "workspace_hack",
  "zip_util",
+]
+
+[[package]]
+name = "jimage"
+version = "0.1.0"
+dependencies = [
+ "dto",
+ "workspace_hack",
 ]
 
 [[package]]
@@ -1251,6 +1271,7 @@ name = "loader"
 version = "0.1.0"
 dependencies = [
  "ast",
+ "dto",
  "jwalk",
  "memmap2",
  "my_string",
@@ -1324,9 +1345,9 @@ version = "0.1.0"
 dependencies = [
  "common",
  "dirs",
+ "dto",
  "loader",
  "my_string",
- "parser",
  "pretty_assertions",
  "reqwest",
  "serde",
@@ -1507,6 +1528,7 @@ dependencies = [
  "ast",
  "bitflags 2.11.0",
  "classfile-parser",
+ "dto",
  "insta",
  "my_string",
  "pretty_assertions",
@@ -2154,6 +2176,7 @@ dependencies = [
  "common",
  "compile",
  "document",
+ "dto",
  "format",
  "get_class",
  "gradle",
@@ -2534,8 +2557,8 @@ version = "0.1.0"
 dependencies = [
  "ast",
  "call_chain",
+ "dto",
  "my_string",
- "parser",
  "variables",
  "workspace_hack",
 ]
@@ -2587,9 +2610,9 @@ name = "variables"
 version = "0.1.0"
 dependencies = [
  "ast",
+ "dto",
  "insta",
  "my_string",
- "parser",
  "workspace_hack",
 ]
 

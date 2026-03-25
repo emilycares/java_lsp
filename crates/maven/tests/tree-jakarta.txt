@@ -1,0 +1,8 @@
+[INFO] digraph "myproject:jar:3.0.0-SNAPSHOT" { 
+[INFO] 	"myproject:jar:3.0.0-SNAPSHOT" -> "com.google.guava:guava:jar:33.4.8-jre:compile" ; 
+[INFO] 	"myproject:jar:3.0.0-SNAPSHOT" -> "com.querydsl:querydsl-apt:jar:jakarta:5.1.0:compile" ; 
+[INFO] 	"myproject:jar:3.0.0-SNAPSHOT" -> "com.querydsl:querydsl-jpa:jar:jakarta:5.1.0:compile" ; 
+[INFO] 	"myproject:jar:3.0.0-SNAPSHOT" -> "com.querydsl:querydsl-core:jar:5.1.0:compile" ; 
+[INFO] 	"myproject:jar:3.0.0-SNAPSHOT" -> "jakarta.persistence:jakarta.persistence-api:jar:3.1.0:compile" ; 
+[INFO] 	"myproject:jar:3.0.0-SNAPSHOT" -> "jakarta.annotation:jakarta.annotation-api:jar:2.1.1:compile" ; 
+[INFO]  } 

@@ -10,6 +10,7 @@ use call_chain::get_call_chain;
 use common::{Dependency, TaskProgress, project_cache_dir, project_kind::ProjectKind};
 use compile::CompileErrorMessage;
 use document::{Document, DocumentError, get_class_path, open_document};
+use dto::Class;
 use gradle::project::get_gradle_cache_path;
 use lsp_extra::{SERVER_NAME, source_to_uri, to_ast_point};
 use lsp_server::{Connection, Message};
@@ -31,7 +32,6 @@ use maven::{
     update::{self, MavenUpdateError},
 };
 use my_string::{MyString, smol_str::ToSmolStr};
-use parser::dto::Class;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use serde_json::Value;
 use tokio::task::JoinSet;
@@ -396,10 +396,12 @@ impl Backend {
         let path = params.text_document.uri.path();
         let path_str = path.as_str();
 
-        let errors = self.compile(path_str);
-        let mut current_file_diagnostics =
-            self.publish_compile_errors(errors, &params.text_document.uri);
-
+        let mut current_file_diagnostics = Vec::new();
+        self.compile_project_file(
+            &params.text_document.uri,
+            path_str,
+            &mut current_file_diagnostics,
+        );
         let document_map_key = get_document_map_key(&params.text_document.uri);
         match open_document(
             &document_map_key,
@@ -467,19 +469,16 @@ impl Backend {
     pub fn did_save(&self, params: &DidSaveTextDocumentParams) {
         let path = params.text_document.uri.path();
         let path_str = path.as_str();
-        if !params
-            .text_document
-            .uri
-            .path()
-            .as_str()
-            .to_lowercase()
-            .ends_with(".java")
-        {
+        if !path_str.to_lowercase().ends_with(".java") {
             return;
         }
-        let errors = self.compile(path_str);
-        let current_file_diagnostics =
-            self.publish_compile_errors(errors, &params.text_document.uri);
+        let mut current_file_diagnostics = Vec::new();
+        self.compile_project_file(
+            &params.text_document.uri,
+            path_str,
+            &mut current_file_diagnostics,
+        );
+
         let Ok(dm) = self.document_map.lock() else {
             return;
         };
@@ -503,6 +502,24 @@ impl Backend {
             params.text_document.uri.clone(),
             current_file_diagnostics,
         );
+    }
+
+    /// Only run javac on project files
+    ///
+    /// # Reason
+    /// The jdk classes (String), will result in compiler errors.
+    fn compile_project_file(
+        &self,
+        uri: &Uri,
+        path_str: &str,
+        current_file_diagnostics: &mut Vec<Diagnostic>,
+    ) {
+        if let Some(project) = self.project_dir.to_str()
+            && path_str.starts_with(project)
+        {
+            let errors = self.compile(path_str);
+            current_file_diagnostics.extend(self.publish_compile_errors(errors, uri));
+        }
     }
 
     pub fn hover(&self, params: HoverParams) -> Option<Hover> {
