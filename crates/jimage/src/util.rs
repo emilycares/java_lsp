@@ -22,6 +22,7 @@ pub fn expect_data(data: &[u8], pos: usize, expected: &[u8]) -> Result<usize, Ji
     Ok(pos + len)
 }
 
+#[allow(unused)]
 pub fn get_u8(data: &[u8], pos: usize) -> JResult<u8> {
     let Some(get) = data.get(pos) else {
         return Err(JimageError::EOF);

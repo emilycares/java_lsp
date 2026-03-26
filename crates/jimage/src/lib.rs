@@ -16,7 +16,7 @@ use dto::ClassFolder;
 
 use crate::{
     types::{JimageError, JimageHeader},
-    util::{JResult, expect_data, get_i32, get_u8, get_u16},
+    util::{JResult, expect_data, get_i32, get_u16},
 };
 
 #[must_use]
@@ -40,7 +40,7 @@ pub fn get_modules_path(java_path: &Path) -> PathBuf {
 /// Parser for jimage binary file
 /// <https://cr.openjdk.org/~sgehwolf/leyden/jimage_file_format_investigation_leyden.pdf>
 pub fn parser(data: &[u8], pos: usize, _source_dir: &str) -> Result<ClassFolder, JimageError> {
-    let (pos, header) = parse_header(data, pos)?;
+    let (_pos, header) = parse_header(data, pos)?;
     dbg!(&header);
     Err(JimageError::Todo)
 }

@@ -12,7 +12,7 @@ pub enum JimageError {
     },
     /// Parser does not support this version
     VersionNotSupported,
-    /// Prasing int whent wrong
+    /// Prasing int
     Number(TryFromSliceError),
 }
 
@@ -27,22 +27,32 @@ pub struct JimageHeader {
     pub strings_size: i32,
 }
 impl JimageHeader {
-    pub fn get_redirect_offset() -> i32 {
-        return 7 * 4;
+    #[allow(unused)]
+    #[must_use]
+    pub const fn get_redirect_offset() -> i32 {
+        7 * 4
     }
 
-    pub fn get_redirect_size(&self) -> i32 {
-        return self.table_len * 4;
+    #[allow(unused)]
+    #[must_use]
+    pub const fn get_redirect_size(&self) -> i32 {
+        self.table_len * 4
     }
-    pub fn get_offsets_offset(&self) -> i32 {
-        return Self::get_redirect_offset() + self.get_redirect_size();
+    #[allow(unused)]
+    #[must_use]
+    pub const fn get_offsets_offset(&self) -> i32 {
+        Self::get_redirect_offset() + self.get_redirect_size()
     }
 
-    pub fn get_locations_offset(&self) -> i32 {
-        return self.get_offsets_offset() + self.get_redirect_size();
+    #[allow(unused)]
+    #[must_use]
+    pub const fn get_locations_offset(&self) -> i32 {
+        self.get_offsets_offset() + self.get_redirect_size()
     }
 
-    pub fn get_strings_offset(&self) -> i32 {
-        return self.get_locations_offset() + self.locations_size;
+    #[allow(unused)]
+    #[must_use]
+    pub const fn get_strings_offset(&self) -> i32 {
+        self.get_locations_offset() + self.locations_size
     }
 }
