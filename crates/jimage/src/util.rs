@@ -29,3 +29,17 @@ pub fn get_u8(data: &[u8], pos: usize) -> JResult<u8> {
 
     Ok((pos + 1, *get))
 }
+pub fn get_u16(data: &[u8], pos: usize) -> JResult<u16> {
+    let next = pos + 2;
+    let get = <[u8; 2]>::try_from(&data[pos..next]).map_err(JimageError::Number)?;
+    let out = u16::from_le_bytes(get);
+
+    Ok((next, out))
+}
+pub fn get_i32(data: &[u8], pos: usize) -> JResult<i32> {
+    let next = pos + 4;
+    let get = <[u8; 4]>::try_from(&data[pos..next]).map_err(JimageError::Number)?;
+    let out = i32::from_le_bytes(get);
+
+    Ok((next, out))
+}

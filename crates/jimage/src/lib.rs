@@ -16,7 +16,7 @@ use dto::ClassFolder;
 
 use crate::{
     types::{JimageError, JimageHeader},
-    util::{expect_data, get_u8},
+    util::{JResult, expect_data, get_i32, get_u8, get_u16},
 };
 
 #[must_use]
@@ -40,27 +40,38 @@ pub fn get_modules_path(java_path: &Path) -> PathBuf {
 /// Parser for jimage binary file
 /// <https://cr.openjdk.org/~sgehwolf/leyden/jimage_file_format_investigation_leyden.pdf>
 pub fn parser(data: &[u8], pos: usize, _source_dir: &str) -> Result<ClassFolder, JimageError> {
-    let pos = parse_header(data, pos)?;
-    dbg!(pos);
+    let (pos, header) = parse_header(data, pos)?;
+    dbg!(&header);
     Err(JimageError::Todo)
 }
 
-fn parse_header(data: &[u8], pos: usize) -> Result<(JimageHeader, usize), JimageError> {
-    let pos = expect_data(data, pos, &[0xDA, 0xDA, 0xFE, 0xCA])?;
+fn parse_header(data: &[u8], pos: usize) -> JResult<JimageHeader> {
+    debug_assert!(pos == 0);
+    let pos = expect_data(data, pos, &[0xDA, 0xDA, 0xFE, 0xCA])?; // 4
 
-    let (pos, v1) = get_u8(data, pos)?;
-    let (pos, v2) = get_u8(data, pos)?;
-    if v1 != 0 && v2 != 0 {
+    let (pos, major_version) = get_u16(data, pos)?; // 2
+    let (pos, minor_version) = get_u16(data, pos)?; // 2
+    if major_version == 0 && minor_version == 0 {
         return Err(JimageError::VersionNotSupported);
     }
-    let (pos, _flags) = get_u8(data, pos)?;
-    let (pos, resources_count) = get_u8(data, pos)?;
-    let (pos, table_len) = get_u8(data, pos)?;
-    let (pos, locations_size) = get_u8(data, pos)?;
-    let (pos, strings) = get_u8(data, pos)?;
+    let (pos, flags) = get_i32(data, pos)?; // 1
+    let (pos, resources_count) = get_i32(data, pos)?; // 4
+    let (pos, table_len) = get_i32(data, pos)?; // 4
+    let (pos, locations_size) = get_i32(data, pos)?; // 4
+    let (pos, strings_size) = get_i32(data, pos)?; // 4
 
-    dbg!(resources_count, table_len, locations_size, strings);
-    dbg!(pos);
+    debug_assert!(pos == 28);
 
-    todo!()
+    Ok((
+        pos,
+        JimageHeader {
+            major_version,
+            minor_version,
+            flags,
+            resources_count,
+            table_len,
+            locations_size,
+            strings_size,
+        },
+    ))
 }
