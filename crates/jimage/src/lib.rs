@@ -47,18 +47,18 @@ pub fn parser(data: &[u8], pos: usize, _source_dir: &str) -> Result<ClassFolder,
 
 fn parse_header(data: &[u8], pos: usize) -> JResult<JimageHeader> {
     debug_assert!(pos == 0);
-    let pos = expect_data(data, pos, &[0xDA, 0xDA, 0xFE, 0xCA])?; // 4
+    let pos = expect_data(data, pos, &[0xDA, 0xDA, 0xFE, 0xCA])?;
 
-    let (pos, major_version) = get_u16(data, pos)?; // 2
-    let (pos, minor_version) = get_u16(data, pos)?; // 2
+    let (pos, major_version) = get_u16(data, pos)?;
+    let (pos, minor_version) = get_u16(data, pos)?;
     if major_version == 0 && minor_version == 0 {
         return Err(JimageError::VersionNotSupported);
     }
-    let (pos, flags) = get_i32(data, pos)?; // 1
-    let (pos, resources_count) = get_i32(data, pos)?; // 4
-    let (pos, table_len) = get_i32(data, pos)?; // 4
-    let (pos, locations_size) = get_i32(data, pos)?; // 4
-    let (pos, strings_size) = get_i32(data, pos)?; // 4
+    let (pos, flags) = get_i32(data, pos)?;
+    let (pos, resources_count) = get_i32(data, pos)?;
+    let (pos, table_len) = get_i32(data, pos)?;
+    let (pos, locations_size) = get_i32(data, pos)?;
+    let (pos, strings_size) = get_i32(data, pos)?;
 
     debug_assert!(pos == 28);
 

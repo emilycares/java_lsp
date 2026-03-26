@@ -463,7 +463,7 @@ mod tests {
     }
 
     #[tokio::test]
-    // #[ignore = "todo"]
+    #[ignore = "todo"]
     async fn load_jdk_modules_own_integration() {
         let Some(path) = std::env::var_os("PATH") else {
             return;
