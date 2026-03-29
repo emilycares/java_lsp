@@ -197,7 +197,7 @@
           };
         };
         packages = {
-          inherit java_lsp;
+          default = java_lsp;
         };
 
         devShells = {

@@ -37,10 +37,26 @@ pub fn get_u16(data: &[u8], pos: usize) -> JResult<u16> {
 
     Ok((next, out))
 }
+pub fn get_u32(data: &[u8], pos: usize) -> JResult<u32> {
+    let next = pos + 4;
+    let get = <[u8; 4]>::try_from(&data[pos..next]).map_err(JimageError::Number)?;
+    let out = u32::from_le_bytes(get);
+
+    Ok((next, out))
+}
+#[allow(unused)]
 pub fn get_i32(data: &[u8], pos: usize) -> JResult<i32> {
     let next = pos + 4;
     let get = <[u8; 4]>::try_from(&data[pos..next]).map_err(JimageError::Number)?;
     let out = i32::from_le_bytes(get);
+
+    Ok((next, out))
+}
+#[allow(unused)]
+pub fn get_u64(data: &[u8], pos: usize) -> JResult<u64> {
+    let next = pos + 8;
+    let get = <[u8; 8]>::try_from(&data[pos..next]).map_err(JimageError::Number)?;
+    let out = u64::from_le_bytes(get);
 
     Ok((next, out))
 }
