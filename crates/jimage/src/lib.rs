@@ -14,7 +14,7 @@ pub mod types;
 mod util;
 
 use std::{
-    path::{Path, PathBuf},
+    path::{MAIN_SEPARATOR, Path, PathBuf},
     str::from_utf8,
 };
 
@@ -89,8 +89,10 @@ pub fn parser(
         }
 
         let (_, module_name) = parse_string(strings_data, location.module)?;
-        let source =
-            SourceDestination::RelativeInFolder(format_smolstr!("{source_dir}/{module_name}"));
+        let source = SourceDestination::RelativeInFolder(format_smolstr!(
+            "{source_dir}{}{module_name}",
+            MAIN_SEPARATOR
+        ));
 
         let bytes = get_content_bytes(data, index_size, &location)?;
         let class_path = format_smolstr!("{}.{}", class_path.replace_smolstr("/", "."), class_name);

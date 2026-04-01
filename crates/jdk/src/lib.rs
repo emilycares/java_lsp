@@ -480,8 +480,11 @@ mod tests {
         assert!(string.is_some());
         assert_eq!(string.unwrap().class_path, "java.lang.String");
         let source = &string.unwrap().get_source();
-        dbg!(&source);
-        assert!(source.ends_with("src/java.base/java/lang/String.java"));
+        assert!(
+            source
+                .replace('\\', "/")
+                .ends_with("src/java.base/java/lang/String.java")
+        );
         assert!(fs::exists(source).unwrap());
     }
 

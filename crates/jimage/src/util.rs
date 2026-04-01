@@ -12,11 +12,6 @@ pub fn expect_data(data: &[u8], pos: usize, expected: &[u8]) -> Result<usize, Ji
 
     let cond = get != expected;
     if cond {
-        #[cfg(debug_assertions)]
-        {
-            dbg!(get);
-            dbg!(expected);
-        };
         return Err(JimageError::NotAsExpected { pos, len });
     }
     Ok(pos + len)
