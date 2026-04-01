@@ -18,11 +18,16 @@ use std::{
     str::from_utf8,
 };
 
-use dto::ClassFolder;
+use dto::{CFC_VERSION, ClassFolder, SourceDestination};
+use my_string::{
+    MyString,
+    smol_str::{StrExt, ToSmolStr, format_smolstr},
+};
+use parser::class::{ModuleInfo, load_class, load_module};
 
 use crate::{
     mutf8::{get_string_len, mutf8_to_utf8},
-    types::{JimageError, JimageHeader, JimageLocation},
+    types::{JimageError, JimageHeader, JimageLocation, ModuleList},
     util::{JResult, expect_data, get_u16, get_u32},
 };
 
@@ -46,41 +51,117 @@ pub fn get_modules_path(java_path: &Path) -> PathBuf {
 
 /// Parser for jimage binary file
 /// <https://cr.openjdk.org/~sgehwolf/leyden/jimage_file_format_investigation_leyden.pdf>
-pub fn parser(data: &[u8], pos: usize, _source_dir: &str) -> Result<ClassFolder, JimageError> {
+pub fn parser(
+    data: &[u8],
+    pos: usize,
+    source_dir: &MyString,
+    filter: bool,
+) -> Result<ClassFolder, JimageError> {
     let (_pos, header) = parse_header(data, pos)?;
-    dbg!(&header);
+    let index_size = header.get_index_size();
 
-    // Print all strings
-    // let strings_data = data
-    //     .get(header.get_strings_offset()..data.len())
-    //     .ok_or(JimageError::EOF)?;
-    // let mut pos = 0;
-    // while let Ok((npos, string)) = parse_string(strings_data, pos) {
-    //     pos = npos;
-    //     dbg!(string);
-    // }
+    let strings_data = data
+        .get(header.get_strings_offset()..data.len())
+        .ok_or(JimageError::EOF)?;
 
     let locations = data
         .get(header.get_locations_offset()..header.get_strings_offset() - 1)
         .ok_or(JimageError::EOF)?;
     let mut pos = 0;
-    // while let Ok((npos, location)) = parse_location(locations, pos) {
-    //     pos = npos;
-    //     dbg!(location);
-    // }
-    for _ in 0..5 {
-        match parse_location(locations, pos) {
-            Ok((npos, location)) => {
-                pos = npos;
-                dbg!(location);
+
+    let (rules, module_info_id) = load_module_info(data, index_size, strings_data, locations, pos)?;
+    let mut classes = vec![];
+
+    'locations: while let Ok((npos, location)) = parse_location(locations, pos) {
+        pos = npos;
+        if let Some(id) = module_info_id
+            && id == location.base
+        {
+            continue;
+        }
+        let (_, class_path) = parse_string(strings_data, location.parent)?;
+        let (_, class_name) = parse_string(strings_data, location.base)?;
+
+        for r in &rules {
+            if r.0 == location.module && !r.1.exports.iter().any(|e| e == &class_path) {
+                continue 'locations;
             }
-            Err(e) => {
-                dbg!(e);
-            }
+        }
+
+        let (_, module_name) = parse_string(strings_data, location.module)?;
+        let source =
+            SourceDestination::RelativeInFolder(format_smolstr!("{source_dir}/{module_name}"));
+
+        let bytes = get_content_bytes(data, index_size, &location)?;
+        let class_path = format_smolstr!("{}.{}", class_path.replace_smolstr("/", "."), class_name);
+        let class = load_class(bytes, class_path, source, filter);
+        if let Ok(class) = class {
+            classes.push(class);
         }
     }
 
-    Err(JimageError::Todo)
+    Ok(ClassFolder {
+        version: CFC_VERSION,
+        classes,
+    })
+}
+
+fn load_module_info(
+    data: &[u8],
+    index_size: usize,
+    strings_data: &[u8],
+    locations: &[u8],
+    pos: usize,
+) -> Result<(ModuleList, Option<usize>), JimageError> {
+    let mut pos = pos;
+    let mut rules: Vec<(usize, ModuleInfo)> = Vec::new();
+    let mut module_info_id = None;
+    while let Ok((npos, location)) = parse_location(locations, pos) {
+        pos = npos;
+        if let Some(id) = module_info_id
+            && id == location.base
+        {
+            let bytes = get_content_bytes(data, index_size, &location)?;
+            match load_module(bytes) {
+                Ok(c) => {
+                    rules.push((location.module, c));
+                }
+                Err(e) => {
+                    eprintln!("Unable to load class: ({e:?}");
+                }
+            }
+        } else {
+            let (_, class_name) = parse_string(strings_data, location.base)?;
+            if class_name == "module-info" {
+                module_info_id = Some(location.base);
+                let bytes = get_content_bytes(data, index_size, &location)?;
+                match load_module(bytes) {
+                    Ok(c) => {
+                        rules.push((location.module, c));
+                    }
+                    Err(e) => {
+                        eprintln!("Unable to load class: ({e:?}");
+                    }
+                }
+            }
+        }
+    }
+    Ok((rules, module_info_id))
+}
+
+fn get_content_bytes<'a>(
+    data: &'a [u8],
+    index_size: usize,
+    location: &'a JimageLocation,
+) -> Result<&'a [u8], JimageError> {
+    if location.compressed > 0 {
+        return Err(JimageError::Todo);
+    }
+
+    debug_assert!(location.compressed == 0);
+    let start = location.offset + index_size;
+    data.get(start..start + location.uncompressed)
+        .ok_or(JimageError::DataNotFound)
 }
 
 fn parse_header(data: &[u8], pos: usize) -> JResult<JimageHeader> {
@@ -178,26 +259,29 @@ pub fn parse_location(data: &[u8], pos: usize) -> JResult<JimageLocation> {
     }
     Ok((pos, out))
 }
-pub fn parse_location_value(data: &[u8], pos: usize, len: u8) -> JResult<u64> {
+pub fn parse_location_value(data: &[u8], pos: usize, len: u8) -> JResult<usize> {
     let mut pos = pos;
     let mut out: u64 = 0;
 
     for _ in 0..len {
         out <<= 8;
-        let (npos, get) = get_u32(data, pos)?;
-        let get = get & 0xFF;
-        pos = npos;
+        let get = data.get(pos).ok_or(JimageError::EOF)?;
+        pos += 1;
+        // let (npos, get) = get_u32(data, pos)?;
+        let get = *get;
         out |= u64::from(get);
     }
+
+    let out = usize::try_from(out).map_err(|_| JimageError::Usize)?;
 
     Ok((pos, out))
 }
 
-pub fn parse_string(data: &[u8], pos: usize) -> JResult<String> {
+pub fn parse_string(data: &[u8], pos: usize) -> JResult<MyString> {
     let start = pos;
     let (pos, end) = get_string_len(data, pos)?;
     let slice = data.get(start..end).ok_or(JimageError::EOF)?;
     let cow = mutf8_to_utf8(slice).map_err(JimageError::Mutf8)?;
     let out = from_utf8(&cow).map_err(JimageError::Utf8)?;
-    Ok((pos, out.to_string()))
+    Ok((pos, out.to_smolstr()))
 }

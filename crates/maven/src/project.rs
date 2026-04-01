@@ -10,8 +10,8 @@ use std::{
 };
 
 use common::{Dependency, TaskProgress, deps_dir};
-use dto::{Class, ClassFolder, SourceDestination};
-use loader::{CFC_VERSION, LoaderError};
+use dto::{CFC_VERSION, Class, ClassFolder, SourceDestination};
+use loader::LoaderError;
 use my_string::{MyString, smol_str::ToSmolStr};
 use tokio::task::JoinSet;
 

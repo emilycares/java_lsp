@@ -1166,6 +1166,7 @@ dependencies = [
  "dto",
  "jimage",
  "loader",
+ "memmap2",
  "my_string",
  "pretty_assertions",
  "tokio",
@@ -1178,6 +1179,8 @@ name = "jimage"
 version = "0.1.0"
 dependencies = [
  "dto",
+ "my_string",
+ "parser",
  "workspace_hack",
 ]
 

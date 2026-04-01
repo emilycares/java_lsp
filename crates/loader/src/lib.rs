@@ -11,7 +11,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use dto::{Class, ClassError, ClassFolder, SourceDestination};
+use dto::{CFC_VERSION, Class, ClassError, ClassFolder, SourceDestination};
 use my_string::{MyString, smol_str::ToSmolStr};
 use parser::{
     class::{ModuleInfo, load_class, load_module},
@@ -21,7 +21,6 @@ use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
 use std::fmt::Debug;
 use tokio::fs::read;
 
-pub const CFC_VERSION: usize = 8;
 pub const DEBUGGING: bool = false;
 
 #[derive(Debug)]

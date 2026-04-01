@@ -8,6 +8,7 @@ pub enum Mutf8Error {
     TwoByte,
     ThreeByte,
     SixByte,
+    EOF,
 }
 
 pub fn get_string_len(data: &[u8], pos: usize) -> JResult<usize> {
@@ -41,7 +42,7 @@ pub fn mutf8_to_utf8(input: &'_ [u8]) -> Result<Cow<'_, [u8]>, Mutf8Error> {
     while i < len {
         let mark = i;
 
-        let byte1 = unsafe { *input.get_unchecked(i) };
+        let byte1 = *input.get(i).ok_or(Mutf8Error::EOF)?;
         i += 1;
 
         if byte1 & 0x80 == 0 {

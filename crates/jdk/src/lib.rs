@@ -7,7 +7,7 @@ use std::{
     collections::HashMap,
     env,
     ffi::OsString,
-    fs::{self},
+    fs::{self, File},
     path::{Path, PathBuf},
     str::{Utf8Error, from_utf8},
     sync::{
@@ -17,9 +17,9 @@ use std::{
 };
 
 use common::TaskProgress;
-use dto::{Class, ClassFolder, SourceDestination};
-use loader::{CFC_VERSION, load_class_files};
-use my_string::MyString;
+use dto::{CFC_VERSION, Class, ClassFolder, SourceDestination};
+use loader::load_class_files;
+use my_string::{MyString, smol_str::ToSmolStr};
 use tokio::{process::Command, sync::watch::Sender, task::JoinSet};
 
 #[cfg(not(target_os = "windows"))]
@@ -46,6 +46,7 @@ pub enum JdkError {
     Str,
     Jimage(jimage::types::JimageError),
     NoJimageExecutable,
+    Mmemmap,
 }
 
 pub async fn load_classes(
@@ -221,9 +222,11 @@ fn load_jimage(
     source_dir: &str,
     _sender: Sender<TaskProgress>,
 ) -> Result<ClassFolder, JdkError> {
-    let data = std::fs::read(modules_file).map_err(JdkError::IO)?;
-
-    jimage::parser(&data, 0, source_dir).map_err(JdkError::Jimage)
+    let file = File::open(modules_file).map_err(JdkError::IO)?;
+    let mmap = unsafe { memmap2::Mmap::map(&file) };
+    mmap.map_or(Err(JdkError::Mmemmap), |mm| {
+        jimage::parser(&mm, 0, &source_dir.to_smolstr(), true).map_err(JdkError::Jimage)
+    })
 }
 
 async fn load_old(java_path: &Path, op_dir: &Path) -> Result<ClassFolder, JdkError> {
@@ -463,7 +466,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "todo"]
     async fn load_jdk_modules_own_integration() {
         let Some(path) = std::env::var_os("PATH") else {
             return;
@@ -478,6 +480,7 @@ mod tests {
         assert!(string.is_some());
         assert_eq!(string.unwrap().class_path, "java.lang.String");
         let source = &string.unwrap().get_source();
+        dbg!(&source);
         assert!(source.ends_with("src/java.base/java/lang/String.java"));
         assert!(fs::exists(source).unwrap());
     }
