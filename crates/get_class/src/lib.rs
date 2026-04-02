@@ -685,11 +685,6 @@ fn get_class_block_entry(entry: &AstBlockEntry, point: &AstPoint) -> Option<Foun
             if let Some(o) = get_class_jtype(&ast_switch_case_arrow_type.var.jtype, point) {
                 return Some(o);
             }
-            if let Some(control) = &ast_switch_case_arrow_type.when_control
-                && let Some(o) = get_class_expression(control, point)
-            {
-                return Some(o);
-            }
             if let Some(o) =
                 get_class_switch_case_arrow_content(&ast_switch_case_arrow_type.content, point)
             {
@@ -941,11 +936,6 @@ fn get_class_expression_kind(ex: &AstExpressionKind, point: &AstPoint) -> Option
         }
         AstExpressionKind::InstanceOf(instance) => {
             if let Some(o) = get_class_jtype(&instance.jtype, point) {
-                return Some(o);
-            }
-            if let Some(v) = &instance.variable
-                && let Some(o) = get_class_jtype(&v.jtype, point)
-            {
                 return Some(o);
             }
             None

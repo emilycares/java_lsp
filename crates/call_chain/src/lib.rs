@@ -681,9 +681,6 @@ fn cc_block_entry(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIte
         }
         AstBlockEntry::SwitchCaseArrowType(ast_switch_case_arrow_type) => {
             cc_jtype(&ast_switch_case_arrow_type.var.jtype, out);
-            if let Some(control) = &ast_switch_case_arrow_type.when_control {
-                cc_expr(control, point, false, out);
-            }
             cc_switch_case_arrow_content(&ast_switch_case_arrow_type.content, point, out);
         }
         AstBlockEntry::Thing(ast_thing) => cc_thing(ast_thing, point, out),

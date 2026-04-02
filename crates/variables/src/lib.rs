@@ -6,10 +6,9 @@
 use ast::types::{
     AstBlock, AstBlockEntry, AstBlockExpression, AstBlockVariable, AstClassMethod, AstExpression,
     AstExpressionKind, AstExpressionOrValue, AstFile, AstFor, AstForContent, AstForEnhanced, AstIf,
-    AstIfContent, AstInstanceOfVar, AstInterfaceConstant, AstLambda, AstLambdaRhs,
-    AstMethodParameter, AstPoint, AstRange, AstRecursiveExpression, AstSwitch,
-    AstSwitchCaseArrowContent, AstSwitchCaseArrowType, AstSwitchCaseArrowVar, AstThing,
-    AstTryCatch, AstWhile, AstWhileContent,
+    AstIfContent, AstInterfaceConstant, AstLambda, AstLambdaRhs, AstMethodParameter, AstPoint,
+    AstRange, AstRecursiveExpression, AstSwitch, AstSwitchCaseArrowContent, AstSwitchCaseArrowType,
+    AstSwitchCaseArrowVar, AstThing, AstTryCatch, AstWhile, AstWhileContent,
 };
 use dto::JType;
 use my_string::MyString;
@@ -185,7 +184,6 @@ fn get_block_entry_vars(
         }
         AstBlockEntry::SwitchCaseArrowType(AstSwitchCaseArrowType {
             var: AstSwitchCaseArrowVar { jtype, name, range },
-            when_control,
             content,
             ..
         }) => {
@@ -196,10 +194,6 @@ fn get_block_entry_vars(
                 is_fun: false,
                 range: *range,
             });
-            if let Some(control) = &when_control {
-                expression(control, point, level, out);
-            }
-
             switch_case_arrow_content(content, level, point, out);
         }
         AstBlockEntry::Thing(ast_thing) => get_vars_thing(ast_thing, point, out, level),
@@ -286,18 +280,8 @@ fn expression_kind(
         AstExpressionKind::InlineSwitch(ast_switch) => {
             get_block_vars(&ast_switch.block, point, level, out);
         }
-        AstExpressionKind::InstanceOf(instance) => {
-            if let Some(AstInstanceOfVar { range, jtype, name }) = &instance.variable {
-                out.push(LocalVariable {
-                    level,
-                    jtype: jtype.into(),
-                    name: name.into(),
-                    is_fun: false,
-                    range: *range,
-                });
-            }
-        }
         AstExpressionKind::NewClass(_)
+        | AstExpressionKind::InstanceOf(_)
         | AstExpressionKind::Generics(_)
         | AstExpressionKind::JType(_)
         | AstExpressionKind::Casted(_)

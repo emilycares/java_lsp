@@ -352,7 +352,6 @@ pub struct AstSwitchCaseArrowValues {
 pub struct AstSwitchCaseArrowType {
     pub range: AstRange,
     pub var: AstSwitchCaseArrowVar,
-    pub when_control: Option<Vec<AstExpressionKind>>,
     pub content: Box<AstSwitchCaseArrowContent>,
 }
 #[derive(Debug, Clone)]
@@ -743,7 +742,7 @@ pub enum AstExpressionKind {
     Generics(AstGenerics),
     Array(AstValues),
     JType(AstCastedExpression),
-    InstanceOf(Box<AstInstanceOf>),
+    InstanceOf(AstInstanceOf),
 }
 impl AstExpressionKind {
     #[must_use]
@@ -772,13 +771,6 @@ pub struct AstInstanceOf {
     pub annotated: Vec<AstAnnotated>,
     pub availability: AstAvailability,
     pub jtype: AstJType,
-    pub variable: Option<AstInstanceOfVar>,
-}
-#[derive(Debug, Clone)]
-pub struct AstInstanceOfVar {
-    pub range: AstRange,
-    pub jtype: AstJType,
-    pub name: AstIdentifier,
 }
 #[derive(Debug, Clone)]
 pub struct AstRecursiveExpression {
