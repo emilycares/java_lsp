@@ -142,6 +142,7 @@ impl Token {
             | Self::Transitive
             | Self::Opens
             | Self::Open
+            | Self::When
             | Self::If => KEYWORDS
                 .entries()
                 .find(|i| i.1 == self)
@@ -266,6 +267,7 @@ impl fmt::Display for Token {
             Self::Transitive => write!(f, "transitive"),
             Self::Opens => write!(f, "opens"),
             Self::Open => write!(f, "open"),
+            Self::When => write!(f, "when"),
         }
     }
 }
@@ -485,6 +487,8 @@ pub enum Token {
     Opens,
     /// open
     Open,
+    /// when
+    When,
 }
 
 /// Error during lex function
@@ -561,6 +565,7 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
     "transitive" => Token::Transitive,
     "opens" => Token::Opens,
     "open" => Token::Open,
+    "when" => Token::When,
 };
 /// Output token vec for document
 pub fn lex(input: &[u8]) -> Result<Vec<PositionToken>, LexerError> {

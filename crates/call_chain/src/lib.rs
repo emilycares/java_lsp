@@ -681,6 +681,9 @@ fn cc_block_entry(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIte
         }
         AstBlockEntry::SwitchCaseArrowType(ast_switch_case_arrow_type) => {
             cc_jtype(&ast_switch_case_arrow_type.var.jtype, out);
+            if let Some(control) = &ast_switch_case_arrow_type.when_control {
+                cc_expr(control, point, false, out);
+            }
             cc_switch_case_arrow_content(&ast_switch_case_arrow_type.content, point, out);
         }
         AstBlockEntry::Thing(ast_thing) => cc_thing(ast_thing, point, out),
@@ -843,6 +846,10 @@ fn cc_value_nuget(ast_nuget: &AstValueNuget, out: &mut Vec<CallItem>) {
     match ast_nuget {
         AstValueNuget::Int(ast_number) => out.push(CallItem::Class {
             name: "Integer".into(),
+            range: ast_number.range,
+        }),
+        AstValueNuget::Long(ast_number) => out.push(CallItem::Class {
+            name: "Long".into(),
             range: ast_number.range,
         }),
         AstValueNuget::HexLiteral(hex) => out.push(CallItem::Class {

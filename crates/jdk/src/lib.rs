@@ -20,7 +20,7 @@ use common::TaskProgress;
 use dto::{CFC_VERSION, Class, ClassFolder, SourceDestination};
 use loader::load_class_files;
 use my_string::{MyString, smol_str::ToSmolStr};
-use tokio::{process::Command, sync::watch::Sender, task::JoinSet};
+use tokio::{process::Command, task::JoinSet};
 
 #[cfg(not(target_os = "windows"))]
 const EXECUTABLE_JAVA: &str = "java";
@@ -124,6 +124,30 @@ pub async fn load_jdk(
     sender: tokio::sync::watch::Sender<TaskProgress>,
 ) -> Result<ClassFolder, JdkError> {
     extract_source_zip(java_path, op_dir).await?;
+    let modules_file = jimage::get_modules_path(java_path);
+
+    if matches!(force_loader, ForceLoader::ModulesOwn) {
+        let source_dir = op_dir.join("src");
+        let source_dir = source_dir.to_str().ok_or(JdkError::Str)?;
+        return load_jimage(&modules_file, source_dir);
+    }
+    if matches!(force_loader, ForceLoader::ModulesExecutable) {
+        let source_dir = op_dir.join("src");
+        let source_dir = source_dir.to_str().ok_or(JdkError::Str)?;
+        let jimage_executable = get_jimage_executable(java_path);
+        return load_modules_with_command(jimage_executable, modules_file, op_dir, source_dir)
+            .await;
+    }
+
+    if modules_file.exists() && force_loader.is_modules() {
+        let source_dir = op_dir.join("src");
+        let source_dir = source_dir.to_str().ok_or(JdkError::Str)?;
+        let out = load_jimage(&modules_file, source_dir);
+        if out.is_ok() {
+            return out;
+        }
+    }
+
     if force_loader.is_jmod() {
         let jmods_dir = get_jmods_dir(java_path);
         if jmods_dir.exists() {
@@ -137,49 +161,24 @@ pub async fn load_jdk(
             }
         }
     }
-    let modules_file = jimage::get_modules_path(java_path);
-    if modules_file.exists() {
-        let mut jimage_executable = java_path.to_path_buf();
-        jimage_executable.push("jimage");
-        if cfg!(windows) {
-            jimage_executable.set_extension("exe");
-        }
-        return load_modules(
-            jimage_executable,
-            modules_file,
-            op_dir,
-            sender,
-            force_loader,
-        )
-        .await;
+    if modules_file.exists() && force_loader.is_modules() {
+        let jimage_executable = get_jimage_executable(java_path);
+        let source_dir = op_dir.join("src");
+        let source_dir = source_dir.to_str().ok_or(JdkError::Str)?;
+        return load_modules_with_command(jimage_executable, modules_file, op_dir, source_dir)
+            .await;
     }
     eprintln!("There is no jmod in your jdk: {}", java_path.display());
     load_old(java_path, op_dir).await
 }
 
-async fn load_modules(
-    jimage_executable: PathBuf,
-    modules_file: PathBuf,
-    op_dir: &Path,
-    sender: tokio::sync::watch::Sender<TaskProgress>,
-    force_loader: ForceLoader,
-) -> Result<ClassFolder, JdkError> {
-    let source_dir = op_dir.join("src");
-    let source_dir = source_dir.to_str().ok_or(JdkError::Str)?;
-
-    if matches!(force_loader, ForceLoader::ModulesOwn) {
-        return load_jimage(&modules_file, source_dir, sender);
+fn get_jimage_executable(java_path: &Path) -> PathBuf {
+    let mut jimage_executable = java_path.to_path_buf();
+    jimage_executable.push("jimage");
+    if cfg!(windows) {
+        jimage_executable.set_extension("exe");
     }
-    if matches!(force_loader, ForceLoader::ModulesExecutable) {
-        return load_modules_with_command(jimage_executable, modules_file, op_dir, source_dir)
-            .await;
-    }
-    // let load = load_jimage(&modules_file, source_dir, sender);
-    // if load.is_ok() {
-    //     return load;
-    // }
-
-    load_modules_with_command(jimage_executable, modules_file, op_dir, source_dir).await
+    jimage_executable
 }
 
 async fn load_modules_with_command(
@@ -217,11 +216,7 @@ async fn load_modules_with_command(
     })
 }
 
-fn load_jimage(
-    modules_file: &Path,
-    source_dir: &str,
-    _sender: Sender<TaskProgress>,
-) -> Result<ClassFolder, JdkError> {
+fn load_jimage(modules_file: &Path, source_dir: &str) -> Result<ClassFolder, JdkError> {
     let file = File::open(modules_file).map_err(JdkError::IO)?;
     let mmap = unsafe { memmap2::Mmap::map(&file) };
     mmap.map_or(Err(JdkError::Mmemmap), |mm| {

@@ -4,7 +4,7 @@ use ast::{
     ExpressionOptions, lexer, parse_annotated, parse_block, parse_block_return,
     parse_block_variable, parse_expression, parse_file, parse_for, parse_jtype, parse_lambda,
     parse_name, parse_name_dot_logical, parse_new_class, parse_string_literal,
-    parse_switch_case_arrow_value,
+    parse_switch_case_arrow_type, parse_switch_case_arrow_value, parse_value_nuget,
 };
 
 #[test]
@@ -541,6 +541,79 @@ fn complicated_type() {
     let content = r#"CustomPacketPayload.@NotNull Type<? extends @NotNull CustomPacketPayload>"#;
     let tokens = lexer::lex(content.as_bytes()).unwrap();
     let parsed = parse_jtype(&tokens, 0);
+    parsed.print_err(content, &tokens);
+    let parsed = parsed.unwrap();
+    assert_eq!(tokens.len(), parsed.1);
+    insta::assert_debug_snapshot!(parsed);
+}
+#[test]
+fn case_arrow_when() {
+    let content = r#"case int i when i >= 100 -> issueGoldCard();"#;
+    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let parsed = parse_switch_case_arrow_type(&tokens, 0);
+    parsed.print_err(content, &tokens);
+    let parsed = parsed.unwrap();
+    assert_eq!(tokens.len(), parsed.1);
+    insta::assert_debug_snapshot!(parsed);
+}
+#[test]
+fn block_case_arrow_when() {
+    let content = r#"{
+    switch (x.getYearlyFlights()) {
+        case int i when i >= 100 -> issueGoldCard();
+    }
+    }"#;
+    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let parsed = parse_block(&tokens, 0);
+    parsed.print_err(content, &tokens);
+    let parsed = parsed.unwrap();
+    assert_eq!(tokens.len(), parsed.1);
+    insta::assert_debug_snapshot!(parsed);
+}
+#[test]
+fn if_instanceof_var() {
+    let content = r#"{
+    if (json instanceof JsonObject(var map)) {}
+    }"#;
+    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let parsed = parse_block(&tokens, 0);
+    parsed.print_err(content, &tokens);
+    let parsed = parsed.unwrap();
+    assert_eq!(tokens.len(), parsed.1);
+    insta::assert_debug_snapshot!(parsed);
+}
+#[test]
+fn if_instanceof_var_primitive() {
+    let content = r#"{
+    if (i instanceof byte b) {}
+    }"#;
+    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let parsed = parse_block(&tokens, 0);
+    parsed.print_err(content, &tokens);
+    let parsed = parsed.unwrap();
+    assert_eq!(tokens.len(), parsed.1);
+    insta::assert_debug_snapshot!(parsed);
+}
+#[test]
+fn nuget_long_underscore() {
+    let content = "10_000_000_000L";
+    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let parsed = parse_value_nuget(&tokens, 0);
+    parsed.print_err(content, &tokens);
+    let parsed = parsed.unwrap();
+    assert_eq!(tokens.len(), parsed.1);
+    insta::assert_debug_snapshot!(parsed);
+}
+#[test]
+fn inline_switch() {
+    let content = r#"{
+    m(switch (a) {
+        case true  -> user.id();
+        case false -> { log(1); yield -1; }
+    });
+    }"#;
+    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let parsed = parse_block(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
     assert_eq!(tokens.len(), parsed.1);

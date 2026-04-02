@@ -1,0 +1,24 @@
+---
+source: crates/ast/tests/ast.rs
+expression: parsed
+---
+(
+    Nuget(
+        Long(
+            AstInt {
+                range: AstRange {
+                    start: AstPoint {
+                        line: 0,
+                        col: 14,
+                    },
+                    end: AstPoint {
+                        line: 0,
+                        col: 28,
+                    },
+                },
+                value: "10_000_000_000",
+            },
+        ),
+    ),
+    2,
+)

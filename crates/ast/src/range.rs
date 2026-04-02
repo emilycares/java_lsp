@@ -183,7 +183,9 @@ impl AstAfterRange for &AstValue {
 impl AstInRange for &AstValueNuget {
     fn is_in_range(&self, point: &AstPoint) -> bool {
         match self {
-            AstValueNuget::Int(ast_number) => ast_number.range.is_in_range(point),
+            AstValueNuget::Long(ast_number) | AstValueNuget::Int(ast_number) => {
+                ast_number.range.is_in_range(point)
+            }
             AstValueNuget::HexLiteral(h) => h.range.is_in_range(point),
             AstValueNuget::BinaryLiteral(b) => b.range.is_in_range(point),
             AstValueNuget::Double(ast_double) | AstValueNuget::Float(ast_double) => {
@@ -198,7 +200,7 @@ impl AstInRange for &AstValueNuget {
 impl GetRange for &AstValueNuget {
     fn get_range(&self) -> AstRange {
         match self {
-            AstValueNuget::Int(ast_number) => ast_number.range,
+            AstValueNuget::Long(ast_number) | AstValueNuget::Int(ast_number) => ast_number.range,
             AstValueNuget::HexLiteral(h) => h.range,
             AstValueNuget::BinaryLiteral(b) => b.range,
             AstValueNuget::Double(ast_double) | AstValueNuget::Float(ast_double) => {
@@ -213,7 +215,9 @@ impl GetRange for &AstValueNuget {
 impl AstAfterRange for &AstValueNuget {
     fn is_after_range(&self, point: &AstPoint) -> bool {
         match self {
-            AstValueNuget::Int(ast_number) => ast_number.range.is_after_range(point),
+            AstValueNuget::Long(ast_number) | AstValueNuget::Int(ast_number) => {
+                ast_number.range.is_after_range(point)
+            }
             AstValueNuget::HexLiteral(h) => h.range.is_after_range(point),
             AstValueNuget::BinaryLiteral(b) => b.range.is_after_range(point),
             AstValueNuget::Double(ast_double) | AstValueNuget::Float(ast_double) => {
@@ -301,7 +305,7 @@ impl GetRange for AstValue {
         match self {
             Self::Variable(ast_identifier) => ast_identifier.range,
             Self::Nuget(ast_value_nuget) => match ast_value_nuget {
-                AstValueNuget::Int(ast_int) => ast_int.range,
+                AstValueNuget::Long(i) | AstValueNuget::Int(i) => i.range,
                 AstValueNuget::HexLiteral(h) => h.range,
                 AstValueNuget::BinaryLiteral(b) => b.range,
                 AstValueNuget::Double(ast_double) | AstValueNuget::Float(ast_double) => {

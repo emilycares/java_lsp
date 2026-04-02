@@ -1,0 +1,168 @@
+---
+source: crates/ast/tests/ast.rs
+expression: parsed
+---
+(
+    AstBlock {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 2,
+                col: 5,
+            },
+        },
+        entries: [
+            If(
+                If {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 1,
+                            col: 4,
+                        },
+                        end: AstPoint {
+                            line: 1,
+                            col: 31,
+                        },
+                    },
+                    control: [
+                        Recursive(
+                            AstRecursiveExpression {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 1,
+                                        col: 8,
+                                    },
+                                    end: AstPoint {
+                                        line: 1,
+                                        col: 9,
+                                    },
+                                },
+                                ident: Some(
+                                    Identifier(
+                                        AstIdentifier {
+                                            range: AstRange {
+                                                start: AstPoint {
+                                                    line: 1,
+                                                    col: 8,
+                                                },
+                                                end: AstPoint {
+                                                    line: 1,
+                                                    col: 9,
+                                                },
+                                            },
+                                            value: "i",
+                                        },
+                                    ),
+                                ),
+                                values: None,
+                                operator: None,
+                            },
+                        ),
+                        InstanceOf(
+                            AstInstanceOf {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 1,
+                                        col: 10,
+                                    },
+                                    end: AstPoint {
+                                        line: 1,
+                                        col: 27,
+                                    },
+                                },
+                                annotated: [],
+                                availability: AstAvailability(
+                                    0x0,
+                                ),
+                                jtype: AstJType {
+                                    annotated: [],
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 1,
+                                            col: 21,
+                                        },
+                                        end: AstPoint {
+                                            line: 1,
+                                            col: 25,
+                                        },
+                                    },
+                                    value: Byte,
+                                },
+                                variable: Some(
+                                    AstInstanceOfVar {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 1,
+                                                col: 26,
+                                            },
+                                            end: AstPoint {
+                                                line: 1,
+                                                col: 25,
+                                            },
+                                        },
+                                        jtype: AstJType {
+                                            annotated: [],
+                                            range: AstRange {
+                                                start: AstPoint {
+                                                    line: 1,
+                                                    col: 21,
+                                                },
+                                                end: AstPoint {
+                                                    line: 1,
+                                                    col: 25,
+                                                },
+                                            },
+                                            value: Byte,
+                                        },
+                                        name: AstIdentifier {
+                                            range: AstRange {
+                                                start: AstPoint {
+                                                    line: 1,
+                                                    col: 26,
+                                                },
+                                                end: AstPoint {
+                                                    line: 1,
+                                                    col: 27,
+                                                },
+                                            },
+                                            value: "b",
+                                        },
+                                    },
+                                ),
+                            },
+                        ),
+                    ],
+                    control_range: AstRange {
+                        start: AstPoint {
+                            line: 1,
+                            col: 7,
+                        },
+                        end: AstPoint {
+                            line: 1,
+                            col: 28,
+                        },
+                    },
+                    content: Block(
+                        AstBlock {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 1,
+                                    col: 29,
+                                },
+                                end: AstPoint {
+                                    line: 1,
+                                    col: 31,
+                                },
+                            },
+                            entries: [],
+                        },
+                    ),
+                },
+            ),
+        ],
+    },
+    11,
+)

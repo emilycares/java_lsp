@@ -778,7 +778,7 @@ AstFile {
                                             ident: Some(
                                                 Value(
                                                     Nuget(
-                                                        Int(
+                                                        Long(
                                                             AstInt {
                                                                 range: AstRange {
                                                                     start: AstPoint {

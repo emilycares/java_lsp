@@ -6,9 +6,10 @@
 use ast::types::{
     AstBlock, AstBlockEntry, AstBlockExpression, AstBlockVariable, AstClassMethod, AstExpression,
     AstExpressionKind, AstExpressionOrValue, AstFile, AstFor, AstForContent, AstForEnhanced, AstIf,
-    AstIfContent, AstInterfaceConstant, AstLambda, AstLambdaRhs, AstMethodParameter, AstPoint,
-    AstRange, AstRecursiveExpression, AstSwitch, AstSwitchCaseArrowContent, AstThing, AstTryCatch,
-    AstWhile, AstWhileContent,
+    AstIfContent, AstInstanceOfVar, AstInterfaceConstant, AstLambda, AstLambdaRhs,
+    AstMethodParameter, AstPoint, AstRange, AstRecursiveExpression, AstSwitch,
+    AstSwitchCaseArrowContent, AstSwitchCaseArrowType, AstSwitchCaseArrowVar, AstThing,
+    AstTryCatch, AstWhile, AstWhileContent,
 };
 use dto::JType;
 use my_string::MyString;
@@ -182,14 +183,30 @@ fn get_block_entry_vars(
         AstBlockEntry::SwitchCaseArrowValues(ast_switch_case_arrow) => {
             switch_case_arrow_content(&ast_switch_case_arrow.content, level, point, out);
         }
+        AstBlockEntry::SwitchCaseArrowType(AstSwitchCaseArrowType {
+            var: AstSwitchCaseArrowVar { jtype, name, range },
+            when_control,
+            content,
+            ..
+        }) => {
+            out.push(LocalVariable {
+                level,
+                jtype: jtype.into(),
+                name: name.into(),
+                is_fun: false,
+                range: *range,
+            });
+            if let Some(control) = &when_control {
+                expression(control, point, level, out);
+            }
+
+            switch_case_arrow_content(content, level, point, out);
+        }
         AstBlockEntry::Thing(ast_thing) => get_vars_thing(ast_thing, point, out, level),
         AstBlockEntry::InlineBlock(ast_block) => {
             get_block_vars(&ast_block.block, point, level, out);
         }
         AstBlockEntry::Semicolon(_ast_range) => (),
-        AstBlockEntry::SwitchCaseArrowType(ast_switch_case_arrow_type) => {
-            switch_case_arrow_content(&ast_switch_case_arrow_type.content, level, point, out);
-        }
     }
 }
 
@@ -269,9 +286,19 @@ fn expression_kind(
         AstExpressionKind::InlineSwitch(ast_switch) => {
             get_block_vars(&ast_switch.block, point, level, out);
         }
+        AstExpressionKind::InstanceOf(instance) => {
+            if let Some(AstInstanceOfVar { range, jtype, name }) = &instance.variable {
+                out.push(LocalVariable {
+                    level,
+                    jtype: jtype.into(),
+                    name: name.into(),
+                    is_fun: false,
+                    range: *range,
+                });
+            }
+        }
         AstExpressionKind::NewClass(_)
         | AstExpressionKind::Generics(_)
-        | AstExpressionKind::InstanceOf(_)
         | AstExpressionKind::JType(_)
         | AstExpressionKind::Casted(_)
         | AstExpressionKind::Array(_) => (),

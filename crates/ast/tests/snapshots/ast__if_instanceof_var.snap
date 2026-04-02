@@ -1,0 +1,182 @@
+---
+source: crates/ast/tests/ast.rs
+expression: parsed
+---
+(
+    AstBlock {
+        range: AstRange {
+            start: AstPoint {
+                line: 0,
+                col: 0,
+            },
+            end: AstPoint {
+                line: 2,
+                col: 5,
+            },
+        },
+        entries: [
+            If(
+                If {
+                    range: AstRange {
+                        start: AstPoint {
+                            line: 1,
+                            col: 4,
+                        },
+                        end: AstPoint {
+                            line: 1,
+                            col: 47,
+                        },
+                    },
+                    control: [
+                        Recursive(
+                            AstRecursiveExpression {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 1,
+                                        col: 8,
+                                    },
+                                    end: AstPoint {
+                                        line: 1,
+                                        col: 12,
+                                    },
+                                },
+                                ident: Some(
+                                    Identifier(
+                                        AstIdentifier {
+                                            range: AstRange {
+                                                start: AstPoint {
+                                                    line: 1,
+                                                    col: 8,
+                                                },
+                                                end: AstPoint {
+                                                    line: 1,
+                                                    col: 12,
+                                                },
+                                            },
+                                            value: "json",
+                                        },
+                                    ),
+                                ),
+                                values: None,
+                                operator: None,
+                            },
+                        ),
+                        InstanceOf(
+                            AstInstanceOf {
+                                range: AstRange {
+                                    start: AstPoint {
+                                        line: 1,
+                                        col: 13,
+                                    },
+                                    end: AstPoint {
+                                        line: 1,
+                                        col: 43,
+                                    },
+                                },
+                                annotated: [],
+                                availability: AstAvailability(
+                                    0x0,
+                                ),
+                                jtype: AstJType {
+                                    annotated: [],
+                                    range: AstRange {
+                                        start: AstPoint {
+                                            line: 1,
+                                            col: 24,
+                                        },
+                                        end: AstPoint {
+                                            line: 1,
+                                            col: 34,
+                                        },
+                                    },
+                                    value: Class(
+                                        AstIdentifier {
+                                            range: AstRange {
+                                                start: AstPoint {
+                                                    line: 1,
+                                                    col: 24,
+                                                },
+                                                end: AstPoint {
+                                                    line: 1,
+                                                    col: 34,
+                                                },
+                                            },
+                                            value: "JsonObject",
+                                        },
+                                    ),
+                                },
+                                variable: Some(
+                                    AstInstanceOfVar {
+                                        range: AstRange {
+                                            start: AstPoint {
+                                                line: 1,
+                                                col: 34,
+                                            },
+                                            end: AstPoint {
+                                                line: 1,
+                                                col: 34,
+                                            },
+                                        },
+                                        jtype: AstJType {
+                                            annotated: [],
+                                            range: AstRange {
+                                                start: AstPoint {
+                                                    line: 1,
+                                                    col: 35,
+                                                },
+                                                end: AstPoint {
+                                                    line: 1,
+                                                    col: 38,
+                                                },
+                                            },
+                                            value: Var,
+                                        },
+                                        name: AstIdentifier {
+                                            range: AstRange {
+                                                start: AstPoint {
+                                                    line: 1,
+                                                    col: 39,
+                                                },
+                                                end: AstPoint {
+                                                    line: 1,
+                                                    col: 42,
+                                                },
+                                            },
+                                            value: "map",
+                                        },
+                                    },
+                                ),
+                            },
+                        ),
+                    ],
+                    control_range: AstRange {
+                        start: AstPoint {
+                            line: 1,
+                            col: 7,
+                        },
+                        end: AstPoint {
+                            line: 1,
+                            col: 44,
+                        },
+                    },
+                    content: Block(
+                        AstBlock {
+                            range: AstRange {
+                                start: AstPoint {
+                                    line: 1,
+                                    col: 45,
+                                },
+                                end: AstPoint {
+                                    line: 1,
+                                    col: 47,
+                                },
+                            },
+                            entries: [],
+                        },
+                    ),
+                },
+            ),
+        ],
+    },
+    14,
+)

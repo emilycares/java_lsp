@@ -34,10 +34,11 @@ use crate::{
         AstAnnotatedParameter, AstAnnotatedParameterKind, AstBinaryLiteral, AstBlockAssert,
         AstBlockYield, AstConstructorHeader, AstExpressionKind, AstExpressionOrAnnotated,
         AstExpressionOrDefault, AstExpressionOrValue, AstForContent, AstGenerics, AstHexLiteral,
-        AstInlineBlock, AstInstanceOf, AstLambdaParameter, AstLambdaRhs, AstNewRhs, AstPackage,
-        AstSwitchCaseArrowContent, AstSwitchCaseArrowDefault, AstSwitchCaseArrowType,
-        AstSwitchCaseArrowValues, AstSwitchCaseArrowVar, AstSwitchDefault, AstSynchronizedBlock,
-        AstThingAttributes, AstTypeParameter, AstValuesWithAnnotated, AstWhileContent,
+        AstInlineBlock, AstInstanceOf, AstInstanceOfVar, AstLambdaParameter, AstLambdaRhs,
+        AstNewRhs, AstPackage, AstSwitchCaseArrowContent, AstSwitchCaseArrowDefault,
+        AstSwitchCaseArrowType, AstSwitchCaseArrowValues, AstSwitchCaseArrowVar, AstSwitchDefault,
+        AstSynchronizedBlock, AstThingAttributes, AstTypeParameter, AstValuesWithAnnotated,
+        AstWhileContent,
     },
 };
 
@@ -555,7 +556,10 @@ fn parse_array_with_annotated(
 
 /// `Ident`
 /// `123`
-fn parse_value_nuget(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, usize), AstError> {
+pub fn parse_value_nuget(
+    tokens: &[PositionToken],
+    pos: usize,
+) -> Result<(AstValue, usize), AstError> {
     let start = tokens.start(pos)?;
     match &start.token {
         Token::Identifier(name) => Ok((
@@ -590,7 +594,7 @@ fn parse_value_nuget(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, 
                     let pos = pos + 1;
                     let current = tokens.get(pos).ok_or_else(AstError::eof)?;
                     match &current.token {
-                        Token::Identifier(val) if val == "d" => {
+                        Token::Identifier(val) if val.to_lowercase() == "d" => {
                             return Ok((
                                 AstValue::Nuget(AstValueNuget::Double(AstDouble {
                                     range: AstRange::from_position_token(start, start),
@@ -599,7 +603,7 @@ fn parse_value_nuget(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, 
                                 pos + 1,
                             ));
                         }
-                        Token::Identifier(val) if val == "f" => {
+                        Token::Identifier(val) if val.to_lowercase() == "f" => {
                             return Ok((
                                 AstValue::Nuget(AstValueNuget::Float(AstDouble {
                                     range: AstRange::from_position_token(start, start),
@@ -608,9 +612,9 @@ fn parse_value_nuget(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, 
                                 pos + 1,
                             ));
                         }
-                        Token::Identifier(val) if val == "l" => {
+                        Token::Identifier(val) if val.to_lowercase() == "l" => {
                             return Ok((
-                                AstValue::Nuget(AstValueNuget::Float(AstDouble {
+                                AstValue::Nuget(AstValueNuget::Long(AstInt {
                                     range: AstRange::from_position_token(start, start),
                                     value,
                                 })),
@@ -631,7 +635,16 @@ fn parse_value_nuget(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, 
             }
             if let Ok(npos) = assert_token(tokens, pos + 1, Token::Identifier("l".into())) {
                 return Ok((
-                    AstValue::Nuget(AstValueNuget::Int(AstInt {
+                    AstValue::Nuget(AstValueNuget::Long(AstInt {
+                        range: AstRange::from_position_token(start, start),
+                        value: num.clone(),
+                    })),
+                    npos,
+                ));
+            }
+            if let Ok(npos) = assert_token(tokens, pos + 1, Token::Identifier("L".into())) {
+                return Ok((
+                    AstValue::Nuget(AstValueNuget::Long(AstInt {
                         range: AstRange::from_position_token(start, start),
                         value: num.clone(),
                     })),
@@ -1160,7 +1173,7 @@ fn parse_expression_inner(
             Err(e) => errors.push(("type generics".into(), e)),
         },
         Token::InstanceOf => match parse_instnceof(tokens, pos) {
-            Ok((a, pos)) => return Ok((AstExpressionKind::InstanceOf(a), pos)),
+            Ok((a, pos)) => return Ok((AstExpressionKind::InstanceOf(Box::new(a)), pos)),
             Err(e) => errors.push(("instanceof".into(), e)),
         },
         _ => (),
@@ -1220,6 +1233,31 @@ fn parse_instnceof(
         pos += 1;
     }
     let (jtype, pos) = parse_jtype(tokens, pos)?;
+
+    let mut pos = pos;
+    let mut variable = None;
+
+    let vstart = tokens.start(pos)?;
+    if let Ok(npos) = assert_token(tokens, pos, Token::LeftParen) {
+        let (jtype, npos) = parse_jtype(tokens, npos)?;
+        let (name, npos) = parse_name(tokens, npos)?;
+        let npos = assert_token(tokens, npos, Token::RightParen)?;
+        let vend = tokens.end(pos)?;
+        variable = Some(AstInstanceOfVar {
+            range: AstRange::from_position_token(vstart, vend),
+            jtype,
+            name,
+        });
+        pos = npos;
+    } else if let Ok((name, npos)) = parse_name(tokens, pos) {
+        let vend = tokens.end(pos)?;
+        variable = Some(AstInstanceOfVar {
+            range: AstRange::from_position_token(vstart, vend),
+            jtype: jtype.clone(),
+            name,
+        });
+        pos = npos;
+    }
     let end = tokens.end(pos)?;
     Ok((
         AstInstanceOf {
@@ -1227,6 +1265,7 @@ fn parse_instnceof(
             annotated,
             availability,
             jtype,
+            variable,
         },
         pos,
     ))
@@ -2135,20 +2174,20 @@ fn parse_block_entry_options(
             errors.push(("block switch default".into(), e));
         }
     }
-    match parse_switch_case_arrow_value(tokens, pos) {
-        Ok((nret, pos)) => {
-            return Ok((AstBlockEntry::SwitchCaseArrowValues(nret), pos));
-        }
-        Err(e) => {
-            errors.push(("block switch case arrow".into(), e));
-        }
-    }
     match parse_switch_case_arrow_type(tokens, pos) {
         Ok((nret, pos)) => {
             return Ok((AstBlockEntry::SwitchCaseArrowType(nret), pos));
         }
         Err(e) => {
             errors.push(("block switch case arrow type".into(), e));
+        }
+    }
+    match parse_switch_case_arrow_value(tokens, pos) {
+        Ok((nret, pos)) => {
+            return Ok((AstBlockEntry::SwitchCaseArrowValues(nret), pos));
+        }
+        Err(e) => {
+            errors.push(("block switch case arrow".into(), e));
         }
     }
     match parse_switch_case_arrow_default(tokens, pos) {
@@ -2560,6 +2599,15 @@ pub fn parse_switch_case_arrow_type(
     let pos = assert_token(tokens, pos, Token::Case)?;
     let (var, pos) = parse_arrow_var(tokens, pos)?;
 
+    let mut when_control = None;
+    let mut pos = pos;
+
+    if let Ok(npos) = assert_token(tokens, pos, Token::When) {
+        let (control, npos) = parse_expression(tokens, npos, &ExpressionOptions::NoLambda)?;
+        when_control = Some(control);
+        pos = npos;
+    }
+
     let pos = assert_token(tokens, pos, Token::Arrow)?;
     let (content, pos) = parse_switch_case_arrow_content(tokens, pos)?;
     let end = tokens.end(pos)?;
@@ -2567,6 +2615,7 @@ pub fn parse_switch_case_arrow_type(
         AstSwitchCaseArrowType {
             range: AstRange::from_position_token(start, end),
             var,
+            when_control,
             content: Box::new(content),
         },
         pos,
@@ -3065,6 +3114,7 @@ pub const fn can_be_ident(token: &Token) -> bool {
             | Token::Opens
             | Token::Open
             | Token::Class
+            | Token::When
     )
 }
 
