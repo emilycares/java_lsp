@@ -3,7 +3,10 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use ast::types::{AstFile, AstPoint};
+use ast::{
+    range::AstInRange,
+    types::{AstFile, AstImportUnit, AstPoint},
+};
 use call_chain::get_call_chain;
 use document::{Document, DocumentError};
 use dto::{Access, Class, ImportUnit, JType, Method, Parameter};
@@ -52,16 +55,17 @@ pub fn class_describe(val: &Class, imp: bool, ast: Option<&AstFile>) -> Completi
     } else {
         None
     };
-    let tags = get_tags(&val.access);
     let detail = format!("package {};\n{}", val.class_path, class_to_markdown(val));
-    CompletionItem {
-        label: val.name.to_string(),
-        detail: Some(detail),
-        kind: Some(CompletionItemKind::CLASS),
-        additional_text_edits: addi,
-        tags,
-        ..Default::default()
-    }
+    access(
+        CompletionItem {
+            label: val.name.to_string(),
+            detail: Some(detail),
+            kind: Some(CompletionItemKind::CLASS),
+            additional_text_edits: addi,
+            ..Default::default()
+        },
+        &val.access,
+    )
 }
 
 /// Unpack class as completion items with methods and fields
@@ -98,17 +102,18 @@ pub fn class_unpack(val: &Class, imports: &[ImportUnit], ast: &AstFile) -> Vec<C
                 i.access.contains(Access::Public)
             })
             .map(|f| {
-                let tags = get_tags(&f.access);
-                CompletionItem {
-                    label: f.name.to_string(),
-                    label_details: Some(CompletionItemLabelDetails {
-                        detail: Some(f.jtype.to_string()),
+                access(
+                    CompletionItem {
+                        label: f.name.to_string(),
+                        label_details: Some(CompletionItemLabelDetails {
+                            detail: Some(f.jtype.to_string()),
+                            ..Default::default()
+                        }),
+                        kind: Some(CompletionItemKind::FIELD),
                         ..Default::default()
-                    }),
-                    kind: Some(CompletionItemKind::FIELD),
-                    tags,
-                    ..Default::default()
-                }
+                    },
+                    &f.access,
+                )
             }),
     );
 
@@ -132,21 +137,21 @@ fn complete_method(m: &Method, imports: &[ImportUnit], ast: &AstFile) -> Option<
         })
         .collect();
 
-    let tags = get_tags(&m.access);
-
     match method_snippet(m) {
-        Some(Snippet::Simple(snippet)) => Some(CompletionItem {
-            label: method_name.to_string(),
-            label_details: Some(CompletionItemLabelDetails {
-                detail: Some(format!("{} ({})", m.ret, params_detail.join(", "))),
+        Some(Snippet::Simple(snippet)) => Some(access(
+            CompletionItem {
+                label: method_name.to_string(),
+                label_details: Some(CompletionItemLabelDetails {
+                    detail: Some(format!("{} ({})", m.ret, params_detail.join(", "))),
+                    ..Default::default()
+                }),
+                kind: Some(CompletionItemKind::FUNCTION),
+                insert_text: Some(snippet),
+                insert_text_format: Some(InsertTextFormat::SNIPPET),
                 ..Default::default()
-            }),
-            kind: Some(CompletionItemKind::FUNCTION),
-            insert_text: Some(snippet),
-            insert_text_format: Some(InsertTextFormat::SNIPPET),
-            tags,
-            ..Default::default()
-        }),
+            },
+            &m.access,
+        )),
         Some(Snippet::Import { snippet, import }) => {
             let additional_text_edits = if !imports.contains(&import)
                 && let ImportUnit::Class(class_path) = import
@@ -156,30 +161,33 @@ fn complete_method(m: &Method, imports: &[ImportUnit], ast: &AstFile) -> Option<
                 None
             };
 
-            Some(CompletionItem {
-                label: method_name.to_string(),
-                label_details: Some(CompletionItemLabelDetails {
-                    detail: Some(format!("{} ({})", m.ret, params_detail.join(", "))),
+            Some(access(
+                CompletionItem {
+                    label: method_name.to_string(),
+                    label_details: Some(CompletionItemLabelDetails {
+                        detail: Some(format!("{} ({})", m.ret, params_detail.join(", "))),
+                        ..Default::default()
+                    }),
+                    kind: Some(CompletionItemKind::FUNCTION),
+                    insert_text: Some(snippet),
+                    insert_text_format: Some(InsertTextFormat::SNIPPET),
+                    additional_text_edits,
                     ..Default::default()
-                }),
-                kind: Some(CompletionItemKind::FUNCTION),
-                insert_text: Some(snippet),
-                insert_text_format: Some(InsertTextFormat::SNIPPET),
-                additional_text_edits,
-                tags,
-                ..Default::default()
-            })
+                },
+                &m.access,
+            ))
         }
         None => None,
     }
 }
 
-fn get_tags(a: &Access) -> Option<Vec<CompletionItemTag>> {
+fn access(out: CompletionItem, a: &Access) -> CompletionItem {
+    let mut out = out;
     if a.intersects(Access::Deprecated) {
-        Some(vec![CompletionItemTag::DEPRECATED])
-    } else {
-        None
+        out.deprecated = Some(true);
+        out.tags = Some(vec![CompletionItemTag::DEPRECATED]);
     }
+    out
 }
 
 #[derive(PartialEq, Debug)]
@@ -345,6 +353,51 @@ pub fn static_methods(
         })
         .filter_map(|m| complete_method(&m, imports, ast))
         .collect()
+}
+
+pub fn imports(
+    document: &Document,
+    point: &AstPoint,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+) -> Vec<CompletionItem> {
+    const LIMIT: usize = 10;
+    let Ok(cm) = class_map.lock() else {
+        return Vec::new();
+    };
+    if document.ast.things.as_slice().is_in_range(point) {
+        return Vec::new();
+    }
+    if let Some(imports) = &document.ast.imports
+        && imports.range.is_in_range(point)
+    {
+        for im in &imports.imports {
+            if im.range.start.line != point.line {
+                continue;
+            }
+            let mut out = Vec::with_capacity(LIMIT);
+            if let AstImportUnit::Class(i) = &im.unit {
+                let search = i.value.as_str();
+                for k in cm.keys() {
+                    if k.starts_with(search) {
+                        out.push(CompletionItem {
+                            label: k
+                                .trim_start_matches(search)
+                                .trim_start_matches('.')
+                                .to_string(),
+                            kind: Some(CompletionItemKind::CLASS),
+                            ..Default::default()
+                        });
+                        if out.len() == LIMIT {
+                            break;
+                        }
+                    }
+                }
+                return out;
+            }
+        }
+    }
+
+    Vec::new()
 }
 
 #[cfg(test)]

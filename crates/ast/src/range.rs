@@ -1,9 +1,8 @@
 //! Range type and methods
 use crate::types::{
-    AstAnnotated, AstAnnotatedParameter, AstAnnotation, AstBlockEntry, AstClass, AstClassMethod,
-    AstEnumeration, AstExpression, AstExpressionIdentifier, AstExpressionKind, AstForContent,
-    AstIf, AstIfContent, AstInterface, AstPoint, AstRange, AstRecord, AstSuperClass, AstThing,
-    AstValue, AstValueNuget, AstValues,
+    AstAnnotated, AstAnnotatedParameter, AstBlockEntry, AstExpression, AstExpressionIdentifier,
+    AstExpressionKind, AstForContent, AstIf, AstIfContent, AstPoint, AstRange, AstSuperClass,
+    AstThing, AstValue, AstValueNuget, AstValues,
 };
 
 /// Join two ranges a must be before b
@@ -34,46 +33,14 @@ pub trait GetRange {
 impl AstInRange for &AstThing {
     fn is_in_range(&self, point: &AstPoint) -> bool {
         match self {
-            AstThing::Class(ast_class) => ast_class.is_in_range(point),
-            AstThing::Record(ast_record) => ast_record.is_in_range(point),
-            AstThing::Interface(ast_interface) => ast_interface.is_in_range(point),
-            AstThing::Enumeration(ast_enumeration) => ast_enumeration.is_in_range(point),
-            AstThing::Annotation(ast_annotation) => ast_annotation.is_in_range(point),
+            AstThing::Class(ast_class) => ast_class.range.is_in_range(point),
+            AstThing::Record(ast_record) => ast_record.range.is_in_range(point),
+            AstThing::Interface(ast_interface) => ast_interface.range.is_in_range(point),
+            AstThing::Enumeration(ast_enumeration) => ast_enumeration.range.is_in_range(point),
+            AstThing::Annotation(ast_annotation) => ast_annotation.range.is_in_range(point),
         }
     }
 }
-impl AstInRange for &AstClass {
-    fn is_in_range(&self, point: &AstPoint) -> bool {
-        self.range.is_in_range(point)
-    }
-}
-impl AstInRange for &AstRecord {
-    fn is_in_range(&self, point: &AstPoint) -> bool {
-        self.range.is_in_range(point)
-    }
-}
-impl AstInRange for &AstInterface {
-    fn is_in_range(&self, point: &AstPoint) -> bool {
-        self.range.is_in_range(point)
-    }
-}
-impl AstInRange for &AstEnumeration {
-    fn is_in_range(&self, point: &AstPoint) -> bool {
-        self.range.is_in_range(point)
-    }
-}
-impl AstInRange for &AstAnnotation {
-    fn is_in_range(&self, point: &AstPoint) -> bool {
-        self.range.is_in_range(point)
-    }
-}
-
-impl AstInRange for &AstClassMethod {
-    fn is_in_range(&self, point: &AstPoint) -> bool {
-        self.range.is_in_range(point)
-    }
-}
-
 impl AstInRange for &AstBlockEntry {
     fn is_in_range(&self, point: &AstPoint) -> bool {
         match self {
@@ -150,7 +117,7 @@ impl AstInRange for &AstIfContent {
     fn is_in_range(&self, point: &AstPoint) -> bool {
         match self {
             AstIfContent::Block(ast_block) => ast_block.range.is_in_range(point),
-            AstIfContent::BlockEntry(ast_block_entry) => (&**ast_block_entry).is_in_range(point),
+            AstIfContent::BlockEntry(ast_block_entry) => (**ast_block_entry).is_in_range(point),
         }
     }
 }
@@ -158,7 +125,7 @@ impl AstInRange for &AstForContent {
     fn is_in_range(&self, point: &AstPoint) -> bool {
         match self {
             AstForContent::Block(ast_block) => ast_block.range.is_in_range(point),
-            AstForContent::BlockEntry(ast_block_entry) => (&**ast_block_entry).is_in_range(point),
+            AstForContent::BlockEntry(ast_block_entry) => (**ast_block_entry).is_in_range(point),
             AstForContent::None => false,
         }
     }
@@ -180,23 +147,7 @@ impl AstAfterRange for &AstValue {
         }
     }
 }
-impl AstInRange for &AstValueNuget {
-    fn is_in_range(&self, point: &AstPoint) -> bool {
-        match self {
-            AstValueNuget::Long(ast_number) | AstValueNuget::Int(ast_number) => {
-                ast_number.range.is_in_range(point)
-            }
-            AstValueNuget::HexLiteral(h) => h.range.is_in_range(point),
-            AstValueNuget::BinaryLiteral(b) => b.range.is_in_range(point),
-            AstValueNuget::Double(ast_double) | AstValueNuget::Float(ast_double) => {
-                ast_double.range.is_in_range(point)
-            }
-            AstValueNuget::StringLiteral(ast_identifier)
-            | AstValueNuget::CharLiteral(ast_identifier) => ast_identifier.range.is_in_range(point),
-            AstValueNuget::BooleanLiteral(ast_boolean) => ast_boolean.range.is_in_range(point),
-        }
-    }
-}
+
 impl GetRange for &AstValueNuget {
     fn get_range(&self) -> AstRange {
         match self {
@@ -350,21 +301,6 @@ impl GetRange for AstValues {
         AstRange::default()
     }
 }
-impl AstInRange for Vec<AstExpressionKind> {
-    fn is_in_range(&self, point: &AstPoint) -> bool {
-        let Some(first) = self.first().map(GetRange::get_range) else {
-            return false;
-        };
-        let Some(last) = self.last().map(GetRange::get_range) else {
-            return false;
-        };
-        if first == last {
-            return true;
-        }
-
-        add_ranges(first, last).is_in_range(point)
-    }
-}
 impl GetRange for AstExpressionKind {
     fn get_range(&self) -> AstRange {
         match self {
@@ -393,6 +329,20 @@ impl GetRange for AstExpressionIdentifier {
     }
 }
 
+impl GetRange for AstAnnotated {
+    fn get_range(&self) -> AstRange {
+        self.range
+    }
+}
+impl<T> AstInRange for T
+where
+    T: GetRange,
+{
+    fn is_in_range(&self, point: &AstPoint) -> bool {
+        self.get_range().is_in_range(point)
+    }
+}
+
 impl GetRange for &AstAnnotatedParameter {
     fn get_range(&self) -> AstRange {
         match self {
@@ -411,15 +361,18 @@ impl GetRange for &AstAnnotatedParameter {
         }
     }
 }
-impl AstInRange for &[AstAnnotated] {
+impl<T> AstInRange for &[T]
+where
+    T: GetRange + AstInRange,
+{
     fn is_in_range(&self, point: &AstPoint) -> bool {
-        let Some(first) = self.first().map(|i| i.range) else {
+        let Some(first) = self.first().map(GetRange::get_range) else {
             return false;
         };
         if self.len() == 1 {
             return first.is_in_range(point);
         }
-        let Some(last) = self.last().map(|i| i.range) else {
+        let Some(last) = self.last().map(GetRange::get_range) else {
             return false;
         };
         let range = add_ranges(first, last);

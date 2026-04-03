@@ -74,14 +74,15 @@ pub fn parser(
 
     'locations: while let Ok((npos, location)) = parse_location(locations, pos) {
         pos = npos;
+        // Skip modules
         if let Some(id) = module_info_id
             && id == location.base
         {
             continue;
         }
         let (_, class_path) = parse_string(strings_data, location.parent)?;
-        let (_, class_name) = parse_string(strings_data, location.base)?;
 
+        // Skip not exported modules
         for r in &rules {
             if r.0 == location.module && !r.1.exports.iter().any(|e| e == &class_path) {
                 continue 'locations;
@@ -95,6 +96,7 @@ pub fn parser(
         ));
 
         let bytes = get_content_bytes(data, index_size, &location)?;
+        let (_, class_name) = parse_string(strings_data, location.base)?;
         let class_path = format_smolstr!("{}.{}", class_path.replace_smolstr("/", "."), class_name);
         let class = load_class(bytes, class_path, source, filter);
         if let Ok(class) = class {

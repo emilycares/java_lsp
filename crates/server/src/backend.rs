@@ -664,6 +664,7 @@ impl Backend {
             &imports,
             &self.class_map,
         ));
+        out.extend(completion::imports(&document, &point, &self.class_map));
         out.extend(completion::complete_vars(&vars));
         out.extend(completion::classes(
             &document,

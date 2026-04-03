@@ -31,17 +31,22 @@ pub fn get_class(ast: &AstFile, point: &AstPoint) -> Option<FoundClass> {
             if !im.range.is_in_range(point) {
                 continue;
             }
-            let o = match &im.unit {
+            match &im.unit {
                 AstImportUnit::StaticClass(ast_identifier)
-                | AstImportUnit::StaticClassMethod(ast_identifier, _)
-                | AstImportUnit::Class(ast_identifier) => Some(FoundClass {
-                    name: ast_identifier.value.clone(),
-                    range: ast_identifier.range,
-                }),
-                AstImportUnit::Prefix(_) | AstImportUnit::StaticPrefix(_) => None,
-            };
-            if o.is_some() {
-                return o;
+                | AstImportUnit::StaticPrefix(ast_identifier)
+                | AstImportUnit::Class(ast_identifier) => {
+                    return Some(FoundClass {
+                        name: ast_identifier.value.clone(),
+                        range: ast_identifier.range,
+                    });
+                }
+                AstImportUnit::StaticClassMethod(class, _) if class.range.is_in_range(point) => {
+                    return Some(FoundClass {
+                        name: class.value.clone(),
+                        range: class.range,
+                    });
+                }
+                AstImportUnit::StaticClassMethod(_, _) | AstImportUnit::Prefix(_) => (),
             }
         }
     }

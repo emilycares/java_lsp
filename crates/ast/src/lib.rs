@@ -176,7 +176,7 @@ fn parse_import(tokens: &[PositionToken], pos: usize) -> Result<(AstImport, usiz
         pos = npos;
         prefix = true;
     }
-    let pos = assert_semicolon(tokens, pos)?;
+    let pos = assert_token(tokens, pos, Token::Semicolon)?;
     let end = tokens.end(pos)?;
     Ok((
         AstImport {

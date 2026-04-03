@@ -11,10 +11,10 @@ use ast::types::{
     AstBlockVariable, AstCastedExpression, AstClassBlock, AstConstructorHeader, AstExpression,
     AstExpressionIdentifier, AstExpressionKind, AstExpressionOperator, AstExpressionOrAnnotated,
     AstExpressionOrDefault, AstExpressionOrValue, AstExtends, AstFile, AstForContent,
-    AstIdentifier, AstIf, AstIfContent, AstInterfaceConstant, AstInterfaceMethod, AstJType,
-    AstJTypeKind, AstLambdaRhs, AstMethodHeader, AstMethodParameter, AstMethodParameters,
-    AstNewClass, AstNewRhs, AstPoint, AstRange, AstRecordEntries, AstRecordEntry,
-    AstRecursiveExpression, AstSuperClass, AstSwitchCaseArrowContent, AstThing,
+    AstIdentifier, AstIf, AstIfContent, AstImportUnit, AstImports, AstInterfaceConstant,
+    AstInterfaceMethod, AstJType, AstJTypeKind, AstLambdaRhs, AstMethodHeader, AstMethodParameter,
+    AstMethodParameters, AstNewClass, AstNewRhs, AstPoint, AstRange, AstRecordEntries,
+    AstRecordEntry, AstRecursiveExpression, AstSuperClass, AstSwitchCaseArrowContent, AstThing,
     AstThrowsDeclaration, AstTypeParameter, AstTypeParameters, AstValue, AstValueNuget, AstValues,
     AstValuesWithAnnotated, AstWhileContent,
 };
@@ -91,8 +91,47 @@ struct Argument {
 #[must_use]
 pub fn get_call_chain(ast: &AstFile, point: &AstPoint) -> Vec<CallItem> {
     let mut out = vec![];
+    if let Some(imports) = &ast.imports {
+        cc_imports(imports, point, &mut out);
+    }
     cc_things(&ast.things, point, &mut out);
     out
+}
+
+fn cc_imports(imports: &AstImports, point: &AstPoint, out: &mut Vec<CallItem>) {
+    if !imports.range.is_in_range(point) {
+        return;
+    }
+    for im in &imports.imports {
+        if !im.range.is_in_range(point) {
+            continue;
+        }
+        match &im.unit {
+            AstImportUnit::Class(ast_identifier) | AstImportUnit::StaticClass(ast_identifier) => {
+                let Some((_, name)) = ast_identifier.value.rsplit_once('.') else {
+                    continue;
+                };
+                out.push(CallItem::Class {
+                    name: name.to_smolstr(),
+                    range: ast_identifier.range,
+                });
+            }
+            AstImportUnit::StaticClassMethod(class, method) => {
+                let Some((_, name)) = class.value.rsplit_once('.') else {
+                    continue;
+                };
+                out.push(CallItem::Class {
+                    name: name.to_smolstr(),
+                    range: class.range,
+                });
+                out.push(CallItem::MethodCall {
+                    name: method.value.clone(),
+                    range: method.range,
+                });
+            }
+            AstImportUnit::Prefix(_) | AstImportUnit::StaticPrefix(_) => (),
+        }
+    }
 }
 fn cc_things(things: &[AstThing], point: &AstPoint, out: &mut Vec<CallItem>) {
     for thing in things {

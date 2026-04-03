@@ -1083,3 +1083,34 @@ return a.length > 0
         out,
     );
 }
+
+#[test]
+fn call_chain_import_method() {
+    let content = r#"
+package ch.emilycares;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+"#;
+    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
+
+    let out = get_call_chain(&ast, &AstPoint::new(2, 28));
+    assert_eq!(
+        vec![
+            CallItem::Class {
+                name: SmolStr::new_inline("Assertions"),
+                range: AstRange {
+                    start: AstPoint { line: 2, col: 14 },
+                    end: AstPoint { line: 2, col: 47 },
+                },
+            },
+            CallItem::MethodCall {
+                name: SmolStr::new_inline("assertTrue"),
+                range: AstRange {
+                    start: AstPoint { line: 2, col: 46 },
+                    end: AstPoint { line: 2, col: 57 },
+                }
+            }
+        ],
+        out,
+    );
+}
