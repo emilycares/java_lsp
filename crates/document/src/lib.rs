@@ -86,6 +86,44 @@ impl Document {
         Ok(o)
     }
 
+    /// Setup document in map
+    /// return Err after insert
+    pub fn setup_insert(
+        text: &str,
+        path: PathBuf,
+        key: &MyString,
+        document_map: &Arc<Mutex<HashMap<MyString, Self>>>,
+    ) -> Result<(), DocumentError> {
+        let rope = Rope::from_str(text);
+        let mut o = Self {
+            rope,
+            ast: AstFile {
+                package: None,
+                imports: None,
+                things: Vec::new(),
+                modules: Vec::new(),
+            },
+            path,
+        };
+
+        match o.reparse(text.as_bytes()) {
+            Ok(()) => {
+                let Ok(mut dm) = document_map.lock() else {
+                    return Err(DocumentError::Locked);
+                };
+                dm.insert(key.to_smolstr(), o);
+                Ok(())
+            }
+            Err(e) => {
+                let Ok(mut dm) = document_map.lock() else {
+                    return Err(DocumentError::Locked);
+                };
+                dm.insert(key.to_smolstr(), o);
+                Err(e)
+            }
+        }
+    }
+
     pub fn apply_text_changes(
         &mut self,
         changes: &[TextDocumentContentChangeEvent],
@@ -178,12 +216,7 @@ pub fn open_document(
     document_map: &Arc<Mutex<HashMap<MyString, Document>>>,
 ) -> Result<(), DocumentError> {
     let path = path_without_subclass(key);
-    let doc = Document::setup(content, path)?;
-
-    let Ok(mut dm) = document_map.lock() else {
-        return Err(DocumentError::Locked);
-    };
-    dm.insert(key.to_smolstr(), doc);
+    Document::setup_insert(content, path, &key.to_smolstr(), document_map)?;
     Ok(())
 }
 pub fn read_document_or_open_class(
