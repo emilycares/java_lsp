@@ -6,26 +6,14 @@ expression: parsed
     AstJType {
         annotated: [],
         range: AstRange {
-            start: AstPoint {
-                line: 0,
-                col: 0,
-            },
-            end: AstPoint {
-                line: 0,
-                col: 19,
-            },
+            start: AstPoint { 0:0 },
+            end: AstPoint { 0:19 },
         },
         value: Generic(
             AstIdentifier {
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 0,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 9,
-                    },
+                    start: AstPoint { 0:0 },
+                    end: AstPoint { 0:9 },
                 },
                 value: "Predicate",
             },
@@ -33,26 +21,14 @@ expression: parsed
                 AstJType {
                     annotated: [],
                     range: AstRange {
-                        start: AstPoint {
-                            line: 0,
-                            col: 10,
-                        },
-                        end: AstPoint {
-                            line: 0,
-                            col: 18,
-                        },
+                        start: AstPoint { 0:10 },
+                        end: AstPoint { 0:18 },
                     },
                     value: Generic(
                         AstIdentifier {
                             range: AstRange {
-                                start: AstPoint {
-                                    line: 0,
-                                    col: 10,
-                                },
-                                end: AstPoint {
-                                    line: 0,
-                                    col: 15,
-                                },
+                                start: AstPoint { 0:10 },
+                                end: AstPoint { 0:15 },
                             },
                             value: "Class",
                         },
@@ -60,14 +36,8 @@ expression: parsed
                             AstJType {
                                 annotated: [],
                                 range: AstRange {
-                                    start: AstPoint {
-                                        line: 0,
-                                        col: 16,
-                                    },
-                                    end: AstPoint {
-                                        line: 0,
-                                        col: 18,
-                                    },
+                                    start: AstPoint { 0:16 },
+                                    end: AstPoint { 0:18 },
                                 },
                                 value: Wildcard,
                             },

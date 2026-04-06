@@ -5,39 +5,21 @@ expression: parsed.unwrap()
 (
     AstNewClass {
         range: AstRange {
-            start: AstPoint {
-                line: 0,
-                col: 0,
-            },
-            end: AstPoint {
-                line: 0,
-                col: 21,
-            },
+            start: AstPoint { 0:0 },
+            end: AstPoint { 0:21 },
         },
         jtype: AstJType {
             annotated: [],
             range: AstRange {
-                start: AstPoint {
-                    line: 0,
-                    col: 4,
-                },
-                end: AstPoint {
-                    line: 0,
-                    col: 10,
-                },
+                start: AstPoint { 0:4 },
+                end: AstPoint { 0:10 },
             },
             value: Array(
                 AstJType {
                     annotated: [],
                     range: AstRange {
-                        start: AstPoint {
-                            line: 0,
-                            col: 4,
-                        },
-                        end: AstPoint {
-                            line: 0,
-                            col: 8,
-                        },
+                        start: AstPoint { 0:4 },
+                        end: AstPoint { 0:8 },
                     },
                     value: Byte,
                 },
@@ -46,56 +28,32 @@ expression: parsed.unwrap()
         rhs: Array(
             AstValues {
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 11,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 21,
-                    },
+                    start: AstPoint { 0:11 },
+                    end: AstPoint { 0:21 },
                 },
                 values: [
                     [
                         Casted(
                             AstCastedExpression {
                                 range: AstRange {
-                                    start: AstPoint {
-                                        line: 0,
-                                        col: 12,
-                                    },
-                                    end: AstPoint {
-                                        line: 0,
-                                        col: 18,
-                                    },
+                                    start: AstPoint { 0:12 },
+                                    end: AstPoint { 0:18 },
                                 },
                                 cast: AstJType {
                                     annotated: [],
                                     range: AstRange {
-                                        start: AstPoint {
-                                            line: 0,
-                                            col: 13,
-                                        },
-                                        end: AstPoint {
-                                            line: 0,
-                                            col: 17,
-                                        },
+                                        start: AstPoint { 0:13 },
+                                        end: AstPoint { 0:17 },
                                     },
                                     value: Byte,
                                 },
                             },
                         ),
-                        Recursive(
-                            AstRecursiveExpression {
+                        Base(
+                            AstBaseExpression {
                                 range: AstRange {
-                                    start: AstPoint {
-                                        line: 0,
-                                        col: 19,
-                                    },
-                                    end: AstPoint {
-                                        line: 0,
-                                        col: 20,
-                                    },
+                                    start: AstPoint { 0:19 },
+                                    end: AstPoint { 0:20 },
                                 },
                                 ident: Some(
                                     Value(
@@ -103,14 +61,8 @@ expression: parsed.unwrap()
                                             CharLiteral(
                                                 AstIdentifier {
                                                     range: AstRange {
-                                                        start: AstPoint {
-                                                            line: 0,
-                                                            col: 19,
-                                                        },
-                                                        end: AstPoint {
-                                                            line: 0,
-                                                            col: 18,
-                                                        },
+                                                        start: AstPoint { 0:19 },
+                                                        end: AstPoint { 0:18 },
                                                     },
                                                     value: "a",
                                                 },

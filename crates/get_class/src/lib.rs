@@ -6,12 +6,12 @@
 use ast::{
     range::AstInRange,
     types::{
-        AstAnnotated, AstAnnotatedParameter, AstAnnotatedParameterKind, AstAnnotation, AstBlock,
-        AstBlockEntry, AstBlockVariable, AstClassBlock, AstEnumeration, AstExpressionIdentifier,
-        AstExpressionKind, AstExpressionOrAnnotated, AstExpressionOrDefault, AstExpressionOrValue,
-        AstFile, AstForContent, AstIf, AstIfContent, AstImportUnit, AstJType, AstJTypeKind,
-        AstLambdaRhs, AstNewRhs, AstPoint, AstRange, AstRecursiveExpression, AstSuperClass,
-        AstSwitchCaseArrowContent, AstThing, AstTypeParameter, AstTypeParameters,
+        AstAnnotated, AstAnnotatedParameter, AstAnnotatedParameterKind, AstAnnotation,
+        AstBaseExpression, AstBlock, AstBlockEntry, AstBlockVariable, AstClassBlock,
+        AstEnumeration, AstExpressionIdentifier, AstExpressionKind, AstExpressionOrAnnotated,
+        AstExpressionOrDefault, AstExpressionOrValue, AstFile, AstForContent, AstIf, AstIfContent,
+        AstImportUnit, AstJType, AstJTypeKind, AstLambdaRhs, AstNewRhs, AstPoint, AstRange,
+        AstSuperClass, AstSwitchCaseArrowContent, AstThing, AstTypeParameter, AstTypeParameters,
         AstValuesWithAnnotated, AstWhileContent,
     },
 };
@@ -867,11 +867,11 @@ fn get_class_expression_kind(ex: &AstExpressionKind, point: &AstPoint) -> Option
             }
             None
         }
-        AstExpressionKind::Recursive(ast_recursive_expression) => {
-            if !ast_recursive_expression.range.is_in_range(point) {
+        AstExpressionKind::Base(exp) => {
+            if !exp.range.is_in_range(point) {
                 return None;
             }
-            get_class_recursive_expression(ast_recursive_expression, point)
+            get_class_base_expression(exp, point)
         }
         AstExpressionKind::Lambda(ast_lambda) => {
             if !ast_lambda.range.is_in_range(point) {
@@ -958,8 +958,8 @@ fn get_class_expression_kind(ex: &AstExpressionKind, point: &AstPoint) -> Option
     }
 }
 
-fn get_class_recursive_expression(
-    expression: &AstRecursiveExpression,
+fn get_class_base_expression(
+    expression: &AstBaseExpression,
     point: &AstPoint,
 ) -> Option<FoundClass> {
     if !expression.range.is_in_range(point) {

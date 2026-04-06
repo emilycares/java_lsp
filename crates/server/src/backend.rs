@@ -6,6 +6,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use ast::types::AstFile;
 use call_chain::get_call_chain;
 use common::{Dependency, TaskProgress, project_cache_dir, project_kind::ProjectKind};
 use compile::CompileErrorMessage;
@@ -35,6 +36,7 @@ use my_string::{MyString, smol_str::ToSmolStr};
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use serde_json::Value;
 use tokio::task::JoinSet;
+use variables::VariableContext;
 
 use crate::{
     codeaction::{self, CodeActionContext},
@@ -541,7 +543,18 @@ impl Backend {
         let document = dm.get(&get_document_map_key(&uri).to_smolstr())?;
         let point = to_ast_point(params.text_document_position_params.position);
         let imports = imports::imports(&document.ast);
-        let vars = match variables::get_vars(&document.ast, &point) {
+
+        let class = self.get_class(&document.ast)?;
+
+        let vars = match variables::get_vars(
+            &document.ast,
+            &VariableContext {
+                point,
+                imports: &imports,
+                class: &class,
+                class_map: self.class_map.clone(),
+            },
+        ) {
             Ok(v) => Some(v),
             Err(e) => {
                 eprintln!("Could not get vars: {e:?}");
@@ -620,29 +633,25 @@ impl Backend {
         }
         let mut out = vec![];
         let point = to_ast_point(params.position);
-        let vars = match variables::get_vars(&document.ast, &point) {
+        let imports = imports::imports(&document.ast);
+
+        let class = self.get_class(&document.ast)?;
+
+        let vars = match variables::get_vars(
+            &document.ast,
+            &VariableContext {
+                point,
+                imports: &imports,
+                class: &class,
+                class_map: self.class_map.clone(),
+            },
+        ) {
             Ok(v) => Some(v),
             Err(e) => {
                 eprintln!("Could not get vars: {e:?}");
                 None
             }
         }?;
-
-        let imports = imports::imports(&document.ast);
-
-        let Some(class_path) = get_class_path(&document.ast) else {
-            eprintln!("Could not get class_path");
-            return None;
-        };
-        let class;
-        if let Ok(cm) = self.class_map.lock()
-            && let Some(cl) = cm.get(&class_path)
-        {
-            class = cl.clone();
-        } else {
-            eprintln!("Could not find class {class_path}");
-            return None;
-        }
 
         match completion::complete_call_chain(
             &document,
@@ -702,26 +711,23 @@ impl Backend {
 
         let point = to_ast_point(params.position);
         let imports = imports::imports(&document.ast);
-        let vars = match variables::get_vars(&document.ast, &point) {
+        let class = self.get_class(&document.ast)?;
+
+        let vars = match variables::get_vars(
+            &document.ast,
+            &VariableContext {
+                point,
+                imports: &imports,
+                class: &class,
+                class_map: self.class_map.clone(),
+            },
+        ) {
             Ok(v) => Some(v),
             Err(e) => {
                 eprintln!("Could not get vars: {e:?}");
                 None
             }
         }?;
-        let Some(class_path) = get_class_path(&document.ast) else {
-            eprintln!("Could not get class_path");
-            return None;
-        };
-        let class;
-        if let Ok(cm) = self.class_map.lock()
-            && let Some(cl) = cm.get(&class_path)
-        {
-            class = cl.clone();
-        } else {
-            eprintln!("Could not find class {class_path}");
-            return None;
-        }
 
         let context = DefinitionContext {
             document_uri: uri,
@@ -774,7 +780,16 @@ impl Backend {
         }
         let point = to_ast_point(params.position);
         let imports = imports::imports(&document.ast);
-        let vars = match variables::get_vars(&document.ast, &point) {
+        let class = self.get_class(&document.ast)?;
+        let vars = match variables::get_vars(
+            &document.ast,
+            &VariableContext {
+                point,
+                imports: &imports,
+                class: &class,
+                class_map: self.class_map.clone(),
+            },
+        ) {
             Ok(v) => Some(v),
             Err(e) => {
                 eprintln!("Could not get vars: {e:?}");
@@ -795,19 +810,7 @@ impl Backend {
             Err(e) => eprintln!("Got reference class error: {e:?}"),
         }
         let call_chain = get_call_chain(&document.ast, &point);
-        let Some(class_path) = get_class_path(&document.ast) else {
-            eprintln!("Could not get class_path");
-            return None;
-        };
-        let class;
-        if let Ok(cm) = self.class_map.lock()
-            && let Some(cl) = cm.get(&class_path)
-        {
-            class = cl.clone();
-        } else {
-            eprintln!("Could not find class {class_path}");
-            return None;
-        }
+        let class = self.get_class(&document.ast)?;
         let context = ReferencesContext {
             point: &point,
             imports: &imports,
@@ -832,6 +835,23 @@ impl Backend {
                 None
             }
         }
+    }
+
+    fn get_class(&self, ast: &AstFile) -> Option<Class> {
+        let Some(class_path) = get_class_path(ast) else {
+            eprintln!("Could not get class_path");
+            return None;
+        };
+        let class;
+        if let Ok(cm) = self.class_map.lock()
+            && let Some(cl) = cm.get(&class_path)
+        {
+            class = cl.clone();
+        } else {
+            eprintln!("Could not find class {class_path}");
+            return None;
+        }
+        Some(class)
     }
 
     pub fn code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
@@ -873,20 +893,16 @@ impl Backend {
 
         let imports = imports::imports(&document.ast);
 
-        let Some(class_path) = get_class_path(&document.ast) else {
-            eprintln!("Could not get class_path");
-            return None;
-        };
-        let class;
-        if let Ok(cm) = self.class_map.lock()
-            && let Some(cl) = cm.get(&class_path)
-        {
-            class = cl.clone();
-        } else {
-            eprintln!("Could not find class {class_path}");
-            return None;
-        }
-        let vars = match variables::get_vars(&document.ast, &point) {
+        let class = self.get_class(&document.ast)?;
+        let vars = match variables::get_vars(
+            &document.ast,
+            &VariableContext {
+                point,
+                imports: &imports,
+                class: &class,
+                class_map: self.class_map.clone(),
+            },
+        ) {
             Ok(v) => Some(v),
             Err(e) => {
                 eprintln!("Could not get vars: {e:?}");
@@ -1015,19 +1031,7 @@ impl Backend {
             return None;
         }
         let point = to_ast_point(params.text_document_position_params.position);
-        let Some(class_path) = get_class_path(&document.ast) else {
-            eprintln!("Could not get class_path");
-            return None;
-        };
-        let class;
-        if let Ok(cm) = self.class_map.lock()
-            && let Some(cl) = cm.get(&class_path)
-        {
-            class = cl.clone();
-        } else {
-            eprintln!("Could not find class {class_path}");
-            return None;
-        }
+        let class = self.get_class(&document.ast)?;
 
         match signature::signature_driver(&document, &point, &class, &self.class_map) {
             Ok(hover) => Some(hover),

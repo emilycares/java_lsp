@@ -6,53 +6,29 @@ expression: parsed.unwrap()
     [
         AstBlockVariable {
             range: AstRange {
-                start: AstPoint {
-                    line: 0,
-                    col: 0,
-                },
-                end: AstPoint {
-                    line: 0,
-                    col: 49,
-                },
+                start: AstPoint { 0:0 },
+                end: AstPoint { 0:49 },
             },
             fin: false,
             annotated: [],
             jtype: AstJType {
                 annotated: [],
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 0,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 8,
-                    },
+                    start: AstPoint { 0:0 },
+                    end: AstPoint { 0:8 },
                 },
                 value: Array(
                     AstJType {
                         annotated: [],
                         range: AstRange {
-                            start: AstPoint {
-                                line: 0,
-                                col: 0,
-                            },
-                            end: AstPoint {
-                                line: 0,
-                                col: 6,
-                            },
+                            start: AstPoint { 0:0 },
+                            end: AstPoint { 0:6 },
                         },
                         value: Class(
                             AstIdentifier {
                                 range: AstRange {
-                                    start: AstPoint {
-                                        line: 0,
-                                        col: 0,
-                                    },
-                                    end: AstPoint {
-                                        line: 0,
-                                        col: 6,
-                                    },
+                                    start: AstPoint { 0:0 },
+                                    end: AstPoint { 0:6 },
                                 },
                                 value: "String",
                             },
@@ -62,14 +38,8 @@ expression: parsed.unwrap()
             },
             name: AstIdentifier {
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 9,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 13,
-                    },
+                    start: AstPoint { 0:9 },
+                    end: AstPoint { 0:13 },
                 },
                 value: "cars",
             },
@@ -78,28 +48,16 @@ expression: parsed.unwrap()
                     Array(
                         AstValues {
                             range: AstRange {
-                                start: AstPoint {
-                                    line: 0,
-                                    col: 16,
-                                },
-                                end: AstPoint {
-                                    line: 0,
-                                    col: 49,
-                                },
+                                start: AstPoint { 0:16 },
+                                end: AstPoint { 0:49 },
                             },
                             values: [
                                 [
-                                    Recursive(
-                                        AstRecursiveExpression {
+                                    Base(
+                                        AstBaseExpression {
                                             range: AstRange {
-                                                start: AstPoint {
-                                                    line: 0,
-                                                    col: 23,
-                                                },
-                                                end: AstPoint {
-                                                    line: 0,
-                                                    col: 28,
-                                                },
+                                                start: AstPoint { 0:23 },
+                                                end: AstPoint { 0:28 },
                                             },
                                             ident: Some(
                                                 Value(
@@ -107,14 +65,8 @@ expression: parsed.unwrap()
                                                         StringLiteral(
                                                             AstIdentifier {
                                                                 range: AstRange {
-                                                                    start: AstPoint {
-                                                                        line: 0,
-                                                                        col: 23,
-                                                                    },
-                                                                    end: AstPoint {
-                                                                        line: 0,
-                                                                        col: 17,
-                                                                    },
+                                                                    start: AstPoint { 0:23 },
+                                                                    end: AstPoint { 0:17 },
                                                                 },
                                                                 value: "Volvo",
                                                             },
@@ -128,17 +80,11 @@ expression: parsed.unwrap()
                                     ),
                                 ],
                                 [
-                                    Recursive(
-                                        AstRecursiveExpression {
+                                    Base(
+                                        AstBaseExpression {
                                             range: AstRange {
-                                                start: AstPoint {
-                                                    line: 0,
-                                                    col: 30,
-                                                },
-                                                end: AstPoint {
-                                                    line: 0,
-                                                    col: 33,
-                                                },
+                                                start: AstPoint { 0:30 },
+                                                end: AstPoint { 0:33 },
                                             },
                                             ident: Some(
                                                 Value(
@@ -146,14 +92,8 @@ expression: parsed.unwrap()
                                                         StringLiteral(
                                                             AstIdentifier {
                                                                 range: AstRange {
-                                                                    start: AstPoint {
-                                                                        line: 0,
-                                                                        col: 30,
-                                                                    },
-                                                                    end: AstPoint {
-                                                                        line: 0,
-                                                                        col: 25,
-                                                                    },
+                                                                    start: AstPoint { 0:30 },
+                                                                    end: AstPoint { 0:25 },
                                                                 },
                                                                 value: "BMW",
                                                             },
@@ -167,17 +107,11 @@ expression: parsed.unwrap()
                                     ),
                                 ],
                                 [
-                                    Recursive(
-                                        AstRecursiveExpression {
+                                    Base(
+                                        AstBaseExpression {
                                             range: AstRange {
-                                                start: AstPoint {
-                                                    line: 0,
-                                                    col: 38,
-                                                },
-                                                end: AstPoint {
-                                                    line: 0,
-                                                    col: 42,
-                                                },
+                                                start: AstPoint { 0:38 },
+                                                end: AstPoint { 0:42 },
                                             },
                                             ident: Some(
                                                 Value(
@@ -185,14 +119,8 @@ expression: parsed.unwrap()
                                                         StringLiteral(
                                                             AstIdentifier {
                                                                 range: AstRange {
-                                                                    start: AstPoint {
-                                                                        line: 0,
-                                                                        col: 38,
-                                                                    },
-                                                                    end: AstPoint {
-                                                                        line: 0,
-                                                                        col: 32,
-                                                                    },
+                                                                    start: AstPoint { 0:38 },
+                                                                    end: AstPoint { 0:32 },
                                                                 },
                                                                 value: "Ford",
                                                             },
@@ -206,17 +134,11 @@ expression: parsed.unwrap()
                                     ),
                                 ],
                                 [
-                                    Recursive(
-                                        AstRecursiveExpression {
+                                    Base(
+                                        AstBaseExpression {
                                             range: AstRange {
-                                                start: AstPoint {
-                                                    line: 0,
-                                                    col: 47,
-                                                },
-                                                end: AstPoint {
-                                                    line: 0,
-                                                    col: 52,
-                                                },
+                                                start: AstPoint { 0:47 },
+                                                end: AstPoint { 0:52 },
                                             },
                                             ident: Some(
                                                 Value(
@@ -224,14 +146,8 @@ expression: parsed.unwrap()
                                                         StringLiteral(
                                                             AstIdentifier {
                                                                 range: AstRange {
-                                                                    start: AstPoint {
-                                                                        line: 0,
-                                                                        col: 47,
-                                                                    },
-                                                                    end: AstPoint {
-                                                                        line: 0,
-                                                                        col: 40,
-                                                                    },
+                                                                    start: AstPoint { 0:47 },
+                                                                    end: AstPoint { 0:40 },
                                                                 },
                                                                 value: "Mazda",
                                                             },

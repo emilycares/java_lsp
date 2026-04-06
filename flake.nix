@@ -104,6 +104,7 @@
               (craneLib.fileset.commonCargoSources ./crates/server)
               (craneLib.fileset.commonCargoSources ./crates/tyres)
               (craneLib.fileset.commonCargoSources ./crates/variables)
+              (craneLib.fileset.commonCargoSources ./crates/local_variable)
               (craneLib.fileset.commonCargoSources ./crates/zip_util)
               (craneLib.fileset.commonCargoSources ./crates/lsp_extra)
               (craneLib.fileset.commonCargoSources ./crates/workspace_hack)

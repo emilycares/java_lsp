@@ -39,6 +39,7 @@ members = [
     "crates/lsp_extra",
     "crates/jimage",
     "crates/dto",
+    "crates/local_variable",
 ]
 resolver = "3"
 
@@ -83,6 +84,7 @@ get_class = { path = "crates/get_class"}
 loader = { path = "crates/loader"}
 my_string = { path = "crates/my_string"}
 lsp_extra = { path = "crates/lsp_extra"}
+local_variable = { path = "crates/local_variable"}
 
 # Rest
 bitflags = { version = "2.10.0", features = ["serde"] }

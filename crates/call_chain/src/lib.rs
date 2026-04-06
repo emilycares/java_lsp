@@ -7,14 +7,14 @@ use std::cmp::{self, max, min};
 
 use ast::range::{AstInRange, GetRange, add_ranges};
 use ast::types::{
-    AstAnnotated, AstAnnotatedParameter, AstAnnotatedParameterKind, AstBlock, AstBlockEntry,
-    AstBlockVariable, AstCastedExpression, AstClassBlock, AstConstructorHeader, AstExpression,
-    AstExpressionIdentifier, AstExpressionKind, AstExpressionOperator, AstExpressionOrAnnotated,
-    AstExpressionOrDefault, AstExpressionOrValue, AstExtends, AstFile, AstForContent,
-    AstIdentifier, AstIf, AstIfContent, AstImportUnit, AstImports, AstInterfaceConstant,
-    AstInterfaceMethod, AstJType, AstJTypeKind, AstLambdaRhs, AstMethodHeader, AstMethodParameter,
-    AstMethodParameters, AstNewClass, AstNewRhs, AstPoint, AstRange, AstRecordEntries,
-    AstRecordEntry, AstRecursiveExpression, AstSuperClass, AstSwitchCaseArrowContent, AstThing,
+    AstAnnotated, AstAnnotatedParameter, AstAnnotatedParameterKind, AstBaseExpression, AstBlock,
+    AstBlockEntry, AstBlockVariable, AstCastedExpression, AstClassBlock, AstConstructorHeader,
+    AstExpression, AstExpressionIdentifier, AstExpressionKind, AstExpressionOperator,
+    AstExpressionOrAnnotated, AstExpressionOrDefault, AstExpressionOrValue, AstExtends, AstFile,
+    AstForContent, AstIdentifier, AstIf, AstIfContent, AstImportUnit, AstImports,
+    AstInterfaceConstant, AstInterfaceMethod, AstJType, AstJTypeKind, AstLambdaRhs,
+    AstMethodHeader, AstMethodParameter, AstMethodParameters, AstNewClass, AstNewRhs, AstPoint,
+    AstRange, AstRecordEntries, AstRecordEntry, AstSuperClass, AstSwitchCaseArrowContent, AstThing,
     AstThrowsDeclaration, AstTypeParameter, AstTypeParameters, AstValue, AstValueNuget, AstValues,
     AstValuesWithAnnotated, AstWhileContent,
 };
@@ -926,7 +926,7 @@ fn cc_variable(ast_identifier: &AstIdentifier, out: &mut Vec<CallItem>) {
     });
 }
 
-fn cc_expr(
+pub fn cc_expr(
     ast_expression: &[AstExpressionKind],
     point: &AstPoint,
     has_parent: bool,
@@ -937,12 +937,12 @@ fn cc_expr(
     let Some(ex) = ast_expression.first() else {
         return;
     };
-    if let AstExpressionKind::Recursive(current) = ex {
-        cc_expr_recursive(&ast_expression[0..], current, point, has_parent, out);
+    if let AstExpressionKind::Base(current) = ex {
+        cc_expr_base(&ast_expression[0..], current, point, has_parent, out);
         return;
     }
     match ex {
-        AstExpressionKind::Recursive(_) => {}
+        AstExpressionKind::Base(_) => {}
         AstExpressionKind::Lambda(ast_lambda) => {
             if ast_lambda.range.is_in_range(point) {
                 out.clear();
@@ -982,40 +982,38 @@ fn cut_expression<'a>(
     let mut current = vec![];
     for ex in ast_expression {
         match ex {
-            AstExpressionKind::Recursive(ast_recursive_expression) => {
-                match ast_recursive_expression.operator {
-                    AstExpressionOperator::None
-                    | AstExpressionOperator::PlusPlus(_)
-                    | AstExpressionOperator::MinusMinus(_)
-                    | AstExpressionOperator::Equal(_)
-                    | AstExpressionOperator::NotEqual(_)
-                    | AstExpressionOperator::Multiply(_)
-                    | AstExpressionOperator::Divide(_)
-                    | AstExpressionOperator::Modulo(_)
-                    | AstExpressionOperator::Le(_)
-                    | AstExpressionOperator::Lt(_)
-                    | AstExpressionOperator::Ge(_)
-                    | AstExpressionOperator::Gt(_)
-                    | AstExpressionOperator::Dot(_)
-                    | AstExpressionOperator::ExclamationMark(_)
-                    | AstExpressionOperator::QuestionMark(_)
-                    | AstExpressionOperator::Colon(_)
-                    | AstExpressionOperator::ColonColon(_)
-                    | AstExpressionOperator::Assign(_)
-                    | AstExpressionOperator::Tilde(_)
-                    | AstExpressionOperator::Caret(_) => current.push(ex.clone()),
-                    AstExpressionOperator::Ampersand(_)
-                    | AstExpressionOperator::AmpersandAmpersand(_)
-                    | AstExpressionOperator::Plus(_)
-                    | AstExpressionOperator::Minus(_)
-                    | AstExpressionOperator::VerticalBar(_)
-                    | AstExpressionOperator::VerticalBarVerticalBar(_) => {
-                        current.push(ex.clone());
-                        all.push(current.clone());
-                        current.clear();
-                    }
+            AstExpressionKind::Base(exp) => match exp.operator {
+                AstExpressionOperator::None
+                | AstExpressionOperator::PlusPlus(_)
+                | AstExpressionOperator::MinusMinus(_)
+                | AstExpressionOperator::Equal(_)
+                | AstExpressionOperator::NotEqual(_)
+                | AstExpressionOperator::Multiply(_)
+                | AstExpressionOperator::Divide(_)
+                | AstExpressionOperator::Modulo(_)
+                | AstExpressionOperator::Le(_)
+                | AstExpressionOperator::Lt(_)
+                | AstExpressionOperator::Ge(_)
+                | AstExpressionOperator::Gt(_)
+                | AstExpressionOperator::Dot(_)
+                | AstExpressionOperator::ExclamationMark(_)
+                | AstExpressionOperator::QuestionMark(_)
+                | AstExpressionOperator::Colon(_)
+                | AstExpressionOperator::ColonColon(_)
+                | AstExpressionOperator::Assign(_)
+                | AstExpressionOperator::Tilde(_)
+                | AstExpressionOperator::Caret(_) => current.push(ex.clone()),
+                AstExpressionOperator::Ampersand(_)
+                | AstExpressionOperator::AmpersandAmpersand(_)
+                | AstExpressionOperator::Plus(_)
+                | AstExpressionOperator::Minus(_)
+                | AstExpressionOperator::VerticalBar(_)
+                | AstExpressionOperator::VerticalBarVerticalBar(_) => {
+                    current.push(ex.clone());
+                    all.push(current.clone());
+                    current.clear();
                 }
-            }
+            },
             AstExpressionKind::Casted(_)
             | AstExpressionKind::Lambda(_)
             | AstExpressionKind::InlineSwitch(_)
@@ -1099,20 +1097,20 @@ fn cc_jtype_not_sure_class(jtype: &AstJType, out: &mut Vec<CallItem>) {
     }
 }
 
-fn cc_expr_recursive(
+fn cc_expr_base(
     ast_expression: &[AstExpressionKind],
-    current: &AstRecursiveExpression,
+    current: &AstBaseExpression,
     point: &AstPoint,
     has_parent: bool,
     out: &mut Vec<CallItem>,
 ) {
     if let Some(next) = &ast_expression.get(1) {
-        if let AstExpressionKind::Recursive(next) = next {
-            cc_recursive_next_oprerator(ast_expression, current, point, has_parent, out, next);
+        if let AstExpressionKind::Base(next) = next {
+            cc_base_next_oprerator(ast_expression, current, point, has_parent, out, next);
         } else {
             let has_values = match next {
                 AstExpressionKind::Casted(_) => true,
-                AstExpressionKind::Recursive(r) => r.values.is_some(),
+                AstExpressionKind::Base(r) => r.values.is_some(),
                 AstExpressionKind::Lambda(_)
                 | AstExpressionKind::InlineSwitch(_)
                 | AstExpressionKind::NewClass(_)
@@ -1121,22 +1119,22 @@ fn cc_expr_recursive(
                 | AstExpressionKind::InstanceOf(_)
                 | AstExpressionKind::JType(_) => false,
             };
-            cc_recursive_no_next(current, point, has_parent, has_values, out);
+            cc_base_no_next(current, point, has_parent, has_values, out);
             cc_expr(&ast_expression[1..], point, has_parent, out);
         }
     } else {
-        cc_recursive_no_next(current, point, has_parent, false, out);
+        cc_base_no_next(current, point, has_parent, false, out);
         cc_expr(&ast_expression[1..], point, has_parent, out);
     }
 }
 
-fn cc_recursive_next_oprerator(
+fn cc_base_next_oprerator(
     ast_expression: &[AstExpressionKind],
-    current: &AstRecursiveExpression,
+    current: &AstBaseExpression,
     point: &AstPoint,
     has_parent: bool,
     out: &mut Vec<CallItem>,
-    next: &AstRecursiveExpression,
+    next: &AstBaseExpression,
 ) {
     match &next.operator {
         AstExpressionOperator::Plus(_)
@@ -1201,8 +1199,8 @@ fn cc_recursive_next_oprerator(
     }
 }
 
-fn cc_recursive_no_next(
-    current: &AstRecursiveExpression,
+fn cc_base_no_next(
+    current: &AstBaseExpression,
     point: &AstPoint,
     has_parent: bool,
     has_values: bool,

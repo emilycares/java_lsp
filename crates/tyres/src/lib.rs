@@ -14,11 +14,11 @@ use std::{
 use ast::types::AstPoint;
 use call_chain::CallItem;
 use dto::{Access, Class, Field, ImportUnit, JType, Method};
+use local_variable::LocalVariable;
 use my_string::{
     MyString,
     smol_str::{SmolStr, SmolStrBuilder, format_smolstr},
 };
-use variables::LocalVariable;
 
 use crate::parent::{populate_super_class, populate_super_interfaces};
 

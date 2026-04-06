@@ -10,13 +10,13 @@ use ast::types::{
     AstThing, AstWhileContent,
 };
 use dto::{Class, ImportUnit};
+use local_variable::LocalVariable;
 use lsp_extra::{ToLspRangeError, to_lsp_range};
 use lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, Position, Range, TextEdit, Uri, WorkspaceEdit,
 };
 use my_string::MyString;
 use tyres::TyresError;
-use variables::LocalVariable;
 
 use crate::hover::jtype_hover_display;
 
@@ -379,6 +379,7 @@ pub mod tests {
     use lsp_types::Uri;
     use my_string::MyString;
     use pretty_assertions::assert_eq;
+    use variables::VariableContext;
 
     use crate::codeaction::replace_with_value_type;
 
@@ -404,7 +405,16 @@ public class Test {
             imports: &imports,
             class_map: get_class_map(),
             class: &class,
-            vars: &variables::get_vars(&doc.ast, &point).unwrap(),
+            vars: &variables::get_vars(
+                &doc.ast,
+                &VariableContext {
+                    point,
+                    imports: &imports,
+                    class: &class,
+                    class_map: get_class_map(),
+                },
+            )
+            .unwrap(),
             current_file: &uri,
         };
         let out = replace_with_value_type(&doc.ast, &context);
@@ -440,7 +450,16 @@ public class Test {
             imports: &imports,
             class_map: get_class_map(),
             class: &class,
-            vars: &variables::get_vars(&doc.ast, &point).unwrap(),
+            vars: &variables::get_vars(
+                &doc.ast,
+                &VariableContext {
+                    point,
+                    imports: &imports,
+                    class: &class,
+                    class_map: get_class_map(),
+                },
+            )
+            .unwrap(),
             current_file: &uri,
         };
         let out = replace_with_value_type(&doc.ast, &context);
@@ -477,7 +496,16 @@ public class Test {
             imports: &imports,
             class_map: get_class_map(),
             class: &class,
-            vars: &variables::get_vars(&doc.ast, &point).unwrap(),
+            vars: &variables::get_vars(
+                &doc.ast,
+                &VariableContext {
+                    point,
+                    imports: &imports,
+                    class: &class,
+                    class_map: get_class_map(),
+                },
+            )
+            .unwrap(),
             current_file: &uri,
         };
         let out = replace_with_value_type(&doc.ast, &context);

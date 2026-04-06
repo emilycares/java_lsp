@@ -1,33 +1,20 @@
 ---
-source: call_chain/tests/base.rs
+source: crates/call_chain/tests/base.rs
 expression: out
-snapshot_kind: text
 ---
 [
     ClassOrVariable {
         name: "local",
         range: AstRange {
-            start: AstPoint {
-                line: 8,
-                col: 17,
-            },
-            end: AstPoint {
-                line: 8,
-                col: 22,
-            },
+            start: AstPoint { 8:17 },
+            end: AstPoint { 8:22 },
         },
     },
     MethodCall {
         name: "concat",
         range: AstRange {
-            start: AstPoint {
-                line: 8,
-                col: 23,
-            },
-            end: AstPoint {
-                line: 8,
-                col: 29,
-            },
+            start: AstPoint { 8:23 },
+            end: AstPoint { 8:29 },
         },
     },
 ]

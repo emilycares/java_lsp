@@ -6,39 +6,21 @@ expression: parsed
     AstJType {
         annotated: [],
         range: AstRange {
-            start: AstPoint {
-                line: 0,
-                col: 0,
-            },
-            end: AstPoint {
-                line: 0,
-                col: 36,
-            },
+            start: AstPoint { 0:0 },
+            end: AstPoint { 0:36 },
         },
         value: Access {
             base: AstJType {
                 annotated: [],
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 0,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 5,
-                    },
+                    start: AstPoint { 0:0 },
+                    end: AstPoint { 0:5 },
                 },
                 value: Class(
                     AstIdentifier {
                         range: AstRange {
-                            start: AstPoint {
-                                line: 0,
-                                col: 0,
-                            },
-                            end: AstPoint {
-                                line: 0,
-                                col: 5,
-                            },
+                            start: AstPoint { 0:0 },
+                            end: AstPoint { 0:5 },
                         },
                         value: "javax",
                     },
@@ -47,39 +29,21 @@ expression: parsed
             inner: AstJType {
                 annotated: [],
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 6,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 36,
-                    },
+                    start: AstPoint { 0:6 },
+                    end: AstPoint { 0:36 },
                 },
                 value: Access {
                     base: AstJType {
                         annotated: [],
                         range: AstRange {
-                            start: AstPoint {
-                                line: 0,
-                                col: 6,
-                            },
-                            end: AstPoint {
-                                line: 0,
-                                col: 12,
-                            },
+                            start: AstPoint { 0:6 },
+                            end: AstPoint { 0:12 },
                         },
                         value: Class(
                             AstIdentifier {
                                 range: AstRange {
-                                    start: AstPoint {
-                                        line: 0,
-                                        col: 6,
-                                    },
-                                    end: AstPoint {
-                                        line: 0,
-                                        col: 12,
-                                    },
+                                    start: AstPoint { 0:6 },
+                                    end: AstPoint { 0:12 },
                                 },
                                 value: "crypto",
                             },
@@ -88,39 +52,21 @@ expression: parsed
                     inner: AstJType {
                         annotated: [],
                         range: AstRange {
-                            start: AstPoint {
-                                line: 0,
-                                col: 13,
-                            },
-                            end: AstPoint {
-                                line: 0,
-                                col: 36,
-                            },
+                            start: AstPoint { 0:13 },
+                            end: AstPoint { 0:36 },
                         },
                         value: Access {
                             base: AstJType {
                                 annotated: [],
                                 range: AstRange {
-                                    start: AstPoint {
-                                        line: 0,
-                                        col: 13,
-                                    },
-                                    end: AstPoint {
-                                        line: 0,
-                                        col: 23,
-                                    },
+                                    start: AstPoint { 0:13 },
+                                    end: AstPoint { 0:23 },
                                 },
                                 value: Class(
                                     AstIdentifier {
                                         range: AstRange {
-                                            start: AstPoint {
-                                                line: 0,
-                                                col: 13,
-                                            },
-                                            end: AstPoint {
-                                                line: 0,
-                                                col: 23,
-                                            },
+                                            start: AstPoint { 0:13 },
+                                            end: AstPoint { 0:23 },
                                         },
                                         value: "interfaces",
                                     },
@@ -129,26 +75,14 @@ expression: parsed
                             inner: AstJType {
                                 annotated: [],
                                 range: AstRange {
-                                    start: AstPoint {
-                                        line: 0,
-                                        col: 24,
-                                    },
-                                    end: AstPoint {
-                                        line: 0,
-                                        col: 36,
-                                    },
+                                    start: AstPoint { 0:24 },
+                                    end: AstPoint { 0:36 },
                                 },
                                 value: Class(
                                     AstIdentifier {
                                         range: AstRange {
-                                            start: AstPoint {
-                                                line: 0,
-                                                col: 24,
-                                            },
-                                            end: AstPoint {
-                                                line: 0,
-                                                col: 36,
-                                            },
+                                            start: AstPoint { 0:24 },
+                                            end: AstPoint { 0:36 },
                                         },
                                         value: "DHPrivateKey",
                                     },

@@ -1,5 +1,5 @@
 ---
-source: variables/src/lib.rs
+source: crates/variables/src/lib.rs
 expression: out
 ---
 [
@@ -9,14 +9,8 @@ expression: out
         name: "hello",
         is_fun: true,
         range: AstRange {
-            start: AstPoint {
-                line: 3,
-                col: 4,
-            },
-            end: AstPoint {
-                line: 31,
-                col: 5,
-            },
+            start: AstPoint { 3:4 },
+            end: AstPoint { 31:5 },
         },
     },
     LocalVariable {
@@ -27,14 +21,8 @@ expression: out
         name: "ty1",
         is_fun: false,
         range: AstRange {
-            start: AstPoint {
-                line: 8,
-                col: 12,
-            },
-            end: AstPoint {
-                line: 8,
-                col: 28,
-            },
+            start: AstPoint { 8:12 },
+            end: AstPoint { 8:28 },
         },
     },
 ]

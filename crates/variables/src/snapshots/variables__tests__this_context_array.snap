@@ -1,5 +1,5 @@
 ---
-source: variables/src/lib.rs
+source: crates/variables/src/lib.rs
 expression: out
 ---
 [
@@ -13,14 +13,8 @@ expression: out
         name: "hello",
         is_fun: false,
         range: AstRange {
-            start: AstPoint {
-                line: 5,
-                col: 4,
-            },
-            end: AstPoint {
-                line: 5,
-                col: 18,
-            },
+            start: AstPoint { 5:4 },
+            end: AstPoint { 5:18 },
         },
     },
     LocalVariable {
@@ -33,14 +27,8 @@ expression: out
         name: "se",
         is_fun: false,
         range: AstRange {
-            start: AstPoint {
-                line: 6,
-                col: 4,
-            },
-            end: AstPoint {
-                line: 6,
-                col: 15,
-            },
+            start: AstPoint { 6:4 },
+            end: AstPoint { 6:15 },
         },
     },
     LocalVariable {
@@ -53,14 +41,8 @@ expression: out
         name: "other",
         is_fun: false,
         range: AstRange {
-            start: AstPoint {
-                line: 8,
-                col: 4,
-            },
-            end: AstPoint {
-                line: 8,
-                col: 30,
-            },
+            start: AstPoint { 8:4 },
+            end: AstPoint { 8:30 },
         },
     },
     LocalVariable {
@@ -69,14 +51,8 @@ expression: out
         name: "hello",
         is_fun: true,
         range: AstRange {
-            start: AstPoint {
-                line: 10,
-                col: 4,
-            },
-            end: AstPoint {
-                line: 15,
-                col: 5,
-            },
+            start: AstPoint { 10:4 },
+            end: AstPoint { 15:5 },
         },
     },
     LocalVariable {
@@ -89,14 +65,8 @@ expression: out
         name: "a",
         is_fun: false,
         range: AstRange {
-            start: AstPoint {
-                line: 10,
-                col: 22,
-            },
-            end: AstPoint {
-                line: 10,
-                col: 32,
-            },
+            start: AstPoint { 10:22 },
+            end: AstPoint { 10:32 },
         },
     },
     LocalVariable {
@@ -109,14 +79,8 @@ expression: out
         name: "local",
         is_fun: false,
         range: AstRange {
-            start: AstPoint {
-                line: 11,
-                col: 8,
-            },
-            end: AstPoint {
-                line: 11,
-                col: 26,
-            },
+            start: AstPoint { 11:8 },
+            end: AstPoint { 11:26 },
         },
     },
     LocalVariable {
@@ -125,14 +89,8 @@ expression: out
         name: "lo",
         is_fun: false,
         range: AstRange {
-            start: AstPoint {
-                line: 13,
-                col: 8,
-            },
-            end: AstPoint {
-                line: 13,
-                col: 17,
-            },
+            start: AstPoint { 13:8 },
+            end: AstPoint { 13:17 },
         },
     },
 ]

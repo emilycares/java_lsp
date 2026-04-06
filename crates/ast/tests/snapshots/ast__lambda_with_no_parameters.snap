@@ -1,59 +1,34 @@
 ---
-source: ast/tests/ast.rs
+source: crates/ast/tests/ast.rs
 expression: parsed
-snapshot_kind: text
 ---
 (
     AstLambda {
         range: AstRange {
-            start: AstPoint {
-                line: 0,
-                col: 0,
-            },
-            end: AstPoint {
-                line: 0,
-                col: 7,
-            },
+            start: AstPoint { 0:0 },
+            end: AstPoint { 0:7 },
         },
         parameters: AstLambdaParameters {
             range: AstRange {
-                start: AstPoint {
-                    line: 0,
-                    col: 0,
-                },
-                end: AstPoint {
-                    line: 0,
-                    col: 2,
-                },
+                start: AstPoint { 0:0 },
+                end: AstPoint { 0:2 },
             },
             values: [],
         },
         rhs: Expr(
             [
-                Recursive(
-                    AstRecursiveExpression {
+                Base(
+                    AstBaseExpression {
                         range: AstRange {
-                            start: AstPoint {
-                                line: 0,
-                                col: 6,
-                            },
-                            end: AstPoint {
-                                line: 0,
-                                col: 7,
-                            },
+                            start: AstPoint { 0:6 },
+                            end: AstPoint { 0:7 },
                         },
                         ident: Some(
                             Identifier(
                                 AstIdentifier {
                                     range: AstRange {
-                                        start: AstPoint {
-                                            line: 0,
-                                            col: 6,
-                                        },
-                                        end: AstPoint {
-                                            line: 0,
-                                            col: 7,
-                                        },
+                                        start: AstPoint { 0:6 },
+                                        end: AstPoint { 0:7 },
                                     },
                                     value: "a",
                                 },

@@ -1,5 +1,5 @@
 ---
-source: variables/src/lib.rs
+source: crates/variables/src/lib.rs
 expression: out
 ---
 [
@@ -11,14 +11,8 @@ expression: out
         name: "logger",
         is_fun: false,
         range: AstRange {
-            start: AstPoint {
-                line: 3,
-                col: 4,
-            },
-            end: AstPoint {
-                line: 3,
-                col: 69,
-            },
+            start: AstPoint { 3:4 },
+            end: AstPoint { 3:69 },
         },
     },
 ]

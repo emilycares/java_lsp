@@ -1,6 +1,6 @@
 [package]
-name = "variables"
-version = "0.1.0"
+name = "local_variable"
+version.workspace = true
 edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
@@ -11,12 +11,6 @@ license.workspace = true
 
 [dependencies]
 dto.workspace = true
-ast.workspace = true
 my_string.workspace = true
-call_chain.workspace = true
-tyres.workspace = true
-local_variable.workspace = true
+ast.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }
-
-[dev-dependencies]
-insta.workspace = true

@@ -1,30 +1,17 @@
 ---
-source: ast/tests/ast.rs
+source: crates/ast/tests/ast.rs
 expression: parsed
-snapshot_kind: text
 ---
 (
     AstAnnotated {
         range: AstRange {
-            start: AstPoint {
-                line: 0,
-                col: 0,
-            },
-            end: AstPoint {
-                line: 0,
-                col: 44,
-            },
+            start: AstPoint { 0:0 },
+            end: AstPoint { 0:44 },
         },
         name: AstIdentifier {
             range: AstRange {
-                start: AstPoint {
-                    line: 0,
-                    col: 1,
-                },
-                end: AstPoint {
-                    line: 0,
-                    col: 17,
-                },
+                start: AstPoint { 0:1 },
+                end: AstPoint { 0:17 },
             },
             value: "SuppressWarnings",
         },
@@ -35,28 +22,16 @@ snapshot_kind: text
                         Array(
                             AstValues {
                                 range: AstRange {
-                                    start: AstPoint {
-                                        line: 0,
-                                        col: 18,
-                                    },
-                                    end: AstPoint {
-                                        line: 0,
-                                        col: 43,
-                                    },
+                                    start: AstPoint { 0:18 },
+                                    end: AstPoint { 0:43 },
                                 },
                                 values: [
                                     [
-                                        Recursive(
-                                            AstRecursiveExpression {
+                                        Base(
+                                            AstBaseExpression {
                                                 range: AstRange {
-                                                    start: AstPoint {
-                                                        line: 0,
-                                                        col: 29,
-                                                    },
-                                                    end: AstPoint {
-                                                        line: 0,
-                                                        col: 38,
-                                                    },
+                                                    start: AstPoint { 0:29 },
+                                                    end: AstPoint { 0:38 },
                                                 },
                                                 ident: Some(
                                                     Value(
@@ -64,14 +39,8 @@ snapshot_kind: text
                                                             StringLiteral(
                                                                 AstIdentifier {
                                                                     range: AstRange {
-                                                                        start: AstPoint {
-                                                                            line: 0,
-                                                                            col: 29,
-                                                                        },
-                                                                        end: AstPoint {
-                                                                            line: 0,
-                                                                            col: 19,
-                                                                        },
+                                                                        start: AstPoint { 0:29 },
+                                                                        end: AstPoint { 0:19 },
                                                                     },
                                                                     value: "unchecked",
                                                                 },
@@ -85,17 +54,11 @@ snapshot_kind: text
                                         ),
                                     ],
                                     [
-                                        Recursive(
-                                            AstRecursiveExpression {
+                                        Base(
+                                            AstBaseExpression {
                                                 range: AstRange {
-                                                    start: AstPoint {
-                                                        line: 0,
-                                                        col: 41,
-                                                    },
-                                                    end: AstPoint {
-                                                        line: 0,
-                                                        col: 49,
-                                                    },
+                                                    start: AstPoint { 0:41 },
+                                                    end: AstPoint { 0:49 },
                                                 },
                                                 ident: Some(
                                                     Value(
@@ -103,14 +66,8 @@ snapshot_kind: text
                                                             StringLiteral(
                                                                 AstIdentifier {
                                                                     range: AstRange {
-                                                                        start: AstPoint {
-                                                                            line: 0,
-                                                                            col: 41,
-                                                                        },
-                                                                        end: AstPoint {
-                                                                            line: 0,
-                                                                            col: 31,
-                                                                        },
+                                                                        start: AstPoint { 0:41 },
+                                                                        end: AstPoint { 0:31 },
                                                                     },
                                                                     value: "rawtypes",
                                                                 },

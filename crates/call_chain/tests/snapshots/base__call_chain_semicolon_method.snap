@@ -1,46 +1,27 @@
 ---
-source: call_chain/tests/base.rs
+source: crates/call_chain/tests/base.rs
 expression: out
-snapshot_kind: text
 ---
 [
     ClassOrVariable {
         name: "local",
         range: AstRange {
-            start: AstPoint {
-                line: 5,
-                col: 16,
-            },
-            end: AstPoint {
-                line: 5,
-                col: 21,
-            },
+            start: AstPoint { 5:16 },
+            end: AstPoint { 5:21 },
         },
     },
     FieldAccess {
         name: "a",
         range: AstRange {
-            start: AstPoint {
-                line: 5,
-                col: 22,
-            },
-            end: AstPoint {
-                line: 5,
-                col: 23,
-            },
+            start: AstPoint { 5:22 },
+            end: AstPoint { 5:23 },
         },
     },
     MethodCall {
         name: "c",
         range: AstRange {
-            start: AstPoint {
-                line: 5,
-                col: 24,
-            },
-            end: AstPoint {
-                line: 5,
-                col: 25,
-            },
+            start: AstPoint { 5:24 },
+            end: AstPoint { 5:25 },
         },
     },
 ]

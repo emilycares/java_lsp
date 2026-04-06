@@ -1,53 +1,29 @@
 ---
-source: ast/tests/ast.rs
+source: crates/ast/tests/ast.rs
 expression: parsed.unwrap()
 ---
 (
     AstLambda {
         range: AstRange {
-            start: AstPoint {
-                line: 0,
-                col: 0,
-            },
-            end: AstPoint {
-                line: 0,
-                col: 8,
-            },
+            start: AstPoint { 0:0 },
+            end: AstPoint { 0:8 },
         },
         parameters: AstLambdaParameters {
             range: AstRange {
-                start: AstPoint {
-                    line: 0,
-                    col: 0,
-                },
-                end: AstPoint {
-                    line: 0,
-                    col: 1,
-                },
+                start: AstPoint { 0:0 },
+                end: AstPoint { 0:1 },
             },
             values: [
                 AstLambdaParameter {
                     range: AstRange {
-                        start: AstPoint {
-                            line: 0,
-                            col: 0,
-                        },
-                        end: AstPoint {
-                            line: 0,
-                            col: 1,
-                        },
+                        start: AstPoint { 0:0 },
+                        end: AstPoint { 0:1 },
                     },
                     jtype: None,
                     name: AstIdentifier {
                         range: AstRange {
-                            start: AstPoint {
-                                line: 0,
-                                col: 0,
-                            },
-                            end: AstPoint {
-                                line: 0,
-                                col: 1,
-                            },
+                            start: AstPoint { 0:0 },
+                            end: AstPoint { 0:1 },
                         },
                         value: "n",
                     },
@@ -57,14 +33,8 @@ expression: parsed.unwrap()
         rhs: Block(
             AstBlock {
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 5,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 8,
-                    },
+                    start: AstPoint { 0:5 },
+                    end: AstPoint { 0:8 },
                 },
                 entries: [],
             },

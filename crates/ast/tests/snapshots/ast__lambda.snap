@@ -5,49 +5,25 @@ expression: parsed.unwrap()
 (
     AstLambda {
         range: AstRange {
-            start: AstPoint {
-                line: 0,
-                col: 0,
-            },
-            end: AstPoint {
-                line: 0,
-                col: 33,
-            },
+            start: AstPoint { 0:0 },
+            end: AstPoint { 0:33 },
         },
         parameters: AstLambdaParameters {
             range: AstRange {
-                start: AstPoint {
-                    line: 0,
-                    col: 0,
-                },
-                end: AstPoint {
-                    line: 0,
-                    col: 3,
-                },
+                start: AstPoint { 0:0 },
+                end: AstPoint { 0:3 },
             },
             values: [
                 AstLambdaParameter {
                     range: AstRange {
-                        start: AstPoint {
-                            line: 0,
-                            col: 1,
-                        },
-                        end: AstPoint {
-                            line: 0,
-                            col: 2,
-                        },
+                        start: AstPoint { 0:1 },
+                        end: AstPoint { 0:2 },
                     },
                     jtype: None,
                     name: AstIdentifier {
                         range: AstRange {
-                            start: AstPoint {
-                                line: 0,
-                                col: 1,
-                            },
-                            end: AstPoint {
-                                line: 0,
-                                col: 2,
-                            },
+                            start: AstPoint { 0:1 },
+                            end: AstPoint { 0:2 },
                         },
                         value: "n",
                     },
@@ -57,53 +33,29 @@ expression: parsed.unwrap()
         rhs: Block(
             AstBlock {
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 7,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 33,
-                    },
+                    start: AstPoint { 0:7 },
+                    end: AstPoint { 0:33 },
                 },
                 entries: [
                     Expression(
                         AstBlockExpression {
                             range: AstRange {
-                                start: AstPoint {
-                                    line: 0,
-                                    col: 9,
-                                },
-                                end: AstPoint {
-                                    line: 0,
-                                    col: 31,
-                                },
+                                start: AstPoint { 0:9 },
+                                end: AstPoint { 0:31 },
                             },
                             value: [
-                                Recursive(
-                                    AstRecursiveExpression {
+                                Base(
+                                    AstBaseExpression {
                                         range: AstRange {
-                                            start: AstPoint {
-                                                line: 0,
-                                                col: 9,
-                                            },
-                                            end: AstPoint {
-                                                line: 0,
-                                                col: 15,
-                                            },
+                                            start: AstPoint { 0:9 },
+                                            end: AstPoint { 0:15 },
                                         },
                                         ident: Some(
                                             Identifier(
                                                 AstIdentifier {
                                                     range: AstRange {
-                                                        start: AstPoint {
-                                                            line: 0,
-                                                            col: 9,
-                                                        },
-                                                        end: AstPoint {
-                                                            line: 0,
-                                                            col: 15,
-                                                        },
+                                                        start: AstPoint { 0:9 },
+                                                        end: AstPoint { 0:15 },
                                                     },
                                                     value: "System",
                                                 },
@@ -113,58 +65,34 @@ expression: parsed.unwrap()
                                         operator: None,
                                     },
                                 ),
-                                Recursive(
-                                    AstRecursiveExpression {
+                                Base(
+                                    AstBaseExpression {
                                         range: AstRange {
-                                            start: AstPoint {
-                                                line: 0,
-                                                col: 15,
-                                            },
-                                            end: AstPoint {
-                                                line: 0,
-                                                col: 16,
-                                            },
+                                            start: AstPoint { 0:15 },
+                                            end: AstPoint { 0:16 },
                                         },
                                         ident: None,
                                         values: None,
                                         operator: Dot(
                                             AstRange {
-                                                start: AstPoint {
-                                                    line: 0,
-                                                    col: 15,
-                                                },
-                                                end: AstPoint {
-                                                    line: 0,
-                                                    col: 16,
-                                                },
+                                                start: AstPoint { 0:15 },
+                                                end: AstPoint { 0:16 },
                                             },
                                         ),
                                     },
                                 ),
-                                Recursive(
-                                    AstRecursiveExpression {
+                                Base(
+                                    AstBaseExpression {
                                         range: AstRange {
-                                            start: AstPoint {
-                                                line: 0,
-                                                col: 16,
-                                            },
-                                            end: AstPoint {
-                                                line: 0,
-                                                col: 19,
-                                            },
+                                            start: AstPoint { 0:16 },
+                                            end: AstPoint { 0:19 },
                                         },
                                         ident: Some(
                                             Identifier(
                                                 AstIdentifier {
                                                     range: AstRange {
-                                                        start: AstPoint {
-                                                            line: 0,
-                                                            col: 16,
-                                                        },
-                                                        end: AstPoint {
-                                                            line: 0,
-                                                            col: 19,
-                                                        },
+                                                        start: AstPoint { 0:16 },
+                                                        end: AstPoint { 0:19 },
                                                     },
                                                     value: "out",
                                                 },
@@ -174,58 +102,34 @@ expression: parsed.unwrap()
                                         operator: None,
                                     },
                                 ),
-                                Recursive(
-                                    AstRecursiveExpression {
+                                Base(
+                                    AstBaseExpression {
                                         range: AstRange {
-                                            start: AstPoint {
-                                                line: 0,
-                                                col: 19,
-                                            },
-                                            end: AstPoint {
-                                                line: 0,
-                                                col: 20,
-                                            },
+                                            start: AstPoint { 0:19 },
+                                            end: AstPoint { 0:20 },
                                         },
                                         ident: None,
                                         values: None,
                                         operator: Dot(
                                             AstRange {
-                                                start: AstPoint {
-                                                    line: 0,
-                                                    col: 19,
-                                                },
-                                                end: AstPoint {
-                                                    line: 0,
-                                                    col: 20,
-                                                },
+                                                start: AstPoint { 0:19 },
+                                                end: AstPoint { 0:20 },
                                             },
                                         ),
                                     },
                                 ),
-                                Recursive(
-                                    AstRecursiveExpression {
+                                Base(
+                                    AstBaseExpression {
                                         range: AstRange {
-                                            start: AstPoint {
-                                                line: 0,
-                                                col: 20,
-                                            },
-                                            end: AstPoint {
-                                                line: 0,
-                                                col: 27,
-                                            },
+                                            start: AstPoint { 0:20 },
+                                            end: AstPoint { 0:27 },
                                         },
                                         ident: Some(
                                             Identifier(
                                                 AstIdentifier {
                                                     range: AstRange {
-                                                        start: AstPoint {
-                                                            line: 0,
-                                                            col: 20,
-                                                        },
-                                                        end: AstPoint {
-                                                            line: 0,
-                                                            col: 27,
-                                                        },
+                                                        start: AstPoint { 0:20 },
+                                                        end: AstPoint { 0:27 },
                                                     },
                                                     value: "println",
                                                 },
@@ -238,38 +142,20 @@ expression: parsed.unwrap()
                                 Casted(
                                     AstCastedExpression {
                                         range: AstRange {
-                                            start: AstPoint {
-                                                line: 0,
-                                                col: 27,
-                                            },
-                                            end: AstPoint {
-                                                line: 0,
-                                                col: 30,
-                                            },
+                                            start: AstPoint { 0:27 },
+                                            end: AstPoint { 0:30 },
                                         },
                                         cast: AstJType {
                                             annotated: [],
                                             range: AstRange {
-                                                start: AstPoint {
-                                                    line: 0,
-                                                    col: 28,
-                                                },
-                                                end: AstPoint {
-                                                    line: 0,
-                                                    col: 29,
-                                                },
+                                                start: AstPoint { 0:28 },
+                                                end: AstPoint { 0:29 },
                                             },
                                             value: Class(
                                                 AstIdentifier {
                                                     range: AstRange {
-                                                        start: AstPoint {
-                                                            line: 0,
-                                                            col: 28,
-                                                        },
-                                                        end: AstPoint {
-                                                            line: 0,
-                                                            col: 29,
-                                                        },
+                                                        start: AstPoint { 0:28 },
+                                                        end: AstPoint { 0:29 },
                                                     },
                                                     value: "n",
                                                 },

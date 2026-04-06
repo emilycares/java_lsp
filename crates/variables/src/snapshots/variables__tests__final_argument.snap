@@ -1,5 +1,5 @@
 ---
-source: variables/src/lib.rs
+source: crates/variables/src/lib.rs
 expression: out
 ---
 [
@@ -11,14 +11,8 @@ expression: out
         name: "options",
         is_fun: true,
         range: AstRange {
-            start: AstPoint {
-                line: 3,
-                col: 4,
-            },
-            end: AstPoint {
-                line: 7,
-                col: 5,
-            },
+            start: AstPoint { 3:4 },
+            end: AstPoint { 7:5 },
         },
     },
     LocalVariable {
@@ -29,14 +23,8 @@ expression: out
         name: "outer",
         is_fun: false,
         range: AstRange {
-            start: AstPoint {
-                line: 4,
-                col: 26,
-            },
-            end: AstPoint {
-                line: 4,
-                col: 44,
-            },
+            start: AstPoint { 4:26 },
+            end: AstPoint { 4:44 },
         },
     },
     LocalVariable {
@@ -47,14 +35,8 @@ expression: out
         name: "inner",
         is_fun: false,
         range: AstRange {
-            start: AstPoint {
-                line: 5,
-                col: 6,
-            },
-            end: AstPoint {
-                line: 5,
-                col: 22,
-            },
+            start: AstPoint { 5:6 },
+            end: AstPoint { 5:22 },
         },
     },
 ]

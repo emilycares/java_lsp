@@ -1,33 +1,21 @@
 ---
-source: ast/tests/ast.rs
+source: crates/ast/tests/ast.rs
 expression: parsed
 ---
 (
     [
-        Recursive(
-            AstRecursiveExpression {
+        Base(
+            AstBaseExpression {
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 0,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 4,
-                    },
+                    start: AstPoint { 0:0 },
+                    end: AstPoint { 0:4 },
                 },
                 ident: Some(
                     Identifier(
                         AstIdentifier {
                             range: AstRange {
-                                start: AstPoint {
-                                    line: 0,
-                                    col: 0,
-                                },
-                                end: AstPoint {
-                                    line: 0,
-                                    col: 4,
-                                },
+                                start: AstPoint { 0:0 },
+                                end: AstPoint { 0:4 },
                             },
                             value: "byte",
                         },
@@ -37,17 +25,11 @@ expression: parsed
                 operator: None,
             },
         ),
-        Recursive(
-            AstRecursiveExpression {
+        Base(
+            AstBaseExpression {
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 4,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 6,
-                    },
+                    start: AstPoint { 0:4 },
+                    end: AstPoint { 0:6 },
                 },
                 ident: Some(
                     EmptyArrayAccess,

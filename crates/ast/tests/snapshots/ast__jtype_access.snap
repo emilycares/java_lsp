@@ -6,39 +6,21 @@ expression: parsed
     AstJType {
         annotated: [],
         range: AstRange {
-            start: AstPoint {
-                line: 0,
-                col: 0,
-            },
-            end: AstPoint {
-                line: 0,
-                col: 15,
-            },
+            start: AstPoint { 0:0 },
+            end: AstPoint { 0:15 },
         },
         value: Access {
             base: AstJType {
                 annotated: [],
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 0,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 9,
-                    },
+                    start: AstPoint { 0:0 },
+                    end: AstPoint { 0:9 },
                 },
                 value: Class(
                     AstIdentifier {
                         range: AstRange {
-                            start: AstPoint {
-                                line: 0,
-                                col: 0,
-                            },
-                            end: AstPoint {
-                                line: 0,
-                                col: 9,
-                            },
+                            start: AstPoint { 0:0 },
+                            end: AstPoint { 0:9 },
                         },
                         value: "Something",
                     },
@@ -47,26 +29,14 @@ expression: parsed
             inner: AstJType {
                 annotated: [],
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 10,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 15,
-                    },
+                    start: AstPoint { 0:10 },
+                    end: AstPoint { 0:15 },
                 },
                 value: Class(
                     AstIdentifier {
                         range: AstRange {
-                            start: AstPoint {
-                                line: 0,
-                                col: 10,
-                            },
-                            end: AstPoint {
-                                line: 0,
-                                col: 15,
-                            },
+                            start: AstPoint { 0:10 },
+                            end: AstPoint { 0:15 },
                         },
                         value: "Inner",
                     },

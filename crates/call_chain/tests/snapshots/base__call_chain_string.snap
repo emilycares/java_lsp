@@ -1,20 +1,13 @@
 ---
-source: call_chain/tests/base.rs
+source: crates/call_chain/tests/base.rs
 expression: out
-snapshot_kind: text
 ---
 [
     Class {
         name: "String",
         range: AstRange {
-            start: AstPoint {
-                line: 5,
-                col: 16,
-            },
-            end: AstPoint {
-                line: 5,
-                col: 14,
-            },
+            start: AstPoint { 5:16 },
+            end: AstPoint { 5:14 },
         },
     },
 ]

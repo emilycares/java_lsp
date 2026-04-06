@@ -6,27 +6,15 @@ expression: parsed
     AstJType {
         annotated: [],
         range: AstRange {
-            start: AstPoint {
-                line: 0,
-                col: 0,
-            },
-            end: AstPoint {
-                line: 0,
-                col: 5,
-            },
+            start: AstPoint { 0:0 },
+            end: AstPoint { 0:5 },
         },
         value: Array(
             AstJType {
                 annotated: [],
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 0,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 3,
-                    },
+                    start: AstPoint { 0:0 },
+                    end: AstPoint { 0:3 },
                 },
                 value: Int,
             },

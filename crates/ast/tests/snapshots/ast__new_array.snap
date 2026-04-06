@@ -5,78 +5,42 @@ expression: parsed.unwrap()
 (
     AstBlockReturn {
         range: AstRange {
-            start: AstPoint {
-                line: 1,
-                col: 5,
-            },
-            end: AstPoint {
-                line: 8,
-                col: 10,
-            },
+            start: AstPoint { 1:5 },
+            end: AstPoint { 8:10 },
         },
         expression: Expression(
             [
                 NewClass(
                     AstNewClass {
                         range: AstRange {
-                            start: AstPoint {
-                                line: 1,
-                                col: 12,
-                            },
-                            end: AstPoint {
-                                line: 8,
-                                col: 9,
-                            },
+                            start: AstPoint { 1:12 },
+                            end: AstPoint { 8:9 },
                         },
                         jtype: AstJType {
                             annotated: [],
                             range: AstRange {
-                                start: AstPoint {
-                                    line: 1,
-                                    col: 16,
-                                },
-                                end: AstPoint {
-                                    line: 1,
-                                    col: 26,
-                                },
+                                start: AstPoint { 1:16 },
+                                end: AstPoint { 1:26 },
                             },
                             value: Array(
                                 AstJType {
                                     annotated: [],
                                     range: AstRange {
-                                        start: AstPoint {
-                                            line: 1,
-                                            col: 16,
-                                        },
-                                        end: AstPoint {
-                                            line: 1,
-                                            col: 24,
-                                        },
+                                        start: AstPoint { 1:16 },
+                                        end: AstPoint { 1:24 },
                                     },
                                     value: Array(
                                         AstJType {
                                             annotated: [],
                                             range: AstRange {
-                                                start: AstPoint {
-                                                    line: 1,
-                                                    col: 16,
-                                                },
-                                                end: AstPoint {
-                                                    line: 1,
-                                                    col: 22,
-                                                },
+                                                start: AstPoint { 1:16 },
+                                                end: AstPoint { 1:22 },
                                             },
                                             value: Class(
                                                 AstIdentifier {
                                                     range: AstRange {
-                                                        start: AstPoint {
-                                                            line: 1,
-                                                            col: 16,
-                                                        },
-                                                        end: AstPoint {
-                                                            line: 1,
-                                                            col: 22,
-                                                        },
+                                                        start: AstPoint { 1:16 },
+                                                        end: AstPoint { 1:22 },
                                                     },
                                                     value: "Object",
                                                 },
@@ -89,42 +53,24 @@ expression: parsed.unwrap()
                         rhs: Array(
                             AstValues {
                                 range: AstRange {
-                                    start: AstPoint {
-                                        line: 1,
-                                        col: 27,
-                                    },
-                                    end: AstPoint {
-                                        line: 8,
-                                        col: 9,
-                                    },
+                                    start: AstPoint { 1:27 },
+                                    end: AstPoint { 8:9 },
                                 },
                                 values: [
                                     [
                                         Array(
                                             AstValues {
                                                 range: AstRange {
-                                                    start: AstPoint {
-                                                        line: 2,
-                                                        col: 12,
-                                                    },
-                                                    end: AstPoint {
-                                                        line: 7,
-                                                        col: 13,
-                                                    },
+                                                    start: AstPoint { 2:12 },
+                                                    end: AstPoint { 7:13 },
                                                 },
                                                 values: [
                                                     [
-                                                        Recursive(
-                                                            AstRecursiveExpression {
+                                                        Base(
+                                                            AstBaseExpression {
                                                                 range: AstRange {
-                                                                    start: AstPoint {
-                                                                        line: 2,
-                                                                        col: 29,
-                                                                    },
-                                                                    end: AstPoint {
-                                                                        line: 2,
-                                                                        col: 43,
-                                                                    },
+                                                                    start: AstPoint { 2:29 },
+                                                                    end: AstPoint { 2:43 },
                                                                 },
                                                                 ident: Some(
                                                                     Value(
@@ -132,14 +78,8 @@ expression: parsed.unwrap()
                                                                             StringLiteral(
                                                                                 AstIdentifier {
                                                                                     range: AstRange {
-                                                                                        start: AstPoint {
-                                                                                            line: 2,
-                                                                                            col: 29,
-                                                                                        },
-                                                                                        end: AstPoint {
-                                                                                            line: 2,
-                                                                                            col: 13,
-                                                                                        },
+                                                                                        start: AstPoint { 2:29 },
+                                                                                        end: AstPoint { 2:13 },
                                                                                     },
                                                                                     value: "NumberPatterns",
                                                                                 },
@@ -156,51 +96,27 @@ expression: parsed.unwrap()
                                                         NewClass(
                                                             AstNewClass {
                                                                 range: AstRange {
-                                                                    start: AstPoint {
-                                                                        line: 3,
-                                                                        col: 16,
-                                                                    },
-                                                                    end: AstPoint {
-                                                                        line: 6,
-                                                                        col: 17,
-                                                                    },
+                                                                    start: AstPoint { 3:16 },
+                                                                    end: AstPoint { 6:17 },
                                                                 },
                                                                 jtype: AstJType {
                                                                     annotated: [],
                                                                     range: AstRange {
-                                                                        start: AstPoint {
-                                                                            line: 3,
-                                                                            col: 20,
-                                                                        },
-                                                                        end: AstPoint {
-                                                                            line: 3,
-                                                                            col: 28,
-                                                                        },
+                                                                        start: AstPoint { 3:20 },
+                                                                        end: AstPoint { 3:28 },
                                                                     },
                                                                     value: Array(
                                                                         AstJType {
                                                                             annotated: [],
                                                                             range: AstRange {
-                                                                                start: AstPoint {
-                                                                                    line: 3,
-                                                                                    col: 20,
-                                                                                },
-                                                                                end: AstPoint {
-                                                                                    line: 3,
-                                                                                    col: 26,
-                                                                                },
+                                                                                start: AstPoint { 3:20 },
+                                                                                end: AstPoint { 3:26 },
                                                                             },
                                                                             value: Class(
                                                                                 AstIdentifier {
                                                                                     range: AstRange {
-                                                                                        start: AstPoint {
-                                                                                            line: 3,
-                                                                                            col: 20,
-                                                                                        },
-                                                                                        end: AstPoint {
-                                                                                            line: 3,
-                                                                                            col: 26,
-                                                                                        },
+                                                                                        start: AstPoint { 3:20 },
+                                                                                        end: AstPoint { 3:26 },
                                                                                     },
                                                                                     value: "String",
                                                                                 },
@@ -211,28 +127,16 @@ expression: parsed.unwrap()
                                                                 rhs: Array(
                                                                     AstValues {
                                                                         range: AstRange {
-                                                                            start: AstPoint {
-                                                                                line: 3,
-                                                                                col: 29,
-                                                                            },
-                                                                            end: AstPoint {
-                                                                                line: 6,
-                                                                                col: 17,
-                                                                            },
+                                                                            start: AstPoint { 3:29 },
+                                                                            end: AstPoint { 6:17 },
                                                                         },
                                                                         values: [
                                                                             [
-                                                                                Recursive(
-                                                                                    AstRecursiveExpression {
+                                                                                Base(
+                                                                                    AstBaseExpression {
                                                                                         range: AstRange {
-                                                                                            start: AstPoint {
-                                                                                                line: 4,
-                                                                                                col: 20,
-                                                                                            },
-                                                                                            end: AstPoint {
-                                                                                                line: 4,
-                                                                                                col: 20,
-                                                                                            },
+                                                                                            start: AstPoint { 4:20 },
+                                                                                            end: AstPoint { 4:20 },
                                                                                         },
                                                                                         ident: Some(
                                                                                             Value(
@@ -240,14 +144,8 @@ expression: parsed.unwrap()
                                                                                                     StringLiteral(
                                                                                                         AstIdentifier {
                                                                                                             range: AstRange {
-                                                                                                                start: AstPoint {
-                                                                                                                    line: 4,
-                                                                                                                    col: 20,
-                                                                                                                },
-                                                                                                                end: AstPoint {
-                                                                                                                    line: 3,
-                                                                                                                    col: 30,
-                                                                                                                },
+                                                                                                                start: AstPoint { 4:20 },
+                                                                                                                end: AstPoint { 3:30 },
                                                                                                             },
                                                                                                             value: "",
                                                                                                         },
@@ -261,17 +159,11 @@ expression: parsed.unwrap()
                                                                                 ),
                                                                             ],
                                                                             [
-                                                                                Recursive(
-                                                                                    AstRecursiveExpression {
+                                                                                Base(
+                                                                                    AstBaseExpression {
                                                                                         range: AstRange {
-                                                                                            start: AstPoint {
-                                                                                                line: 5,
-                                                                                                col: 20,
-                                                                                            },
-                                                                                            end: AstPoint {
-                                                                                                line: 5,
-                                                                                                col: 20,
-                                                                                            },
+                                                                                            start: AstPoint { 5:20 },
+                                                                                            end: AstPoint { 5:20 },
                                                                                         },
                                                                                         ident: Some(
                                                                                             Value(
@@ -279,14 +171,8 @@ expression: parsed.unwrap()
                                                                                                     StringLiteral(
                                                                                                         AstIdentifier {
                                                                                                             range: AstRange {
-                                                                                                                start: AstPoint {
-                                                                                                                    line: 5,
-                                                                                                                    col: 20,
-                                                                                                                },
-                                                                                                                end: AstPoint {
-                                                                                                                    line: 4,
-                                                                                                                    col: 22,
-                                                                                                                },
+                                                                                                                start: AstPoint { 5:20 },
+                                                                                                                end: AstPoint { 4:22 },
                                                                                                             },
                                                                                                             value: "",
                                                                                                         },

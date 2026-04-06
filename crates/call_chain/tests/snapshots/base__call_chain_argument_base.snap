@@ -1,5 +1,5 @@
 ---
-source: call_chain/tests/base.rs
+source: crates/call_chain/tests/base.rs
 expression: out
 ---
 [
@@ -8,27 +8,15 @@ expression: out
             ClassOrVariable {
                 name: "local",
                 range: AstRange {
-                    start: AstPoint {
-                        line: 5,
-                        col: 8,
-                    },
-                    end: AstPoint {
-                        line: 5,
-                        col: 13,
-                    },
+                    start: AstPoint { 5:8 },
+                    end: AstPoint { 5:13 },
                 },
             },
             MethodCall {
                 name: "concat",
                 range: AstRange {
-                    start: AstPoint {
-                        line: 5,
-                        col: 14,
-                    },
-                    end: AstPoint {
-                        line: 5,
-                        col: 20,
-                    },
+                    start: AstPoint { 5:14 },
+                    end: AstPoint { 5:20 },
                 },
             },
         ],
@@ -39,14 +27,8 @@ expression: out
             [],
         ],
         range: AstRange {
-            start: AstPoint {
-                line: 5,
-                col: 20,
-            },
-            end: AstPoint {
-                line: 5,
-                col: 23,
-            },
+            start: AstPoint { 5:20 },
+            end: AstPoint { 5:23 },
         },
     },
 ]

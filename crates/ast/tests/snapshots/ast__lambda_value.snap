@@ -1,54 +1,29 @@
 ---
-source: ast/tests/ast.rs
+source: crates/ast/tests/ast.rs
 expression: parsed.unwrap()
-snapshot_kind: text
 ---
 (
     AstLambda {
         range: AstRange {
-            start: AstPoint {
-                line: 0,
-                col: 0,
-            },
-            end: AstPoint {
-                line: 0,
-                col: 9,
-            },
+            start: AstPoint { 0:0 },
+            end: AstPoint { 0:9 },
         },
         parameters: AstLambdaParameters {
             range: AstRange {
-                start: AstPoint {
-                    line: 0,
-                    col: 0,
-                },
-                end: AstPoint {
-                    line: 0,
-                    col: 1,
-                },
+                start: AstPoint { 0:0 },
+                end: AstPoint { 0:1 },
             },
             values: [
                 AstLambdaParameter {
                     range: AstRange {
-                        start: AstPoint {
-                            line: 0,
-                            col: 0,
-                        },
-                        end: AstPoint {
-                            line: 0,
-                            col: 1,
-                        },
+                        start: AstPoint { 0:0 },
+                        end: AstPoint { 0:1 },
                     },
                     jtype: None,
                     name: AstIdentifier {
                         range: AstRange {
-                            start: AstPoint {
-                                line: 0,
-                                col: 0,
-                            },
-                            end: AstPoint {
-                                line: 0,
-                                col: 1,
-                            },
+                            start: AstPoint { 0:0 },
+                            end: AstPoint { 0:1 },
                         },
                         value: "n",
                     },
@@ -57,17 +32,11 @@ snapshot_kind: text
         },
         rhs: Expr(
             [
-                Recursive(
-                    AstRecursiveExpression {
+                Base(
+                    AstBaseExpression {
                         range: AstRange {
-                            start: AstPoint {
-                                line: 0,
-                                col: 5,
-                            },
-                            end: AstPoint {
-                                line: 0,
-                                col: 9,
-                            },
+                            start: AstPoint { 0:5 },
+                            end: AstPoint { 0:9 },
                         },
                         ident: Some(
                             Value(
@@ -75,14 +44,8 @@ snapshot_kind: text
                                     BooleanLiteral(
                                         AstBoolean {
                                             range: AstRange {
-                                                start: AstPoint {
-                                                    line: 0,
-                                                    col: 5,
-                                                },
-                                                end: AstPoint {
-                                                    line: 0,
-                                                    col: 9,
-                                                },
+                                                start: AstPoint { 0:5 },
+                                                end: AstPoint { 0:9 },
                                             },
                                             value: true,
                                         },

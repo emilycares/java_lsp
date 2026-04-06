@@ -7,14 +7,8 @@ expression: parsed
         Long(
             AstInt {
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 14,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 28,
-                    },
+                    start: AstPoint { 0:14 },
+                    end: AstPoint { 0:28 },
                 },
                 value: "10_000_000_000",
             },

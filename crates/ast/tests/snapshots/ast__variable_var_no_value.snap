@@ -5,55 +5,31 @@ expression: parsed.unwrap()
 (
     AstBlock {
         range: AstRange {
-            start: AstPoint {
-                line: 0,
-                col: 0,
-            },
-            end: AstPoint {
-                line: 0,
-                col: 10,
-            },
+            start: AstPoint { 0:0 },
+            end: AstPoint { 0:10 },
         },
         entries: [
             Variable(
                 [
                     AstBlockVariable {
                         range: AstRange {
-                            start: AstPoint {
-                                line: 0,
-                                col: 1,
-                            },
-                            end: AstPoint {
-                                line: 0,
-                                col: 9,
-                            },
+                            start: AstPoint { 0:1 },
+                            end: AstPoint { 0:9 },
                         },
                         fin: false,
                         annotated: [],
                         jtype: AstJType {
                             annotated: [],
                             range: AstRange {
-                                start: AstPoint {
-                                    line: 0,
-                                    col: 1,
-                                },
-                                end: AstPoint {
-                                    line: 0,
-                                    col: 4,
-                                },
+                                start: AstPoint { 0:1 },
+                                end: AstPoint { 0:4 },
                             },
                             value: Var,
                         },
                         name: AstIdentifier {
                             range: AstRange {
-                                start: AstPoint {
-                                    line: 0,
-                                    col: 5,
-                                },
-                                end: AstPoint {
-                                    line: 0,
-                                    col: 6,
-                                },
+                                start: AstPoint { 0:5 },
+                                end: AstPoint { 0:6 },
                             },
                             value: "a",
                         },

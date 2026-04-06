@@ -6,14 +6,8 @@ expression: parsed
     [
         AstClassVariable {
             range: AstRange {
-                start: AstPoint {
-                    line: 0,
-                    col: 0,
-                },
-                end: AstPoint {
-                    line: 0,
-                    col: 75,
-                },
+                start: AstPoint { 0:0 },
+                end: AstPoint { 0:75 },
             },
             availability: AstAvailability(
                 Private,
@@ -21,40 +15,22 @@ expression: parsed
             annotated: [],
             name: AstIdentifier {
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 50,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 57,
-                    },
+                    start: AstPoint { 0:50 },
+                    end: AstPoint { 0:57 },
                 },
                 value: "pdStore",
             },
             jtype: AstJType {
                 annotated: [],
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 8,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 49,
-                    },
+                    start: AstPoint { 0:8 },
+                    end: AstPoint { 0:49 },
                 },
                 value: Generic(
                     AstIdentifier {
                         range: AstRange {
-                            start: AstPoint {
-                                line: 0,
-                                col: 8,
-                            },
-                            end: AstPoint {
-                                line: 0,
-                                col: 15,
-                            },
+                            start: AstPoint { 0:8 },
+                            end: AstPoint { 0:15 },
                         },
                         value: "HashMap",
                     },
@@ -62,26 +38,14 @@ expression: parsed
                         AstJType {
                             annotated: [],
                             range: AstRange {
-                                start: AstPoint {
-                                    line: 0,
-                                    col: 16,
-                                },
-                                end: AstPoint {
-                                    line: 0,
-                                    col: 22,
-                                },
+                                start: AstPoint { 0:16 },
+                                end: AstPoint { 0:22 },
                             },
                             value: Class(
                                 AstIdentifier {
                                     range: AstRange {
-                                        start: AstPoint {
-                                            line: 0,
-                                            col: 16,
-                                        },
-                                        end: AstPoint {
-                                            line: 0,
-                                            col: 22,
-                                        },
+                                        start: AstPoint { 0:16 },
+                                        end: AstPoint { 0:22 },
                                     },
                                     value: "String",
                                 },
@@ -90,26 +54,14 @@ expression: parsed
                         AstJType {
                             annotated: [],
                             range: AstRange {
-                                start: AstPoint {
-                                    line: 0,
-                                    col: 24,
-                                },
-                                end: AstPoint {
-                                    line: 0,
-                                    col: 48,
-                                },
+                                start: AstPoint { 0:24 },
+                                end: AstPoint { 0:48 },
                             },
                             value: Generic(
                                 AstIdentifier {
                                     range: AstRange {
-                                        start: AstPoint {
-                                            line: 0,
-                                            col: 24,
-                                        },
-                                        end: AstPoint {
-                                            line: 0,
-                                            col: 28,
-                                        },
+                                        start: AstPoint { 0:24 },
+                                        end: AstPoint { 0:28 },
                                     },
                                     value: "List",
                                 },
@@ -117,26 +69,14 @@ expression: parsed
                                     AstJType {
                                         annotated: [],
                                         range: AstRange {
-                                            start: AstPoint {
-                                                line: 0,
-                                                col: 29,
-                                            },
-                                            end: AstPoint {
-                                                line: 0,
-                                                col: 47,
-                                            },
+                                            start: AstPoint { 0:29 },
+                                            end: AstPoint { 0:47 },
                                         },
                                         value: Class(
                                             AstIdentifier {
                                                 range: AstRange {
-                                                    start: AstPoint {
-                                                        line: 0,
-                                                        col: 29,
-                                                    },
-                                                    end: AstPoint {
-                                                        line: 0,
-                                                        col: 47,
-                                                    },
+                                                    start: AstPoint { 0:29 },
+                                                    end: AstPoint { 0:47 },
                                                 },
                                                 value: "PropertyDescriptor",
                                             },
@@ -153,38 +93,20 @@ expression: parsed
                     NewClass(
                         AstNewClass {
                             range: AstRange {
-                                start: AstPoint {
-                                    line: 0,
-                                    col: 60,
-                                },
-                                end: AstPoint {
-                                    line: 0,
-                                    col: 75,
-                                },
+                                start: AstPoint { 0:60 },
+                                end: AstPoint { 0:75 },
                             },
                             jtype: AstJType {
                                 annotated: [],
                                 range: AstRange {
-                                    start: AstPoint {
-                                        line: 0,
-                                        col: 64,
-                                    },
-                                    end: AstPoint {
-                                        line: 0,
-                                        col: 73,
-                                    },
+                                    start: AstPoint { 0:64 },
+                                    end: AstPoint { 0:73 },
                                 },
                                 value: Generic(
                                     AstIdentifier {
                                         range: AstRange {
-                                            start: AstPoint {
-                                                line: 0,
-                                                col: 64,
-                                            },
-                                            end: AstPoint {
-                                                line: 0,
-                                                col: 71,
-                                            },
+                                            start: AstPoint { 0:64 },
+                                            end: AstPoint { 0:71 },
                                         },
                                         value: "HashMap",
                                     },
@@ -193,14 +115,8 @@ expression: parsed
                             },
                             rhs: Parameters(
                                 AstRange {
-                                    start: AstPoint {
-                                        line: 0,
-                                        col: 72,
-                                    },
-                                    end: AstPoint {
-                                        line: 0,
-                                        col: 75,
-                                    },
+                                    start: AstPoint { 0:72 },
+                                    end: AstPoint { 0:75 },
                                 },
                                 [],
                             ),

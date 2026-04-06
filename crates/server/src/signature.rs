@@ -7,11 +7,12 @@ use ast::types::AstPoint;
 use call_chain::CallItem;
 use document::Document;
 use dto::{Class, ImportUnit, Method};
+use local_variable::LocalVariable;
 use lsp_types::{
     Documentation, ParameterInformation, ParameterLabel, SignatureHelp, SignatureInformation,
 };
 use my_string::MyString;
-use variables::{LocalVariable, VariablesError};
+use variables::{VariableContext, VariablesError};
 
 #[derive(Debug)]
 pub enum SignatureError {
@@ -31,7 +32,16 @@ pub fn signature_driver(
 ) -> Result<SignatureHelp, SignatureError> {
     let call_chain = call_chain::get_call_chain(&document.ast, point);
     let imports = imports::imports(&document.ast);
-    let vars = variables::get_vars(&document.ast, point).map_err(SignatureError::Variables)?;
+    let vars = variables::get_vars(
+        &document.ast,
+        &VariableContext {
+            point: *point,
+            imports: &imports,
+            class,
+            class_map: class_map.clone(),
+        },
+    )
+    .map_err(SignatureError::Variables)?;
     get_signature(&call_chain, &imports, &vars, class, class_map)
 }
 pub fn get_signature(

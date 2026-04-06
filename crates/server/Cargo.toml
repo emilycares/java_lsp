@@ -27,6 +27,7 @@ tyres.workspace = true
 position.workspace = true
 document.workspace = true
 variables.workspace = true
+local_variable.workspace = true
 jdk.workspace = true
 compile.workspace = true
 call_chain.workspace = true

@@ -1,34 +1,21 @@
 ---
-source: ast/tests/ast.rs
+source: crates/ast/tests/ast.rs
 expression: ast
-snapshot_kind: text
 ---
 (
     [
-        Recursive(
-            AstRecursiveExpression {
+        Base(
+            AstBaseExpression {
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 0,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 7,
-                    },
+                    start: AstPoint { 0:0 },
+                    end: AstPoint { 0:7 },
                 },
                 ident: Some(
                     Identifier(
                         AstIdentifier {
                             range: AstRange {
-                                start: AstPoint {
-                                    line: 0,
-                                    col: 0,
-                                },
-                                end: AstPoint {
-                                    line: 0,
-                                    col: 7,
-                                },
+                                start: AstPoint { 0:0 },
+                                end: AstPoint { 0:7 },
                             },
                             value: "numbers",
                         },
@@ -38,32 +25,20 @@ snapshot_kind: text
                 operator: None,
             },
         ),
-        Recursive(
-            AstRecursiveExpression {
+        Base(
+            AstBaseExpression {
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 7,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 10,
-                    },
+                    start: AstPoint { 0:7 },
+                    end: AstPoint { 0:10 },
                 },
                 ident: Some(
                     ArrayAccess(
                         [
-                            Recursive(
-                                AstRecursiveExpression {
+                            Base(
+                                AstBaseExpression {
                                     range: AstRange {
-                                        start: AstPoint {
-                                            line: 0,
-                                            col: 9,
-                                        },
-                                        end: AstPoint {
-                                            line: 0,
-                                            col: 10,
-                                        },
+                                        start: AstPoint { 0:9 },
+                                        end: AstPoint { 0:10 },
                                     },
                                     ident: Some(
                                         Value(
@@ -71,14 +46,8 @@ snapshot_kind: text
                                                 Int(
                                                     AstInt {
                                                         range: AstRange {
-                                                            start: AstPoint {
-                                                                line: 0,
-                                                                col: 9,
-                                                            },
-                                                            end: AstPoint {
-                                                                line: 0,
-                                                                col: 10,
-                                                            },
+                                                            start: AstPoint { 0:9 },
+                                                            end: AstPoint { 0:10 },
                                                         },
                                                         value: "0",
                                                     },

@@ -381,7 +381,7 @@ fn get_field_position_expression(
     out: &mut Vec<PositionSymbol>,
 ) {
     match i {
-        AstExpressionKind::Recursive(r) => {
+        AstExpressionKind::Base(r) => {
             if let Some(vals) = &r.values {
                 for v in &vals.values {
                     for e in v {

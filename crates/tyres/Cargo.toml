@@ -12,7 +12,7 @@ license.workspace = true
 [dependencies]
 dto.workspace = true
 call_chain.workspace = true
-variables.workspace = true
+local_variable.workspace = true
 ast.workspace = true
 my_string.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }

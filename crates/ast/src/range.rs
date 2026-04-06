@@ -307,7 +307,7 @@ impl GetRange for AstExpressionKind {
             Self::Casted(ast_casted_expression) | Self::JType(ast_casted_expression) => {
                 ast_casted_expression.range
             }
-            Self::Recursive(ast_recursive_expression) => ast_recursive_expression.range,
+            Self::Base(exp) => exp.range,
             Self::Lambda(ast_lambda) => ast_lambda.range,
             Self::InlineSwitch(ast_switch) => ast_switch.range,
             Self::NewClass(ast_new_class) => ast_new_class.range,

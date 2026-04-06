@@ -14,15 +14,15 @@ use interface::parse_interface;
 use lexer::{PositionToken, Token};
 use my_string::smol_str::{SmolStrBuilder, ToSmolStr, format_smolstr};
 use types::{
-    AstAnnotated, AstAvailability, AstBlock, AstBlockAssign, AstBlockBreak, AstBlockContinue,
-    AstBlockEntry, AstBlockExpression, AstBlockReturn, AstBlockVariable, AstBlockVariableMultiType,
-    AstBoolean, AstCastedExpression, AstDouble, AstExpression, AstExpressionIdentifier,
-    AstExpressionOperator, AstExtends, AstFile, AstFor, AstForEnhanced, AstIdentifier, AstIf,
-    AstIfContent, AstImport, AstImportUnit, AstImports, AstInt, AstJType, AstJTypeKind, AstLambda,
-    AstLambdaParameters, AstMethodHeader, AstMethodParameter, AstMethodParameters, AstNewClass,
-    AstPoint, AstRange, AstRecursiveExpression, AstSuperClass, AstSwitch, AstSwitchCase, AstThing,
-    AstThrow, AstThrowsDeclaration, AstTryCatch, AstTryCatchCase, AstTypeParameters, AstValue,
-    AstValueNuget, AstValues, AstWhile,
+    AstAnnotated, AstAvailability, AstBaseExpression, AstBlock, AstBlockAssign, AstBlockBreak,
+    AstBlockContinue, AstBlockEntry, AstBlockExpression, AstBlockReturn, AstBlockVariable,
+    AstBlockVariableMultiType, AstBoolean, AstCastedExpression, AstDouble, AstExpression,
+    AstExpressionIdentifier, AstExpressionOperator, AstExtends, AstFile, AstFor, AstForEnhanced,
+    AstIdentifier, AstIf, AstIfContent, AstImport, AstImportUnit, AstImports, AstInt, AstJType,
+    AstJTypeKind, AstLambda, AstLambdaParameters, AstMethodHeader, AstMethodParameter,
+    AstMethodParameters, AstNewClass, AstPoint, AstRange, AstSuperClass, AstSwitch, AstSwitchCase,
+    AstThing, AstThrow, AstThrowsDeclaration, AstTryCatch, AstTryCatchCase, AstTypeParameters,
+    AstValue, AstValueNuget, AstValues, AstWhile,
 };
 
 use crate::{
@@ -1192,11 +1192,11 @@ fn parse_expression_inner(
         }
         Err(e) => errors.push(("casted".into(), e)),
     }
-    match parse_recursive_expression(tokens, pos, expression_options) {
-        Ok((recursive, pos)) => {
-            return Ok((AstExpressionKind::Recursive(recursive), pos));
+    match parse_base_expression(tokens, pos, expression_options) {
+        Ok((exp, pos)) => {
+            return Ok((AstExpressionKind::Base(exp), pos));
         }
-        Err(e) => errors.push(("recursive".into(), e)),
+        Err(e) => errors.push(("base".into(), e)),
     }
     Err(AstError::AllChildrenFailed {
         parent: "expression".into(),
@@ -1262,13 +1262,13 @@ fn parse_casted_expression(
     ))
 }
 /// `a.b.c("a".length)`
-pub fn parse_recursive_expression(
+pub fn parse_base_expression(
     tokens: &[PositionToken],
     pos: usize,
     expression_options: &ExpressionOptions,
-) -> Result<(AstRecursiveExpression, usize), AstError> {
+) -> Result<(AstBaseExpression, usize), AstError> {
     let start = tokens.start(pos)?;
-    let mut out = AstRecursiveExpression {
+    let mut out = AstBaseExpression {
         range: AstRange::from_position_token(start, start),
         ident: None,
         values: None,
@@ -1655,8 +1655,8 @@ fn parse_block_assign(
 ) -> Result<(AstBlockAssign, usize), AstError> {
     let start = tokens.start(pos)?;
 
-    let (key, pos) = parse_recursive_expression(tokens, pos, &ExpressionOptions::None)?;
-    let key = vec![AstExpressionKind::Recursive(key)];
+    let (key, pos) = parse_base_expression(tokens, pos, &ExpressionOptions::None)?;
+    let key = vec![AstExpressionKind::Base(key)];
     let pos = assert_token(tokens, pos, Token::Equal)?;
     let (expression, pos) = parse_expression(tokens, pos, &ExpressionOptions::None)?;
     let pos = assert_semicolon_options(tokens, pos, block_entry_options)?;
@@ -2300,7 +2300,7 @@ fn parse_while(tokens: &[PositionToken], pos: usize) -> Result<(AstWhile, usize)
                 pos = npos;
                 break 'while_content;
             }
-            Err(e) => errors.push(("recursive expression".into(), e)),
+            Err(e) => errors.push(("block entry".into(), e)),
         }
         return Err(AstError::AllChildrenFailed {
             parent: "while".into(),
@@ -2435,7 +2435,7 @@ pub fn parse_for(tokens: &[PositionToken], pos: usize) -> Result<(AstFor, usize)
                 pos = npos;
                 break 'for_content;
             }
-            Err(e) => errors.push(("recursive expression".into(), e)),
+            Err(e) => errors.push(("block entry".into(), e)),
         }
         return Err(AstError::AllChildrenFailed {
             parent: "for".into(),
@@ -2691,7 +2691,7 @@ fn parse_for_enhanced(
                 pos = npos;
                 break 'for_content;
             }
-            Err(e) => errors.push(("recursive expression".into(), e)),
+            Err(e) => errors.push(("block entry".into(), e)),
         }
         return Err(AstError::AllChildrenFailed {
             parent: "for".into(),
@@ -2737,7 +2737,7 @@ fn parse_if(tokens: &[PositionToken], pos: usize) -> Result<(AstIf, usize), AstE
                 pos = npos;
                 break 'if_content;
             }
-            Err(e) => errors.push(("recursive expression".into(), e)),
+            Err(e) => errors.push(("block expression".into(), e)),
         }
         return Err(AstError::AllChildrenFailed {
             parent: "if".into(),
@@ -2782,7 +2782,7 @@ fn parse_else_if(tokens: &[PositionToken], pos: usize) -> Result<(AstIf, usize),
                 pos = npos;
                 break 'if_content;
             }
-            Err(e) => errors.push(("recursive expression".into(), e)),
+            Err(e) => errors.push(("block entry".into(), e)),
         }
         return Err(AstError::AllChildrenFailed {
             parent: "if".into(),
@@ -2821,7 +2821,7 @@ fn parse_else(tokens: &[PositionToken], pos: usize) -> Result<(AstIf, usize), As
                 pos = npos;
                 break 'if_content;
             }
-            Err(e) => errors.push(("recursive expression".into(), e)),
+            Err(e) => errors.push(("block entry".into(), e)),
         }
         return Err(AstError::AllChildrenFailed {
             parent: "if".into(),

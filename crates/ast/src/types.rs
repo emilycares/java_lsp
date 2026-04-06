@@ -41,10 +41,17 @@ impl AstRange {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Default, Clone, Copy, PartialOrd)]
+#[derive(PartialEq, Eq, Default, Clone, Copy, PartialOrd)]
 pub struct AstPoint {
     pub line: usize,
     pub col: usize,
+}
+impl Debug for AstPoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("AstPoint { ")?;
+        f.write_str(&format!("{}:{}", self.line, self.col))?;
+        f.write_str(" }")
+    }
 }
 
 impl AstPoint {
@@ -735,7 +742,7 @@ pub type AstExpression = Vec<AstExpressionKind>;
 #[derive(Debug, Clone)]
 pub enum AstExpressionKind {
     Casted(AstCastedExpression),
-    Recursive(AstRecursiveExpression),
+    Base(AstBaseExpression),
     Lambda(AstLambda),
     InlineSwitch(AstSwitch),
     NewClass(AstNewClass),
@@ -748,7 +755,7 @@ impl AstExpressionKind {
     #[must_use]
     pub fn has_content(&self) -> bool {
         match self {
-            Self::Recursive(ast_recursive_expression) => ast_recursive_expression.has_content(),
+            Self::Base(exp) => exp.has_content(),
             Self::Casted(_)
             | Self::JType(_)
             | Self::Lambda(_)
@@ -773,7 +780,7 @@ pub struct AstInstanceOf {
     pub jtype: AstJType,
 }
 #[derive(Debug, Clone)]
-pub struct AstRecursiveExpression {
+pub struct AstBaseExpression {
     pub range: AstRange,
     pub ident: Option<AstExpressionIdentifier>,
     pub values: Option<AstValues>,
@@ -803,7 +810,7 @@ pub enum AstExpressionOrAnnotated {
     Expression(AstExpression),
     Annotated(AstAnnotated),
 }
-impl AstRecursiveExpression {
+impl AstBaseExpression {
     #[must_use]
     pub fn has_content(&self) -> bool {
         self.ident.is_some()

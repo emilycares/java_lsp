@@ -1,7 +1,6 @@
 ---
-source: call_chain/tests/base.rs
+source: crates/call_chain/tests/base.rs
 expression: out
-snapshot_kind: text
 ---
 [
     ArgumentList {
@@ -9,27 +8,15 @@ snapshot_kind: text
             ClassOrVariable {
                 name: "a",
                 range: AstRange {
-                    start: AstPoint {
-                        line: 5,
-                        col: 8,
-                    },
-                    end: AstPoint {
-                        line: 5,
-                        col: 9,
-                    },
+                    start: AstPoint { 5:8 },
+                    end: AstPoint { 5:9 },
                 },
             },
             MethodCall {
                 name: "concat",
                 range: AstRange {
-                    start: AstPoint {
-                        line: 5,
-                        col: 10,
-                    },
-                    end: AstPoint {
-                        line: 5,
-                        col: 16,
-                    },
+                    start: AstPoint { 5:10 },
+                    end: AstPoint { 5:16 },
                 },
             },
         ],
@@ -41,14 +28,8 @@ snapshot_kind: text
                 ClassOrVariable {
                     name: "b",
                     range: AstRange {
-                        start: AstPoint {
-                            line: 5,
-                            col: 17,
-                        },
-                        end: AstPoint {
-                            line: 5,
-                            col: 18,
-                        },
+                        start: AstPoint { 5:17 },
+                        end: AstPoint { 5:18 },
                     },
                 },
             ],
@@ -56,40 +37,22 @@ snapshot_kind: text
                 ClassOrVariable {
                     name: "c",
                     range: AstRange {
-                        start: AstPoint {
-                            line: 5,
-                            col: 20,
-                        },
-                        end: AstPoint {
-                            line: 5,
-                            col: 21,
-                        },
+                        start: AstPoint { 5:20 },
+                        end: AstPoint { 5:21 },
                     },
                 },
             ],
         ],
         range: AstRange {
-            start: AstPoint {
-                line: 5,
-                col: 16,
-            },
-            end: AstPoint {
-                line: 5,
-                col: 23,
-            },
+            start: AstPoint { 5:16 },
+            end: AstPoint { 5:23 },
         },
     },
     ClassOrVariable {
         name: "c",
         range: AstRange {
-            start: AstPoint {
-                line: 5,
-                col: 20,
-            },
-            end: AstPoint {
-                line: 5,
-                col: 21,
-            },
+            start: AstPoint { 5:20 },
+            end: AstPoint { 5:21 },
         },
     },
 ]

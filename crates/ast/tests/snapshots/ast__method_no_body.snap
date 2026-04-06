@@ -5,65 +5,35 @@ expression: parsed
 (
     AstClassMethod {
         range: AstRange {
-            start: AstPoint {
-                line: 0,
-                col: 0,
-            },
-            end: AstPoint {
-                line: 0,
-                col: 40,
-            },
+            start: AstPoint { 0:0 },
+            end: AstPoint { 0:40 },
         },
         header: AstMethodHeader {
             range: AstRange {
-                start: AstPoint {
-                    line: 0,
-                    col: 0,
-                },
-                end: AstPoint {
-                    line: 0,
-                    col: 39,
-                },
+                start: AstPoint { 0:0 },
+                end: AstPoint { 0:39 },
             },
             availability: AstAvailability(
                 Protected | Abstract,
             ),
             name: AstIdentifier {
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 21,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 27,
-                    },
+                    start: AstPoint { 0:21 },
+                    end: AstPoint { 0:27 },
                 },
                 value: "create",
             },
             jtype: AstJType {
                 annotated: [],
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 19,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 20,
-                    },
+                    start: AstPoint { 0:19 },
+                    end: AstPoint { 0:20 },
                 },
                 value: Class(
                     AstIdentifier {
                         range: AstRange {
-                            start: AstPoint {
-                                line: 0,
-                                col: 19,
-                            },
-                            end: AstPoint {
-                                line: 0,
-                                col: 20,
-                            },
+                            start: AstPoint { 0:19 },
+                            end: AstPoint { 0:20 },
                         },
                         value: "T",
                     },
@@ -71,51 +41,27 @@ expression: parsed
             },
             parameters: AstMethodParameters {
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 27,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 39,
-                    },
+                    start: AstPoint { 0:27 },
+                    end: AstPoint { 0:39 },
                 },
                 parameters: [
                     AstMethodParameter {
                         range: AstRange {
-                            start: AstPoint {
-                                line: 0,
-                                col: 28,
-                            },
-                            end: AstPoint {
-                                line: 0,
-                                col: 38,
-                            },
+                            start: AstPoint { 0:28 },
+                            end: AstPoint { 0:38 },
                         },
                         annotated: [],
                         jtype: AstJType {
                             annotated: [],
                             range: AstRange {
-                                start: AstPoint {
-                                    line: 0,
-                                    col: 28,
-                                },
-                                end: AstPoint {
-                                    line: 0,
-                                    col: 34,
-                                },
+                                start: AstPoint { 0:28 },
+                                end: AstPoint { 0:34 },
                             },
                             value: Class(
                                 AstIdentifier {
                                     range: AstRange {
-                                        start: AstPoint {
-                                            line: 0,
-                                            col: 28,
-                                        },
-                                        end: AstPoint {
-                                            line: 0,
-                                            col: 34,
-                                        },
+                                        start: AstPoint { 0:28 },
+                                        end: AstPoint { 0:34 },
                                     },
                                     value: "Object",
                                 },
@@ -123,14 +69,8 @@ expression: parsed
                         },
                         name: AstIdentifier {
                             range: AstRange {
-                                start: AstPoint {
-                                    line: 0,
-                                    col: 35,
-                                },
-                                end: AstPoint {
-                                    line: 0,
-                                    col: 38,
-                                },
+                                start: AstPoint { 0:35 },
+                                end: AstPoint { 0:38 },
                             },
                             value: "key",
                         },

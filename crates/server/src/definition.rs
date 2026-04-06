@@ -7,6 +7,7 @@ use ast::types::{AstFile, AstPoint};
 use call_chain::CallItem;
 use document::{Document, DocumentError, read_document_or_open_class};
 use dto::{Class, ImportUnit};
+use local_variable::LocalVariable;
 use lsp_extra::{SourceToUriError, ToLspRangeError, source_to_uri, to_lsp_range};
 use lsp_types::{GotoDefinitionResponse, Location, SymbolKind, Uri};
 use my_string::{
@@ -15,7 +16,6 @@ use my_string::{
 };
 use position::PositionSymbol;
 use tyres::TyresError;
-use variables::LocalVariable;
 
 use crate::hover::{ClassActionError, class_action};
 
@@ -239,6 +239,7 @@ mod tests {
     use std::{path::PathBuf, str::FromStr};
 
     use dto::{Access, JType, Method, SourceDestination};
+    use variables::VariableContext;
 
     use super::*;
 
@@ -259,8 +260,17 @@ public class Test {
         let document = Document::setup(cont, PathBuf::from_str("/Test.java").unwrap()).unwrap();
         let document_uri = Uri::from_str("file:///Test.java").unwrap();
         let class = parser::java::load_java_tree(&document.ast, SourceDestination::None);
-        let vars = variables::get_vars(&document.ast, &point).unwrap();
         let imports = imports::imports(&document.ast);
+        let vars = variables::get_vars(
+            &document.ast,
+            &VariableContext {
+                point,
+                imports: &imports,
+                class: &class,
+                class_map: get_class_map(),
+            },
+        )
+        .unwrap();
         let call_chain = call_chain::get_call_chain(&document.ast, &point);
         let context = DefinitionContext {
             document_uri,
@@ -294,8 +304,17 @@ public class Test {
         let document = Document::setup(cont, PathBuf::from_str("/Test.java").unwrap()).unwrap();
         let document_uri = Uri::from_str("file:///Test.java").unwrap();
         let class = parser::java::load_java_tree(&document.ast, SourceDestination::None);
-        let vars = variables::get_vars(&document.ast, &point).unwrap();
         let imports = imports::imports(&document.ast);
+        let vars = variables::get_vars(
+            &document.ast,
+            &VariableContext {
+                point,
+                imports: &imports,
+                class: &class,
+                class_map: get_class_map(),
+            },
+        )
+        .unwrap();
         let call_chain = call_chain::get_call_chain(&document.ast, &point);
         let context = DefinitionContext {
             document_uri,
@@ -324,8 +343,17 @@ public class Test extends ParGreet {
         let document = Document::setup(cont, PathBuf::from_str("/Test.java").unwrap()).unwrap();
         let document_uri = Uri::from_str("file:///Test.java").unwrap();
         let class = parser::java::load_java_tree(&document.ast, SourceDestination::None);
-        let vars = variables::get_vars(&document.ast, &point).unwrap();
         let imports = imports::imports(&document.ast);
+        let vars = variables::get_vars(
+            &document.ast,
+            &VariableContext {
+                point,
+                imports: &imports,
+                class: &class,
+                class_map: get_class_map(),
+            },
+        )
+        .unwrap();
         let call_chain = call_chain::get_call_chain(&document.ast, &point);
         let context = DefinitionContext {
             document_uri,

@@ -1,19 +1,13 @@
 ---
-source: call_chain/tests/base.rs
+source: crates/call_chain/tests/base.rs
 expression: out
 ---
 [
     ClassOrVariable {
         name: "String",
         range: AstRange {
-            start: AstPoint {
-                line: 5,
-                col: 20,
-            },
-            end: AstPoint {
-                line: 5,
-                col: 26,
-            },
+            start: AstPoint { 5:20 },
+            end: AstPoint { 5:26 },
         },
     },
 ]

@@ -1,5 +1,5 @@
 ---
-source: variables/src/lib.rs
+source: crates/variables/src/lib.rs
 expression: out
 ---
 [
@@ -9,14 +9,8 @@ expression: out
         name: "hello",
         is_fun: true,
         range: AstRange {
-            start: AstPoint {
-                line: 3,
-                col: 4,
-            },
-            end: AstPoint {
-                line: 14,
-                col: 5,
-            },
+            start: AstPoint { 3:4 },
+            end: AstPoint { 14:5 },
         },
     },
     LocalVariable {
@@ -32,14 +26,8 @@ expression: out
         name: "names",
         is_fun: false,
         range: AstRange {
-            start: AstPoint {
-                line: 4,
-                col: 8,
-            },
-            end: AstPoint {
-                line: 4,
-                col: 46,
-            },
+            start: AstPoint { 4:8 },
+            end: AstPoint { 4:46 },
         },
     },
     LocalVariable {
@@ -48,14 +36,8 @@ expression: out
         name: "i",
         is_fun: false,
         range: AstRange {
-            start: AstPoint {
-                line: 5,
-                col: 13,
-            },
-            end: AstPoint {
-                line: 5,
-                col: 23,
-            },
+            start: AstPoint { 5:13 },
+            end: AstPoint { 5:23 },
         },
     },
     LocalVariable {
@@ -66,62 +48,38 @@ expression: out
         name: "name",
         is_fun: false,
         range: AstRange {
-            start: AstPoint {
-                line: 6,
-                col: 15,
-            },
-            end: AstPoint {
-                line: 6,
-                col: 26,
-            },
+            start: AstPoint { 6:15 },
+            end: AstPoint { 6:26 },
         },
     },
     LocalVariable {
         level: 7,
-        jtype: Void,
+        jtype: Var,
         name: "n",
         is_fun: false,
         range: AstRange {
-            start: AstPoint {
-                line: 7,
-                col: 32,
-            },
-            end: AstPoint {
-                line: 7,
-                col: 33,
-            },
+            start: AstPoint { 7:32 },
+            end: AstPoint { 7:33 },
         },
     },
     LocalVariable {
         level: 7,
-        jtype: Void,
+        jtype: Var,
         name: "m",
         is_fun: false,
         range: AstRange {
-            start: AstPoint {
-                line: 7,
-                col: 35,
-            },
-            end: AstPoint {
-                line: 7,
-                col: 36,
-            },
+            start: AstPoint { 7:35 },
+            end: AstPoint { 7:36 },
         },
     },
     LocalVariable {
         level: 8,
-        jtype: Void,
+        jtype: Var,
         name: "c",
         is_fun: false,
         range: AstRange {
-            start: AstPoint {
-                line: 8,
-                col: 48,
-            },
-            end: AstPoint {
-                line: 8,
-                col: 49,
-            },
+            start: AstPoint { 8:48 },
+            end: AstPoint { 8:49 },
         },
     },
 ]

@@ -1,58 +1,33 @@
 ---
-source: ast/tests/ast.rs
+source: crates/ast/tests/ast.rs
 expression: parsed
-snapshot_kind: text
 ---
 (
     AstBlock {
         range: AstRange {
-            start: AstPoint {
-                line: 0,
-                col: 0,
-            },
-            end: AstPoint {
-                line: 2,
-                col: 43,
-            },
+            start: AstPoint { 0:0 },
+            end: AstPoint { 2:43 },
         },
         entries: [
             Expression(
                 AstBlockExpression {
                     range: AstRange {
-                        start: AstPoint {
-                            line: 1,
-                            col: 24,
-                        },
-                        end: AstPoint {
-                            line: 1,
-                            col: 512,
-                        },
+                        start: AstPoint { 1:24 },
+                        end: AstPoint { 1:512 },
                     },
                     value: [
-                        Recursive(
-                            AstRecursiveExpression {
+                        Base(
+                            AstBaseExpression {
                                 range: AstRange {
-                                    start: AstPoint {
-                                        line: 1,
-                                        col: 24,
-                                    },
-                                    end: AstPoint {
-                                        line: 1,
-                                        col: 30,
-                                    },
+                                    start: AstPoint { 1:24 },
+                                    end: AstPoint { 1:30 },
                                 },
                                 ident: Some(
                                     Identifier(
                                         AstIdentifier {
                                             range: AstRange {
-                                                start: AstPoint {
-                                                    line: 1,
-                                                    col: 24,
-                                                },
-                                                end: AstPoint {
-                                                    line: 1,
-                                                    col: 30,
-                                                },
+                                                start: AstPoint { 1:24 },
+                                                end: AstPoint { 1:30 },
                                             },
                                             value: "System",
                                         },
@@ -62,58 +37,34 @@ snapshot_kind: text
                                 operator: None,
                             },
                         ),
-                        Recursive(
-                            AstRecursiveExpression {
+                        Base(
+                            AstBaseExpression {
                                 range: AstRange {
-                                    start: AstPoint {
-                                        line: 1,
-                                        col: 30,
-                                    },
-                                    end: AstPoint {
-                                        line: 1,
-                                        col: 31,
-                                    },
+                                    start: AstPoint { 1:30 },
+                                    end: AstPoint { 1:31 },
                                 },
                                 ident: None,
                                 values: None,
                                 operator: Dot(
                                     AstRange {
-                                        start: AstPoint {
-                                            line: 1,
-                                            col: 30,
-                                        },
-                                        end: AstPoint {
-                                            line: 1,
-                                            col: 31,
-                                        },
+                                        start: AstPoint { 1:30 },
+                                        end: AstPoint { 1:31 },
                                     },
                                 ),
                             },
                         ),
-                        Recursive(
-                            AstRecursiveExpression {
+                        Base(
+                            AstBaseExpression {
                                 range: AstRange {
-                                    start: AstPoint {
-                                        line: 1,
-                                        col: 31,
-                                    },
-                                    end: AstPoint {
-                                        line: 1,
-                                        col: 34,
-                                    },
+                                    start: AstPoint { 1:31 },
+                                    end: AstPoint { 1:34 },
                                 },
                                 ident: Some(
                                     Identifier(
                                         AstIdentifier {
                                             range: AstRange {
-                                                start: AstPoint {
-                                                    line: 1,
-                                                    col: 31,
-                                                },
-                                                end: AstPoint {
-                                                    line: 1,
-                                                    col: 34,
-                                                },
+                                                start: AstPoint { 1:31 },
+                                                end: AstPoint { 1:34 },
                                             },
                                             value: "err",
                                         },
@@ -123,58 +74,34 @@ snapshot_kind: text
                                 operator: None,
                             },
                         ),
-                        Recursive(
-                            AstRecursiveExpression {
+                        Base(
+                            AstBaseExpression {
                                 range: AstRange {
-                                    start: AstPoint {
-                                        line: 1,
-                                        col: 34,
-                                    },
-                                    end: AstPoint {
-                                        line: 1,
-                                        col: 35,
-                                    },
+                                    start: AstPoint { 1:34 },
+                                    end: AstPoint { 1:35 },
                                 },
                                 ident: None,
                                 values: None,
                                 operator: Dot(
                                     AstRange {
-                                        start: AstPoint {
-                                            line: 1,
-                                            col: 34,
-                                        },
-                                        end: AstPoint {
-                                            line: 1,
-                                            col: 35,
-                                        },
+                                        start: AstPoint { 1:34 },
+                                        end: AstPoint { 1:35 },
                                     },
                                 ),
                             },
                         ),
-                        Recursive(
-                            AstRecursiveExpression {
+                        Base(
+                            AstBaseExpression {
                                 range: AstRange {
-                                    start: AstPoint {
-                                        line: 1,
-                                        col: 35,
-                                    },
-                                    end: AstPoint {
-                                        line: 1,
-                                        col: 42,
-                                    },
+                                    start: AstPoint { 1:35 },
+                                    end: AstPoint { 1:42 },
                                 },
                                 ident: Some(
                                     Identifier(
                                         AstIdentifier {
                                             range: AstRange {
-                                                start: AstPoint {
-                                                    line: 1,
-                                                    col: 35,
-                                                },
-                                                end: AstPoint {
-                                                    line: 1,
-                                                    col: 42,
-                                                },
+                                                start: AstPoint { 1:35 },
+                                                end: AstPoint { 1:42 },
                                             },
                                             value: "println",
                                         },
@@ -184,44 +111,26 @@ snapshot_kind: text
                                 operator: None,
                             },
                         ),
-                        Recursive(
-                            AstRecursiveExpression {
+                        Base(
+                            AstBaseExpression {
                                 range: AstRange {
-                                    start: AstPoint {
-                                        line: 1,
-                                        col: 42,
-                                    },
-                                    end: AstPoint {
-                                        line: 1,
-                                        col: 511,
-                                    },
+                                    start: AstPoint { 1:42 },
+                                    end: AstPoint { 1:511 },
                                 },
                                 ident: None,
                                 values: Some(
                                     AstValues {
                                         range: AstRange {
-                                            start: AstPoint {
-                                                line: 1,
-                                                col: 42,
-                                            },
-                                            end: AstPoint {
-                                                line: 1,
-                                                col: 511,
-                                            },
+                                            start: AstPoint { 1:42 },
+                                            end: AstPoint { 1:511 },
                                         },
                                         values: [
                                             [
-                                                Recursive(
-                                                    AstRecursiveExpression {
+                                                Base(
+                                                    AstBaseExpression {
                                                         range: AstRange {
-                                                            start: AstPoint {
-                                                                line: 1,
-                                                                col: 509,
-                                                            },
-                                                            end: AstPoint {
-                                                                line: 1,
-                                                                col: 973,
-                                                            },
+                                                            start: AstPoint { 1:509 },
+                                                            end: AstPoint { 1:973 },
                                                         },
                                                         ident: Some(
                                                             Value(
@@ -229,14 +138,8 @@ snapshot_kind: text
                                                                     StringLiteral(
                                                                         AstIdentifier {
                                                                             range: AstRange {
-                                                                                start: AstPoint {
-                                                                                    line: 1,
-                                                                                    col: 509,
-                                                                                },
-                                                                                end: AstPoint {
-                                                                                    line: 1,
-                                                                                    col: 43,
-                                                                                },
+                                                                                start: AstPoint { 1:509 },
+                                                                                end: AstPoint { 1:43 },
                                                                             },
                                                                             value: "\n                                          The VFORK launch mechanism has been deprecated for being dangerous.\n                                          It will be removed in a future java version. Either remove the\n                                          jdk.lang.Process.launchMechanism property (preferred) or use FORK mode\n                                          instead (-Djdk.lang.Process.launchMechanism=FORK).\n                                          ",
                                                                         },

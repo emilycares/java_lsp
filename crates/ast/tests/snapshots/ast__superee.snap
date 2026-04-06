@@ -1,31 +1,19 @@
 ---
-source: ast/tests/ast.rs
+source: crates/ast/tests/ast.rs
 expression: parsed.unwrap()
 ---
 AstFile {
     package: Some(
         AstPackage {
             range: AstRange {
-                start: AstPoint {
-                    line: 0,
-                    col: 0,
-                },
-                end: AstPoint {
-                    line: 0,
-                    col: 22,
-                },
+                start: AstPoint { 0:0 },
+                end: AstPoint { 0:22 },
             },
             annotated: [],
             name: AstIdentifier {
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 8,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 21,
-                    },
+                    start: AstPoint { 0:8 },
+                    end: AstPoint { 0:21 },
                 },
                 value: "ch.emilycares",
             },
@@ -34,38 +22,20 @@ AstFile {
     imports: Some(
         AstImports {
             range: AstRange {
-                start: AstPoint {
-                    line: 2,
-                    col: 0,
-                },
-                end: AstPoint {
-                    line: 2,
-                    col: 27,
-                },
+                start: AstPoint { 2:0 },
+                end: AstPoint { 2:27 },
             },
             imports: [
                 AstImport {
                     range: AstRange {
-                        start: AstPoint {
-                            line: 2,
-                            col: 0,
-                        },
-                        end: AstPoint {
-                            line: 2,
-                            col: 27,
-                        },
+                        start: AstPoint { 2:0 },
+                        end: AstPoint { 2:27 },
                     },
                     unit: Class(
                         AstIdentifier {
                             range: AstRange {
-                                start: AstPoint {
-                                    line: 2,
-                                    col: 7,
-                                },
-                                end: AstPoint {
-                                    line: 2,
-                                    col: 26,
-                                },
+                                start: AstPoint { 2:7 },
+                                end: AstPoint { 2:26 },
                             },
                             value: "java.io.IOException",
                         },
@@ -78,14 +48,8 @@ AstFile {
         Class(
             AstClass {
                 range: AstRange {
-                    start: AstPoint {
-                        line: 4,
-                        col: 0,
-                    },
-                    end: AstPoint {
-                        line: 5,
-                        col: 1,
-                    },
+                    start: AstPoint { 4:0 },
+                    end: AstPoint { 5:1 },
                 },
                 availability: AstAvailability(
                     Public,
@@ -96,14 +60,8 @@ AstFile {
                 annotated: [],
                 name: AstIdentifier {
                     range: AstRange {
-                        start: AstPoint {
-                            line: 4,
-                            col: 13,
-                        },
-                        end: AstPoint {
-                            line: 4,
-                            col: 18,
-                        },
+                        start: AstPoint { 4:13 },
+                        end: AstPoint { 4:18 },
                     },
                     value: "Super",
                 },
@@ -112,14 +70,8 @@ AstFile {
                     Name(
                         AstIdentifier {
                             range: AstRange {
-                                start: AstPoint {
-                                    line: 4,
-                                    col: 27,
-                                },
-                                end: AstPoint {
-                                    line: 4,
-                                    col: 38,
-                                },
+                                start: AstPoint { 4:27 },
+                                end: AstPoint { 4:38 },
                             },
                             value: "IOException",
                         },

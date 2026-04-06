@@ -1287,6 +1287,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "local_variable"
+version = "0.1.0"
+dependencies = [
+ "ast",
+ "dto",
+ "my_string",
+ "workspace_hack",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2188,6 +2198,7 @@ dependencies = [
  "jdk",
  "jwalk",
  "loader",
+ "local_variable",
  "lsp-server",
  "lsp-types",
  "lsp_extra",
@@ -2561,8 +2572,8 @@ dependencies = [
  "ast",
  "call_chain",
  "dto",
+ "local_variable",
  "my_string",
- "variables",
  "workspace_hack",
 ]
 
@@ -2613,9 +2624,12 @@ name = "variables"
 version = "0.1.0"
 dependencies = [
  "ast",
+ "call_chain",
  "dto",
  "insta",
+ "local_variable",
  "my_string",
+ "tyres",
  "workspace_hack",
 ]
 

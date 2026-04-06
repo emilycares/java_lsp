@@ -5,52 +5,28 @@ expression: parsed.unwrap()
 (
     AstBlockReturn {
         range: AstRange {
-            start: AstPoint {
-                line: 1,
-                col: 5,
-            },
-            end: AstPoint {
-                line: 1,
-                col: 25,
-            },
+            start: AstPoint { 1:5 },
+            end: AstPoint { 1:25 },
         },
         expression: Expression(
             [
                 NewClass(
                     AstNewClass {
                         range: AstRange {
-                            start: AstPoint {
-                                line: 1,
-                                col: 12,
-                            },
-                            end: AstPoint {
-                                line: 1,
-                                col: 24,
-                            },
+                            start: AstPoint { 1:12 },
+                            end: AstPoint { 1:24 },
                         },
                         jtype: AstJType {
                             annotated: [],
                             range: AstRange {
-                                start: AstPoint {
-                                    line: 1,
-                                    col: 16,
-                                },
-                                end: AstPoint {
-                                    line: 1,
-                                    col: 22,
-                                },
+                                start: AstPoint { 1:16 },
+                                end: AstPoint { 1:22 },
                             },
                             value: Class(
                                 AstIdentifier {
                                     range: AstRange {
-                                        start: AstPoint {
-                                            line: 1,
-                                            col: 16,
-                                        },
-                                        end: AstPoint {
-                                            line: 1,
-                                            col: 22,
-                                        },
+                                        start: AstPoint { 1:16 },
+                                        end: AstPoint { 1:22 },
                                     },
                                     value: "String",
                                 },
@@ -58,14 +34,8 @@ expression: parsed.unwrap()
                         },
                         rhs: Parameters(
                             AstRange {
-                                start: AstPoint {
-                                    line: 1,
-                                    col: 16,
-                                },
-                                end: AstPoint {
-                                    line: 1,
-                                    col: 24,
-                                },
+                                start: AstPoint { 1:16 },
+                                end: AstPoint { 1:24 },
                             },
                             [],
                         ),

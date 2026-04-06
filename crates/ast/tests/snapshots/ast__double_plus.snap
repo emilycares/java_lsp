@@ -1,34 +1,21 @@
 ---
-source: ast/tests/ast.rs
+source: crates/ast/tests/ast.rs
 expression: parsed.unwrap()
-snapshot_kind: text
 ---
 (
     [
-        Recursive(
-            AstRecursiveExpression {
+        Base(
+            AstBaseExpression {
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 0,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 6,
-                    },
+                    start: AstPoint { 0:0 },
+                    end: AstPoint { 0:6 },
                 },
                 ident: Some(
                     Identifier(
                         AstIdentifier {
                             range: AstRange {
-                                start: AstPoint {
-                                    line: 0,
-                                    col: 0,
-                                },
-                                end: AstPoint {
-                                    line: 0,
-                                    col: 6,
-                                },
+                                start: AstPoint { 0:0 },
+                                end: AstPoint { 0:6 },
                             },
                             value: "values",
                         },
@@ -38,45 +25,27 @@ snapshot_kind: text
                 operator: None,
             },
         ),
-        Recursive(
-            AstRecursiveExpression {
+        Base(
+            AstBaseExpression {
                 range: AstRange {
-                    start: AstPoint {
-                        line: 0,
-                        col: 6,
-                    },
-                    end: AstPoint {
-                        line: 0,
-                        col: 11,
-                    },
+                    start: AstPoint { 0:6 },
+                    end: AstPoint { 0:11 },
                 },
                 ident: Some(
                     ArrayAccess(
                         [
-                            Recursive(
-                                AstRecursiveExpression {
+                            Base(
+                                AstBaseExpression {
                                     range: AstRange {
-                                        start: AstPoint {
-                                            line: 0,
-                                            col: 7,
-                                        },
-                                        end: AstPoint {
-                                            line: 0,
-                                            col: 8,
-                                        },
+                                        start: AstPoint { 0:7 },
+                                        end: AstPoint { 0:8 },
                                     },
                                     ident: Some(
                                         Identifier(
                                             AstIdentifier {
                                                 range: AstRange {
-                                                    start: AstPoint {
-                                                        line: 0,
-                                                        col: 7,
-                                                    },
-                                                    end: AstPoint {
-                                                        line: 0,
-                                                        col: 8,
-                                                    },
+                                                    start: AstPoint { 0:7 },
+                                                    end: AstPoint { 0:8 },
                                                 },
                                                 value: "i",
                                             },
@@ -86,30 +55,18 @@ snapshot_kind: text
                                     operator: None,
                                 },
                             ),
-                            Recursive(
-                                AstRecursiveExpression {
+                            Base(
+                                AstBaseExpression {
                                     range: AstRange {
-                                        start: AstPoint {
-                                            line: 0,
-                                            col: 8,
-                                        },
-                                        end: AstPoint {
-                                            line: 0,
-                                            col: 10,
-                                        },
+                                        start: AstPoint { 0:8 },
+                                        end: AstPoint { 0:10 },
                                     },
                                     ident: None,
                                     values: None,
                                     operator: PlusPlus(
                                         AstRange {
-                                            start: AstPoint {
-                                                line: 0,
-                                                col: 8,
-                                            },
-                                            end: AstPoint {
-                                                line: 0,
-                                                col: 8,
-                                            },
+                                            start: AstPoint { 0:8 },
+                                            end: AstPoint { 0:8 },
                                         },
                                     ),
                                 },
