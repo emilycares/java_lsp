@@ -7,7 +7,7 @@ use ast::types::{AstFile, AstPoint};
 use call_chain::{self, CallItem};
 use document::get_class_path;
 use dto::{Access, Class, Field, ImportUnit, JType, Method, SourceDestination};
-use local_variable::LocalVariable;
+use local_variable::{LocalVariable, VarFlags};
 use lsp_extra::{ToLspRangeError, to_lsp_range};
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
 use my_string::MyString;
@@ -279,7 +279,7 @@ fn variables_to_hover(vars: &[&LocalVariable], range: Range) -> Hover {
 }
 
 fn format_variable_hover(var: &LocalVariable) -> String {
-    if var.is_fun {
+    if var.flags.intersects(VarFlags::Function) {
         return format!("{} {}()", jtype_hover_display(&var.jtype), var.name);
     }
     format!("{} {}", jtype_hover_display(&var.jtype), var.name)
@@ -432,7 +432,7 @@ public class Test {
         let vars = variables::get_vars(
             &doc.ast,
             &VariableContext {
-                point,
+                point: Some(point),
                 imports: &[],
                 class: &class,
                 class_map: string_class_map(),

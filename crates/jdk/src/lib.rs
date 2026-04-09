@@ -367,10 +367,18 @@ fn get_jmods_dir(path: &Path) -> PathBuf {
 }
 
 async fn extract_source_zip(path: &Path, op_dir: &Path) -> Result<(), JdkError> {
-    let mut src_zip = path.to_path_buf();
-    src_zip.pop();
-    src_zip = src_zip.join("lib").join("src");
+    let mut base = path.to_path_buf();
+    base.pop();
+    let mut src_zip = base.join("lib").join("src");
     src_zip.set_extension("zip");
+    // java 8
+    if !src_zip.exists() {
+        let mut base_src = base.join("src");
+        base_src.set_extension("zip");
+        if base_src.exists() {
+            src_zip = base_src;
+        }
+    }
     match std::fs::canonicalize(src_zip) {
         Ok(src_zip) => {
             let src_dir = op_dir.join("src");

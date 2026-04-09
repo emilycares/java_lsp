@@ -35,7 +35,7 @@ pub fn signature_driver(
     let vars = variables::get_vars(
         &document.ast,
         &VariableContext {
-            point: *point,
+            point: Some(*point),
             imports: &imports,
             class,
             class_map: class_map.clone(),

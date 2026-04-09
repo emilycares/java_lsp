@@ -2,22 +2,24 @@ use lsp_types::{
     CodeActionKind, CodeActionOptions, CodeActionParams, CodeActionProviderCapability,
     CompletionOptions, CompletionParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
     DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentFormattingParams,
-    DocumentSymbolParams, ExecuteCommandOptions, ExecuteCommandParams, GotoDefinitionParams,
-    HoverParams, HoverProviderCapability, OneOf, ReferenceParams, ServerCapabilities,
-    SignatureHelpOptions, SignatureHelpParams, TextDocumentSyncCapability, TextDocumentSyncKind,
-    TextDocumentSyncOptions, WorkspaceSymbolParams,
+    DocumentLinkOptions, DocumentLinkParams, DocumentSymbolParams, ExecuteCommandOptions,
+    ExecuteCommandParams, GotoDefinitionParams, HoverParams, HoverProviderCapability,
+    InlayHintParams, OneOf, ReferenceParams, ServerCapabilities, SignatureHelpOptions,
+    SignatureHelpParams, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
+    WorkDoneProgressOptions, WorkspaceSymbolParams,
     notification::{
         DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, DidSaveTextDocument,
         Notification,
     },
     request::{
-        CodeActionRequest, Completion, DocumentSymbolRequest, ExecuteCommand, Formatting,
-        GotoDefinition, HoverRequest, References, Request, SignatureHelpRequest,
-        WorkspaceSymbolRequest,
+        CodeActionRequest, Completion, DocumentLinkRequest, DocumentSymbolRequest, ExecuteCommand,
+        Formatting, GotoDefinition, HoverRequest, InlayHintRequest, References, Request,
+        SignatureHelpRequest, WorkspaceSymbolRequest,
     },
 };
 
-use lsp_server::{Message, Response};
+use lsp_server::{Message, RequestId, Response};
+use serde_json::{Value, from_value, to_value};
 
 use crate::{
     backend::Backend,
@@ -60,11 +62,18 @@ pub fn get_server_capabilities() -> ServerCapabilities {
                 COMMAND_RELOAD_DEPENDENCIES.to_owned(),
                 UPDATE_DEPENDENCIES.to_owned(),
             ],
-            work_done_progress_options: lsp_types::WorkDoneProgressOptions {
+            work_done_progress_options: WorkDoneProgressOptions {
                 work_done_progress: Some(true),
             },
         }),
-        ..ServerCapabilities::default()
+        document_link_provider: Some(DocumentLinkOptions {
+            resolve_provider: None,
+            work_done_progress_options: WorkDoneProgressOptions {
+                work_done_progress: None,
+            },
+        }),
+        inlay_hint_provider: Some(OneOf::Left(true)),
+        ..Default::default()
     }
 }
 pub fn route(backend: &Backend) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -80,115 +89,75 @@ pub fn route(backend: &Backend) -> Result<(), Box<dyn std::error::Error + Send +
 
                 match req.method.as_str() {
                     HoverRequest::METHOD => {
-                        if let Ok(params) = serde_json::from_value::<HoverParams>(req.params) {
+                        if let Ok(params) = from_value::<HoverParams>(req.params) {
                             let result = backend.hover(params);
-                            let _ = backend.connection.sender.send(Message::Response(Response {
-                                id: req.id,
-                                result: serde_json::to_value(result).ok(),
-                                error: None,
-                            }));
+                            send(backend, req.id, to_value(result).ok());
                         }
                     }
                     Formatting::METHOD => {
-                        if let Ok(params) =
-                            serde_json::from_value::<DocumentFormattingParams>(req.params)
-                        {
+                        if let Ok(params) = from_value::<DocumentFormattingParams>(req.params) {
                             let result = backend.formatting(params);
-                            let _ = backend.connection.sender.send(Message::Response(Response {
-                                id: req.id,
-                                result: serde_json::to_value(result).ok(),
-                                error: None,
-                            }));
+                            send(backend, req.id, to_value(result).ok());
                         }
                     }
                     GotoDefinition::METHOD => {
-                        if let Ok(params) =
-                            serde_json::from_value::<GotoDefinitionParams>(req.params)
-                        {
+                        if let Ok(params) = from_value::<GotoDefinitionParams>(req.params) {
                             let result = backend.goto_definition(params);
-                            let _ = backend.connection.sender.send(Message::Response(Response {
-                                id: req.id,
-                                result: serde_json::to_value(result).ok(),
-                                error: None,
-                            }));
+                            send(backend, req.id, to_value(result).ok());
                         }
                     }
                     Completion::METHOD => {
-                        if let Ok(params) = serde_json::from_value::<CompletionParams>(req.params) {
+                        if let Ok(params) = from_value::<CompletionParams>(req.params) {
                             let result = backend.completion(params);
-                            let _ = backend.connection.sender.send(Message::Response(Response {
-                                id: req.id,
-                                result: serde_json::to_value(result).ok(),
-                                error: None,
-                            }));
+                            send(backend, req.id, to_value(result).ok());
                         }
                     }
                     References::METHOD => {
-                        if let Ok(params) = serde_json::from_value::<ReferenceParams>(req.params) {
+                        if let Ok(params) = from_value::<ReferenceParams>(req.params) {
                             let result = backend.references(params);
-                            let _ = backend.connection.sender.send(Message::Response(Response {
-                                id: req.id,
-                                result: serde_json::to_value(result).ok(),
-                                error: None,
-                            }));
+                            send(backend, req.id, to_value(result).ok());
                         }
                     }
                     CodeActionRequest::METHOD => {
-                        if let Ok(params) = serde_json::from_value::<CodeActionParams>(req.params) {
+                        if let Ok(params) = from_value::<CodeActionParams>(req.params) {
                             let result = backend.code_action(params);
-                            let _ = backend.connection.sender.send(Message::Response(Response {
-                                id: req.id,
-                                result: serde_json::to_value(result).ok(),
-                                error: None,
-                            }));
+                            send(backend, req.id, to_value(result).ok());
                         }
                     }
                     DocumentSymbolRequest::METHOD => {
-                        if let Ok(params) =
-                            serde_json::from_value::<DocumentSymbolParams>(req.params)
-                        {
+                        if let Ok(params) = from_value::<DocumentSymbolParams>(req.params) {
                             let result = backend.document_symbol(params);
-                            let _ = backend.connection.sender.send(Message::Response(Response {
-                                id: req.id,
-                                result: serde_json::to_value(result).ok(),
-                                error: None,
-                            }));
+                            send(backend, req.id, to_value(result).ok());
                         }
                     }
                     WorkspaceSymbolRequest::METHOD => {
-                        if let Ok(params) =
-                            serde_json::from_value::<WorkspaceSymbolParams>(req.params)
-                        {
+                        if let Ok(params) = from_value::<WorkspaceSymbolParams>(req.params) {
                             let result = backend.workspace_document_symbol(&params);
-                            let _ = backend.connection.sender.send(Message::Response(Response {
-                                id: req.id,
-                                result: serde_json::to_value(result).ok(),
-                                error: None,
-                            }));
+                            send(backend, req.id, to_value(result).ok());
                         }
                     }
                     SignatureHelpRequest::METHOD => {
-                        if let Ok(params) =
-                            serde_json::from_value::<SignatureHelpParams>(req.params)
-                        {
+                        if let Ok(params) = from_value::<SignatureHelpParams>(req.params) {
                             let result = backend.signature_help(params);
-                            let _ = backend.connection.sender.send(Message::Response(Response {
-                                id: req.id,
-                                result: serde_json::to_value(result).ok(),
-                                error: None,
-                            }));
+                            send(backend, req.id, to_value(result).ok());
                         }
                     }
                     ExecuteCommand::METHOD => {
-                        if let Ok(params) =
-                            serde_json::from_value::<ExecuteCommandParams>(req.params)
-                        {
+                        if let Ok(params) = from_value::<ExecuteCommandParams>(req.params) {
                             let result = backend.execute_command(params);
-                            let _ = backend.connection.sender.send(Message::Response(Response {
-                                id: req.id,
-                                result: serde_json::to_value(result).ok(),
-                                error: None,
-                            }));
+                            send(backend, req.id, to_value(result).ok());
+                        }
+                    }
+                    DocumentLinkRequest::METHOD => {
+                        if let Ok(params) = from_value::<DocumentLinkParams>(req.params) {
+                            let result = backend.document_link(params);
+                            send(backend, req.id, to_value(result).ok());
+                        }
+                    }
+                    InlayHintRequest::METHOD => {
+                        if let Ok(params) = from_value::<InlayHintParams>(req.params) {
+                            let result = backend.inlay_hint(params);
+                            send(backend, req.id, to_value(result).ok());
                         }
                     }
                     r => {
@@ -203,30 +172,22 @@ pub fn route(backend: &Backend) -> Result<(), Box<dyn std::error::Error + Send +
                 // let time = Instant::now();
                 match not.method.as_str() {
                     DidOpenTextDocument::METHOD => {
-                        if let Ok(params) =
-                            serde_json::from_value::<DidOpenTextDocumentParams>(not.params)
-                        {
+                        if let Ok(params) = from_value::<DidOpenTextDocumentParams>(not.params) {
                             backend.did_open(&params);
                         }
                     }
                     DidCloseTextDocument::METHOD => {
-                        if let Ok(params) =
-                            serde_json::from_value::<DidCloseTextDocumentParams>(not.params)
-                        {
+                        if let Ok(params) = from_value::<DidCloseTextDocumentParams>(not.params) {
                             backend.did_close(&params);
                         }
                     }
                     DidChangeTextDocument::METHOD => {
-                        if let Ok(params) =
-                            serde_json::from_value::<DidChangeTextDocumentParams>(not.params)
-                        {
+                        if let Ok(params) = from_value::<DidChangeTextDocumentParams>(not.params) {
                             backend.did_change(&params);
                         }
                     }
                     DidSaveTextDocument::METHOD => {
-                        if let Ok(params) =
-                            serde_json::from_value::<DidSaveTextDocumentParams>(not.params)
-                        {
+                        if let Ok(params) = from_value::<DidSaveTextDocumentParams>(not.params) {
                             backend.did_save(&params);
                         }
                     }
@@ -238,4 +199,12 @@ pub fn route(backend: &Backend) -> Result<(), Box<dyn std::error::Error + Send +
         }
     }
     Ok(())
+}
+
+fn send(backend: &Backend, id: RequestId, result: Option<Value>) {
+    let _ = backend.connection.sender.send(Message::Response(Response {
+        id,
+        result,
+        error: None,
+    }));
 }

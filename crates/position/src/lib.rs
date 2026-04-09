@@ -33,11 +33,17 @@ fn get_class_position_ast_thing(
     let kind = SymbolKind::CLASS;
     match &thing {
         AstThing::Class(ast_class) => {
-            if let Some(name) = name
+            if name.is_none() {
+                out.push(PositionSymbol {
+                    range: ast_class.name.range,
+                    name: ast_class.name.value.clone(),
+                    kind,
+                });
+            } else if let Some(name) = name
                 && ast_class.name.value == name
             {
                 out.push(PositionSymbol {
-                    range: ast_class.range,
+                    range: ast_class.name.range,
                     name: ast_class.name.value.clone(),
                     kind,
                 });
@@ -47,11 +53,17 @@ fn get_class_position_ast_thing(
             }
         }
         AstThing::Record(ast_record) => {
-            if let Some(name) = name
+            if name.is_none() {
+                out.push(PositionSymbol {
+                    range: ast_record.name.range,
+                    name: ast_record.name.value.clone(),
+                    kind,
+                });
+            } else if let Some(name) = name
                 && ast_record.name.value == name
             {
                 out.push(PositionSymbol {
-                    range: ast_record.range,
+                    range: ast_record.name.range,
                     name: ast_record.name.value.clone(),
                     kind,
                 });
@@ -61,7 +73,13 @@ fn get_class_position_ast_thing(
             }
         }
         AstThing::Interface(ast_interface) => {
-            if let Some(name) = name
+            if name.is_none() {
+                out.push(PositionSymbol {
+                    range: ast_interface.name.range,
+                    name: ast_interface.name.value.clone(),
+                    kind,
+                });
+            } else if let Some(name) = name
                 && ast_interface.name.value == name
             {
                 out.push(PositionSymbol {
@@ -75,7 +93,13 @@ fn get_class_position_ast_thing(
             }
         }
         AstThing::Enumeration(ast_enumeration) => {
-            if let Some(name) = name
+            if name.is_none() {
+                out.push(PositionSymbol {
+                    range: ast_enumeration.name.range,
+                    name: ast_enumeration.name.value.clone(),
+                    kind,
+                });
+            } else if let Some(name) = name
                 && ast_enumeration.name.value != name
             {
                 return;
@@ -90,11 +114,17 @@ fn get_class_position_ast_thing(
             }
         }
         AstThing::Annotation(ast_annotation) => {
-            if let Some(name) = name
+            if name.is_none() {
+                out.push(PositionSymbol {
+                    range: ast_annotation.name.range,
+                    name: ast_annotation.name.value.clone(),
+                    kind,
+                });
+            } else if let Some(name) = name
                 && ast_annotation.name.value == name
             {
                 out.push(PositionSymbol {
-                    range: ast_annotation.range,
+                    range: ast_annotation.name.range,
                     name: ast_annotation.name.value.clone(),
                     kind,
                 });
@@ -582,8 +612,8 @@ public class Test {}
             out,
             vec![PositionSymbol {
                 range: AstRange {
-                    start: AstPoint { line: 2, col: 0 },
-                    end: AstPoint { line: 2, col: 20 },
+                    start: AstPoint { line: 2, col: 13 },
+                    end: AstPoint { line: 2, col: 17 },
                 },
                 name: "Test".to_smolstr(),
                 kind: SymbolKind::CLASS,

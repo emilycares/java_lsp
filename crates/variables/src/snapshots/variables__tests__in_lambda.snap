@@ -14,21 +14,25 @@ expression: out
             ],
         ),
         name: "test",
-        is_fun: true,
         range: AstRange {
             start: AstPoint { 2:4 },
             end: AstPoint { 7:5 },
         },
+        flags: VarFlags(
+            Function,
+        ),
     },
     LocalVariable {
         level: 3,
         jtype: Var,
         name: "t",
-        is_fun: false,
         range: AstRange {
             start: AstPoint { 3:29 },
             end: AstPoint { 3:30 },
         },
+        flags: VarFlags(
+            0x0,
+        ),
     },
     LocalVariable {
         level: 4,
@@ -36,10 +40,12 @@ expression: out
             "Definition",
         ),
         name: "q",
-        is_fun: false,
         range: AstRange {
             start: AstPoint { 4:20 },
             end: AstPoint { 4:51 },
         },
+        flags: VarFlags(
+            0x0,
+        ),
     },
 ]

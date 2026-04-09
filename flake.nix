@@ -222,6 +222,7 @@
                 cargo-flamegraph
                 cargo-nextest
                 cargo-insta
+                cargo-machete
                 javaPackages.compiler.openjdk25
                 lld_21
                 gdb

@@ -264,7 +264,7 @@ public class Test {
         let vars = variables::get_vars(
             &document.ast,
             &VariableContext {
-                point,
+                point: Some(point),
                 imports: &imports,
                 class: &class,
                 class_map: get_class_map(),
@@ -308,7 +308,7 @@ public class Test {
         let vars = variables::get_vars(
             &document.ast,
             &VariableContext {
-                point,
+                point: Some(point),
                 imports: &imports,
                 class: &class,
                 class_map: get_class_map(),
@@ -347,7 +347,7 @@ public class Test extends ParGreet {
         let vars = variables::get_vars(
             &document.ast,
             &VariableContext {
-                point,
+                point: Some(point),
                 imports: &imports,
                 class: &class,
                 class_map: get_class_map(),

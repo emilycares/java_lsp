@@ -9,10 +9,12 @@ expression: out
             "Logger",
         ),
         name: "logger",
-        is_fun: false,
         range: AstRange {
             start: AstPoint { 3:4 },
             end: AstPoint { 3:69 },
         },
+        flags: VarFlags(
+            0x0,
+        ),
     },
 ]

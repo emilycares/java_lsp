@@ -9,7 +9,7 @@ use std::{
 };
 
 use ast::{
-    range::GetRange,
+    range::{GetRange, is_in_range_c},
     types::{
         AstBaseExpression, AstBlock, AstBlockEntry, AstBlockExpression, AstBlockVariable,
         AstClassMethod, AstExpression, AstExpressionKind, AstExpressionOrValue, AstFile, AstFor,
@@ -20,12 +20,12 @@ use ast::{
     },
 };
 use dto::{Class, ImportUnit, JType};
-use local_variable::LocalVariable;
+use local_variable::{LocalVariable, VarFlags};
 use my_string::MyString;
 use tyres::{ResolveState, TyresError};
 
 pub struct VariableContext<'a> {
-    pub point: AstPoint,
+    pub point: Option<AstPoint>,
     pub imports: &'a [ImportUnit],
     pub class: &'a Class,
     pub class_map: Arc<Mutex<HashMap<MyString, Class>>>,
@@ -85,8 +85,8 @@ fn get_interface_constants(
         level,
         jtype: (&i.jtype).into(),
         name: (&i.name).into(),
-        is_fun: false,
         range: i.range,
+        flags: VarFlags::empty(),
     })
 }
 
@@ -101,7 +101,7 @@ fn get_class_methods(
 
     for method in methods {
         out.push(LocalVariable::from_class_method(method, level));
-        if method.range.is_in_range(&context.point) {
+        if is_in_range_c(method.range, &context.point) {
             out.extend(
                 method
                     .header
@@ -125,7 +125,7 @@ fn get_block_vars(
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
     let level = level + 1;
-    if !block.range.is_in_range(&context.point) {
+    if !is_in_range_c(block.range, &context.point) {
         return Ok(());
     }
     for e in &block.entries {
@@ -187,8 +187,8 @@ fn get_block_entry_vars(
                 level,
                 jtype: jtype.into(),
                 name: name.into(),
-                is_fun: false,
                 range: *range,
+                flags: VarFlags::empty(),
             });
             switch_case_arrow_content(content, level, context, out)
         }
@@ -237,7 +237,7 @@ fn block_expr(
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
-    if !ast_expression.range.is_in_range(&context.point) {
+    if !is_in_range_c(ast_expression.range, &context.point) {
         return Ok(());
     }
 
@@ -250,7 +250,7 @@ fn base_expr(
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
-    if !expr.range.is_in_range(&context.point) {
+    if !is_in_range_c(expr.range, &context.point) {
         return Ok(());
     }
     if let Some(v) = &expr.values
@@ -284,7 +284,7 @@ fn expression(
             }
 
             AstExpressionKind::Lambda(ast_lambda) => {
-                if ast_lambda.range.is_in_range(&context.point) {
+                if is_in_range_c(ast_lambda.range, &context.point) {
                     lambda(ast_lambda, level, context, out)?;
                 }
             }
@@ -312,8 +312,8 @@ fn lambda(
         level,
         jtype: JType::Var,
         name: i.name.value.clone(),
-        is_fun: false,
         range: i.range,
+        flags: VarFlags::empty(),
     }));
 
     match &lambda.rhs {
@@ -331,7 +331,7 @@ fn try_catch_vars(
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
-    if !ast_try_catch.range.is_in_range(&context.point) {
+    if !is_in_range_c(ast_try_catch.range, &context.point) {
         return Ok(());
     }
     let level = level + 1;
@@ -342,15 +342,15 @@ fn try_catch_vars(
     if let Some(case) = ast_try_catch
         .cases
         .iter()
-        .find(|i| i.block.range.is_in_range(&context.point))
+        .find(|i| is_in_range_c(i.range, &context.point))
     {
         for ty in &case.variable.jtypes {
             out.push(LocalVariable {
                 level,
                 jtype: ty.into(),
                 name: case.variable.name.value.clone(),
-                is_fun: false,
                 range: case.variable.range,
+                flags: VarFlags::empty(),
             });
         }
         get_block_vars(&case.block, level, context, out)?;
@@ -367,7 +367,7 @@ fn switch_vars(
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
-    if !ast_for_enhanced.range.is_in_range(&context.point) {
+    if !is_in_range_c(ast_for_enhanced.range, &context.point) {
         return Ok(());
     }
     let level = level + 1;
@@ -380,7 +380,7 @@ fn for_enanced_vars(
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
-    if !ast_for_enhanced.range.is_in_range(&context.point) {
+    if !is_in_range_c(ast_for_enhanced.range, &context.point) {
         return Ok(());
     }
     let level = level + 1;
@@ -415,8 +415,8 @@ pub fn from_block_variable(
                     level,
                     jtype,
                     name: v.name.value.clone(),
-                    is_fun: false,
                     range: v.range,
+                    flags: VarFlags::Computed,
                 });
                 return Ok(());
             }
@@ -427,8 +427,8 @@ pub fn from_block_variable(
         level,
         jtype: (&v.jtype).into(),
         name: v.name.value.clone(),
-        is_fun: false,
         range: v.range,
+        flags: VarFlags::empty(),
     });
     Ok(())
 }
@@ -454,7 +454,7 @@ fn for_vars(
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
-    if !ast_for.range.is_in_range(&context.point) {
+    if !is_in_range_c(ast_for.range, &context.point) {
         return Ok(());
     }
     let level = level + 1;
@@ -469,7 +469,7 @@ fn while_vars(
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
-    if !ast_while.range.is_in_range(&context.point) {
+    if !is_in_range_c(ast_while.range, &context.point) {
         return Ok(());
     }
     let level = level + 1;
@@ -499,7 +499,7 @@ fn if_vars(
             content,
         }
         | AstIf::Else { range, content } => {
-            if range.is_in_range(&context.point)
+            if is_in_range_c(*range, &context.point)
                 && let AstIfContent::Block(block) = content
             {
                 get_block_vars(block, level, context, out)?;
@@ -519,7 +519,7 @@ fn get_class_variables(
             level,
             jtype,
             name: i.name.value.clone(),
-            is_fun: false,
+            flags: VarFlags::empty(),
         }
     })
 }
@@ -594,7 +594,7 @@ public class Test {
         let out = get_vars(
             &ast,
             &VariableContext {
-                point: AstPoint::new(12, 17),
+                point: Some(AstPoint::new(12, 17)),
                 imports: Default::default(),
                 class: &class,
                 class_map: get_class_map(),
@@ -620,7 +620,7 @@ public class Test {
         let out = get_vars(
             &ast,
             &VariableContext {
-                point: AstPoint::new(4, 6),
+                point: Some(AstPoint::new(4, 6)),
                 imports: Default::default(),
                 class: &class,
                 class_map: Default::default(),
@@ -659,7 +659,7 @@ public class Test {
         let out = get_vars(
             &ast,
             &VariableContext {
-                point: AstPoint::new(12, 17),
+                point: Some(AstPoint::new(12, 17)),
                 imports: Default::default(),
                 class: &class,
                 class_map: Default::default(),
@@ -695,7 +695,7 @@ public class Test {
         let out = get_vars(
             &ast,
             &VariableContext {
-                point: AstPoint::new(8, 54),
+                point: Some(AstPoint::new(8, 54)),
                 imports: Default::default(),
                 class: &class,
                 class_map: Default::default(),
@@ -748,7 +748,7 @@ public class Test {
         let out = get_vars(
             &ast,
             &VariableContext {
-                point: AstPoint::new(8, 54),
+                point: Some(AstPoint::new(8, 54)),
                 imports: Default::default(),
                 class: &class,
                 class_map: Default::default(),
@@ -777,7 +777,7 @@ public class Test {
         let out = get_vars(
             &ast,
             &VariableContext {
-                point: AstPoint::new(6, 46),
+                point: Some(AstPoint::new(6, 46)),
                 imports: Default::default(),
                 class: &class,
                 class_map: Default::default(),
@@ -806,7 +806,7 @@ public class Test {
         let out = get_vars(
             &ast,
             &VariableContext {
-                point: AstPoint::new(5, 22),
+                point: Some(AstPoint::new(5, 22)),
                 imports: Default::default(),
                 class: &class,
                 class_map: get_class_map(),
@@ -834,7 +834,7 @@ public class Test {
         let out = get_vars(
             &ast,
             &VariableContext {
-                point: AstPoint::new(4, 21),
+                point: Some(AstPoint::new(4, 21)),
                 imports: Default::default(),
                 class: &class,
                 class_map: get_class_map(),

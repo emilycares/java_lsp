@@ -9,11 +9,13 @@ expression: out
             "String",
         ),
         name: "hello",
-        is_fun: false,
         range: AstRange {
             start: AstPoint { 5:4 },
             end: AstPoint { 5:16 },
         },
+        flags: VarFlags(
+            0x0,
+        ),
     },
     LocalVariable {
         level: 1,
@@ -21,11 +23,13 @@ expression: out
             "String",
         ),
         name: "se",
-        is_fun: false,
         range: AstRange {
             start: AstPoint { 6:4 },
             end: AstPoint { 6:13 },
         },
+        flags: VarFlags(
+            0x0,
+        ),
     },
     LocalVariable {
         level: 1,
@@ -33,21 +37,25 @@ expression: out
             "String",
         ),
         name: "other",
-        is_fun: false,
         range: AstRange {
             start: AstPoint { 8:4 },
             end: AstPoint { 8:28 },
         },
+        flags: VarFlags(
+            0x0,
+        ),
     },
     LocalVariable {
         level: 2,
         jtype: Void,
         name: "hello",
-        is_fun: true,
         range: AstRange {
             start: AstPoint { 10:4 },
             end: AstPoint { 15:5 },
         },
+        flags: VarFlags(
+            Function,
+        ),
     },
     LocalVariable {
         level: 2,
@@ -55,11 +63,13 @@ expression: out
             "String",
         ),
         name: "a",
-        is_fun: false,
         range: AstRange {
             start: AstPoint { 10:22 },
             end: AstPoint { 10:30 },
         },
+        flags: VarFlags(
+            0x0,
+        ),
     },
     LocalVariable {
         level: 3,
@@ -67,11 +77,13 @@ expression: out
             "String",
         ),
         name: "local",
-        is_fun: false,
         range: AstRange {
             start: AstPoint { 11:8 },
             end: AstPoint { 11:24 },
         },
+        flags: VarFlags(
+            0x0,
+        ),
     },
     LocalVariable {
         level: 3,
@@ -79,10 +91,12 @@ expression: out
             "java.lang.Integer",
         ),
         name: "lo",
-        is_fun: false,
         range: AstRange {
             start: AstPoint { 13:8 },
             end: AstPoint { 13:19 },
         },
+        flags: VarFlags(
+            Computed,
+        ),
     },
 ]

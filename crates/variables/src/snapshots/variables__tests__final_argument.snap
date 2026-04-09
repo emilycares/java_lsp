@@ -9,11 +9,13 @@ expression: out
             "String",
         ),
         name: "options",
-        is_fun: true,
         range: AstRange {
             start: AstPoint { 3:4 },
             end: AstPoint { 7:5 },
         },
+        flags: VarFlags(
+            Function,
+        ),
     },
     LocalVariable {
         level: 2,
@@ -21,11 +23,13 @@ expression: out
             "String",
         ),
         name: "outer",
-        is_fun: false,
         range: AstRange {
             start: AstPoint { 4:26 },
             end: AstPoint { 4:44 },
         },
+        flags: VarFlags(
+            0x0,
+        ),
     },
     LocalVariable {
         level: 3,
@@ -33,10 +37,12 @@ expression: out
             "String",
         ),
         name: "inner",
-        is_fun: false,
         range: AstRange {
             start: AstPoint { 5:6 },
             end: AstPoint { 5:22 },
         },
+        flags: VarFlags(
+            0x0,
+        ),
     },
 ]

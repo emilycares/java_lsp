@@ -16,7 +16,7 @@ pub struct Pom {
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct PomRepositories {
-    pub repository: Vec<PomRepository>,
+    pub repository: Option<Vec<PomRepository>>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
@@ -55,7 +55,7 @@ mod tests {
         ";
         let expect = Pom {
             repositories: Some(PomRepositories {
-                repository: vec![
+                repository: Some(vec![
                     PomRepository {
                         id: "org-public".to_string(),
                         url: "https://repo.org.eu/public".to_string(),
@@ -64,7 +64,7 @@ mod tests {
                         id: "org-private".to_string(),
                         url: "https://repo.org.eu/org".to_string(),
                     },
-                ],
+                ]),
             }),
         };
 
@@ -80,6 +80,22 @@ mod tests {
         </project>
         ";
         let expect = Pom { repositories: None };
+
+        let out: Pom = serde_xml_rs::from_str(content).unwrap();
+
+        assert_eq!(out, expect);
+    }
+
+    #[test]
+    fn no_repositories_2() {
+        let content = "
+        <project>
+            <repositories />
+        </project>
+        ";
+        let expect = Pom {
+            repositories: Some(PomRepositories { repository: None }),
+        };
 
         let out: Pom = serde_xml_rs::from_str(content).unwrap();
 

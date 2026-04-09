@@ -388,3 +388,8 @@ impl AstInRange for AstSuperClass {
         }
     }
 }
+/// When None true
+#[must_use]
+pub fn is_in_range_c(range: AstRange, opoint: &Option<AstPoint>) -> bool {
+    opoint.as_ref().is_none_or(|p| range.is_in_range(p))
+}

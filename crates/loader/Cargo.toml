@@ -12,7 +12,6 @@ license.workspace = true
 [dependencies]
 parser.workspace = true
 dto.workspace = true
-ast.workspace = true
 my_string.workspace = true
 jwalk.workspace = true
 rc-zip-tokio.workspace = true

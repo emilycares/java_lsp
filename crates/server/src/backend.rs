@@ -19,12 +19,13 @@ use lsp_types::{
     ClientCapabilities, CodeActionOrCommand, CodeActionParams, CodeActionResponse, Command,
     CompletionParams, CompletionResponse, Diagnostic, DiagnosticSeverity,
     DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    DidSaveTextDocumentParams, DocumentFormattingParams, DocumentSymbolParams,
-    DocumentSymbolResponse, ExecuteCommandParams, GotoDefinitionParams, GotoDefinitionResponse,
-    Hover, HoverParams, Location, Position, ProgressParams, ProgressParamsValue, ProgressToken,
-    PublishDiagnosticsParams, Range, ReferenceParams, SignatureHelp, SignatureHelpParams, TextEdit,
-    Uri, WorkDoneProgress, WorkDoneProgressBegin, WorkDoneProgressEnd, WorkDoneProgressReport,
-    WorkspaceSymbolParams, WorkspaceSymbolResponse,
+    DidSaveTextDocumentParams, DocumentFormattingParams, DocumentLink, DocumentLinkParams,
+    DocumentSymbolParams, DocumentSymbolResponse, ExecuteCommandParams, GotoDefinitionParams,
+    GotoDefinitionResponse, Hover, HoverParams, InlayHint, InlayHintParams, Location, Position,
+    ProgressParams, ProgressParamsValue, ProgressToken, PublishDiagnosticsParams, Range,
+    ReferenceParams, SignatureHelp, SignatureHelpParams, TextEdit, Uri, WorkDoneProgress,
+    WorkDoneProgressBegin, WorkDoneProgressEnd, WorkDoneProgressReport, WorkspaceSymbolParams,
+    WorkspaceSymbolResponse,
     notification::{Notification, Progress, PublishDiagnostics},
 };
 use maven::{
@@ -43,7 +44,9 @@ use crate::{
     command::{self, COMMAND_RELOAD_DEPENDENCIES, UPDATE_DEPENDENCIES, repos},
     completion,
     definition::{self, DefinitionContext},
+    document_link::get_document_link,
     hover::{self, class_action},
+    inlay_hint::get_inlay_hint,
     references::{self, ReferenceUnit, ReferencesContext, ReferencesError},
     signature,
 };
@@ -549,7 +552,7 @@ impl Backend {
         let vars = match variables::get_vars(
             &document.ast,
             &VariableContext {
-                point,
+                point: Some(point),
                 imports: &imports,
                 class: &class,
                 class_map: self.class_map.clone(),
@@ -609,28 +612,13 @@ impl Backend {
     }
 
     pub fn completion(&self, params: CompletionParams) -> Option<CompletionResponse> {
-        if !params
-            .text_document_position
-            .text_document
-            .uri
-            .path()
-            .as_str()
-            .to_lowercase()
-            .ends_with(".java")
-        {
-            return None;
-        }
         let params = params.text_document_position;
         let uri = params.text_document.uri;
-        let document;
-        if let Ok(dm) = self.document_map.lock()
-            && let Some(doc) = dm.get(&get_document_map_key(&uri).to_smolstr())
-        {
-            document = doc.clone();
-        } else {
-            eprintln!("Document is not opened.");
+        if !uri.path().as_str().to_lowercase().ends_with(".java") {
             return None;
         }
+        let document = self.get_document(&uri)?;
+
         let mut out = vec![];
         let point = to_ast_point(params.position);
         let imports = imports::imports(&document.ast);
@@ -640,7 +628,7 @@ impl Backend {
         let vars = match variables::get_vars(
             &document.ast,
             &VariableContext {
-                point,
+                point: Some(point),
                 imports: &imports,
                 class: &class,
                 class_map: self.class_map.clone(),
@@ -686,28 +674,13 @@ impl Backend {
     }
 
     pub fn goto_definition(&self, params: GotoDefinitionParams) -> Option<GotoDefinitionResponse> {
-        if !params
-            .text_document_position_params
-            .text_document
-            .uri
-            .path()
-            .as_str()
-            .to_lowercase()
-            .ends_with(".java")
-        {
-            return None;
-        }
         let params = params.text_document_position_params;
         let uri = params.text_document.uri;
-        let document;
-        if let Ok(dm) = self.document_map.lock()
-            && let Some(doc) = dm.get(&get_document_map_key(&uri))
-        {
-            document = doc.clone();
-        } else {
-            eprintln!("Document is not opened.");
+
+        if !uri.path().as_str().to_lowercase().ends_with(".java") {
             return None;
         }
+        let document = self.get_document(&uri)?;
 
         let point = to_ast_point(params.position);
         let imports = imports::imports(&document.ast);
@@ -716,7 +689,7 @@ impl Backend {
         let vars = match variables::get_vars(
             &document.ast,
             &VariableContext {
-                point,
+                point: Some(point),
                 imports: &imports,
                 class: &class,
                 class_map: self.class_map.clone(),
@@ -756,35 +729,21 @@ impl Backend {
     }
 
     pub fn references(&self, params: ReferenceParams) -> Option<Vec<Location>> {
-        if !params
-            .text_document_position
-            .text_document
-            .uri
-            .path()
-            .as_str()
-            .to_lowercase()
-            .ends_with(".java")
-        {
-            return None;
-        }
         let params = params.text_document_position;
         let uri = params.text_document.uri;
-        let document;
-        if let Ok(dm) = self.document_map.lock()
-            && let Some(doc) = dm.get(&get_document_map_key(&uri))
-        {
-            document = doc.clone();
-        } else {
-            eprintln!("Document is not opened.");
+        if !uri.path().as_str().to_lowercase().ends_with(".java") {
             return None;
         }
+
+        let document = self.get_document(&uri)?;
+
         let point = to_ast_point(params.position);
         let imports = imports::imports(&document.ast);
         let class = self.get_class(&document.ast)?;
         let vars = match variables::get_vars(
             &document.ast,
             &VariableContext {
-                point,
+                point: Some(point),
                 imports: &imports,
                 class: &class,
                 class_map: self.class_map.clone(),
@@ -837,23 +796,6 @@ impl Backend {
         }
     }
 
-    fn get_class(&self, ast: &AstFile) -> Option<Class> {
-        let Some(class_path) = get_class_path(ast) else {
-            eprintln!("Could not get class_path");
-            return None;
-        };
-        let class;
-        if let Ok(cm) = self.class_map.lock()
-            && let Some(cl) = cm.get(&class_path)
-        {
-            class = cl.clone();
-        } else {
-            eprintln!("Could not find class {class_path}");
-            return None;
-        }
-        Some(class)
-    }
-
     pub fn code_action(&self, params: CodeActionParams) -> Option<CodeActionResponse> {
         let path_str = params.text_document.uri.path().as_str().to_lowercase();
 
@@ -879,15 +821,7 @@ impl Backend {
             }
             return None;
         }
-        let document;
-        if let Ok(dm) = self.document_map.lock()
-            && let Some(doc) = dm.get(&get_document_map_key(&params.text_document.uri))
-        {
-            document = doc.clone();
-        } else {
-            eprintln!("Document is not opened.");
-            return None;
-        }
+        let document = self.get_document(&params.text_document.uri)?;
         let current_file = params.text_document.uri;
         let point = to_ast_point(params.range.start);
 
@@ -897,7 +831,7 @@ impl Backend {
         let vars = match variables::get_vars(
             &document.ast,
             &VariableContext {
-                point,
+                point: Some(point),
                 imports: &imports,
                 class: &class,
                 class_map: self.class_map.clone(),
@@ -934,26 +868,11 @@ impl Backend {
     }
 
     pub fn document_symbol(&self, params: DocumentSymbolParams) -> Option<DocumentSymbolResponse> {
-        if !params
-            .text_document
-            .uri
-            .path()
-            .as_str()
-            .to_lowercase()
-            .ends_with(".java")
-        {
-            return None;
-        }
-        let document;
-        if let Ok(dm) = self.document_map.lock()
-            && let Some(doc) = dm.get(&get_document_map_key(&params.text_document.uri))
-        {
-            document = doc.clone();
-        } else {
-            eprintln!("Document is not opened.");
-            return None;
-        }
         let uri = params.text_document.uri;
+        if !uri.path().as_str().to_lowercase().ends_with(".java") {
+            return None;
+        }
+        let document = self.get_document(&uri)?;
 
         let mut symbols = vec![];
         position::get_class_position_ast(&document.ast, None, &mut symbols);
@@ -1021,15 +940,8 @@ impl Backend {
             return None;
         }
         let uri = params.text_document_position_params.text_document.uri;
-        let document;
-        if let Ok(dm) = self.document_map.lock()
-            && let Some(doc) = dm.get(&get_document_map_key(&uri))
-        {
-            document = doc.clone();
-        } else {
-            eprintln!("Document is not opened.");
-            return None;
-        }
+        let document = self.get_document(&uri)?;
+
         let point = to_ast_point(params.text_document_position_params.position);
         let class = self.get_class(&document.ast)?;
 
@@ -1066,6 +978,54 @@ impl Backend {
                 eprintln!("Unhandled command: {u}");
                 None
             }
+        }
+    }
+    pub fn document_link(&self, params: DocumentLinkParams) -> Option<Vec<DocumentLink>> {
+        let uri = params.text_document.uri;
+        if !uri.path().as_str().to_lowercase().ends_with(".java") {
+            return None;
+        }
+        let document = self.get_document(&uri)?;
+        get_document_link(&uri, &document)
+    }
+
+    pub fn inlay_hint(&self, params: InlayHintParams) -> Option<Vec<InlayHint>> {
+        let uri = params.text_document.uri;
+        if !uri.path().as_str().to_lowercase().ends_with(".java") {
+            return None;
+        }
+        let document = self.get_document(&uri)?;
+        let class = self.get_class(&document.ast)?;
+        let imports = imports::imports(&document.ast);
+
+        get_inlay_hint(&document, &class, &imports, self.class_map.clone())
+    }
+
+    fn get_class(&self, ast: &AstFile) -> Option<Class> {
+        let Some(class_path) = get_class_path(ast) else {
+            eprintln!("Could not get class_path");
+            return None;
+        };
+        let class;
+        if let Ok(cm) = self.class_map.lock()
+            && let Some(cl) = cm.get(&class_path)
+        {
+            class = cl.clone();
+        } else {
+            eprintln!("Could not find class {class_path}");
+            return None;
+        }
+        Some(class)
+    }
+
+    fn get_document(&self, uri: &Uri) -> Option<Document> {
+        if let Ok(dm) = self.document_map.lock()
+            && let Some(doc) = dm.get(&get_document_map_key(uri))
+        {
+            Some(doc.clone())
+        } else {
+            eprintln!("Document is not opened.");
+            None
         }
     }
 

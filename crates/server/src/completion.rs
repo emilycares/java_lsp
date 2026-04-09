@@ -11,7 +11,7 @@ use call_chain::get_call_chain;
 use document::{Document, DocumentError};
 use dto::{Access, Class, ImportUnit, JType, Method, Parameter};
 use get_class::FoundClass;
-use local_variable::LocalVariable;
+use local_variable::{LocalVariable, VarFlags};
 use lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionItemTag,
     InsertTextFormat,
@@ -36,7 +36,7 @@ pub fn complete_vars(vars: &[LocalVariable]) -> Vec<CompletionItem> {
                 detail: Some(a.jtype.to_string()),
                 ..Default::default()
             }),
-            kind: if a.is_fun {
+            kind: if a.flags.intersects(VarFlags::Function) {
                 Some(CompletionItemKind::FUNCTION)
             } else {
                 Some(CompletionItemKind::VARIABLE)
@@ -412,7 +412,7 @@ mod tests {
     use ast::types::{AstPoint, AstRange};
     use document::Document;
     use dto::{Access, Class, ImportUnit, JType, Method, Parameter};
-    use local_variable::LocalVariable;
+    use local_variable::{LocalVariable, VarFlags};
     use lsp_types::{
         CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat, Position,
         Range, TextEdit,
@@ -466,8 +466,8 @@ public class GreetingResource {
             level: 3,
             jtype: JType::Class("String".into()),
             name: "other".into(),
-            is_fun: false,
             range: AstRange::default(),
+            flags: VarFlags::empty(),
         }];
         let imports = vec![
             ImportUnit::Class("jakarta.inject.Inject".into()),
@@ -540,8 +540,8 @@ public class Test {
             level: 3,
             jtype: JType::Class("String".into()),
             name: "local".into(),
-            is_fun: false,
             range: AstRange::default(),
+            flags: VarFlags::empty(),
         }];
         let imports = vec![];
         let class = Class {

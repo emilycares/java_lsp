@@ -408,7 +408,7 @@ public class Test {
             vars: &variables::get_vars(
                 &doc.ast,
                 &VariableContext {
-                    point,
+                    point: Some(point),
                     imports: &imports,
                     class: &class,
                     class_map: get_class_map(),
@@ -453,7 +453,7 @@ public class Test {
             vars: &variables::get_vars(
                 &doc.ast,
                 &VariableContext {
-                    point,
+                    point: Some(point),
                     imports: &imports,
                     class: &class,
                     class_map: get_class_map(),
@@ -499,7 +499,7 @@ public class Test {
             vars: &variables::get_vars(
                 &doc.ast,
                 &VariableContext {
-                    point,
+                    point: Some(point),
                     imports: &imports,
                     class: &class,
                     class_map: get_class_map(),

@@ -38,7 +38,10 @@ pub fn load_repositories(
     let Some(repositories) = project.repositories else {
         return Ok(out);
     };
-    if repositories.repository.is_empty() {
+    let Some(repositories) = repositories.repository else {
+        return Ok(out);
+    };
+    if repositories.is_empty() {
         return Ok(out);
     }
 
@@ -47,7 +50,7 @@ pub fn load_repositories(
         return Ok(out);
     };
 
-    for repo in repositories.repository {
+    for repo in repositories {
         add_repo(&mut out, &servers, &repo.id, repo.url);
     }
 
