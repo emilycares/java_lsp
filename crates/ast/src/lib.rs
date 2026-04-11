@@ -1287,20 +1287,32 @@ pub fn parse_base_expression(
             out.ident = Some(AstExpressionIdentifier::Identifier(id));
         }
         Token::LeftParenSquare => {
+            let start = tokens.start(pos)?;
             pos += 1;
             if let Ok((array_access_expr, npos)) = parse_expression(tokens, pos, expression_options)
             {
+                let npos = assert_token(tokens, npos, Token::RightParenSquare)?;
+                pos = npos;
+                let end = tokens.end(pos)?;
                 if array_access_expr.is_empty() {
-                    out.ident = Some(AstExpressionIdentifier::EmptyArrayAccess);
+                    out.ident = Some(AstExpressionIdentifier::EmptyArrayAccess(
+                        AstRange::from_position_token(start, end),
+                    ));
                 } else {
-                    out.ident = Some(AstExpressionIdentifier::ArrayAccess(array_access_expr));
+                    out.ident = Some(AstExpressionIdentifier::ArrayAccess {
+                        expr: array_access_expr,
+                        range: AstRange::from_position_token(start, end),
+                    });
                 }
                 pos = npos;
             } else {
-                out.ident = Some(AstExpressionIdentifier::EmptyArrayAccess);
+                let npos = assert_token(tokens, pos, Token::RightParenSquare)?;
+                pos = npos;
+                let end = tokens.end(pos)?;
+                out.ident = Some(AstExpressionIdentifier::EmptyArrayAccess(
+                    AstRange::from_position_token(start, end),
+                ));
             }
-            let npos = assert_token(tokens, pos, Token::RightParenSquare)?;
-            pos = npos;
         }
         Token::LeftParen => {
             let values_start = tokens.get(pos).ok_or_else(AstError::eof)?;

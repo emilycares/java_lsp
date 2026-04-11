@@ -6,7 +6,7 @@ use std::{
 use ast::types::{AstFile, AstPoint};
 use call_chain::CallItem;
 use document::{Document, DocumentError, read_document_or_open_class};
-use dto::{Class, ImportUnit};
+use dto::{Class, ImportUnit, JType};
 use local_variable::LocalVariable;
 use lsp_extra::{SourceToUriError, ToLspRangeError, source_to_uri, to_lsp_range};
 use lsp_types::{GotoDefinitionResponse, Location, SymbolKind, Uri};
@@ -33,6 +33,7 @@ pub enum DefinitionError {
     ToLspRange(ToLspRangeError),
     SourceToUri(SourceToUriError),
     FieldNotFound { name: SmolStr },
+    NotAnArray,
 }
 pub struct DefinitionContext<'a> {
     pub document_uri: Uri,
@@ -125,7 +126,6 @@ pub fn call_chain_definition(
         Some(CallItem::FieldAccess { name, range: _ }) => {
             field_definition(context, &resolve_state, name)
         }
-
         Some(CallItem::Variable { name, range: _ }) => {
             let Some(range) = context
                 .vars
@@ -175,6 +175,24 @@ pub fn call_chain_definition(
                 return call_chain_definition(current_param, context);
             }
             Err(DefinitionError::ArgumentNotFound)
+        }
+        Some(CallItem::ArrayAccess { .. }) => {
+            if let JType::Array(i) = resolve_state.jtype
+                && let Ok(res) = tyres::resolve_jtype(&i, context.imports, &context.class_map)
+            {
+                let source = res.class.get_source();
+                let ast = document::get_ast(&source, context.document_map)
+                    .map_err(DefinitionError::Document)?;
+                let mut ranges = Vec::new();
+                let name = match *i {
+                    JType::Class(name) | JType::Generic(name, _) => Some(name),
+                    _ => None,
+                };
+                position::get_class_position_ast(&ast, name.as_deref(), &mut ranges);
+                let uri = source_to_uri(&source).map_err(DefinitionError::SourceToUri)?;
+                return go_to_definition_range(uri, &ranges);
+            }
+            Err(DefinitionError::NotAnArray)
         }
         None => Err(DefinitionError::ValidatedItemDoesNotExists),
     }

@@ -50,7 +50,12 @@ expression: parsed
                     end: AstPoint { 0:10 },
                 },
                 ident: Some(
-                    EmptyArrayAccess,
+                    EmptyArrayAccess(
+                        AstRange {
+                            start: AstPoint { 0:8 },
+                            end: AstPoint { 0:10 },
+                        },
+                    ),
                 ),
                 values: None,
                 operator: None,

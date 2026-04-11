@@ -1114,3 +1114,38 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         out,
     );
 }
+
+#[test]
+fn call_chain_array_access() {
+    let content = r#"
+package ch.emilycares;
+public class Test {
+public boolean test(String[] a) {
+return a[0]. ;
+}
+}
+"#;
+    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let ast = ast::parse_file(&tokens).unwrap();
+    dbg!(&ast);
+
+    let out = get_call_chain(&ast, &AstPoint::new(4, 13));
+    assert_eq!(
+        vec![
+            CallItem::ClassOrVariable {
+                name: SmolStr::new_inline("a"),
+                range: AstRange {
+                    start: AstPoint { line: 4, col: 7 },
+                    end: AstPoint { line: 4, col: 8 },
+                },
+            },
+            CallItem::ArrayAccess {
+                range: AstRange {
+                    start: AstPoint { line: 4, col: 8 },
+                    end: AstPoint { line: 4, col: 11 },
+                }
+            }
+        ],
+        out,
+    );
+}

@@ -1052,7 +1052,14 @@ fn get_class_expression_identifier(
         }
         AstExpressionIdentifier::Nuget(_ast_value_nuget) => None,
         AstExpressionIdentifier::Value(_ast_value) => None,
-        AstExpressionIdentifier::ArrayAccess(_ast_value) => None,
-        AstExpressionIdentifier::EmptyArrayAccess => None,
+        AstExpressionIdentifier::ArrayAccess { expr, range } => {
+            if range.is_in_range(point)
+                && let Some(o) = get_class_expression(expr, point)
+            {
+                return Some(o);
+            }
+            None
+        }
+        AstExpressionIdentifier::EmptyArrayAccess { .. } => None,
     }
 }

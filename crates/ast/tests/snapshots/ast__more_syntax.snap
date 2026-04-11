@@ -1087,8 +1087,8 @@ AstFile {
                                                                                         end: AstPoint { 18:34 },
                                                                                     },
                                                                                     ident: Some(
-                                                                                        ArrayAccess(
-                                                                                            [
+                                                                                        ArrayAccess {
+                                                                                            expr: [
                                                                                                 Base(
                                                                                                     AstBaseExpression {
                                                                                                         range: AstRange {
@@ -1115,7 +1115,11 @@ AstFile {
                                                                                                     },
                                                                                                 ),
                                                                                             ],
-                                                                                        ),
+                                                                                            range: AstRange {
+                                                                                                start: AstPoint { 18:31 },
+                                                                                                end: AstPoint { 18:34 },
+                                                                                            },
+                                                                                        },
                                                                                     ),
                                                                                     values: None,
                                                                                     operator: None,
@@ -1438,8 +1442,8 @@ AstFile {
                                                                 end: AstPoint { 20:20 },
                                                             },
                                                             ident: Some(
-                                                                ArrayAccess(
-                                                                    [
+                                                                ArrayAccess {
+                                                                    expr: [
                                                                         Base(
                                                                             AstBaseExpression {
                                                                                 range: AstRange {
@@ -1466,7 +1470,11 @@ AstFile {
                                                                             },
                                                                         ),
                                                                     ],
-                                                                ),
+                                                                    range: AstRange {
+                                                                        start: AstPoint { 20:17 },
+                                                                        end: AstPoint { 20:20 },
+                                                                    },
+                                                                },
                                                             ),
                                                             values: None,
                                                             operator: None,
@@ -1479,8 +1487,8 @@ AstFile {
                                                                 end: AstPoint { 20:23 },
                                                             },
                                                             ident: Some(
-                                                                ArrayAccess(
-                                                                    [
+                                                                ArrayAccess {
+                                                                    expr: [
                                                                         Base(
                                                                             AstBaseExpression {
                                                                                 range: AstRange {
@@ -1507,7 +1515,11 @@ AstFile {
                                                                             },
                                                                         ),
                                                                     ],
-                                                                ),
+                                                                    range: AstRange {
+                                                                        start: AstPoint { 20:20 },
+                                                                        end: AstPoint { 20:23 },
+                                                                    },
+                                                                },
                                                             ),
                                                             values: None,
                                                             operator: None,
@@ -4081,8 +4093,8 @@ AstFile {
                                                                                                         end: AstPoint { 67:42 },
                                                                                                     },
                                                                                                     ident: Some(
-                                                                                                        ArrayAccess(
-                                                                                                            [
+                                                                                                        ArrayAccess {
+                                                                                                            expr: [
                                                                                                                 Base(
                                                                                                                     AstBaseExpression {
                                                                                                                         range: AstRange {
@@ -4109,7 +4121,11 @@ AstFile {
                                                                                                                     },
                                                                                                                 ),
                                                                                                             ],
-                                                                                                        ),
+                                                                                                            range: AstRange {
+                                                                                                                start: AstPoint { 67:38 },
+                                                                                                                end: AstPoint { 67:42 },
+                                                                                                            },
+                                                                                                        },
                                                                                                     ),
                                                                                                     values: None,
                                                                                                     operator: None,

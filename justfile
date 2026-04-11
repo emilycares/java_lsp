@@ -38,3 +38,5 @@ cleanup:
   cargo-machete || true
 
 precommit: fmt check test clippy doc dev cleanup nix 
+
+p: precommit

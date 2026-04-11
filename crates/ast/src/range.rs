@@ -323,8 +323,7 @@ impl GetRange for AstExpressionIdentifier {
             Self::Identifier(ast_identifier) => ast_identifier.range,
             Self::Nuget(ast_value_nuget) => ast_value_nuget.get_range(),
             Self::Value(ast_value) => ast_value.get_range(),
-            Self::ArrayAccess(expr) => expr.get_range(),
-            Self::EmptyArrayAccess => AstRange::default(),
+            Self::ArrayAccess { range, .. } | Self::EmptyArrayAccess(range) => *range,
         }
     }
 }

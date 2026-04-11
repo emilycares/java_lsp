@@ -177,7 +177,9 @@ pub fn call_chain_hover(
             }
             Err(HoverError::ArgumentNotFound)
         }
-        CallItem::This { range: _ } => Err(HoverError::Unimlemented),
+        CallItem::ArrayAccess { range: _ } | CallItem::This { range: _ } => {
+            Err(HoverError::Unimlemented)
+        }
     }
 }
 

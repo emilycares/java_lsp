@@ -32,7 +32,12 @@ expression: parsed
                     end: AstPoint { 0:6 },
                 },
                 ident: Some(
-                    EmptyArrayAccess,
+                    EmptyArrayAccess(
+                        AstRange {
+                            start: AstPoint { 0:4 },
+                            end: AstPoint { 0:6 },
+                        },
+                    ),
                 ),
                 values: None,
                 operator: None,

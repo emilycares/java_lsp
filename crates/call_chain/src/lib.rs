@@ -52,6 +52,9 @@ pub enum CallItem {
         filled_params: Vec<Vec<Self>>,
         range: AstRange,
     },
+    ArrayAccess {
+        range: AstRange,
+    },
 }
 
 impl CallItem {
@@ -64,6 +67,7 @@ impl CallItem {
             | Self::This { range }
             | Self::Class { name: _, range }
             | Self::ClassOrVariable { name: _, range }
+            | Self::ArrayAccess { range }
             | Self::ArgumentList {
                 prev: _,
                 active_param: _,
@@ -561,6 +565,7 @@ pub fn validate(call_chain: &[CallItem], point: &AstPoint) -> (usize, Vec<CallIt
             | CallItem::Variable { name: _, range }
             | CallItem::This { range }
             | CallItem::ClassOrVariable { name: _, range }
+            | CallItem::ArrayAccess { range }
             | CallItem::Class { name: _, range } => range.is_in_range(point),
             CallItem::ArgumentList {
                 prev,
@@ -1348,10 +1353,11 @@ fn cc_expr_ident(
         }
         AstExpressionIdentifier::Nuget(ast_value_nuget) => cc_value_nuget(ast_value_nuget, out),
         AstExpressionIdentifier::Value(ast_value) => cc_value(ast_value, point, out),
-        AstExpressionIdentifier::ArrayAccess(arrayaccess) => {
-            cc_expr(arrayaccess, point, has_parent, out);
+        AstExpressionIdentifier::ArrayAccess { range, .. } => {
+            out.push(CallItem::ArrayAccess { range: *range });
+            // cc_expr(arrayaccess, point, has_parent, out);
         }
-        AstExpressionIdentifier::EmptyArrayAccess => (),
+        AstExpressionIdentifier::EmptyArrayAccess { .. } => (),
     }
 }
 

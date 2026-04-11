@@ -791,8 +791,11 @@ pub enum AstExpressionIdentifier {
     Identifier(AstIdentifier),
     Nuget(AstValueNuget),
     Value(AstValue),
-    ArrayAccess(AstExpression),
-    EmptyArrayAccess,
+    ArrayAccess {
+        expr: AstExpression,
+        range: AstRange,
+    },
+    EmptyArrayAccess(AstRange),
 }
 
 #[derive(Debug, Clone)]

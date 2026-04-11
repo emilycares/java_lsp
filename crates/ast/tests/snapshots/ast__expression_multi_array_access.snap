@@ -32,8 +32,8 @@ expression: ast
                     end: AstPoint { 0:10 },
                 },
                 ident: Some(
-                    ArrayAccess(
-                        [
+                    ArrayAccess {
+                        expr: [
                             Base(
                                 AstBaseExpression {
                                     range: AstRange {
@@ -60,7 +60,11 @@ expression: ast
                                 },
                             ),
                         ],
-                    ),
+                        range: AstRange {
+                            start: AstPoint { 0:7 },
+                            end: AstPoint { 0:10 },
+                        },
+                    },
                 ),
                 values: None,
                 operator: None,
@@ -73,8 +77,8 @@ expression: ast
                     end: AstPoint { 0:13 },
                 },
                 ident: Some(
-                    ArrayAccess(
-                        [
+                    ArrayAccess {
+                        expr: [
                             Base(
                                 AstBaseExpression {
                                     range: AstRange {
@@ -101,7 +105,11 @@ expression: ast
                                 },
                             ),
                         ],
-                    ),
+                        range: AstRange {
+                            start: AstPoint { 0:10 },
+                            end: AstPoint { 0:13 },
+                        },
+                    },
                 ),
                 values: None,
                 operator: None,
@@ -114,8 +122,8 @@ expression: ast
                     end: AstPoint { 0:16 },
                 },
                 ident: Some(
-                    ArrayAccess(
-                        [
+                    ArrayAccess {
+                        expr: [
                             Base(
                                 AstBaseExpression {
                                     range: AstRange {
@@ -142,7 +150,11 @@ expression: ast
                                 },
                             ),
                         ],
-                    ),
+                        range: AstRange {
+                            start: AstPoint { 0:13 },
+                            end: AstPoint { 0:16 },
+                        },
+                    },
                 ),
                 values: None,
                 operator: None,

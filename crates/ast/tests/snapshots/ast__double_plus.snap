@@ -32,8 +32,8 @@ expression: parsed.unwrap()
                     end: AstPoint { 0:11 },
                 },
                 ident: Some(
-                    ArrayAccess(
-                        [
+                    ArrayAccess {
+                        expr: [
                             Base(
                                 AstBaseExpression {
                                     range: AstRange {
@@ -72,7 +72,11 @@ expression: parsed.unwrap()
                                 },
                             ),
                         ],
-                    ),
+                        range: AstRange {
+                            start: AstPoint { 0:6 },
+                            end: AstPoint { 0:11 },
+                        },
+                    },
                 ),
                 values: None,
                 operator: None,

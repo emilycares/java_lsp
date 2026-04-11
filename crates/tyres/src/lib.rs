@@ -36,6 +36,7 @@ pub enum TyresError {
     CallChainEmpty,
     /// Value needs to be checked, type is var
     CheckValue,
+    NotAnArray,
 }
 
 #[derive(Debug, Clone)]
@@ -494,6 +495,14 @@ fn call_chain_op(
                 resolve_call_chain(prev, lo_va, imports, class, class_map)
             }
         }
+        CallItem::ArrayAccess { .. } => {
+            if let Some(last) = ops.last()
+                && let JType::Array(i) = &last.jtype
+            {
+                return resolve_jtype(i, imports, class_map);
+            }
+            Err(TyresError::NotAnArray)
+        }
     }
 }
 #[allow(clippy::too_many_arguments)]
@@ -574,6 +583,14 @@ fn call_chain_op_self(
                 return resolve_call_chain(prev, lo_va, imports, class, class_map);
             }
             resolve_call_chain(prev, lo_va, imports, class, class_map)
+        }
+        CallItem::ArrayAccess { .. } => {
+            if let Some(last) = ops.last()
+                && let JType::Array(i) = &last.jtype
+            {
+                return resolve_jtype(i, imports, class_map);
+            }
+            Err(TyresError::NotAnArray)
         }
     }
 }

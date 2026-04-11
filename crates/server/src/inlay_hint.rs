@@ -79,6 +79,23 @@ public class Test {
         let out = get_inlay_hint(&document, &class, &imports, get_class_map()).unwrap();
         insta::assert_debug_snapshot!(out);
     }
+    #[test]
+    fn array_access() {
+        let cont = r#"
+package ch.emilycares;
+public class Test {
+    public String hello() {
+        String[] a = { "a", "b" };
+        var b = a[0];
+    }
+}
+        "#;
+        let document = Document::setup(cont, PathBuf::from_str("/Test.java").unwrap()).unwrap();
+        let class = parser::java::load_java_tree(&document.ast, SourceDestination::None);
+        let imports = imports::imports(&document.ast);
+        let out = get_inlay_hint(&document, &class, &imports, get_class_map()).unwrap();
+        insta::assert_debug_snapshot!(out);
+    }
     fn get_class_map() -> Arc<Mutex<HashMap<MyString, Class>>> {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
 
