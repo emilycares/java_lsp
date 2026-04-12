@@ -196,7 +196,7 @@ pub fn load_class_files(
     };
 
     #[cfg(windows)]
-    let root_prefix = root_prefix.replace("\\", "/");
+    let root_prefix = root_prefix.replace('\\', "/");
     #[cfg(windows)]
     let root_prefix = root_prefix.as_str();
 

@@ -176,7 +176,7 @@ impl Document {
                     }
                     Err(e) => {
                         e.print_err(&self.rope.to_string(), &tokens);
-                        if let Some(diag) = lsp_extra::ast_error_to_diagnostic(&e, &tokens) {
+                        if let Ok(diag) = lsp_extra::ast_error_to_diagnostic(&e, &tokens) {
                             return Err(DocumentError::Diagnostic(Box::new(diag)));
                         }
                     }

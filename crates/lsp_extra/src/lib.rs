@@ -106,16 +106,22 @@ fn path_without_subclass(source: &str) -> String {
     source.to_owned()
 }
 
-#[must_use]
-/// # Panics
-/// When tokens vec has been mutated
-pub fn ast_error_to_diagnostic(err: &AstError, tokens: &[PositionToken]) -> Option<Diagnostic> {
+pub enum AstDiagnosticError {
+    TokensModified,
+    Enpty,
+    ChildrenNotFound,
+}
+
+pub fn ast_error_to_diagnostic(
+    err: &AstError,
+    tokens: &[PositionToken],
+) -> Result<Diagnostic, AstDiagnosticError> {
     match err {
         AstError::ExpectedToken(expected_token) => {
             let found = tokens
                 .get(expected_token.pos)
-                .expect("Tokens should not be changed");
-            Some(diag(
+                .ok_or(AstDiagnosticError::TokensModified)?;
+            Ok(diag(
                 format!(
                     "Expected token {:?} found: {:?}",
                     expected_token.expected, found.token
@@ -125,15 +131,15 @@ pub fn ast_error_to_diagnostic(err: &AstError, tokens: &[PositionToken]) -> Opti
         }
         AstError::UnexpectedEOF => {
             if let Some(last) = tokens.last() {
-                return Some(diag("Unexpected end of File".to_string(), last));
+                return Ok(diag("Unexpected end of File".to_string(), last));
             }
-            None
+            Err(AstDiagnosticError::Enpty)
         }
         AstError::InvalidJtype(invalid_token) => {
             let found = tokens
                 .get(invalid_token.0)
-                .expect("Tokens should not be changed");
-            Some(diag(
+                .ok_or(AstDiagnosticError::TokensModified)?;
+            Ok(diag(
                 format!(
                     "Invalid Type token found: {:?} valid onese ar Int, String",
                     found.token
@@ -144,8 +150,8 @@ pub fn ast_error_to_diagnostic(err: &AstError, tokens: &[PositionToken]) -> Opti
         AstError::IdentifierEmpty(invalid_token) => {
             let found = tokens
                 .get(invalid_token.0)
-                .expect("Tokens should not be changed");
-            Some(diag(
+                .ok_or(AstDiagnosticError::TokensModified)?;
+            Ok(diag(
                 format!("Identifier empty found: {:?}", found.token),
                 found,
             ))
@@ -153,8 +159,8 @@ pub fn ast_error_to_diagnostic(err: &AstError, tokens: &[PositionToken]) -> Opti
         AstError::InvalidName(invalid_token) => {
             let found = tokens
                 .get(invalid_token.0)
-                .expect("Tokens should not be changed");
-            Some(diag(
+                .ok_or(AstDiagnosticError::TokensModified)?;
+            Ok(diag(
                 format!("Token not allowed in name: {:?}", found.token),
                 found,
             ))
@@ -162,8 +168,8 @@ pub fn ast_error_to_diagnostic(err: &AstError, tokens: &[PositionToken]) -> Opti
         AstError::InvalidNuget(invalid_token) => {
             let found = tokens
                 .get(invalid_token.0)
-                .expect("Tokens should not be changed");
-            Some(diag(
+                .ok_or(AstDiagnosticError::TokensModified)?;
+            Ok(diag(
                 format!("Token not allowed in nuget: {:?}", found.token),
                 found,
             ))
@@ -171,8 +177,8 @@ pub fn ast_error_to_diagnostic(err: &AstError, tokens: &[PositionToken]) -> Opti
         AstError::InvalidBoolean(invalid_token) => {
             let found = tokens
                 .get(invalid_token.0)
-                .expect("Tokens should not be changed");
-            Some(diag(
+                .ok_or(AstDiagnosticError::TokensModified)?;
+            Ok(diag(
                 format!("Token not allowed in boolean: {:?}", found.token),
                 found,
             ))
@@ -180,8 +186,8 @@ pub fn ast_error_to_diagnostic(err: &AstError, tokens: &[PositionToken]) -> Opti
         AstError::InvalidString(invalid_token) => {
             let found = tokens
                 .get(invalid_token.0)
-                .expect("Tokens should not be changed");
-            Some(diag(
+                .ok_or(AstDiagnosticError::TokensModified)?;
+            Ok(diag(
                 format!("Not a string literal: {:?}", found.token),
                 found,
             ))
@@ -195,13 +201,13 @@ pub fn ast_error_to_diagnostic(err: &AstError, tokens: &[PositionToken]) -> Opti
                 // e.1.1.print_err(content, tokens);
                 return ast_error_to_diagnostic(&e.1.1, tokens);
             }
-            None
+            Err(AstDiagnosticError::ChildrenNotFound)
         }
         AstError::EmptyExpression(invalid_token) => {
             let found = tokens
                 .get(invalid_token.0)
-                .expect("Tokens should not be changed");
-            Some(diag(
+                .ok_or(AstDiagnosticError::TokensModified)?;
+            Ok(diag(
                 format!("Invalid expression it is empty {:?}", found.token),
                 found,
             ))
