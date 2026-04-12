@@ -6,11 +6,11 @@ use std::{
 };
 
 use common::{
-    Dependency, TaskProgress, project_cache_dir,
+    Dependency, TaskProgress, cache_dir, project_cache_dir,
     project_kind::{ProjectKind, get_project_kind},
 };
 use dto::Class;
-use gradle::tree::GradleTreeError;
+use gradle::project::get_gradle_cache_path;
 use lsp_extra::SERVER_NAME;
 use lsp_server::Connection;
 use lsp_types::{Diagnostic, DiagnosticSeverity, ProgressToken, Range};
@@ -30,42 +30,82 @@ pub fn reload_dependencies(
     class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
     project_dir: &Path,
 ) -> Option<serde_json::Value> {
-    let repos = Arc::new(repos(project_kind, project_dir));
-    let con = con.clone();
-    let project_kind = project_kind.clone();
-    let class_map = class_map.clone();
-    let project_dir = project_dir.to_owned();
-    tokio::spawn(async move {
-        let progress = Arc::new(progress);
-        let tree_task = "Load Dependencies".to_string();
-        Backend::progress_start_option_token(&con.clone(), &progress, &tree_task);
-        let tree = get_tree(&project_kind, &con).await;
-        Backend::progress_end_option_token(&con.clone(), &progress, &tree_task);
+    match project_kind.clone() {
+        ProjectKind::Maven { .. } => {
+            let repos = Arc::new(maven::get_repositories(project_dir));
+            let con = con.clone();
+            let project_kind = project_kind.clone();
+            let class_map = class_map.clone();
+            let project_dir = project_dir.to_owned();
+            tokio::spawn(async move {
+                let progress = Arc::new(progress);
+                let tree_task = "Load Dependencies".to_string();
+                Backend::progress_start_option_token(&con.clone(), &progress, &tree_task);
+                let tree = get_tree(&project_kind, &con).await;
+                Backend::progress_end_option_token(&con.clone(), &progress, &tree_task);
 
-        let task = format!("Command: {COMMAND_RELOAD_DEPENDENCIES}");
+                let task = format!("Command: {COMMAND_RELOAD_DEPENDENCIES}");
+                Backend::progress_start_option_token(&con.clone(), &progress, &task);
+                let (sender, receiver) =
+                    tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
+                        percentage: 0,
+                        error: false,
+                        message: "...".to_string(),
+                    });
+
+                let cache = PathBuf::from(maven::compile::CLASSPATH_FILE);
+                if cache.exists() {
+                    let _ = fs::remove_file(cache);
+                }
+                if let Some(tree) = tree {
+                    let cache = cache_dir();
+                    tokio::select! {
+                        () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
+                        () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree, repos) => {}
+                    }
+                }
+                Backend::progress_end_option_token(&con.clone(), &progress, &task);
+            });
+        }
+        ProjectKind::Gradle { executable, .. } => {
+            reload_gradle_project(con, class_map, project_dir, executable);
+        }
+        ProjectKind::Unknown => (),
+    }
+    None
+}
+
+/// For gradle there is no difference between update and reload
+/// Does not use a cache
+fn reload_gradle_project(
+    con: &Arc<Connection>,
+    class_map: &Arc<Mutex<HashMap<my_string::smol_str::SmolStr, Class>>>,
+    project_dir: &Path,
+    executable: String,
+) {
+    let project_dir = project_dir.to_owned();
+    let con = con.clone();
+    let class_map = class_map.clone();
+    tokio::spawn(async move {
+        let task = "Load gradle project".to_string();
+        let progress = Arc::new(Option::Some(ProgressToken::String(task.clone())));
         Backend::progress_start_option_token(&con.clone(), &progress, &task);
+        let project_cache_dir = project_cache_dir();
+
+        let cache_path = get_gradle_cache_path(project_dir.as_path(), project_cache_dir.as_path());
         let (sender, receiver) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
             percentage: 0,
             error: false,
             message: "...".to_string(),
         });
-        if let ProjectKind::Maven { executable: _ } = project_kind {
-            let cache = PathBuf::from(maven::compile::CLASSPATH_FILE);
-            if cache.exists() {
-                let _ = fs::remove_file(cache);
-            }
+        tokio::select! {
+            () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
+            () = gradle::project::index_project(class_map.clone(), sender, false, cache_path, executable.clone()) => {}
         }
-        if let Some(tree) = tree {
-            let cache = project_cache_dir();
-            tokio::select! {
-                () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-                () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree, repos) => {}
-            }
-        }
-        Backend::progress_end_option_token(&con.clone(), &progress, &task);
+        Backend::progress_end_option_token(&con, &progress, &task);
     });
-    None
 }
+
 pub async fn reload_dependencies_cli() {
     let (con, _) = Connection::memory();
     let con = Arc::new(con);
@@ -78,9 +118,25 @@ pub async fn reload_dependencies_cli() {
     let Ok(project_kind) = get_project_kind(&project_dir, &path) else {
         return;
     };
+    match project_kind {
+        ProjectKind::Maven { .. } => {
+            reload_dependencies_maven_cli(con, project_dir, project_kind).await;
+        }
+        ProjectKind::Gradle { executable, .. } => {
+            reload_gradle_project_cli(con, project_dir, executable).await;
+        }
+        ProjectKind::Unknown => (),
+    }
+}
+
+async fn reload_dependencies_maven_cli(
+    con: Arc<Connection>,
+    project_dir: PathBuf,
+    project_kind: ProjectKind,
+) {
     let progress = Arc::new(None);
     let class_map = Arc::new(Mutex::new(HashMap::new()));
-    let repos = Arc::new(repos(&project_kind, &project_dir));
+    let repos = Arc::new(maven::get_repositories(&project_dir));
     let tree_task = "Load Dependencies".to_string();
     Backend::progress_start_option_token(&con.clone(), &progress, &tree_task);
     let tree = get_tree(&project_kind, &con).await;
@@ -100,7 +156,7 @@ pub async fn reload_dependencies_cli() {
         }
     }
     if let Some(tree) = tree {
-        let cache = project_cache_dir();
+        let cache = cache_dir();
         tokio::select! {
             () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
             () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree, repos) => {}
@@ -117,7 +173,24 @@ pub fn update_dependencies(
     class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
     project_dir: &Path,
 ) {
-    let repos = Arc::new(repos(project_kind, project_dir));
+    match project_kind.clone() {
+        ProjectKind::Maven { .. } => {
+            update_dependencies_maven(con, progress, project_kind, class_map, project_dir);
+        }
+        ProjectKind::Gradle { executable, .. } => {
+            reload_gradle_project(con, class_map, project_dir, executable);
+        }
+        ProjectKind::Unknown => (),
+    }
+}
+pub fn update_dependencies_maven(
+    con: &Arc<Connection>,
+    progress: Option<ProgressToken>,
+    project_kind: &ProjectKind,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    project_dir: &Path,
+) {
+    let repos = Arc::new(maven::get_repositories(project_dir));
     let con = con.clone();
     let project_kind = project_kind.clone();
     let project_dir = project_dir.to_owned();
@@ -147,7 +220,7 @@ pub fn update_dependencies(
                 error: false,
                 message: "...".to_string(),
             });
-            let cache = project_cache_dir();
+            let cache = cache_dir();
             let task = format!("Command: {COMMAND_RELOAD_DEPENDENCIES}");
             Backend::progress_start_option_token(&con.clone(), &progress, &task);
             tokio::select! {
@@ -171,8 +244,47 @@ pub async fn update_dependencies_cli() {
     let Ok(project_kind) = get_project_kind(&project_dir, &path) else {
         return;
     };
+    match project_kind {
+        ProjectKind::Maven { .. } => {
+            update_dependencies_maven_cli(con, project_dir, project_kind).await;
+        }
+        ProjectKind::Gradle { executable, .. } => {
+            reload_gradle_project_cli(con, project_dir, executable).await;
+        }
+        ProjectKind::Unknown => (),
+    }
+}
+
+/// For gradle there is no difference between update and reload
+/// Does not use a cache
+async fn reload_gradle_project_cli(con: Arc<Connection>, project_dir: PathBuf, executable: String) {
     let class_map = Arc::new(Mutex::new(HashMap::new()));
-    let repos = Arc::new(repos(&project_kind, &project_dir));
+
+    let task = "Load gradle project".to_string();
+    let progress = Arc::new(Option::Some(ProgressToken::String(task.clone())));
+    Backend::progress_start_option_token(&con.clone(), &progress, &task);
+    let project_cache_dir = project_cache_dir();
+
+    let cache_path = get_gradle_cache_path(project_dir.as_path(), project_cache_dir.as_path());
+    let (sender, receiver) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
+        percentage: 0,
+        error: false,
+        message: "...".to_string(),
+    });
+    tokio::select! {
+        () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
+        () = gradle::project::index_project(class_map.clone(), sender, false, cache_path, executable.clone()) => {}
+    }
+    Backend::progress_end_option_token(&con, &progress, &task);
+}
+
+async fn update_dependencies_maven_cli(
+    con: Arc<Connection>,
+    project_dir: PathBuf,
+    project_kind: ProjectKind,
+) {
+    let class_map = Arc::new(Mutex::new(HashMap::new()));
+    let repos = Arc::new(maven::get_repositories(&project_dir));
     let progress = Arc::new(None);
 
     let task = "Load Dependency tree".to_string();
@@ -186,7 +298,7 @@ pub async fn update_dependencies_cli() {
         let sender = tokio::sync::watch::Sender::default();
         let _ = update::update(repos.clone(), &tree, sender).await;
         let sender = tokio::sync::watch::Sender::default();
-        let cache = project_cache_dir();
+        let cache = cache_dir();
         let task = format!("Command: {COMMAND_RELOAD_DEPENDENCIES}");
         Backend::progress_start_option_token(&con.clone(), &progress, &task);
         project_deps(
@@ -203,29 +315,6 @@ pub async fn update_dependencies_cli() {
         Backend::progress_end_option_token(&con.clone(), &progress, &task);
     }
     Backend::progress_end_option_token(&con.clone(), &progress, &task);
-}
-
-#[must_use]
-pub fn repos(project_kind: &ProjectKind, project_dir: &Path) -> Vec<maven::repository::Repository> {
-    match project_kind {
-        ProjectKind::Maven { executable: _ } => {
-            match maven::m2::get_maven_m2_folder() {
-                Ok(m2_folder) => {
-                    match maven::repository::load_repositories(&m2_folder, project_dir) {
-                        Ok(repositories) => return repositories,
-                        Err(e) => eprintln!("Got error loading repos: {e:?}"),
-                    }
-                }
-                Err(e) => eprintln!("Got error loading m2 folder: {e:?}"),
-            }
-            vec![maven::repository::central()]
-        }
-        ProjectKind::Gradle {
-            executable: _,
-            path_build_gradle: _,
-        }
-        | ProjectKind::Unknown => vec![maven::repository::central()],
-    }
 }
 
 #[must_use]
@@ -288,49 +377,7 @@ pub async fn get_tree(
                 None
             }
         },
-        ProjectKind::Gradle { ref executable, .. } => match gradle::tree::load(executable).await {
-            Ok(t) => Some(t),
-            Err(GradleTreeError::GotError(e)) => {
-                let message = format!("Unable load gradle dependency tree {e:?}");
-                diagnostics.push(Diagnostic::new(
-                    range,
-                    Some(DiagnosticSeverity::ERROR),
-                    None,
-                    Some(String::from(SERVER_NAME)),
-                    message,
-                    None,
-                    None,
-                ));
-                None
-            }
-            Err(GradleTreeError::CliFailed(e)) => {
-                let message = format!("Unable load gradle dependency tree {e:?}");
-                diagnostics.push(Diagnostic::new(
-                    range,
-                    Some(DiagnosticSeverity::ERROR),
-                    None,
-                    Some(String::from(SERVER_NAME)),
-                    message,
-                    None,
-                    None,
-                ));
-                None
-            }
-            Err(GradleTreeError::Utf8(e)) => {
-                let message = format!("Unable load gradle dependency tree {e:?}");
-                diagnostics.push(Diagnostic::new(
-                    range,
-                    Some(DiagnosticSeverity::ERROR),
-                    None,
-                    Some(String::from(SERVER_NAME)),
-                    message,
-                    None,
-                    None,
-                ));
-                None
-            }
-        },
-        ProjectKind::Unknown => None,
+        ProjectKind::Gradle { .. } | ProjectKind::Unknown => None,
     };
     report_maven_gradle_diagnostic(project_kind, con, diagnostics);
     out

@@ -5,6 +5,6 @@ expression: result.unwrap()
 ModuleInfo {
     exports: [
         "jakarta/inject",
-        "java/base",
+        "jakarta/inject",
     ],
 }

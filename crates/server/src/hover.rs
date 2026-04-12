@@ -189,6 +189,9 @@ fn format_field(f: &Field) -> String {
 
 fn format_method(m: &Method, class_name: &str) -> String {
     let mut out = String::new();
+    if m.access.intersects(Access::Static) {
+        out.push_str("static ");
+    }
     out.push_str(jtype_hover_display(&m.ret).as_str());
     out.push(' ');
 

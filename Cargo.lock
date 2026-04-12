@@ -793,6 +793,7 @@ dependencies = [
  "compile",
  "dto",
  "loader",
+ "my_string",
  "pretty_assertions",
  "tokio",
  "workspace_hack",

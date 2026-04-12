@@ -18,6 +18,13 @@ pub struct Dependency {
     pub version_suffix: Option<String>,
 }
 
+pub fn cache_dir() -> PathBuf {
+    let mut dir = dirs::cache_dir().expect("There should be a cache dir");
+    dir = dir.join("java_lsp");
+    let _ = fs::create_dir_all(&dir);
+    dir
+}
+
 pub fn project_cache_dir() -> PathBuf {
     let mut dir = dirs::cache_dir().expect("There should be a cache dir");
     dir = dir.join("java_lsp").join("project_cache");

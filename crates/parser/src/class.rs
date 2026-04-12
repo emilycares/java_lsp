@@ -381,11 +381,11 @@ fn lookup_string(c: &ClassFile, index: u16) -> Option<MyString> {
     if index == 0 {
         return None;
     }
-    let con = &c.const_pool[(index - 1) as usize];
+    let con = &c.const_pool.get((index - 1) as usize);
     match con {
-        ConstantInfo::Utf8(utf8) => Some(utf8.utf8_string.to_smolstr()),
-        ConstantInfo::Module(m) => lookup_string(c, m.name_index),
-        ConstantInfo::Package(p) => lookup_string(c, p.name_index),
+        Some(ConstantInfo::Utf8(utf8)) => Some(utf8.utf8_string.to_smolstr()),
+        Some(ConstantInfo::Module(m)) => lookup_string(c, m.name_index),
+        Some(ConstantInfo::Package(p)) => lookup_string(c, p.name_index),
         _ => None,
     }
 }
@@ -469,10 +469,8 @@ pub fn load_module(bytes: &[u8]) -> Result<ModuleInfo, ClassError> {
                 if !e.exports_to_index.is_empty() {
                     continue;
                 }
-                let exp = c.const_pool.get(e.exports_index as usize);
-                if let Some(ConstantInfo::Utf8(p)) = exp {
-                    let package = p.utf8_string.to_string();
-                    exports.push(package.replace('.', "/").to_smolstr());
+                if let Some(name) = lookup_string(&c, e.exports_index) {
+                    exports.push(name.replace('.', "/").to_smolstr());
                 }
             }
             return Ok(ModuleInfo { exports });

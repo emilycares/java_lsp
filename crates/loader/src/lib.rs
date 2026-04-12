@@ -335,10 +335,20 @@ async fn base_load_classes_zip(
         let Some(file_name) = entry.sanitized_name() else {
             continue;
         };
-        if !Path::new(file_name)
-            .extension()
-            .is_some_and(|e| e.eq_ignore_ascii_case("class"))
-        {
+        let ext = Path::new(file_name).extension();
+        if ext.is_some_and(|e| e.eq_ignore_ascii_case("jar")) {
+            let buf = entry.bytes().await.map_err(LoaderError::IO)?;
+            let o = Box::pin(base_load_classes_zip(
+                file_name.to_string(),
+                SourceDestination::None,
+                buf,
+                None,
+            ))
+            .await?;
+            classes.extend(o.classes);
+            continue;
+        }
+        if !ext.is_some_and(|e| e.eq_ignore_ascii_case("class")) {
             continue;
         }
         if file_name.ends_with("module-info.class") {

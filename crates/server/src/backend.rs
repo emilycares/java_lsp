@@ -8,7 +8,7 @@ use std::{
 
 use ast::types::AstFile;
 use call_chain::get_call_chain;
-use common::{Dependency, TaskProgress, project_cache_dir, project_kind::ProjectKind};
+use common::{Dependency, TaskProgress, cache_dir, project_cache_dir, project_kind::ProjectKind};
 use compile::CompileErrorMessage;
 use document::{Document, DocumentError, get_class_path, open_document};
 use dto::Class;
@@ -41,7 +41,7 @@ use variables::VariableContext;
 
 use crate::{
     codeaction::{self, CodeActionContext},
-    command::{self, COMMAND_RELOAD_DEPENDENCIES, UPDATE_DEPENDENCIES, repos},
+    command::{self, COMMAND_RELOAD_DEPENDENCIES, UPDATE_DEPENDENCIES},
     completion,
     definition::{self, DefinitionContext},
     document_link::get_document_link,
@@ -305,32 +305,61 @@ impl Backend {
             });
         }
 
-        if project_kind != ProjectKind::Unknown {
-            let con = con.clone();
-            let task = format!("Load {project_kind} dependencies");
-            let progress = Arc::new(Option::Some(ProgressToken::String(task.clone())));
-            let project_kind = project_kind.clone();
-            let class_map = class_map.clone();
-            let project_dir = project_dir.to_owned();
-            let repos = Arc::new(repos(&project_kind, &project_dir));
-            handles.spawn(async move {
-                Self::progress_start_option_token(&con.clone(), &progress, &task);
-                let (sender, receiver) =
-                    tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
-                        percentage: 0,
-                        error: false,
-                        message: "...".to_string(),
-                    });
-                let cache = project_cache_dir();
-                let tree = command::get_tree(&project_kind, &con).await;
-                if let Some(tree) = tree {
+        match project_kind.clone() {
+            ProjectKind::Maven { .. } => {
+                let con = con.clone();
+                let task = "Load maven dependencies".to_string();
+                let progress = Arc::new(Option::Some(ProgressToken::String(task.clone())));
+                let class_map = class_map.clone();
+                let project_dir = project_dir.to_owned();
+                let repos = Arc::new(maven::get_repositories(&project_dir));
+                let project_kind = project_kind.clone();
+                handles.spawn(async move {
+                    Self::progress_start_option_token(&con.clone(), &progress, &task);
+                    let (sender, receiver) =
+                        tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
+                            percentage: 0,
+                            error: false,
+                            message: "...".to_string(),
+                        });
+                    let cache = cache_dir();
+                    let tree = command::get_tree(&project_kind, &con).await;
+                    if let Some(tree) = tree {
+                        tokio::select! {
+                            () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
+                            () = project_deps(sender, project_kind.clone(), class_map.clone(), true, &project_dir, &cache, &tree, repos) => {}
+                        }
+                    }
+                    Self::progress_end_option_token(&con, &progress, &task);
+                });
+            }
+            ProjectKind::Gradle {
+                executable,
+                path_build_gradle: _,
+            } => {
+                let con = con.clone();
+                let project_dir = project_dir.to_owned();
+                let class_map = class_map.clone();
+                handles.spawn(async move {
+                    let task = "Load gradle project".to_string();
+                    let progress = Arc::new(Option::Some(ProgressToken::String(task.clone())));
+                    let project_cache_dir = project_cache_dir();
+
+                    let cache_path = get_gradle_cache_path(project_dir.as_path(), project_cache_dir.as_path());
+                    let (sender, receiver) =
+                        tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
+                            percentage: 0,
+                            error: false,
+                            message: "...".to_string(),
+                        });
                     tokio::select! {
                         () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-                        () = project_deps(sender, project_kind.clone(), class_map.clone(), true, &project_dir, &cache, &tree, repos) => {}
+                        () = gradle::project::index_project(class_map.clone(), sender, true, cache_path, executable.clone()) => {}
                     }
-                }
-                Self::progress_end_option_token(&con, &progress, &task);
-            });
+                    Self::progress_end_option_token(&con, &progress, &task);
+                });
+            }
+            ProjectKind::Unknown => (),
         }
 
         {

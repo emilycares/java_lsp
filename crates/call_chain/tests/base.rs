@@ -1127,7 +1127,6 @@ return a[0]. ;
 "#;
     let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
-    dbg!(&ast);
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 13));
     assert_eq!(

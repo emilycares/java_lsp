@@ -23,7 +23,7 @@ pub enum ClassError {
     Private,
 }
 
-pub const CFC_VERSION: usize = 8;
+pub const CFC_VERSION: usize = 9;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
 pub struct ClassFolder {

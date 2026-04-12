@@ -15,6 +15,7 @@ compile.workspace = true
 common.workspace = true
 dto.workspace = true
 loader.workspace = true
+my_string.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]
