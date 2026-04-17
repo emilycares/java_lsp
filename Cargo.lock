@@ -210,6 +210,7 @@ name = "call_chain"
 version = "0.1.0"
 dependencies = [
  "ast",
+ "dto",
  "insta",
  "my_string",
  "pretty_assertions",
@@ -323,6 +324,7 @@ version = "0.1.0"
 dependencies = [
  "ast",
  "clap",
+ "jdk",
  "jwalk",
  "memmap2",
  "tokio",
@@ -564,7 +566,6 @@ dependencies = [
  "lsp-types",
  "lsp_extra",
  "my_string",
- "pretty_assertions",
  "ropey",
  "workspace_hack",
 ]
@@ -1084,7 +1085,6 @@ version = "0.1.0"
 dependencies = [
  "ast",
  "dto",
- "pretty_assertions",
  "workspace_hack",
 ]
 
@@ -1163,7 +1163,6 @@ dependencies = [
  "loader",
  "memmap2",
  "my_string",
- "pretty_assertions",
  "tokio",
  "workspace_hack",
  "zip_util",

@@ -79,15 +79,17 @@ pub fn get_signature(
             num_params,
             method_name,
         ),
-        Some(CallItem::Class { name: _, range: _ }) => signature_help_for_constructor(
-            imports,
-            vars,
-            class,
-            class_map,
-            prev,
-            *active_param,
-            num_params,
-        ),
+        Some(CallItem::Class { .. } | CallItem::ClassGeneric { .. }) => {
+            signature_help_for_constructor(
+                imports,
+                vars,
+                class,
+                class_map,
+                prev,
+                *active_param,
+                num_params,
+            )
+        }
 
         Some(_) | None => Err(SignatureError::CouldNotGetMethod),
     }
@@ -180,13 +182,14 @@ fn signature_help_for_constructor(
 
 fn get_args(call_chain: &[CallItem]) -> Option<&CallItem> {
     call_chain.iter().rev().find(|i| match i {
-        CallItem::MethodCall { name: _, range: _ }
-        | CallItem::FieldAccess { name: _, range: _ }
-        | CallItem::Variable { name: _, range: _ }
-        | CallItem::Class { name: _, range: _ }
-        | CallItem::ClassOrVariable { name: _, range: _ }
-        | CallItem::ArrayAccess { range: _ }
-        | CallItem::This { range: _ } => false,
+        CallItem::MethodCall { .. }
+        | CallItem::FieldAccess { .. }
+        | CallItem::Variable { .. }
+        | CallItem::Class { .. }
+        | CallItem::ClassGeneric { .. }
+        | CallItem::ClassOrVariable { .. }
+        | CallItem::ArrayAccess { .. }
+        | CallItem::This { .. } => false,
         CallItem::ArgumentList {
             prev: _,
             range: _,

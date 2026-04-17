@@ -15,5 +15,6 @@ jwalk.workspace = true
 tokio.workspace = true
 memmap2.workspace = true
 ast.workspace = true
+jdk.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }
 

@@ -6,8 +6,8 @@ use ast::{
     types::{
         AstAnnotated, AstAnnotationField, AstClassConstructor, AstClassMethod, AstClassVariable,
         AstEnumerationVariant, AstExtends, AstFile, AstImports, AstInterfaceConstant,
-        AstInterfaceMethod, AstInterfaceMethodDefault, AstJType, AstJTypeKind, AstSuperClass,
-        AstThing, AstTypeParameters,
+        AstInterfaceMethod, AstInterfaceMethodDefault, AstJTypeKind, AstSuperClass, AstThing,
+        AstTypeParameter, AstTypeParameters,
     },
 };
 use my_string::{
@@ -61,9 +61,15 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
                         .block
                         .constructors
                         .iter()
-                        .map(convert_class_constructor),
+                        .map(|i| convert_class_constructor(i, class.type_parameters.as_ref())),
                 );
-                methods.extend(class.block.methods.iter().map(convert_class_method));
+                methods.extend(
+                    class
+                        .block
+                        .methods
+                        .iter()
+                        .map(|i| convert_class_method(i, class.type_parameters.as_ref())),
+                );
                 fields.extend(class.block.variables.iter().map(convert_class_field));
                 //TODO: Handle others
                 super_class = match &class.superclass.first() {
@@ -76,7 +82,13 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
             AstThing::Record(record) => {
                 access = access_from_availability(&record.availability, Access::Public);
                 load_deprecated(&mut access, &record.annotated);
-                methods.extend(record.block.methods.iter().map(convert_class_method));
+                methods.extend(
+                    record
+                        .block
+                        .methods
+                        .iter()
+                        .map(|i| convert_class_method(i, record.type_parameters.as_ref())),
+                );
                 fields.extend(record.block.variables.iter().map(convert_class_field));
                 // TODO entries
                 super_class = match &record.superclass.first() {
@@ -90,7 +102,12 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
                 access = access_from_availability(&enumeration.availability, Access::Public);
                 load_deprecated(&mut access, &enumeration.annotated);
                 name = (&enumeration.name).into();
-                methods.extend(enumeration.methods.iter().map(convert_class_method));
+                methods.extend(
+                    enumeration
+                        .methods
+                        .iter()
+                        .map(|i| convert_class_method(i, None)),
+                );
                 let jtype = JType::Class(enumeration.name.value.clone());
                 fields.extend(
                     enumeration
@@ -107,13 +124,15 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
                 if let Some(ext) = &interface.extends {
                     super_interfaces.extend(fun_name(ext, &imports));
                 }
-                methods.extend(interface.methods.iter().map(convert_interface_method));
                 methods.extend(
                     interface
-                        .default_methods
+                        .methods
                         .iter()
-                        .map(convert_interface_default_method),
+                        .map(|i| convert_interface_method(i, interface.type_parameters.as_ref())),
                 );
+                methods.extend(interface.default_methods.iter().map(|i| {
+                    convert_interface_default_method(i, interface.type_parameters.as_ref())
+                }));
                 fields.extend(interface.constants.iter().map(convert_interface_constant));
             }
             AstThing::Annotation(annotation) => {
@@ -172,9 +191,14 @@ fn convert_imports(imports: Option<&AstImports>, package: MyString) -> Vec<Impor
     out
 }
 
-fn convert_class_method(m: &AstClassMethod) -> Method {
+fn convert_class_method(
+    m: &AstClassMethod,
+    class_type_parameters: Option<&AstTypeParameters>,
+) -> Method {
     let mut access = access_from_availability(&m.header.availability, Access::Public);
     load_deprecated(&mut access, &m.header.annotated);
+    let type_parameters =
+        merge_type_parameters(class_type_parameters, m.header.type_parameters.as_ref());
     let parameters = m
         .header
         .parameters
@@ -182,7 +206,7 @@ fn convert_class_method(m: &AstClassMethod) -> Method {
         .iter()
         .map(|p| Parameter {
             name: Some((&p.name).into()),
-            jtype: check_type_parameters(&p.jtype, m.header.type_parameters.as_ref()),
+            jtype: check_type_parameters(&p.jtype, &type_parameters),
         })
         .collect();
     let throws = m
@@ -195,12 +219,31 @@ fn convert_class_method(m: &AstClassMethod) -> Method {
         name: Some((&m.header.name).into()),
         parameters,
         throws,
-        ret: check_type_parameters(&m.header.jtype, m.header.type_parameters.as_ref()),
+        ret: check_type_parameters(&m.header.jtype, &type_parameters),
         source: None,
     }
 }
-fn convert_class_constructor(m: &AstClassConstructor) -> Method {
+
+fn merge_type_parameters(
+    class_type_parameters: Option<&AstTypeParameters>,
+    type_parameters: Option<&AstTypeParameters>,
+) -> Vec<AstTypeParameter> {
+    let mut out = Vec::new();
+    if let Some(t) = class_type_parameters {
+        out.extend(t.parameters.clone());
+    }
+    if let Some(t) = type_parameters {
+        out.extend(t.parameters.clone());
+    }
+    out
+}
+fn convert_class_constructor(
+    m: &AstClassConstructor,
+    class_type_parameters: Option<&AstTypeParameters>,
+) -> Method {
     let access = access_from_availability(&m.header.availability, Access::Public);
+    let type_parameters =
+        merge_type_parameters(class_type_parameters, m.header.type_parameters.as_ref());
     let parameters = m
         .header
         .parameters
@@ -208,7 +251,7 @@ fn convert_class_constructor(m: &AstClassConstructor) -> Method {
         .iter()
         .map(|p| Parameter {
             name: Some((&p.name).into()),
-            jtype: check_type_parameters(&p.jtype, m.header.type_parameters.as_ref()),
+            jtype: check_type_parameters(&p.jtype, &type_parameters),
         })
         .collect();
     let throws = m
@@ -221,12 +264,17 @@ fn convert_class_constructor(m: &AstClassConstructor) -> Method {
         name: None,
         parameters,
         throws,
-        ret: check_type_parameters(&AstJType::default(), m.header.type_parameters.as_ref()),
+        ret: JType::Void,
         source: None,
     }
 }
-fn convert_interface_method(m: &AstInterfaceMethod) -> Method {
+fn convert_interface_method(
+    m: &AstInterfaceMethod,
+    interface_type_parameters: Option<&AstTypeParameters>,
+) -> Method {
     let access = access_from_availability(&m.header.availability, Access::Public);
+    let type_parameters =
+        merge_type_parameters(interface_type_parameters, m.header.type_parameters.as_ref());
     let parameters = m
         .header
         .parameters
@@ -234,13 +282,13 @@ fn convert_interface_method(m: &AstInterfaceMethod) -> Method {
         .iter()
         .map(|p| Parameter {
             name: Some((&p.name).into()),
-            jtype: check_type_parameters(&p.jtype, m.header.type_parameters.as_ref()),
+            jtype: check_type_parameters(&p.jtype, &type_parameters),
         })
         .collect();
     let throws = m.header.throws.as_ref().map_or_else(Vec::new, |t| {
         t.parameters
             .iter()
-            .map(|i| check_type_parameters(i, m.header.type_parameters.as_ref()))
+            .map(|i| check_type_parameters(i, &type_parameters))
             .collect()
     });
     Method {
@@ -248,12 +296,17 @@ fn convert_interface_method(m: &AstInterfaceMethod) -> Method {
         name: Some((&m.header.name).into()),
         parameters,
         throws,
-        ret: check_type_parameters(&m.header.jtype, m.header.type_parameters.as_ref()),
+        ret: check_type_parameters(&m.header.jtype, &type_parameters),
         source: None,
     }
 }
-fn convert_interface_default_method(m: &AstInterfaceMethodDefault) -> Method {
+fn convert_interface_default_method(
+    m: &AstInterfaceMethodDefault,
+    interface_type_parameters: Option<&AstTypeParameters>,
+) -> Method {
     let access = access_from_availability(&m.header.availability, Access::Public);
+    let type_parameters =
+        merge_type_parameters(interface_type_parameters, m.header.type_parameters.as_ref());
     let parameters = m
         .header
         .parameters
@@ -261,13 +314,13 @@ fn convert_interface_default_method(m: &AstInterfaceMethodDefault) -> Method {
         .iter()
         .map(|p| Parameter {
             name: Some((&p.name).into()),
-            jtype: check_type_parameters(&p.jtype, m.header.type_parameters.as_ref()),
+            jtype: check_type_parameters(&p.jtype, &type_parameters),
         })
         .collect();
     let throws = m.header.throws.as_ref().map_or_else(Vec::new, |t| {
         t.parameters
             .iter()
-            .map(|i| check_type_parameters(i, m.header.type_parameters.as_ref()))
+            .map(|i| check_type_parameters(i, &type_parameters))
             .collect()
     });
     Method {
@@ -275,7 +328,7 @@ fn convert_interface_default_method(m: &AstInterfaceMethodDefault) -> Method {
         name: Some((&m.header.name).into()),
         parameters,
         throws,
-        ret: check_type_parameters(&m.header.jtype, m.header.type_parameters.as_ref()),
+        ret: check_type_parameters(&m.header.jtype, &type_parameters),
         source: None,
     }
 }
@@ -324,18 +377,12 @@ fn convert_enum_variant(c: &AstEnumerationVariant, jtype: &JType) -> Field {
 
 fn check_type_parameters(
     jtype: &ast::types::AstJType,
-    type_parameters: Option<&AstTypeParameters>,
+    type_parameters: &[AstTypeParameter],
 ) -> JType {
     let jtype: JType = jtype.into();
-    let Some(type_parameters) = type_parameters else {
-        return jtype;
-    };
 
     if let JType::Class(ref p) = jtype
-        && type_parameters
-            .parameters
-            .iter()
-            .any(|i| i.name.value == *p)
+        && type_parameters.iter().any(|i| i.name.value == *p)
     {
         return JType::Parameter(p.to_owned());
     }
@@ -344,10 +391,7 @@ fn check_type_parameters(
             .iter()
             .map(|i: &JType| {
                 if let JType::Class(p) = i
-                    && type_parameters
-                        .parameters
-                        .iter()
-                        .any(|i| i.name.value == *p)
+                    && type_parameters.iter().any(|i| i.name.value == *p)
                 {
                     return JType::Parameter(p.to_owned());
                 }

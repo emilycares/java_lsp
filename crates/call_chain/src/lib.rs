@@ -18,6 +18,7 @@ use ast::types::{
     AstThrowsDeclaration, AstTypeParameter, AstTypeParameters, AstValue, AstValueNuget, AstValues,
     AstValuesWithAnnotated, AstWhileContent,
 };
+use dto::JType;
 use my_string::MyString;
 use my_string::smol_str::ToSmolStr;
 
@@ -41,6 +42,11 @@ pub enum CallItem {
     Class {
         name: MyString,
         range: AstRange,
+    },
+    ClassGeneric {
+        name: MyString,
+        range: AstRange,
+        args: Vec<JType>,
     },
     ClassOrVariable {
         name: MyString,
@@ -66,6 +72,7 @@ impl CallItem {
             | Self::Variable { name: _, range }
             | Self::This { range }
             | Self::Class { name: _, range }
+            | Self::ClassGeneric { range, .. }
             | Self::ClassOrVariable { name: _, range }
             | Self::ArrayAccess { range }
             | Self::ArgumentList {
@@ -566,6 +573,7 @@ pub fn validate(call_chain: &[CallItem], point: &AstPoint) -> (usize, Vec<CallIt
             | CallItem::This { range }
             | CallItem::ClassOrVariable { name: _, range }
             | CallItem::ArrayAccess { range }
+            | CallItem::ClassGeneric { range, .. }
             | CallItem::Class { name: _, range } => range.is_in_range(point),
             CallItem::ArgumentList {
                 prev,
@@ -670,9 +678,14 @@ fn cc_block_entry(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIte
         }
         AstBlockEntry::ForEnhanced(ast_for_enhanced) => {
             for v in &ast_for_enhanced.var {
+                if !v.range.is_in_range(point) {
+                    continue;
+                }
                 cc_block_variable(v, point, out);
             }
-            cc_expr(&ast_for_enhanced.rhs, point, false, out);
+            if ast_for_enhanced.rhs.is_in_range(point) {
+                cc_expr(&ast_for_enhanced.rhs, point, false, out);
+            }
             if (&ast_for_enhanced.content).is_in_range(point) {
                 cc_for_content(&ast_for_enhanced.content, point, out);
             }
@@ -826,10 +839,11 @@ fn cc_new_class(ast_new_class: &AstNewClass, point: &AstPoint, out: &mut Vec<Cal
             name: c.value.clone(),
             range: ast_new_class.range,
         });
-    } else if let AstJTypeKind::Generic(c, _) = &ast_new_class.jtype.value {
-        out.push(CallItem::Class {
+    } else if let AstJTypeKind::Generic(c, args) = &ast_new_class.jtype.value {
+        out.push(CallItem::ClassGeneric {
             name: c.value.clone(),
             range: ast_new_class.range,
+            args: args.iter().map(Into::into).collect(),
         });
     }
     match ast_new_class.rhs.as_ref() {

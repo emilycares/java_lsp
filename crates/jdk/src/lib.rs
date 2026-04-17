@@ -444,73 +444,95 @@ fn opdir(jdk_name: &str) -> PathBuf {
     op_dir
 }
 
+/// This test is public. It can be called with a cli argument
+///
+/// # Panics
+/// When test is not successful.
+pub async fn test_load_jdk_modules_executable() {
+    let Some(path) = std::env::var_os("PATH") else {
+        return;
+    };
+    let (java_path, op_dir) = get_work_dirs(&path).await.unwrap();
+    let (sender, _) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress::default());
+    let out = load_jdk(&java_path, &op_dir, ForceLoader::ModulesExecutable, sender)
+        .await
+        .unwrap();
+
+    let string = out.classes.iter().find(|i| i.name == "String");
+    assert!(string.is_some());
+    assert_eq!(string.unwrap().class_path, "java.lang.String");
+    let source = &string.unwrap().get_source();
+    assert!(source.ends_with("src/java.base/java/lang/String.java"));
+    assert!(fs::exists(source).unwrap());
+}
+
+/// This test is public. It can be called with a cli argument
+///
+/// # Panics
+/// When test is not successful.
+pub async fn test_load_jdk_modules_own() {
+    let Some(path) = std::env::var_os("PATH") else {
+        return;
+    };
+    let (java_path, op_dir) = get_work_dirs(&path).await.unwrap();
+    let (sender, _) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress::default());
+    let out = load_jdk(&java_path, &op_dir, ForceLoader::ModulesOwn, sender)
+        .await
+        .unwrap();
+
+    let string = out.classes.iter().find(|i| i.name == "String");
+    assert!(string.is_some());
+    assert_eq!(string.unwrap().class_path, "java.lang.String");
+    let source = &string.unwrap().get_source();
+    assert!(
+        source
+            .replace('\\', "/")
+            .ends_with("src/java.base/java/lang/String.java")
+    );
+    assert!(fs::exists(source).unwrap());
+}
+
+/// This test is public. It can be called with a cli argument
+///
+/// # Panics
+/// When test is not successful.
+pub async fn test_load_jdk_jmod() {
+    let Some(path) = std::env::var_os("PATH") else {
+        return;
+    };
+    let (java_path, op_dir) = get_work_dirs(&path).await.unwrap();
+    let (sender, _) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress::default());
+    let out = load_jdk(&java_path, &op_dir, ForceLoader::Jmod, sender)
+        .await
+        .unwrap();
+
+    let string = out.classes.iter().find(|i| i.name == "String");
+    assert!(string.is_some());
+    assert_eq!(string.unwrap().class_path, "java.lang.String");
+    let source = &string.unwrap().get_source();
+    assert!(
+        source
+            .replace('\\', "/")
+            .ends_with("src/java.base/java/lang/String.java")
+    );
+    assert!(fs::exists(source).unwrap());
+}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pretty_assertions::assert_eq;
 
     #[tokio::test]
     async fn load_jdk_modules_executable_integration() {
-        let Some(path) = std::env::var_os("PATH") else {
-            return;
-        };
-        let (java_path, op_dir) = get_work_dirs(&path).await.unwrap();
-        let (sender, _) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress::default());
-        let out = load_jdk(&java_path, &op_dir, ForceLoader::ModulesExecutable, sender)
-            .await
-            .unwrap();
-
-        let string = out.classes.iter().find(|i| i.name == "String");
-        assert!(string.is_some());
-        assert_eq!(string.unwrap().class_path, "java.lang.String");
-        let source = &string.unwrap().get_source();
-        assert!(source.ends_with("src/java.base/java/lang/String.java"));
-        assert!(fs::exists(source).unwrap());
+        test_load_jdk_modules_executable().await
     }
 
     #[tokio::test]
     async fn load_jdk_modules_own_integration() {
-        let Some(path) = std::env::var_os("PATH") else {
-            return;
-        };
-        let (java_path, op_dir) = get_work_dirs(&path).await.unwrap();
-        let (sender, _) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress::default());
-        let out = load_jdk(&java_path, &op_dir, ForceLoader::ModulesOwn, sender)
-            .await
-            .unwrap();
-
-        let string = out.classes.iter().find(|i| i.name == "String");
-        assert!(string.is_some());
-        assert_eq!(string.unwrap().class_path, "java.lang.String");
-        let source = &string.unwrap().get_source();
-        assert!(
-            source
-                .replace('\\', "/")
-                .ends_with("src/java.base/java/lang/String.java")
-        );
-        assert!(fs::exists(source).unwrap());
+        test_load_jdk_modules_own().await
     }
 
     #[tokio::test]
     async fn load_jdk_jmod_integration() {
-        let Some(path) = std::env::var_os("PATH") else {
-            return;
-        };
-        let (java_path, op_dir) = get_work_dirs(&path).await.unwrap();
-        let (sender, _) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress::default());
-        let out = load_jdk(&java_path, &op_dir, ForceLoader::Jmod, sender)
-            .await
-            .unwrap();
-
-        let string = out.classes.iter().find(|i| i.name == "String");
-        assert!(string.is_some());
-        assert_eq!(string.unwrap().class_path, "java.lang.String");
-        let source = &string.unwrap().get_source();
-        assert!(
-            source
-                .replace('\\', "/")
-                .ends_with("src/java.base/java/lang/String.java")
-        );
-        assert!(fs::exists(source).unwrap());
+        test_load_jdk_jmod().await
     }
 }

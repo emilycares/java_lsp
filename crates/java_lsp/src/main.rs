@@ -50,5 +50,8 @@ async fn main() {
                 .unwrap();
             cli::ast_check_dir(op_dir.join("src")).await.unwrap();
         }
+        Some(Commands::IndexJdk { variant }) => {
+            cli::index_jdk(variant).await;
+        }
     }
 }

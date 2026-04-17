@@ -10,7 +10,8 @@ use std::{fs::canonicalize, path::PathBuf};
 use ast::error::PrintErr;
 #[cfg(not(target_os = "windows"))]
 use ast::lexer::PositionToken;
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
+use jdk::{test_load_jdk_jmod, test_load_jdk_modules_executable, test_load_jdk_modules_own};
 #[cfg(target_os = "windows")]
 use std::sync::Arc;
 use std::sync::mpsc;
@@ -43,11 +44,18 @@ pub enum Commands {
     /// Update the dependencies of project
     UpdateDependencies,
     /// Get tokens from file
-    Lex { file: PathBuf },
+    Lex {
+        file: PathBuf,
+    },
     /// Get tokens from file at pos
-    LexPos { file: PathBuf, pos: usize },
+    LexPos {
+        file: PathBuf,
+        pos: usize,
+    },
     /// Check for errors in file
-    AstCheck { file: PathBuf },
+    AstCheck {
+        file: PathBuf,
+    },
     /// Recusivly check a directory for ast for java files
     AstCheckDir {
         folder: PathBuf,
@@ -56,6 +64,16 @@ pub enum Commands {
     },
     /// Check jdk in path
     AstCheckJdk,
+    IndexJdk {
+        variant: IndexJdkOptions,
+    },
+}
+
+#[derive(Clone, Debug, ValueEnum)]
+pub enum IndexJdkOptions {
+    JimageOwn,
+    JimageExecutable,
+    Jmod,
 }
 
 #[cfg(target_os = "windows")]
@@ -308,4 +326,12 @@ pub fn lex_pos(file: &PathBuf, pos: usize) {
     let bytes = std::fs::read(file).expect("File should exist");
     let tokens = ast::lexer::lex(&bytes).expect("Ok to cratch if fail");
     eprintln!("{:?}", tokens[pos]);
+}
+
+pub async fn index_jdk(variant: IndexJdkOptions) {
+    match variant {
+        IndexJdkOptions::JimageOwn => test_load_jdk_modules_own().await,
+        IndexJdkOptions::JimageExecutable => test_load_jdk_modules_executable().await,
+        IndexJdkOptions::Jmod => test_load_jdk_jmod().await,
+    }
 }

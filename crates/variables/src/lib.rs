@@ -385,6 +385,43 @@ fn for_enanced_vars(
     }
     let level = level + 1;
     for v in &ast_for_enhanced.var {
+        if v.value.is_none() && matches!(v.jtype.value, AstJTypeKind::Var) {
+            let point = ast_for_enhanced.rhs.get_range().end;
+            let mut cc = vec![];
+            call_chain::cc_expr(&ast_for_enhanced.rhs, &point, false, &mut cc);
+            let value_resolve_state = tyres::resolve_call_chain_value(
+                &cc,
+                out,
+                context.imports,
+                context.class,
+                &context.class_map.clone(),
+            );
+            match value_resolve_state {
+                Ok(ResolveState {
+                    jtype: JType::Array(i),
+                    ..
+                }) => {
+                    out.push(LocalVariable {
+                        level,
+                        jtype: *i,
+                        name: v.name.value.clone(),
+                        range: v.range,
+                        flags: VarFlags::Computed,
+                    });
+                }
+                Ok(ResolveState { jtype, .. }) => {
+                    out.push(LocalVariable {
+                        level,
+                        jtype,
+                        name: v.name.value.clone(),
+                        range: v.range,
+                        flags: VarFlags::Computed,
+                    });
+                }
+                Err(e) => return Err(VariablesError::Tyres(e)),
+            }
+            continue;
+        }
         from_block_variable(v, level, context, out)?;
     }
     for_content_vars(&ast_for_enhanced.content, level, context, out)
@@ -399,7 +436,8 @@ pub fn from_block_variable(
     if matches!(v.jtype.value, AstJTypeKind::Var)
         && let Some(value) = &v.value
     {
-        let point = value.get_range().end;
+        let mut point = value.get_range().end;
+        point.col += 1;
         let mut cc = vec![];
         call_chain::cc_expr(value, &point, false, &mut cc);
         let value_resolve_state = tyres::resolve_call_chain_value(

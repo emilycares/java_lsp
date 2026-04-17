@@ -142,7 +142,7 @@ pub fn call_chain_hover(
             let range = to_lsp_range(range).map_err(HoverError::ToLspRange)?;
             Ok(variables_to_hover(&[var], range))
         }
-        CallItem::Class { name: _, range } => {
+        CallItem::Class { range, .. } | CallItem::ClassGeneric { range, .. } => {
             let range = to_lsp_range(range).map_err(HoverError::ToLspRange)?;
             Ok(class_to_hover(&resolve_state.class, range))
         }

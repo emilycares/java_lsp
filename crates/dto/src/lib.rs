@@ -16,14 +16,31 @@ pub enum ClassError {
     Asm,
     Unknown,
     ParseError,
+    ClassParser(ClassParserError),
     UnknownClassName,
     UnknownClassPath,
     InvalidClassPath,
     NoModuleAttribute,
-    Private,
 }
 
-pub const CFC_VERSION: usize = 9;
+#[derive(Debug)]
+pub enum ClassParserError {
+    EOF,
+    ExpectedOther { pos: usize },
+    IgnoringLambda,
+    StringIndexZero,
+    ExpectedString,
+    Private,
+    ParseError,
+    InvalidName,
+    NotEnogthParams,
+    NoModuleAttribute,
+    UnknownType(Option<char>),
+    GenericParameterName,
+    InvalidAttributeIndex,
+}
+
+pub const CFC_VERSION: usize = 10;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
 pub struct ClassFolder {

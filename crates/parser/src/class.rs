@@ -1,81 +1,94 @@
 use classfile_parser::attribute_info::{AttributeInfo, CodeAttribute};
-use classfile_parser::code_attribute::LocalVariableTableAttribute;
 use classfile_parser::constant_info::ConstantInfo;
 use classfile_parser::field_info::{FieldAccessFlags, FieldInfo};
 use classfile_parser::method_info::MethodAccessFlags;
 use classfile_parser::{ClassAccessFlags, ClassFile, class_parser};
-use dto::SourceDestination;
-use dto::{Access, Class, ClassError, Field, ImportUnit, JType, Method, Parameter, SuperClass};
+use dto::{Access, Class, Field, ImportUnit, JType, Method, Parameter, SuperClass};
+use dto::{ClassParserError, SourceDestination};
 use my_string::MyString;
-use my_string::smol_str::ToSmolStr;
+use my_string::smol_str::{SmolStr, SmolStrBuilder, StrExt, ToSmolStr};
 
 pub fn load_class(
     bytes: &[u8],
     class_path: MyString,
     source: SourceDestination,
     filter: bool,
-) -> Result<Class, ClassError> {
-    let (_, c) = class_parser(bytes).map_err(|_| ClassError::ParseError)?;
-    let name = lookup_class_name(&c, c.this_class.into()).ok_or(ClassError::UnknownClassName)?;
-
+) -> Result<Class, ClassParserError> {
+    let (_, c) = class_parser(bytes).map_err(|_| ClassParserError::ParseError)?;
     if filter && !c.access_flags.intersects(ClassAccessFlags::PUBLIC) {
-        return Err(ClassError::Private);
+        return Err(ClassParserError::Private);
     }
-    let code_attribute = parse_code_attribute(&c, &c.attributes);
-    let mut used_classes = parse_used_classes(&c, code_attribute);
 
-    let methods: Vec<_> = c
-        .methods
-        .iter()
-        .filter(|i| {
-            if !filter {
-                return true;
-            }
-            !i.access_flags
+    let name = lookup_class_name(&c, c.this_class.into())?;
+
+    let mut used_classes = Vec::new();
+    let mut methods = Vec::new();
+    let mut fields = Vec::new();
+    let mut deprecated = false;
+
+    for a in &c.attributes {
+        let attribute_name = lookup_string(&c, a.attribute_name_index)?;
+
+        // if attribute_name == "Signature" {
+        //     let (_, sig) = classfile_parser::attribute_info::signature_attribute_parser(&a.info)
+        //         .map_err(|_| ClassParserError::ParseError)?;
+        //     let sig = lookup_string(&c, sig.signature_index)?;
+        //     let (_, _sig) = parse_class_signature_info(&sig)?;
+        //     // dbg!(sig);
+        //     continue;
+        //  }
+        if attribute_name == "Code" {
+            let (_, out) = classfile_parser::attribute_info::code_attribute_parser(&a.info)
+                .map_err(|_| ClassParserError::ParseError)?;
+            used_classes.extend(parse_used_classes(&c, out)?);
+        } else if attribute_name == "Deprecated" {
+            deprecated = true;
+        }
+    }
+
+    for m in &c.methods {
+        if filter
+            && m.access_flags
                 .intersects(MethodAccessFlags::PRIVATE | MethodAccessFlags::PROTECTED)
-        })
-        .filter_map(|method| {
-            let code_attribute = parse_code_attribute(&c, &method.attributes);
-            used_classes.extend(parse_used_classes(&c, code_attribute));
-
-            let method = parse_method(&c, method);
-            if let Some(ref m) = method {
-                used_classes.extend(
-                    m.parameters
-                        .iter()
-                        .filter(|i| {
-                            matches!(
-                                i.jtype,
-                                JType::Class(_) | JType::Array(_) | JType::Generic(_, _)
-                            )
-                        })
-                        .flat_map(|i| jtype_class_names(i.jtype.clone())),
-                );
-                used_classes.extend(jtype_class_names(m.ret.clone()));
-            }
-            method
-        })
-        .collect();
-    let fields: Vec<_> = c
-        .fields
-        .iter()
-        .filter(|i| {
-            if !filter {
-                return true;
-            }
-            !i.access_flags
+        {
+            continue;
+        }
+        let method = parse_method(&c, m);
+        if matches!(method, Err(ClassParserError::IgnoringLambda)) {
+            continue;
+        }
+        let method = method?;
+        let code_attribute = parse_code_attribute(&c, &m.attributes)?;
+        if let Some(code_attribute) = code_attribute {
+            let u = parse_used_classes(&c, code_attribute)?;
+            used_classes.extend(u);
+            used_classes.extend(
+                method
+                    .parameters
+                    .iter()
+                    .filter(|i| {
+                        matches!(
+                            i.jtype,
+                            JType::Class(_) | JType::Array(_) | JType::Generic(_, _)
+                        )
+                    })
+                    .flat_map(|i| jtype_class_names(i.jtype.clone())),
+            );
+        }
+        used_classes.extend(jtype_class_names(method.ret.clone()));
+        methods.push(method);
+    }
+    for f in &c.fields {
+        if filter
+            && f.access_flags
                 .intersects(FieldAccessFlags::PRIVATE | FieldAccessFlags::PROTECTED)
-        })
-        .filter_map(|field| {
-            let field = parse_field(&c, field);
-
-            if let Some(ref f) = field {
-                used_classes.extend(jtype_class_names(f.jtype.clone()));
-            }
-
-            field
-        })
-        .collect();
+        {
+            continue;
+        }
+        let field = parse_field(&c, f)?;
+        used_classes.extend(jtype_class_names(field.jtype.clone()));
+        fields.push(field);
+    }
 
     let package = class_path
         .trim_end_matches(name.as_str())
@@ -95,22 +108,18 @@ pub fn load_class(
             lookup_class_name(&c, *index as usize).map_or(SuperClass::None, SuperClass::Name)
         })
         .collect();
-    let deprecated = c.attributes.iter().any(|attribute_info| {
-        let Some(lookup_string) = lookup_string(&c, attribute_info.attribute_name_index) else {
-            return false;
-        };
-        matches!(lookup_string.as_str(), "Deprecated")
-    });
+
+    let mut super_class = SuperClass::None;
+    let a = lookup_class_name(&c, c.super_class.into())?;
+    if a != "Object" {
+        super_class = SuperClass::Name(a);
+    }
 
     Ok(Class {
         source,
         class_path,
         super_interfaces,
-        super_class: match lookup_class_name(&c, c.super_class.into()) {
-            Some(c) if c == "Object" => SuperClass::None,
-            Some(c) => SuperClass::Name(c),
-            None => SuperClass::None,
-        },
+        super_class,
         imports,
         access: parse_class_access(c.access_flags, deprecated),
         name,
@@ -119,22 +128,22 @@ pub fn load_class(
     })
 }
 
-fn lookup_class_name(c: &ClassFile, index: usize) -> Option<MyString> {
+fn lookup_class_name(c: &ClassFile, index: usize) -> Result<MyString, ClassParserError> {
     match c.const_pool.get(index.saturating_sub(1)) {
-        Some(ConstantInfo::Class(class)) => lookup_string(c, class.name_index)
-            .expect("Class to have name")
+        Some(ConstantInfo::Class(class)) => Ok(lookup_string(c, class.name_index)?
             .split('/')
             .next_back()
-            .map(Into::into),
-        _ => None,
+            .map(Into::into)
+            .ok_or(ClassParserError::InvalidName)?),
+        _ => Err(ClassParserError::ExpectedString),
     }
 }
 
-fn parse_field(c: &ClassFile, field: &FieldInfo) -> Option<Field> {
-    Some(Field {
+fn parse_field(c: &ClassFile, field: &FieldInfo) -> Result<Field, ClassParserError> {
+    Ok(Field {
         access: parse_field_access(field),
         name: lookup_string(c, field.name_index)?,
-        jtype: parse_field_descriptor(&lookup_string(c, field.descriptor_index)?),
+        jtype: parse_field_type(lookup_string(c, field.descriptor_index)?.as_bytes(), 0)?.1,
         source: None,
     })
 }
@@ -142,92 +151,118 @@ fn parse_field(c: &ClassFile, field: &FieldInfo) -> Option<Field> {
 fn parse_method(
     c: &ClassFile,
     method: &classfile_parser::method_info::MethodInfo,
-) -> Option<Method> {
+) -> Result<Method, ClassParserError> {
     let lname = lookup_string(c, method.name_index)?;
 
     if lname.starts_with("lambda$") {
-        return None;
+        return Err(ClassParserError::IgnoringLambda);
     }
-    let (params, ret) = parse_method_descriptor(&lookup_string(c, method.descriptor_index)?);
 
-    let mut params = params.into_iter();
-    let mut parameters: Vec<Parameter> = method
-        .attributes
-        .iter()
-        .filter_map(|attribute_info| {
-            match lookup_string(c, attribute_info.attribute_name_index)?.as_str() {
-                "MethodParameters" => {
-                    classfile_parser::attribute_info::method_parameters_attribute_parser(
-                        &attribute_info.info,
-                    )
-                    .ok()
-                }
-                _ => None,
-            }
-        })
-        .flat_map(|method_parameters| {
-            method_parameters
-                .1
-                .parameters
-                .into_iter()
-                .filter_map(|pa| {
-                    Some(Parameter {
-                        name: lookup_string(c, pa.name_index).and_then(|s| {
-                            if s.is_empty() {
-                                return None;
-                            }
-                            Some(s)
-                        }),
-                        jtype: params.next()?,
-                    })
-                })
-                .collect::<Vec<Parameter>>()
-        })
-        .collect();
-    // Remaining method descriptor data as params
-    {
-        for jtype in params {
-            parameters.push(Parameter { name: None, jtype });
+    let mut parameters = Vec::new();
+    let mut parameter_names = Vec::new();
+    let mut throws = Vec::new();
+    let mut deprecated = false;
+    let mut signature_index = None;
+    let mut method_parameter_index = None;
+    let mut exception_index = None;
+    let mut ret = JType::Void;
+
+    for (index, attribute) in method.attributes.iter().enumerate() {
+        let name = lookup_string(c, attribute.attribute_name_index)?;
+        if name == "Signature" {
+            signature_index = Some(index);
+        } else if name == "MethodParameters" {
+            method_parameter_index = Some(index);
+        } else if name == "Exceptions" {
+            exception_index = Some(index);
+        } else if name == "Deprecated" {
+            deprecated = true;
         }
     }
-    let throws: Vec<JType> = method
-        .attributes
-        .iter()
-        .filter_map(|attribute_info| {
-            match lookup_string(c, attribute_info.attribute_name_index)?.as_str() {
-                "Exceptions" => classfile_parser::attribute_info::exceptions_attribute_parser(
-                    &attribute_info.info,
-                )
-                .ok(),
-                _ => None,
+    let no_parameter_names_and_signature =
+        method_parameter_index.is_none() && signature_index.is_none();
+    if no_parameter_names_and_signature {
+        let (_, md) = parse_method_descriptor(&lookup_string(c, method.descriptor_index)?)?;
+        ret = md.return_type;
+        for p in md.param_types {
+            parameters.push(Parameter {
+                name: None,
+                jtype: p,
+            });
+        }
+    }
+
+    if let Some(index) = method_parameter_index {
+        let attribute = method
+            .attributes
+            .get(index)
+            .ok_or(ClassParserError::InvalidAttributeIndex)?;
+
+        let (_, info) =
+            classfile_parser::attribute_info::method_parameters_attribute_parser(&attribute.info)
+                .map_err(|_| ClassParserError::ParseError)?;
+        if signature_index.is_some() {
+            for p in info.parameters {
+                let name = lookup_string(c, p.name_index)
+                    .ok()
+                    .filter(|i| !SmolStr::is_empty(i));
+                parameter_names.push(name);
             }
-        })
-        .flat_map(|i| {
-            let exception_table = i.1.exception_table;
-            exception_table
-                .into_iter()
-                .filter_map(|ex| c.const_pool.get((ex - 1) as usize))
-                .filter_map(|ex_class| match ex_class {
-                    ConstantInfo::Class(ex_class) => lookup_string(c, ex_class.name_index),
-                    _ => None,
-                })
-                .filter_map(|name| {
-                    if let Some((_, name)) = name.rsplit_once('/') {
-                        return Some(name.into());
-                    }
-                    None
-                })
-                .map(JType::Class)
-        })
-        .collect();
-    let deprecated = method.attributes.iter().any(|attribute_info| {
-        let Some(lookup_string) = lookup_string(c, attribute_info.attribute_name_index) else {
-            return false;
-        };
-        matches!(lookup_string.as_str(), "Deprecated")
-    });
+        } else {
+            let (_, md) = parse_method_descriptor(&lookup_string(c, method.descriptor_index)?)?;
+            ret = md.return_type;
+            let mut params = md.param_types.into_iter();
+            for p in info.parameters {
+                let name = lookup_string(c, p.name_index)
+                    .ok()
+                    .filter(|i| !SmolStr::is_empty(i));
+                parameters.push(Parameter {
+                    name,
+                    jtype: params.next().ok_or(ClassParserError::NotEnogthParams)?,
+                });
+            }
+        }
+    }
+
+    if let Some(index) = signature_index {
+        let attribute = method
+            .attributes
+            .get(index)
+            .ok_or(ClassParserError::InvalidAttributeIndex)?;
+
+        let (_, sig) =
+            classfile_parser::attribute_info::signature_attribute_parser(&attribute.info)
+                .map_err(|_| ClassParserError::ParseError)?;
+        let sig = lookup_string(c, sig.signature_index)?;
+        let (_, sig) = parse_method_signature_info(&sig)?;
+        let mut name_iter = parameter_names.into_iter();
+        parameters.extend(sig.params.into_iter().map(|jtype| Parameter {
+            name: name_iter.next().flatten(),
+            jtype,
+        }));
+
+        ret = sig.ret;
+    }
+
+    if let Some(index) = exception_index {
+        let attribute = method
+            .attributes
+            .get(index)
+            .ok_or(ClassParserError::InvalidAttributeIndex)?;
+        let (_, info) =
+            classfile_parser::attribute_info::exceptions_attribute_parser(&attribute.info)
+                .map_err(|_| ClassParserError::ParseError)?;
+
+        for exception in info.exception_table {
+            let class_name = lookup_string(c, exception)?;
+            if let Some((_, name)) = class_name.rsplit_once('/') {
+                throws.push(JType::Class(name.to_smolstr()));
+            }
+        }
+    }
+
     let name = if lname == "<init>" { None } else { Some(lname) };
-    Some(Method {
+    Ok(Method {
         access: parse_method_access(method, deprecated),
         name,
         parameters,
@@ -237,60 +272,356 @@ fn parse_method(
     })
 }
 
-fn parse_used_classes(c: &ClassFile, code_attribute: Option<CodeAttribute>) -> Vec<MyString> {
-    if let Some(code_attribute) = code_attribute {
-        let local_variable_table_attributes: Vec<LocalVariableTableAttribute> = code_attribute
-            .attributes
-            .iter()
-            .filter_map(|attribute_info| {
-                match lookup_string(c, attribute_info.attribute_name_index)?.as_str() {
-                    "LocalVariableTable" => {
-                        classfile_parser::code_attribute::local_variable_table_parser(
-                            &attribute_info.info,
-                        )
-                        .ok()
-                    }
-                    _ => None,
+#[derive(Debug)]
+#[allow(dead_code)]
+struct MethodSignature {
+    pub args: Vec<MyString>,
+    pub params: Vec<JType>,
+    pub ret: JType,
+}
+fn parse_method_signature_info(
+    sig: &MyString,
+) -> Result<(usize, MethodSignature), ClassParserError> {
+    let content = sig.as_bytes();
+    let mut pos = 0;
+    let mut args = Vec::new();
+    let mut params = Vec::new();
+    if let Ok(npos) = assert_char(content, pos, b'<') {
+        pos = npos;
+        loop {
+            if let Ok(npos) = assert_char(content, pos, b';') {
+                pos = npos;
+            }
+            if let Ok(npos) = assert_char(content, pos, b'>') {
+                pos = npos;
+                break;
+            }
+            let mut arg = SmolStrBuilder::new();
+            loop {
+                let v = content.get(pos).ok_or(ClassParserError::EOF)?;
+                if *v == b':' {
+                    break;
                 }
-            })
-            .map(|a| a.1)
-            .collect();
-        let types: Vec<JType> = local_variable_table_attributes
-            .iter()
-            .flat_map(|i| &i.items)
-            .filter_map(|i| lookup_string(c, i.descriptor_index))
-            .map(|i| parse_field_descriptor(&i))
-            .collect();
-        return types
-            .iter()
-            .flat_map(|i: &JType| jtype_class_names(i.clone()))
-            .collect();
+                let i = u32::from(*v);
+                let c = char::from_u32(i).ok_or(ClassParserError::GenericParameterName)?;
+                arg.push(c);
+                pos += 1;
+            }
+            args.push(arg.finish());
+            let npos = assert_char(content, pos, b':')?;
+            pos = npos;
+            if let Ok(npos) = assert_char(content, pos, b':') {
+                pos = npos;
+            }
+            let (npos, _) = parse_field_type(content, pos)?;
+            pos = npos;
+        }
     }
-    vec![]
+    let mut pos = assert_char(content, pos, b'(')?;
+    if let Ok(npos) = assert_char(content, pos, b')') {
+        pos = npos;
+    } else {
+        loop {
+            if let Ok(npos) = assert_char(content, pos, b';') {
+                pos = npos;
+            }
+            if let Ok(npos) = assert_char(content, pos, b')') {
+                pos = npos;
+                break;
+            }
+            let (npos, ty) = parse_field_type(content, pos)?;
+            params.push(ty);
+            pos = npos;
+        }
+    }
+    let (pos, ret) = parse_field_type(content, pos)?;
+    Ok((pos, MethodSignature { args, params, ret }))
+}
+#[derive(Debug)]
+#[allow(dead_code)]
+struct ClassSignature {
+    pub args: Vec<MyString>,
+    pub ret: JType,
+}
+#[allow(dead_code)]
+fn parse_class_signature_info(sig: &MyString) -> Result<(usize, ClassSignature), ClassParserError> {
+    let content = sig.as_bytes();
+    let mut pos = 0;
+    let mut args = Vec::new();
+    if let Ok(npos) = assert_char(content, pos, b'<') {
+        pos = npos;
+        loop {
+            if let Ok(npos) = assert_char(content, pos, b';') {
+                pos = npos;
+            }
+            if let Ok(npos) = assert_char(content, pos, b'>') {
+                pos = npos;
+                break;
+            }
+            let mut arg = SmolStrBuilder::new();
+            loop {
+                let v = content.get(pos).ok_or(ClassParserError::EOF)?;
+                if *v == b':' {
+                    break;
+                }
+                let c =
+                    char::from_u32(u32::from(*v)).ok_or(ClassParserError::GenericParameterName)?;
+                arg.push(c);
+                pos += 1;
+            }
+            args.push(arg.finish());
+            let npos = assert_char(content, pos, b':')?;
+            pos = npos;
+            if let Ok(npos) = assert_char(content, pos, b':') {
+                pos = npos;
+            }
+            let (npos, _) = parse_field_type(content, pos)?;
+            pos = npos;
+        }
+    }
+    let (pos, ret) = parse_field_type(content, pos)?;
+    Ok((pos, ClassSignature { args, ret }))
+}
+
+fn assert_char(content: &[u8], pos: usize, p: u8) -> Result<usize, ClassParserError> {
+    let Some(c) = content.get(pos) else {
+        return Err(ClassParserError::EOF);
+    };
+
+    if *c != p {
+        // let expected = char::from_u32(p as u32);
+        // let got = char::from_u32(*c as u32);
+        // eprintln!("expected: {expected:?}, got: {got:?}");
+        return Err(ClassParserError::ExpectedOther { pos });
+    }
+
+    Ok(pos + 1)
+}
+
+fn parse_used_classes(
+    c: &ClassFile,
+    code_attribute: CodeAttribute,
+) -> Result<Vec<MyString>, ClassParserError> {
+    let mut out = Vec::new();
+
+    for attribute in code_attribute.attributes {
+        let attribute_name = lookup_string(c, attribute.attribute_name_index)?;
+        if attribute_name == "LocalVariableTable" {
+            let (_, info) =
+                classfile_parser::code_attribute::local_variable_table_parser(&attribute.info)
+                    .map_err(|_| ClassParserError::ParseError)?;
+            for f in info.items {
+                let field_desc = lookup_string(c, f.descriptor_index)?;
+                let (_, field_desc) = parse_field_type(field_desc.as_bytes(), 0)?;
+                let types = jtype_class_names(field_desc);
+                out.extend(types);
+            }
+        }
+    }
+    Ok(out)
 }
 
 fn jtype_class_names(i: JType) -> Vec<MyString> {
     match i {
         JType::Class(class) => vec![class],
         JType::Array(jtype) => jtype_class_names(*jtype),
-        JType::Generic(_class, jtypes) => jtypes.into_iter().flat_map(jtype_class_names).collect(),
+        JType::Generic(class, jtypes) => {
+            let mut out: Vec<MyString> = jtypes.into_iter().flat_map(jtype_class_names).collect();
+            out.push(class);
+            out
+        }
         _ => vec![],
     }
 }
 
-fn parse_code_attribute(c: &ClassFile, attributes: &[AttributeInfo]) -> Option<CodeAttribute> {
-    attributes
-        .iter()
-        .find_map(|attribute_info| {
-            match lookup_string(c, attribute_info.attribute_name_index)?.as_str() {
-                "Code" => {
-                    classfile_parser::attribute_info::code_attribute_parser(&attribute_info.info)
-                        .ok()
+fn parse_code_attribute(
+    c: &ClassFile,
+    attributes: &[AttributeInfo],
+) -> Result<Option<CodeAttribute>, ClassParserError> {
+    for a in attributes {
+        let attribute_name = lookup_string(c, a.attribute_name_index)?;
+        if attribute_name == "Code" {
+            let (_, out) = classfile_parser::attribute_info::code_attribute_parser(&a.info)
+                .map_err(|_| ClassParserError::ParseError)?;
+            return Ok(Some(out));
+        }
+    }
+    Ok(None)
+}
+
+#[derive(Debug)]
+struct MethodDescriptor {
+    param_types: Vec<JType>,
+    return_type: JType,
+}
+
+fn parse_method_descriptor(
+    descriptor: &str,
+) -> Result<(usize, MethodDescriptor), ClassParserError> {
+    let content = descriptor.as_bytes();
+    let pos = 0;
+    if let Ok((pos, param_types)) = parse_param_types(content, pos) {
+        let (pos, return_type) = parse_field_type(content, pos)?;
+        return Ok((
+            pos,
+            MethodDescriptor {
+                param_types,
+                return_type,
+            },
+        ));
+    }
+    let (pos, return_type) = parse_field_type(content, pos)?;
+    Ok((
+        pos,
+        MethodDescriptor {
+            param_types: Vec::new(),
+            return_type,
+        },
+    ))
+}
+
+fn parse_param_types(content: &[u8], pos: usize) -> Result<(usize, Vec<JType>), ClassParserError> {
+    let pos = assert_char(content, pos, b'(')?;
+    let mut pos = pos;
+    let mut out = Vec::new();
+    loop {
+        if let Ok(npos) = assert_char(content, pos, b')') {
+            pos = npos;
+            break;
+        }
+        let (npos, filed_type) = parse_field_type(content, pos)?;
+        out.push(filed_type);
+        pos = npos;
+    }
+    Ok((pos, out))
+}
+
+fn parse_field_type(content: &[u8], pos: usize) -> Result<(usize, JType), ClassParserError> {
+    let c = content.get(pos).ok_or(ClassParserError::EOF)?;
+    match c {
+        b'B' => Ok((pos + 1, JType::Byte)),
+        b'C' => Ok((pos + 1, JType::Char)),
+        b'D' => Ok((pos + 1, JType::Double)),
+        b'F' => Ok((pos + 1, JType::Float)),
+        b'I' => Ok((pos + 1, JType::Int)),
+        b'J' => Ok((pos + 1, JType::Long)),
+        b'S' => Ok((pos + 1, JType::Short)),
+        b'Z' => Ok((pos + 1, JType::Boolean)),
+        b'V' => Ok((pos + 1, JType::Void)),
+        b'T' => {
+            let mut pos = pos + 1;
+            let mut param = SmolStrBuilder::new();
+            loop {
+                let v = content.get(pos).ok_or(ClassParserError::EOF)?;
+                if *v == b';' {
+                    break;
                 }
-                _ => None,
+                let c =
+                    char::from_u32(u32::from(*v)).ok_or(ClassParserError::GenericParameterName)?;
+                param.push(c);
+                pos += 1;
             }
-        })
-        .map(|i| i.1)
+            Ok((pos, JType::Parameter(param.finish())))
+        }
+        b'L' => {
+            let mut pos = pos + 1;
+            let mut class_name = SmolStrBuilder::new();
+            let mut args = Vec::new();
+            loop {
+                if let Some(c) = content.get(pos) {
+                    if c == &b'<' {
+                        pos += 1;
+                        if let Ok(npos) = assert_char(content, pos, b'+') {
+                            pos = npos;
+                        }
+                        loop {
+                            let mut star = false;
+                            if let Ok(npos) = assert_char(content, pos, b'>') {
+                                pos = npos;
+                                break;
+                            }
+                            if let Ok(npos) = assert_char(content, pos, b'*') {
+                                // any
+                                pos = npos;
+                                star = true;
+                            }
+                            if let Ok(npos) = assert_char(content, pos, b'-') {
+                                // supper
+                                pos = npos;
+                            }
+                            if let Ok(npos) = assert_char(content, pos, b'+') {
+                                // extends
+                                pos = npos;
+                            }
+                            if star {
+                                if let Ok((npos, arg)) = parse_field_type(content, pos) {
+                                    args.push(arg);
+                                    pos = npos;
+                                    if let Ok(npos) = assert_char(content, pos, b';') {
+                                        pos = npos;
+                                    }
+                                }
+                                continue;
+                            }
+                            let (npos, arg) = parse_field_type(content, pos)?;
+                            args.push(arg);
+                            pos = npos;
+                            if let Ok(npos) = assert_char(content, pos, b';') {
+                                pos = npos;
+                            }
+                        }
+
+                        break;
+                    }
+                    if c == &b';' {
+                        pos += 1;
+                        break;
+                    }
+                    class_name.push(*c as char);
+                    pos += 1;
+                }
+            }
+            let class_name = class_name.finish().replace_smolstr("/", ".");
+            if !args.is_empty() {
+                return Ok((pos, JType::Generic(class_name, args)));
+            }
+            Ok((pos, JType::Class(class_name)))
+        }
+        b'[' => {
+            let (npos, inner) = parse_field_type(content, pos + 1)?;
+            Ok((npos, JType::Array(Box::new(inner))))
+        }
+        c => {
+            let got = char::from_u32(u32::from(*c));
+            Err(ClassParserError::UnknownType(got))
+        }
+    }
+}
+#[derive(Debug)]
+pub struct ModuleInfo {
+    pub exports: Vec<MyString>,
+}
+
+pub fn load_module(bytes: &[u8]) -> Result<ModuleInfo, ClassParserError> {
+    let (_, c) = class_parser(bytes).map_err(|_| ClassParserError::ParseError)?;
+    for a in &c.attributes {
+        let name = lookup_string(&c, a.attribute_name_index)?;
+        if name == "Module" {
+            let (_, module) = classfile_parser::attribute_info::module_attribute_parser(&a.info)
+                .map_err(|_| ClassParserError::ParseError)?;
+            let module_name = lookup_string(&c, module.module_name_index)?;
+            let mut exports = vec![module_name.replace('.', "/").to_smolstr()];
+            for e in module.exports {
+                if !e.exports_to_index.is_empty() {
+                    continue;
+                }
+                let name = lookup_string(&c, e.exports_index)?;
+                exports.push(name.replace('.', "/").to_smolstr());
+            }
+            return Ok(ModuleInfo { exports });
+        }
+    }
+    Err(ClassParserError::NoModuleAttribute)
 }
 
 fn parse_class_access(flags: ClassAccessFlags, deprecated: bool) -> Access {
@@ -377,108 +708,19 @@ fn parse_field_access(method: &FieldInfo) -> Access {
     access
 }
 
-fn lookup_string(c: &ClassFile, index: u16) -> Option<MyString> {
+fn lookup_string(c: &ClassFile, index: u16) -> Result<MyString, ClassParserError> {
     if index == 0 {
-        return None;
+        return Err(ClassParserError::StringIndexZero);
     }
     let con = &c.const_pool.get((index - 1) as usize);
     match con {
-        Some(ConstantInfo::Utf8(utf8)) => Some(utf8.utf8_string.to_smolstr()),
+        Some(ConstantInfo::Utf8(utf8)) => Ok(utf8.utf8_string.to_smolstr()),
         Some(ConstantInfo::Module(m)) => lookup_string(c, m.name_index),
         Some(ConstantInfo::Package(p)) => lookup_string(c, p.name_index),
-        _ => None,
+        Some(ConstantInfo::Class(p)) => lookup_string(c, p.name_index),
+        _ => Err(ClassParserError::ExpectedString),
     }
 }
-
-fn parse_method_descriptor(descriptor: &str) -> (Vec<JType>, JType) {
-    let mut param_types = Vec::new();
-    let mut chars = descriptor.chars();
-    let current = chars.next();
-    match current {
-        Some('(') => {
-            while let Some(c) = chars.next() {
-                if c == ')' {
-                    break;
-                }
-                param_types.push(parse_field_type(Some(c), &mut chars));
-            }
-
-            let return_type = parse_field_type(chars.next(), &mut chars);
-            (param_types, return_type)
-        }
-        Some(_) => {
-            let return_type = parse_field_type(current, &mut chars);
-            (param_types, return_type)
-        }
-        _ => (vec![], JType::Void),
-    }
-}
-fn parse_field_descriptor(descriptor: &str) -> JType {
-    let mut chars = descriptor.chars();
-    let current = chars.next();
-    parse_field_type(current, &mut chars)
-}
-
-fn parse_field_type(c: Option<char>, chars: &mut std::str::Chars) -> JType {
-    let Some(c) = c else {
-        return JType::Void;
-    };
-    match c {
-        'B' => JType::Byte,
-        'C' => JType::Char,
-        'D' => JType::Double,
-        'F' => JType::Float,
-        'I' => JType::Int,
-        'J' => JType::Long,
-        'S' => JType::Short,
-        'Z' => JType::Boolean,
-        'V' => JType::Void,
-        'L' => {
-            let mut class_name = String::new();
-            for ch in chars.by_ref() {
-                if ch == ';' {
-                    break;
-                }
-                class_name.push(ch);
-            }
-            JType::Class(class_name.replace('/', ".").to_smolstr())
-        }
-        '[' => JType::Array(Box::new(parse_field_type(chars.next(), chars))),
-        _ => {
-            //panic!("Unknown type: {}", c);
-            JType::Void
-        }
-    }
-}
-#[derive(Debug)]
-pub struct ModuleInfo {
-    pub exports: Vec<MyString>,
-}
-
-pub fn load_module(bytes: &[u8]) -> Result<ModuleInfo, ClassError> {
-    let (_, c) = class_parser(bytes).map_err(|_| ClassError::ParseError)?;
-    for a in &c.attributes {
-        if let Some(name) = lookup_string(&c, a.attribute_name_index)
-            && name == "Module"
-            && let Ok((_, module)) =
-                classfile_parser::attribute_info::module_attribute_parser(&a.info)
-            && let Some(module_name) = lookup_string(&c, module.module_name_index)
-        {
-            let mut exports = vec![module_name.replace('.', "/").to_smolstr()];
-            for e in module.exports {
-                if !e.exports_to_index.is_empty() {
-                    continue;
-                }
-                if let Some(name) = lookup_string(&c, e.exports_index) {
-                    exports.push(name.replace('.', "/").to_smolstr());
-                }
-            }
-            return Ok(ModuleInfo { exports });
-        }
-    }
-    Err(ClassError::NoModuleAttribute)
-}
-
 #[cfg(test)]
 mod tests {
     use crate::class::{load_class, load_module};

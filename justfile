@@ -35,7 +35,7 @@ audit:
   cd ./editor/vscode/client && npm audit
 
 cleanup:
-  cargo-machete || true
+  cargo-machete --with-metadata || true
 
 precommit: fmt check test clippy doc dev cleanup nix 
 

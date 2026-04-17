@@ -27,8 +27,13 @@ Class {
             ),
             parameters: [],
             throws: [],
-            ret: Class(
+            ret: Generic(
                 "java.util.stream.Stream",
+                [
+                    Parameter(
+                        "E",
+                    ),
+                ],
             ),
             source: None,
         },

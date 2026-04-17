@@ -992,12 +992,13 @@ public static Map<Long, String> m = new HashMap<>( );
     let out = get_call_chain(&ast, &AstPoint::new(3, 51));
     assert_eq!(
         vec![CallItem::ArgumentList {
-            prev: vec![CallItem::Class {
+            prev: vec![CallItem::ClassGeneric {
                 name: SmolStr::new_inline("HashMap"),
                 range: AstRange {
                     start: AstPoint { line: 3, col: 36 },
                     end: AstPoint { line: 3, col: 52 },
                 },
+                args: Vec::new()
             },],
             active_param: Some(0),
             filled_params: vec![vec![]],

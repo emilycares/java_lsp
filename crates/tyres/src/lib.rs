@@ -208,8 +208,6 @@ pub fn resolve(
     imports: &[ImportUnit],
     class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
 ) -> Result<ResolveState, TyresError> {
-    eprintln!("resolve: {class_name}");
-
     if class_name.contains('.') {
         return resolve_classpath(class_name, class_map);
     }
@@ -248,6 +246,49 @@ pub fn resolve(
     }
 }
 
+pub fn resolve_with_generic(
+    class_name: &str,
+    args: Vec<JType>,
+    imports: &[ImportUnit],
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+) -> Result<ResolveState, TyresError> {
+    if class_name.contains('.') {
+        return resolve_classpath(class_name, class_map);
+    }
+
+    let mut lang_class_key = SmolStrBuilder::new();
+    lang_class_key.push_str("java.lang.");
+    lang_class_key.push_str(class_name);
+    let lang_class_key = lang_class_key.finish();
+    if let Ok(cm) = class_map.lock()
+        && let Some(ic) = cm.get(&lang_class_key)
+    {
+        let lang_class = ic.to_owned();
+        drop(cm);
+        return Ok(ResolveState {
+            jtype: JType::Generic(lang_class_key, args),
+            class: parent::include_parent(lang_class, class_map),
+        });
+    }
+
+    let import_result = is_imported(class_name, imports, class_map);
+    match import_result {
+        Some(ImportResult::Class(c) | ImportResult::StaticClass(c)) => {
+            if let Ok(cm) = class_map.lock()
+                && let Some(ic) = cm.get(&c)
+            {
+                let imported_class = ic.to_owned();
+                drop(cm);
+                return Ok(ResolveState {
+                    jtype: JType::Generic(c, args),
+                    class: parent::include_parent(imported_class, class_map),
+                });
+            }
+            Err(TyresError::ClassNotFound { class_path: c })
+        }
+        None => Err(TyresError::NotImported(class_name.into())),
+    }
+}
 fn resolve_classpath(
     class_path: &str,
     class_map: &Arc<Mutex<HashMap<SmolStr, Class>>>,
@@ -437,6 +478,7 @@ fn call_chain_op(
             let Some(ResolveState { class, jtype: _ }) = ops.last() else {
                 return Err(TyresError::NoClassInOps);
             };
+            // TODO: look at next argumentlist to select method
             if let Some(method) = class.methods.iter().find(|m| m.name == Some(name.clone())) {
                 return resolve_jtype(&method.ret, imports, class_map);
             }
@@ -468,6 +510,11 @@ fn call_chain_op(
             jtype: JType::Class(class.class_path.clone()),
         }),
         CallItem::Class { name, range: _ } => resolve(name, imports, class_map),
+        CallItem::ClassGeneric {
+            name,
+            range: _,
+            args,
+        } => resolve_with_generic(name, args.clone(), imports, class_map),
         CallItem::ClassOrVariable { name, range: _ } => {
             if let Some(lo) = lo_va.iter().find(|va| va.name == *name) {
                 return resolve_var(lo, imports, class_map);
@@ -561,6 +608,11 @@ fn call_chain_op_self(
             jtype: JType::Class(class.class_path.clone()),
         }),
         CallItem::Class { name, range: _ } => resolve(name, imports, class_map),
+        CallItem::ClassGeneric {
+            name,
+            range: _,
+            args,
+        } => resolve_with_generic(name, args.clone(), imports, class_map),
         CallItem::ClassOrVariable { name, range: _ } => {
             if let Some(lo) = lo_va.iter().find(|va| va.name == *name) {
                 return resolve_var(lo, imports, class_map);

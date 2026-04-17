@@ -39,7 +39,7 @@ Class {
             ret: Generic(
                 "Stream",
                 [
-                    Class(
+                    Parameter(
                         "E",
                     ),
                 ],

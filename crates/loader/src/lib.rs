@@ -11,7 +11,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use dto::{CFC_VERSION, Class, ClassError, ClassFolder, SourceDestination};
+use dto::{CFC_VERSION, Class, ClassError, ClassFolder, ClassParserError, SourceDestination};
 use my_string::{MyString, smol_str::ToSmolStr};
 use parser::{
     class::{ModuleInfo, load_class, load_module},
@@ -60,7 +60,7 @@ where
     #[cfg(unix)]
     mmap.advise(memmap2::Advice::Sequential)
         .map_err(ClassError::IO)?;
-    parser::class::load_class(&mmap, class_path, source, filter)
+    parser::class::load_class(&mmap, class_path, source, filter).map_err(ClassError::ClassParser)
 }
 
 pub fn save_class_folder<P: AsRef<Path> + Debug>(
@@ -92,12 +92,10 @@ pub fn load_class_folder<P: AsRef<Path> + Debug>(path: P) -> Result<ClassFolder,
     let mmap = unsafe { memmap2::Mmap::map(&file) }.map_err(LoaderError::IO)?;
     if let Ok(o) = postcard::from_bytes::<ClassFolder>(&mmap[..]) {
         if o.version != CFC_VERSION {
-            eprintln!("Detected old cfc cache: {path:?}");
             return Err(LoaderError::InvalidCfcCache);
         }
         Ok(o)
     } else {
-        eprintln!("Detected invalid cfc cache: {path:?}");
         Err(LoaderError::InvalidCfcCache)
     }
 }
@@ -266,7 +264,7 @@ pub fn load_class_files(
             let smol_str = format_smolstr!("{source}{sr}");
             match load_class_fs(p, SourceDestination::Here(smol_str), class_path, filter) {
                 Ok(c) => Some(c),
-                Err(ClassError::Private) => None,
+                Err(ClassError::ClassParser(ClassParserError::Private)) => None,
                 Err(e) => {
                     eprintln!("Unable to load class: {p}: {e:?}");
                     None
@@ -374,7 +372,7 @@ async fn base_load_classes_zip(
 
         match load_class(buf.as_slice(), class_path, source.clone(), true) {
             Ok(c) => classes.push(c),
-            Err(ClassError::Private) => (),
+            Err(ClassParserError::Private) => (),
             Err(e) => {
                 eprintln!("Unable to load class: (in:{path}) {file_name} {e:?}");
             }

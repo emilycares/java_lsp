@@ -95,7 +95,7 @@ pub fn call_chain_definition(
             position::get_class_position_ast(&ast, None, &mut ranges);
             Ok(go_to_definition_range(uri, &ranges)?)
         }
-        Some(CallItem::Class { name, range: _ }) => {
+        Some(CallItem::Class { name, range: _ } | CallItem::ClassGeneric { name, .. }) => {
             let uri = source_to_uri(&resolve_state.class.get_source())
                 .map_err(DefinitionError::SourceToUri)?;
             let ast = document::get_ast(&resolve_state.class.get_source(), context.document_map)

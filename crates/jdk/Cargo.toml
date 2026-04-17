@@ -20,6 +20,3 @@ zip_util.workspace = true
 common.workspace = true
 memmap2.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }
-
-[dev-dependencies]
-pretty_assertions.workspace = true
