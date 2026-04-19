@@ -47,6 +47,9 @@ allprojects {
                 ss.compileClasspath.each {
                     println("JAVA_LSP_CLASSPATH:" + it.absolutePath)
                 }
+                ss.runtimeClasspath.each {
+                    println("JAVA_LSP_CLASSPATH:" + it.absolutePath)
+                }
             }
         }
     }

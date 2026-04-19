@@ -8,8 +8,8 @@ use lsp_types::{
     SignatureHelpParams, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
     WorkDoneProgressOptions, WorkspaceSymbolParams,
     notification::{
-        DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, DidSaveTextDocument,
-        Notification,
+        Cancel, DidChangeConfiguration, DidChangeTextDocument, DidCloseTextDocument,
+        DidOpenTextDocument, DidSaveTextDocument, Notification, SetTrace,
     },
     request::{
         CodeActionRequest, Completion, DocumentLinkRequest, DocumentSymbolRequest, ExecuteCommand,
@@ -191,6 +191,7 @@ pub fn route(backend: &Backend) -> Result<(), Box<dyn std::error::Error + Send +
                             backend.did_save(&params);
                         }
                     }
+                    DidChangeConfiguration::METHOD | SetTrace::METHOD | Cancel::METHOD => {}
                     r => {
                         eprintln!("Got unsupported notification: {r}");
                     }
