@@ -165,7 +165,7 @@ async fn reload_dependencies_maven_cli(
     Backend::progress_end_option_token(&con.clone(), &progress, &task);
 }
 
-pub const UPDATE_DEPENDENCIES: &str = "UpdateDependencies";
+pub const COMMAND_UPDATE_DEPENDENCIES: &str = "UpdateDependencies";
 pub fn update_dependencies(
     con: &Arc<Connection>,
     progress: Option<ProgressToken>,
@@ -203,7 +203,7 @@ pub fn update_dependencies_maven(
         let tree = get_tree(&project_kind, &con).await;
         Backend::progress_end_option_token(&con.clone(), &progress, &task);
 
-        let task = format!("Command: {UPDATE_DEPENDENCIES}");
+        let task = format!("Command: {COMMAND_UPDATE_DEPENDENCIES}");
         Backend::progress_start_option_token(&con.clone(), &progress, &task);
         if let Some(tree) = tree {
             let (sender, receiver) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
@@ -292,7 +292,7 @@ async fn update_dependencies_maven_cli(
     let tree = get_tree(&project_kind, &con).await;
     Backend::progress_end_option_token(&con.clone(), &progress, &task);
 
-    let task = format!("Command: {UPDATE_DEPENDENCIES}");
+    let task = format!("Command: {COMMAND_UPDATE_DEPENDENCIES}");
     Backend::progress_start_option_token(&con.clone(), &progress, &task);
     if let Some(tree) = tree {
         let sender = tokio::sync::watch::Sender::default();

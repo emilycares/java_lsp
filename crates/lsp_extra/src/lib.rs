@@ -18,6 +18,15 @@ pub const SERVER_NAME: &str = "java_lsp";
 pub enum ToLspRangeError {
     Int(TryFromIntError),
 }
+pub fn to_lsp_position(point: AstPoint) -> Result<Position, ToLspRangeError> {
+    let el = u32::try_from(point.line).map_err(ToLspRangeError::Int)?;
+    let ec = u32::try_from(point.col).map_err(ToLspRangeError::Int)?;
+
+    Ok(Position {
+        line: el,
+        character: ec,
+    })
+}
 pub fn to_lsp_range(range: &AstRange) -> Result<Range, ToLspRangeError> {
     let sl = u32::try_from(range.start.line).map_err(ToLspRangeError::Int)?;
     let sc = u32::try_from(range.start.col).map_err(ToLspRangeError::Int)?;

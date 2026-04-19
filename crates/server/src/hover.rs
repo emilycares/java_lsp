@@ -253,7 +253,7 @@ pub fn jtype_hover_display(jtype: &JType) -> String {
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
-        JType::Parameter(p) => format!("<{p}>"),
+        JType::Parameter(p) => p.to_string(),
         JType::Access { base, inner } => format!(
             "{}.{}",
             jtype_hover_display(base),

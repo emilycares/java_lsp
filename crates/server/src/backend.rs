@@ -41,7 +41,7 @@ use variables::VariableContext;
 
 use crate::{
     codeaction::{self, CodeActionContext},
-    command::{self, COMMAND_RELOAD_DEPENDENCIES, UPDATE_DEPENDENCIES},
+    command::{self, COMMAND_RELOAD_DEPENDENCIES, COMMAND_UPDATE_DEPENDENCIES},
     completion,
     definition::{self, DefinitionContext},
     document_link::get_document_link,
@@ -843,7 +843,7 @@ impl Backend {
                     }),
                     CodeActionOrCommand::Command(Command {
                         title: "Update Dependencies".to_string(),
-                        command: UPDATE_DEPENDENCIES.to_owned(),
+                        command: COMMAND_UPDATE_DEPENDENCIES.to_owned(),
                         arguments: None,
                     }),
                 ]);
@@ -852,6 +852,13 @@ impl Backend {
         }
         let document = self.get_document(&params.text_document.uri)?;
         let current_file = params.text_document.uri;
+        match codeaction::generate_class(&document.ast, &current_file) {
+            Ok(None) => (),
+            Ok(Some(e)) => return Some(vec![e]),
+            Err(e) => {
+                eprintln!("Got error code_action generate class: {e:?}");
+            }
+        }
         let point = to_ast_point(params.range.start);
 
         let imports = imports::imports(&document.ast);
@@ -993,7 +1000,7 @@ impl Backend {
                 &self.class_map,
                 &self.project_dir,
             ),
-            UPDATE_DEPENDENCIES => {
+            COMMAND_UPDATE_DEPENDENCIES => {
                 command::update_dependencies(
                     &self.connection,
                     progress,

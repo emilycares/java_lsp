@@ -6,19 +6,22 @@ use std::{
 };
 
 use ast::types::{
-    AstBlockEntry, AstBlockVariable, AstFile, AstForContent, AstIf, AstIfContent, AstPoint,
-    AstThing, AstWhileContent,
+    AstBlockEntry, AstBlockVariable, AstFile, AstForContent, AstIf, AstIfContent, AstPackage,
+    AstPoint, AstRange, AstThing, AstWhileContent,
 };
 use dto::{Class, ImportUnit};
 use local_variable::LocalVariable;
-use lsp_extra::{ToLspRangeError, to_lsp_range};
+use lsp_extra::{ToLspRangeError, to_lsp_position, to_lsp_range};
 use lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, Position, Range, TextEdit, Uri, WorkspaceEdit,
 };
 use my_string::MyString;
 use tyres::TyresError;
 
-use crate::hover::jtype_hover_display;
+use crate::{
+    document_link::{SRC_MAIN, SRC_TEST},
+    hover::jtype_hover_display,
+};
 
 pub struct CodeActionContext<'a> {
     pub point: &'a AstPoint,
@@ -344,6 +347,88 @@ pub fn import_text_edit(classpath: &str, ast: &AstFile) -> Vec<TextEdit> {
     }]
 }
 
+pub fn generate_class(
+    ast: &AstFile,
+    current_file: &Uri,
+) -> Result<Option<CodeActionOrCommand>, CodeActionError> {
+    if !ast.things.is_empty() {
+        return Ok(None);
+    }
+    let path = current_file.path().as_str();
+    let name;
+    let package;
+    if let Some((path, fname)) = path.rsplit_once('/') {
+        name = fname.trim_end_matches(".java");
+        let is_test = path.contains(SRC_TEST);
+        if is_test {
+            if let Some((_, p)) = path.split_once(SRC_TEST) {
+                package = p.trim_start_matches('/').replace('/', ".");
+            } else {
+                return Ok(None);
+            }
+        } else {
+            if let Some((_, p)) = path.split_once(SRC_MAIN) {
+                package = p.trim_start_matches('/').replace('/', ".");
+            } else {
+                return Ok(None);
+            }
+        }
+    } else {
+        return Ok(None);
+    }
+    #[allow(clippy::mutable_key_type)]
+    let mut changes = HashMap::new();
+    if let Some(AstPackage {
+        range: AstRange { end, .. },
+        ..
+    }) = ast.package
+    {
+        let pos = to_lsp_position(end).map_err(CodeActionError::ToLspRange)?;
+        changes.insert(
+            current_file.clone(),
+            vec![TextEdit {
+                range: Range {
+                    start: pos,
+                    end: pos,
+                },
+                new_text: format!(
+                    "public class {name} {{
+                     }}"
+                ),
+            }],
+        );
+    } else {
+        changes.insert(
+            current_file.clone(),
+            vec![TextEdit {
+                range: Range::default(),
+                new_text: format!(
+                    "package {package}
+
+public class {name} {{
+}}
+"
+                ),
+            }],
+        );
+    }
+
+    Ok(Some(CodeActionOrCommand::CodeAction(CodeAction {
+        title: "Generate Class".to_string(),
+        kind: None,
+        diagnostics: None,
+        edit: Some(WorkspaceEdit {
+            changes: Some(changes),
+            document_changes: None,
+            change_annotations: None,
+        }),
+        command: None,
+        is_preferred: None,
+        disabled: None,
+        data: None,
+    })))
+}
+
 #[allow(unused)]
 pub fn import_to_code_action(
     current_file: &Uri,
@@ -381,7 +466,7 @@ pub mod tests {
     use pretty_assertions::assert_eq;
     use variables::VariableContext;
 
-    use crate::codeaction::replace_with_value_type;
+    use crate::codeaction::{generate_class, replace_with_value_type};
 
     use super::CodeActionContext;
 
@@ -516,6 +601,17 @@ public class Test {
             }
             lsp_types::CodeActionOrCommand::Command(_) => panic!(),
         }
+    }
+
+    #[test]
+    fn generate_class_base() {
+        let cont = r#"
+        "#;
+        let doc = Document::setup(cont, PathBuf::from_str("./").unwrap()).unwrap();
+        let uri = Uri::from_str("file:///C:/src/test/java/my/thing/some/Thing.java").unwrap();
+        let out = generate_class(&doc.ast, &uri);
+        let result = out.unwrap().unwrap();
+        insta::assert_debug_snapshot!(result);
     }
     fn get_class_map() -> Arc<Mutex<HashMap<MyString, Class>>> {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();

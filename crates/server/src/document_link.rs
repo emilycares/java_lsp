@@ -2,12 +2,12 @@ use document::Document;
 use lsp_extra::{source_to_uri, to_lsp_range};
 use lsp_types::{DocumentLink, Uri};
 use position::PositionSymbol;
+pub const TEST_JAVA: &str = "Test.java";
+pub const JAVA: &str = ".java";
+pub const SRC_MAIN: &str = "src/main/java";
+pub const SRC_TEST: &str = "src/test/java";
 
 pub fn get_document_link(uri: &Uri, document: &Document) -> Option<Vec<DocumentLink>> {
-    const TEST_JAVA: &str = "Test.java";
-    const JAVA: &str = ".java";
-    const SRC_MAIN: &str = "src/main/java";
-    const SRC_TEST: &str = "src/test/java";
     let mut symbols = vec![];
     position::get_class_position_ast(&document.ast, None, &mut symbols);
     let PositionSymbol { range, .. } = symbols.first()?;

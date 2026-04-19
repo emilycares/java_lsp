@@ -23,7 +23,7 @@ use serde_json::{Value, from_value, to_value};
 
 use crate::{
     backend::Backend,
-    command::{COMMAND_RELOAD_DEPENDENCIES, UPDATE_DEPENDENCIES},
+    command::{COMMAND_RELOAD_DEPENDENCIES, COMMAND_UPDATE_DEPENDENCIES},
 };
 
 pub fn get_server_capabilities() -> ServerCapabilities {
@@ -60,7 +60,7 @@ pub fn get_server_capabilities() -> ServerCapabilities {
         execute_command_provider: Some(ExecuteCommandOptions {
             commands: vec![
                 COMMAND_RELOAD_DEPENDENCIES.to_owned(),
-                UPDATE_DEPENDENCIES.to_owned(),
+                COMMAND_UPDATE_DEPENDENCIES.to_owned(),
             ],
             work_done_progress_options: WorkDoneProgressOptions {
                 work_done_progress: Some(true),
@@ -168,35 +168,32 @@ pub fn route(backend: &Backend) -> Result<(), Box<dyn std::error::Error + Send +
             Message::Response(resp) => {
                 eprintln!("got response: {resp:?}");
             }
-            Message::Notification(not) => {
-                // let time = Instant::now();
-                match not.method.as_str() {
-                    DidOpenTextDocument::METHOD => {
-                        if let Ok(params) = from_value::<DidOpenTextDocumentParams>(not.params) {
-                            backend.did_open(&params);
-                        }
-                    }
-                    DidCloseTextDocument::METHOD => {
-                        if let Ok(params) = from_value::<DidCloseTextDocumentParams>(not.params) {
-                            backend.did_close(&params);
-                        }
-                    }
-                    DidChangeTextDocument::METHOD => {
-                        if let Ok(params) = from_value::<DidChangeTextDocumentParams>(not.params) {
-                            backend.did_change(&params);
-                        }
-                    }
-                    DidSaveTextDocument::METHOD => {
-                        if let Ok(params) = from_value::<DidSaveTextDocumentParams>(not.params) {
-                            backend.did_save(&params);
-                        }
-                    }
-                    DidChangeConfiguration::METHOD | SetTrace::METHOD | Cancel::METHOD => {}
-                    r => {
-                        eprintln!("Got unsupported notification: {r}");
+            Message::Notification(not) => match not.method.as_str() {
+                DidOpenTextDocument::METHOD => {
+                    if let Ok(params) = from_value::<DidOpenTextDocumentParams>(not.params) {
+                        backend.did_open(&params);
                     }
                 }
-            }
+                DidCloseTextDocument::METHOD => {
+                    if let Ok(params) = from_value::<DidCloseTextDocumentParams>(not.params) {
+                        backend.did_close(&params);
+                    }
+                }
+                DidChangeTextDocument::METHOD => {
+                    if let Ok(params) = from_value::<DidChangeTextDocumentParams>(not.params) {
+                        backend.did_change(&params);
+                    }
+                }
+                DidSaveTextDocument::METHOD => {
+                    if let Ok(params) = from_value::<DidSaveTextDocumentParams>(not.params) {
+                        backend.did_save(&params);
+                    }
+                }
+                DidChangeConfiguration::METHOD | SetTrace::METHOD | Cancel::METHOD => {}
+                r => {
+                    eprintln!("Got unsupported notification: {r}");
+                }
+            },
         }
     }
     Ok(())
