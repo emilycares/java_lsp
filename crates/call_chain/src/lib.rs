@@ -27,6 +27,7 @@ pub enum CallItem {
     MethodCall {
         name: MyString,
         range: AstRange,
+        args: Vec<Vec<Self>>,
     },
     FieldAccess {
         name: MyString,
@@ -67,13 +68,13 @@ impl CallItem {
     #[must_use]
     pub const fn get_range(&self) -> &AstRange {
         match self {
-            Self::MethodCall { name: _, range }
-            | Self::FieldAccess { name: _, range }
-            | Self::Variable { name: _, range }
+            Self::MethodCall { range, .. }
+            | Self::FieldAccess { range, .. }
+            | Self::Variable { range, .. }
             | Self::This { range }
-            | Self::Class { name: _, range }
+            | Self::Class { range, .. }
             | Self::ClassGeneric { range, .. }
-            | Self::ClassOrVariable { name: _, range }
+            | Self::ClassOrVariable { range, .. }
             | Self::ArrayAccess { range }
             | Self::ArgumentList {
                 prev: _,
@@ -138,6 +139,7 @@ fn cc_imports(imports: &AstImports, point: &AstPoint, out: &mut Vec<CallItem>) {
                 out.push(CallItem::MethodCall {
                     name: method.value.clone(),
                     range: method.range,
+                    args: vec![],
                 });
             }
             AstImportUnit::Prefix(_) | AstImportUnit::StaticPrefix(_) => (),
@@ -567,14 +569,14 @@ pub fn validate(call_chain: &[CallItem], point: &AstPoint) -> (usize, Vec<CallIt
         .iter()
         .enumerate()
         .find(|(_n, ci)| match ci {
-            CallItem::MethodCall { name: _, range }
-            | CallItem::FieldAccess { name: _, range }
-            | CallItem::Variable { name: _, range }
+            CallItem::MethodCall { range, .. }
+            | CallItem::FieldAccess { range, .. }
+            | CallItem::Variable { range, .. }
             | CallItem::This { range }
-            | CallItem::ClassOrVariable { name: _, range }
+            | CallItem::ClassOrVariable { range, .. }
             | CallItem::ArrayAccess { range }
             | CallItem::ClassGeneric { range, .. }
-            | CallItem::Class { name: _, range } => range.is_in_range(point),
+            | CallItem::Class { range, .. } => range.is_in_range(point),
             CallItem::ArgumentList {
                 prev,
                 range,
@@ -1181,8 +1183,7 @@ fn cc_base_next_oprerator(
                 let b = dist(*point, next.range);
 
                 if a < b {
-                    let has_args = next.values.is_some();
-                    cc_expr_ident(ident, has_args, false, point, out);
+                    cc_expr_ident(ident, next.values.clone(), false, point, out);
                 } else {
                     cc_expr(&ast_expression[1..], point, false, out);
                 }
@@ -1194,8 +1195,7 @@ fn cc_base_next_oprerator(
         | AstExpressionOperator::Dot(_)
         | AstExpressionOperator::ExclamationMark(_) => {
             if let Some(ident) = &current.ident {
-                let has_args = next.values.is_some();
-                cc_expr_ident(ident, has_args, has_parent, point, out);
+                cc_expr_ident(ident, next.values.clone(), has_parent, point, out);
             }
             cc_expr(&ast_expression[1..], point, true, out);
             if let Some(values) = &current.values {
@@ -1208,8 +1208,7 @@ fn cc_base_next_oprerator(
                 let b = dist(*point, next.range);
 
                 if a <= b {
-                    let has_args = next.values.is_some();
-                    cc_expr_ident(ident, has_args, true, point, out);
+                    cc_expr_ident(ident, next.values.clone(), true, point, out);
                 } else {
                     cc_expr(&ast_expression[1..], point, true, out);
                 }
@@ -1230,12 +1229,24 @@ fn cc_base_no_next(
         (None, Some(values)) => {
             cc_arguments(point, out, values);
         }
+        (Some(ident), None) if has_values => {
+            cc_expr_ident(
+                ident,
+                Some(AstValues {
+                    range: AstRange::default(),
+                    values: Vec::new(),
+                }),
+                has_parent,
+                point,
+                out,
+            );
+        }
         (Some(ident), None) => {
-            cc_expr_ident(ident, has_values, has_parent, point, out);
+            cc_expr_ident(ident, None, has_parent, point, out);
         }
         (Some(ident), Some(values)) => {
             if ident.get_range().is_contained_in(&values.get_range()) {
-                cc_expr_ident(ident, has_values, has_parent, point, out);
+                cc_expr_ident(ident, Some(values.clone()), has_parent, point, out);
             }
             cc_arguments(point, out, values);
         }
@@ -1307,6 +1318,22 @@ fn cc_arguments_base(
     }
 }
 
+fn cc_arguments_for_method_call(args: AstValues) -> Vec<Vec<CallItem>> {
+    let mut out = Vec::new();
+
+    for arg in args.values {
+        let mut v = Vec::new();
+
+        let mut point = arg.get_range().end;
+        point.col += 1;
+        cc_expr(&arg, &point, false, &mut v);
+
+        out.push(v);
+    }
+
+    out
+}
+
 fn get_active_param(expressions: &[AstExpression], point: &AstPoint) -> usize {
     expressions
         .iter()
@@ -1334,7 +1361,7 @@ fn line_col_diff(a: &AstPoint, b: &AstPoint) -> usize {
 
 fn cc_expr_ident(
     ident: &AstExpressionIdentifier,
-    has_args: bool,
+    args: Option<AstValues>,
     has_parent: bool,
     point: &AstPoint,
     out: &mut Vec<CallItem>,
@@ -1342,10 +1369,11 @@ fn cc_expr_ident(
     match ident {
         AstExpressionIdentifier::Identifier(ast_identifier) => {
             let is_empty = out.is_empty();
-            if has_args {
+            if let Some(args) = args {
                 out.push(CallItem::MethodCall {
                     name: ast_identifier.into(),
                     range: ast_identifier.range,
+                    args: cc_arguments_for_method_call(args),
                 });
             } else if has_parent && !is_empty {
                 out.push(CallItem::FieldAccess {

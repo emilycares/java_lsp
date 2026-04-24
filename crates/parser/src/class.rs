@@ -14,7 +14,9 @@ pub fn load_class(
     source: SourceDestination,
     filter: bool,
 ) -> Result<Class, ClassParserError> {
-    let (_, c) = class_parser(bytes).map_err(|_| ClassParserError::ParseError)?;
+    let _ = expect_data(bytes, 0, &[0xCA, 0xFE, 0xBA, 0xBE])
+        .map_err(|_| ClassParserError::NotAClass)?;
+    let (_, c) = class_parser(bytes).map_err(|_| ClassParserError::BaseParser)?;
     if filter && !c.access_flags.intersects(ClassAccessFlags::PUBLIC) {
         return Err(ClassParserError::Private);
     }
@@ -39,7 +41,7 @@ pub fn load_class(
         //  }
         if attribute_name == "Code" {
             let (_, out) = classfile_parser::attribute_info::code_attribute_parser(&a.info)
-                .map_err(|_| ClassParserError::ParseError)?;
+                .map_err(|_| ClassParserError::CodeAttribute)?;
             used_classes.extend(parse_used_classes(&c, out)?);
         } else if attribute_name == "Deprecated" {
             deprecated = true;
@@ -200,7 +202,7 @@ fn parse_method(
 
         let (_, info) =
             classfile_parser::attribute_info::method_parameters_attribute_parser(&attribute.info)
-                .map_err(|_| ClassParserError::ParseError)?;
+                .map_err(|_| ClassParserError::MethodParameters)?;
         if signature_index.is_some() {
             for p in info.parameters {
                 let name = lookup_string(c, p.name_index)
@@ -232,7 +234,7 @@ fn parse_method(
 
         let (_, sig) =
             classfile_parser::attribute_info::signature_attribute_parser(&attribute.info)
-                .map_err(|_| ClassParserError::ParseError)?;
+                .map_err(|_| ClassParserError::SignatureAttribute)?;
         let sig = lookup_string(c, sig.signature_index)?;
         let (_, sig) = parse_method_signature_info(&sig)?;
         let mut name_iter = parameter_names.into_iter();
@@ -251,7 +253,7 @@ fn parse_method(
             .ok_or(ClassParserError::InvalidAttributeIndex)?;
         let (_, info) =
             classfile_parser::attribute_info::exceptions_attribute_parser(&attribute.info)
-                .map_err(|_| ClassParserError::ParseError)?;
+                .map_err(|_| ClassParserError::ExceptionsAttribute)?;
 
         for exception in info.exception_table {
             let class_name = lookup_string(c, exception)?;
@@ -398,6 +400,21 @@ fn assert_char(content: &[u8], pos: usize, p: u8) -> Result<usize, ClassParserEr
     Ok(pos + 1)
 }
 
+#[track_caller]
+#[inline]
+fn expect_data(data: &[u8], pos: usize, expected: &[u8]) -> Result<usize, ClassParserError> {
+    let len = expected.len();
+    let Some(get) = data.get(pos..pos + len) else {
+        return Err(ClassParserError::EOF);
+    };
+
+    let cond = get != expected;
+    if cond {
+        return Err(ClassParserError::NotAsExpected { pos, len });
+    }
+    Ok(pos + len)
+}
+
 fn parse_used_classes(
     c: &ClassFile,
     code_attribute: CodeAttribute,
@@ -409,7 +426,7 @@ fn parse_used_classes(
         if attribute_name == "LocalVariableTable" {
             let (_, info) =
                 classfile_parser::code_attribute::local_variable_table_parser(&attribute.info)
-                    .map_err(|_| ClassParserError::ParseError)?;
+                    .map_err(|_| ClassParserError::LocalVariableTable)?;
             for f in info.items {
                 let field_desc = lookup_string(c, f.descriptor_index)?;
                 let (_, field_desc) = parse_field_type(field_desc.as_bytes(), 0)?;
@@ -442,7 +459,7 @@ fn parse_code_attribute(
         let attribute_name = lookup_string(c, a.attribute_name_index)?;
         if attribute_name == "Code" {
             let (_, out) = classfile_parser::attribute_info::code_attribute_parser(&a.info)
-                .map_err(|_| ClassParserError::ParseError)?;
+                .map_err(|_| ClassParserError::CodeAttribute)?;
             return Ok(Some(out));
         }
     }
@@ -603,12 +620,12 @@ pub struct ModuleInfo {
 }
 
 pub fn load_module(bytes: &[u8]) -> Result<ModuleInfo, ClassParserError> {
-    let (_, c) = class_parser(bytes).map_err(|_| ClassParserError::ParseError)?;
+    let (_, c) = class_parser(bytes).map_err(|_| ClassParserError::Module)?;
     for a in &c.attributes {
         let name = lookup_string(&c, a.attribute_name_index)?;
         if name == "Module" {
             let (_, module) = classfile_parser::attribute_info::module_attribute_parser(&a.info)
-                .map_err(|_| ClassParserError::ParseError)?;
+                .map_err(|_| ClassParserError::ModuleAttribute)?;
             let module_name = lookup_string(&c, module.module_name_index)?;
             let mut exports = vec![module_name.replace('.', "/").to_smolstr()];
             for e in module.exports {
@@ -798,6 +815,7 @@ mod tests {
         let result = load_module(include_bytes!("../test/module-info-java-desktop.class"));
         insta::assert_debug_snapshot!(result.unwrap());
     }
+
     #[test]
     fn module_jakarta() {
         let result = load_module(include_bytes!("../test/module-info-jakarta.class"));

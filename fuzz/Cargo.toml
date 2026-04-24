@@ -1,0 +1,41 @@
+[package]
+name = "parser-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.parser]
+path = "../crates/parser"
+
+[dependencies.dto]
+path = "../crates/dto"
+
+[dependencies.ast]
+path = "../crates/ast"
+
+[[bin]]
+name = "parser_class"
+path = "fuzz_targets/parser_class.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "parser_module"
+path = "fuzz_targets/parser_module.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "parser_java"
+path = "fuzz_targets/parser_java.rs"
+test = false
+doc = false
+bench = false

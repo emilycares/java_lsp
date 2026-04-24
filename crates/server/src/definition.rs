@@ -104,12 +104,18 @@ pub fn call_chain_definition(
             position::get_class_position_ast(&ast, Some(name), &mut ranges);
             Ok(go_to_definition_range(uri, &ranges)?)
         }
-        Some(CallItem::MethodCall { name, range: _ }) => {
+        Some(CallItem::MethodCall {
+            name,
+            args,
+            range: _,
+        }) => {
+            let args_len = args.len();
             let source_file = match resolve_state
                 .class
                 .methods
                 .iter()
                 .filter(|i| i.name.as_ref().filter(|i| *i == name).is_some())
+                .filter(|i| i.parameters.len() == args_len)
                 .find_map(|i| i.source.clone())
             {
                 Some(method_source) => method_source,

@@ -68,6 +68,7 @@ pub fn get_signature(
     match &prev.last() {
         Some(CallItem::MethodCall {
             name: method_name,
+            args: _,
             range: _,
         }) => signature_help_for_method(
             imports,

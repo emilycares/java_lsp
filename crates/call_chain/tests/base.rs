@@ -495,6 +495,7 @@ public class Test {
                         start: AstPoint { line: 4, col: 10 },
                         end: AstPoint { line: 4, col: 16 },
                     },
+                    args: vec![]
                 }
             ],
             range: AstRange {
@@ -541,6 +542,24 @@ public class Test {
                             start: AstPoint { line: 5, col: 10 },
                             end: AstPoint { line: 5, col: 16 },
                         },
+
+                        args: vec![vec![
+                            CallItem::ClassOrVariable {
+                                name: "b".into(),
+                                range: AstRange {
+                                    start: AstPoint { line: 5, col: 17 },
+                                    end: AstPoint { line: 5, col: 18 },
+                                },
+                            },
+                            CallItem::MethodCall {
+                                name: "a".into(),
+                                range: AstRange {
+                                    start: AstPoint { line: 5, col: 19 },
+                                    end: AstPoint { line: 5, col: 20 },
+                                },
+                                args: vec![],
+                            },
+                        ],],
                     },
                 ],
                 range: AstRange {
@@ -560,7 +579,8 @@ public class Test {
                         range: AstRange {
                             start: AstPoint { line: 5, col: 19 },
                             end: AstPoint { line: 5, col: 20 },
-                        }
+                        },
+                        args: vec![]
                     },
                 ]],
                 active_param: Some(0)
@@ -577,7 +597,8 @@ public class Test {
                 range: AstRange {
                     start: AstPoint { line: 5, col: 19 },
                     end: AstPoint { line: 5, col: 20 },
-                }
+                },
+                args: vec![]
             },
         ],
         out,
@@ -689,7 +710,8 @@ public class Test {
                 range: AstRange {
                     start: AstPoint { line: 4, col: 17 },
                     end: AstPoint { line: 4, col: 18 },
-                }
+                },
+                args: vec![]
             }
         ],
         out,
@@ -767,7 +789,8 @@ public class Test {
                 range: AstRange {
                     start: AstPoint { line: 4, col: 21 },
                     end: AstPoint { line: 4, col: 22 },
-                }
+                },
+                args: vec![]
             }
         ],
         out,
@@ -800,7 +823,23 @@ public class Test {
                 range: AstRange {
                     start: AstPoint { line: 3, col: 39 },
                     end: AstPoint { line: 3, col: 48 },
-                }
+                },
+                args: vec![vec![
+                    CallItem::ClassOrVariable {
+                        name: "Test".into(),
+                        range: AstRange {
+                            start: AstPoint { line: 3, col: 49 },
+                            end: AstPoint { line: 3, col: 53 },
+                        },
+                    },
+                    CallItem::FieldAccess {
+                        name: "class".into(),
+                        range: AstRange {
+                            start: AstPoint { line: 3, col: 54 },
+                            end: AstPoint { line: 3, col: 59 },
+                        },
+                    },
+                ],]
             }
         ],
         out,
@@ -882,7 +921,8 @@ public class Test {
                 range: AstRange {
                     start: AstPoint { line: 4, col: 20 },
                     end: AstPoint { line: 4, col: 28 }
-                }
+                },
+                args: vec![]
             }
         ],
         out,
@@ -1041,7 +1081,8 @@ return a.length > 0
                 range: AstRange {
                     start: AstPoint { line: 5, col: 18 },
                     end: AstPoint { line: 5, col: 23 },
-                }
+                },
+                args: vec![]
             }
         ],
         out,
@@ -1078,7 +1119,8 @@ return a.length > 0
                 range: AstRange {
                     start: AstPoint { line: 6, col: 17 },
                     end: AstPoint { line: 6, col: 21 },
-                }
+                },
+                args: vec![]
             }
         ],
         out,
@@ -1109,7 +1151,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
                 range: AstRange {
                     start: AstPoint { line: 2, col: 46 },
                     end: AstPoint { line: 2, col: 57 },
-                }
+                },
+                args: vec![]
             }
         ],
         out,

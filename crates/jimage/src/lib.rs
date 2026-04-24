@@ -18,7 +18,7 @@ use std::{
     str::from_utf8,
 };
 
-use dto::{CFC_VERSION, ClassFolder, SourceDestination};
+use dto::{CFC_VERSION, ClassFolder, ClassParserError, SourceDestination};
 use my_string::{
     MyString,
     smol_str::{StrExt, ToSmolStr, format_smolstr},
@@ -82,6 +82,10 @@ pub fn parser(
         }
         let (_, class_path) = parse_string(strings_data, location.parent)?;
 
+        if class_path.is_empty() {
+            continue;
+        }
+
         // Skip not exported modules
         for r in &rules {
             if r.0 == location.module && !r.1.exports.iter().any(|e| e == &class_path) {
@@ -98,9 +102,12 @@ pub fn parser(
         let bytes = get_content_bytes(data, index_size, &location)?;
         let (_, class_name) = parse_string(strings_data, location.base)?;
         let class_path = format_smolstr!("{}.{}", class_path.replace_smolstr("/", "."), class_name);
-        let class = load_class(bytes, class_path, source, filter);
-        if let Ok(class) = class {
-            classes.push(class);
+        match load_class(bytes, class_path.clone(), source, filter) {
+            Ok(c) => classes.push(c),
+            Err(ClassParserError::Private | ClassParserError::NotAClass) => (),
+            Err(e) => {
+                return Err(JimageError::Class { re: class_path, e });
+            }
         }
     }
 
@@ -130,8 +137,8 @@ fn load_module_info(
                 Ok(c) => {
                     rules.push((location.module, c));
                 }
-                Err(e) => {
-                    eprintln!("Unable to load class: ({e:?}");
+                Err(_) => {
+                    return Err(JimageError::Module);
                 }
             }
         } else {
@@ -143,8 +150,8 @@ fn load_module_info(
                     Ok(c) => {
                         rules.push((location.module, c));
                     }
-                    Err(e) => {
-                        eprintln!("Unable to load class: ({e:?}");
+                    Err(_) => {
+                        return Err(JimageError::Module);
                     }
                 }
             }

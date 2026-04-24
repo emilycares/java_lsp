@@ -18,6 +18,7 @@ expression: out
                     start: AstPoint { 5:14 },
                     end: AstPoint { 5:20 },
                 },
+                args: [],
             },
         ],
         active_param: Some(

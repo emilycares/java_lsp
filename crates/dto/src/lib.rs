@@ -31,13 +31,22 @@ pub enum ClassParserError {
     StringIndexZero,
     ExpectedString,
     Private,
-    ParseError,
     InvalidName,
     NotEnogthParams,
     NoModuleAttribute,
     UnknownType(Option<char>),
     GenericParameterName,
     InvalidAttributeIndex,
+    CodeAttribute,
+    BaseParser,
+    MethodParameters,
+    SignatureAttribute,
+    ExceptionsAttribute,
+    LocalVariableTable,
+    Module,
+    ModuleAttribute,
+    NotAsExpected { pos: usize, len: usize },
+    NotAClass,
 }
 
 pub const CFC_VERSION: usize = 10;

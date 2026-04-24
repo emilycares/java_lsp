@@ -104,7 +104,7 @@ pub fn call_chain_references(
     .map_err(ReferencesError::Tyres)?;
 
     match relevant.get(item) {
-        Some(CallItem::MethodCall { name, range: _ }) => {
+        Some(CallItem::MethodCall { name, .. }) => {
             let mut locations = vec![];
             if let Ok(reference_map) = reference_map.lock()
                 && let Some(used_in) = reference_map.get(&reference_state.class.class_path)

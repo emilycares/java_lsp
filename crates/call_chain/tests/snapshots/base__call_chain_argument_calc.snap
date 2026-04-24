@@ -11,6 +11,25 @@ expression: out
                     start: AstPoint { 4:8 },
                     end: AstPoint { 4:14 },
                 },
+                args: [
+                    [
+                        ClassOrVariable {
+                            name: "a",
+                            range: AstRange {
+                                start: AstPoint { 4:21 },
+                                end: AstPoint { 4:22 },
+                            },
+                        },
+                        MethodCall {
+                            name: "getThing",
+                            range: AstRange {
+                                start: AstPoint { 4:23 },
+                                end: AstPoint { 4:31 },
+                            },
+                            args: [],
+                        },
+                    ],
+                ],
             },
         ],
         active_param: Some(
@@ -31,6 +50,7 @@ expression: out
                         start: AstPoint { 4:23 },
                         end: AstPoint { 4:31 },
                     },
+                    args: [],
                 },
             ],
         ],
@@ -52,5 +72,6 @@ expression: out
             start: AstPoint { 4:23 },
             end: AstPoint { 4:31 },
         },
+        args: [],
     },
 ]

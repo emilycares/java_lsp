@@ -57,13 +57,13 @@ mod tests {
     #[test]
     #[cfg(not(windows))]
     fn to_test() {
-        let cont = r#"
+        let cont = r"
 package ch.emilycares;
 public class Thing {}
-        "#;
+        ";
         let document = Document::setup(cont, PathBuf::from_str("/Thing.java").unwrap()).unwrap();
         let s = "file:///src/test/java/Thing.java";
-        let uri = Uri::from_str(&s).unwrap();
+        let uri = Uri::from_str(s).unwrap();
         let out = get_document_link(&uri, &document).unwrap();
         let out = out.first().unwrap();
         assert_eq!(
@@ -85,7 +85,7 @@ public class Thing {}
                 .unwrap()
                 .path()
                 .as_str()
-                .replace("\\", "/"),
+                .replace('\\', "/"),
             "/src/test/java/ThingTest.java"
         );
         assert_eq!(out.tooltip, Some("To Test".to_string()));
@@ -131,14 +131,14 @@ public class Thing {}
     #[test]
     #[cfg(not(windows))]
     fn to_impl() {
-        let cont = r#"
+        let cont = "
 package ch.emilycares;
 public class ThingTest {}
-        "#;
+        ";
         let document =
             Document::setup(cont, PathBuf::from_str("/ThingTest.java").unwrap()).unwrap();
         let s = "file:///src/test/java/ThingTest.java";
-        let uri = Uri::from_str(&s).unwrap();
+        let uri = Uri::from_str(s).unwrap();
         let out = get_document_link(&uri, &document).unwrap();
         let out = out.first().unwrap();
         assert_eq!(
@@ -160,7 +160,7 @@ public class ThingTest {}
                 .unwrap()
                 .path()
                 .as_str()
-                .replace("\\", "/"),
+                .replace('\\', "/"),
             "/src/main/java/Thing.java"
         );
         assert_eq!(out.tooltip, Some("To Implementation".to_string()));

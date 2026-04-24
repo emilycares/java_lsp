@@ -713,8 +713,9 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
                 col += 1;
             }
             b'@' => {
-                let interface = &input[index + 1..index + 10];
-                if interface == b"interface" {
+                if let Some(interface) = input.get(index + 1..index + 10)
+                    && interface == b"interface"
+                {
                     tokens.push(PositionToken {
                         token: Token::AtInterface,
                         line,

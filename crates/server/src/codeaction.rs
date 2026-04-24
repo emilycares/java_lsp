@@ -605,8 +605,8 @@ public class Test {
 
     #[test]
     fn generate_class_base() {
-        let cont = r#"
-        "#;
+        let cont = r"
+        ";
         let doc = Document::setup(cont, PathBuf::from_str("./").unwrap()).unwrap();
         let uri = Uri::from_str("file:///C:/src/test/java/my/thing/some/Thing.java").unwrap();
         let out = generate_class(&doc.ast, &uri);

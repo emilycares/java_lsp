@@ -45,6 +45,9 @@
             targets = [ "x86_64-pc-windows-gnu" ];
           }
         );
+        craneNightlyLib = (crane.mkLib pkgs).overrideToolchain (
+          p: p.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default)
+        );
 
         src = ./.;
 
@@ -244,6 +247,14 @@
             packages = [
               java_lsp
               pkgs.javaPackages.compiler.openjdk25
+            ];
+          };
+          fuzz = craneNightlyLib.devShell {
+            # Inherit inputs from checks.
+            checks = self.checks.${system};
+
+            packages = [
+              pkgs.cargo-fuzz
             ];
           };
         };

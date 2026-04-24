@@ -23,5 +23,6 @@ expression: out
             start: AstPoint { 5:16 },
             end: AstPoint { 5:17 },
         },
+        args: [],
     },
 ]

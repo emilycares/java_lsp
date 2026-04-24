@@ -40,7 +40,7 @@ pub fn base(
         Ok((class, range)) => {
             return Ok(class_to_hover(&class, range));
         }
-        Err(ClassActionError::NotFound) => {}
+        Err(ClassActionError::NotFound | ClassActionError::Tyres(TyresError::NotImported(_))) => {}
         Err(e) => eprintln!("class action hover error: {e:?}"),
     }
     let Some(class_path) = get_class_path(ast) else {
@@ -69,9 +69,7 @@ pub enum ClassActionError {
     /// Under the cursor there was no text
     CouldNotGetNode,
     /// In the type resolution error
-    Tyres {
-        tyres_error: tyres::TyresError,
-    },
+    Tyres(TyresError),
     VariableFound,
     ToLspRange(ToLspRangeError),
 }
@@ -87,7 +85,7 @@ pub fn class_action(
         let range = to_lsp_range(&class.range).map_err(ClassActionError::ToLspRange)?;
         return match tyres::resolve(&class.name, imports, class_map) {
             Ok(resolve_state) => Ok((resolve_state.class, range)),
-            Err(tyres_error) => Err(ClassActionError::Tyres { tyres_error }),
+            Err(tyres_error) => Err(ClassActionError::Tyres(tyres_error)),
         };
     }
     Err(ClassActionError::NotFound)
@@ -118,12 +116,14 @@ pub fn call_chain_hover(
         Err(e) => Err(HoverError::Tyres(e)),
     }?;
     match el {
-        CallItem::MethodCall { name, range } => {
+        CallItem::MethodCall { name, args, range } => {
+            let args_len = args.len();
             let methods: Vec<Method> = resolve_state
                 .class
                 .methods
                 .into_iter()
                 .filter(|i| i.name.as_ref().filter(|i| i == &name).is_some())
+                .filter(|i| i.parameters.len() == args_len)
                 .collect();
             let range = to_lsp_range(range).map_err(HoverError::ToLspRange)?;
             Ok(methods_to_hover(&methods, range, &resolve_state.class.name))

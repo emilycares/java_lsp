@@ -12,7 +12,10 @@ use std::{
 };
 
 use dto::{CFC_VERSION, Class, ClassError, ClassFolder, ClassParserError, SourceDestination};
-use my_string::{MyString, smol_str::ToSmolStr};
+use my_string::{
+    MyString,
+    smol_str::{SmolStr, ToSmolStr},
+};
 use parser::{
     class::{ModuleInfo, load_class, load_module},
     java::{self, ParseJavaError},
@@ -32,6 +35,15 @@ pub enum LoaderError {
     },
     InvalidCfcCache,
     EmptyClassFolder,
+    Module,
+    Class {
+        re: SmolStr,
+        e: ClassError,
+    },
+    ClassParser {
+        re: SmolStr,
+        e: ClassParserError,
+    },
 }
 
 pub fn load_java_fs<T>(path: T, source: SourceDestination) -> Result<Class, ParseJavaError>
@@ -185,12 +197,12 @@ pub fn load_class_files(
     trim_prefix: usize,
     filter: bool,
     source: &str,
-) -> Vec<Class> {
+) -> Result<Vec<Class>, LoaderError> {
     use jwalk::WalkDir;
     use my_string::smol_str::ToSmolStr;
     use rayon::iter::{ParallelBridge, ParallelIterator};
     let Some(root_prefix) = folder.to_str() else {
-        return vec![];
+        return Ok(vec![]);
     };
 
     #[cfg(windows)]
@@ -213,65 +225,75 @@ pub fn load_class_files(
     // Prefix for module info
     let mut rules: Vec<(String, ModuleInfo)> = Vec::new();
 
-    filter_map
+    for p in filter_map
         .iter()
         .filter(|i| i.ends_with("module-info.class"))
-        .for_each(|p| {
-            let prefix = p
-                .trim_start_matches(root_prefix)
-                .trim_start_matches('/')
-                .trim_end_matches("module-info.class");
-            if let Ok(file) = File::open(p).map_err(ClassError::IO)
-                && let Ok(mmap) = unsafe { memmap2::Mmap::map(&file) }
-            {
-                #[cfg(unix)]
-                let _ = mmap.advise(memmap2::Advice::Sequential);
-                match load_module(&mmap) {
-                    Ok(c) => {
-                        rules.push((prefix.to_string(), c));
-                    }
-                    Err(e) => {
-                        eprintln!("Unable to load class: (in:{p}) {e:?}");
-                    }
+    {
+        let prefix = p
+            .trim_start_matches(root_prefix)
+            .trim_start_matches('/')
+            .trim_end_matches("module-info.class");
+        if let Ok(file) = File::open(p).map_err(ClassError::IO)
+            && let Ok(mmap) = unsafe { memmap2::Mmap::map(&file) }
+        {
+            #[cfg(unix)]
+            let _ = mmap.advise(memmap2::Advice::Sequential);
+            match load_module(&mmap) {
+                Ok(c) => {
+                    rules.push((prefix.to_string(), c));
+                }
+                Err(_) => {
+                    return Err(LoaderError::Module);
                 }
             }
-        });
+        }
+    }
 
-    filter_map
+    let mut out = Vec::new();
+
+    'outer: for p in filter_map
         .iter()
         .filter(|i| !i.ends_with("module-info.class"))
-        .filter_map(|p| {
-            use my_string::smol_str::{StrExt, format_smolstr};
+    {
+        use my_string::smol_str::{StrExt, format_smolstr};
 
-            let prefix = p.trim_start_matches(root_prefix).trim_start_matches('/');
+        let prefix = p.trim_start_matches(root_prefix).trim_start_matches('/');
 
-            for r in &rules {
-                if prefix.starts_with(&r.0) && !r.1.exports.iter().any(|e| p.contains(e.as_str())) {
-                    return None;
-                }
+        for r in &rules {
+            if prefix.starts_with(&r.0) && !r.1.exports.iter().any(|e| p.contains(e.as_str())) {
+                continue 'outer;
             }
-            let mut class_path = prefix.trim_end_matches(".class").replace_smolstr("/", ".");
-            if trim_prefix > 1 {
-                let spl = class_path.splitn(trim_prefix, '.');
-                if let Some(p) = spl.last() {
-                    class_path = p.to_smolstr();
-                }
+        }
+        let mut class_path = prefix.trim_end_matches(".class").replace_smolstr("/", ".");
+        if trim_prefix > 1 {
+            let spl = class_path.splitn(trim_prefix, '.');
+            if let Some(p) = spl.last() {
+                class_path = p.to_smolstr();
             }
-            let sr = p
-                .trim_start_matches(root_prefix)
-                .replacen_smolstr(".class", ".java", 1);
+        }
+        let sr = p
+            .trim_start_matches(root_prefix)
+            .replacen_smolstr(".class", ".java", 1);
 
-            let smol_str = format_smolstr!("{source}{sr}");
-            match load_class_fs(p, SourceDestination::Here(smol_str), class_path, filter) {
-                Ok(c) => Some(c),
-                Err(ClassError::ClassParser(ClassParserError::Private)) => None,
-                Err(e) => {
-                    eprintln!("Unable to load class: {p}: {e:?}");
-                    None
-                }
+        let smol_str = format_smolstr!("{source}{sr}");
+        match load_class_fs(
+            p,
+            SourceDestination::Here(smol_str.clone()),
+            class_path,
+            filter,
+        ) {
+            Ok(c) => {
+                out.push(c);
             }
-        })
-        .collect::<Vec<_>>()
+            Err(ClassError::ClassParser(
+                ClassParserError::Private | ClassParserError::NotAClass,
+            )) => (),
+            Err(e) => {
+                return Err(LoaderError::Class { re: smol_str, e });
+            }
+        }
+    }
+    Ok(out)
 }
 pub async fn load_classes_jar<P: AsRef<Path> + Debug + Clone>(
     path: P,
@@ -319,8 +341,8 @@ async fn base_load_classes_zip(
                 Ok(c) => {
                     rules.push((prefix.to_string(), c));
                 }
-                Err(e) => {
-                    eprintln!("Unable to load class: (in:{path}) {e:?}");
+                Err(_) => {
+                    return Err(LoaderError::Module);
                 }
             }
         }
@@ -370,11 +392,11 @@ async fn base_load_classes_zip(
 
         let buf = entry.bytes().await.map_err(LoaderError::IO)?;
 
-        match load_class(buf.as_slice(), class_path, source.clone(), true) {
+        match load_class(buf.as_slice(), class_path.clone(), source.clone(), true) {
             Ok(c) => classes.push(c),
-            Err(ClassParserError::Private) => (),
+            Err(ClassParserError::Private | ClassParserError::NotAClass) => (),
             Err(e) => {
-                eprintln!("Unable to load class: (in:{path}) {file_name} {e:?}");
+                return Err(LoaderError::ClassParser { re: class_path, e });
             }
         }
     }

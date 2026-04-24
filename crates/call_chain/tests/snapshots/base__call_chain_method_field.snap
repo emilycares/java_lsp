@@ -16,6 +16,7 @@ expression: out
             start: AstPoint { 5:23 },
             end: AstPoint { 5:24 },
         },
+        args: [],
     },
     FieldAccess {
         name: "b",

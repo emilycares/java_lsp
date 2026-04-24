@@ -16,6 +16,17 @@ expression: out
             start: AstPoint { 4:10 },
             end: AstPoint { 4:16 },
         },
+        args: [
+            [
+                Class {
+                    name: "String",
+                    range: AstRange {
+                        start: AstPoint { 4:18 },
+                        end: AstPoint { 4:17 },
+                    },
+                },
+            ],
+        ],
     },
     MethodCall {
         name: "other",
@@ -23,5 +34,6 @@ expression: out
             start: AstPoint { 4:21 },
             end: AstPoint { 4:26 },
         },
+        args: [],
     },
 ]

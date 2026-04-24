@@ -474,12 +474,22 @@ fn call_chain_op(
     return_value: bool,
 ) -> Result<ResolveState, TyresError> {
     match item {
-        CallItem::MethodCall { name, range: _ } => {
+        CallItem::MethodCall {
+            name,
+            args,
+            range: _,
+        } => {
             let Some(ResolveState { class, jtype: _ }) = ops.last() else {
                 return Err(TyresError::NoClassInOps);
             };
-            // TODO: look at next argumentlist to select method
-            if let Some(method) = class.methods.iter().find(|m| m.name == Some(name.clone())) {
+            let args_len = args.len();
+            // TODO: Improve parameter filter
+            if let Some(method) = class
+                .methods
+                .iter()
+                .filter(|m| m.name == Some(name.clone()))
+                .find(|i| i.parameters.len() == args_len)
+            {
                 return resolve_jtype(&method.ret, imports, class_map);
             }
             if let Some(m) = methods.iter().find(|i| i.name == *name) {
@@ -565,7 +575,11 @@ fn call_chain_op_self(
     resolve_argument: bool,
 ) -> Result<ResolveState, TyresError> {
     match item {
-        CallItem::MethodCall { name, range: _ } => {
+        CallItem::MethodCall {
+            name,
+            args: _,
+            range: _,
+        } => {
             let Some(last) = ops.last() else {
                 return Err(TyresError::NoClassInOps);
             };

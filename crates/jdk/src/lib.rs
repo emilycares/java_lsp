@@ -18,7 +18,7 @@ use std::{
 
 use common::TaskProgress;
 use dto::{CFC_VERSION, Class, ClassFolder, SourceDestination};
-use loader::load_class_files;
+use loader::{LoaderError, load_class_files};
 use my_string::{MyString, smol_str::ToSmolStr};
 use tokio::{process::Command, task::JoinSet};
 
@@ -47,6 +47,7 @@ pub enum JdkError {
     Jimage(jimage::types::JimageError),
     NoJimageExecutable,
     Mmemmap,
+    Loader(LoaderError),
 }
 
 pub async fn load_classes(
@@ -208,7 +209,7 @@ async fn load_modules_with_command(
         }
     }
 
-    let classes = load_class_files(&out, 3, true, source_dir);
+    let classes = load_class_files(&out, 3, true, source_dir).map_err(JdkError::Loader)?;
 
     Ok(ClassFolder {
         version: CFC_VERSION,
@@ -523,16 +524,16 @@ mod tests {
 
     #[tokio::test]
     async fn load_jdk_modules_executable_integration() {
-        test_load_jdk_modules_executable().await
+        test_load_jdk_modules_executable().await;
     }
 
     #[tokio::test]
     async fn load_jdk_modules_own_integration() {
-        test_load_jdk_modules_own().await
+        test_load_jdk_modules_own().await;
     }
 
     #[tokio::test]
     async fn load_jdk_jmod_integration() {
-        test_load_jdk_jmod().await
+        test_load_jdk_jmod().await;
     }
 }

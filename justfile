@@ -40,3 +40,7 @@ cleanup:
 precommit: fmt check test clippy doc dev cleanup nix 
 
 p: precommit
+
+fuzz:
+  nix develop .#fuzz --command bash -c "FUZZ_TIME=300; for t in \$(cargo-fuzz list); do cargo-fuzz build "\$t" && cargo-fuzz run "\$t"; done"
+  

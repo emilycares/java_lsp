@@ -18,6 +18,26 @@ expression: out
                     start: AstPoint { 5:10 },
                     end: AstPoint { 5:16 },
                 },
+                args: [
+                    [
+                        ClassOrVariable {
+                            name: "b",
+                            range: AstRange {
+                                start: AstPoint { 5:17 },
+                                end: AstPoint { 5:18 },
+                            },
+                        },
+                    ],
+                    [
+                        ClassOrVariable {
+                            name: "c",
+                            range: AstRange {
+                                start: AstPoint { 5:20 },
+                                end: AstPoint { 5:21 },
+                            },
+                        },
+                    ],
+                ],
             },
         ],
         active_param: Some(

@@ -661,7 +661,7 @@ public class Test {
                 point: Some(AstPoint::new(4, 6)),
                 imports: Default::default(),
                 class: &class,
-                class_map: Default::default(),
+                class_map: Arc::default(),
             },
         )
         .unwrap();
@@ -700,7 +700,7 @@ public class Test {
                 point: Some(AstPoint::new(12, 17)),
                 imports: Default::default(),
                 class: &class,
-                class_map: Default::default(),
+                class_map: Arc::default(),
             },
         )
         .unwrap();
@@ -736,7 +736,7 @@ public class Test {
                 point: Some(AstPoint::new(8, 54)),
                 imports: Default::default(),
                 class: &class,
-                class_map: Default::default(),
+                class_map: Arc::default(),
             },
         )
         .unwrap();
@@ -789,7 +789,7 @@ public class Test {
                 point: Some(AstPoint::new(8, 54)),
                 imports: Default::default(),
                 class: &class,
-                class_map: Default::default(),
+                class_map: Arc::default(),
             },
         )
         .unwrap();
@@ -818,7 +818,7 @@ public class Test {
                 point: Some(AstPoint::new(6, 46)),
                 imports: Default::default(),
                 class: &class,
-                class_map: Default::default(),
+                class_map: Arc::default(),
             },
         )
         .unwrap();

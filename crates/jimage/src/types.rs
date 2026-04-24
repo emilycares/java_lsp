@@ -1,5 +1,7 @@
 use std::{array::TryFromSliceError, str::Utf8Error};
 
+use dto::ClassParserError;
+use my_string::smol_str::SmolStr;
 use parser::class::ModuleInfo;
 
 use crate::mutf8::Mutf8Error;
@@ -25,6 +27,11 @@ pub enum JimageError {
     InvalidAttributeKind,
     DataNotFound,
     Usize,
+    Module,
+    Class {
+        re: SmolStr,
+        e: ClassParserError,
+    },
 }
 
 #[derive(Debug)]
