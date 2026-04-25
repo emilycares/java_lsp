@@ -117,7 +117,7 @@ pub fn class_unpack(val: &Class, imports: &[ImportUnit], ast: &AstFile) -> Vec<C
             }),
     );
 
-    out.sort_by(|a, b| a.label.to_lowercase().cmp(&b.label.to_lowercase()));
+    out.sort_by_key(|a| a.label.to_lowercase());
 
     out
 }
@@ -336,7 +336,7 @@ pub fn static_methods(
                     return class
                         .methods
                         .iter()
-                        .filter(|f| f.name.as_ref().filter(|i| *i == m).is_some())
+                        .filter(|f| f.name.as_ref().is_some_and(|i| i == m))
                         .map(Method::clone)
                         .collect();
                 }

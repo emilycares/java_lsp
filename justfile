@@ -37,9 +37,12 @@ audit:
 cleanup:
   cargo-machete --with-metadata || true
 
-precommit: fmt check test clippy doc dev cleanup nix 
+precommit: fmt check test clippy doc dev cleanup nix check-jdk 
 
 p: precommit
+
+check-jdk:
+  cargo run --release -- ast-check-jdk
 
 fuzz:
   nix develop .#fuzz --command bash -c "FUZZ_TIME=300; for t in \$(cargo-fuzz list); do cargo-fuzz build "\$t" && cargo-fuzz run "\$t"; done"

@@ -117,7 +117,7 @@ fn signature_help_for_method(
         .class
         .methods
         .iter()
-        .filter(|i| i.name.as_ref().filter(|i| *i == method_name).is_some())
+        .filter(|i| i.name.as_ref().is_some_and(|i| *i == method_name))
         .collect();
 
     let Some(active_signature) = methods

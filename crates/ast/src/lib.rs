@@ -3133,10 +3133,7 @@ pub fn parse_name_dot(
     let init_pos = pos;
     let mut pos = pos;
     let mut ident = SmolStrBuilder::new();
-    loop {
-        let Ok(t) = tokens.get(pos).ok_or_else(AstError::eof) else {
-            break;
-        };
+    while let Ok(t) = tokens.get(pos).ok_or_else(AstError::eof) {
         match &t.token {
             Token::Identifier(id) => {
                 ident.push_str(id);
@@ -3180,10 +3177,7 @@ pub fn parse_name_dot_logical(
     let mut pos = pos;
     let mut ident = SmolStrBuilder::new();
     let mut first = true;
-    loop {
-        let Ok(t) = tokens.get(pos).ok_or_else(AstError::eof) else {
-            break;
-        };
+    while let Ok(t) = tokens.get(pos).ok_or_else(AstError::eof) {
         match &t.token {
             Token::Identifier(id) => {
                 if first {

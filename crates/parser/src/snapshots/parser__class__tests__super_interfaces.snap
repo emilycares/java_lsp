@@ -41,11 +41,11 @@ Class {
     fields: [],
     super_class: None,
     super_interfaces: [
-        Name(
-            "Collection",
+        ClassPath(
+            "java.util.Collection",
         ),
-        Name(
-            "List",
+        ClassPath(
+            "java.util.List",
         ),
     ],
 }

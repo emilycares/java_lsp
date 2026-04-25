@@ -931,8 +931,7 @@ impl Backend {
             .filter(|i| {
                 i.path()
                     .extension()
-                    .filter(|i| i.eq_ignore_ascii_case("java"))
-                    .is_some()
+                    .is_some_and(|i| i.eq_ignore_ascii_case("java"))
             })
             .filter_map(|e| e.path().to_str().map(ToString::to_string))
             .filter_map(|i| {

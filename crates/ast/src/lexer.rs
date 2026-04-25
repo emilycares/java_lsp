@@ -865,10 +865,7 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
                     multi_line = true;
                     index += 2;
                 }
-                'string_literal: loop {
-                    let Some(ch) = input.get(index) else {
-                        break;
-                    };
+                'string_literal: while let Some(ch) = input.get(index) {
                     if *ch == b'\r' {
                         index += 1;
                         continue;
@@ -917,10 +914,7 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
             b'\'' => {
                 index += 1;
                 let mut char = SmolStrBuilder::new();
-                'char_literal: loop {
-                    let Some(ch) = input.get(index) else {
-                        break;
-                    };
+                'char_literal: while let Some(ch) = input.get(index) {
                     if *ch == b'\\' {
                         let Some(peek) = input.get(index + 1) else {
                             break;
@@ -1031,10 +1025,7 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
                         Some(b'x' | b'X') => {
                             index += 2;
                             let mut string = SmolStrBuilder::new();
-                            loop {
-                                let Some(ch) = input.get(index) else {
-                                    break;
-                                };
+                            while let Some(ch) = input.get(index) {
                                 if ch.is_ascii_hexdigit()
                                     || ch == &b'_'
                                     || ch == &b'.'
@@ -1059,10 +1050,7 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
                         Some(b'b' | b'B') => {
                             index += 2;
                             let mut string = SmolStrBuilder::new();
-                            loop {
-                                let Some(ch) = input.get(index) else {
-                                    break;
-                                };
+                            while let Some(ch) = input.get(index) {
                                 if ch == &b'_' || ch == &b'0' || ch == &b'1' {
                                     string.push(*ch as char);
                                     index += 1;
@@ -1083,10 +1071,7 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
                     }
                 }
                 let mut string = SmolStrBuilder::new();
-                loop {
-                    let Some(ch) = input.get(index) else {
-                        break;
-                    };
+                while let Some(ch) = input.get(index) {
                     if ch.is_ascii_digit() || ch == &b'_' {
                         string.push(*ch as char);
                     } else {
@@ -1106,10 +1091,7 @@ pub fn lex_mut(input: &[u8], tokens: &mut Vec<PositionToken>) -> Result<(), Lexe
             }
             b'A'..=b'Z' | b'a'..=b'z' | b'_' | b'$' => {
                 let mut ident = SmolStrBuilder::new();
-                loop {
-                    let Some(ch) = input.get(index) else {
-                        break;
-                    };
+                while let Some(ch) = input.get(index) {
                     if !ch.is_ascii_alphanumeric() && ch != &b'_' && ch != &b'$' {
                         break;
                     }

@@ -10,6 +10,8 @@ use my_string::{
 };
 use serde::{Deserialize, Serialize};
 
+pub const CFC_VERSION: usize = 11;
+
 #[derive(Debug)]
 pub enum ClassError {
     IO(std::io::Error),
@@ -47,9 +49,8 @@ pub enum ClassParserError {
     ModuleAttribute,
     NotAsExpected { pos: usize, len: usize },
     NotAClass,
+    NameRecursion,
 }
-
-pub const CFC_VERSION: usize = 10;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
 pub struct ClassFolder {

@@ -77,10 +77,7 @@ pub fn get_server_capabilities() -> ServerCapabilities {
     }
 }
 pub fn route(backend: &Backend) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    loop {
-        let Ok(msg) = backend.connection.receiver.recv() else {
-            break;
-        };
+    while let Ok(msg) = backend.connection.receiver.recv() {
         match msg {
             Message::Request(req) => {
                 if backend.connection.handle_shutdown(&req)? {

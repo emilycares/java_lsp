@@ -29,16 +29,19 @@ pub fn load_class(
     let mut deprecated = false;
 
     for a in &c.attributes {
+        if a.attribute_name_index == 0 {
+            continue;
+        }
         let attribute_name = lookup_string(&c, a.attribute_name_index)?;
 
         // if attribute_name == "Signature" {
         //     let (_, sig) = classfile_parser::attribute_info::signature_attribute_parser(&a.info)
-        //         .map_err(|_| ClassParserError::ParseError)?;
+        //         .map_err(|_| ClassParserError::SignatureAttribute)?;
         //     let sig = lookup_string(&c, sig.signature_index)?;
-        //     let (_, _sig) = parse_class_signature_info(&sig)?;
-        //     // dbg!(sig);
+        //     let (_, sig) = parse_class_signature_info(&sig)?;
+        //     dbg!(sig);
         //     continue;
-        //  }
+        // }
         if attribute_name == "Code" {
             let (_, out) = classfile_parser::attribute_info::code_attribute_parser(&a.info)
                 .map_err(|_| ClassParserError::CodeAttribute)?;
@@ -106,15 +109,20 @@ pub fn load_class(
     let super_interfaces: Vec<_> = c
         .interfaces
         .iter()
+        .filter(|i| i != &&0)
         .map(|index| {
-            lookup_class_name(&c, *index as usize).map_or(SuperClass::None, SuperClass::Name)
+            lookup_string(&c, *index).map_or(SuperClass::None, |i| {
+                SuperClass::ClassPath(i.replace_smolstr("/", "."))
+            })
         })
         .collect();
 
     let mut super_class = SuperClass::None;
-    let a = lookup_class_name(&c, c.super_class.into())?;
-    if a != "Object" {
-        super_class = SuperClass::Name(a);
+    if c.super_class != 0 {
+        let a = lookup_string(&c, c.super_class)?;
+        if a != "java/lang/Object" {
+            super_class = SuperClass::ClassPath(a.replace_smolstr("/", "."));
+        }
     }
 
     Ok(Class {
@@ -215,13 +223,15 @@ fn parse_method(
             ret = md.return_type;
             let mut params = md.param_types.into_iter();
             for p in info.parameters {
-                let name = lookup_string(c, p.name_index)
-                    .ok()
-                    .filter(|i| !SmolStr::is_empty(i));
-                parameters.push(Parameter {
-                    name,
-                    jtype: params.next().ok_or(ClassParserError::NotEnogthParams)?,
-                });
+                let jtype = params.next().ok_or(ClassParserError::NotEnogthParams)?;
+                if p.name_index == 0 {
+                    parameters.push(Parameter { name: None, jtype });
+                } else {
+                    let name = lookup_string(c, p.name_index)
+                        .ok()
+                        .filter(|i| !SmolStr::is_empty(i));
+                    parameters.push(Parameter { name, jtype });
+                }
             }
         }
     }
@@ -724,17 +734,23 @@ fn parse_field_access(method: &FieldInfo) -> Access {
     }
     access
 }
-
 fn lookup_string(c: &ClassFile, index: u16) -> Result<MyString, ClassParserError> {
+    lookup_string_inner(c, index, 0)
+}
+
+fn lookup_string_inner(c: &ClassFile, index: u16, depth: u8) -> Result<MyString, ClassParserError> {
+    if depth == 5 {
+        return Err(ClassParserError::NameRecursion);
+    }
     if index == 0 {
         return Err(ClassParserError::StringIndexZero);
     }
     let con = &c.const_pool.get((index - 1) as usize);
     match con {
         Some(ConstantInfo::Utf8(utf8)) => Ok(utf8.utf8_string.to_smolstr()),
-        Some(ConstantInfo::Module(m)) => lookup_string(c, m.name_index),
-        Some(ConstantInfo::Package(p)) => lookup_string(c, p.name_index),
-        Some(ConstantInfo::Class(p)) => lookup_string(c, p.name_index),
+        Some(ConstantInfo::Module(m)) => lookup_string_inner(c, m.name_index, depth + 1),
+        Some(ConstantInfo::Package(p)) => lookup_string_inner(c, p.name_index, depth + 1),
+        Some(ConstantInfo::Class(p)) => lookup_string_inner(c, p.name_index, depth + 1),
         _ => Err(ClassParserError::ExpectedString),
     }
 }

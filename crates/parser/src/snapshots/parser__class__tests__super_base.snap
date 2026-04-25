@@ -27,8 +27,8 @@ Class {
         },
     ],
     fields: [],
-    super_class: Name(
-        "IOException",
+    super_class: ClassPath(
+        "java.io.IOException",
     ),
     super_interfaces: [],
 }

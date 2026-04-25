@@ -122,7 +122,7 @@ pub fn call_chain_hover(
                 .class
                 .methods
                 .into_iter()
-                .filter(|i| i.name.as_ref().filter(|i| i == &name).is_some())
+                .filter(|i| i.name.as_ref().is_some_and(|i| i == name))
                 .filter(|i| i.parameters.len() == args_len)
                 .collect();
             let range = to_lsp_range(range).map_err(HoverError::ToLspRange)?;

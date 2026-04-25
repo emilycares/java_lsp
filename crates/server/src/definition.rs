@@ -114,7 +114,7 @@ pub fn call_chain_definition(
                 .class
                 .methods
                 .iter()
-                .filter(|i| i.name.as_ref().filter(|i| *i == name).is_some())
+                .filter(|i| i.name.as_ref().is_some_and(|i| i == name))
                 .filter(|i| i.parameters.len() == args_len)
                 .find_map(|i| i.source.clone())
             {

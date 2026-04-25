@@ -43,7 +43,7 @@ pub async fn update(
     sender: tokio::sync::watch::Sender<TaskProgress>,
 ) -> Result<(), MavenUpdateError> {
     let client = reqwest::Client::builder()
-        .tcp_keepalive(Duration::from_secs(60))
+        .tcp_keepalive(Duration::from_mins(1))
         .build()
         .map_err(MavenUpdateError::ClientBuilder)?;
     let client = Arc::new(client);
