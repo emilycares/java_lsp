@@ -57,10 +57,6 @@ debug = false
 inherits = "dev"
 debug = true
 
-[profile.dev.package]
-insta.opt-level = 3
-similar.opt-level = 3
-
 [profile.release]
 debug = "line-tables-only"
 # debug = true
@@ -115,7 +111,7 @@ rc-zip-tokio = "4.3.1"
 dirs = "6.0.0"
 phf = { version = "0.13.1", features = ["macros"] }
 rayon = "1.11.0"
-insta = { version = "1.46.2", default-features = false }
+expect-test = "1.5.1"
 memmap2 = "0.9.9"
 memchr = "2.7.6"
 sha1_smol = "1.0.1"

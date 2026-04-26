@@ -461,6 +461,7 @@ pub mod tests {
     use ast::types::AstPoint;
     use document::Document;
     use dto::{Access, Class, ImportUnit, JType, Method, SourceDestination};
+    use expect_test::expect;
     use lsp_types::Uri;
     use my_string::{MyString, smol_str::SmolStr};
     use pretty_assertions::assert_eq;
@@ -611,7 +612,66 @@ public class Test {
         let uri = Uri::from_str("file:///C:/src/test/java/my/thing/some/Thing.java").unwrap();
         let out = generate_class(&doc.ast, &uri);
         let result = out.unwrap().unwrap();
-        insta::assert_debug_snapshot!(result);
+        let expected = expect![[r#"
+            CodeAction(
+                CodeAction {
+                    title: "Generate Class",
+                    kind: None,
+                    diagnostics: None,
+                    edit: Some(
+                        WorkspaceEdit {
+                            changes: Some(
+                                {
+                                    Uri(
+                                        Uri {
+                                            scheme: Some(
+                                                "file",
+                                            ),
+                                            authority: Some(
+                                                Authority {
+                                                    userinfo: None,
+                                                    host: Host {
+                                                        text: "",
+                                                        data: RegName(
+                                                            "",
+                                                        ),
+                                                    },
+                                                    port: None,
+                                                },
+                                            ),
+                                            path: "/C:/src/test/java/my/thing/some/Thing.java",
+                                            query: None,
+                                            fragment: None,
+                                        },
+                                    ): [
+                                        TextEdit {
+                                            range: Range {
+                                                start: Position {
+                                                    line: 0,
+                                                    character: 0,
+                                                },
+                                                end: Position {
+                                                    line: 0,
+                                                    character: 0,
+                                                },
+                                            },
+                                            new_text: "package my.thing.some\n\npublic class Thing {\n}\n",
+                                        },
+                                    ],
+                                },
+                            ),
+                            document_changes: None,
+                            change_annotations: None,
+                        },
+                    ),
+                    command: None,
+                    is_preferred: None,
+                    disabled: None,
+                    data: None,
+                },
+            )
+        "#]];
+        expected.assert_debug_eq(&result);
     }
     fn get_class_map() -> Arc<Mutex<HashMap<MyString, Class>>> {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();

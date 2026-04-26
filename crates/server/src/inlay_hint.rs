@@ -59,6 +59,7 @@ mod tests {
 
     use document::Document;
     use dto::{Access, JType, Method, SourceDestination};
+    use expect_test::expect;
     use my_string::smol_str::SmolStr;
 
     use super::*;
@@ -78,7 +79,28 @@ public class Test {
         let class = parser::java::load_java_tree(&document.ast, SourceDestination::None);
         let imports = imports::imports(&document.ast);
         let out = get_inlay_hint(&document, &class, &imports, get_class_map()).unwrap();
-        insta::assert_debug_snapshot!(out);
+        let expected = expect![[r#"
+            [
+                InlayHint {
+                    position: Position {
+                        line: 4,
+                        character: 8,
+                    },
+                    label: String(
+                        "String",
+                    ),
+                    kind: Some(
+                        Type,
+                    ),
+                    text_edits: None,
+                    tooltip: None,
+                    padding_left: None,
+                    padding_right: None,
+                    data: None,
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&out);
     }
     #[test]
     fn array_access() {
@@ -95,7 +117,28 @@ public class Test {
         let class = parser::java::load_java_tree(&document.ast, SourceDestination::None);
         let imports = imports::imports(&document.ast);
         let out = get_inlay_hint(&document, &class, &imports, get_class_map()).unwrap();
-        insta::assert_debug_snapshot!(out);
+        let expected = expect![[r#"
+            [
+                InlayHint {
+                    position: Position {
+                        line: 5,
+                        character: 8,
+                    },
+                    label: String(
+                        "String",
+                    ),
+                    kind: Some(
+                        Type,
+                    ),
+                    text_edits: None,
+                    tooltip: None,
+                    padding_left: None,
+                    padding_right: None,
+                    data: None,
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&out);
     }
     fn get_class_map() -> Arc<Mutex<HashMap<MyString, Class>>> {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();

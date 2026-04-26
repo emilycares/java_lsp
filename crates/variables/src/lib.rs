@@ -571,6 +571,7 @@ pub mod tests {
 
     use ast::{error::PrintErr, types::AstPoint};
     use dto::{Access, Class};
+    use expect_test::expect;
     use my_string::{MyString, smol_str::SmolStr};
 
     use crate::{VariableContext, get_vars};
@@ -639,7 +640,107 @@ public class Test {
             },
         )
         .unwrap();
-        insta::assert_debug_snapshot!(out);
+        let expected = expect![[r#"
+            [
+                LocalVariable {
+                    level: 1,
+                    jtype: Class(
+                        "String",
+                    ),
+                    name: "hello",
+                    range: AstRange {
+                        start: AstPoint { 5:4 },
+                        end: AstPoint { 5:16 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+                LocalVariable {
+                    level: 1,
+                    jtype: Class(
+                        "String",
+                    ),
+                    name: "se",
+                    range: AstRange {
+                        start: AstPoint { 6:4 },
+                        end: AstPoint { 6:13 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+                LocalVariable {
+                    level: 1,
+                    jtype: Class(
+                        "String",
+                    ),
+                    name: "other",
+                    range: AstRange {
+                        start: AstPoint { 8:4 },
+                        end: AstPoint { 8:28 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+                LocalVariable {
+                    level: 2,
+                    jtype: Void,
+                    name: "hello",
+                    range: AstRange {
+                        start: AstPoint { 10:4 },
+                        end: AstPoint { 15:5 },
+                    },
+                    flags: VarFlags(
+                        Function,
+                    ),
+                },
+                LocalVariable {
+                    level: 2,
+                    jtype: Class(
+                        "String",
+                    ),
+                    name: "a",
+                    range: AstRange {
+                        start: AstPoint { 10:22 },
+                        end: AstPoint { 10:30 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+                LocalVariable {
+                    level: 3,
+                    jtype: Class(
+                        "String",
+                    ),
+                    name: "local",
+                    range: AstRange {
+                        start: AstPoint { 11:8 },
+                        end: AstPoint { 11:24 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+                LocalVariable {
+                    level: 3,
+                    jtype: Class(
+                        "java.lang.Integer",
+                    ),
+                    name: "lo",
+                    range: AstRange {
+                        start: AstPoint { 13:8 },
+                        end: AstPoint { 13:19 },
+                    },
+                    flags: VarFlags(
+                        Computed,
+                    ),
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&out);
     }
 
     #[test]
@@ -665,7 +766,25 @@ public class Test {
             },
         )
         .unwrap();
-        insta::assert_debug_snapshot!(out);
+        let expected = expect![[r#"
+            [
+                LocalVariable {
+                    level: 1,
+                    jtype: Class(
+                        "Logger",
+                    ),
+                    name: "logger",
+                    range: AstRange {
+                        start: AstPoint { 3:4 },
+                        end: AstPoint { 3:69 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&out);
     }
 
     #[test]
@@ -704,7 +823,115 @@ public class Test {
             },
         )
         .unwrap();
-        insta::assert_debug_snapshot!(out);
+        let expected = expect![[r#"
+            [
+                LocalVariable {
+                    level: 1,
+                    jtype: Array(
+                        Class(
+                            "String",
+                        ),
+                    ),
+                    name: "hello",
+                    range: AstRange {
+                        start: AstPoint { 5:4 },
+                        end: AstPoint { 5:18 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+                LocalVariable {
+                    level: 1,
+                    jtype: Array(
+                        Class(
+                            "String",
+                        ),
+                    ),
+                    name: "se",
+                    range: AstRange {
+                        start: AstPoint { 6:4 },
+                        end: AstPoint { 6:15 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+                LocalVariable {
+                    level: 1,
+                    jtype: Array(
+                        Class(
+                            "String",
+                        ),
+                    ),
+                    name: "other",
+                    range: AstRange {
+                        start: AstPoint { 8:4 },
+                        end: AstPoint { 8:30 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+                LocalVariable {
+                    level: 2,
+                    jtype: Void,
+                    name: "hello",
+                    range: AstRange {
+                        start: AstPoint { 10:4 },
+                        end: AstPoint { 15:5 },
+                    },
+                    flags: VarFlags(
+                        Function,
+                    ),
+                },
+                LocalVariable {
+                    level: 2,
+                    jtype: Array(
+                        Class(
+                            "String",
+                        ),
+                    ),
+                    name: "a",
+                    range: AstRange {
+                        start: AstPoint { 10:22 },
+                        end: AstPoint { 10:32 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+                LocalVariable {
+                    level: 3,
+                    jtype: Array(
+                        Class(
+                            "String",
+                        ),
+                    ),
+                    name: "local",
+                    range: AstRange {
+                        start: AstPoint { 11:8 },
+                        end: AstPoint { 11:26 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+                LocalVariable {
+                    level: 3,
+                    jtype: Var,
+                    name: "lo",
+                    range: AstRange {
+                        start: AstPoint { 13:8 },
+                        end: AstPoint { 13:17 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&out);
     }
 
     #[test]
@@ -740,7 +967,104 @@ public class Test {
             },
         )
         .unwrap();
-        insta::assert_debug_snapshot!(out);
+        let expected = expect![[r#"
+            [
+                LocalVariable {
+                    level: 2,
+                    jtype: Void,
+                    name: "hello",
+                    range: AstRange {
+                        start: AstPoint { 3:4 },
+                        end: AstPoint { 14:5 },
+                    },
+                    flags: VarFlags(
+                        Function,
+                    ),
+                },
+                LocalVariable {
+                    level: 3,
+                    jtype: Generic(
+                        "List",
+                        [
+                            Class(
+                                "String",
+                            ),
+                        ],
+                    ),
+                    name: "names",
+                    range: AstRange {
+                        start: AstPoint { 4:8 },
+                        end: AstPoint { 4:46 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+                LocalVariable {
+                    level: 4,
+                    jtype: Int,
+                    name: "i",
+                    range: AstRange {
+                        start: AstPoint { 5:13 },
+                        end: AstPoint { 5:23 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+                LocalVariable {
+                    level: 6,
+                    jtype: Class(
+                        "String",
+                    ),
+                    name: "name",
+                    range: AstRange {
+                        start: AstPoint { 6:15 },
+                        end: AstPoint { 6:26 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+                LocalVariable {
+                    level: 7,
+                    jtype: Var,
+                    name: "n",
+                    range: AstRange {
+                        start: AstPoint { 7:32 },
+                        end: AstPoint { 7:33 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+                LocalVariable {
+                    level: 7,
+                    jtype: Var,
+                    name: "m",
+                    range: AstRange {
+                        start: AstPoint { 7:35 },
+                        end: AstPoint { 7:36 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+                LocalVariable {
+                    level: 8,
+                    jtype: Var,
+                    name: "c",
+                    range: AstRange {
+                        start: AstPoint { 8:48 },
+                        end: AstPoint { 8:49 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&out);
     }
 
     #[test]
@@ -793,7 +1117,37 @@ public class Test {
             },
         )
         .unwrap();
-        insta::assert_debug_snapshot!(out);
+        let expected = expect![[r#"
+            [
+                LocalVariable {
+                    level: 2,
+                    jtype: Void,
+                    name: "hello",
+                    range: AstRange {
+                        start: AstPoint { 3:4 },
+                        end: AstPoint { 31:5 },
+                    },
+                    flags: VarFlags(
+                        Function,
+                    ),
+                },
+                LocalVariable {
+                    level: 5,
+                    jtype: Class(
+                        "String",
+                    ),
+                    name: "ty1",
+                    range: AstRange {
+                        start: AstPoint { 8:12 },
+                        end: AstPoint { 8:28 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&out);
     }
     #[test]
     fn get_catch_val_with_throws_method() {
@@ -822,7 +1176,37 @@ public class Test {
             },
         )
         .unwrap();
-        insta::assert_debug_snapshot!(out);
+        let expected = expect![[r#"
+            [
+                LocalVariable {
+                    level: 2,
+                    jtype: Void,
+                    name: "ioStuff",
+                    range: AstRange {
+                        start: AstPoint { 3:4 },
+                        end: AstPoint { 8:5 },
+                    },
+                    flags: VarFlags(
+                        Function,
+                    ),
+                },
+                LocalVariable {
+                    level: 4,
+                    jtype: Class(
+                        "IOException",
+                    ),
+                    name: "eoeoeoeooe",
+                    range: AstRange {
+                        start: AstPoint { 5:17 },
+                        end: AstPoint { 5:39 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&out);
     }
 
     #[test]
@@ -851,7 +1235,53 @@ public class Test {
             },
         )
         .unwrap();
-        insta::assert_debug_snapshot!(out);
+        let expected = expect![[r#"
+            [
+                LocalVariable {
+                    level: 2,
+                    jtype: Class(
+                        "String",
+                    ),
+                    name: "options",
+                    range: AstRange {
+                        start: AstPoint { 3:4 },
+                        end: AstPoint { 7:5 },
+                    },
+                    flags: VarFlags(
+                        Function,
+                    ),
+                },
+                LocalVariable {
+                    level: 2,
+                    jtype: Class(
+                        "String",
+                    ),
+                    name: "outer",
+                    range: AstRange {
+                        start: AstPoint { 4:26 },
+                        end: AstPoint { 4:44 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+                LocalVariable {
+                    level: 3,
+                    jtype: Class(
+                        "String",
+                    ),
+                    name: "inner",
+                    range: AstRange {
+                        start: AstPoint { 5:6 },
+                        end: AstPoint { 5:22 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&out);
     }
 
     #[test]
@@ -879,6 +1309,55 @@ public class Test {
             },
         )
         .unwrap();
-        insta::assert_debug_snapshot!(out);
+        let expected = expect![[r#"
+            [
+                LocalVariable {
+                    level: 2,
+                    jtype: Generic(
+                        "Uni",
+                        [
+                            Class(
+                                "Response",
+                            ),
+                        ],
+                    ),
+                    name: "test",
+                    range: AstRange {
+                        start: AstPoint { 2:4 },
+                        end: AstPoint { 7:5 },
+                    },
+                    flags: VarFlags(
+                        Function,
+                    ),
+                },
+                LocalVariable {
+                    level: 3,
+                    jtype: Var,
+                    name: "t",
+                    range: AstRange {
+                        start: AstPoint { 3:29 },
+                        end: AstPoint { 3:30 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+                LocalVariable {
+                    level: 4,
+                    jtype: Class(
+                        "Definition",
+                    ),
+                    name: "q",
+                    range: AstRange {
+                        start: AstPoint { 4:20 },
+                        end: AstPoint { 4:51 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&out);
     }
 }

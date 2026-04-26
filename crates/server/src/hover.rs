@@ -376,6 +376,7 @@ mod tests {
     use ast::types::AstPoint;
     use document::Document;
     use dto::{Access, Class, JType, Method};
+    use expect_test::expect;
     use my_string::{MyString, smol_str::SmolStr};
     use variables::VariableContext;
 
@@ -395,7 +396,47 @@ public class Test {
         let ast = &doc.ast;
 
         let out = class_action(ast, &AstPoint::new(3, 14), &[], &[], &string_class_map());
-        insta::assert_debug_snapshot!(out.unwrap());
+        let expected = expect![[r#"
+            (
+                Class {
+                    class_path: "",
+                    source: None,
+                    access: Access(
+                        Public,
+                    ),
+                    imports: [],
+                    name: "String",
+                    methods: [
+                        Method {
+                            access: Access(
+                                Public,
+                            ),
+                            name: Some(
+                                "length",
+                            ),
+                            parameters: [],
+                            throws: [],
+                            ret: Int,
+                            source: None,
+                        },
+                    ],
+                    fields: [],
+                    super_class: None,
+                    super_interfaces: [],
+                },
+                Range {
+                    start: Position {
+                        line: 3,
+                        character: 11,
+                    },
+                    end: Position {
+                        line: 3,
+                        character: 17,
+                    },
+                },
+            )
+        "#]];
+        expected.assert_debug_eq(&out.unwrap());
     }
 
     #[test]
@@ -413,7 +454,47 @@ public class Test {
         let ast = &doc.ast;
 
         let out = class_action(ast, &AstPoint::new(3, 9), &[], &[], &string_class_map());
-        insta::assert_debug_snapshot!(out.unwrap());
+        let expected = expect![[r#"
+            (
+                Class {
+                    class_path: "",
+                    source: None,
+                    access: Access(
+                        Public,
+                    ),
+                    imports: [],
+                    name: "String",
+                    methods: [
+                        Method {
+                            access: Access(
+                                Public,
+                            ),
+                            name: Some(
+                                "length",
+                            ),
+                            parameters: [],
+                            throws: [],
+                            ret: Int,
+                            source: None,
+                        },
+                    ],
+                    fields: [],
+                    super_class: None,
+                    super_interfaces: [],
+                },
+                Range {
+                    start: Position {
+                        line: 3,
+                        character: 5,
+                    },
+                    end: Position {
+                        line: 3,
+                        character: 11,
+                    },
+                },
+            )
+        "#]];
+        expected.assert_debug_eq(&out.unwrap());
     }
 
     #[test]
@@ -454,8 +535,31 @@ public class Test {
             &[],
             &class,
             &string_class_map(),
-        );
-        insta::assert_debug_snapshot!(out.unwrap());
+        )
+        .unwrap();
+        let expected = expect![[r#"
+            Hover {
+                contents: Markup(
+                    MarkupContent {
+                        kind: Markdown,
+                        value: "```java\nint length();\n```",
+                    },
+                ),
+                range: Some(
+                    Range {
+                        start: Position {
+                            line: 5,
+                            character: 25,
+                        },
+                        end: Position {
+                            line: 5,
+                            character: 31,
+                        },
+                    },
+                ),
+            }
+        "#]];
+        expected.assert_debug_eq(&out);
     }
 
     fn string_class_map() -> Arc<Mutex<HashMap<MyString, Class>>> {

@@ -758,11 +758,13 @@ fn lookup_string_inner(c: &ClassFile, index: u16, depth: u8) -> Result<MyString,
 mod tests {
     use crate::class::{load_class, load_module};
     use dto::SourceDestination;
+    use expect_test::expect;
     use my_string::smol_str::SmolStr;
 
     #[cfg(not(windows))]
     #[test]
     fn relative_source() {
+        use expect_test::expect;
         use my_string::smol_str::SmolStr;
 
         let result = load_class(
@@ -771,7 +773,160 @@ mod tests {
             SourceDestination::None,
             false,
         );
-        insta::assert_debug_snapshot!(result.unwrap());
+        let expected = expect![[r#"
+            Class {
+                class_path: "ch.emilycares.Everything",
+                source: None,
+                access: Access(
+                    0x0,
+                ),
+                imports: [
+                    Package(
+                        "ch.emilycares",
+                    ),
+                ],
+                name: "Everything",
+                methods: [
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: None,
+                        parameters: [],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            0x0,
+                        ),
+                        name: Some(
+                            "method",
+                        ),
+                        parameters: [],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: Some(
+                            "public_method",
+                        ),
+                        parameters: [],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Private,
+                        ),
+                        name: Some(
+                            "private_method",
+                        ),
+                        parameters: [],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            0x0,
+                        ),
+                        name: Some(
+                            "out",
+                        ),
+                        parameters: [],
+                        throws: [],
+                        ret: Int,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            0x0,
+                        ),
+                        name: Some(
+                            "add",
+                        ),
+                        parameters: [
+                            Parameter {
+                                name: Some(
+                                    "a",
+                                ),
+                                jtype: Int,
+                            },
+                            Parameter {
+                                name: Some(
+                                    "b",
+                                ),
+                                jtype: Int,
+                            },
+                        ],
+                        throws: [],
+                        ret: Int,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Static,
+                        ),
+                        name: Some(
+                            "sadd",
+                        ),
+                        parameters: [
+                            Parameter {
+                                name: Some(
+                                    "a",
+                                ),
+                                jtype: Int,
+                            },
+                            Parameter {
+                                name: Some(
+                                    "b",
+                                ),
+                                jtype: Int,
+                            },
+                        ],
+                        throws: [],
+                        ret: Int,
+                        source: None,
+                    },
+                ],
+                fields: [
+                    Field {
+                        access: Access(
+                            0x0,
+                        ),
+                        name: "noprop",
+                        jtype: Int,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "publicproperty",
+                        jtype: Int,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Private,
+                        ),
+                        name: "privateproperty",
+                        jtype: Int,
+                        source: None,
+                    },
+                ],
+                super_class: None,
+                super_interfaces: [],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
     }
 
     #[test]
@@ -783,7 +938,160 @@ mod tests {
             false,
         );
 
-        insta::assert_debug_snapshot!(result.unwrap());
+        let expected = expect![[r#"
+            Class {
+                class_path: "ch.emilycares.Everything",
+                source: None,
+                access: Access(
+                    0x0,
+                ),
+                imports: [
+                    Package(
+                        "ch.emilycares",
+                    ),
+                ],
+                name: "Everything",
+                methods: [
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: None,
+                        parameters: [],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            0x0,
+                        ),
+                        name: Some(
+                            "method",
+                        ),
+                        parameters: [],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: Some(
+                            "public_method",
+                        ),
+                        parameters: [],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Private,
+                        ),
+                        name: Some(
+                            "private_method",
+                        ),
+                        parameters: [],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            0x0,
+                        ),
+                        name: Some(
+                            "out",
+                        ),
+                        parameters: [],
+                        throws: [],
+                        ret: Int,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            0x0,
+                        ),
+                        name: Some(
+                            "add",
+                        ),
+                        parameters: [
+                            Parameter {
+                                name: Some(
+                                    "a",
+                                ),
+                                jtype: Int,
+                            },
+                            Parameter {
+                                name: Some(
+                                    "b",
+                                ),
+                                jtype: Int,
+                            },
+                        ],
+                        throws: [],
+                        ret: Int,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Static,
+                        ),
+                        name: Some(
+                            "sadd",
+                        ),
+                        parameters: [
+                            Parameter {
+                                name: Some(
+                                    "a",
+                                ),
+                                jtype: Int,
+                            },
+                            Parameter {
+                                name: Some(
+                                    "b",
+                                ),
+                                jtype: Int,
+                            },
+                        ],
+                        throws: [],
+                        ret: Int,
+                        source: None,
+                    },
+                ],
+                fields: [
+                    Field {
+                        access: Access(
+                            0x0,
+                        ),
+                        name: "noprop",
+                        jtype: Int,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "publicproperty",
+                        jtype: Int,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Private,
+                        ),
+                        name: "privateproperty",
+                        jtype: Int,
+                        source: None,
+                    },
+                ],
+                super_class: None,
+                super_interfaces: [],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
     }
     #[test]
     fn super_base() {
@@ -794,7 +1102,39 @@ mod tests {
             false,
         );
 
-        insta::assert_debug_snapshot!(result.unwrap());
+        let expected = expect![[r#"
+            Class {
+                class_path: "ch.emilycares.Super",
+                source: None,
+                access: Access(
+                    0x0,
+                ),
+                imports: [
+                    Package(
+                        "ch.emilycares",
+                    ),
+                ],
+                name: "Super",
+                methods: [
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: None,
+                        parameters: [],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                ],
+                fields: [],
+                super_class: ClassPath(
+                    "java.io.IOException",
+                ),
+                super_interfaces: [],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
     }
     #[test]
     fn thrower() {
@@ -804,7 +1144,79 @@ mod tests {
             SourceDestination::None,
             false,
         );
-        insta::assert_debug_snapshot!(result.unwrap());
+        let expected = expect![[r#"
+            Class {
+                class_path: "ch.emilycares.Thrower",
+                source: None,
+                access: Access(
+                    0x0,
+                ),
+                imports: [
+                    Package(
+                        "ch.emilycares",
+                    ),
+                ],
+                name: "Thrower",
+                methods: [
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: None,
+                        parameters: [],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: Some(
+                            "ioThrower",
+                        ),
+                        parameters: [],
+                        throws: [
+                            Class(
+                                "IOException",
+                            ),
+                        ],
+                        ret: Void,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: Some(
+                            "ioThrower",
+                        ),
+                        parameters: [
+                            Parameter {
+                                name: Some(
+                                    "a",
+                                ),
+                                jtype: Int,
+                            },
+                        ],
+                        throws: [
+                            Class(
+                                "IOException",
+                            ),
+                            Class(
+                                "IOException",
+                            ),
+                        ],
+                        ret: Void,
+                        source: None,
+                    },
+                ],
+                fields: [],
+                super_class: None,
+                super_interfaces: [],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
     }
     #[test]
     fn super_interfaces() {
@@ -815,7 +1227,56 @@ mod tests {
             false,
         );
 
-        insta::assert_debug_snapshot!(result.unwrap());
+        let expected = expect![[r#"
+            Class {
+                class_path: "ch.emilycares.SuperInterface",
+                source: None,
+                access: Access(
+                    0x0,
+                ),
+                imports: [
+                    Package(
+                        "ch.emilycares",
+                    ),
+                    Class(
+                        "java.util.stream.Stream",
+                    ),
+                ],
+                name: "SuperInterface",
+                methods: [
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: Some(
+                            "stream",
+                        ),
+                        parameters: [],
+                        throws: [],
+                        ret: Generic(
+                            "java.util.stream.Stream",
+                            [
+                                Parameter(
+                                    "E",
+                                ),
+                            ],
+                        ),
+                        source: None,
+                    },
+                ],
+                fields: [],
+                super_class: None,
+                super_interfaces: [
+                    ClassPath(
+                        "java.util.Collection",
+                    ),
+                    ClassPath(
+                        "java.util.List",
+                    ),
+                ],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
     }
     #[test]
     fn variables() {
@@ -826,18 +1287,168 @@ mod tests {
             false,
         );
 
-        insta::assert_debug_snapshot!(result.unwrap());
+        let expected = expect![[r#"
+            Class {
+                class_path: "ch.emilycares.LocalVariableTable",
+                source: None,
+                access: Access(
+                    0x0,
+                ),
+                imports: [
+                    Package(
+                        "ch.emilycares",
+                    ),
+                    Class(
+                        "java.util.HashMap",
+                    ),
+                    Class(
+                        "java.util.HashSet",
+                    ),
+                ],
+                name: "LocalVariableTable",
+                methods: [
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: None,
+                        parameters: [],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: Some(
+                            "hereIsCode",
+                        ),
+                        parameters: [],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: Some(
+                            "hereIsCode",
+                        ),
+                        parameters: [
+                            Parameter {
+                                name: Some(
+                                    "a",
+                                ),
+                                jtype: Int,
+                            },
+                            Parameter {
+                                name: Some(
+                                    "b",
+                                ),
+                                jtype: Int,
+                            },
+                        ],
+                        throws: [],
+                        ret: Int,
+                        source: None,
+                    },
+                ],
+                fields: [
+                    Field {
+                        access: Access(
+                            Private,
+                        ),
+                        name: "a",
+                        jtype: Class(
+                            "java.util.HashSet",
+                        ),
+                        source: None,
+                    },
+                ],
+                super_class: None,
+                super_interfaces: [],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
     }
 
     #[test]
     fn module_java_desktop() {
         let result = load_module(include_bytes!("../test/module-info-java-desktop.class"));
-        insta::assert_debug_snapshot!(result.unwrap());
+        let expected = expect![[r#"
+            ModuleInfo {
+                exports: [
+                    "java/desktop",
+                    "java/applet",
+                    "java/awt",
+                    "java/awt/color",
+                    "java/awt/desktop",
+                    "java/awt/dnd",
+                    "java/awt/event",
+                    "java/awt/font",
+                    "java/awt/geom",
+                    "java/awt/im",
+                    "java/awt/im/spi",
+                    "java/awt/image",
+                    "java/awt/image/renderable",
+                    "java/awt/print",
+                    "java/beans",
+                    "java/beans/beancontext",
+                    "javax/accessibility",
+                    "javax/imageio",
+                    "javax/imageio/event",
+                    "javax/imageio/metadata",
+                    "javax/imageio/plugins/bmp",
+                    "javax/imageio/plugins/jpeg",
+                    "javax/imageio/plugins/tiff",
+                    "javax/imageio/spi",
+                    "javax/imageio/stream",
+                    "javax/print",
+                    "javax/print/attribute",
+                    "javax/print/attribute/standard",
+                    "javax/print/event",
+                    "javax/sound",
+                    "javax/sound/midi",
+                    "javax/sound/midi/spi",
+                    "javax/sound/sampled",
+                    "javax/sound/sampled/spi",
+                    "javax/swing",
+                    "javax/swing/border",
+                    "javax/swing/colorchooser",
+                    "javax/swing/event",
+                    "javax/swing/filechooser",
+                    "javax/swing/plaf",
+                    "javax/swing/plaf/basic",
+                    "javax/swing/plaf/metal",
+                    "javax/swing/plaf/multi",
+                    "javax/swing/plaf/nimbus",
+                    "javax/swing/plaf/synth",
+                    "javax/swing/table",
+                    "javax/swing/text",
+                    "javax/swing/text/html",
+                    "javax/swing/text/html/parser",
+                    "javax/swing/text/rtf",
+                    "javax/swing/tree",
+                    "javax/swing/undo",
+                ],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
     }
 
     #[test]
     fn module_jakarta() {
         let result = load_module(include_bytes!("../test/module-info-jakarta.class"));
-        insta::assert_debug_snapshot!(result.unwrap());
+        let expected = expect![[r#"
+            ModuleInfo {
+                exports: [
+                    "jakarta/inject",
+                    "jakarta/inject",
+                ],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
     }
 }

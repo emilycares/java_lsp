@@ -407,6 +407,7 @@ fn check_type_parameters(
 #[cfg(test)]
 pub mod tests {
     use dto::SourceDestination;
+    use expect_test::expect;
 
     use super::load_java;
 
@@ -416,7 +417,166 @@ pub mod tests {
             include_bytes!("../test/Types.java"),
             SourceDestination::None,
         );
-        insta::assert_debug_snapshot!(result.unwrap());
+        let expected = expect![[r#"
+            Class {
+                class_path: "a.test.Types",
+                source: None,
+                access: Access(
+                    Public,
+                ),
+                imports: [
+                    Package(
+                        "a.test",
+                    ),
+                ],
+                name: "Types",
+                methods: [
+                    Method {
+                        access: Access(
+                            Public | Static,
+                        ),
+                        name: Some(
+                            "main",
+                        ),
+                        parameters: [
+                            Parameter {
+                                name: Some(
+                                    "args",
+                                ),
+                                jtype: Array(
+                                    Class(
+                                        "String",
+                                    ),
+                                ),
+                            },
+                        ],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                ],
+                fields: [
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "LOG",
+                        jtype: Class(
+                            "Logger",
+                        ),
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "IS_ACTIVE",
+                        jtype: Boolean,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "one_byte",
+                        jtype: Byte,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "one_int",
+                        jtype: Int,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "one_short",
+                        jtype: Short,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "one_long",
+                        jtype: Long,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "one_double",
+                        jtype: Double,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "one_float",
+                        jtype: Float,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "one_char",
+                        jtype: Char,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "one_string",
+                        jtype: Class(
+                            "String",
+                        ),
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "one_list",
+                        jtype: Generic(
+                            "List",
+                            [
+                                Class(
+                                    "String",
+                                ),
+                            ],
+                        ),
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "one_map",
+                        jtype: Generic(
+                            "Map",
+                            [
+                                Int,
+                                Class(
+                                    "String",
+                                ),
+                            ],
+                        ),
+                        source: None,
+                    },
+                ],
+                super_class: None,
+                super_interfaces: [],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
     }
 
     #[test]
@@ -426,7 +586,28 @@ package a.test;
 public class Test extends AThing { }
         ";
         let result = load_java(content.as_bytes(), SourceDestination::None);
-        insta::assert_debug_snapshot!(result.unwrap());
+        let expected = expect![[r#"
+            Class {
+                class_path: "a.test.Test",
+                source: None,
+                access: Access(
+                    Public,
+                ),
+                imports: [
+                    Package(
+                        "a.test",
+                    ),
+                ],
+                name: "Test",
+                methods: [],
+                fields: [],
+                super_class: Name(
+                    "AThing",
+                ),
+                super_interfaces: [],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
     }
 
     #[test]
@@ -438,14 +619,133 @@ public class Test {
 }
         ";
         let result = load_java(content.as_bytes(), SourceDestination::None);
-        insta::assert_debug_snapshot!(result.unwrap());
+        let expected = expect![[r#"
+            Class {
+                class_path: "a.test.Test",
+                source: None,
+                access: Access(
+                    Public,
+                ),
+                imports: [
+                    Package(
+                        "a.test",
+                    ),
+                ],
+                name: "Test",
+                methods: [
+                    Method {
+                        access: Access(
+                            Public | Static,
+                        ),
+                        name: Some(
+                            "add",
+                        ),
+                        parameters: [
+                            Parameter {
+                                name: Some(
+                                    "list",
+                                ),
+                                jtype: Generic(
+                                    "Collection",
+                                    [
+                                        Parameter(
+                                            "T",
+                                        ),
+                                    ],
+                                ),
+                            },
+                            Parameter {
+                                name: Some(
+                                    "item",
+                                ),
+                                jtype: Parameter(
+                                    "T",
+                                ),
+                            },
+                        ],
+                        throws: [],
+                        ret: Int,
+                        source: None,
+                    },
+                ],
+                fields: [],
+                super_class: None,
+                super_interfaces: [],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
     }
 
     #[test]
     fn thrower() {
         let content = include_str!("../test/Thrower.java");
         let result = load_java(content.as_bytes(), SourceDestination::None);
-        insta::assert_debug_snapshot!(result.unwrap());
+        let expected = expect![[r#"
+            Class {
+                class_path: "ch.emilycares.Thrower",
+                source: None,
+                access: Access(
+                    Public,
+                ),
+                imports: [
+                    Package(
+                        "ch.emilycares",
+                    ),
+                    Class(
+                        "java.io.IOException",
+                    ),
+                ],
+                name: "Thrower",
+                methods: [
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: Some(
+                            "ioThrower",
+                        ),
+                        parameters: [],
+                        throws: [
+                            Class(
+                                "IOException",
+                            ),
+                        ],
+                        ret: Void,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: Some(
+                            "ioThrower",
+                        ),
+                        parameters: [
+                            Parameter {
+                                name: Some(
+                                    "a",
+                                ),
+                                jtype: Int,
+                            },
+                        ],
+                        throws: [
+                            Class(
+                                "IOException",
+                            ),
+                            Class(
+                                "IOException",
+                            ),
+                        ],
+                        ret: Void,
+                        source: None,
+                    },
+                ],
+                fields: [],
+                super_class: None,
+                super_interfaces: [],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
     }
 
     #[test]
@@ -455,7 +755,112 @@ public class Test {
             SourceDestination::None,
         );
 
-        insta::assert_debug_snapshot!(result.unwrap());
+        let expected = expect![[r#"
+            Class {
+                class_path: "ch.emilycares.Constants",
+                source: None,
+                access: Access(
+                    Public,
+                ),
+                imports: [
+                    Package(
+                        "ch.emilycares",
+                    ),
+                    Class(
+                        "jdk.net.Sockets",
+                    ),
+                    Class(
+                        "java.io.IOException",
+                    ),
+                    Class(
+                        "java.net.Socket",
+                    ),
+                ],
+                name: "Constants",
+                methods: [
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: Some(
+                            "display",
+                        ),
+                        parameters: [],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: Some(
+                            "createSocket",
+                        ),
+                        parameters: [
+                            Parameter {
+                                name: Some(
+                                    "hostname",
+                                ),
+                                jtype: Class(
+                                    "String",
+                                ),
+                            },
+                            Parameter {
+                                name: Some(
+                                    "port",
+                                ),
+                                jtype: Int,
+                            },
+                        ],
+                        throws: [
+                            Class(
+                                "IOException",
+                            ),
+                        ],
+                        ret: Class(
+                            "Socket",
+                        ),
+                        source: None,
+                    },
+                ],
+                fields: [
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "CONSTANT_A",
+                        jtype: Class(
+                            "String",
+                        ),
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "CONSTANT_B",
+                        jtype: Class(
+                            "String",
+                        ),
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "CONSTANT_C",
+                        jtype: Class(
+                            "String",
+                        ),
+                        source: None,
+                    },
+                ],
+                super_class: None,
+                super_interfaces: [],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
     }
 
     #[test]
@@ -465,7 +870,90 @@ public class Test {
             SourceDestination::None,
         );
 
-        insta::assert_debug_snapshot!(result.unwrap());
+        let expected = expect![[r#"
+            Class {
+                class_path: "ch.emilycares.InterfaceBase",
+                source: None,
+                access: Access(
+                    Public,
+                ),
+                imports: [
+                    Package(
+                        "ch.emilycares",
+                    ),
+                    Class(
+                        "java.util.function.IntFunction",
+                    ),
+                    Class(
+                        "java.util.stream.Stream",
+                    ),
+                ],
+                name: "InterfaceBase",
+                methods: [
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: Some(
+                            "mapToObj",
+                        ),
+                        parameters: [
+                            Parameter {
+                                name: Some(
+                                    "mapper",
+                                ),
+                                jtype: Generic(
+                                    "IntFunction",
+                                    [
+                                        Wildcard,
+                                        Parameter(
+                                            "U",
+                                        ),
+                                    ],
+                                ),
+                            },
+                        ],
+                        throws: [],
+                        ret: Generic(
+                            "Stream",
+                            [
+                                Parameter(
+                                    "U",
+                                ),
+                            ],
+                        ),
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Public | Static,
+                        ),
+                        name: Some(
+                            "a",
+                        ),
+                        parameters: [
+                            Parameter {
+                                name: Some(
+                                    "arg",
+                                ),
+                                jtype: Parameter(
+                                    "A",
+                                ),
+                            },
+                        ],
+                        throws: [],
+                        ret: Parameter(
+                            "A",
+                        ),
+                        source: None,
+                    },
+                ],
+                fields: [],
+                super_class: None,
+                super_interfaces: [],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
     }
 
     #[test]
@@ -474,7 +962,82 @@ public class Test {
             include_bytes!("../test/Variants.java"),
             SourceDestination::None,
         );
-        insta::assert_debug_snapshot!(result.unwrap());
+        let expected = expect![[r#"
+            Class {
+                class_path: "ch.emilycares.Variants",
+                source: None,
+                access: Access(
+                    Public,
+                ),
+                imports: [
+                    Package(
+                        "ch.emilycares",
+                    ),
+                ],
+                name: "Variants",
+                methods: [
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: Some(
+                            "getTag",
+                        ),
+                        parameters: [],
+                        throws: [],
+                        ret: Class(
+                            "String",
+                        ),
+                        source: None,
+                    },
+                ],
+                fields: [
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "A",
+                        jtype: Class(
+                            "Variants",
+                        ),
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "B",
+                        jtype: Class(
+                            "Variants",
+                        ),
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "C",
+                        jtype: Class(
+                            "Variants",
+                        ),
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Private | Final,
+                        ),
+                        name: "tag",
+                        jtype: Class(
+                            "String",
+                        ),
+                        source: None,
+                    },
+                ],
+                super_class: None,
+                super_interfaces: [],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
     }
 
     #[test]
@@ -483,7 +1046,45 @@ public class Test {
             include_bytes!("../test/Annotation.java"),
             SourceDestination::None,
         );
-        insta::assert_debug_snapshot!(result.unwrap());
+        let expected = expect![[r#"
+            Class {
+                class_path: "ch.emilycares.Annotation",
+                source: None,
+                access: Access(
+                    Public,
+                ),
+                imports: [
+                    Package(
+                        "ch.emilycares",
+                    ),
+                ],
+                name: "Annotation",
+                methods: [],
+                fields: [
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "value",
+                        jtype: Int,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "text",
+                        jtype: Class(
+                            "String",
+                        ),
+                        source: None,
+                    },
+                ],
+                super_class: None,
+                super_interfaces: [],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
     }
 
     #[test]
@@ -492,7 +1093,160 @@ public class Test {
             include_bytes!("../test/Everything.java"),
             SourceDestination::None,
         );
-        insta::assert_debug_snapshot!(result.unwrap());
+        let expected = expect![[r#"
+            Class {
+                class_path: "ch.emilycares.Everything",
+                source: None,
+                access: Access(
+                    Public,
+                ),
+                imports: [
+                    Package(
+                        "ch.emilycares",
+                    ),
+                ],
+                name: "Everything",
+                methods: [
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: None,
+                        parameters: [],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: Some(
+                            "method",
+                        ),
+                        parameters: [],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: Some(
+                            "public_method",
+                        ),
+                        parameters: [],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Private,
+                        ),
+                        name: Some(
+                            "private_method",
+                        ),
+                        parameters: [],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: Some(
+                            "out",
+                        ),
+                        parameters: [],
+                        throws: [],
+                        ret: Int,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: Some(
+                            "add",
+                        ),
+                        parameters: [
+                            Parameter {
+                                name: Some(
+                                    "a",
+                                ),
+                                jtype: Int,
+                            },
+                            Parameter {
+                                name: Some(
+                                    "b",
+                                ),
+                                jtype: Int,
+                            },
+                        ],
+                        throws: [],
+                        ret: Int,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Public | Static,
+                        ),
+                        name: Some(
+                            "sadd",
+                        ),
+                        parameters: [
+                            Parameter {
+                                name: Some(
+                                    "a",
+                                ),
+                                jtype: Int,
+                            },
+                            Parameter {
+                                name: Some(
+                                    "b",
+                                ),
+                                jtype: Int,
+                            },
+                        ],
+                        throws: [],
+                        ret: Int,
+                        source: None,
+                    },
+                ],
+                fields: [
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "noprop",
+                        jtype: Int,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "publicproperty",
+                        jtype: Int,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Private,
+                        ),
+                        name: "privateproperty",
+                        jtype: Int,
+                        source: None,
+                    },
+                ],
+                super_class: None,
+                super_interfaces: [],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
     }
 
     #[test]
@@ -510,7 +1264,35 @@ public class Test {
  ";
         let result = load_java(src.as_bytes(), SourceDestination::None);
 
-        insta::assert_debug_snapshot!(result.unwrap());
+        let expected = expect![[r#"
+            Class {
+                class_path: "a.test.Test",
+                source: None,
+                access: Access(
+                    Public,
+                ),
+                imports: [
+                    Package(
+                        "a.test",
+                    ),
+                    Class(
+                        "jakarta.inject.Inject",
+                    ),
+                    Class(
+                        "jakarta.ws.rs.GET",
+                    ),
+                    Class(
+                        "jakarta.ws.rs.Path",
+                    ),
+                ],
+                name: "Test",
+                methods: [],
+                fields: [],
+                super_class: None,
+                super_interfaces: [],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
     }
     #[test]
     fn super_interfaces() {
@@ -518,6 +1300,64 @@ public class Test {
             include_bytes!("../test/SuperInterface.java"),
             SourceDestination::None,
         );
-        insta::assert_debug_snapshot!(result.unwrap());
+        let expected = expect![[r#"
+            Class {
+                class_path: "ch.emilycares.SuperInterface",
+                source: None,
+                access: Access(
+                    Public,
+                ),
+                imports: [
+                    Package(
+                        "ch.emilycares",
+                    ),
+                    Class(
+                        "java.util.Collection",
+                    ),
+                    Class(
+                        "java.util.List",
+                    ),
+                    Class(
+                        "java.util.stream.Stream",
+                    ),
+                    Class(
+                        "java.util.stream.StreamSupport",
+                    ),
+                ],
+                name: "SuperInterface",
+                methods: [
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: Some(
+                            "stream",
+                        ),
+                        parameters: [],
+                        throws: [],
+                        ret: Generic(
+                            "Stream",
+                            [
+                                Parameter(
+                                    "E",
+                                ),
+                            ],
+                        ),
+                        source: None,
+                    },
+                ],
+                fields: [],
+                super_class: None,
+                super_interfaces: [
+                    ClassPath(
+                        "java.util.Collection",
+                    ),
+                    ClassPath(
+                        "java.util.List",
+                    ),
+                ],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
     }
 }

@@ -18,7 +18,6 @@ publish = false
 crossbeam-channel = { version = "0.5" }
 crossbeam-utils = { version = "0.8" }
 either = { version = "1" }
-fastrand = { version = "2" }
 memchr = { version = "2" }
 phf_shared = { version = "0.13", default-features = false, features = ["std"] }
 serde = { version = "1", features = ["alloc", "derive"] }
@@ -28,23 +27,17 @@ thiserror = { version = "2" }
 
 [build-dependencies]
 either = { version = "1" }
-fastrand = { version = "2" }
 phf_shared = { version = "0.13", default-features = false, features = ["std"] }
 proc-macro2 = { version = "1", features = ["span-locations"] }
 quote = { version = "1" }
 syn = { version = "2", features = ["extra-traits", "fold", "full", "visit"] }
 
 [target.x86_64-unknown-linux-gnu.dependencies]
-bitflags = { version = "2", default-features = false, features = ["serde", "std"] }
 futures-core = { version = "0.3" }
-libc = { version = "0.2" }
 slab = { version = "0.4" }
 smallvec = { version = "1", default-features = false, features = ["const_new"] }
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 tracing-core = { version = "0.1", default-features = false, features = ["std"] }
-
-[target.x86_64-unknown-linux-gnu.build-dependencies]
-libc = { version = "0.2" }
 
 [target.x86_64-pc-windows-msvc.dependencies]
 futures-core = { version = "0.3" }

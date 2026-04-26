@@ -250,6 +250,7 @@ pub mod tests {
     use document::Document;
 
     use dto::{Access, Class, JType, Method, Parameter};
+    use expect_test::expect;
     use my_string::{MyString, smol_str::SmolStr};
 
     #[test]
@@ -291,7 +292,38 @@ public class Test {
         let doc = Document::setup(content, PathBuf::new()).unwrap();
 
         let out = signature_driver(&doc, &AstPoint::new(5, 29), &class, &class_map).unwrap();
-        insta::assert_debug_snapshot!(out);
+        let expected = expect![[r#"
+            SignatureHelp {
+                signatures: [
+                    SignatureInformation {
+                        label: "concat(String)",
+                        documentation: Some(
+                            String(
+                                "String",
+                            ),
+                        ),
+                        parameters: Some(
+                            [
+                                ParameterInformation {
+                                    label: Simple(
+                                        "String",
+                                    ),
+                                    documentation: None,
+                                },
+                            ],
+                        ),
+                        active_parameter: None,
+                    },
+                ],
+                active_signature: Some(
+                    0,
+                ),
+                active_parameter: Some(
+                    0,
+                ),
+            }
+        "#]];
+        expected.assert_debug_eq(&out);
     }
 
     #[test]
@@ -353,7 +385,63 @@ public class Test {
         let doc = Document::setup(content, PathBuf::new()).unwrap();
 
         let out = signature_driver(&doc, &AstPoint::new(5, 29), &class, &class_map).unwrap();
-        insta::assert_debug_snapshot!(out);
+        let expected = expect![[r#"
+            SignatureHelp {
+                signatures: [
+                    SignatureInformation {
+                        label: "concat(String)",
+                        documentation: Some(
+                            String(
+                                "String",
+                            ),
+                        ),
+                        parameters: Some(
+                            [
+                                ParameterInformation {
+                                    label: Simple(
+                                        "String",
+                                    ),
+                                    documentation: None,
+                                },
+                            ],
+                        ),
+                        active_parameter: None,
+                    },
+                    SignatureInformation {
+                        label: "concat(String, String)",
+                        documentation: Some(
+                            String(
+                                "String",
+                            ),
+                        ),
+                        parameters: Some(
+                            [
+                                ParameterInformation {
+                                    label: Simple(
+                                        "String",
+                                    ),
+                                    documentation: None,
+                                },
+                                ParameterInformation {
+                                    label: Simple(
+                                        "String",
+                                    ),
+                                    documentation: None,
+                                },
+                            ],
+                        ),
+                        active_parameter: None,
+                    },
+                ],
+                active_signature: Some(
+                    0,
+                ),
+                active_parameter: Some(
+                    0,
+                ),
+            }
+        "#]];
+        expected.assert_debug_eq(&out);
     }
 
     #[test]
@@ -415,7 +503,63 @@ public class Test {
         let doc = Document::setup(content, PathBuf::new()).unwrap();
 
         let out = signature_driver(&doc, &AstPoint::new(5, 39), &class, &class_map).unwrap();
-        insta::assert_debug_snapshot!(out);
+        let expected = expect![[r#"
+            SignatureHelp {
+                signatures: [
+                    SignatureInformation {
+                        label: "concat(String)",
+                        documentation: Some(
+                            String(
+                                "String",
+                            ),
+                        ),
+                        parameters: Some(
+                            [
+                                ParameterInformation {
+                                    label: Simple(
+                                        "String",
+                                    ),
+                                    documentation: None,
+                                },
+                            ],
+                        ),
+                        active_parameter: None,
+                    },
+                    SignatureInformation {
+                        label: "concat(String, String)",
+                        documentation: Some(
+                            String(
+                                "String",
+                            ),
+                        ),
+                        parameters: Some(
+                            [
+                                ParameterInformation {
+                                    label: Simple(
+                                        "String",
+                                    ),
+                                    documentation: None,
+                                },
+                                ParameterInformation {
+                                    label: Simple(
+                                        "String",
+                                    ),
+                                    documentation: None,
+                                },
+                            ],
+                        ),
+                        active_parameter: None,
+                    },
+                ],
+                active_signature: Some(
+                    1,
+                ),
+                active_parameter: Some(
+                    1,
+                ),
+            }
+        "#]];
+        expected.assert_debug_eq(&out);
     }
 
     #[test]
@@ -456,6 +600,37 @@ public static Map<Long, String> m = new HashMap<>( );
         let doc = Document::setup(content, PathBuf::new()).unwrap();
 
         let out = signature_driver(&doc, &AstPoint::new(4, 51), &class, &class_map).unwrap();
-        insta::assert_debug_snapshot!(out);
+        let expected = expect![[r#"
+            SignatureHelp {
+                signatures: [
+                    SignatureInformation {
+                        label: "HashMap(String)",
+                        documentation: Some(
+                            String(
+                                "String",
+                            ),
+                        ),
+                        parameters: Some(
+                            [
+                                ParameterInformation {
+                                    label: Simple(
+                                        "String",
+                                    ),
+                                    documentation: None,
+                                },
+                            ],
+                        ),
+                        active_parameter: None,
+                    },
+                ],
+                active_signature: Some(
+                    0,
+                ),
+                active_parameter: Some(
+                    0,
+                ),
+            }
+        "#]];
+        expected.assert_debug_eq(&out);
     }
 }

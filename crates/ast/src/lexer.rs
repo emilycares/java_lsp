@@ -1130,53 +1130,1839 @@ fn is_whitespace(ch: u8) -> bool {
 /// tests
 #[cfg(test)]
 pub mod tests {
+    use expect_test::expect;
+
     use crate::lexer::{self};
 
     #[test]
     fn local_variable_table() {
         let content = include_str!("../../parser/test/LocalVariableTable.java");
         let tokens = lexer::lex(content.as_bytes()).expect("Test");
-        insta::assert_debug_snapshot!(tokens);
+        let expected = expect![[r#"
+            [
+                PositionToken {
+                    token: Package,
+                    line: 0,
+                    col: 0,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "ch",
+                    ),
+                    line: 0,
+                    col: 8,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 0,
+                    col: 10,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "emilycares",
+                    ),
+                    line: 0,
+                    col: 11,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 0,
+                    col: 21,
+                },
+                PositionToken {
+                    token: Import,
+                    line: 1,
+                    col: 0,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "java",
+                    ),
+                    line: 1,
+                    col: 7,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 1,
+                    col: 11,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "util",
+                    ),
+                    line: 1,
+                    col: 12,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 1,
+                    col: 16,
+                },
+                PositionToken {
+                    token: Star,
+                    line: 1,
+                    col: 17,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 1,
+                    col: 18,
+                },
+                PositionToken {
+                    token: Public,
+                    line: 2,
+                    col: 0,
+                },
+                PositionToken {
+                    token: Class,
+                    line: 2,
+                    col: 7,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "LocalVariableTable",
+                    ),
+                    line: 2,
+                    col: 13,
+                },
+                PositionToken {
+                    token: LeftParenCurly,
+                    line: 2,
+                    col: 32,
+                },
+                PositionToken {
+                    token: Private,
+                    line: 4,
+                    col: 2,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "HashSet",
+                    ),
+                    line: 4,
+                    col: 10,
+                },
+                PositionToken {
+                    token: Lt,
+                    line: 4,
+                    col: 17,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "String",
+                    ),
+                    line: 4,
+                    col: 18,
+                },
+                PositionToken {
+                    token: Gt,
+                    line: 4,
+                    col: 24,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "a",
+                    ),
+                    line: 4,
+                    col: 26,
+                },
+                PositionToken {
+                    token: Equal,
+                    line: 4,
+                    col: 29,
+                },
+                PositionToken {
+                    token: New,
+                    line: 4,
+                    col: 30,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "HashSet",
+                    ),
+                    line: 4,
+                    col: 34,
+                },
+                PositionToken {
+                    token: Lt,
+                    line: 4,
+                    col: 41,
+                },
+                PositionToken {
+                    token: Gt,
+                    line: 4,
+                    col: 42,
+                },
+                PositionToken {
+                    token: LeftParen,
+                    line: 4,
+                    col: 43,
+                },
+                PositionToken {
+                    token: RightParen,
+                    line: 4,
+                    col: 44,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 4,
+                    col: 45,
+                },
+                PositionToken {
+                    token: Public,
+                    line: 6,
+                    col: 2,
+                },
+                PositionToken {
+                    token: Void,
+                    line: 6,
+                    col: 9,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "hereIsCode",
+                    ),
+                    line: 6,
+                    col: 14,
+                },
+                PositionToken {
+                    token: LeftParen,
+                    line: 6,
+                    col: 24,
+                },
+                PositionToken {
+                    token: RightParen,
+                    line: 6,
+                    col: 25,
+                },
+                PositionToken {
+                    token: LeftParenCurly,
+                    line: 6,
+                    col: 27,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "HashMap",
+                    ),
+                    line: 7,
+                    col: 4,
+                },
+                PositionToken {
+                    token: Lt,
+                    line: 7,
+                    col: 11,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "Integer",
+                    ),
+                    line: 7,
+                    col: 12,
+                },
+                PositionToken {
+                    token: Comma,
+                    line: 7,
+                    col: 19,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "String",
+                    ),
+                    line: 7,
+                    col: 21,
+                },
+                PositionToken {
+                    token: Gt,
+                    line: 7,
+                    col: 27,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "a",
+                    ),
+                    line: 7,
+                    col: 29,
+                },
+                PositionToken {
+                    token: Equal,
+                    line: 7,
+                    col: 32,
+                },
+                PositionToken {
+                    token: New,
+                    line: 7,
+                    col: 33,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "HashMap",
+                    ),
+                    line: 7,
+                    col: 37,
+                },
+                PositionToken {
+                    token: Lt,
+                    line: 7,
+                    col: 44,
+                },
+                PositionToken {
+                    token: Gt,
+                    line: 7,
+                    col: 45,
+                },
+                PositionToken {
+                    token: LeftParen,
+                    line: 7,
+                    col: 46,
+                },
+                PositionToken {
+                    token: RightParen,
+                    line: 7,
+                    col: 47,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 7,
+                    col: 48,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "a",
+                    ),
+                    line: 8,
+                    col: 4,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 8,
+                    col: 5,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "put",
+                    ),
+                    line: 8,
+                    col: 6,
+                },
+                PositionToken {
+                    token: LeftParen,
+                    line: 8,
+                    col: 9,
+                },
+                PositionToken {
+                    token: Number(
+                        "1",
+                    ),
+                    line: 8,
+                    col: 11,
+                },
+                PositionToken {
+                    token: Comma,
+                    line: 8,
+                    col: 11,
+                },
+                PositionToken {
+                    token: StringLiteral(
+                        "",
+                    ),
+                    line: 8,
+                    col: 14,
+                },
+                PositionToken {
+                    token: RightParen,
+                    line: 8,
+                    col: 15,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 8,
+                    col: 16,
+                },
+                PositionToken {
+                    token: RightParenCurly,
+                    line: 9,
+                    col: 2,
+                },
+                PositionToken {
+                    token: Public,
+                    line: 10,
+                    col: 2,
+                },
+                PositionToken {
+                    token: Int,
+                    line: 10,
+                    col: 9,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "hereIsCode",
+                    ),
+                    line: 10,
+                    col: 13,
+                },
+                PositionToken {
+                    token: LeftParen,
+                    line: 10,
+                    col: 23,
+                },
+                PositionToken {
+                    token: Int,
+                    line: 10,
+                    col: 24,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "a",
+                    ),
+                    line: 10,
+                    col: 28,
+                },
+                PositionToken {
+                    token: Comma,
+                    line: 10,
+                    col: 29,
+                },
+                PositionToken {
+                    token: Int,
+                    line: 10,
+                    col: 31,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "b",
+                    ),
+                    line: 10,
+                    col: 35,
+                },
+                PositionToken {
+                    token: RightParen,
+                    line: 10,
+                    col: 36,
+                },
+                PositionToken {
+                    token: LeftParenCurly,
+                    line: 10,
+                    col: 38,
+                },
+                PositionToken {
+                    token: Int,
+                    line: 11,
+                    col: 4,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "o",
+                    ),
+                    line: 11,
+                    col: 8,
+                },
+                PositionToken {
+                    token: Equal,
+                    line: 11,
+                    col: 11,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "a",
+                    ),
+                    line: 11,
+                    col: 12,
+                },
+                PositionToken {
+                    token: Plus,
+                    line: 11,
+                    col: 14,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "b",
+                    ),
+                    line: 11,
+                    col: 16,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 11,
+                    col: 17,
+                },
+                PositionToken {
+                    token: Return,
+                    line: 12,
+                    col: 4,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "o",
+                    ),
+                    line: 12,
+                    col: 11,
+                },
+                PositionToken {
+                    token: Dash,
+                    line: 12,
+                    col: 13,
+                },
+                PositionToken {
+                    token: Number(
+                        "1",
+                    ),
+                    line: 12,
+                    col: 16,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 12,
+                    col: 16,
+                },
+                PositionToken {
+                    token: RightParenCurly,
+                    line: 13,
+                    col: 2,
+                },
+                PositionToken {
+                    token: RightParenCurly,
+                    line: 14,
+                    col: 0,
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&tokens);
     }
 
     #[test]
     fn supere() {
         let content = include_str!("../../parser/test/Super.java");
         let tokens = lexer::lex(content.as_bytes()).expect("Test");
-        insta::assert_debug_snapshot!(tokens);
+        let expected = expect![[r#"
+            [
+                PositionToken {
+                    token: Package,
+                    line: 0,
+                    col: 0,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "ch",
+                    ),
+                    line: 0,
+                    col: 8,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 0,
+                    col: 10,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "emilycares",
+                    ),
+                    line: 0,
+                    col: 11,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 0,
+                    col: 21,
+                },
+                PositionToken {
+                    token: Import,
+                    line: 2,
+                    col: 0,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "java",
+                    ),
+                    line: 2,
+                    col: 7,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 2,
+                    col: 11,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "io",
+                    ),
+                    line: 2,
+                    col: 12,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 2,
+                    col: 14,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "IOException",
+                    ),
+                    line: 2,
+                    col: 15,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 2,
+                    col: 26,
+                },
+                PositionToken {
+                    token: Public,
+                    line: 4,
+                    col: 0,
+                },
+                PositionToken {
+                    token: Class,
+                    line: 4,
+                    col: 7,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "Super",
+                    ),
+                    line: 4,
+                    col: 13,
+                },
+                PositionToken {
+                    token: Extends,
+                    line: 4,
+                    col: 19,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "IOException",
+                    ),
+                    line: 4,
+                    col: 27,
+                },
+                PositionToken {
+                    token: LeftParenCurly,
+                    line: 4,
+                    col: 39,
+                },
+                PositionToken {
+                    token: RightParenCurly,
+                    line: 5,
+                    col: 0,
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&tokens);
     }
 
     #[test]
     fn super_interface() {
         let content = include_str!("../../parser/test/SuperInterface.java");
         let tokens = lexer::lex(content.as_bytes()).expect("Test");
-        insta::assert_debug_snapshot!(tokens);
+        let expected = expect![[r#"
+            [
+                PositionToken {
+                    token: Package,
+                    line: 0,
+                    col: 0,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "ch",
+                    ),
+                    line: 0,
+                    col: 8,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 0,
+                    col: 10,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "emilycares",
+                    ),
+                    line: 0,
+                    col: 11,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 0,
+                    col: 21,
+                },
+                PositionToken {
+                    token: Import,
+                    line: 2,
+                    col: 0,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "java",
+                    ),
+                    line: 2,
+                    col: 7,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 2,
+                    col: 11,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "util",
+                    ),
+                    line: 2,
+                    col: 12,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 2,
+                    col: 16,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "Collection",
+                    ),
+                    line: 2,
+                    col: 17,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 2,
+                    col: 27,
+                },
+                PositionToken {
+                    token: Import,
+                    line: 3,
+                    col: 0,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "java",
+                    ),
+                    line: 3,
+                    col: 7,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 3,
+                    col: 11,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "util",
+                    ),
+                    line: 3,
+                    col: 12,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 3,
+                    col: 16,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "List",
+                    ),
+                    line: 3,
+                    col: 17,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 3,
+                    col: 21,
+                },
+                PositionToken {
+                    token: Import,
+                    line: 5,
+                    col: 0,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "java",
+                    ),
+                    line: 5,
+                    col: 7,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 5,
+                    col: 11,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "util",
+                    ),
+                    line: 5,
+                    col: 12,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 5,
+                    col: 16,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "stream",
+                    ),
+                    line: 5,
+                    col: 17,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 5,
+                    col: 23,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "Stream",
+                    ),
+                    line: 5,
+                    col: 24,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 5,
+                    col: 30,
+                },
+                PositionToken {
+                    token: Import,
+                    line: 6,
+                    col: 0,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "java",
+                    ),
+                    line: 6,
+                    col: 7,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 6,
+                    col: 11,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "util",
+                    ),
+                    line: 6,
+                    col: 12,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 6,
+                    col: 16,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "stream",
+                    ),
+                    line: 6,
+                    col: 17,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 6,
+                    col: 23,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "StreamSupport",
+                    ),
+                    line: 6,
+                    col: 24,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 6,
+                    col: 37,
+                },
+                PositionToken {
+                    token: Public,
+                    line: 8,
+                    col: 0,
+                },
+                PositionToken {
+                    token: Interface,
+                    line: 8,
+                    col: 7,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "SuperInterface",
+                    ),
+                    line: 8,
+                    col: 17,
+                },
+                PositionToken {
+                    token: Lt,
+                    line: 8,
+                    col: 31,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "E",
+                    ),
+                    line: 8,
+                    col: 32,
+                },
+                PositionToken {
+                    token: Gt,
+                    line: 8,
+                    col: 33,
+                },
+                PositionToken {
+                    token: Extends,
+                    line: 8,
+                    col: 35,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "Collection",
+                    ),
+                    line: 8,
+                    col: 43,
+                },
+                PositionToken {
+                    token: Comma,
+                    line: 8,
+                    col: 53,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "List",
+                    ),
+                    line: 8,
+                    col: 55,
+                },
+                PositionToken {
+                    token: LeftParenCurly,
+                    line: 8,
+                    col: 60,
+                },
+                PositionToken {
+                    token: Default,
+                    line: 9,
+                    col: 4,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "Stream",
+                    ),
+                    line: 9,
+                    col: 12,
+                },
+                PositionToken {
+                    token: Lt,
+                    line: 9,
+                    col: 18,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "E",
+                    ),
+                    line: 9,
+                    col: 19,
+                },
+                PositionToken {
+                    token: Gt,
+                    line: 9,
+                    col: 20,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "stream",
+                    ),
+                    line: 9,
+                    col: 22,
+                },
+                PositionToken {
+                    token: LeftParen,
+                    line: 9,
+                    col: 28,
+                },
+                PositionToken {
+                    token: RightParen,
+                    line: 9,
+                    col: 29,
+                },
+                PositionToken {
+                    token: LeftParenCurly,
+                    line: 9,
+                    col: 31,
+                },
+                PositionToken {
+                    token: Return,
+                    line: 10,
+                    col: 8,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "StreamSupport",
+                    ),
+                    line: 10,
+                    col: 15,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 10,
+                    col: 28,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "stream",
+                    ),
+                    line: 10,
+                    col: 29,
+                },
+                PositionToken {
+                    token: LeftParen,
+                    line: 10,
+                    col: 35,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "spliterator",
+                    ),
+                    line: 10,
+                    col: 36,
+                },
+                PositionToken {
+                    token: LeftParen,
+                    line: 10,
+                    col: 47,
+                },
+                PositionToken {
+                    token: RightParen,
+                    line: 10,
+                    col: 48,
+                },
+                PositionToken {
+                    token: Comma,
+                    line: 10,
+                    col: 49,
+                },
+                PositionToken {
+                    token: False,
+                    line: 10,
+                    col: 51,
+                },
+                PositionToken {
+                    token: RightParen,
+                    line: 10,
+                    col: 56,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 10,
+                    col: 57,
+                },
+                PositionToken {
+                    token: RightParenCurly,
+                    line: 11,
+                    col: 4,
+                },
+                PositionToken {
+                    token: RightParenCurly,
+                    line: 12,
+                    col: 0,
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&tokens);
     }
 
     #[test]
     fn everything() {
         let content = include_str!("../../parser/test/Everything.java");
         let tokens = lexer::lex(content.as_bytes()).expect("Test");
-        insta::assert_debug_snapshot!(tokens);
+        let expected = expect![[r#"
+            [
+                PositionToken {
+                    token: Package,
+                    line: 0,
+                    col: 0,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "ch",
+                    ),
+                    line: 0,
+                    col: 8,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 0,
+                    col: 10,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "emilycares",
+                    ),
+                    line: 0,
+                    col: 11,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 0,
+                    col: 21,
+                },
+                PositionToken {
+                    token: Public,
+                    line: 2,
+                    col: 0,
+                },
+                PositionToken {
+                    token: Class,
+                    line: 2,
+                    col: 7,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "Everything",
+                    ),
+                    line: 2,
+                    col: 13,
+                },
+                PositionToken {
+                    token: LeftParenCurly,
+                    line: 2,
+                    col: 24,
+                },
+                PositionToken {
+                    token: Int,
+                    line: 3,
+                    col: 4,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "noprop",
+                    ),
+                    line: 3,
+                    col: 8,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 3,
+                    col: 14,
+                },
+                PositionToken {
+                    token: Public,
+                    line: 5,
+                    col: 4,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "Everything",
+                    ),
+                    line: 5,
+                    col: 11,
+                },
+                PositionToken {
+                    token: LeftParen,
+                    line: 5,
+                    col: 21,
+                },
+                PositionToken {
+                    token: RightParen,
+                    line: 5,
+                    col: 22,
+                },
+                PositionToken {
+                    token: LeftParenCurly,
+                    line: 5,
+                    col: 24,
+                },
+                PositionToken {
+                    token: RightParenCurly,
+                    line: 6,
+                    col: 4,
+                },
+                PositionToken {
+                    token: Public,
+                    line: 7,
+                    col: 4,
+                },
+                PositionToken {
+                    token: Int,
+                    line: 7,
+                    col: 11,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "publicproperty",
+                    ),
+                    line: 7,
+                    col: 15,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 7,
+                    col: 29,
+                },
+                PositionToken {
+                    token: Private,
+                    line: 8,
+                    col: 4,
+                },
+                PositionToken {
+                    token: Int,
+                    line: 8,
+                    col: 12,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "privateproperty",
+                    ),
+                    line: 8,
+                    col: 16,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 8,
+                    col: 31,
+                },
+                PositionToken {
+                    token: Void,
+                    line: 10,
+                    col: 4,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "method",
+                    ),
+                    line: 10,
+                    col: 9,
+                },
+                PositionToken {
+                    token: LeftParen,
+                    line: 10,
+                    col: 15,
+                },
+                PositionToken {
+                    token: RightParen,
+                    line: 10,
+                    col: 16,
+                },
+                PositionToken {
+                    token: LeftParenCurly,
+                    line: 10,
+                    col: 18,
+                },
+                PositionToken {
+                    token: RightParenCurly,
+                    line: 11,
+                    col: 4,
+                },
+                PositionToken {
+                    token: Public,
+                    line: 13,
+                    col: 4,
+                },
+                PositionToken {
+                    token: Void,
+                    line: 13,
+                    col: 11,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "public_method",
+                    ),
+                    line: 13,
+                    col: 16,
+                },
+                PositionToken {
+                    token: LeftParen,
+                    line: 13,
+                    col: 29,
+                },
+                PositionToken {
+                    token: RightParen,
+                    line: 13,
+                    col: 30,
+                },
+                PositionToken {
+                    token: LeftParenCurly,
+                    line: 13,
+                    col: 32,
+                },
+                PositionToken {
+                    token: RightParenCurly,
+                    line: 14,
+                    col: 4,
+                },
+                PositionToken {
+                    token: Private,
+                    line: 16,
+                    col: 4,
+                },
+                PositionToken {
+                    token: Void,
+                    line: 16,
+                    col: 12,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "private_method",
+                    ),
+                    line: 16,
+                    col: 17,
+                },
+                PositionToken {
+                    token: LeftParen,
+                    line: 16,
+                    col: 31,
+                },
+                PositionToken {
+                    token: RightParen,
+                    line: 16,
+                    col: 32,
+                },
+                PositionToken {
+                    token: LeftParenCurly,
+                    line: 16,
+                    col: 34,
+                },
+                PositionToken {
+                    token: RightParenCurly,
+                    line: 17,
+                    col: 4,
+                },
+                PositionToken {
+                    token: Int,
+                    line: 19,
+                    col: 4,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "out",
+                    ),
+                    line: 19,
+                    col: 8,
+                },
+                PositionToken {
+                    token: LeftParen,
+                    line: 19,
+                    col: 11,
+                },
+                PositionToken {
+                    token: RightParen,
+                    line: 19,
+                    col: 12,
+                },
+                PositionToken {
+                    token: LeftParenCurly,
+                    line: 19,
+                    col: 14,
+                },
+                PositionToken {
+                    token: Return,
+                    line: 20,
+                    col: 8,
+                },
+                PositionToken {
+                    token: Number(
+                        "0",
+                    ),
+                    line: 20,
+                    col: 16,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 20,
+                    col: 16,
+                },
+                PositionToken {
+                    token: RightParenCurly,
+                    line: 21,
+                    col: 4,
+                },
+                PositionToken {
+                    token: Int,
+                    line: 29,
+                    col: 4,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "add",
+                    ),
+                    line: 29,
+                    col: 8,
+                },
+                PositionToken {
+                    token: LeftParen,
+                    line: 29,
+                    col: 11,
+                },
+                PositionToken {
+                    token: Int,
+                    line: 29,
+                    col: 12,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "a",
+                    ),
+                    line: 29,
+                    col: 16,
+                },
+                PositionToken {
+                    token: Comma,
+                    line: 29,
+                    col: 17,
+                },
+                PositionToken {
+                    token: Int,
+                    line: 29,
+                    col: 19,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "b",
+                    ),
+                    line: 29,
+                    col: 23,
+                },
+                PositionToken {
+                    token: RightParen,
+                    line: 29,
+                    col: 24,
+                },
+                PositionToken {
+                    token: LeftParenCurly,
+                    line: 29,
+                    col: 26,
+                },
+                PositionToken {
+                    token: Return,
+                    line: 30,
+                    col: 8,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "a",
+                    ),
+                    line: 30,
+                    col: 15,
+                },
+                PositionToken {
+                    token: Plus,
+                    line: 30,
+                    col: 17,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "b",
+                    ),
+                    line: 30,
+                    col: 19,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 30,
+                    col: 20,
+                },
+                PositionToken {
+                    token: RightParenCurly,
+                    line: 31,
+                    col: 4,
+                },
+                PositionToken {
+                    token: Static,
+                    line: 33,
+                    col: 4,
+                },
+                PositionToken {
+                    token: Int,
+                    line: 33,
+                    col: 11,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "sadd",
+                    ),
+                    line: 33,
+                    col: 15,
+                },
+                PositionToken {
+                    token: LeftParen,
+                    line: 33,
+                    col: 19,
+                },
+                PositionToken {
+                    token: Int,
+                    line: 33,
+                    col: 20,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "a",
+                    ),
+                    line: 33,
+                    col: 24,
+                },
+                PositionToken {
+                    token: Comma,
+                    line: 33,
+                    col: 25,
+                },
+                PositionToken {
+                    token: Int,
+                    line: 33,
+                    col: 27,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "b",
+                    ),
+                    line: 33,
+                    col: 31,
+                },
+                PositionToken {
+                    token: RightParen,
+                    line: 33,
+                    col: 32,
+                },
+                PositionToken {
+                    token: LeftParenCurly,
+                    line: 33,
+                    col: 34,
+                },
+                PositionToken {
+                    token: Return,
+                    line: 34,
+                    col: 6,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "a",
+                    ),
+                    line: 34,
+                    col: 13,
+                },
+                PositionToken {
+                    token: Plus,
+                    line: 34,
+                    col: 15,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "b",
+                    ),
+                    line: 34,
+                    col: 17,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 34,
+                    col: 18,
+                },
+                PositionToken {
+                    token: RightParenCurly,
+                    line: 35,
+                    col: 4,
+                },
+                PositionToken {
+                    token: RightParenCurly,
+                    line: 36,
+                    col: 0,
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&tokens);
     }
 
     #[test]
     fn thrower() {
         let content = include_str!("../../parser/test/Thrower.java");
         let tokens = lexer::lex(content.as_bytes()).expect("Test");
-        insta::assert_debug_snapshot!(tokens);
+        let expected = expect![[r#"
+            [
+                PositionToken {
+                    token: Package,
+                    line: 0,
+                    col: 0,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "ch",
+                    ),
+                    line: 0,
+                    col: 8,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 0,
+                    col: 10,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "emilycares",
+                    ),
+                    line: 0,
+                    col: 11,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 0,
+                    col: 21,
+                },
+                PositionToken {
+                    token: Import,
+                    line: 2,
+                    col: 0,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "java",
+                    ),
+                    line: 2,
+                    col: 7,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 2,
+                    col: 11,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "io",
+                    ),
+                    line: 2,
+                    col: 12,
+                },
+                PositionToken {
+                    token: Dot,
+                    line: 2,
+                    col: 14,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "IOException",
+                    ),
+                    line: 2,
+                    col: 15,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 2,
+                    col: 26,
+                },
+                PositionToken {
+                    token: Public,
+                    line: 4,
+                    col: 0,
+                },
+                PositionToken {
+                    token: Class,
+                    line: 4,
+                    col: 7,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "Thrower",
+                    ),
+                    line: 4,
+                    col: 13,
+                },
+                PositionToken {
+                    token: LeftParenCurly,
+                    line: 4,
+                    col: 21,
+                },
+                PositionToken {
+                    token: Public,
+                    line: 5,
+                    col: 2,
+                },
+                PositionToken {
+                    token: Void,
+                    line: 5,
+                    col: 9,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "ioThrower",
+                    ),
+                    line: 5,
+                    col: 14,
+                },
+                PositionToken {
+                    token: LeftParen,
+                    line: 5,
+                    col: 23,
+                },
+                PositionToken {
+                    token: RightParen,
+                    line: 5,
+                    col: 24,
+                },
+                PositionToken {
+                    token: Throws,
+                    line: 5,
+                    col: 26,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "IOException",
+                    ),
+                    line: 5,
+                    col: 33,
+                },
+                PositionToken {
+                    token: LeftParenCurly,
+                    line: 5,
+                    col: 45,
+                },
+                PositionToken {
+                    token: RightParenCurly,
+                    line: 5,
+                    col: 46,
+                },
+                PositionToken {
+                    token: Public,
+                    line: 6,
+                    col: 2,
+                },
+                PositionToken {
+                    token: Void,
+                    line: 6,
+                    col: 9,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "ioThrower",
+                    ),
+                    line: 6,
+                    col: 14,
+                },
+                PositionToken {
+                    token: LeftParen,
+                    line: 6,
+                    col: 23,
+                },
+                PositionToken {
+                    token: Int,
+                    line: 6,
+                    col: 24,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "a",
+                    ),
+                    line: 6,
+                    col: 28,
+                },
+                PositionToken {
+                    token: RightParen,
+                    line: 6,
+                    col: 29,
+                },
+                PositionToken {
+                    token: Throws,
+                    line: 6,
+                    col: 31,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "IOException",
+                    ),
+                    line: 6,
+                    col: 38,
+                },
+                PositionToken {
+                    token: Comma,
+                    line: 6,
+                    col: 49,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "IOException",
+                    ),
+                    line: 6,
+                    col: 51,
+                },
+                PositionToken {
+                    token: LeftParenCurly,
+                    line: 6,
+                    col: 63,
+                },
+                PositionToken {
+                    token: RightParenCurly,
+                    line: 6,
+                    col: 64,
+                },
+                PositionToken {
+                    token: RightParenCurly,
+                    line: 7,
+                    col: 0,
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&tokens);
     }
     #[test]
     fn escaped_double_quetes() {
         let content = r#"return "\"" + s + "\"";"#;
         let tokens = lexer::lex(content.as_bytes()).expect("Test");
-        insta::assert_debug_snapshot!(tokens);
+        let expected = expect![[r#"
+            [
+                PositionToken {
+                    token: Return,
+                    line: 0,
+                    col: 0,
+                },
+                PositionToken {
+                    token: StringLiteral(
+                        "\\\"",
+                    ),
+                    line: 0,
+                    col: 10,
+                },
+                PositionToken {
+                    token: Plus,
+                    line: 0,
+                    col: 12,
+                },
+                PositionToken {
+                    token: Identifier(
+                        "s",
+                    ),
+                    line: 0,
+                    col: 14,
+                },
+                PositionToken {
+                    token: Plus,
+                    line: 0,
+                    col: 16,
+                },
+                PositionToken {
+                    token: StringLiteral(
+                        "\\\"",
+                    ),
+                    line: 0,
+                    col: 21,
+                },
+                PositionToken {
+                    token: Semicolon,
+                    line: 0,
+                    col: 22,
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&tokens);
     }
     #[test]
     fn escaped_backslash() {
         let content = r#" "\\" "#;
         let tokens = lexer::lex(content.as_bytes()).expect("Test");
-        insta::assert_debug_snapshot!(tokens);
+        let expected = expect![[r#"
+            [
+                PositionToken {
+                    token: StringLiteral(
+                        "\\\\",
+                    ),
+                    line: 0,
+                    col: 4,
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&tokens);
     }
     #[test]
     fn escaped_others() {
@@ -1190,6 +2976,94 @@ pub mod tests {
             '\\' + 
          "#;
         let tokens = lexer::lex(content.as_bytes()).expect("Test");
-        insta::assert_debug_snapshot!(tokens);
+        let expected = expect![[r#"
+            [
+                PositionToken {
+                    token: CharLiteral(
+                        "\\b",
+                    ),
+                    line: 1,
+                    col: 14,
+                },
+                PositionToken {
+                    token: Plus,
+                    line: 1,
+                    col: 16,
+                },
+                PositionToken {
+                    token: CharLiteral(
+                        "\\t",
+                    ),
+                    line: 2,
+                    col: 14,
+                },
+                PositionToken {
+                    token: Plus,
+                    line: 2,
+                    col: 16,
+                },
+                PositionToken {
+                    token: CharLiteral(
+                        "\\n",
+                    ),
+                    line: 3,
+                    col: 14,
+                },
+                PositionToken {
+                    token: Plus,
+                    line: 3,
+                    col: 16,
+                },
+                PositionToken {
+                    token: CharLiteral(
+                        "\\f",
+                    ),
+                    line: 4,
+                    col: 14,
+                },
+                PositionToken {
+                    token: Plus,
+                    line: 4,
+                    col: 16,
+                },
+                PositionToken {
+                    token: CharLiteral(
+                        "\\r",
+                    ),
+                    line: 5,
+                    col: 14,
+                },
+                PositionToken {
+                    token: Plus,
+                    line: 5,
+                    col: 16,
+                },
+                PositionToken {
+                    token: CharLiteral(
+                        "\\\"",
+                    ),
+                    line: 6,
+                    col: 14,
+                },
+                PositionToken {
+                    token: Plus,
+                    line: 6,
+                    col: 16,
+                },
+                PositionToken {
+                    token: CharLiteral(
+                        "\\\\",
+                    ),
+                    line: 7,
+                    col: 14,
+                },
+                PositionToken {
+                    token: Plus,
+                    line: 7,
+                    col: 16,
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&tokens);
     }
 }

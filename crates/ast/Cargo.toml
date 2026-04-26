@@ -20,4 +20,4 @@ memchr.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]
-insta.workspace = true
+expect-test.workspace = true

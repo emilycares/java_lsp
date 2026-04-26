@@ -3,6 +3,7 @@ use ast::{
     types::{AstPoint, AstRange},
 };
 use call_chain::{CallItem, get_call_chain};
+use expect_test::expect;
 use my_string::smol_str::SmolStr;
 use pretty_assertions::assert_eq;
 
@@ -27,7 +28,18 @@ public class Test {
     let ast = ast.unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(8, 24));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ClassOrVariable {
+                name: "local",
+                range: AstRange {
+                    start: AstPoint { 8:17 },
+                    end: AstPoint { 8:22 },
+                },
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -47,7 +59,18 @@ public class Test {
     let ast = ast.unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 11));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ClassOrVariable {
+                name: "a",
+                range: AstRange {
+                    start: AstPoint { 4:8 },
+                    end: AstPoint { 4:9 },
+                },
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 pub const SYMBOL_METHOD: &str = r#"
@@ -72,7 +95,36 @@ fn call_chain_method_a() {
     let ast = ast.unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(8, 40));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ClassOrVariable {
+                name: "local",
+                range: AstRange {
+                    start: AstPoint { 8:17 },
+                    end: AstPoint { 8:22 },
+                },
+            },
+            MethodCall {
+                name: "concat",
+                range: AstRange {
+                    start: AstPoint { 8:23 },
+                    end: AstPoint { 8:29 },
+                },
+                args: [
+                    [
+                        Class {
+                            name: "String",
+                            range: AstRange {
+                                start: AstPoint { 8:35 },
+                                end: AstPoint { 8:30 },
+                            },
+                        },
+                    ],
+                ],
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -92,7 +144,18 @@ public class Test {
     let ast = ast.unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 19));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            Class {
+                name: "String",
+                range: AstRange {
+                    start: AstPoint { 5:16 },
+                    end: AstPoint { 5:14 },
+                },
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -111,7 +174,25 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 26));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ClassOrVariable {
+                name: "local",
+                range: AstRange {
+                    start: AstPoint { 5:17 },
+                    end: AstPoint { 5:22 },
+                },
+            },
+            FieldAccess {
+                name: "a",
+                range: AstRange {
+                    start: AstPoint { 5:23 },
+                    end: AstPoint { 5:24 },
+                },
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -130,7 +211,36 @@ public class GreetingResource {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 24));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ClassOrVariable {
+                name: "a",
+                range: AstRange {
+                    start: AstPoint { 5:8 },
+                    end: AstPoint { 5:9 },
+                },
+            },
+            MethodCall {
+                name: "concat",
+                range: AstRange {
+                    start: AstPoint { 5:10 },
+                    end: AstPoint { 5:16 },
+                },
+                args: [
+                    [
+                        Class {
+                            name: "String",
+                            range: AstRange {
+                                start: AstPoint { 5:18 },
+                                end: AstPoint { 5:17 },
+                            },
+                        },
+                    ],
+                ],
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -149,7 +259,44 @@ public class GreetingResource {
 
     // the cursor is on the concat method_call
     let out = get_call_chain(&ast, &AstPoint::new(4, 14));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ClassOrVariable {
+                name: "a",
+                range: AstRange {
+                    start: AstPoint { 4:8 },
+                    end: AstPoint { 4:9 },
+                },
+            },
+            MethodCall {
+                name: "concat",
+                range: AstRange {
+                    start: AstPoint { 4:10 },
+                    end: AstPoint { 4:16 },
+                },
+                args: [
+                    [
+                        Class {
+                            name: "String",
+                            range: AstRange {
+                                start: AstPoint { 4:18 },
+                                end: AstPoint { 4:17 },
+                            },
+                        },
+                    ],
+                ],
+            },
+            MethodCall {
+                name: "other",
+                range: AstRange {
+                    start: AstPoint { 4:21 },
+                    end: AstPoint { 4:26 },
+                },
+                args: [],
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -168,7 +315,33 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 30));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ClassOrVariable {
+                name: "local",
+                range: AstRange {
+                    start: AstPoint { 5:17 },
+                    end: AstPoint { 5:22 },
+                },
+            },
+            FieldAccess {
+                name: "a",
+                range: AstRange {
+                    start: AstPoint { 5:23 },
+                    end: AstPoint { 5:24 },
+                },
+            },
+            MethodCall {
+                name: "b",
+                range: AstRange {
+                    start: AstPoint { 5:25 },
+                    end: AstPoint { 5:26 },
+                },
+                args: [],
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -187,7 +360,33 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 30));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ClassOrVariable {
+                name: "local",
+                range: AstRange {
+                    start: AstPoint { 5:17 },
+                    end: AstPoint { 5:22 },
+                },
+            },
+            MethodCall {
+                name: "a",
+                range: AstRange {
+                    start: AstPoint { 5:23 },
+                    end: AstPoint { 5:24 },
+                },
+                args: [],
+            },
+            FieldAccess {
+                name: "b",
+                range: AstRange {
+                    start: AstPoint { 5:27 },
+                    end: AstPoint { 5:28 },
+                },
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -206,7 +405,18 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 23));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ClassOrVariable {
+                name: "local",
+                range: AstRange {
+                    start: AstPoint { 5:17 },
+                    end: AstPoint { 5:22 },
+                },
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -225,7 +435,33 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 28));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ClassOrVariable {
+                name: "local",
+                range: AstRange {
+                    start: AstPoint { 5:16 },
+                    end: AstPoint { 5:21 },
+                },
+            },
+            MethodCall {
+                name: "a",
+                range: AstRange {
+                    start: AstPoint { 5:22 },
+                    end: AstPoint { 5:23 },
+                },
+                args: [],
+            },
+            FieldAccess {
+                name: "c",
+                range: AstRange {
+                    start: AstPoint { 5:26 },
+                    end: AstPoint { 5:27 },
+                },
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -244,7 +480,33 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 28));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ClassOrVariable {
+                name: "local",
+                range: AstRange {
+                    start: AstPoint { 5:16 },
+                    end: AstPoint { 5:21 },
+                },
+            },
+            FieldAccess {
+                name: "a",
+                range: AstRange {
+                    start: AstPoint { 5:22 },
+                    end: AstPoint { 5:23 },
+                },
+            },
+            MethodCall {
+                name: "c",
+                range: AstRange {
+                    start: AstPoint { 5:24 },
+                    end: AstPoint { 5:25 },
+                },
+                args: [],
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -263,7 +525,33 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 20));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ClassOrVariable {
+                name: "local",
+                range: AstRange {
+                    start: AstPoint { 5:8 },
+                    end: AstPoint { 5:13 },
+                },
+            },
+            FieldAccess {
+                name: "a",
+                range: AstRange {
+                    start: AstPoint { 5:14 },
+                    end: AstPoint { 5:15 },
+                },
+            },
+            MethodCall {
+                name: "c",
+                range: AstRange {
+                    start: AstPoint { 5:16 },
+                    end: AstPoint { 5:17 },
+                },
+                args: [],
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -282,7 +570,18 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 16));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ClassOrVariable {
+                name: "String",
+                range: AstRange {
+                    start: AstPoint { 5:8 },
+                    end: AstPoint { 5:14 },
+                },
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -301,7 +600,18 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 28));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ClassOrVariable {
+                name: "String",
+                range: AstRange {
+                    start: AstPoint { 5:20 },
+                    end: AstPoint { 5:26 },
+                },
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -320,7 +630,40 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 22));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ArgumentList {
+                prev: [
+                    ClassOrVariable {
+                        name: "local",
+                        range: AstRange {
+                            start: AstPoint { 5:8 },
+                            end: AstPoint { 5:13 },
+                        },
+                    },
+                    MethodCall {
+                        name: "concat",
+                        range: AstRange {
+                            start: AstPoint { 5:14 },
+                            end: AstPoint { 5:20 },
+                        },
+                        args: [],
+                    },
+                ],
+                active_param: Some(
+                    0,
+                ),
+                filled_params: [
+                    [],
+                ],
+                range: AstRange {
+                    start: AstPoint { 5:20 },
+                    end: AstPoint { 5:23 },
+                },
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -339,7 +682,65 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 27));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ArgumentList {
+                prev: [
+                    ClassOrVariable {
+                        name: "local",
+                        range: AstRange {
+                            start: AstPoint { 5:8 },
+                            end: AstPoint { 5:13 },
+                        },
+                    },
+                    MethodCall {
+                        name: "concat",
+                        range: AstRange {
+                            start: AstPoint { 5:14 },
+                            end: AstPoint { 5:20 },
+                        },
+                        args: [
+                            [
+                                ClassOrVariable {
+                                    name: "local",
+                                    range: AstRange {
+                                        start: AstPoint { 5:21 },
+                                        end: AstPoint { 5:26 },
+                                    },
+                                },
+                            ],
+                        ],
+                    },
+                ],
+                active_param: Some(
+                    0,
+                ),
+                filled_params: [
+                    [
+                        ClassOrVariable {
+                            name: "local",
+                            range: AstRange {
+                                start: AstPoint { 5:21 },
+                                end: AstPoint { 5:26 },
+                            },
+                        },
+                    ],
+                ],
+                range: AstRange {
+                    start: AstPoint { 5:20 },
+                    end: AstPoint { 5:29 },
+                },
+            },
+            ClassOrVariable {
+                name: "local",
+                range: AstRange {
+                    start: AstPoint { 5:21 },
+                    end: AstPoint { 5:26 },
+                },
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -358,7 +759,55 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 27));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ArgumentList {
+                prev: [
+                    ClassOrVariable {
+                        name: "local",
+                        range: AstRange {
+                            start: AstPoint { 5:8 },
+                            end: AstPoint { 5:13 },
+                        },
+                    },
+                    MethodCall {
+                        name: "concat",
+                        range: AstRange {
+                            start: AstPoint { 5:14 },
+                            end: AstPoint { 5:20 },
+                        },
+                        args: [],
+                    },
+                ],
+                active_param: Some(
+                    0,
+                ),
+                filled_params: [
+                    [
+                        ClassOrVariable {
+                            name: "local",
+                            range: AstRange {
+                                start: AstPoint { 5:21 },
+                                end: AstPoint { 5:26 },
+                            },
+                        },
+                    ],
+                ],
+                range: AstRange {
+                    start: AstPoint { 5:20 },
+                    end: AstPoint { 5:28 },
+                },
+            },
+            ClassOrVariable {
+                name: "local",
+                range: AstRange {
+                    start: AstPoint { 5:21 },
+                    end: AstPoint { 5:26 },
+                },
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -386,7 +835,83 @@ public class Test {
         } => assert_eq!(active_param, &Some(1)),
         _ => unreachable!(),
     };
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ArgumentList {
+                prev: [
+                    ClassOrVariable {
+                        name: "a",
+                        range: AstRange {
+                            start: AstPoint { 5:8 },
+                            end: AstPoint { 5:9 },
+                        },
+                    },
+                    MethodCall {
+                        name: "concat",
+                        range: AstRange {
+                            start: AstPoint { 5:10 },
+                            end: AstPoint { 5:16 },
+                        },
+                        args: [
+                            [
+                                ClassOrVariable {
+                                    name: "b",
+                                    range: AstRange {
+                                        start: AstPoint { 5:17 },
+                                        end: AstPoint { 5:18 },
+                                    },
+                                },
+                            ],
+                            [
+                                ClassOrVariable {
+                                    name: "c",
+                                    range: AstRange {
+                                        start: AstPoint { 5:20 },
+                                        end: AstPoint { 5:21 },
+                                    },
+                                },
+                            ],
+                        ],
+                    },
+                ],
+                active_param: Some(
+                    1,
+                ),
+                filled_params: [
+                    [
+                        ClassOrVariable {
+                            name: "b",
+                            range: AstRange {
+                                start: AstPoint { 5:17 },
+                                end: AstPoint { 5:18 },
+                            },
+                        },
+                    ],
+                    [
+                        ClassOrVariable {
+                            name: "c",
+                            range: AstRange {
+                                start: AstPoint { 5:20 },
+                                end: AstPoint { 5:21 },
+                            },
+                        },
+                    ],
+                ],
+                range: AstRange {
+                    start: AstPoint { 5:16 },
+                    end: AstPoint { 5:24 },
+                },
+            },
+            ClassOrVariable {
+                name: "c",
+                range: AstRange {
+                    start: AstPoint { 5:20 },
+                    end: AstPoint { 5:21 },
+                },
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -405,7 +930,83 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 19));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ArgumentList {
+                prev: [
+                    ClassOrVariable {
+                        name: "a",
+                        range: AstRange {
+                            start: AstPoint { 5:8 },
+                            end: AstPoint { 5:9 },
+                        },
+                    },
+                    MethodCall {
+                        name: "concat",
+                        range: AstRange {
+                            start: AstPoint { 5:10 },
+                            end: AstPoint { 5:16 },
+                        },
+                        args: [
+                            [
+                                ClassOrVariable {
+                                    name: "b",
+                                    range: AstRange {
+                                        start: AstPoint { 5:17 },
+                                        end: AstPoint { 5:18 },
+                                    },
+                                },
+                            ],
+                            [
+                                ClassOrVariable {
+                                    name: "c",
+                                    range: AstRange {
+                                        start: AstPoint { 5:21 },
+                                        end: AstPoint { 5:22 },
+                                    },
+                                },
+                            ],
+                        ],
+                    },
+                ],
+                active_param: Some(
+                    0,
+                ),
+                filled_params: [
+                    [
+                        ClassOrVariable {
+                            name: "b",
+                            range: AstRange {
+                                start: AstPoint { 5:17 },
+                                end: AstPoint { 5:18 },
+                            },
+                        },
+                    ],
+                    [
+                        ClassOrVariable {
+                            name: "c",
+                            range: AstRange {
+                                start: AstPoint { 5:21 },
+                                end: AstPoint { 5:22 },
+                            },
+                        },
+                    ],
+                ],
+                range: AstRange {
+                    start: AstPoint { 5:16 },
+                    end: AstPoint { 5:23 },
+                },
+            },
+            ClassOrVariable {
+                name: "b",
+                range: AstRange {
+                    start: AstPoint { 5:17 },
+                    end: AstPoint { 5:18 },
+                },
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -424,7 +1025,83 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 22));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ArgumentList {
+                prev: [
+                    ClassOrVariable {
+                        name: "a",
+                        range: AstRange {
+                            start: AstPoint { 5:8 },
+                            end: AstPoint { 5:9 },
+                        },
+                    },
+                    MethodCall {
+                        name: "concat",
+                        range: AstRange {
+                            start: AstPoint { 5:10 },
+                            end: AstPoint { 5:16 },
+                        },
+                        args: [
+                            [
+                                ClassOrVariable {
+                                    name: "b",
+                                    range: AstRange {
+                                        start: AstPoint { 5:17 },
+                                        end: AstPoint { 5:18 },
+                                    },
+                                },
+                            ],
+                            [
+                                ClassOrVariable {
+                                    name: "c",
+                                    range: AstRange {
+                                        start: AstPoint { 5:20 },
+                                        end: AstPoint { 5:21 },
+                                    },
+                                },
+                            ],
+                        ],
+                    },
+                ],
+                active_param: Some(
+                    1,
+                ),
+                filled_params: [
+                    [
+                        ClassOrVariable {
+                            name: "b",
+                            range: AstRange {
+                                start: AstPoint { 5:17 },
+                                end: AstPoint { 5:18 },
+                            },
+                        },
+                    ],
+                    [
+                        ClassOrVariable {
+                            name: "c",
+                            range: AstRange {
+                                start: AstPoint { 5:20 },
+                                end: AstPoint { 5:21 },
+                            },
+                        },
+                    ],
+                ],
+                range: AstRange {
+                    start: AstPoint { 5:16 },
+                    end: AstPoint { 5:23 },
+                },
+            },
+            ClassOrVariable {
+                name: "c",
+                range: AstRange {
+                    start: AstPoint { 5:20 },
+                    end: AstPoint { 5:21 },
+                },
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -443,7 +1120,69 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 22));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ArgumentList {
+                prev: [
+                    ClassOrVariable {
+                        name: "a",
+                        range: AstRange {
+                            start: AstPoint { 5:8 },
+                            end: AstPoint { 5:9 },
+                        },
+                    },
+                    MethodCall {
+                        name: "concat",
+                        range: AstRange {
+                            start: AstPoint { 5:10 },
+                            end: AstPoint { 5:16 },
+                        },
+                        args: [],
+                    },
+                ],
+                active_param: Some(
+                    0,
+                ),
+                filled_params: [
+                    [
+                        ClassOrVariable {
+                            name: "b",
+                            range: AstRange {
+                                start: AstPoint { 5:17 },
+                                end: AstPoint { 5:18 },
+                            },
+                        },
+                        ClassOrVariable {
+                            name: "a",
+                            range: AstRange {
+                                start: AstPoint { 5:19 },
+                                end: AstPoint { 5:20 },
+                            },
+                        },
+                    ],
+                ],
+                range: AstRange {
+                    start: AstPoint { 5:16 },
+                    end: AstPoint { 5:23 },
+                },
+            },
+            ClassOrVariable {
+                name: "b",
+                range: AstRange {
+                    start: AstPoint { 5:17 },
+                    end: AstPoint { 5:18 },
+                },
+            },
+            ClassOrVariable {
+                name: "a",
+                range: AstRange {
+                    start: AstPoint { 5:19 },
+                    end: AstPoint { 5:20 },
+                },
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -461,7 +1200,82 @@ public class Test {
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 28));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ArgumentList {
+                prev: [
+                    MethodCall {
+                        name: "concat",
+                        range: AstRange {
+                            start: AstPoint { 4:8 },
+                            end: AstPoint { 4:14 },
+                        },
+                        args: [
+                            [
+                                ClassOrVariable {
+                                    name: "a",
+                                    range: AstRange {
+                                        start: AstPoint { 4:21 },
+                                        end: AstPoint { 4:22 },
+                                    },
+                                },
+                                MethodCall {
+                                    name: "getThing",
+                                    range: AstRange {
+                                        start: AstPoint { 4:23 },
+                                        end: AstPoint { 4:31 },
+                                    },
+                                    args: [],
+                                },
+                            ],
+                        ],
+                    },
+                ],
+                active_param: Some(
+                    0,
+                ),
+                filled_params: [
+                    [
+                        ClassOrVariable {
+                            name: "a",
+                            range: AstRange {
+                                start: AstPoint { 4:21 },
+                                end: AstPoint { 4:22 },
+                            },
+                        },
+                        MethodCall {
+                            name: "getThing",
+                            range: AstRange {
+                                start: AstPoint { 4:23 },
+                                end: AstPoint { 4:31 },
+                            },
+                            args: [],
+                        },
+                    ],
+                ],
+                range: AstRange {
+                    start: AstPoint { 4:14 },
+                    end: AstPoint { 4:34 },
+                },
+            },
+            ClassOrVariable {
+                name: "a",
+                range: AstRange {
+                    start: AstPoint { 4:21 },
+                    end: AstPoint { 4:22 },
+                },
+            },
+            MethodCall {
+                name: "getThing",
+                range: AstRange {
+                    start: AstPoint { 4:23 },
+                    end: AstPoint { 4:31 },
+                },
+                args: [],
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -653,7 +1467,18 @@ public class Test {
     let ast = ast.unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 19));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            ClassOrVariable {
+                name: "b",
+                range: AstRange {
+                    start: AstPoint { 4:17 },
+                    end: AstPoint { 4:18 },
+                },
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -735,7 +1560,18 @@ public class Test {
     let ast = ast.unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 22));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            Class {
+                name: "String",
+                range: AstRange {
+                    start: AstPoint { 4:8 },
+                    end: AstPoint { 4:20 },
+                },
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -755,7 +1591,25 @@ public class Test {
     let ast = ast.unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 22));
-    insta::assert_debug_snapshot!(out);
+    let expected = expect![[r#"
+        [
+            Class {
+                name: "String",
+                range: AstRange {
+                    start: AstPoint { 4:8 },
+                    end: AstPoint { 4:20 },
+                },
+            },
+            FieldAccess {
+                name: "a",
+                range: AstRange {
+                    start: AstPoint { 4:21 },
+                    end: AstPoint { 4:22 },
+                },
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]

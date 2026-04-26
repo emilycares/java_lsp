@@ -40,4 +40,4 @@ workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]
 pretty_assertions.workspace = true
-insta.workspace = true
+expect-test.workspace = true

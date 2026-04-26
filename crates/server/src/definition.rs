@@ -263,6 +263,7 @@ mod tests {
     use std::{path::PathBuf, str::FromStr};
 
     use dto::{Access, JType, Method, SourceDestination};
+    use expect_test::expect;
     use variables::VariableContext;
 
     use super::*;
@@ -306,7 +307,18 @@ public class Test {
             document_map: &Arc::new(Mutex::new(HashMap::new())),
         };
         let out = call_chain_definition(&call_chain, &context);
-        insta::assert_debug_snapshot!(out);
+        let expected = expect![[r#"
+            Err(
+                Document(
+                    IoNotFound(
+                        Some(
+                            "Logger",
+                        ),
+                    ),
+                ),
+            )
+        "#]];
+        expected.assert_debug_eq(&out);
     }
     #[test]
     fn definition_stream_map() {
@@ -350,7 +362,18 @@ public class Test {
             document_map: &Arc::new(Mutex::new(HashMap::new())),
         };
         let out = call_chain_definition(&call_chain, &context);
-        insta::assert_debug_snapshot!(out);
+        let expected = expect![[r#"
+            Err(
+                Document(
+                    IoNotFound(
+                        Some(
+                            "Stream",
+                        ),
+                    ),
+                ),
+            )
+        "#]];
+        expected.assert_debug_eq(&out);
     }
     #[test]
     fn definition_parent_method() {
@@ -389,7 +412,18 @@ public class Test extends ParGreet {
             document_map: &Arc::new(Mutex::new(HashMap::new())),
         };
         let out = call_chain_definition(&call_chain, &context);
-        insta::assert_debug_snapshot!(out);
+        let expected = expect![[r#"
+            Err(
+                Document(
+                    IoNotFound(
+                        Some(
+                            "greet",
+                        ),
+                    ),
+                ),
+            )
+        "#]];
+        expected.assert_debug_eq(&out);
     }
     fn get_class_map() -> Arc<Mutex<HashMap<MyString, Class>>> {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
