@@ -95,10 +95,8 @@ fn cut_output(inp: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use common::Dependency;
-    use pretty_assertions::assert_eq;
-
     use crate::tree::{cut_output, parser};
+    use common::Dependency;
 
     #[test]
     fn cut_basic() {

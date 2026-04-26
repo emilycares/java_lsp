@@ -33,8 +33,6 @@ pub fn load_pom_xml(project_dir: &Path) -> Result<Pom, PomError> {
 
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::assert_eq;
-
     use crate::pom::{Pom, PomRepositories, PomRepository};
 
     #[test]

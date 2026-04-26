@@ -43,10 +43,8 @@ fn run_compile_java(executable_gradle: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use compile::CompileErrorMessage;
-    use pretty_assertions::assert_eq;
-
     use crate::compile::cut_and_parse;
+    use compile::CompileErrorMessage;
 
     #[test]
     fn gradle_compile() {

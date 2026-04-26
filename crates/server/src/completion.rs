@@ -405,12 +405,8 @@ pub fn imports(
 #[cfg(test)]
 mod tests {
     #![allow(clippy::literal_string_with_formatting_args)]
-    use std::{
-        collections::HashMap,
-        path::PathBuf,
-        sync::{Arc, Mutex},
-    };
-
+    use super::method_snippet;
+    use crate::completion::{Snippet, classes, complete_call_chain};
     use ast::types::{AstPoint, AstRange};
     use document::Document;
     use dto::{Access, Class, ImportUnit, JType, Method, Parameter};
@@ -420,11 +416,11 @@ mod tests {
         Range, TextEdit,
     };
     use my_string::{MyString, smol_str::SmolStr};
-    use pretty_assertions::assert_eq;
-
-    use crate::completion::{Snippet, classes, complete_call_chain};
-
-    use super::method_snippet;
+    use std::{
+        collections::HashMap,
+        path::PathBuf,
+        sync::{Arc, Mutex},
+    };
 
     #[test]
     fn extend_completion_base() {

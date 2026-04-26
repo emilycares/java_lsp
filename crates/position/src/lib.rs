@@ -495,15 +495,13 @@ pub fn symbols_to_document_symbols(
 
 #[cfg(test)]
 mod tests {
-    use ast::types::{AstPoint, AstRange};
-    use lsp_types::SymbolKind;
-    use my_string::smol_str::ToSmolStr;
-    use pretty_assertions::assert_eq;
-
     use crate::{
         PositionSymbol, get_class_position_ast, get_field_position_ast, get_method_position_ast,
         get_type_usage,
     };
+    use ast::types::{AstPoint, AstRange};
+    use lsp_types::SymbolKind;
+    use my_string::smol_str::ToSmolStr;
 
     #[test]
     fn method_pos_base() {

@@ -47,8 +47,6 @@ pub fn load_settings_xml(m2_folder: &Path) -> Result<M2Settings, M2SettingsError
 
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::assert_eq;
-
     use crate::settings::{M2Mirror, M2Mirrors, M2Server, M2Servers, M2Settings};
 
     #[test]

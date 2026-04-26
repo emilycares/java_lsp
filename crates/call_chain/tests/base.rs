@@ -5,7 +5,6 @@ use ast::{
 use call_chain::{CallItem, get_call_chain};
 use expect_test::expect;
 use my_string::smol_str::SmolStr;
-use pretty_assertions::assert_eq;
 
 #[test]
 fn call_chain_base() {

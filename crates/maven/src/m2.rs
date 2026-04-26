@@ -77,12 +77,9 @@ pub fn pom_m2(pom: &Dependency, m2: &Path) -> PomMTwo {
 }
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use common::Dependency;
-    use pretty_assertions::assert_eq;
-
     use crate::m2::{pom_classes_jar, pom_javadoc_jar, pom_m2, pom_sources_jar};
+    use common::Dependency;
+    use std::path::PathBuf;
 
     #[test]
     fn classes_path_base() {

@@ -72,8 +72,6 @@ pub fn get_metadata_info(
 
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::assert_eq;
-
     use crate::metadata::{
         MavenMetadata, MavenMetadataSnapshotVersion, MavenMetadataSnapshotVersions,
         MavenMetadataVersioning, MetadataInfo, get_metadata_info,

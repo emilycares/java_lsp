@@ -165,8 +165,6 @@ pub fn parse_compile_errors(input: &str) -> Vec<CompileErrorMessage> {
 
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::assert_eq;
-
     use crate::{CompileErrorMessage, parse_compile_errors};
 
     #[test]

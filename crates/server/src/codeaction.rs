@@ -464,7 +464,6 @@ pub mod tests {
     use expect_test::expect;
     use lsp_types::Uri;
     use my_string::{MyString, smol_str::SmolStr};
-    use pretty_assertions::assert_eq;
     use variables::VariableContext;
 
     use crate::codeaction::{generate_class, replace_with_value_type};
