@@ -59,6 +59,7 @@ mod tests {
 
     use document::Document;
     use dto::{Access, JType, Method, SourceDestination};
+    use my_string::smol_str::SmolStr;
 
     use super::*;
 
@@ -100,14 +101,14 @@ public class Test {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
 
         class_map.insert(
-            "java.lang.String".into(),
+            SmolStr::new_inline("java.lang.String"),
             Class {
-                source: SourceDestination::Here("String".into()),
+                source: SourceDestination::Here(SmolStr::new_inline("String")),
                 access: Access::Public,
-                name: "String".into(),
+                name: SmolStr::new_inline("String"),
                 methods: vec![Method {
                     access: Access::Public,
-                    name: Some("length".into()),
+                    name: Some(SmolStr::new_inline("length")),
                     ret: JType::Int,
                     ..Default::default()
                 }],

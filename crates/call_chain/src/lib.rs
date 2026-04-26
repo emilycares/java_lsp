@@ -20,7 +20,7 @@ use ast::types::{
 };
 use dto::JType;
 use my_string::MyString;
-use my_string::smol_str::ToSmolStr;
+use my_string::smol_str::{SmolStr, ToSmolStr};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum CallItem {
@@ -902,39 +902,39 @@ fn cc_array_with_annotated(
 fn cc_value_nuget(ast_nuget: &AstValueNuget, out: &mut Vec<CallItem>) {
     match ast_nuget {
         AstValueNuget::Int(ast_number) => out.push(CallItem::Class {
-            name: "Integer".into(),
+            name: SmolStr::new_inline("Integer"),
             range: ast_number.range,
         }),
         AstValueNuget::Long(ast_number) => out.push(CallItem::Class {
-            name: "Long".into(),
+            name: SmolStr::new_inline("Long"),
             range: ast_number.range,
         }),
         AstValueNuget::HexLiteral(hex) => out.push(CallItem::Class {
-            name: "Integer".into(),
+            name: SmolStr::new_inline("Integer"),
             range: hex.range,
         }),
         AstValueNuget::BinaryLiteral(hex) => out.push(CallItem::Class {
-            name: "Integer".into(),
+            name: SmolStr::new_inline("Integer"),
             range: hex.range,
         }),
         AstValueNuget::Double(ast_double) => out.push(CallItem::Class {
-            name: "Double".into(),
+            name: SmolStr::new_inline("Double"),
             range: ast_double.range,
         }),
         AstValueNuget::Float(float) => out.push(CallItem::Class {
-            name: "Float".into(),
+            name: SmolStr::new_inline("Float"),
             range: float.range,
         }),
         AstValueNuget::StringLiteral(ast_identifier) => out.push(CallItem::Class {
-            name: "String".into(),
+            name: SmolStr::new_inline("String"),
             range: ast_identifier.range,
         }),
         AstValueNuget::CharLiteral(char) => out.push(CallItem::Class {
-            name: "Char".into(),
+            name: SmolStr::new_inline("Char"),
             range: char.range,
         }),
         AstValueNuget::BooleanLiteral(ast_boolean) => out.push(CallItem::Class {
-            name: "Boolean".into(),
+            name: SmolStr::new_inline("Boolean"),
             range: ast_boolean.range,
         }),
     }

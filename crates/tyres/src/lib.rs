@@ -670,85 +670,85 @@ pub fn resolve_jtype(
         JType::Void => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "void".into(),
+                name: SmolStr::new_inline("void"),
                 ..Default::default()
             },
         }),
         JType::Byte => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "byte".into(),
+                name: SmolStr::new_inline("byte"),
                 ..Default::default()
             },
         }),
         JType::Char => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "char".into(),
+                name: SmolStr::new_inline("char"),
                 ..Default::default()
             },
         }),
         JType::Double => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "double".into(),
+                name: SmolStr::new_inline("double"),
                 ..Default::default()
             },
         }),
         JType::Float => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "float".into(),
+                name: SmolStr::new_inline("float"),
                 ..Default::default()
             },
         }),
         JType::Int => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "int".into(),
+                name: SmolStr::new_inline("int"),
                 ..Default::default()
             },
         }),
         JType::Long => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "long".into(),
+                name: SmolStr::new_inline("long"),
                 ..Default::default()
             },
         }),
         JType::Short => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "short".into(),
+                name: SmolStr::new_inline("short"),
                 ..Default::default()
             },
         }),
         JType::Boolean => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "boolean".into(),
+                name: SmolStr::new_inline("boolean"),
                 ..Default::default()
             },
         }),
         JType::Wildcard => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "Wildcard".into(),
+                name: SmolStr::new_inline("Wildcard"),
                 ..Default::default()
             },
         }),
         JType::Array(i) => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: "array".into(),
+                name: SmolStr::new_inline("array"),
                 methods: vec![Method {
-                    name: Some("clone".into()),
+                    name: Some(SmolStr::new_inline("clone")),
                     ret: JType::Array(i.clone()),
                     ..Default::default()
                 }],
                 fields: vec![Field {
                     access: Access::empty(),
-                    name: "length".into(),
+                    name: SmolStr::new_inline("length"),
                     jtype: JType::Int,
                     source: None,
                 }],

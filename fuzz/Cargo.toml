@@ -19,6 +19,9 @@ path = "../crates/dto"
 [dependencies.ast]
 path = "../crates/ast"
 
+[dependencies.my_string]
+path = "../crates/my_string"
+
 [[bin]]
 name = "parser_class"
 path = "fuzz_targets/parser_class.rs"

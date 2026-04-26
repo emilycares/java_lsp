@@ -1,4 +1,6 @@
 //! Parsing functions for defining annotation
+use my_string::smol_str::SmolStr;
+
 use crate::{
     ExpressionOptions,
     error::{AstError, GetStartEnd, assert_token},
@@ -39,7 +41,7 @@ pub fn parse_annotation(
                 continue;
             }
             Err(e) => {
-                errors.push(("annotation field".into(), e));
+                errors.push((SmolStr::new_inline("annotation field"), e));
             }
         }
         match parse_thing(tokens, pos) {
@@ -49,11 +51,11 @@ pub fn parse_annotation(
                 continue;
             }
             Err(e) => {
-                errors.push(("thing".into(), e));
+                errors.push((SmolStr::new_inline("thing"), e));
             }
         }
         return Err(AstError::AllChildrenFailed {
-            parent: "annotation".into(),
+            parent: SmolStr::new_inline("annotation"),
             errors,
         });
     }
@@ -108,11 +110,11 @@ pub fn parse_annotation_field(
     }
     let mut expression = None;
     if let Ok(npos) = assert_token(tokens, pos, Token::Default) {
-        let (e, npos) = parse_expression(tokens, npos, &ExpressionOptions::None)?;
+        let (e, npos) = parse_expression(tokens, npos, &ExpressionOptions::empty())?;
         pos = npos;
         expression = Some(e);
     } else if let Ok(npos) = assert_token(tokens, pos, Token::Equal) {
-        let (e, npos) = parse_expression(tokens, npos, &ExpressionOptions::None)?;
+        let (e, npos) = parse_expression(tokens, npos, &ExpressionOptions::empty())?;
         pos = npos;
         expression = Some(e);
     }

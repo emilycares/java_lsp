@@ -758,13 +758,16 @@ fn lookup_string_inner(c: &ClassFile, index: u16, depth: u8) -> Result<MyString,
 mod tests {
     use crate::class::{load_class, load_module};
     use dto::SourceDestination;
+    use my_string::smol_str::SmolStr;
 
     #[cfg(not(windows))]
     #[test]
     fn relative_source() {
+        use my_string::smol_str::SmolStr;
+
         let result = load_class(
             include_bytes!("../test/Everything.class"),
-            "ch.emilycares.Everything".into(),
+            SmolStr::new("ch.emilycares.Everything"),
             SourceDestination::None,
             false,
         );
@@ -775,7 +778,7 @@ mod tests {
     fn everything() {
         let result = load_class(
             include_bytes!("../test/Everything.class"),
-            "ch.emilycares.Everything".into(),
+            SmolStr::new("ch.emilycares.Everything"),
             SourceDestination::None,
             false,
         );
@@ -786,7 +789,7 @@ mod tests {
     fn super_base() {
         let result = load_class(
             include_bytes!("../test/Super.class"),
-            "ch.emilycares.Super".into(),
+            SmolStr::new_inline("ch.emilycares.Super"),
             SourceDestination::None,
             false,
         );
@@ -797,7 +800,7 @@ mod tests {
     fn thrower() {
         let result = load_class(
             include_bytes!("../test/Thrower.class"),
-            "ch.emilycares.Thrower".into(),
+            SmolStr::new_inline("ch.emilycares.Thrower"),
             SourceDestination::None,
             false,
         );
@@ -807,7 +810,7 @@ mod tests {
     fn super_interfaces() {
         let result = load_class(
             include_bytes!("../test/SuperInterface.class"),
-            "ch.emilycares.SuperInterface".into(),
+            SmolStr::new("ch.emilycares.SuperInterface"),
             SourceDestination::None,
             false,
         );
@@ -818,7 +821,7 @@ mod tests {
     fn variables() {
         let result = load_class(
             include_bytes!("../test/LocalVariableTable.class"),
-            "ch.emilycares.LocalVariableTable".into(),
+            SmolStr::new("ch.emilycares.LocalVariableTable"),
             SourceDestination::None,
             false,
         );

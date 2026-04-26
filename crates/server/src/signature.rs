@@ -250,24 +250,24 @@ pub mod tests {
     use document::Document;
 
     use dto::{Access, Class, JType, Method, Parameter};
-    use my_string::MyString;
+    use my_string::{MyString, smol_str::SmolStr};
 
     #[test]
     fn signarure_base() {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
-            "java.lang.String".into(),
+            SmolStr::new_inline("java.lang.String"),
             Class {
                 access: Access::Public,
-                name: "String".into(),
+                name: SmolStr::new_inline("String"),
                 methods: vec![Method {
                     access: Access::Public,
-                    name: Some("concat".into()),
+                    name: Some(SmolStr::new_inline("concat")),
                     parameters: vec![Parameter {
                         name: None,
-                        jtype: JType::Class("java.lang.String".into()),
+                        jtype: JType::Class(SmolStr::new_inline("java.lang.String")),
                     }],
-                    ret: JType::Class("java.lang.String".into()),
+                    ret: JType::Class(SmolStr::new_inline("java.lang.String")),
                     ..Default::default()
                 }],
                 ..Default::default()
@@ -276,7 +276,7 @@ pub mod tests {
         let class_map = Arc::new(Mutex::new(class_map));
         let class = Class {
             access: Access::Public,
-            name: "Test".into(),
+            name: SmolStr::new_inline("Test"),
             ..Default::default()
         };
         let content = "
@@ -298,36 +298,36 @@ public class Test {
     fn signature_multi_name() {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
-            "java.lang.String".into(),
+            SmolStr::new_inline("java.lang.String"),
             Class {
                 access: Access::Public,
-                name: "String".into(),
+                name: SmolStr::new_inline("String"),
                 methods: vec![
                     Method {
                         access: Access::Public,
-                        name: Some("concat".into()),
+                        name: Some(SmolStr::new_inline("concat")),
                         parameters: vec![Parameter {
                             name: None,
-                            jtype: JType::Class("java.lang.String".into()),
+                            jtype: JType::Class(SmolStr::new_inline("java.lang.String")),
                         }],
-                        ret: JType::Class("java.lang.String".into()),
+                        ret: JType::Class(SmolStr::new_inline("java.lang.String")),
                         throws: vec![],
                         source: None,
                     },
                     Method {
                         access: Access::Public,
-                        name: Some("concat".into()),
+                        name: Some(SmolStr::new_inline("concat")),
                         parameters: vec![
                             Parameter {
                                 name: None,
-                                jtype: JType::Class("java.lang.String".into()),
+                                jtype: JType::Class(SmolStr::new_inline("java.lang.String")),
                             },
                             Parameter {
                                 name: None,
-                                jtype: JType::Class("java.lang.String".into()),
+                                jtype: JType::Class(SmolStr::new_inline("java.lang.String")),
                             },
                         ],
-                        ret: JType::Class("java.lang.String".into()),
+                        ret: JType::Class(SmolStr::new_inline("java.lang.String")),
                         throws: vec![],
                         source: None,
                     },
@@ -338,7 +338,7 @@ public class Test {
         let class_map = Arc::new(Mutex::new(class_map));
         let class = Class {
             access: Access::Public,
-            name: "Test".into(),
+            name: SmolStr::new_inline("Test"),
             ..Default::default()
         };
         let content = "
@@ -360,36 +360,36 @@ public class Test {
     fn signature_multi_name_second() {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
-            "java.lang.String".into(),
+            SmolStr::new_inline("java.lang.String"),
             Class {
                 access: Access::Public,
-                name: "String".into(),
+                name: SmolStr::new_inline("String"),
                 methods: vec![
                     Method {
                         access: Access::Public,
-                        name: Some("concat".into()),
+                        name: Some(SmolStr::new_inline("concat")),
                         parameters: vec![Parameter {
                             name: None,
-                            jtype: JType::Class("java.lang.String".into()),
+                            jtype: JType::Class(SmolStr::new_inline("java.lang.String")),
                         }],
-                        ret: JType::Class("java.lang.String".into()),
+                        ret: JType::Class(SmolStr::new_inline("java.lang.String")),
                         throws: vec![],
                         source: None,
                     },
                     Method {
                         access: Access::Public,
-                        name: Some("concat".into()),
+                        name: Some(SmolStr::new_inline("concat")),
                         parameters: vec![
                             Parameter {
                                 name: None,
-                                jtype: JType::Class("java.lang.String".into()),
+                                jtype: JType::Class(SmolStr::new_inline("java.lang.String")),
                             },
                             Parameter {
                                 name: None,
-                                jtype: JType::Class("java.lang.String".into()),
+                                jtype: JType::Class(SmolStr::new_inline("java.lang.String")),
                             },
                         ],
-                        ret: JType::Class("java.lang.String".into()),
+                        ret: JType::Class(SmolStr::new_inline("java.lang.String")),
                         throws: vec![],
                         source: None,
                     },
@@ -400,7 +400,7 @@ public class Test {
         let class_map = Arc::new(Mutex::new(class_map));
         let class = Class {
             access: Access::Public,
-            name: "Test".into(),
+            name: SmolStr::new_inline("Test"),
             ..Default::default()
         };
         let content = r#"
@@ -422,18 +422,18 @@ public class Test {
     fn signature_field_constructor() {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
-            "java.util.HashMap".into(),
+            SmolStr::new_inline("java.util.HashMap"),
             Class {
                 access: Access::Public,
-                name: "HashMap".into(),
+                name: SmolStr::new_inline("HashMap"),
                 methods: vec![Method {
                     access: Access::Public,
                     name: None,
                     parameters: vec![Parameter {
                         name: None,
-                        jtype: JType::Class("java.lang.String".into()),
+                        jtype: JType::Class(SmolStr::new_inline("java.lang.String")),
                     }],
-                    ret: JType::Class("java.lang.String".into()),
+                    ret: JType::Class(SmolStr::new_inline("java.lang.String")),
                     throws: vec![],
                     source: None,
                 }],
@@ -443,7 +443,7 @@ public class Test {
         let class_map = Arc::new(Mutex::new(class_map));
         let class = Class {
             access: Access::Public,
-            name: "Test".into(),
+            name: SmolStr::new_inline("Test"),
             ..Default::default()
         };
         let content = r"

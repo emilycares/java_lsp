@@ -1,4 +1,6 @@
 //! Parse functions for module-info.java
+use my_string::smol_str::SmolStr;
+
 use crate::{
     error::{AstError, GetStartEnd, assert_semicolon, assert_token},
     lexer::{PositionToken, Token},
@@ -44,7 +46,7 @@ pub fn parse_module(tokens: &[PositionToken], pos: usize) -> Result<(AstModule, 
                 continue;
             }
             Err(e) => {
-                errors.push(("exports".into(), e));
+                errors.push((SmolStr::new_inline("exports"), e));
             }
         }
         match parse_opens(tokens, pos) {
@@ -54,7 +56,7 @@ pub fn parse_module(tokens: &[PositionToken], pos: usize) -> Result<(AstModule, 
                 continue;
             }
             Err(e) => {
-                errors.push(("opens".into(), e));
+                errors.push((SmolStr::new_inline("opens"), e));
             }
         }
         match parse_uses(tokens, pos) {
@@ -64,7 +66,7 @@ pub fn parse_module(tokens: &[PositionToken], pos: usize) -> Result<(AstModule, 
                 continue;
             }
             Err(e) => {
-                errors.push(("uses".into(), e));
+                errors.push((SmolStr::new_inline("uses"), e));
             }
         }
         match parse_provides(tokens, pos) {
@@ -74,7 +76,7 @@ pub fn parse_module(tokens: &[PositionToken], pos: usize) -> Result<(AstModule, 
                 continue;
             }
             Err(e) => {
-                errors.push(("provides".into(), e));
+                errors.push((SmolStr::new_inline("provides"), e));
             }
         }
         match parse_requires(tokens, pos) {
@@ -84,11 +86,11 @@ pub fn parse_module(tokens: &[PositionToken], pos: usize) -> Result<(AstModule, 
                 continue;
             }
             Err(e) => {
-                errors.push(("requires".into(), e));
+                errors.push((SmolStr::new_inline("requires"), e));
             }
         }
         return Err(AstError::AllChildrenFailed {
-            parent: "module".into(),
+            parent: SmolStr::new_inline("module"),
             errors,
         });
     }

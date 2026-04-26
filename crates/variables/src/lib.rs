@@ -571,27 +571,27 @@ pub mod tests {
 
     use ast::{error::PrintErr, types::AstPoint};
     use dto::{Access, Class};
-    use my_string::MyString;
+    use my_string::{MyString, smol_str::SmolStr};
 
     use crate::{VariableContext, get_vars};
 
     fn get_class_map() -> Arc<Mutex<HashMap<MyString, Class>>> {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
-            "java.lang.Integer".into(),
+            SmolStr::new_inline("java.lang.Integer"),
             Class {
                 access: Access::Public,
-                name: "Integer".into(),
+                name: SmolStr::new_inline("Integer"),
                 ..Default::default()
             },
         );
         // class_map.insert(
-        //     "java.lang.Thing".into(),
+        //     SmolStr::new_inline("java.lang.Thing"),
         //     Class {
         //         access: Access::Public,
-        //         name: "Thing".into(),
+        //         name: SmolStr::new_inline("Thing"),
         //         methods: vec![Method {
-        //             name: Some("dothing".into()),
+        //             name: Some(SmolStr::new_inline("dothing")),
         //             parameters: vec![Parameter {
         //                 name: None,
         //                 jtype: todo!(),

@@ -462,7 +462,7 @@ pub mod tests {
     use document::Document;
     use dto::{Access, Class, ImportUnit, JType, Method, SourceDestination};
     use lsp_types::Uri;
-    use my_string::MyString;
+    use my_string::{MyString, smol_str::SmolStr};
     use pretty_assertions::assert_eq;
     use variables::VariableContext;
 
@@ -525,8 +525,8 @@ public class Test {
         let point = AstPoint::new(4, 10);
         let doc = Document::setup(cont, PathBuf::from_str("./").unwrap()).unwrap();
         let imports = vec![
-            ImportUnit::Class("java.io.FileInputStream".into()),
-            ImportUnit::Class("java.io.File".into()),
+            ImportUnit::Class(SmolStr::new_inline("java.io.FileInputStream")),
+            ImportUnit::Class(SmolStr::new_inline("java.io.File")),
         ];
         let class = parser::java::load_java_tree(&doc.ast, SourceDestination::None);
         let uri = Uri::from_str("file:///a").unwrap();
@@ -616,13 +616,13 @@ public class Test {
     fn get_class_map() -> Arc<Mutex<HashMap<MyString, Class>>> {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
-            "java.lang.String".into(),
+            SmolStr::new_inline("java.lang.String"),
             Class {
                 access: Access::Public,
-                name: "String".into(),
+                name: SmolStr::new_inline("String"),
                 methods: vec![Method {
                     access: Access::Public,
-                    name: Some("length".into()),
+                    name: Some(SmolStr::new_inline("length")),
                     ret: JType::Int,
                     ..Default::default()
                 }],
@@ -630,19 +630,19 @@ public class Test {
             },
         );
         class_map.insert(
-            "java.io.FileInputStream".into(),
+            SmolStr::new_inline("java.io.FileInputStream"),
             Class {
                 access: Access::Public,
-                name: "FileInputStream".into(),
+                name: SmolStr::new_inline("FileInputStream"),
                 methods: vec![],
                 ..Default::default()
             },
         );
         class_map.insert(
-            "java.io.File".into(),
+            SmolStr::new_inline("java.io.File"),
             Class {
                 access: Access::Public,
-                name: "FileInputStream".into(),
+                name: SmolStr::new_inline("FileInputStream"),
                 methods: vec![],
                 ..Default::default()
             },

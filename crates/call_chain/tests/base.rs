@@ -483,14 +483,14 @@ public class Test {
         vec![CallItem::ArgumentList {
             prev: vec![
                 CallItem::ClassOrVariable {
-                    name: "a".into(),
+                    name: SmolStr::new_inline("a"),
                     range: AstRange {
                         start: AstPoint { line: 4, col: 8 },
                         end: AstPoint { line: 4, col: 9 },
                     },
                 },
                 CallItem::MethodCall {
-                    name: "concat".into(),
+                    name: SmolStr::new_inline("concat"),
                     range: AstRange {
                         start: AstPoint { line: 4, col: 10 },
                         end: AstPoint { line: 4, col: 16 },
@@ -530,14 +530,14 @@ public class Test {
             CallItem::ArgumentList {
                 prev: vec![
                     CallItem::ClassOrVariable {
-                        name: "a".into(),
+                        name: SmolStr::new_inline("a"),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 8 },
                             end: AstPoint { line: 5, col: 9 },
                         },
                     },
                     CallItem::MethodCall {
-                        name: "concat".into(),
+                        name: SmolStr::new_inline("concat"),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 10 },
                             end: AstPoint { line: 5, col: 16 },
@@ -545,14 +545,14 @@ public class Test {
 
                         args: vec![vec![
                             CallItem::ClassOrVariable {
-                                name: "b".into(),
+                                name: SmolStr::new_inline("b"),
                                 range: AstRange {
                                     start: AstPoint { line: 5, col: 17 },
                                     end: AstPoint { line: 5, col: 18 },
                                 },
                             },
                             CallItem::MethodCall {
-                                name: "a".into(),
+                                name: SmolStr::new_inline("a"),
                                 range: AstRange {
                                     start: AstPoint { line: 5, col: 19 },
                                     end: AstPoint { line: 5, col: 20 },
@@ -568,14 +568,14 @@ public class Test {
                 },
                 filled_params: vec![vec![
                     CallItem::ClassOrVariable {
-                        name: "b".into(),
+                        name: SmolStr::new_inline("b"),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 17 },
                             end: AstPoint { line: 5, col: 18 }
                         }
                     },
                     CallItem::MethodCall {
-                        name: "a".into(),
+                        name: SmolStr::new_inline("a"),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 19 },
                             end: AstPoint { line: 5, col: 20 },
@@ -586,14 +586,14 @@ public class Test {
                 active_param: Some(0)
             },
             CallItem::ClassOrVariable {
-                name: "b".into(),
+                name: SmolStr::new_inline("b"),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 17 },
                     end: AstPoint { line: 5, col: 18 }
                 }
             },
             CallItem::MethodCall {
-                name: "a".into(),
+                name: SmolStr::new_inline("a"),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 19 },
                     end: AstPoint { line: 5, col: 20 },
@@ -625,7 +625,7 @@ public class Test {
     let out = get_call_chain(&ast, &AstPoint::new(4, 14));
     assert_eq!(
         vec![CallItem::ClassOrVariable {
-            name: "a".into(),
+            name: SmolStr::new_inline("a"),
             range: AstRange {
                 start: AstPoint { line: 4, col: 12 },
                 end: AstPoint { line: 4, col: 13 },
@@ -672,7 +672,7 @@ public class Test {
     let out = get_call_chain(&ast, &AstPoint::new(4, 18));
     assert_eq!(
         vec![CallItem::ClassOrVariable {
-            name: "a".into(),
+            name: SmolStr::new_inline("a"),
             range: AstRange {
                 start: AstPoint { line: 4, col: 15 },
                 end: AstPoint { line: 4, col: 16 }
@@ -699,14 +699,14 @@ public class Test {
     assert_eq!(
         vec![
             CallItem::ClassOrVariable {
-                name: "a".into(),
+                name: SmolStr::new_inline("a"),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 15 },
                     end: AstPoint { line: 4, col: 16 },
                 }
             },
             CallItem::MethodCall {
-                name: "b".into(),
+                name: SmolStr::new_inline("b"),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 17 },
                     end: AstPoint { line: 4, col: 18 },
@@ -778,14 +778,14 @@ public class Test {
     assert_eq!(
         vec![
             CallItem::Class {
-                name: "String".into(),
+                name: SmolStr::new_inline("String"),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 8 },
                     end: AstPoint { line: 4, col: 20 },
                 }
             },
             CallItem::MethodCall {
-                name: "a".into(),
+                name: SmolStr::new_inline("a"),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 21 },
                     end: AstPoint { line: 4, col: 22 },
@@ -812,28 +812,28 @@ public class Test {
     assert_eq!(
         vec![
             CallItem::ClassOrVariable {
-                name: "Logger".into(),
+                name: SmolStr::new_inline("Logger"),
                 range: AstRange {
                     start: AstPoint { line: 3, col: 32 },
                     end: AstPoint { line: 3, col: 38 },
                 }
             },
             CallItem::MethodCall {
-                name: "getLogger".into(),
+                name: SmolStr::new_inline("getLogger"),
                 range: AstRange {
                     start: AstPoint { line: 3, col: 39 },
                     end: AstPoint { line: 3, col: 48 },
                 },
                 args: vec![vec![
                     CallItem::ClassOrVariable {
-                        name: "Test".into(),
+                        name: SmolStr::new_inline("Test"),
                         range: AstRange {
                             start: AstPoint { line: 3, col: 49 },
                             end: AstPoint { line: 3, col: 53 },
                         },
                     },
                     CallItem::FieldAccess {
-                        name: "class".into(),
+                        name: SmolStr::new_inline("class"),
                         range: AstRange {
                             start: AstPoint { line: 3, col: 54 },
                             end: AstPoint { line: 3, col: 59 },
@@ -867,14 +867,14 @@ public class Test {
     assert_eq!(
         vec![
             CallItem::ClassOrVariable {
-                name: "MediaType".into(),
+                name: SmolStr::new_inline("MediaType"),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 14 },
                     end: AstPoint { line: 4, col: 23 },
                 }
             },
             CallItem::FieldAccess {
-                name: "TEXT_PLAIN".into(),
+                name: SmolStr::new_inline("TEXT_PLAIN"),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 24 },
                     end: AstPoint { line: 4, col: 34 },
@@ -910,14 +910,14 @@ public class Test {
                 }
             },
             CallItem::FieldAccess {
-                name: "a".into(),
+                name: SmolStr::new_inline("a"),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 18 },
                     end: AstPoint { line: 4, col: 19 }
                 }
             },
             CallItem::MethodCall {
-                name: "toString".into(),
+                name: SmolStr::new_inline("toString"),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 20 },
                     end: AstPoint { line: 4, col: 28 }
@@ -953,7 +953,7 @@ public class Test {
                 }
             },
             CallItem::FieldAccess {
-                name: "asd".into(),
+                name: SmolStr::new_inline("asd"),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 11 },
                     end: AstPoint { line: 4, col: 14 }

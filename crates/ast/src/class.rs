@@ -1,4 +1,6 @@
 //! Parsing functions for class
+use my_string::smol_str::SmolStr;
+
 use crate::{
     ExpressionOptions,
     error::{AstError, GetStartEnd, assert_semicolon, assert_token},
@@ -120,7 +122,7 @@ pub fn parse_class_block(
                     continue;
                 }
                 Err(e) => {
-                    errors.push(("static block".into(), e));
+                    errors.push((SmolStr::new_inline("static block"), e));
                 }
             },
             Token::LeftParenCurly => match parse_block(tokens, pos) {
@@ -130,7 +132,7 @@ pub fn parse_class_block(
                     continue;
                 }
                 Err(e) => {
-                    errors.push(("block".into(), e));
+                    errors.push((SmolStr::new_inline("block"), e));
                 }
             },
             _ => (),
@@ -143,7 +145,7 @@ pub fn parse_class_block(
                 continue;
             }
             Err(e) => {
-                errors.push(("class thing".into(), e));
+                errors.push((SmolStr::new_inline("class thing"), e));
             }
         }
         match parse_class_variable(tokens, pos) {
@@ -153,7 +155,7 @@ pub fn parse_class_block(
                 continue;
             }
             Err(e) => {
-                errors.push(("class variable".into(), e));
+                errors.push((SmolStr::new_inline("class variable"), e));
             }
         }
         match parse_class_method(tokens, pos) {
@@ -163,7 +165,7 @@ pub fn parse_class_block(
                 continue;
             }
             Err(e) => {
-                errors.push(("class method".into(), e));
+                errors.push((SmolStr::new_inline("class method"), e));
             }
         }
         match parse_class_constructor(tokens, pos) {
@@ -173,11 +175,11 @@ pub fn parse_class_block(
                 continue;
             }
             Err(e) => {
-                errors.push(("class constructor".into(), e));
+                errors.push((SmolStr::new_inline("class constructor"), e));
             }
         }
         return Err(AstError::AllChildrenFailed {
-            parent: "class".into(),
+            parent: SmolStr::new_inline("class"),
             errors,
         });
     }
@@ -307,7 +309,7 @@ fn parse_class_variable_base(
     let (name, pos) = parse_name(tokens, pos)?;
     let mut pos = parse_array_type_on_name(tokens, pos, &mut jtype);
     let expression = if let Ok(npos) = assert_token(tokens, pos, Token::Equal) {
-        let (aexpression, npos) = parse_expression(tokens, npos, &ExpressionOptions::None)?;
+        let (aexpression, npos) = parse_expression(tokens, npos, &ExpressionOptions::empty())?;
         pos = npos;
         Some(aexpression)
     } else {

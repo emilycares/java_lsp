@@ -376,7 +376,7 @@ mod tests {
     use ast::types::AstPoint;
     use document::Document;
     use dto::{Access, Class, JType, Method};
-    use my_string::MyString;
+    use my_string::{MyString, smol_str::SmolStr};
     use variables::VariableContext;
 
     use crate::hover::{call_chain_hover, class_action};
@@ -420,7 +420,7 @@ public class Test {
     fn method_hover() {
         let class = Class {
             access: Access::Public,
-            name: "Test".into(),
+            name: SmolStr::new_inline("Test"),
             ..Default::default()
         };
         let content = "
@@ -461,13 +461,13 @@ public class Test {
     fn string_class_map() -> Arc<Mutex<HashMap<MyString, Class>>> {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
-            "java.lang.String".into(),
+            SmolStr::new_inline("java.lang.String"),
             Class {
                 access: Access::Public,
-                name: "String".into(),
+                name: SmolStr::new_inline("String"),
                 methods: vec![Method {
                     access: Access::Public,
-                    name: Some("length".into()),
+                    name: Some(SmolStr::new_inline("length")),
                     ret: JType::Int,
                     ..Default::default()
                 }],

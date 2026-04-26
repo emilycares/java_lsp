@@ -394,25 +394,25 @@ public class Test extends ParGreet {
     fn get_class_map() -> Arc<Mutex<HashMap<MyString, Class>>> {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
-            "ch.emilycares.a.ParGreet".into(),
+            SmolStr::new("ch.emilycares.a.ParGreet"),
             Class {
                 methods: vec![Method {
-                    name: Some("greet".into()),
-                    source: Some("greet".into()),
+                    name: Some(SmolStr::new_inline("greet")),
+                    source: Some(SmolStr::new_inline("greet")),
                     ..Default::default()
                 }],
                 ..Default::default()
             },
         );
         class_map.insert(
-            "org.jboss.logging.Logger".into(),
+            SmolStr::new("org.jboss.logging.Logger"),
             Class {
-                source: SourceDestination::Here("Logger".into()),
+                source: SourceDestination::Here(SmolStr::new_inline("Logger")),
                 access: Access::Public,
-                name: "Logger".into(),
+                name: SmolStr::new_inline("Logger"),
                 methods: vec![Method {
                     access: Access::Public,
-                    name: Some("info".into()),
+                    name: Some(SmolStr::new_inline("info")),
                     ret: JType::Void,
                     ..Default::default()
                 }],
@@ -420,44 +420,44 @@ public class Test extends ParGreet {
             },
         );
         class_map.insert(
-            "java.util.List".into(),
+            SmolStr::new_inline("java.util.List"),
             Class {
-                source: SourceDestination::Here("List".into()),
+                source: SourceDestination::Here(SmolStr::new_inline("List")),
                 access: Access::Public,
-                name: "List".into(),
+                name: SmolStr::new_inline("List"),
                 methods: vec![Method {
                     access: Access::Public,
-                    name: Some("stream".into()),
-                    ret: JType::Class("java.util.stream.Stream".into()),
+                    name: Some(SmolStr::new_inline("stream")),
+                    ret: JType::Class(SmolStr::new_inline("java.util.stream.Stream")),
                     ..Default::default()
                 }],
                 ..Default::default()
             },
         );
         class_map.insert(
-            "java.util.stream.Stream".into(),
+            SmolStr::new_inline("java.util.stream.Stream"),
             Class {
-                source: SourceDestination::Here("Stream".into()),
+                source: SourceDestination::Here(SmolStr::new_inline("Stream")),
                 access: Access::Public,
-                name: "Stream".into(),
+                name: SmolStr::new_inline("Stream"),
                 methods: vec![Method {
                     access: Access::Public,
-                    name: Some("map".into()),
-                    ret: JType::Class("java.util.stream.Stream".into()),
+                    name: Some(SmolStr::new_inline("map")),
+                    ret: JType::Class(SmolStr::new_inline("java.util.stream.Stream")),
                     ..Default::default()
                 }],
                 ..Default::default()
             },
         );
         class_map.insert(
-            "java.lang.String".into(),
+            SmolStr::new_inline("java.lang.String"),
             Class {
-                source: SourceDestination::Here("String".into()),
+                source: SourceDestination::Here(SmolStr::new_inline("String")),
                 access: Access::Public,
-                name: "String".into(),
+                name: SmolStr::new_inline("String"),
                 methods: vec![Method {
                     access: Access::Public,
-                    name: Some("length".into()),
+                    name: Some(SmolStr::new_inline("length")),
                     ret: JType::Int,
                     ..Default::default()
                 }],

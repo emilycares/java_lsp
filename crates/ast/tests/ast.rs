@@ -99,7 +99,7 @@ fn annotated() {
 fn expression_base() {
     let content = "Logger.getLogger(Test.class)";
     let tokens = lexer::lex(content.as_bytes()).unwrap();
-    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -107,7 +107,7 @@ fn expression_base() {
 fn expression_array_access() {
     let content = "numbers[0]";
     let tokens = lexer::lex(content.as_bytes()).unwrap();
-    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let ast = parsed.unwrap();
     insta::assert_debug_snapshot!(ast);
@@ -117,7 +117,7 @@ fn expression_array_access() {
 fn expression_multi_array_access() {
     let content = "numbers[0][0][0]";
     let tokens = lexer::lex(content.as_bytes()).unwrap();
-    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let ast = parsed.unwrap();
     insta::assert_debug_snapshot!(ast);
@@ -128,7 +128,7 @@ fn expression_multi_array_access() {
 fn equasion_method_call() {
     let content = r#""z" + a.getThing()"#;
     let tokens = lexer::lex(content.as_bytes()).unwrap();
-    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -192,7 +192,7 @@ fn name() {
 fn lambda() {
     let content = "(n) -> { System.out.println(n); }";
     let tokens = lexer::lex(content.as_bytes()).unwrap();
-    let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -200,7 +200,7 @@ fn lambda() {
 fn lambda_1() {
     let content = "n -> { }";
     let tokens = lexer::lex(content.as_bytes()).unwrap();
-    let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -208,7 +208,7 @@ fn lambda_1() {
 fn lambda_2() {
     let content = "(a, b, c) -> { }";
     let tokens = lexer::lex(content.as_bytes()).unwrap();
-    let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -216,7 +216,7 @@ fn lambda_2() {
 fn lambda_value() {
     let content = "n -> true";
     let tokens = lexer::lex(content.as_bytes()).unwrap();
-    let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -224,7 +224,7 @@ fn lambda_value() {
 fn lambda_expr() {
     let content = "n -> v.toString()";
     let tokens = lexer::lex(content.as_bytes()).unwrap();
-    let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -232,7 +232,7 @@ fn lambda_expr() {
 fn lambda_in_expression() {
     let content = "numbers.forEach( (n) -> { System.out.println(n); } )";
     let tokens = lexer::lex(content.as_bytes()).unwrap();
-    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -241,7 +241,7 @@ fn lambda_in_expression() {
 fn equal_expr() {
     let content = "a == b ";
     let tokens = lexer::lex(content.as_bytes()).unwrap();
-    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -279,7 +279,7 @@ fn new_array() {
 fn long_expr() {
     let content = r#"IAFactory.getInstance().getIA("localhost", 1344, SERVICE).support(true)"#;
     let tokens = lexer::lex(content.as_bytes()).unwrap();
-    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -287,7 +287,7 @@ fn long_expr() {
 fn cast() {
     let content = r#"new byte[] {(byte)'a'}"#;
     let tokens = lexer::lex(content.as_bytes()).unwrap();
-    let parsed = parse_new_class(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_new_class(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -295,7 +295,7 @@ fn cast() {
 fn double_plus() {
     let content = r#"values[i++]"#;
     let tokens = lexer::lex(content.as_bytes()).unwrap();
-    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     insta::assert_debug_snapshot!(parsed.unwrap());
 }
@@ -364,7 +364,7 @@ fn labeled_empty_for() {
 fn new_casted_parameter() {
     let content = r#" new HandleTable(10, (float) 3.00) "#;
     let tokens = lexer::lex(content.as_bytes()).unwrap();
-    let parsed = parse_new_class(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_new_class(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
     insta::assert_debug_snapshot!(parsed);
@@ -373,7 +373,7 @@ fn new_casted_parameter() {
 fn class_colon_colon_new() {
     let content = r#"Class<?>[]::new"#;
     let tokens = lexer::lex(content.as_bytes()).unwrap();
-    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
     insta::assert_debug_snapshot!(parsed);
@@ -382,7 +382,7 @@ fn class_colon_colon_new() {
 fn parameter_class_function_pass() {
     let content = r#"toArray(Class<?>[]::new)"#;
     let tokens = lexer::lex(content.as_bytes()).unwrap();
-    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
     insta::assert_debug_snapshot!(parsed);
@@ -423,7 +423,7 @@ fn class_block_annotation() {
 fn lambda_with_types() {
     let content = r#"(T t, U u) -> after.apply(apply(t, u))"#;
     let tokens = lexer::lex(content.as_bytes()).unwrap();
-    let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
     insta::assert_debug_snapshot!(parsed);
@@ -432,7 +432,7 @@ fn lambda_with_types() {
 fn lambda_with_no_parameters() {
     let content = r#"() -> a"#;
     let tokens = lexer::lex(content.as_bytes()).unwrap();
-    let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
     insta::assert_debug_snapshot!(parsed);
@@ -530,7 +530,7 @@ fn annotated_array() {
 fn colon_colon_new() {
     let content = r#"byte[]"#;
     let tokens = lexer::lex(content.as_bytes()).unwrap();
-    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::None);
+    let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
     assert_eq!(tokens.len(), parsed.1);

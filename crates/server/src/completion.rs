@@ -16,7 +16,7 @@ use lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionItemTag,
     InsertTextFormat,
 };
-use my_string::MyString;
+use my_string::{MyString, smol_str::SmolStr};
 
 use crate::{codeaction, hover::class_to_markdown};
 
@@ -224,7 +224,9 @@ fn type_to_snippet(import: &mut Option<ImportUnit>, p: &Parameter) -> String {
     match &p.jtype {
         JType::Class(c) => match c.as_str() {
             "java.util.stream.Collector" => {
-                *import = Some(ImportUnit::Class("java.util.stream.Collectors".into()));
+                *import = Some(ImportUnit::Class(SmolStr::new_inline(
+                    "java.util.stream.Collectors",
+                )));
                 "Collectors.toList()".to_string()
             }
             "java.util.function.Function" | "java.util.function.Consumer" => "i -> i".to_string(),
@@ -417,7 +419,7 @@ mod tests {
         CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat, Position,
         Range, TextEdit,
     };
-    use my_string::MyString;
+    use my_string::{MyString, smol_str::SmolStr};
     use pretty_assertions::assert_eq;
 
     use crate::completion::{Snippet, classes, complete_call_chain};
@@ -459,35 +461,35 @@ public class GreetingResource {
         let doc = Document::setup(content, PathBuf::new()).unwrap();
         let class = Class {
             access: Access::Public,
-            name: "Test".into(),
+            name: SmolStr::new_inline("Test"),
             ..Default::default()
         };
         let lo_va = vec![LocalVariable {
             level: 3,
-            jtype: JType::Class("String".into()),
-            name: "other".into(),
+            jtype: JType::Class(SmolStr::new_inline("String")),
+            name: SmolStr::new_inline("other"),
             range: AstRange::default(),
             flags: VarFlags::empty(),
         }];
         let imports = vec![
-            ImportUnit::Class("jakarta.inject.Inject".into()),
-            ImportUnit::Class("jakarta.ws.rs.GET".into()),
-            ImportUnit::Class("jakarta.ws.rs.Path".into()),
-            ImportUnit::Class("jakarta.ws.rs.Produces".into()),
-            ImportUnit::Class("jakarta.ws.rs.core.MediaType".into()),
-            ImportUnit::Class("io.quarkus.qute.TemplateInstance".into()),
-            ImportUnit::Class("io.quarkus.qute.Template".into()),
+            ImportUnit::Class(SmolStr::new_inline("jakarta.inject.Inject")),
+            ImportUnit::Class(SmolStr::new_inline("jakarta.ws.rs.GET")),
+            ImportUnit::Class(SmolStr::new_inline("jakarta.ws.rs.Path")),
+            ImportUnit::Class(SmolStr::new_inline("jakarta.ws.rs.Produces")),
+            ImportUnit::Class(SmolStr::new("jakarta.ws.rs.core.MediaType")),
+            ImportUnit::Class(SmolStr::new("io.quarkus.qute.TemplateInstance")),
+            ImportUnit::Class(SmolStr::new("io.quarkus.qute.Template")),
         ];
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
-            "java.lang.String".into(),
+            SmolStr::new_inline("java.lang.String"),
             Class {
                 access: Access::Public,
                 imports: imports.clone(),
-                name: "String".into(),
+                name: SmolStr::new_inline("String"),
                 methods: vec![Method {
                     access: Access::Public,
-                    name: Some("length".into()),
+                    name: Some(SmolStr::new_inline("length")),
                     ret: JType::Int,
                     ..Default::default()
                 }],
@@ -507,13 +509,13 @@ public class GreetingResource {
         assert_eq!(
             out.unwrap(),
             vec![CompletionItem {
-                label: "length".into(),
+                label: "length".to_string(),
                 label_details: Some(CompletionItemLabelDetails {
-                    detail: Some("int ()".into()),
+                    detail: Some("int ()".to_string()),
                     description: None,
                 },),
                 kind: Some(CompletionItemKind::FUNCTION),
-                insert_text: Some("length()".into()),
+                insert_text: Some("length()".to_string()),
                 insert_text_format: Some(InsertTextFormat::SNIPPET),
                 ..Default::default()
             }]
@@ -538,27 +540,27 @@ public class Test {
         let doc = Document::setup(SYMBOL_METHOD, PathBuf::new()).unwrap();
         let lo_va = vec![LocalVariable {
             level: 3,
-            jtype: JType::Class("String".into()),
-            name: "local".into(),
+            jtype: JType::Class(SmolStr::new_inline("String")),
+            name: SmolStr::new_inline("local"),
             range: AstRange::default(),
             flags: VarFlags::empty(),
         }];
         let imports = vec![];
         let class = Class {
             access: Access::Public,
-            name: "Test".into(),
+            name: SmolStr::new_inline("Test"),
             ..Default::default()
         };
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
-            "java.lang.String".into(),
+            SmolStr::new_inline("java.lang.String"),
             Class {
                 access: Access::Public,
-                name: "String".into(),
+                name: SmolStr::new_inline("String"),
                 methods: vec![Method {
                     access: Access::Public,
-                    name: Some("concat".into()),
-                    ret: JType::Class("java.lang.String".into()),
+                    name: Some(SmolStr::new_inline("concat")),
+                    ret: JType::Class(SmolStr::new_inline("java.lang.String")),
                     ..Default::default()
                 }],
                 ..Default::default()
@@ -577,13 +579,13 @@ public class Test {
         assert_eq!(
             out.unwrap(),
             vec![CompletionItem {
-                label: "concat".into(),
+                label: "concat".to_string(),
                 label_details: Some(CompletionItemLabelDetails {
-                    detail: Some("String ()".into()),
+                    detail: Some("String ()".to_string()),
                     description: None,
                 },),
                 kind: Some(CompletionItemKind::FUNCTION),
-                insert_text: Some("concat()".into()),
+                insert_text: Some("concat()".to_string()),
                 insert_text_format: Some(InsertTextFormat::SNIPPET),
                 ..Default::default()
             }]
@@ -594,21 +596,21 @@ public class Test {
     fn method_snippet_no_param() {
         let method = Method {
             access: Access::Public,
-            name: Some("length".into()),
+            name: Some(SmolStr::new_inline("length")),
             parameters: vec![],
             ret: JType::Int,
             throws: vec![],
             source: None,
         };
         let out = method_snippet(&method);
-        assert_eq!(out, Some(Snippet::Simple("length()".into())));
+        assert_eq!(out, Some(Snippet::Simple("length()".to_string())));
     }
 
     #[test]
     fn method_snippet_base() {
         let method = Method {
             access: Access::Public,
-            name: Some("compute".into()),
+            name: Some(SmolStr::new_inline("compute")),
             parameters: vec![Parameter {
                 name: None,
                 jtype: JType::Int,
@@ -618,18 +620,18 @@ public class Test {
             source: None,
         };
         let out = method_snippet(&method);
-        assert_eq!(out, Some(Snippet::Simple("compute(${1:int})".into())));
+        assert_eq!(out, Some(Snippet::Simple("compute(${1:int})".to_string())));
     }
 
     #[test]
     fn method_snippet_args() {
         let method = Method {
             access: Access::Public,
-            name: Some("split".into()),
+            name: Some(SmolStr::new_inline("split")),
             parameters: vec![
                 Parameter {
                     name: None,
-                    jtype: JType::Class("java.lang.String".into()),
+                    jtype: JType::Class(SmolStr::new_inline("java.lang.String")),
                 },
                 Parameter {
                     name: None,
@@ -642,7 +644,7 @@ public class Test {
         };
         let out = method_snippet(&method);
         assert_eq!(
-            Some(Snippet::Simple("split(${1:String}, ${2:int})".into())),
+            Some(Snippet::Simple("split(${1:String}, ${2:int})".to_string())),
             out
         );
     }
@@ -651,11 +653,11 @@ public class Test {
     fn class_completion_base_java_lang() {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
-            "java.lang.StringBuilder".into(),
+            SmolStr::new_inline("java.lang.StringBuilder"),
             Class {
-                class_path: "java.lang.StringBuilder".into(),
+                class_path: SmolStr::new_inline("java.lang.StringBuilder"),
                 access: Access::Public,
-                name: "StringBuilder".into(),
+                name: SmolStr::new_inline("StringBuilder"),
                 ..Default::default()
             },
         );
@@ -677,8 +679,8 @@ public class Test {
         assert_eq!(
             out,
             vec![CompletionItem {
-                label: "StringBuilder".into(),
-                detail: Some("package java.lang.StringBuilder;\n".into()),
+                label: "StringBuilder".to_string(),
+                detail: Some("package java.lang.StringBuilder;\n".to_string()),
                 kind: Some(CompletionItemKind::CLASS),
                 additional_text_edits: None,
                 ..Default::default()
@@ -689,11 +691,11 @@ public class Test {
     fn class_completion_base_optional() {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
-            "java.util.Optional".into(),
+            SmolStr::new_inline("java.util.Optional"),
             Class {
-                class_path: "java.util.Optional".into(),
+                class_path: SmolStr::new_inline("java.util.Optional"),
                 access: Access::Public,
-                name: "Optional".into(),
+                name: SmolStr::new_inline("Optional"),
                 ..Default::default()
             },
         );
@@ -715,8 +717,8 @@ public class Test {
         assert_eq!(
             out,
             vec![CompletionItem {
-                label: "Optional".into(),
-                detail: Some("package java.util.Optional;\n".into()),
+                label: "Optional".to_string(),
+                detail: Some("package java.util.Optional;\n".to_string()),
                 kind: Some(CompletionItemKind::CLASS),
                 additional_text_edits: Some(vec![TextEdit {
                     range: Range {
@@ -729,7 +731,7 @@ public class Test {
                             character: 0,
                         },
                     },
-                    new_text: "import java.util.Optional;\n".into(),
+                    new_text: "import java.util.Optional;\n".to_string(),
                 },],),
                 ..Default::default()
             }]
@@ -740,11 +742,11 @@ public class Test {
     fn class_completion_imported() {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
-            "java.lang.StringBuilder".into(),
+            SmolStr::new_inline("java.lang.StringBuilder"),
             Class {
-                class_path: "java.lang.StringBuilder".into(),
+                class_path: SmolStr::new_inline("java.lang.StringBuilder"),
                 access: Access::Public,
-                name: "StringBuilder".into(),
+                name: SmolStr::new_inline("StringBuilder"),
                 ..Default::default()
             },
         );
@@ -766,14 +768,16 @@ public class Test {
         let out = classes(
             &doc,
             &AstPoint::new(6, 16),
-            &[ImportUnit::Class("java.lang.StringBuilder".into())],
+            &[ImportUnit::Class(SmolStr::new_inline(
+                "java.lang.StringBuilder",
+            ))],
             &class_map,
         );
         assert_eq!(
             out,
             vec![CompletionItem {
-                label: "StringBuilder".into(),
-                detail: Some("package java.lang.StringBuilder;\n".into()),
+                label: "StringBuilder".to_string(),
+                detail: Some("package java.lang.StringBuilder;\n".to_string()),
                 kind: Some(CompletionItemKind::CLASS),
                 ..Default::default()
             }]

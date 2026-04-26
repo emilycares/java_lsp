@@ -1,4 +1,6 @@
 //! Parsing functions for interface
+use my_string::smol_str::SmolStr;
+
 use crate::{
     ExpressionOptions,
     error::{AstError, GetStartEnd, assert_token},
@@ -68,7 +70,7 @@ pub fn parse_interface(
                 continue;
             }
             Err(e) => {
-                errors.push(("interface semicolon".into(), e));
+                errors.push((SmolStr::new_inline("interface semicolon"), e));
             }
         }
         match parse_interface_constant(tokens, pos) {
@@ -78,7 +80,7 @@ pub fn parse_interface(
                 continue;
             }
             Err(e) => {
-                errors.push(("interface_constant".into(), e));
+                errors.push((SmolStr::new_inline("interface_constant"), e));
             }
         }
         match parse_interface_method(tokens, pos) {
@@ -88,7 +90,7 @@ pub fn parse_interface(
                 continue;
             }
             Err(e) => {
-                errors.push(("interface_method".into(), e));
+                errors.push((SmolStr::new_inline("interface_method"), e));
             }
         }
         match parse_interface_method_impl(tokens, pos) {
@@ -98,7 +100,7 @@ pub fn parse_interface(
                 continue;
             }
             Err(e) => {
-                errors.push(("interface_method_impl".into(), e));
+                errors.push((SmolStr::new_inline("interface_method_impl"), e));
             }
         }
         match parse_thing(tokens, pos) {
@@ -108,11 +110,11 @@ pub fn parse_interface(
                 continue;
             }
             Err(e) => {
-                errors.push(("interface thing".into(), e));
+                errors.push((SmolStr::new_inline("interface thing"), e));
             }
         }
         return Err(AstError::AllChildrenFailed {
-            parent: "interface".into(),
+            parent: SmolStr::new_inline("interface"),
             errors,
         });
     }
@@ -219,7 +221,7 @@ fn parse_interface_constant_base(
         ));
     }
     let pos = assert_token(tokens, pos, Token::Equal)?;
-    let (expression, pos) = parse_expression(tokens, pos, &ExpressionOptions::None)?;
+    let (expression, pos) = parse_expression(tokens, pos, &ExpressionOptions::empty())?;
     let end = tokens.end(pos)?;
     Ok((
         AstInterfaceConstant {
