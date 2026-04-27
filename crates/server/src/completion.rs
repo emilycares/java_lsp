@@ -5,12 +5,11 @@ use std::{
 
 use ast::{
     range::AstInRange,
-    types::{AstFile, AstImportUnit, AstPoint},
+    types::{AstFile, AstImportUnit, AstMethodParameters, AstPoint, AstThing},
 };
 use call_chain::get_call_chain;
 use document::{Document, DocumentError};
 use dto::{Access, Class, ImportUnit, JType, Method, Parameter};
-use get_class::FoundClass;
 use local_variable::{LocalVariable, VarFlags};
 use lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionItemTag,
@@ -18,7 +17,10 @@ use lsp_types::{
 };
 use my_string::{MyString, smol_str::SmolStr};
 
-use crate::{codeaction, hover::class_to_markdown};
+use crate::{
+    codeaction,
+    hover::{class_to_markdown, jtype_hover_display},
+};
 
 #[derive(Debug)]
 pub enum CompletionError {
@@ -274,12 +276,8 @@ pub fn classes(
     let mut out = vec![];
     let mut point = *point;
     point.col -= 1;
-    if let Some(FoundClass {
-        name: text,
-        range: _,
-    }) = get_class::get_class(&document.ast, &point)
-        && let Ok(class_map) = class_map.lock()
-    {
+    let text = get_class::get_class(&document.ast, &point).map(|i| i.name.to_string());
+    if let Ok(class_map) = class_map.lock() {
         out.extend(
             imports
                 .iter()
@@ -294,7 +292,10 @@ pub fn classes(
                     let Some((_, cname)) = c.rsplit_once('.') else {
                         return false;
                     };
-                    cname.starts_with(&*text)
+                    if let Some(t) = &text {
+                        return cname.starts_with(t);
+                    }
+                    true
                 })
                 .filter_map(|class_path| class_map.get(class_path))
                 .map(|c| class_describe(c, false, None)),
@@ -302,7 +303,12 @@ pub fn classes(
         out.extend(
             class_map
                 .iter()
-                .filter(|(_, c)| c.name.starts_with(&*text))
+                .filter(|(_, c)| {
+                    if let Some(t) = &text {
+                        return c.name.starts_with(t);
+                    }
+                    true
+                })
                 .filter(|(_, i)| !i.name.contains('&'))
                 .map(|(_, v)| {
                     class_describe(
@@ -361,13 +367,13 @@ pub fn imports(
     document: &Document,
     point: &AstPoint,
     class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
-) -> Vec<CompletionItem> {
-    const LIMIT: usize = 10;
+) -> Option<Vec<CompletionItem>> {
+    const LIMIT: usize = 20;
     let Ok(cm) = class_map.lock() else {
-        return Vec::new();
+        return None;
     };
     if document.ast.things.as_slice().is_in_range(point) {
-        return Vec::new();
+        return None;
     }
     if let Some(imports) = &document.ast.imports
         && imports.range.is_in_range(point)
@@ -394,12 +400,102 @@ pub fn imports(
                         }
                     }
                 }
-                return out;
+                return Some(out);
             }
         }
     }
 
-    Vec::new()
+    None
+}
+
+#[must_use]
+pub fn parameter(document: &Document, point: &AstPoint) -> Option<Vec<CompletionItem>> {
+    let mut out = Vec::new();
+    let mut in_parameter = false;
+    for thing in &document.ast.things {
+        parameter_thing(point, &mut out, &mut in_parameter, thing);
+    }
+    if in_parameter {
+        out.dedup_by_key(|i| i.insert_text.clone());
+        return Some(out);
+    }
+    None
+}
+
+fn parameter_thing(
+    point: &AstPoint,
+    out: &mut Vec<CompletionItem>,
+    in_parameter: &mut bool,
+    thing: &AstThing,
+) {
+    match thing {
+        AstThing::Class(ast_class) => {
+            for method in &ast_class.block.methods {
+                parameter_helper(point, out, in_parameter, &method.header.parameters);
+            }
+            for constr in &ast_class.block.constructors {
+                parameter_helper(point, out, in_parameter, &constr.header.parameters);
+            }
+            for i in &ast_class.block.inner {
+                parameter_thing(point, out, in_parameter, i);
+            }
+        }
+        AstThing::Record(ast_record) => {
+            for method in &ast_record.block.methods {
+                parameter_helper(point, out, in_parameter, &method.header.parameters);
+            }
+            for constr in &ast_record.block.constructors {
+                parameter_helper(point, out, in_parameter, &constr.header.parameters);
+            }
+            for i in &ast_record.block.inner {
+                parameter_thing(point, out, in_parameter, i);
+            }
+        }
+        AstThing::Interface(ast_interface) => {
+            for method in &ast_interface.methods {
+                parameter_helper(point, out, in_parameter, &method.header.parameters);
+            }
+            for constr in &ast_interface.default_methods {
+                parameter_helper(point, out, in_parameter, &constr.header.parameters);
+            }
+            for i in &ast_interface.inner {
+                parameter_thing(point, out, in_parameter, i);
+            }
+        }
+        AstThing::Enumeration(ast_enumeration) => {
+            for method in &ast_enumeration.methods {
+                parameter_helper(point, out, in_parameter, &method.header.parameters);
+            }
+            for constr in &ast_enumeration.constructors {
+                parameter_helper(point, out, in_parameter, &constr.header.parameters);
+            }
+            for i in &ast_enumeration.inner {
+                parameter_thing(point, out, in_parameter, i);
+            }
+        }
+        AstThing::Annotation(_) => (),
+    }
+}
+
+fn parameter_helper(
+    point: &AstPoint,
+    out: &mut Vec<CompletionItem>,
+    in_parameter: &mut bool,
+    parameters: &AstMethodParameters,
+) {
+    if parameters.range.is_in_range(point) {
+        *in_parameter = true;
+    }
+    for param in &parameters.parameters {
+        let ty = jtype_hover_display(&param.jtype.clone().into());
+        let label = format!("{} {}", ty, param.name.value);
+        out.push(CompletionItem {
+            label: param.name.value.to_string(),
+            detail: Some(ty),
+            insert_text: Some(label),
+            ..Default::default()
+        });
+    }
 }
 
 #[cfg(test)]

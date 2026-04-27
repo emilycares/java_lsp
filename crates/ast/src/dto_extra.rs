@@ -102,6 +102,34 @@ impl From<&AstJType> for JType {
     }
 }
 
+impl From<AstJType> for JType {
+    fn from(value: AstJType) -> Self {
+        match &value.value {
+            AstJTypeKind::Void => Self::Void,
+            AstJTypeKind::Byte => Self::Byte,
+            AstJTypeKind::Char => Self::Char,
+            AstJTypeKind::Double => Self::Double,
+            AstJTypeKind::Float => Self::Float,
+            AstJTypeKind::Int => Self::Int,
+            AstJTypeKind::Long => Self::Long,
+            AstJTypeKind::Short => Self::Short,
+            AstJTypeKind::Boolean => Self::Boolean,
+            AstJTypeKind::Wildcard => Self::Wildcard,
+            AstJTypeKind::Class(ast_identifier) => Self::Class(ast_identifier.into()),
+            AstJTypeKind::Array(ast_jtype) => Self::Array(Box::new(ast_jtype.as_ref().into())),
+            AstJTypeKind::Generic(ast_identifier, ast_jtypes) => Self::Generic(
+                ast_identifier.into(),
+                ast_jtypes.iter().map(Into::into).collect(),
+            ),
+            AstJTypeKind::Var => Self::Var,
+            AstJTypeKind::Access { base, inner } => Self::Access {
+                base: Box::new((&**base).into()),
+                inner: Box::new((&**inner).into()),
+            },
+        }
+    }
+}
+
 impl PartialEq<AstJType> for JType {
     fn eq(&self, other: &AstJType) -> bool {
         Into::<Self>::into(other) == *self

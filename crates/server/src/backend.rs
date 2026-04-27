@@ -17,7 +17,7 @@ use lsp_extra::{SERVER_NAME, source_to_uri, to_ast_point};
 use lsp_server::{Connection, Message};
 use lsp_types::{
     ClientCapabilities, CodeActionOrCommand, CodeActionParams, CodeActionResponse, Command,
-    CompletionParams, CompletionResponse, Diagnostic, DiagnosticSeverity,
+    CompletionList, CompletionParams, CompletionResponse, Diagnostic, DiagnosticSeverity,
     DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
     DidSaveTextDocumentParams, DocumentFormattingParams, DocumentLink, DocumentLinkParams,
     DocumentSymbolParams, DocumentSymbolResponse, ExecuteCommandParams, GotoDefinitionParams,
@@ -652,6 +652,23 @@ impl Backend {
         let point = to_ast_point(params.position);
         let imports = imports::imports(&document.ast);
 
+        if let Some(imp) = completion::imports(&document, &point, &self.class_map) {
+            return Some(CompletionResponse::List(CompletionList {
+                is_incomplete: true,
+                items: imp,
+            }));
+        }
+        if let Some(par) = completion::parameter(&document, &point) {
+            out.extend(completion::classes(
+                &document,
+                &point,
+                &imports,
+                &self.class_map,
+            ));
+            out.extend(par);
+            return Some(CompletionResponse::Array(out));
+        }
+
         let class = self.get_class(&document.ast)?;
 
         let vars = match variables::get_vars(
@@ -690,7 +707,6 @@ impl Backend {
             &imports,
             &self.class_map,
         ));
-        out.extend(completion::imports(&document, &point, &self.class_map));
         out.extend(completion::complete_vars(&vars));
         out.extend(completion::classes(
             &document,
