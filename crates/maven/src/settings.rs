@@ -7,7 +7,7 @@ pub enum M2SettingsError {
     Xml(serde_xml_rs::Error),
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename = "settings")]
 pub struct M2Settings {
     pub servers: Option<M2Servers>,
@@ -41,6 +41,9 @@ pub struct M2Mirror {
 
 pub fn load_settings_xml(m2_folder: &Path) -> Result<M2Settings, M2SettingsError> {
     let path = m2_folder.join("settings.xml");
+    if !path.exists() {
+        return Ok(M2Settings::default());
+    }
     let file = std::fs::File::open(path).map_err(M2SettingsError::IO)?;
     serde_xml_rs::from_reader(file).map_err(M2SettingsError::Xml)
 }
