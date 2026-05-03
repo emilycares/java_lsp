@@ -17,15 +17,15 @@ use lsp_extra::{SERVER_NAME, source_to_uri, to_ast_point};
 use lsp_server::{Connection, Message};
 use lsp_types::{
     ClientCapabilities, CodeActionOrCommand, CodeActionParams, CodeActionResponse, Command,
-    CompletionList, CompletionParams, CompletionResponse, Diagnostic, DiagnosticSeverity,
-    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    DidSaveTextDocumentParams, DocumentFormattingParams, DocumentLink, DocumentLinkParams,
-    DocumentSymbolParams, DocumentSymbolResponse, ExecuteCommandParams, GotoDefinitionParams,
-    GotoDefinitionResponse, Hover, HoverParams, InlayHint, InlayHintParams, Location, Position,
-    ProgressParams, ProgressParamsValue, ProgressToken, PublishDiagnosticsParams, Range,
-    ReferenceParams, SignatureHelp, SignatureHelpParams, TextEdit, Uri, WorkDoneProgress,
-    WorkDoneProgressBegin, WorkDoneProgressEnd, WorkDoneProgressReport, WorkspaceSymbolParams,
-    WorkspaceSymbolResponse,
+    CompletionItem, CompletionItemKind, CompletionList, CompletionParams, CompletionResponse,
+    Diagnostic, DiagnosticSeverity, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
+    DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentFormattingParams, DocumentLink,
+    DocumentLinkParams, DocumentSymbolParams, DocumentSymbolResponse, ExecuteCommandParams,
+    GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams, InlayHint, InlayHintParams,
+    InsertTextFormat, Location, Position, ProgressParams, ProgressParamsValue, ProgressToken,
+    PublishDiagnosticsParams, Range, ReferenceParams, SignatureHelp, SignatureHelpParams, TextEdit,
+    Uri, WorkDoneProgress, WorkDoneProgressBegin, WorkDoneProgressEnd, WorkDoneProgressReport,
+    WorkspaceSymbolParams, WorkspaceSymbolResponse,
     notification::{Notification, Progress, PublishDiagnostics},
 };
 use maven::{
@@ -48,7 +48,7 @@ use crate::{
     hover::{self, class_action},
     inlay_hint::get_inlay_hint,
     references::{self, ReferenceUnit, ReferencesContext, ReferencesError},
-    signature,
+    signature, snipptes,
 };
 
 pub struct Backend {
@@ -669,6 +669,10 @@ impl Backend {
             return Some(CompletionResponse::Array(out));
         }
 
+        out.push(snippet_completion("function", snipptes::FUNCTION));
+        out.push(snippet_completion("if", snipptes::IF));
+        out.push(snippet_completion("switch", snipptes::SWITCH));
+
         let class = self.get_class(&document.ast)?;
 
         let vars = match variables::get_vars(
@@ -1084,6 +1088,16 @@ impl Backend {
         let mut diagnostics = Vec::new();
         diagnostics.extend(diag);
         Self::send_diagnostic(&self.connection, uri, diagnostics);
+    }
+}
+
+fn snippet_completion(name: &str, content: &str) -> CompletionItem {
+    CompletionItem {
+        label: String::from(name),
+        kind: Some(CompletionItemKind::SNIPPET),
+        insert_text: Some(String::from(content)),
+        insert_text_format: Some(InsertTextFormat::SNIPPET),
+        ..Default::default()
     }
 }
 

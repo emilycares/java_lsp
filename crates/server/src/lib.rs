@@ -15,6 +15,7 @@ pub mod inlay_hint;
 pub mod references;
 mod router;
 pub mod signature;
+pub mod snipptes;
 
 use std::{ffi::OsString, path::PathBuf, sync::Arc};
 

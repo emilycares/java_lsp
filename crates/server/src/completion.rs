@@ -493,6 +493,7 @@ fn parameter_helper(
             label: param.name.value.to_string(),
             detail: Some(ty),
             insert_text: Some(label),
+            insert_text_format: Some(InsertTextFormat::SNIPPET),
             ..Default::default()
         });
     }
