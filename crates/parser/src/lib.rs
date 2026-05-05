@@ -3,7 +3,6 @@
 #![deny(clippy::nursery)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
-pub mod class;
 
 pub mod java;
 

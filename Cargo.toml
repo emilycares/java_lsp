@@ -43,6 +43,8 @@ members = [
     "crates/jimage",
     "crates/dto",
     "crates/local_variable",
+    "crates/class",
+    "crates/mutf8",
 ]
 exclude = ["fuzz"]
 resolver = "3"
@@ -66,9 +68,11 @@ debug = "line-tables-only"
 [workspace.dependencies]
 # In this project
 dto = { path = "crates/dto"}
+class = { path = "crates/class"}
 parser = { path = "crates/parser"}
 ast = { path = "crates/ast"}
 jimage = { path = "crates/jimage"}
+mutf8 = { path = "crates/mutf8"}
 maven = { path = "crates/maven"}
 server = { path = "crates/server"}
 format = { path = "crates/format"}
@@ -95,8 +99,6 @@ local_variable = { path = "crates/local_variable"}
 # Rest
 bitflags = { version = "2.11.1", features = ["serde"] }
 clap = { version = "4.6.1", features = ["derive"] }
-classfile-parser = { git = "https://github.com/emilycares/classfile-parser.git", branch = "dynamic_constant" }
-# classfile-parser = { path = "../classfile-parser" }
 postcard = { version = "1.1.3", features = ["alloc"] }
 ropey = "1.6.1"
 serde = { version = "1.0.228", features = ["derive"] }

@@ -1,23 +1,34 @@
-use classfile_parser::attribute_info::{AttributeInfo, CodeAttribute};
-use classfile_parser::constant_info::ConstantInfo;
-use classfile_parser::field_info::{FieldAccessFlags, FieldInfo};
-use classfile_parser::method_info::MethodAccessFlags;
-use classfile_parser::{ClassAccessFlags, ClassFile, class_parser};
-use dto::{Access, Class, Field, ImportUnit, JType, Method, Parameter, SuperClass};
-use dto::{ClassParserError, SourceDestination};
-use my_string::MyString;
-use my_string::smol_str::{SmolStr, SmolStrBuilder, StrExt, ToSmolStr};
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::too_many_lines)]
+//! A minimal class file parser.
+//! Skips parsing data not used by `java_lsp`
+
+use std::str::from_utf8;
+
+use dto::{
+    Access, Class, ClassParserError, ImportUnit, JType, Parameter, SourceDestination, SuperClass,
+};
+use my_string::{
+    MyString,
+    smol_str::{SmolStr, SmolStrBuilder, StrExt, ToSmolStr},
+};
+
+const U8_LEN: usize = 1;
+const U16_LEN: usize = 2;
+const U32_LEN: usize = 4;
+const U64_LEN: usize = 8;
 
 pub fn load_class(
-    bytes: &[u8],
+    data: &[u8],
     class_path: MyString,
     source: SourceDestination,
     filter: bool,
 ) -> Result<Class, ClassParserError> {
-    let _ = expect_data(bytes, 0, &[0xCA, 0xFE, 0xBA, 0xBE])
-        .map_err(|_| ClassParserError::NotAClass)?;
-    let (_, c) = class_parser(bytes).map_err(|_| ClassParserError::BaseParser)?;
-    if filter && !c.access_flags.intersects(ClassAccessFlags::PUBLIC) {
+    let (c, _) = parser_base(data, 0)?;
+
+    if filter && !c.access_flags.intersects(Access::Public) {
         return Err(ClassParserError::Private);
     }
 
@@ -29,10 +40,10 @@ pub fn load_class(
     let mut deprecated = false;
 
     for a in &c.attributes {
-        if a.attribute_name_index == 0 {
+        if a.name == 0 {
             continue;
         }
-        let attribute_name = lookup_string(&c, a.attribute_name_index)?;
+        let attribute_name = lookup_string(&c, a.name)?;
 
         // if attribute_name == "Signature" {
         //     let (_, sig) = classfile_parser::attribute_info::signature_attribute_parser(&a.info)
@@ -43,9 +54,9 @@ pub fn load_class(
         //     continue;
         // }
         if attribute_name == "Code" {
-            let (_, out) = classfile_parser::attribute_info::code_attribute_parser(&a.info)
-                .map_err(|_| ClassParserError::CodeAttribute)?;
-            used_classes.extend(parse_used_classes(&c, out)?);
+            let info = a.lookup(data)?;
+            let (out, _) = parse_code_attribute(info, 0, a.start, a.end)?;
+            used_classes.extend(parse_used_classes(&c, data, &out)?);
         } else if attribute_name == "Deprecated" {
             deprecated = true;
         }
@@ -54,18 +65,17 @@ pub fn load_class(
     for m in &c.methods {
         if filter
             && m.access_flags
-                .intersects(MethodAccessFlags::PRIVATE | MethodAccessFlags::PROTECTED)
+                .intersects(Access::Public | Access::Protected)
         {
             continue;
         }
-        let method = parse_method(&c, m);
+        let method = parse_method(&c, data, m);
         if matches!(method, Err(ClassParserError::IgnoringLambda)) {
             continue;
         }
-        let method = method?;
-        let code_attribute = parse_code_attribute(&c, &m.attributes)?;
+        let (method, code_attribute) = method?;
         if let Some(code_attribute) = code_attribute {
-            let u = parse_used_classes(&c, code_attribute)?;
+            let u = parse_used_classes(&c, data, &code_attribute)?;
             used_classes.extend(u);
             used_classes.extend(
                 method
@@ -86,7 +96,7 @@ pub fn load_class(
     for f in &c.fields {
         if filter
             && f.access_flags
-                .intersects(FieldAccessFlags::PRIVATE | FieldAccessFlags::PROTECTED)
+                .intersects(Access::Private | Access::Protected)
         {
             continue;
         }
@@ -138,9 +148,9 @@ pub fn load_class(
     })
 }
 
-fn lookup_class_name(c: &ClassFile, index: usize) -> Result<MyString, ClassParserError> {
-    match c.const_pool.get(index.saturating_sub(1)) {
-        Some(ConstantInfo::Class(class)) => Ok(lookup_string(c, class.name_index)?
+fn lookup_class_name(c: &Base, index: usize) -> Result<MyString, ClassParserError> {
+    match c.const_pool.pool.get(index.saturating_sub(1)) {
+        Some(ConstEntry::Class { name }) => Ok(lookup_string(c, *name)?
             .split('/')
             .next_back()
             .map(Into::into)
@@ -149,24 +159,27 @@ fn lookup_class_name(c: &ClassFile, index: usize) -> Result<MyString, ClassParse
     }
 }
 
-fn parse_field(c: &ClassFile, field: &FieldInfo) -> Result<Field, ClassParserError> {
-    Ok(Field {
-        access: parse_field_access(field),
-        name: lookup_string(c, field.name_index)?,
-        jtype: parse_field_type(lookup_string(c, field.descriptor_index)?.as_bytes(), 0)?.1,
+fn parse_field(c: &Base, field: &Field) -> Result<dto::Field, ClassParserError> {
+    Ok(dto::Field {
+        access: field.access_flags.clone(),
+        name: lookup_string(c, field.name)?.to_smolstr(),
+        jtype: parse_field_type(lookup_string(c, field.descriptor)?.as_bytes(), 0)?.0,
         source: None,
     })
 }
 
 fn parse_method(
-    c: &ClassFile,
-    method: &classfile_parser::method_info::MethodInfo,
-) -> Result<Method, ClassParserError> {
-    let lname = lookup_string(c, method.name_index)?;
+    c: &Base,
+    data: &[u8],
+    method: &Method,
+) -> Result<(dto::Method, Option<CodeAttribute>), ClassParserError> {
+    let lname = lookup_string(c, method.name)?;
 
     if lname.starts_with("lambda$") {
         return Err(ClassParserError::IgnoringLambda);
     }
+
+    let mut code_attribute = None;
 
     let mut parameters = Vec::new();
     let mut parameter_names = Vec::new();
@@ -178,7 +191,7 @@ fn parse_method(
     let mut ret = JType::Void;
 
     for (index, attribute) in method.attributes.iter().enumerate() {
-        let name = lookup_string(c, attribute.attribute_name_index)?;
+        let name = lookup_string(c, attribute.name)?;
         if name == "Signature" {
             signature_index = Some(index);
         } else if name == "MethodParameters" {
@@ -187,12 +200,17 @@ fn parse_method(
             exception_index = Some(index);
         } else if name == "Deprecated" {
             deprecated = true;
+        } else if name == "Code" {
+            let info = attribute.lookup(data)?;
+            let (ca, _) = parse_code_attribute(info, 0, attribute.start, attribute.end)?;
+            code_attribute = Some(ca);
         }
     }
     let no_parameter_names_and_signature =
         method_parameter_index.is_none() && signature_index.is_none();
     if no_parameter_names_and_signature {
-        let (_, md) = parse_method_descriptor(&lookup_string(c, method.descriptor_index)?)?;
+        let smol_str = lookup_string(c, method.descriptor)?;
+        let (_, md) = parse_method_descriptor(smol_str)?;
         ret = md.return_type;
         for p in md.param_types {
             parameters.push(Parameter {
@@ -208,28 +226,28 @@ fn parse_method(
             .get(index)
             .ok_or(ClassParserError::InvalidAttributeIndex)?;
 
-        let (_, info) =
-            classfile_parser::attribute_info::method_parameters_attribute_parser(&attribute.info)
-                .map_err(|_| ClassParserError::MethodParameters)?;
+        let info = attribute.lookup(data)?;
+        let (info, _) = parse_method_parameters_attribute(info, 0)?;
         if signature_index.is_some() {
-            for p in info.parameters {
+            for p in info {
                 let name = lookup_string(c, p.name_index)
                     .ok()
-                    .filter(|i| !SmolStr::is_empty(i));
+                    .filter(|i| !i.is_empty());
                 parameter_names.push(name);
             }
         } else {
-            let (_, md) = parse_method_descriptor(&lookup_string(c, method.descriptor_index)?)?;
+            let (_, md) = parse_method_descriptor(lookup_string(c, method.descriptor)?)?;
             ret = md.return_type;
             let mut params = md.param_types.into_iter();
-            for p in info.parameters {
+            for p in info {
                 let jtype = params.next().ok_or(ClassParserError::NotEnogthParams)?;
                 if p.name_index == 0 {
                     parameters.push(Parameter { name: None, jtype });
                 } else {
                     let name = lookup_string(c, p.name_index)
                         .ok()
-                        .filter(|i| !SmolStr::is_empty(i));
+                        .filter(|i| !i.is_empty())
+                        .map(SmolStr::new);
                     parameters.push(Parameter { name, jtype });
                 }
             }
@@ -242,14 +260,13 @@ fn parse_method(
             .get(index)
             .ok_or(ClassParserError::InvalidAttributeIndex)?;
 
-        let (_, sig) =
-            classfile_parser::attribute_info::signature_attribute_parser(&attribute.info)
-                .map_err(|_| ClassParserError::SignatureAttribute)?;
-        let sig = lookup_string(c, sig.signature_index)?;
-        let (_, sig) = parse_method_signature_info(&sig)?;
+        let info = attribute.lookup(data)?;
+        let (sig, _) = get_u16(info, 0)?;
+        let sig = lookup_string(c, sig)?;
+        let (sig, _) = parse_method_signature_info(sig)?;
         let mut name_iter = parameter_names.into_iter();
         parameters.extend(sig.params.into_iter().map(|jtype| Parameter {
-            name: name_iter.next().flatten(),
+            name: name_iter.next().flatten().map(SmolStr::new),
             jtype,
         }));
 
@@ -261,27 +278,73 @@ fn parse_method(
             .attributes
             .get(index)
             .ok_or(ClassParserError::InvalidAttributeIndex)?;
-        let (_, info) =
-            classfile_parser::attribute_info::exceptions_attribute_parser(&attribute.info)
-                .map_err(|_| ClassParserError::ExceptionsAttribute)?;
+        let info = attribute.lookup(data)?;
+        let (info, _) = parse_exceptions_attribute(info, 0)?;
 
-        for exception in info.exception_table {
+        for exception in info {
             let class_name = lookup_string(c, exception)?;
-            if let Some((_, name)) = class_name.rsplit_once('/') {
-                throws.push(JType::Class(name.to_smolstr()));
-            }
+            throws.push(JType::Class(class_name.replace_smolstr("/", ".")));
         }
     }
 
-    let name = if lname == "<init>" { None } else { Some(lname) };
-    Ok(Method {
-        access: parse_method_access(method, deprecated),
-        name,
-        parameters,
-        ret,
-        throws,
-        source: None,
-    })
+    let name = if lname == "<init>" {
+        None
+    } else {
+        Some(SmolStr::new(lname))
+    };
+    Ok((
+        dto::Method {
+            access: parse_method_access(method, deprecated),
+            name,
+            parameters,
+            ret,
+            throws,
+            source: None,
+        },
+        code_attribute,
+    ))
+}
+
+fn parse_exceptions_attribute(
+    data: &[u8],
+    pos: usize,
+) -> Result<(Vec<u16>, usize), ClassParserError> {
+    let (count, pos) = get_u16(data, pos)?;
+    let mut out = Vec::with_capacity(count as usize);
+    let mut pos = pos;
+    for _ in 0..count {
+        let (o, npos) = get_u16(data, pos)?;
+        out.push(o);
+        pos = npos;
+    }
+    Ok((out, pos))
+}
+
+struct MethodParametersAttribute {
+    name_index: u16,
+}
+
+fn parse_method_parameters_attribute(
+    data: &[u8],
+    pos: usize,
+) -> Result<(Vec<MethodParametersAttribute>, usize), ClassParserError> {
+    let (count, pos) = get_u8(data, pos)?;
+    let mut pos = pos;
+    let mut out = Vec::with_capacity(count as usize);
+    for _ in 0..count {
+        let (o, npos) = parse_method_parameters_attribute_inner(data, pos)?;
+        out.push(o);
+        pos = npos;
+    }
+    Ok((out, pos))
+}
+fn parse_method_parameters_attribute_inner(
+    data: &[u8],
+    pos: usize,
+) -> Result<(MethodParametersAttribute, usize), ClassParserError> {
+    let (name_index, pos) = get_u16(data, pos)?;
+    let pos = pos + 2;
+    Ok((MethodParametersAttribute { name_index }, pos))
 }
 
 #[derive(Debug)]
@@ -291,9 +354,7 @@ struct MethodSignature {
     pub params: Vec<JType>,
     pub ret: JType,
 }
-fn parse_method_signature_info(
-    sig: &MyString,
-) -> Result<(usize, MethodSignature), ClassParserError> {
+fn parse_method_signature_info(sig: &str) -> Result<(MethodSignature, usize), ClassParserError> {
     let content = sig.as_bytes();
     let mut pos = 0;
     let mut args = Vec::new();
@@ -325,7 +386,7 @@ fn parse_method_signature_info(
             if let Ok(npos) = assert_char(content, pos, b':') {
                 pos = npos;
             }
-            let (npos, _) = parse_field_type(content, pos)?;
+            let (_, npos) = parse_field_type(content, pos)?;
             pos = npos;
         }
     }
@@ -341,13 +402,13 @@ fn parse_method_signature_info(
                 pos = npos;
                 break;
             }
-            let (npos, ty) = parse_field_type(content, pos)?;
+            let (ty, npos) = parse_field_type(content, pos)?;
             params.push(ty);
             pos = npos;
         }
     }
-    let (pos, ret) = parse_field_type(content, pos)?;
-    Ok((pos, MethodSignature { args, params, ret }))
+    let (ret, pos) = parse_field_type(content, pos)?;
+    Ok((MethodSignature { args, params, ret }, pos))
 }
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -356,7 +417,7 @@ struct ClassSignature {
     pub ret: JType,
 }
 #[allow(dead_code)]
-fn parse_class_signature_info(sig: &MyString) -> Result<(usize, ClassSignature), ClassParserError> {
+fn parse_class_signature_info(sig: &MyString) -> Result<(ClassSignature, usize), ClassParserError> {
     let content = sig.as_bytes();
     let mut pos = 0;
     let mut args = Vec::new();
@@ -387,12 +448,12 @@ fn parse_class_signature_info(sig: &MyString) -> Result<(usize, ClassSignature),
             if let Ok(npos) = assert_char(content, pos, b':') {
                 pos = npos;
             }
-            let (npos, _) = parse_field_type(content, pos)?;
+            let (_, npos) = parse_field_type(content, pos)?;
             pos = npos;
         }
     }
-    let (pos, ret) = parse_field_type(content, pos)?;
-    Ok((pos, ClassSignature { args, ret }))
+    let (ret, pos) = parse_field_type(content, pos)?;
+    Ok((ClassSignature { args, ret }, pos))
 }
 
 fn assert_char(content: &[u8], pos: usize, p: u8) -> Result<usize, ClassParserError> {
@@ -410,36 +471,82 @@ fn assert_char(content: &[u8], pos: usize, p: u8) -> Result<usize, ClassParserEr
     Ok(pos + 1)
 }
 
-#[track_caller]
-#[inline]
-fn expect_data(data: &[u8], pos: usize, expected: &[u8]) -> Result<usize, ClassParserError> {
-    let len = expected.len();
-    let Some(get) = data.get(pos..pos + len) else {
-        return Err(ClassParserError::EOF);
-    };
-
-    let cond = get != expected;
-    if cond {
-        return Err(ClassParserError::NotAsExpected { pos, len });
+struct CodeAttribute {
+    start: usize,
+    end: usize,
+    pub attributes: Vec<Attribute>,
+}
+impl CodeAttribute {
+    pub fn lookup<'a>(&'a self, data: &'a [u8]) -> Result<&'a [u8], ClassParserError> {
+        data.get(self.start..self.end).ok_or(ClassParserError::EOF)
     }
-    Ok(pos + len)
+}
+
+fn parse_code_attribute(
+    data: &[u8],
+    pos: usize,
+    start: usize,
+    end: usize,
+) -> Result<(CodeAttribute, usize), ClassParserError> {
+    let mut pos = pos;
+    pos = pos.saturating_add(U16_LEN + U16_LEN);
+
+    let (code_length, pos) = get_u32(data, pos)?;
+    let pos = pos.saturating_add(code_length as usize);
+
+    let (exception_table_length, pos) = get_u16(data, pos)?;
+    let exception_table = (exception_table_length as usize).saturating_mul(8);
+    let pos = pos.saturating_add(exception_table);
+
+    let (attributes, pos) = parse_attributes(data, pos)?;
+
+    Ok((
+        CodeAttribute {
+            start,
+            end,
+            attributes,
+        },
+        pos,
+    ))
+}
+
+/// Returns list of descriptors
+fn parse_local_variable_table_attribute(
+    data: &[u8],
+    pos: usize,
+) -> Result<(Vec<u16>, usize), ClassParserError> {
+    let (table_length, pos) = get_u16(data, pos)?;
+    let mut out = Vec::with_capacity(table_length as usize);
+    let mut pos = pos;
+
+    for _ in 0..table_length {
+        pos += 3 * U16_LEN;
+        let (descriptor_index, npos) = get_u16(data, pos)?;
+        pos = npos;
+        out.push(descriptor_index);
+        // skip u16
+        pos += U16_LEN;
+    }
+
+    Ok((out, pos))
 }
 
 fn parse_used_classes(
-    c: &ClassFile,
-    code_attribute: CodeAttribute,
+    c: &Base,
+    data: &[u8],
+    code_attribute: &CodeAttribute,
 ) -> Result<Vec<MyString>, ClassParserError> {
     let mut out = Vec::new();
+    let info = code_attribute.lookup(data)?;
 
-    for attribute in code_attribute.attributes {
-        let attribute_name = lookup_string(c, attribute.attribute_name_index)?;
+    for attribute in &code_attribute.attributes {
+        let attribute_name = lookup_string(c, attribute.name)?;
         if attribute_name == "LocalVariableTable" {
-            let (_, info) =
-                classfile_parser::code_attribute::local_variable_table_parser(&attribute.info)
-                    .map_err(|_| ClassParserError::LocalVariableTable)?;
-            for f in info.items {
-                let field_desc = lookup_string(c, f.descriptor_index)?;
-                let (_, field_desc) = parse_field_type(field_desc.as_bytes(), 0)?;
+            let info = attribute.lookup(info)?;
+            let (descriptors, _) = parse_local_variable_table_attribute(info, 0)?;
+            for f in descriptors {
+                let field_desc = lookup_string(c, f)?;
+                let (field_desc, _) = parse_field_type(field_desc.as_bytes(), 0)?;
                 let types = jtype_class_names(field_desc);
                 out.extend(types);
             }
@@ -461,21 +568,6 @@ fn jtype_class_names(i: JType) -> Vec<MyString> {
     }
 }
 
-fn parse_code_attribute(
-    c: &ClassFile,
-    attributes: &[AttributeInfo],
-) -> Result<Option<CodeAttribute>, ClassParserError> {
-    for a in attributes {
-        let attribute_name = lookup_string(c, a.attribute_name_index)?;
-        if attribute_name == "Code" {
-            let (_, out) = classfile_parser::attribute_info::code_attribute_parser(&a.info)
-                .map_err(|_| ClassParserError::CodeAttribute)?;
-            return Ok(Some(out));
-        }
-    }
-    Ok(None)
-}
-
 #[derive(Debug)]
 struct MethodDescriptor {
     param_types: Vec<JType>,
@@ -488,7 +580,7 @@ fn parse_method_descriptor(
     let content = descriptor.as_bytes();
     let pos = 0;
     if let Ok((pos, param_types)) = parse_param_types(content, pos) {
-        let (pos, return_type) = parse_field_type(content, pos)?;
+        let (return_type, pos) = parse_field_type(content, pos)?;
         return Ok((
             pos,
             MethodDescriptor {
@@ -497,7 +589,7 @@ fn parse_method_descriptor(
             },
         ));
     }
-    let (pos, return_type) = parse_field_type(content, pos)?;
+    let (return_type, pos) = parse_field_type(content, pos)?;
     Ok((
         pos,
         MethodDescriptor {
@@ -516,25 +608,25 @@ fn parse_param_types(content: &[u8], pos: usize) -> Result<(usize, Vec<JType>), 
             pos = npos;
             break;
         }
-        let (npos, filed_type) = parse_field_type(content, pos)?;
+        let (filed_type, npos) = parse_field_type(content, pos)?;
         out.push(filed_type);
         pos = npos;
     }
     Ok((pos, out))
 }
 
-fn parse_field_type(content: &[u8], pos: usize) -> Result<(usize, JType), ClassParserError> {
+fn parse_field_type(content: &[u8], pos: usize) -> Result<(JType, usize), ClassParserError> {
     let c = content.get(pos).ok_or(ClassParserError::EOF)?;
     match c {
-        b'B' => Ok((pos + 1, JType::Byte)),
-        b'C' => Ok((pos + 1, JType::Char)),
-        b'D' => Ok((pos + 1, JType::Double)),
-        b'F' => Ok((pos + 1, JType::Float)),
-        b'I' => Ok((pos + 1, JType::Int)),
-        b'J' => Ok((pos + 1, JType::Long)),
-        b'S' => Ok((pos + 1, JType::Short)),
-        b'Z' => Ok((pos + 1, JType::Boolean)),
-        b'V' => Ok((pos + 1, JType::Void)),
+        b'B' => Ok((JType::Byte, pos + 1)),
+        b'C' => Ok((JType::Char, pos + 1)),
+        b'D' => Ok((JType::Double, pos + 1)),
+        b'F' => Ok((JType::Float, pos + 1)),
+        b'I' => Ok((JType::Int, pos + 1)),
+        b'J' => Ok((JType::Long, pos + 1)),
+        b'S' => Ok((JType::Short, pos + 1)),
+        b'Z' => Ok((JType::Boolean, pos + 1)),
+        b'V' => Ok((JType::Void, pos + 1)),
         b'T' => {
             let mut pos = pos + 1;
             let mut param = SmolStrBuilder::new();
@@ -548,75 +640,26 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(usize, JType), ClassP
                 param.push(c);
                 pos += 1;
             }
-            Ok((pos, JType::Parameter(param.finish())))
+            Ok((JType::Parameter(param.finish()), pos))
         }
         b'L' => {
-            let mut pos = pos + 1;
-            let mut class_name = SmolStrBuilder::new();
-            let mut args = Vec::new();
-            loop {
-                if let Some(c) = content.get(pos) {
-                    if c == &b'<' {
-                        pos += 1;
-                        if let Ok(npos) = assert_char(content, pos, b'+') {
-                            pos = npos;
-                        }
-                        loop {
-                            let mut star = false;
-                            if let Ok(npos) = assert_char(content, pos, b'>') {
-                                pos = npos;
-                                break;
-                            }
-                            if let Ok(npos) = assert_char(content, pos, b'*') {
-                                // any
-                                pos = npos;
-                                star = true;
-                            }
-                            if let Ok(npos) = assert_char(content, pos, b'-') {
-                                // supper
-                                pos = npos;
-                            }
-                            if let Ok(npos) = assert_char(content, pos, b'+') {
-                                // extends
-                                pos = npos;
-                            }
-                            if star {
-                                if let Ok((npos, arg)) = parse_field_type(content, pos) {
-                                    args.push(arg);
-                                    pos = npos;
-                                    if let Ok(npos) = assert_char(content, pos, b';') {
-                                        pos = npos;
-                                    }
-                                }
-                                continue;
-                            }
-                            let (npos, arg) = parse_field_type(content, pos)?;
-                            args.push(arg);
-                            pos = npos;
-                            if let Ok(npos) = assert_char(content, pos, b';') {
-                                pos = npos;
-                            }
-                        }
-
-                        break;
-                    }
-                    if c == &b';' {
-                        pos += 1;
-                        break;
-                    }
-                    class_name.push(*c as char);
-                    pos += 1;
+            let pos = pos + 1;
+            let (mut pos, mut out) = parse_jtype_class_name(content, pos)?;
+            while let Some(next) = content.get(pos)
+                && next == &b'.'
+            {
+                let (npos, inner) = parse_jtype_class_name(content, pos + 1)?;
+                pos = npos;
+                out = JType::Access {
+                    base: Box::new(out),
+                    inner: Box::new(inner),
                 }
             }
-            let class_name = class_name.finish().replace_smolstr("/", ".");
-            if !args.is_empty() {
-                return Ok((pos, JType::Generic(class_name, args)));
-            }
-            Ok((pos, JType::Class(class_name)))
+            Ok((out, pos))
         }
         b'[' => {
-            let (npos, inner) = parse_field_type(content, pos + 1)?;
-            Ok((npos, JType::Array(Box::new(inner))))
+            let (inner, npos) = parse_field_type(content, pos + 1)?;
+            Ok((JType::Array(Box::new(inner)), npos))
         }
         c => {
             let got = char::from_u32(u32::from(*c));
@@ -624,19 +667,93 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(usize, JType), ClassP
         }
     }
 }
+
+fn parse_jtype_class_name(
+    content: &[u8],
+    mut pos: usize,
+) -> Result<(usize, JType), ClassParserError> {
+    let mut class_name = SmolStrBuilder::new();
+    let mut args = Vec::new();
+    while let Some(c) = content.get(pos) {
+        if c == &b'<' {
+            pos += 1;
+            if let Ok(npos) = assert_char(content, pos, b'+') {
+                pos = npos;
+            }
+            loop {
+                let mut star = false;
+                if let Ok(npos) = assert_char(content, pos, b'>') {
+                    pos = npos;
+                    break;
+                }
+                if let Ok(npos) = assert_char(content, pos, b'*') {
+                    // any
+                    pos = npos;
+                    star = true;
+                }
+                if let Ok(npos) = assert_char(content, pos, b'-') {
+                    // supper
+                    pos = npos;
+                }
+                if let Ok(npos) = assert_char(content, pos, b'+') {
+                    // extends
+                    pos = npos;
+                }
+                if star {
+                    if let Ok(npos) = assert_char(content, pos, b'*') {
+                        pos = npos;
+                        continue;
+                    }
+                    if let Ok(npos) = assert_char(content, pos, b'>') {
+                        pos = npos;
+                        break;
+                    }
+                    if let Ok((arg, npos)) = parse_field_type(content, pos) {
+                        args.push(arg);
+                        pos = npos;
+                        if let Ok(npos) = assert_char(content, pos, b';') {
+                            pos = npos;
+                        }
+                    }
+                    continue;
+                }
+                let (arg, npos) = parse_field_type(content, pos)?;
+                args.push(arg);
+                pos = npos;
+                if let Ok(npos) = assert_char(content, pos, b';') {
+                    pos = npos;
+                }
+            }
+
+            break;
+        }
+        if c == &b';' {
+            pos += 1;
+            break;
+        }
+        class_name.push(*c as char);
+        pos += 1;
+    }
+    let class_name = class_name.finish().replace_smolstr("/", ".");
+    if !args.is_empty() {
+        return Ok((pos, JType::Generic(class_name, args)));
+    }
+    Ok((pos, JType::Class(class_name)))
+}
+
 #[derive(Debug)]
 pub struct ModuleInfo {
     pub exports: Vec<MyString>,
 }
 
-pub fn load_module(bytes: &[u8]) -> Result<ModuleInfo, ClassParserError> {
-    let (_, c) = class_parser(bytes).map_err(|_| ClassParserError::Module)?;
+pub fn load_module(data: &[u8]) -> Result<ModuleInfo, ClassParserError> {
+    let (c, _) = parser_base(data, 0)?;
     for a in &c.attributes {
-        let name = lookup_string(&c, a.attribute_name_index)?;
+        let name = lookup_string(&c, a.name)?;
         if name == "Module" {
-            let (_, module) = classfile_parser::attribute_info::module_attribute_parser(&a.info)
-                .map_err(|_| ClassParserError::ModuleAttribute)?;
-            let module_name = lookup_string(&c, module.module_name_index)?;
+            let info = a.lookup(data)?;
+            let (module, _) = parse_module_attribute(info, 0)?;
+            let module_name = lookup_string(&c, module.name_index)?;
             let mut exports = vec![module_name.replace('.', "/").to_smolstr()];
             for e in module.exports {
                 if !e.exports_to_index.is_empty() {
@@ -651,112 +768,556 @@ pub fn load_module(bytes: &[u8]) -> Result<ModuleInfo, ClassParserError> {
     Err(ClassParserError::NoModuleAttribute)
 }
 
-fn parse_class_access(flags: ClassAccessFlags, deprecated: bool) -> Access {
-    let mut access = Access::empty();
+struct ModuleAttribute {
+    name_index: u16,
+    exports: Vec<ModuleExportsAttribute>,
+}
+
+fn parse_module_attribute(
+    data: &[u8],
+    pos: usize,
+) -> Result<(ModuleAttribute, usize), ClassParserError> {
+    let (name_index, pos) = get_u16(data, pos)?;
+    let pos = pos + (U16_LEN + U16_LEN);
+
+    let (requires_count, pos) = get_u16(data, pos)?;
+    let pos = pos.saturating_add((requires_count as usize).saturating_mul(6));
+
+    let (exports_count, pos) = get_u16(data, pos)?;
+    let mut exports = Vec::with_capacity(exports_count as usize);
+    let mut pos = pos;
+    for _ in 0..exports_count {
+        let (o, npos) = parse_module_exports(data, pos)?;
+        exports.push(o);
+        pos = npos;
+    }
+
+    Ok((
+        ModuleAttribute {
+            name_index,
+            exports,
+        },
+        pos,
+    ))
+}
+struct ModuleExportsAttribute {
+    exports_index: u16,
+    exports_to_index: Vec<u16>,
+}
+
+fn parse_module_exports(
+    data: &[u8],
+    pos: usize,
+) -> Result<(ModuleExportsAttribute, usize), ClassParserError> {
+    let (exports_index, pos) = get_u16(data, pos)?;
+    let pos = pos + U16_LEN;
+    let (count, pos) = get_u16(data, pos)?;
+    let mut exports_to_index = Vec::with_capacity(count as usize);
+    let mut pos = pos;
+
+    for _ in 0..count {
+        let (o, npos) = get_u16(data, pos)?;
+        exports_to_index.push(o);
+        pos = npos;
+    }
+    Ok((
+        ModuleExportsAttribute {
+            exports_index,
+            exports_to_index,
+        },
+        pos,
+    ))
+}
+
+fn parse_class_access(flags: Access, deprecated: bool) -> Access {
+    let mut access = flags;
     if deprecated {
         access.insert(Access::Deprecated);
-    }
-    if flags == ClassAccessFlags::PUBLIC {
-        access.insert(Access::Public);
-    }
-    if flags == ClassAccessFlags::FINAL {
-        access.insert(Access::Final);
-    }
-    if flags == ClassAccessFlags::SUPER {
-        access.insert(Access::Super);
-    }
-    if flags == ClassAccessFlags::INTERFACE {
-        access.insert(Access::Interface);
-    }
-    if flags == ClassAccessFlags::SYNTHETIC {
-        access.insert(Access::Synthetic);
-    }
-    if flags == ClassAccessFlags::ANNOTATION {
-        access.insert(Access::Annotation);
-    }
-    if flags == ClassAccessFlags::ENUM {
-        access.insert(Access::Enum);
     }
     access
 }
 
-fn parse_method_access(
-    method: &classfile_parser::method_info::MethodInfo,
-    deprecated: bool,
-) -> Access {
-    let mut access = Access::empty();
+fn parse_method_access(method: &Method, deprecated: bool) -> Access {
+    let mut access = method.access_flags.clone();
     if deprecated {
         access.insert(Access::Deprecated);
-    }
-    if method.access_flags == MethodAccessFlags::PUBLIC {
-        access.insert(Access::Public);
-    }
-    if method.access_flags == MethodAccessFlags::PRIVATE {
-        access.insert(Access::Private);
-    }
-    if method.access_flags == MethodAccessFlags::PROTECTED {
-        access.insert(Access::Protected);
-    }
-    if method.access_flags == MethodAccessFlags::STATIC {
-        access.insert(Access::Static);
-    }
-    if method.access_flags == MethodAccessFlags::FINAL {
-        access.insert(Access::Final);
-    }
-    if method.access_flags == MethodAccessFlags::ABSTRACT {
-        access.insert(Access::Abstract);
-    }
-    if method.access_flags == MethodAccessFlags::SYNTHETIC {
-        access.insert(Access::Synthetic);
     }
     access
 }
 
-fn parse_field_access(method: &FieldInfo) -> Access {
-    let mut access = Access::empty();
-    if method.access_flags == FieldAccessFlags::PUBLIC {
-        access.insert(Access::Public);
-    }
-    if method.access_flags == FieldAccessFlags::PRIVATE {
-        access.insert(Access::Private);
-    }
-    if method.access_flags == FieldAccessFlags::PROTECTED {
-        access.insert(Access::Protected);
-    }
-    if method.access_flags == FieldAccessFlags::STATIC {
-        access.insert(Access::Static);
-    }
-    if method.access_flags == FieldAccessFlags::FINAL {
-        access.insert(Access::Final);
-    }
-    if method.access_flags == FieldAccessFlags::SYNTHETIC {
-        access.insert(Access::Synthetic);
-    }
-    access
-}
-fn lookup_string(c: &ClassFile, index: u16) -> Result<MyString, ClassParserError> {
+fn lookup_string(c: &Base, index: u16) -> Result<&str, ClassParserError> {
     lookup_string_inner(c, index, 0)
 }
 
-fn lookup_string_inner(c: &ClassFile, index: u16, depth: u8) -> Result<MyString, ClassParserError> {
+fn lookup_string_inner(c: &Base, index: u16, depth: u8) -> Result<&str, ClassParserError> {
     if depth == 5 {
         return Err(ClassParserError::NameRecursion);
     }
     if index == 0 {
         return Err(ClassParserError::StringIndexZero);
     }
-    let con = &c.const_pool.get((index - 1) as usize);
+    let con = &c.const_pool.pool.get((index - 1) as usize);
     match con {
-        Some(ConstantInfo::Utf8(utf8)) => Ok(utf8.utf8_string.to_smolstr()),
-        Some(ConstantInfo::Module(m)) => lookup_string_inner(c, m.name_index, depth + 1),
-        Some(ConstantInfo::Package(p)) => lookup_string_inner(c, p.name_index, depth + 1),
-        Some(ConstantInfo::Class(p)) => lookup_string_inner(c, p.name_index, depth + 1),
+        Some(ConstEntry::Utf8(utf8)) => Ok(utf8),
+        Some(
+            ConstEntry::Module { name } | ConstEntry::Package { name } | ConstEntry::Class { name },
+        ) => lookup_string_inner(c, *name, depth + 1),
         _ => Err(ClassParserError::ExpectedString),
     }
 }
+
+struct Base {
+    pub const_pool: ConstPool,
+    pub access_flags: Access,
+    pub this_class: u16,
+    pub super_class: u16,
+
+    pub interfaces: Vec<u16>,
+    pub fields: Vec<Field>,
+    pub methods: Vec<Method>,
+    pub attributes: Vec<Attribute>,
+}
+
+struct Field {
+    pub access_flags: Access,
+    pub name: u16,
+    pub descriptor: u16,
+}
+struct Method {
+    pub access_flags: Access,
+    pub name: u16,
+    pub descriptor: u16,
+    pub attributes: Vec<Attribute>,
+}
+
+#[derive(Debug)]
+struct Attribute {
+    pub name: u16,
+    pub start: usize,
+    pub end: usize,
+}
+
+impl Attribute {
+    pub fn lookup<'a>(&'a self, data: &'a [u8]) -> Result<&'a [u8], ClassParserError> {
+        data.get(self.start..self.end).ok_or(ClassParserError::EOF)
+    }
+}
+
+fn parser_base(data: &[u8], pos: usize) -> Result<(Base, usize), ClassParserError> {
+    let pos = expect_data(data, pos, &[0xCA, 0xFE, 0xBA, 0xBE])
+        .map_err(|_| ClassParserError::NotAClass)?;
+
+    let pos = pos + (U16_LEN + U16_LEN);
+
+    let (const_pool, pos) = parse_const_pool(data, pos)?;
+
+    let (access_flags, pos) = parse_class_access_flags(data, pos)?;
+    let (this_class, pos) = get_u16(data, pos)?;
+    let (super_class, pos) = get_u16(data, pos)?;
+
+    let (interfaces, pos) = parse_interfaces(data, pos)?;
+    let (fields, pos) = parse_fields(data, pos)?;
+    let (methods, pos) = parse_methods(data, pos)?;
+    let (attributes, pos) = parse_attributes(data, pos)?;
+
+    Ok((
+        Base {
+            const_pool,
+
+            access_flags,
+            this_class,
+            super_class,
+
+            interfaces,
+            fields,
+            methods,
+            attributes,
+        },
+        pos,
+    ))
+}
+
+fn parse_class_access_flags(data: &[u8], pos: usize) -> Result<(Access, usize), ClassParserError> {
+    let (flags, pos) = get_u16(data, pos)?;
+    let mut out = Access::empty();
+
+    if (flags & 0x0001) != 0 {
+        out |= Access::Public;
+    }
+    if (flags & 0x0010) != 0 {
+        out |= Access::Final;
+    }
+    if (flags & 0x0020) != 0 {
+        out |= Access::Super;
+    }
+    if (flags & 0x0200) != 0 {
+        out |= Access::Interface;
+    }
+    if (flags & 0x0400) != 0 {
+        out |= Access::Abstract;
+    }
+
+    Ok((out, pos))
+}
+
+fn parse_fields(data: &[u8], pos: usize) -> Result<(Vec<Field>, usize), ClassParserError> {
+    let (size, pos) = get_u16(data, pos)?;
+    let mut pos = pos;
+    let mut out = Vec::with_capacity(size as usize);
+
+    for _ in 0..size {
+        let (field, npos) = parse_class_field(data, pos)?;
+        pos = npos;
+        out.push(field);
+    }
+
+    Ok((out, pos))
+}
+
+fn parse_class_field(data: &[u8], pos: usize) -> Result<(Field, usize), ClassParserError> {
+    let (access_flags, pos) = parse_field_access_flags(data, pos)?;
+    let (name, pos) = get_u16(data, pos)?;
+    let (descriptor, pos) = get_u16(data, pos)?;
+    let (_, pos) = parse_attributes(data, pos)?;
+    Ok((
+        Field {
+            access_flags,
+            name,
+            descriptor,
+        },
+        pos,
+    ))
+}
+
+fn parse_field_access_flags(data: &[u8], pos: usize) -> Result<(Access, usize), ClassParserError> {
+    let (flags, pos) = get_u16(data, pos)?;
+    let mut out = Access::empty();
+    if (flags & 0x0001) != 0 {
+        out |= Access::Public;
+    }
+    if (flags & 0x0002) != 0 {
+        out |= Access::Private;
+    }
+    if (flags & 0x0004) != 0 {
+        out |= Access::Protected;
+    }
+    if (flags & 0x0008) != 0 {
+        out |= Access::Static;
+    }
+    if (flags & 0x0010) != 0 {
+        out |= Access::Final;
+    }
+    if (flags & 0x0040) != 0 {
+        out |= Access::Volatile;
+    }
+    if (flags & 0x0080) != 0 {
+        out |= Access::Transient;
+    }
+    if (flags & 0x1000) != 0 {
+        out |= Access::Synthetic;
+    }
+
+    Ok((out, pos))
+}
+fn parse_methods(data: &[u8], pos: usize) -> Result<(Vec<Method>, usize), ClassParserError> {
+    let (size, pos) = get_u16(data, pos)?;
+    let mut pos = pos;
+    let mut out = Vec::with_capacity(size as usize);
+
+    for _ in 0..size {
+        let (field, npos) = parse_class_method(data, pos)?;
+        pos = npos;
+        out.push(field);
+    }
+
+    Ok((out, pos))
+}
+fn parse_class_method(data: &[u8], pos: usize) -> Result<(Method, usize), ClassParserError> {
+    let (access_flags, pos) = parse_method_access_flags(data, pos)?;
+    let (name, pos) = get_u16(data, pos)?;
+    let (descriptor, pos) = get_u16(data, pos)?;
+    let (attributes, pos) = parse_attributes(data, pos)?;
+    Ok((
+        Method {
+            access_flags,
+            name,
+            descriptor,
+            attributes,
+        },
+        pos,
+    ))
+}
+
+fn parse_method_access_flags(data: &[u8], pos: usize) -> Result<(Access, usize), ClassParserError> {
+    let (flags, pos) = get_u16(data, pos)?;
+    let mut out = Access::empty();
+    if (flags & 0x0001) != 0 {
+        out |= Access::Public;
+    }
+    if (flags & 0x0002) != 0 {
+        out |= Access::Private;
+    }
+    if (flags & 0x0004) != 0 {
+        out |= Access::Protected;
+    }
+    if (flags & 0x0008) != 0 {
+        out |= Access::Static;
+    }
+    if (flags & 0x0010) != 0 {
+        out |= Access::Final;
+    }
+    if (flags & 0x0400) != 0 {
+        out |= Access::Abstract;
+    }
+
+    Ok((out, pos))
+}
+
+fn parse_attributes(data: &[u8], pos: usize) -> Result<(Vec<Attribute>, usize), ClassParserError> {
+    let (size, pos) = get_u16(data, pos)?;
+    let mut pos = pos;
+    let mut out = Vec::with_capacity(size as usize);
+
+    for _ in 0..size {
+        let (attribute, npos) = parse_attribute(data, pos)?;
+        pos = npos;
+        out.push(attribute);
+    }
+
+    Ok((out, pos))
+}
+fn parse_attribute(data: &[u8], pos: usize) -> Result<(Attribute, usize), ClassParserError> {
+    let (name, pos) = get_u16(data, pos)?;
+    let (length, pos) = get_u32(data, pos)?;
+    let start = pos;
+    let end = pos.saturating_add(length as usize);
+    Ok((Attribute { name, start, end }, end))
+}
+
+fn parse_interfaces(data: &[u8], pos: usize) -> Result<(Vec<u16>, usize), ClassParserError> {
+    let (size, pos) = get_u16(data, pos)?;
+    let mut pos = pos;
+    let mut out = Vec::with_capacity(size as usize);
+
+    for _ in 0..size {
+        let (interface, npos) = get_u16(data, pos)?;
+        pos = npos;
+        out.push(interface);
+    }
+
+    Ok((out, pos))
+}
+
+pub struct ConstPool {
+    pub pool: Vec<ConstEntry>,
+}
+
+fn parse_const_pool(data: &[u8], pos: usize) -> Result<(ConstPool, usize), ClassParserError> {
+    let (size, pos) = get_u16(data, pos)?;
+    let size = size.saturating_sub(1) as usize;
+    let mut pool = Vec::with_capacity(size);
+    let mut pos = pos;
+
+    let mut idx = 0;
+
+    while idx < size {
+        let (n, npos, len) = parse_constant(data, pos)?;
+        pos = npos;
+        pool.push(n);
+
+        if len == 2 {
+            pool.push(ConstEntry::Empty);
+        }
+
+        idx += len;
+    }
+    Ok((ConstPool { pool }, pos))
+}
+
+#[derive(Debug)]
+pub enum ConstEntry {
+    Empty,
+    Utf8(SmolStr),
+    String { name: u16 },
+    Module { name: u16 },
+    Package { name: u16 },
+    Class { name: u16 },
+    MethodRef,
+    NameAndType,
+    InterfaceMethodRef,
+    FieldRef,
+    Dynamic,
+    InvokeDynamic,
+    Float,
+    Double,
+    Integer,
+    Long,
+    MehthodHandle,
+    MethodType,
+    RuntimeString,
+}
+
+/// Returns the constant, next pos, how meany slots the constant takes
+fn parse_constant(data: &[u8], pos: usize) -> Result<(ConstEntry, usize, usize), ClassParserError> {
+    let (kind, pos) = get_u8(data, pos)?;
+
+    match kind {
+        1 => parse_utf8_const(data, pos),
+        3 => Ok(parse_integer_const(pos)),
+        4 => Ok(parse_float_const(pos)),
+        5 => Ok(parse_long_const(pos)),
+        6 => Ok(parse_double_const(pos)),
+        7 => parse_class_const(data, pos),
+        8 => parse_string_const(data, pos),
+        9 => Ok(parse_field_ref_const(pos)),
+        10 => Ok(parse_method_ref_const(pos)),
+        11 => Ok(parse_interface_method_ref_const(pos)),
+        12 => Ok(parse_name_and_type_const(pos)),
+        15 => Ok(parse_method_handle_const(pos)),
+        16 => Ok(parse_method_type_const(pos)),
+        17 => Ok(parse_dynamic_const(pos)),
+        18 => Ok(parse_invoke_dynamic_const(pos)),
+        19 => parse_module_const(data, pos),
+        20 => parse_package_const(data, pos),
+        u => Err(ClassParserError::UnknownConstant(u)),
+    }
+}
+
+fn parse_utf8_const(
+    data: &[u8],
+    pos: usize,
+) -> Result<(ConstEntry, usize, usize), ClassParserError> {
+    let (len, pos) = get_u16(data, pos)?;
+    let len = len as usize;
+    let end = pos + len;
+    let inner = data.get(pos..end).ok_or(ClassParserError::EOF)?;
+    let mu = mutf8::mutf8_to_utf8(inner).map_err(|_| ClassParserError::Mutf8)?;
+    if let Ok(mu) = from_utf8(&mu) {
+        return Ok((ConstEntry::Utf8(SmolStr::new(mu)), end, 1));
+    }
+    Ok((ConstEntry::RuntimeString, end, 1))
+}
+
+fn parse_class_const(
+    data: &[u8],
+    pos: usize,
+) -> Result<(ConstEntry, usize, usize), ClassParserError> {
+    let (name, pos) = get_u16(data, pos)?;
+    Ok((ConstEntry::Class { name }, pos, 1))
+}
+fn parse_string_const(
+    data: &[u8],
+    pos: usize,
+) -> Result<(ConstEntry, usize, usize), ClassParserError> {
+    let (name, pos) = get_u16(data, pos)?;
+    Ok((ConstEntry::String { name }, pos, 1))
+}
+fn parse_module_const(
+    data: &[u8],
+    pos: usize,
+) -> Result<(ConstEntry, usize, usize), ClassParserError> {
+    let (name, pos) = get_u16(data, pos)?;
+    Ok((ConstEntry::Module { name }, pos, 1))
+}
+fn parse_package_const(
+    data: &[u8],
+    pos: usize,
+) -> Result<(ConstEntry, usize, usize), ClassParserError> {
+    let (name, pos) = get_u16(data, pos)?;
+    Ok((ConstEntry::Package { name }, pos, 1))
+}
+const fn parse_field_ref_const(pos: usize) -> (ConstEntry, usize, usize) {
+    // content 2 * u16
+    (ConstEntry::FieldRef, pos + (U16_LEN + U16_LEN), 1)
+}
+
+const fn parse_method_ref_const(pos: usize) -> (ConstEntry, usize, usize) {
+    // content 2 * u16
+    (ConstEntry::MethodRef, pos + (U16_LEN + U16_LEN), 1)
+}
+const fn parse_integer_const(pos: usize) -> (ConstEntry, usize, usize) {
+    // content u32
+    (ConstEntry::Integer, pos + U32_LEN, 1)
+}
+const fn parse_float_const(pos: usize) -> (ConstEntry, usize, usize) {
+    // content u32
+    (ConstEntry::Float, pos + U32_LEN, 1)
+}
+const fn parse_long_const(pos: usize) -> (ConstEntry, usize, usize) {
+    // content u64
+    (ConstEntry::Long, pos + U64_LEN, 2)
+}
+const fn parse_double_const(pos: usize) -> (ConstEntry, usize, usize) {
+    // content u64
+    (ConstEntry::Double, pos + U64_LEN, 2)
+}
+const fn parse_interface_method_ref_const(pos: usize) -> (ConstEntry, usize, usize) {
+    // content 2 * u16
+    (ConstEntry::InterfaceMethodRef, pos + (U16_LEN + U16_LEN), 1)
+}
+const fn parse_name_and_type_const(pos: usize) -> (ConstEntry, usize, usize) {
+    // content 2 * u16
+    (ConstEntry::NameAndType, pos + (U16_LEN + U16_LEN), 1)
+}
+const fn parse_dynamic_const(pos: usize) -> (ConstEntry, usize, usize) {
+    // content 2 * u16
+    (ConstEntry::Dynamic, pos + (U16_LEN + U16_LEN), 1)
+}
+const fn parse_method_handle_const(pos: usize) -> (ConstEntry, usize, usize) {
+    // content 2 * u16
+    (ConstEntry::MehthodHandle, pos + (U8_LEN + U16_LEN), 1)
+}
+const fn parse_method_type_const(pos: usize) -> (ConstEntry, usize, usize) {
+    // content 1 * u16
+    (ConstEntry::MethodType, pos + U16_LEN, 1)
+}
+const fn parse_invoke_dynamic_const(pos: usize) -> (ConstEntry, usize, usize) {
+    // content 2 * u16
+    (ConstEntry::InvokeDynamic, pos + (U16_LEN + U16_LEN), 1)
+}
+
+fn get_u8(data: &[u8], pos: usize) -> Result<(u8, usize), ClassParserError> {
+    let Some(get) = data.get(pos) else {
+        return Err(ClassParserError::EOF);
+    };
+
+    Ok((*get, pos + 1))
+}
+fn get_u16(data: &[u8], pos: usize) -> Result<(u16, usize), ClassParserError> {
+    let next = pos + 2;
+    let items = data.get(pos..next).ok_or(ClassParserError::EOF)?;
+    let get = <[u8; 2]>::try_from(items).map_err(|_| ClassParserError::Number)?;
+    let out = u16::from_be_bytes(get);
+
+    Ok((out, next))
+}
+fn get_u32(data: &[u8], pos: usize) -> Result<(u32, usize), ClassParserError> {
+    let next = pos + 4;
+    let items = data.get(pos..next).ok_or(ClassParserError::EOF)?;
+    let get = <[u8; 4]>::try_from(items).map_err(|_| ClassParserError::Number)?;
+    let out = u32::from_be_bytes(get);
+
+    Ok((out, next))
+}
+
+#[track_caller]
+#[inline]
+fn expect_data(data: &[u8], pos: usize, expected: &[u8]) -> Result<usize, ClassParserError> {
+    let len = expected.len();
+    let Some(get) = data.get(pos..pos + len) else {
+        return Err(ClassParserError::EOF);
+    };
+
+    let cond = get != expected;
+    if cond {
+        return Err(ClassParserError::NotAsExpected { pos, len });
+    }
+    Ok(pos + len)
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::class::{load_class, load_module};
+    use crate::{load_class, load_module, parse_field_type};
     use dto::SourceDestination;
     use expect_test::expect;
     use my_string::smol_str::SmolStr;
@@ -768,7 +1329,7 @@ mod tests {
         use my_string::smol_str::SmolStr;
 
         let result = load_class(
-            include_bytes!("../test/Everything.class"),
+            include_bytes!("../../parser/test/Everything.class"),
             SmolStr::new("ch.emilycares.Everything"),
             SourceDestination::None,
             false,
@@ -778,7 +1339,7 @@ mod tests {
                 class_path: "ch.emilycares.Everything",
                 source: None,
                 access: Access(
-                    0x0,
+                    Public | Super,
                 ),
                 imports: [
                     Package(
@@ -932,7 +1493,7 @@ mod tests {
     #[test]
     fn everything() {
         let result = load_class(
-            include_bytes!("../test/Everything.class"),
+            include_bytes!("../../parser/test/Everything.class"),
             SmolStr::new("ch.emilycares.Everything"),
             SourceDestination::None,
             false,
@@ -943,7 +1504,7 @@ mod tests {
                 class_path: "ch.emilycares.Everything",
                 source: None,
                 access: Access(
-                    0x0,
+                    Public | Super,
                 ),
                 imports: [
                     Package(
@@ -1096,7 +1657,7 @@ mod tests {
     #[test]
     fn super_base() {
         let result = load_class(
-            include_bytes!("../test/Super.class"),
+            include_bytes!("../../parser/test/Super.class"),
             SmolStr::new_inline("ch.emilycares.Super"),
             SourceDestination::None,
             false,
@@ -1107,7 +1668,7 @@ mod tests {
                 class_path: "ch.emilycares.Super",
                 source: None,
                 access: Access(
-                    0x0,
+                    Public | Super,
                 ),
                 imports: [
                     Package(
@@ -1139,7 +1700,7 @@ mod tests {
     #[test]
     fn thrower() {
         let result = load_class(
-            include_bytes!("../test/Thrower.class"),
+            include_bytes!("../../parser/test/Thrower.class"),
             SmolStr::new_inline("ch.emilycares.Thrower"),
             SourceDestination::None,
             false,
@@ -1149,7 +1710,7 @@ mod tests {
                 class_path: "ch.emilycares.Thrower",
                 source: None,
                 access: Access(
-                    0x0,
+                    Public | Super,
                 ),
                 imports: [
                     Package(
@@ -1178,7 +1739,7 @@ mod tests {
                         parameters: [],
                         throws: [
                             Class(
-                                "IOException",
+                                "java.io.IOException",
                             ),
                         ],
                         ret: Void,
@@ -1201,10 +1762,10 @@ mod tests {
                         ],
                         throws: [
                             Class(
-                                "IOException",
+                                "java.io.IOException",
                             ),
                             Class(
-                                "IOException",
+                                "java.io.IOException",
                             ),
                         ],
                         ret: Void,
@@ -1221,7 +1782,7 @@ mod tests {
     #[test]
     fn super_interfaces() {
         let result = load_class(
-            include_bytes!("../test/SuperInterface.class"),
+            include_bytes!("../../parser/test/SuperInterface.class"),
             SmolStr::new("ch.emilycares.SuperInterface"),
             SourceDestination::None,
             false,
@@ -1232,7 +1793,7 @@ mod tests {
                 class_path: "ch.emilycares.SuperInterface",
                 source: None,
                 access: Access(
-                    0x0,
+                    Public | Interface | Abstract,
                 ),
                 imports: [
                     Package(
@@ -1281,7 +1842,7 @@ mod tests {
     #[test]
     fn variables() {
         let result = load_class(
-            include_bytes!("../test/LocalVariableTable.class"),
+            include_bytes!("../../parser/test/LocalVariableTable.class"),
             SmolStr::new("ch.emilycares.LocalVariableTable"),
             SourceDestination::None,
             false,
@@ -1292,7 +1853,7 @@ mod tests {
                 class_path: "ch.emilycares.LocalVariableTable",
                 source: None,
                 access: Access(
-                    0x0,
+                    Public | Super,
                 ),
                 imports: [
                     Package(
@@ -1376,7 +1937,9 @@ mod tests {
 
     #[test]
     fn module_java_desktop() {
-        let result = load_module(include_bytes!("../test/module-info-java-desktop.class"));
+        let result = load_module(include_bytes!(
+            "../../parser/test/module-info-java-desktop.class"
+        ));
         let expected = expect![[r#"
             ModuleInfo {
                 exports: [
@@ -1440,7 +2003,9 @@ mod tests {
 
     #[test]
     fn module_jakarta() {
-        let result = load_module(include_bytes!("../test/module-info-jakarta.class"));
+        let result = load_module(include_bytes!(
+            "../../parser/test/module-info-jakarta.class"
+        ));
         let expected = expect![[r#"
             ModuleInfo {
                 exports: [
@@ -1450,5 +2015,31 @@ mod tests {
             }
         "#]];
         expected.assert_debug_eq(&result.unwrap());
+    }
+
+    #[test]
+    fn jtype_access() {
+        let content = b"Ljava/util/HashMap<LA;LB;>.Factory";
+        let result = parse_field_type(content, 0).unwrap();
+        assert_eq!(content.len(), result.1);
+        let expected = expect![[r#"
+            Access {
+                base: Generic(
+                    "java.util.HashMap",
+                    [
+                        Class(
+                            "A",
+                        ),
+                        Class(
+                            "B",
+                        ),
+                    ],
+                ),
+                inner: Class(
+                    "Factory",
+                ),
+            }
+        "#]];
+        expected.assert_debug_eq(&result.0);
     }
 }

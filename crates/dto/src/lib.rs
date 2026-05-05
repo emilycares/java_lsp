@@ -10,7 +10,7 @@ use my_string::{
 };
 use serde::{Deserialize, Serialize};
 
-pub const CFC_VERSION: usize = 11;
+pub const CFC_VERSION: usize = 12;
 
 #[derive(Debug)]
 pub enum ClassError {
@@ -50,6 +50,10 @@ pub enum ClassParserError {
     NotAsExpected { pos: usize, len: usize },
     NotAClass,
     NameRecursion,
+    Number,
+    UnknownConstant(u8),
+    Mutf8,
+    InvalidUtf8,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]

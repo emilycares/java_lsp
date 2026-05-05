@@ -10,8 +10,11 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 
-[dependencies.parser]
-path = "../crates/parser"
+[dependencies.class]
+path = "../crates/class"
+
+[dependencies.jimage]
+path = "../crates/jimage"
 
 [dependencies.dto]
 path = "../crates/dto"
@@ -25,6 +28,13 @@ path = "../crates/my_string"
 [[bin]]
 name = "parser_class"
 path = "fuzz_targets/parser_class.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "parser_jimage"
+path = "fuzz_targets/parser_jimage.rs"
 test = false
 doc = false
 bench = false

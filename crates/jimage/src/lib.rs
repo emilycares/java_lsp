@@ -9,9 +9,10 @@
 //!
 //! copied/modified from <https://openjdk.org/index.html>
 
-pub mod mutf8;
 pub mod types;
 mod util;
+use class::{ModuleInfo, load_class, load_module};
+use mutf8::mutf8_to_utf8;
 
 use std::{
     path::{MAIN_SEPARATOR, Path, PathBuf},
@@ -23,12 +24,10 @@ use my_string::{
     MyString,
     smol_str::{StrExt, ToSmolStr, format_smolstr},
 };
-use parser::class::{ModuleInfo, load_class, load_module};
 
 use crate::{
-    mutf8::{get_string_len, mutf8_to_utf8},
     types::{JimageError, JimageHeader, JimageLocation, ModuleList},
-    util::{JResult, expect_data, get_u16, get_u32},
+    util::{JResult, expect_data, get_string_len, get_u16, get_u32},
 };
 
 #[must_use]
@@ -137,8 +136,8 @@ fn load_module_info(
                 Ok(c) => {
                     rules.push((location.module, c));
                 }
-                Err(_) => {
-                    return Err(JimageError::Module);
+                Err(e) => {
+                    return Err(JimageError::Module(e));
                 }
             }
         } else {
@@ -150,8 +149,8 @@ fn load_module_info(
                     Ok(c) => {
                         rules.push((location.module, c));
                     }
-                    Err(_) => {
-                        return Err(JimageError::Module);
+                    Err(e) => {
+                        return Err(JimageError::Module(e));
                     }
                 }
             }
@@ -170,8 +169,8 @@ fn get_content_bytes<'a>(
     }
 
     debug_assert!(location.compressed == 0);
-    let start = location.offset + index_size;
-    data.get(start..start + location.uncompressed)
+    let start = location.offset.saturating_add(index_size);
+    data.get(start..start.saturating_add(location.uncompressed))
         .ok_or(JimageError::DataNotFound)
 }
 

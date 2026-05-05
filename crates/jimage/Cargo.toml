@@ -11,6 +11,7 @@ license.workspace = true
 
 [dependencies]
 dto.workspace = true
-parser.workspace = true
+class.workspace = true
 my_string.workspace = true
+mutf8.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }

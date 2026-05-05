@@ -83,6 +83,8 @@
             fileset = lib.fileset.unions [
               ./Cargo.toml
               ./Cargo.lock
+              (craneLib.fileset.commonCargoSources ./crates/mutf8)
+              (craneLib.fileset.commonCargoSources ./crates/class)
               (craneLib.fileset.commonCargoSources ./crates/dto)
               (craneLib.fileset.commonCargoSources ./crates/jimage)
               (craneLib.fileset.commonCargoSources ./crates/ast)

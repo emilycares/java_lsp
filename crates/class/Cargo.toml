@@ -1,6 +1,6 @@
 [package]
-name = "parser"
-version = "0.1.0"
+name = "class"
+version.workspace = true
 edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
@@ -8,12 +8,11 @@ repository.workspace = true
 documentation.workspace = true
 readme.workspace = true
 license.workspace = true
-publish = false
 
 [dependencies]
-ast.workspace = true
-my_string.workspace = true
 dto.workspace = true
+mutf8.workspace = true
+my_string.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]

@@ -2,6 +2,20 @@ use crate::types::JimageError;
 
 pub type JResult<T> = Result<(usize, T), JimageError>;
 
+pub fn get_string_len(data: &[u8], pos: usize) -> JResult<usize> {
+    let mut pos = pos;
+    while pos < data.len() {
+        let ch = data.get(pos).ok_or(JimageError::EOF)?;
+        let ch = *ch;
+        pos += 1;
+
+        if ch == 0 {
+            return Ok((pos, pos - 1));
+        }
+    }
+    Err(JimageError::StringLength)
+}
+
 #[track_caller]
 #[inline]
 pub fn expect_data(data: &[u8], pos: usize, expected: &[u8]) -> Result<usize, JimageError> {
@@ -27,14 +41,16 @@ pub fn get_u8(data: &[u8], pos: usize) -> JResult<u8> {
 }
 pub fn get_u16(data: &[u8], pos: usize) -> JResult<u16> {
     let next = pos + 2;
-    let get = <[u8; 2]>::try_from(&data[pos..next]).map_err(JimageError::Number)?;
+    let items = data.get(pos..next).ok_or(JimageError::EOF)?;
+    let get = <[u8; 2]>::try_from(items).map_err(JimageError::Number)?;
     let out = u16::from_le_bytes(get);
 
     Ok((next, out))
 }
 pub fn get_u32(data: &[u8], pos: usize) -> JResult<u32> {
     let next = pos + 4;
-    let get = <[u8; 4]>::try_from(&data[pos..next]).map_err(JimageError::Number)?;
+    let items = data.get(pos..next).ok_or(JimageError::EOF)?;
+    let get = <[u8; 4]>::try_from(items).map_err(JimageError::Number)?;
     let out = u32::from_le_bytes(get);
 
     Ok((next, out))
@@ -42,7 +58,8 @@ pub fn get_u32(data: &[u8], pos: usize) -> JResult<u32> {
 #[allow(unused)]
 pub fn get_i32(data: &[u8], pos: usize) -> JResult<i32> {
     let next = pos + 4;
-    let get = <[u8; 4]>::try_from(&data[pos..next]).map_err(JimageError::Number)?;
+    let items = data.get(pos..next).ok_or(JimageError::EOF)?;
+    let get = <[u8; 4]>::try_from(items).map_err(JimageError::Number)?;
     let out = i32::from_le_bytes(get);
 
     Ok((next, out))
@@ -50,7 +67,8 @@ pub fn get_i32(data: &[u8], pos: usize) -> JResult<i32> {
 #[allow(unused)]
 pub fn get_u64(data: &[u8], pos: usize) -> JResult<u64> {
     let next = pos + 8;
-    let get = <[u8; 8]>::try_from(&data[pos..next]).map_err(JimageError::Number)?;
+    let items = data.get(pos..next).ok_or(JimageError::EOF)?;
+    let get = <[u8; 8]>::try_from(items).map_err(JimageError::Number)?;
     let out = u64::from_le_bytes(get);
 
     Ok((next, out))

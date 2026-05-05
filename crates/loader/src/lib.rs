@@ -11,15 +11,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use class::{ModuleInfo, load_class, load_module};
 use dto::{CFC_VERSION, Class, ClassError, ClassFolder, ClassParserError, SourceDestination};
 use my_string::{
     MyString,
     smol_str::{SmolStr, ToSmolStr},
 };
-use parser::{
-    class::{ModuleInfo, load_class, load_module},
-    java::{self, ParseJavaError},
-};
+use parser::java::{self, ParseJavaError};
 use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
 use std::fmt::Debug;
 use tokio::fs::read;
@@ -35,7 +33,7 @@ pub enum LoaderError {
     },
     InvalidCfcCache,
     EmptyClassFolder,
-    Module,
+    Module(ClassParserError),
     Class {
         re: SmolStr,
         e: ClassError,
@@ -72,7 +70,7 @@ where
     #[cfg(unix)]
     mmap.advise(memmap2::Advice::Sequential)
         .map_err(ClassError::IO)?;
-    parser::class::load_class(&mmap, class_path, source, filter).map_err(ClassError::ClassParser)
+    class::load_class(&mmap, class_path, source, filter).map_err(ClassError::ClassParser)
 }
 
 pub fn save_class_folder<P: AsRef<Path> + Debug>(
@@ -97,7 +95,6 @@ pub fn save_class_folder<P: AsRef<Path> + Debug>(
 
 pub fn load_class_folder<P: AsRef<Path> + Debug>(path: P) -> Result<ClassFolder, LoaderError> {
     if DEBUGGING {
-        eprintln!("Ignoring cfc cache DEBUGGING: {path:?}");
         return Err(LoaderError::InvalidCfcCache);
     }
     let file = File::open(&path).map_err(LoaderError::IO)?;
@@ -242,8 +239,8 @@ pub fn load_class_files(
                 Ok(c) => {
                     rules.push((prefix.to_string(), c));
                 }
-                Err(_) => {
-                    return Err(LoaderError::Module);
+                Err(e) => {
+                    return Err(LoaderError::Module(e));
                 }
             }
         }
@@ -341,8 +338,8 @@ async fn base_load_classes_zip(
                 Ok(c) => {
                     rules.push((prefix.to_string(), c));
                 }
-                Err(_) => {
-                    return Err(LoaderError::Module);
+                Err(e) => {
+                    return Err(LoaderError::Module(e));
                 }
             }
         }
