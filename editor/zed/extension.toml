@@ -1,0 +1,15 @@
+id = "java_lsp_zed"
+name = "java_lsp_zed"
+version = "0.1.0"
+schema_version = 1
+authors = ["Emily Meier <emilydoescare@gmail.com>"]
+description = "Java support. Using https://github.com/emilycares/java_lsp"
+repository = "https://github.com/emilycares/java_lsp"
+
+[grammars.java]
+repository = "https://github.com/tree-sitter/tree-sitter-java"
+commit = "94703d5a6bed02b98e438d7cad1136c01a60ba2c"
+
+[language_servers.java_lsp]
+name = "java_lsp"
+language = "Java"

@@ -46,7 +46,10 @@ members = [
     "crates/class",
     "crates/mutf8",
 ]
-exclude = ["fuzz"]
+exclude = [
+    "editor/zed",
+    "fuzz"
+]
 resolver = "3"
 
 [profile.dev]
