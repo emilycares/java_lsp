@@ -9,6 +9,8 @@ git clone https://github.com/emilycares/java_lsp
 cd java_lsp
 cargo build --release
 ```
+# Editor support
+Look in editor directory
 
 # Code copied/modified from other projects
  - class from https://github.com/Palmr/classfile-parser
