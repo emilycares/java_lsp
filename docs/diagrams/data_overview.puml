@@ -1,0 +1,50 @@
+@startuml
+
+state Code
+Code : Bytes of java source file
+state Vec_Tokens
+state Vec_Tokens_with_comments
+state Ast
+Ast : Fully typed syntax tree
+state Class
+Class : Simple sturcture to describe all methods and fields
+
+state ClassFile
+ClassFile : Binarly file produced by javac
+
+state FormatterInput <<join>>
+state DocumentInput <<join>>
+
+state Document
+Document : Data for open file
+state document_map
+document_map : Stored in Backend in crates/server
+
+class_map : Stored in Backend in crates/server
+class_map : HashMap<String, Class> where String is classPath
+
+
+Code --> Vec_Tokens : crates/lexer
+Code --> Vec_Tokens_with_comments: crates/lexer
+
+Vec_Tokens_with_comments --> FormatterInput
+Ast --> FormatterInput
+
+FormatterInput --> Code : crates/formatter
+
+Vec_Tokens --> Ast : crates/ast
+
+Ast --> Class : crates/parser
+
+ClassFile ---> Class : crates/class
+
+Class --> class_map : crates/server
+
+Code --> DocumentInput
+Ast --> DocumentInput
+DocumentInput --> Document : crates/document
+
+Document --> document_map : crates/server
+
+@enduml
+
