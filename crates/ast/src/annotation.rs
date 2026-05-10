@@ -82,7 +82,7 @@ pub fn parse_annotation_field(
 ) -> Result<(AstAnnotationField, usize), AstError> {
     let start = tokens.get(pos).ok_or_else(AstError::eof)?;
     let mut availability = AstAvailability::empty();
-    let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
+    let mut annotated = Vec::new();
     let mut pos = pos;
     loop {
         let t = tokens.get(pos).ok_or_else(AstError::eof)?;

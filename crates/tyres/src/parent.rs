@@ -3,13 +3,22 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use dto::{Access, Class, ImportUnit, SuperClass};
-use my_string::{MyString, smol_str::format_smolstr};
+use dto::{Access, Class, ImportUnit, JType, SuperClass};
+use my_string::{
+    MyString,
+    smol_str::{SmolStr, format_smolstr},
+};
 
 use crate::{ImportResult, is_imported};
 
-pub fn include_parent(class: Class, class_map: &Arc<Mutex<HashMap<MyString, Class>>>) -> Class {
+pub fn include_parent(
+    class: Class,
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    args: &[JType],
+) -> Class {
     let mut s: Vec<Class> = vec![];
+
+    let mut class = class;
 
     populate_super_class(&class, class_map, &mut s);
     populate_super_interfaces(&class, class_map, &mut s);
@@ -31,7 +40,42 @@ pub fn include_parent(class: Class, class_map: &Arc<Mutex<HashMap<MyString, Clas
         return overlay_class(class, &b);
     }
 
+    if let Some(sig) = &class.signature {
+        let class_signature: Vec<_> = sig.args.iter().enumerate().collect();
+        for m in &mut class.methods {
+            replace_generic_jtype(&mut m.ret, &class_signature, args);
+            for arg in &mut m.parameters {
+                replace_generic_jtype(&mut arg.jtype, &class_signature, args);
+            }
+        }
+
+        for f in &mut class.fields {
+            replace_generic_jtype(&mut f.jtype, &class_signature, args);
+        }
+    }
+
     class
+}
+
+fn replace_generic_jtype(jtype: &mut JType, class_signature: &[(usize, &SmolStr)], args: &[JType]) {
+    match jtype {
+        JType::Array(jtype) => replace_generic_jtype(jtype, class_signature, args),
+        JType::Generic(_, jtypes) => {
+            for g in jtypes {
+                replace_generic_jtype(g, class_signature, args);
+            }
+        }
+        JType::Parameter(p) => {
+            if let Some((i, _)) = class_signature.iter().find(|i| p.eq(&i.1))
+                && let Some(r) = args.get(*i)
+            {
+                r.clone_into(jtype);
+            } else {
+                *jtype = JType::Parameter(p.clone());
+            }
+        }
+        _ => (),
+    }
 }
 
 pub fn populate_super_class(

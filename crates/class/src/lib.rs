@@ -8,7 +8,8 @@
 use std::str::from_utf8;
 
 use dto::{
-    Access, Class, ClassParserError, ImportUnit, JType, Parameter, SourceDestination, SuperClass,
+    Access, Class, ClassParserError, ClassSignature, ImportUnit, JType, Parameter,
+    SourceDestination, SuperClass,
 };
 use my_string::{
     MyString,
@@ -38,6 +39,7 @@ pub fn load_class(
     let mut methods = Vec::new();
     let mut fields = Vec::new();
     let mut deprecated = false;
+    let mut class_signature = None;
 
     for a in &c.attributes {
         if a.name == 0 {
@@ -45,15 +47,13 @@ pub fn load_class(
         }
         let attribute_name = lookup_string(&c, a.name)?;
 
-        // if attribute_name == "Signature" {
-        //     let (_, sig) = classfile_parser::attribute_info::signature_attribute_parser(&a.info)
-        //         .map_err(|_| ClassParserError::SignatureAttribute)?;
-        //     let sig = lookup_string(&c, sig.signature_index)?;
-        //     let (_, sig) = parse_class_signature_info(&sig)?;
-        //     dbg!(sig);
-        //     continue;
-        // }
-        if attribute_name == "Code" {
+        if attribute_name == "Signature" {
+            let info = a.lookup(data)?;
+            let (sig, _) = get_u16(info, 0)?;
+            let sig = lookup_string(&c, sig)?;
+            let (sig, _) = parse_class_signature_info(sig)?;
+            class_signature = Some(sig);
+        } else if attribute_name == "Code" {
             let info = a.lookup(data)?;
             let (out, _) = parse_code_attribute(info, 0, a.start, a.end)?;
             used_classes.extend(parse_used_classes(&c, data, &out)?);
@@ -63,10 +63,7 @@ pub fn load_class(
     }
 
     for m in &c.methods {
-        if filter
-            && m.access_flags
-                .intersects(Access::Public | Access::Protected)
-        {
+        if filter && m.access_flags.intersects(Access::Protected) {
             continue;
         }
         let method = parse_method(&c, data, m);
@@ -135,6 +132,8 @@ pub fn load_class(
         }
     }
 
+    imports.dedup();
+
     Ok(Class {
         source,
         class_path,
@@ -142,6 +141,7 @@ pub fn load_class(
         super_class,
         imports,
         access: parse_class_access(c.access_flags, deprecated),
+        signature: class_signature,
         name,
         methods,
         fields,
@@ -410,14 +410,7 @@ fn parse_method_signature_info(sig: &str) -> Result<(MethodSignature, usize), Cl
     let (ret, pos) = parse_field_type(content, pos)?;
     Ok((MethodSignature { args, params, ret }, pos))
 }
-#[derive(Debug)]
-#[allow(dead_code)]
-struct ClassSignature {
-    pub args: Vec<MyString>,
-    pub ret: JType,
-}
-#[allow(dead_code)]
-fn parse_class_signature_info(sig: &MyString) -> Result<(ClassSignature, usize), ClassParserError> {
+fn parse_class_signature_info(sig: &str) -> Result<(ClassSignature, usize), ClassParserError> {
     let content = sig.as_bytes();
     let mut pos = 0;
     let mut args = Vec::new();
@@ -956,6 +949,9 @@ fn parse_class_access_flags(data: &[u8], pos: usize) -> Result<(Access, usize), 
     if (flags & 0x0400) != 0 {
         out |= Access::Abstract;
     }
+    if (flags & 0x4000) != 0 {
+        out |= Access::Enum;
+    }
 
     Ok((out, pos))
 }
@@ -1015,6 +1011,9 @@ fn parse_field_access_flags(data: &[u8], pos: usize) -> Result<(Access, usize), 
     }
     if (flags & 0x1000) != 0 {
         out |= Access::Synthetic;
+    }
+    if (flags & 0x4000) != 0 {
+        out |= Access::Enum;
     }
 
     Ok((out, pos))
@@ -1321,6 +1320,22 @@ mod tests {
     use dto::SourceDestination;
     use expect_test::expect;
     use my_string::smol_str::SmolStr;
+    // #[test]
+    // fn a() {
+    //     use expect_test::expect;
+    //     use my_string::smol_str::SmolStr;
+    //
+    //     let result = load_class(
+    //         include_bytes!(
+    //             ""
+    //         ),
+    //         SmolStr::new("ch.emilycares.Everything"),
+    //         SourceDestination::None,
+    //         false,
+    //     );
+    //     let expected = expect![[""]];
+    //     expected.assert_debug_eq(&result.unwrap());
+    // }
 
     #[cfg(not(windows))]
     #[test]
@@ -1346,6 +1361,7 @@ mod tests {
                         "ch.emilycares",
                     ),
                 ],
+                signature: None,
                 name: "Everything",
                 methods: [
                     Method {
@@ -1511,6 +1527,7 @@ mod tests {
                         "ch.emilycares",
                     ),
                 ],
+                signature: None,
                 name: "Everything",
                 methods: [
                     Method {
@@ -1675,6 +1692,7 @@ mod tests {
                         "ch.emilycares",
                     ),
                 ],
+                signature: None,
                 name: "Super",
                 methods: [
                     Method {
@@ -1717,6 +1735,7 @@ mod tests {
                         "ch.emilycares",
                     ),
                 ],
+                signature: None,
                 name: "Thrower",
                 methods: [
                     Method {
@@ -1803,6 +1822,16 @@ mod tests {
                         "java.util.stream.Stream",
                     ),
                 ],
+                signature: Some(
+                    ClassSignature {
+                        args: [
+                            "E",
+                        ],
+                        ret: Class(
+                            "java.lang.Object",
+                        ),
+                    },
+                ),
                 name: "SuperInterface",
                 methods: [
                     Method {
@@ -1866,6 +1895,7 @@ mod tests {
                         "java.util.HashSet",
                     ),
                 ],
+                signature: None,
                 name: "LocalVariableTable",
                 methods: [
                     Method {
@@ -1929,6 +1959,208 @@ mod tests {
                     },
                 ],
                 super_class: None,
+                super_interfaces: [],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
+    }
+    #[test]
+    fn variants() {
+        let result = load_class(
+            include_bytes!("../../parser/test/Variants.class"),
+            SmolStr::new("ch.emilycares.Variants"),
+            SourceDestination::None,
+            false,
+        );
+
+        let expected = expect![[r#"
+            Class {
+                class_path: "ch.emilycares.Variants",
+                source: None,
+                access: Access(
+                    Public | Final | Super | Enum,
+                ),
+                imports: [
+                    Package(
+                        "ch.emilycares",
+                    ),
+                    Class(
+                        "java.lang.String",
+                    ),
+                ],
+                signature: Some(
+                    ClassSignature {
+                        args: [],
+                        ret: Generic(
+                            "java.lang.Enum",
+                            [
+                                Class(
+                                    "ch.emilycares.Variants",
+                                ),
+                            ],
+                        ),
+                    },
+                ),
+                name: "Variants",
+                methods: [
+                    Method {
+                        access: Access(
+                            Public | Static,
+                        ),
+                        name: Some(
+                            "values",
+                        ),
+                        parameters: [],
+                        throws: [],
+                        ret: Array(
+                            Class(
+                                "ch.emilycares.Variants",
+                            ),
+                        ),
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Public | Static,
+                        ),
+                        name: Some(
+                            "valueOf",
+                        ),
+                        parameters: [
+                            Parameter {
+                                name: Some(
+                                    "name",
+                                ),
+                                jtype: Class(
+                                    "java.lang.String",
+                                ),
+                            },
+                        ],
+                        throws: [],
+                        ret: Class(
+                            "ch.emilycares.Variants",
+                        ),
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Private,
+                        ),
+                        name: None,
+                        parameters: [
+                            Parameter {
+                                name: Some(
+                                    "$enum$name",
+                                ),
+                                jtype: Class(
+                                    "java.lang.String",
+                                ),
+                            },
+                        ],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: Some(
+                            "getTag",
+                        ),
+                        parameters: [],
+                        throws: [],
+                        ret: Class(
+                            "java.lang.String",
+                        ),
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Private | Static,
+                        ),
+                        name: Some(
+                            "$values",
+                        ),
+                        parameters: [],
+                        throws: [],
+                        ret: Array(
+                            Class(
+                                "ch.emilycares.Variants",
+                            ),
+                        ),
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Static,
+                        ),
+                        name: Some(
+                            "<clinit>",
+                        ),
+                        parameters: [],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                ],
+                fields: [
+                    Field {
+                        access: Access(
+                            Public | Static | Final | Enum,
+                        ),
+                        name: "A",
+                        jtype: Class(
+                            "ch.emilycares.Variants",
+                        ),
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public | Static | Final | Enum,
+                        ),
+                        name: "B",
+                        jtype: Class(
+                            "ch.emilycares.Variants",
+                        ),
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public | Static | Final | Enum,
+                        ),
+                        name: "C",
+                        jtype: Class(
+                            "ch.emilycares.Variants",
+                        ),
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Private | Final,
+                        ),
+                        name: "tag",
+                        jtype: Class(
+                            "java.lang.String",
+                        ),
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Private | Static | Final | Synthetic,
+                        ),
+                        name: "$VALUES",
+                        jtype: Array(
+                            Class(
+                                "ch.emilycares.Variants",
+                            ),
+                        ),
+                        source: None,
+                    },
+                ],
+                super_class: ClassPath(
+                    "java.lang.Enum",
+                ),
                 super_interfaces: [],
             }
         "#]];

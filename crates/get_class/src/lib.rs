@@ -11,8 +11,8 @@ use ast::{
         AstEnumeration, AstExpressionIdentifier, AstExpressionKind, AstExpressionOrAnnotated,
         AstExpressionOrDefault, AstExpressionOrValue, AstFile, AstForContent, AstIf, AstIfContent,
         AstImportUnit, AstJType, AstJTypeKind, AstLambdaRhs, AstNewRhs, AstPoint, AstRange,
-        AstSuperClass, AstSwitchCaseArrowContent, AstThing, AstTypeParameter, AstTypeParameters,
-        AstValuesWithAnnotated, AstWhileContent,
+        AstSuperClass, AstSwitchCaseArrowContent, AstThing, AstTopLevel, AstTypeParameter,
+        AstTypeParameters, AstValuesWithAnnotated, AstWhileContent,
     },
 };
 use my_string::MyString;
@@ -24,40 +24,39 @@ pub struct FoundClass {
 /// Get class name under cursor
 #[must_use]
 pub fn get_class(ast: &AstFile, point: &AstPoint) -> Option<FoundClass> {
-    if let Some(imports) = &ast.imports
-        && imports.range.is_in_range(point)
-    {
-        for im in &imports.imports {
-            if !im.range.is_in_range(point) {
-                continue;
-            }
-            match &im.unit {
-                AstImportUnit::StaticClass(ast_identifier)
-                | AstImportUnit::StaticPrefix(ast_identifier)
-                | AstImportUnit::Class(ast_identifier) => {
-                    return Some(FoundClass {
-                        name: ast_identifier.value.clone(),
-                        range: ast_identifier.range,
-                    });
+    for t in &ast.top {
+        match t {
+            AstTopLevel::Import(ast_import) => {
+                if ast_import.range.is_in_range(point) {
+                    match &ast_import.unit {
+                        AstImportUnit::StaticClass(ast_identifier)
+                        | AstImportUnit::StaticPrefix(ast_identifier)
+                        | AstImportUnit::Class(ast_identifier) => {
+                            return Some(FoundClass {
+                                name: ast_identifier.value.clone(),
+                                range: ast_identifier.range,
+                            });
+                        }
+                        AstImportUnit::StaticClassMethod(class, _)
+                            if class.range.is_in_range(point) =>
+                        {
+                            return Some(FoundClass {
+                                name: class.value.clone(),
+                                range: class.range,
+                            });
+                        }
+                        AstImportUnit::StaticClassMethod(_, _) | AstImportUnit::Prefix(_) => (),
+                    }
                 }
-                AstImportUnit::StaticClassMethod(class, _) if class.range.is_in_range(point) => {
-                    return Some(FoundClass {
-                        name: class.value.clone(),
-                        range: class.range,
-                    });
-                }
-                AstImportUnit::StaticClassMethod(_, _) | AstImportUnit::Prefix(_) => (),
             }
-        }
-    }
-    things(&ast.things, point)
-}
-fn things(things: &[AstThing], point: &AstPoint) -> Option<FoundClass> {
-    for th in things {
-        if th.is_in_range(point)
-            && let Some(t) = thing(th, point)
-        {
-            return Some(t);
+            AstTopLevel::Thing(ast_thing) => {
+                if ast_thing.is_in_range(point)
+                    && let Some(t) = thing(ast_thing, point)
+                {
+                    return Some(t);
+                }
+            }
+            AstTopLevel::Package(_) | AstTopLevel::Module(_) => (),
         }
     }
     None

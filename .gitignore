@@ -11,3 +11,4 @@ bench/target
 result
 .vs
 **/target
+crates/ast/test/FullOffComments.class

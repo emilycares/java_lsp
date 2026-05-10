@@ -6,12 +6,11 @@ use std::{
 use ast::types::{AstFile, AstPoint};
 use call_chain::{self, CallItem};
 use document::get_class_path;
-use dto::{Access, Class, Field, ImportUnit, JType, Method, SourceDestination};
+use dto::{Access, Class, Field, ImportUnit, JType, Method};
 use local_variable::{LocalVariable, VarFlags};
 use lsp_extra::{ToLspRangeError, to_lsp_range};
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
 use my_string::MyString;
-use parser::java::load_java_tree;
 use tyres::TyresError;
 
 #[allow(dead_code)]
@@ -58,7 +57,7 @@ pub fn base(
 
     let call_chain = call_chain::get_call_chain(ast, point);
 
-    call_chain_hover(ast, &call_chain, point, lo_va, imports, &class, class_map)
+    call_chain_hover(&call_chain, point, lo_va, imports, &class, class_map)
 }
 
 #[allow(dead_code)]
@@ -92,7 +91,6 @@ pub fn class_action(
 }
 
 pub fn call_chain_hover(
-    ast: &AstFile,
     call_chain: &[CallItem],
     point: &AstPoint,
     lo_va: &[LocalVariable],
@@ -147,14 +145,11 @@ pub fn call_chain_hover(
             Ok(class_to_hover(&resolve_state.class, range))
         }
         CallItem::ClassOrVariable { name, range } => {
-            let vars = lo_va.iter().any(|v| v.name == *name);
             let range = to_lsp_range(range).map_err(HoverError::ToLspRange)?;
-            if !vars {
-                return Ok(class_to_hover(&resolve_state.class, range));
+            if let Some(var) = lo_va.iter().find(|v| &v.name == name) {
+                return Ok(variables_to_hover(&[var], range));
             }
-
-            let local_class = load_java_tree(ast, SourceDestination::None);
-            Ok(class_to_hover(&local_class, range))
+            Ok(class_to_hover(&resolve_state.class, range))
         }
         CallItem::ArgumentList {
             prev: _,
@@ -166,7 +161,6 @@ pub fn call_chain_hover(
                 && let Some(current_param) = filled_params.get(*active_param)
             {
                 return call_chain_hover(
-                    ast,
                     current_param,
                     point,
                     lo_va,
@@ -405,6 +399,7 @@ public class Test {
                         Public,
                     ),
                     imports: [],
+                    signature: None,
                     name: "String",
                     methods: [
                         Method {
@@ -463,6 +458,7 @@ public class Test {
                         Public,
                     ),
                     imports: [],
+                    signature: None,
                     name: "String",
                     methods: [
                         Method {
@@ -527,16 +523,8 @@ public class Test {
         .unwrap();
 
         let chain = call_chain::get_call_chain(&doc.ast, &point);
-        let out = call_chain_hover(
-            &doc.ast,
-            &chain,
-            &point,
-            &vars,
-            &[],
-            &class,
-            &string_class_map(),
-        )
-        .unwrap();
+        let out =
+            call_chain_hover(&chain, &point, &vars, &[], &class, &string_class_map()).unwrap();
         let expected = expect![[r#"
             Hover {
                 contents: Markup(

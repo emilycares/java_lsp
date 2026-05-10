@@ -145,9 +145,9 @@ pub fn parse_interface_constant(
     pos: usize,
 ) -> Result<(Vec<AstInterfaceConstant>, usize), AstError> {
     let start = tokens.start(pos)?;
-    let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
     let mut availability = AstAvailability::empty();
     let mut pos = pos;
+    let mut annotated = Vec::new();
     loop {
         let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
@@ -261,9 +261,9 @@ pub fn parse_interface_method_impl(
     pos: usize,
 ) -> Result<(AstInterfaceMethodDefault, usize), AstError> {
     let start = tokens.start(pos)?;
-    let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
     let mut availability = AstAvailability::empty();
     let mut pos = pos;
+    let mut annotated = Vec::new();
     loop {
         let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {

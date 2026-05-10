@@ -95,6 +95,7 @@ loader = { path = "crates/loader"}
 my_string = { path = "crates/my_string"}
 lsp_extra = { path = "crates/lsp_extra"}
 local_variable = { path = "crates/local_variable"}
+expect-test = { path = "crates/expect-test"}
 
 # Rest
 bitflags = { version = "2.11.1", features = ["serde"] }
@@ -112,7 +113,6 @@ rc-zip-tokio = "4.3.1"
 dirs = "6.0.0"
 phf = { version = "0.13.1", features = ["macros"] }
 rayon = "1.11.0"
-expect-test = "1.5.1"
 memmap2 = "0.9.9"
 memchr = "2.7.6"
 sha1_smol = "1.0.1"

@@ -13,19 +13,21 @@ use enumeration::parse_enumeration;
 use error::{AstError, ExpectedToken, InvalidToken, assert_semicolon, assert_token};
 use interface::parse_interface;
 use lexer::{PositionToken, Token};
-use my_string::smol_str::{SmolStr, SmolStrBuilder, ToSmolStr, format_smolstr};
+use my_string::smol_str::ToSmolStr;
+use my_string::smol_str::{SmolStr, SmolStrBuilder, format_smolstr};
 use types::{
     AstAnnotated, AstAvailability, AstBaseExpression, AstBlock, AstBlockAssign, AstBlockBreak,
     AstBlockContinue, AstBlockEntry, AstBlockExpression, AstBlockReturn, AstBlockVariable,
     AstBlockVariableMultiType, AstBoolean, AstCastedExpression, AstDouble, AstExpression,
     AstExpressionIdentifier, AstExpressionOperator, AstExtends, AstFile, AstFor, AstForEnhanced,
-    AstIdentifier, AstIf, AstIfContent, AstImport, AstImportUnit, AstImports, AstInt, AstJType,
-    AstJTypeKind, AstLambda, AstLambdaParameters, AstMethodHeader, AstMethodParameter,
-    AstMethodParameters, AstNewClass, AstPoint, AstRange, AstSuperClass, AstSwitch, AstSwitchCase,
-    AstThing, AstThrow, AstThrowsDeclaration, AstTryCatch, AstTryCatchCase, AstTypeParameters,
-    AstValue, AstValueNuget, AstValues, AstWhile,
+    AstIdentifier, AstIf, AstIfContent, AstImport, AstImportUnit, AstInt, AstJType, AstJTypeKind,
+    AstLambda, AstLambdaParameters, AstMethodHeader, AstMethodParameter, AstMethodParameters,
+    AstNewClass, AstPoint, AstRange, AstSuperClass, AstSwitch, AstSwitchCase, AstThing, AstThrow,
+    AstThrowsDeclaration, AstTryCatch, AstTryCatchCase, AstTypeParameters, AstValue, AstValueNuget,
+    AstValues, AstWhile,
 };
 
+use crate::types::AstTopLevel;
 use crate::{
     class::parse_class_block,
     error::{GetStartEnd, assert_semicolon_options},
@@ -57,18 +59,7 @@ pub mod types;
 ///` package ch.emilycares; import .... public class ...`
 pub fn parse_file(tokens: &[PositionToken]) -> Result<AstFile, AstError> {
     let mut pos = 0;
-    let mut package = None;
-    if let Ok((p, npos)) = parse_package(tokens, pos) {
-        package = Some(p);
-        pos = npos;
-    }
-    let mut imports = None;
-    if let Ok((imp, npos)) = parse_imports(tokens, pos) {
-        imports = Some(imp);
-        pos = npos;
-    }
-    let mut things = vec![];
-    let mut modules = vec![];
+    let mut top = Vec::new();
     let mut errors = vec![];
     while tokens.get(pos).is_some() {
         errors.clear();
@@ -81,10 +72,30 @@ pub fn parse_file(tokens: &[PositionToken]) -> Result<AstFile, AstError> {
                 errors.push((SmolStr::new_inline("semicolon"), e));
             }
         }
+        match parse_package(tokens, pos) {
+            Ok((package, npos)) => {
+                pos = npos;
+                top.push(AstTopLevel::Package(package));
+                continue;
+            }
+            Err(e) => {
+                errors.push((SmolStr::new_inline("package"), e));
+            }
+        }
+        match parse_import(tokens, pos) {
+            Ok((import, npos)) => {
+                pos = npos;
+                top.push(AstTopLevel::Import(import));
+                continue;
+            }
+            Err(e) => {
+                errors.push((SmolStr::new_inline("import"), e));
+            }
+        }
         match parse_thing(tokens, pos) {
             Ok((thing, npos)) => {
                 pos = npos;
-                things.push(thing);
+                top.push(AstTopLevel::Thing(Box::new(thing)));
                 continue;
             }
             Err(e) => {
@@ -94,32 +105,38 @@ pub fn parse_file(tokens: &[PositionToken]) -> Result<AstFile, AstError> {
         match parse_module(tokens, pos) {
             Ok((module, npos)) => {
                 pos = npos;
-                modules.push(module);
+                top.push(AstTopLevel::Module(module));
                 continue;
             }
             Err(e) => {
                 errors.push((SmolStr::new_inline("module"), e));
             }
         }
-
         return Err(AstError::AllChildrenFailed {
             parent: SmolStr::new_inline("file"),
             errors,
         });
     }
 
-    Ok(AstFile {
-        package,
-        imports,
-        things,
-        modules,
-    })
+    Ok(AstFile { top })
 }
 
 ///` package ch.emilycares;`
 fn parse_package(tokens: &[PositionToken], pos: usize) -> Result<(AstPackage, usize), AstError> {
     let start = tokens.start(pos)?;
-    let (annotated, pos) = parse_annotated_list(tokens, pos)?;
+    let mut annotated = Vec::new();
+    let mut pos = pos;
+    loop {
+        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
+        match t.token {
+            Token::At => {
+                let (annotated_after, npos) = parse_annotated_list(tokens, pos)?;
+                pos = npos;
+                annotated.extend(annotated_after);
+            }
+            _ => break,
+        }
+    }
     let pos = assert_token(tokens, pos, Token::Package)?;
     let (name, pos) = parse_name_dot_logical(tokens, pos)?;
     let pos = assert_semicolon(tokens, pos)?;
@@ -129,30 +146,6 @@ fn parse_package(tokens: &[PositionToken], pos: usize) -> Result<(AstPackage, us
             range: AstRange::from_position_token(start, end),
             annotated,
             name,
-        },
-        pos,
-    ))
-}
-///`  import java.io.IOException;`
-///`  import java.net.Socket;`
-fn parse_imports(tokens: &[PositionToken], pos: usize) -> Result<(AstImports, usize), AstError> {
-    let mut pos = pos;
-    let mut imports = vec![];
-
-    let start = tokens.start(pos)?;
-    while let Ok((import, new_pos)) = parse_import(tokens, pos) {
-        pos = new_pos;
-        imports.push(import);
-    }
-    let end = tokens.end(pos)?;
-
-    Ok((
-        AstImports {
-            range: AstRange {
-                start: start.start_point(),
-                end: end.end_point(),
-            },
-            imports,
         },
         pos,
     ))
@@ -227,9 +220,10 @@ fn parse_import(tokens: &[PositionToken], pos: usize) -> Result<(AstImport, usiz
 ///`  public interface Constants { ...`
 pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, usize), AstError> {
     let start = tokens.start(pos)?;
-    let (mut annotated, mut pos) = parse_annotated_list(tokens, pos)?;
     let mut availability = AstAvailability::empty();
     let mut attributes = AstThingAttributes::empty();
+    let mut pos = pos;
+    let mut annotated = Vec::new();
     loop {
         let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
@@ -1424,8 +1418,19 @@ fn parse_block_variable_no_semicolon(
     pos: usize,
 ) -> Result<(Vec<AstBlockVariable>, usize), AstError> {
     let start = tokens.start(pos)?;
-    let (annotated, pos) = parse_annotated_list(tokens, pos)?;
+    let mut annotated = Vec::new();
     let mut pos = pos;
+    loop {
+        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
+        match t.token {
+            Token::At => {
+                let (annotated_after, npos) = parse_annotated_list(tokens, pos)?;
+                pos = npos;
+                annotated.extend(annotated_after);
+            }
+            _ => break,
+        }
+    }
     let fin = assert_token(tokens, pos, Token::Final).is_ok_and(|npos| {
         pos = npos;
         true
@@ -1436,7 +1441,8 @@ fn parse_block_variable_no_semicolon(
     out.push(v);
     let mut pos = pos;
     while let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
-        let (v, npos) = parse_variable_base(tokens, start, &annotated, fin, &jtype, npos)?;
+        pos = npos;
+        let (v, npos) = parse_variable_base(tokens, start, &annotated, fin, &jtype, pos)?;
         pos = npos;
         out.push(v);
     }
@@ -1699,7 +1705,7 @@ fn parse_method_header(
     let mut availability = default_availability;
     let mut type_parameters = None;
     let start = tokens.start(pos)?;
-    let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
+    let mut annotated = Vec::new();
     let mut pos = pos;
     loop {
         let t = tokens.get(pos).ok_or_else(AstError::eof)?;
@@ -1784,7 +1790,8 @@ fn parse_constructor_header(
     let mut availability = default_availability;
     let mut type_parameters = None;
     let start = tokens.start(pos)?;
-    let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
+    let mut annotated = Vec::new();
+
     let mut pos = pos;
     loop {
         let t = tokens.get(pos).ok_or_else(AstError::eof)?;
@@ -2893,9 +2900,8 @@ fn parse_synchronised_block(
 
 fn parse_try_catch(tokens: &[PositionToken], pos: usize) -> Result<(AstTryCatch, usize), AstError> {
     let start = tokens.start(pos)?;
-    let pos = assert_token(tokens, pos, Token::Try)?;
+    let mut pos = assert_token(tokens, pos, Token::Try)?;
     let mut resources_block = None;
-    let mut pos = pos;
     if let Ok((res, npos)) = parse_block_brackets(tokens, pos, Token::LeftParen, &Token::RightParen)
     {
         resources_block = Some(res);
@@ -3387,7 +3393,8 @@ fn parse_comma_separated_jtype(
     out.push(jtype);
     let mut pos = pos;
     while let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
-        let (jtype, npos) = parse_jtype(tokens, npos)?;
+        pos = npos;
+        let (jtype, npos) = parse_jtype(tokens, pos)?;
         out.push(jtype);
         pos = npos;
     }

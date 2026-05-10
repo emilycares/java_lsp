@@ -3,7 +3,7 @@
 #![deny(clippy::nursery)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
-use ast::types::AstFile;
+use ast::types::{AstFile, AstTopLevel};
 use dto::ImportUnit;
 
 #[must_use]
@@ -30,13 +30,19 @@ pub fn is_imported(imports: &[ImportUnit], class_path: &str) -> bool {
     false
 }
 
+#[must_use]
 pub fn imports(ast: &AstFile) -> Vec<ImportUnit> {
     let mut out = vec![];
-    if let Some(package) = &ast.package {
-        out.push(ImportUnit::Package(package.name.value.clone()));
-    }
-    if let Some(imports) = &ast.imports {
-        out.extend(imports.imports.iter().map(ImportUnit::from));
+    for t in &ast.top {
+        match t {
+            AstTopLevel::Package(package) => {
+                out.push(ImportUnit::Package(package.name.value.clone()));
+            }
+            AstTopLevel::Import(ast_import) => {
+                out.push(ast_import.into());
+            }
+            AstTopLevel::Thing(_) | AstTopLevel::Module(_) => (),
+        }
     }
     out
 }

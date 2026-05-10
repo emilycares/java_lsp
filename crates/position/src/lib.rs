@@ -6,7 +6,7 @@
 
 use ast::types::{
     AstBlock, AstBlockEntry, AstClassBlock, AstExpressionKind, AstExpressionOrValue, AstFile,
-    AstIdentifier, AstIf, AstIfContent, AstLambdaRhs, AstRange, AstThing,
+    AstIdentifier, AstIf, AstIfContent, AstLambdaRhs, AstRange, AstThing, AstTopLevel,
 };
 use lsp_extra::to_lsp_range;
 use lsp_types::{Location, SymbolInformation, SymbolKind, Uri};
@@ -20,7 +20,10 @@ pub struct PositionSymbol {
 }
 
 pub fn get_class_position_ast(ast: &AstFile, name: Option<&str>, out: &mut Vec<PositionSymbol>) {
-    for thing in &ast.things {
+    for thing in ast.top.iter().filter_map(|i| match i {
+        AstTopLevel::Thing(ast_thing) => Some(ast_thing),
+        AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => None,
+    }) {
         get_class_position_ast_thing(thing, name, out);
     }
 }
@@ -134,7 +137,10 @@ fn get_class_position_ast_thing(
 }
 
 pub fn get_method_position_ast(file: &AstFile, name: Option<&str>, out: &mut Vec<PositionSymbol>) {
-    for thing in &file.things {
+    for thing in file.top.iter().filter_map(|i| match i {
+        AstTopLevel::Thing(ast_thing) => Some(ast_thing),
+        AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => None,
+    }) {
         get_method_position_ast_thing(thing, name, out);
     }
 }
@@ -234,7 +240,10 @@ fn is_valid_name(name: Option<&str>, i: &AstIdentifier) -> bool {
 }
 
 pub fn get_field_position_ast(file: &AstFile, name: Option<&str>, out: &mut Vec<PositionSymbol>) {
-    for thing in &file.things {
+    for thing in file.top.iter().filter_map(|i| match i {
+        AstTopLevel::Thing(ast_thing) => Some(ast_thing),
+        AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => None,
+    }) {
         get_field_position_ast_thing(thing, name, out);
     }
 }

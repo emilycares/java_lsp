@@ -7,7 +7,7 @@ use std::{
 
 use ast::types::{
     AstBlockEntry, AstBlockVariable, AstFile, AstForContent, AstIf, AstIfContent, AstPackage,
-    AstPoint, AstRange, AstThing, AstWhileContent,
+    AstPoint, AstRange, AstThing, AstTopLevel, AstWhileContent,
 };
 use dto::{Class, ImportUnit};
 use local_variable::LocalVariable;
@@ -48,8 +48,11 @@ pub fn replace_with_value_type(
 ) -> Result<Option<CodeActionOrCommand>, CodeActionError> {
     let mut classvar = None;
     let mut blockvar = None;
-    for thing in &ast.things {
-        match thing {
+    for thing in ast.top.iter().filter_map(|i| match i {
+        AstTopLevel::Thing(ast_thing) => Some(ast_thing),
+        AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => None,
+    }) {
+        match &**thing {
             AstThing::Class(ast_class) => {
                 let cvars = ast_class
                     .block
@@ -161,8 +164,7 @@ fn find_var_block_entry<'a>(
     i: &'a AstBlockEntry,
 ) -> Option<&'a AstBlockVariable> {
     match i {
-        AstBlockEntry::Return(_ast_block_return) => None,
-        AstBlockEntry::Assert(_ast_block_return) => None,
+        AstBlockEntry::Return(_) | AstBlockEntry::Assert(_) => None,
         AstBlockEntry::Variable(ast_block_variable) => {
             for v in ast_block_variable {
                 if v.range.is_in_range(point) {
@@ -308,15 +310,26 @@ pub fn import_jtype(
 }
 
 pub fn get_import_position(ast: &AstFile) -> Result<Position, CodeActionError> {
-    if let Some(imports) = &ast.imports {
+    if let Some(import) = ast
+        .top
+        .iter()
+        .filter_map(|i| match i {
+            AstTopLevel::Import(import) => Some(import),
+            AstTopLevel::Package(_) | AstTopLevel::Thing(_) | AstTopLevel::Module(_) => None,
+        })
+        .next_back()
+    {
         // After last import
-        let end = imports.range.end;
+        let end = import.range.end;
         let line = u32::try_from(end.line).map_err(CodeActionError::Int)?;
         Ok(Position {
             line: line + 1,
             character: 0,
         })
-    } else if let Some(package) = &ast.package {
+    } else if let Some(package) = ast.top.iter().find_map(|i| match i {
+        AstTopLevel::Package(package) => Some(package),
+        AstTopLevel::Thing(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => None,
+    }) {
         // After package
         let end = package.range.end;
         let line = u32::try_from(end.line).map_err(CodeActionError::Int)?;
@@ -351,7 +364,17 @@ pub fn generate_class(
     ast: &AstFile,
     current_file: &Uri,
 ) -> Result<Option<CodeActionOrCommand>, CodeActionError> {
-    if !ast.things.is_empty() {
+    let mut ast_package = None;
+    let mut contains_thing = false;
+    for i in &ast.top {
+        if let AstTopLevel::Package(package) = i {
+            ast_package = Some(package.clone());
+        }
+        if matches!(i, AstTopLevel::Thing(_)) {
+            contains_thing = true;
+        }
+    }
+    if contains_thing {
         return Ok(None);
     }
     let path = current_file.path().as_str();
@@ -381,7 +404,7 @@ pub fn generate_class(
     if let Some(AstPackage {
         range: AstRange { end, .. },
         ..
-    }) = ast.package
+    }) = ast_package
     {
         let pos = to_lsp_position(end).map_err(CodeActionError::ToLspRange)?;
         changes.insert(

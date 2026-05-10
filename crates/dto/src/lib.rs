@@ -10,7 +10,7 @@ use my_string::{
 };
 use serde::{Deserialize, Serialize};
 
-pub const CFC_VERSION: usize = 12;
+pub const CFC_VERSION: usize = 13;
 
 #[derive(Debug)]
 pub enum ClassError {
@@ -69,11 +69,19 @@ impl ClassFolder {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
+pub struct ClassSignature {
+    // Generics defined on class level
+    pub args: Vec<MyString>,
+    pub ret: JType,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
 pub struct Class {
     pub class_path: MyString,
     pub source: SourceDestination,
     pub access: Access,
     pub imports: Vec<ImportUnit>,
+    pub signature: Option<ClassSignature>,
     pub name: MyString,
     pub methods: Vec<Method>,
     pub fields: Vec<Field>,

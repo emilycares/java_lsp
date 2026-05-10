@@ -5,8 +5,8 @@ use ast::{
     lexer,
     types::{
         AstAnnotated, AstAnnotationField, AstClassConstructor, AstClassMethod, AstClassVariable,
-        AstEnumerationVariant, AstExtends, AstFile, AstImports, AstInterfaceConstant,
-        AstInterfaceMethod, AstInterfaceMethodDefault, AstJTypeKind, AstSuperClass, AstThing,
+        AstEnumerationVariant, AstExtends, AstFile, AstInterfaceConstant, AstInterfaceMethod,
+        AstInterfaceMethodDefault, AstJTypeKind, AstSuperClass, AstThing, AstTopLevel,
         AstTypeParameter, AstTypeParameters,
     },
 };
@@ -39,108 +39,110 @@ pub fn load_java(bytes: &[u8], source: SourceDestination) -> Result<Class, Parse
 pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
     let mut methods: Vec<Method> = vec![];
     let mut fields: Vec<Field> = vec![];
-    let class_path_base: MyString = ast
-        .package
-        .as_ref()
-        .map_or_else(|| MyString::new(""), |p| (&p.name).into());
+    let mut class_path_base: MyString = MyString::new("");
     let mut name = SmolStr::new("");
     let mut super_class = SuperClass::None;
     let mut super_interfaces = vec![];
-    let imports: Vec<ImportUnit> = ast.imports.as_ref().map_or_else(Vec::new, |imports| {
-        imports.imports.iter().map(Into::into).collect()
-    });
+    let mut imports: Vec<ImportUnit> = Vec::new();
     let mut access = Access::empty();
-    if let Some(thing) = ast.things.first() {
-        match thing {
-            AstThing::Class(class) => {
-                access = access_from_availability(&class.availability, Access::Public);
-                load_deprecated(&mut access, &class.annotated);
-                name.clone_from(&class.name.value);
-                methods.extend(
-                    class
-                        .block
-                        .constructors
-                        .iter()
-                        .map(|i| convert_class_constructor(i, class.type_parameters.as_ref())),
-                );
-                methods.extend(
-                    class
-                        .block
-                        .methods
-                        .iter()
-                        .map(|i| convert_class_method(i, class.type_parameters.as_ref())),
-                );
-                fields.extend(class.block.variables.iter().map(convert_class_field));
-                //TODO: Handle others
-                super_class = match &class.superclass.first() {
-                    None | Some(AstSuperClass::None) => SuperClass::None,
-                    Some(AstSuperClass::Name(ast_identifier)) => {
-                        SuperClass::Name(ast_identifier.into())
+    for t in &ast.top {
+        match t {
+            AstTopLevel::Package(ast_package) => {
+                class_path_base = ast_package.name.clone().into();
+                imports.push(ImportUnit::Package(ast_package.name.clone().into()));
+            }
+            AstTopLevel::Import(ast_import) => imports.push(ast_import.into()),
+            AstTopLevel::Thing(ast_thing) => {
+                match &**ast_thing {
+                    AstThing::Class(class) => {
+                        access = access_from_availability(&class.availability, Access::Public);
+                        load_deprecated(&mut access, &class.annotated);
+                        name.clone_from(&class.name.value);
+                        methods.extend(
+                            class.block.constructors.iter().map(|i| {
+                                convert_class_constructor(i, class.type_parameters.as_ref())
+                            }),
+                        );
+                        methods.extend(
+                            class
+                                .block
+                                .methods
+                                .iter()
+                                .map(|i| convert_class_method(i, class.type_parameters.as_ref())),
+                        );
+                        fields.extend(class.block.variables.iter().map(convert_class_field));
+                        //TODO: Handle others
+                        super_class = match &class.superclass.first() {
+                            None | Some(AstSuperClass::None) => SuperClass::None,
+                            Some(AstSuperClass::Name(ast_identifier)) => {
+                                SuperClass::Name(ast_identifier.into())
+                            }
+                        };
                     }
-                };
-            }
-            AstThing::Record(record) => {
-                access = access_from_availability(&record.availability, Access::Public);
-                load_deprecated(&mut access, &record.annotated);
-                methods.extend(
-                    record
-                        .block
-                        .methods
-                        .iter()
-                        .map(|i| convert_class_method(i, record.type_parameters.as_ref())),
-                );
-                fields.extend(record.block.variables.iter().map(convert_class_field));
-                // TODO entries
-                super_class = match &record.superclass.first() {
-                    None | Some(AstSuperClass::None) => SuperClass::None,
-                    Some(AstSuperClass::Name(ast_identifier)) => {
-                        SuperClass::Name(ast_identifier.into())
+                    AstThing::Record(record) => {
+                        access = access_from_availability(&record.availability, Access::Public);
+                        load_deprecated(&mut access, &record.annotated);
+                        methods.extend(
+                            record
+                                .block
+                                .methods
+                                .iter()
+                                .map(|i| convert_class_method(i, record.type_parameters.as_ref())),
+                        );
+                        fields.extend(record.block.variables.iter().map(convert_class_field));
+                        // TODO entries
+                        super_class = match &record.superclass.first() {
+                            None | Some(AstSuperClass::None) => SuperClass::None,
+                            Some(AstSuperClass::Name(ast_identifier)) => {
+                                SuperClass::Name(ast_identifier.into())
+                            }
+                        };
                     }
-                };
-            }
-            AstThing::Enumeration(enumeration) => {
-                access = access_from_availability(&enumeration.availability, Access::Public);
-                load_deprecated(&mut access, &enumeration.annotated);
-                name = (&enumeration.name).into();
-                methods.extend(
-                    enumeration
-                        .methods
-                        .iter()
-                        .map(|i| convert_class_method(i, None)),
-                );
-                let jtype = JType::Class(enumeration.name.value.clone());
-                fields.extend(
-                    enumeration
-                        .variants
-                        .iter()
-                        .map(|i| convert_enum_variant(i, &jtype)),
-                );
-                fields.extend(enumeration.variables.iter().map(convert_class_field));
-            }
-            AstThing::Interface(interface) => {
-                access = access_from_availability(&interface.availability, Access::Public);
-                load_deprecated(&mut access, &interface.annotated);
-                name = (&interface.name).into();
-                if let Some(ext) = &interface.extends {
-                    super_interfaces.extend(fun_name(ext, &imports));
+                    AstThing::Enumeration(enumeration) => {
+                        access =
+                            access_from_availability(&enumeration.availability, Access::Public);
+                        access |= Access::Enum;
+                        load_deprecated(&mut access, &enumeration.annotated);
+                        name = (&enumeration.name).into();
+                        methods.extend(
+                            enumeration
+                                .methods
+                                .iter()
+                                .map(|i| convert_class_method(i, None)),
+                        );
+                        let jtype = JType::Class(enumeration.name.value.clone());
+                        fields.extend(
+                            enumeration
+                                .variants
+                                .iter()
+                                .map(|i| convert_enum_variant(i, &jtype)),
+                        );
+                        fields.extend(enumeration.variables.iter().map(convert_class_field));
+                    }
+                    AstThing::Interface(interface) => {
+                        access = access_from_availability(&interface.availability, Access::Public);
+                        load_deprecated(&mut access, &interface.annotated);
+                        name = (&interface.name).into();
+                        if let Some(ext) = &interface.extends {
+                            super_interfaces.extend(fun_name(ext, &imports));
+                        }
+                        methods.extend(interface.methods.iter().map(|i| {
+                            convert_interface_method(i, interface.type_parameters.as_ref())
+                        }));
+                        methods.extend(interface.default_methods.iter().map(|i| {
+                            convert_interface_default_method(i, interface.type_parameters.as_ref())
+                        }));
+                        fields.extend(interface.constants.iter().map(convert_interface_constant));
+                    }
+                    AstThing::Annotation(annotation) => {
+                        access = access_from_availability(&annotation.availability, Access::Public);
+                        load_deprecated(&mut access, &annotation.annotated);
+                        name = (&annotation.name).into();
+                        fields.extend(annotation.fields.iter().map(convert_annotation_field));
+                    }
                 }
-                methods.extend(
-                    interface
-                        .methods
-                        .iter()
-                        .map(|i| convert_interface_method(i, interface.type_parameters.as_ref())),
-                );
-                methods.extend(interface.default_methods.iter().map(|i| {
-                    convert_interface_default_method(i, interface.type_parameters.as_ref())
-                }));
-                fields.extend(interface.constants.iter().map(convert_interface_constant));
             }
-            AstThing::Annotation(annotation) => {
-                access = access_from_availability(&annotation.availability, Access::Public);
-                load_deprecated(&mut access, &annotation.annotated);
-                name = (&annotation.name).into();
-                fields.extend(annotation.fields.iter().map(convert_annotation_field));
-            }
+            AstTopLevel::Module(_) => (),
         }
     }
     let mut class_path = SmolStrBuilder::new();
@@ -155,7 +157,8 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
         access,
         super_class,
         super_interfaces,
-        imports: convert_imports(ast.imports.as_ref(), class_path_base),
+        imports,
+        signature: None,
         name,
         methods,
         fields,
@@ -181,14 +184,6 @@ fn fun_name(ext: &AstExtends, imports: &[ImportUnit]) -> impl Iterator<Item = Su
         }
         None
     })
-}
-
-fn convert_imports(imports: Option<&AstImports>, package: MyString) -> Vec<ImportUnit> {
-    let mut out = vec![ImportUnit::Package(package)];
-    if let Some(imports) = imports {
-        out.extend(imports.imports.iter().map(Into::into));
-    }
-    out
 }
 
 fn convert_class_method(
@@ -368,7 +363,7 @@ fn convert_class_field(c: &AstClassVariable) -> Field {
 
 fn convert_enum_variant(c: &AstEnumerationVariant, jtype: &JType) -> Field {
     Field {
-        access: Access::Public,
+        access: Access::Public | Access::Enum,
         jtype: jtype.clone(),
         name: c.name.value.clone(),
         source: None,
@@ -429,6 +424,7 @@ pub mod tests {
                         "a.test",
                     ),
                 ],
+                signature: None,
                 name: "Types",
                 methods: [
                     Method {
@@ -598,6 +594,7 @@ public class Test extends AThing { }
                         "a.test",
                     ),
                 ],
+                signature: None,
                 name: "Test",
                 methods: [],
                 fields: [],
@@ -631,6 +628,7 @@ public class Test {
                         "a.test",
                     ),
                 ],
+                signature: None,
                 name: "Test",
                 methods: [
                     Method {
@@ -695,6 +693,7 @@ public class Test {
                         "java.io.IOException",
                     ),
                 ],
+                signature: None,
                 name: "Thrower",
                 methods: [
                     Method {
@@ -776,6 +775,7 @@ public class Test {
                         "java.net.Socket",
                     ),
                 ],
+                signature: None,
                 name: "Constants",
                 methods: [
                     Method {
@@ -888,6 +888,7 @@ public class Test {
                         "java.util.stream.Stream",
                     ),
                 ],
+                signature: None,
                 name: "InterfaceBase",
                 methods: [
                     Method {
@@ -967,13 +968,14 @@ public class Test {
                 class_path: "ch.emilycares.Variants",
                 source: None,
                 access: Access(
-                    Public,
+                    Public | Enum,
                 ),
                 imports: [
                     Package(
                         "ch.emilycares",
                     ),
                 ],
+                signature: None,
                 name: "Variants",
                 methods: [
                     Method {
@@ -994,7 +996,7 @@ public class Test {
                 fields: [
                     Field {
                         access: Access(
-                            Public,
+                            Public | Enum,
                         ),
                         name: "A",
                         jtype: Class(
@@ -1004,7 +1006,7 @@ public class Test {
                     },
                     Field {
                         access: Access(
-                            Public,
+                            Public | Enum,
                         ),
                         name: "B",
                         jtype: Class(
@@ -1014,7 +1016,7 @@ public class Test {
                     },
                     Field {
                         access: Access(
-                            Public,
+                            Public | Enum,
                         ),
                         name: "C",
                         jtype: Class(
@@ -1058,6 +1060,7 @@ public class Test {
                         "ch.emilycares",
                     ),
                 ],
+                signature: None,
                 name: "Annotation",
                 methods: [],
                 fields: [
@@ -1105,6 +1108,7 @@ public class Test {
                         "ch.emilycares",
                     ),
                 ],
+                signature: None,
                 name: "Everything",
                 methods: [
                     Method {
@@ -1285,6 +1289,7 @@ public class Test {
                         "jakarta.ws.rs.Path",
                     ),
                 ],
+                signature: None,
                 name: "Test",
                 methods: [],
                 fields: [],
@@ -1324,6 +1329,7 @@ public class Test {
                         "java.util.stream.StreamSupport",
                     ),
                 ],
+                signature: None,
                 name: "SuperInterface",
                 methods: [
                     Method {
@@ -1356,6 +1362,53 @@ public class Test {
                         "java.util.List",
                     ),
                 ],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
+    }
+    #[test]
+    fn annotation() {
+        let result = load_java(
+            include_bytes!("../test/Annotation.java"),
+            SourceDestination::None,
+        );
+        let expected = expect![[r#"
+            Class {
+                class_path: "ch.emilycares.Annotation",
+                source: None,
+                access: Access(
+                    Public,
+                ),
+                imports: [
+                    Package(
+                        "ch.emilycares",
+                    ),
+                ],
+                signature: None,
+                name: "Annotation",
+                methods: [],
+                fields: [
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "value",
+                        jtype: Int,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            Public,
+                        ),
+                        name: "text",
+                        jtype: Class(
+                            "String",
+                        ),
+                        source: None,
+                    },
+                ],
+                super_class: None,
+                super_interfaces: [],
             }
         "#]];
         expected.assert_debug_eq(&result.unwrap());

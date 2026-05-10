@@ -14,3 +14,4 @@ cargo build --release
  - class from https://github.com/Palmr/classfile-parser
  - mutf8 from https://github.com/Jezza/mutf8/blob/372c5d8a648b641d1081d3128c3d5e8726632ca3/src/mutf8.rs 
  - jimage from https://openjdk.org/index.html
+ - expect-test https://github.com/rust-analyzer/expect-test

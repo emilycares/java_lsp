@@ -164,11 +164,15 @@ fn parent_t(
             let Some(name) = &m.name else {
                 continue;
             };
+            //
             methods.push(ImportedMethod {
                 name: name.clone(),
                 resolve_state: ResolveState {
                     class: c.clone(),
-                    jtype: JType::Class(c.class_path.clone()),
+                    jtype: match c.signature {
+                        Some(ref c) => c.ret.clone(),
+                        None => JType::Class(c.class_path.clone()),
+                    },
                 },
             });
         }
@@ -177,7 +181,10 @@ fn parent_t(
                 name: f.name.clone(),
                 resolve_state: ResolveState {
                     class: c.clone(),
-                    jtype: JType::Class(c.class_path.clone()),
+                    jtype: match c.signature {
+                        Some(ref c) => c.ret.clone(),
+                        None => JType::Class(c.class_path.clone()),
+                    },
                 },
             });
         }
@@ -223,7 +230,7 @@ pub fn resolve(
         drop(cm);
         return Ok(ResolveState {
             jtype: JType::Class(lang_class_key),
-            class: parent::include_parent(lang_class, class_map),
+            class: parent::include_parent(lang_class, class_map, &[]),
         });
     }
 
@@ -237,7 +244,7 @@ pub fn resolve(
                 drop(cm);
                 return Ok(ResolveState {
                     jtype: JType::Class(c),
-                    class: parent::include_parent(imported_class, class_map),
+                    class: parent::include_parent(imported_class, class_map, &[]),
                 });
             }
             Err(TyresError::ClassNotFound { class_path: c })
@@ -248,7 +255,7 @@ pub fn resolve(
 
 pub fn resolve_with_generic(
     class_name: &str,
-    args: Vec<JType>,
+    args: &[JType],
     imports: &[ImportUnit],
     class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
 ) -> Result<ResolveState, TyresError> {
@@ -265,9 +272,16 @@ pub fn resolve_with_generic(
     {
         let lang_class = ic.to_owned();
         drop(cm);
+        let class = parent::include_parent(lang_class, class_map, args);
+        if args.is_empty() {
+            return Ok(ResolveState {
+                jtype: JType::Class(lang_class_key),
+                class,
+            });
+        }
         return Ok(ResolveState {
-            jtype: JType::Generic(lang_class_key, args),
-            class: parent::include_parent(lang_class, class_map),
+            jtype: JType::Generic(lang_class_key, args.to_vec()),
+            class,
         });
     }
 
@@ -279,9 +293,16 @@ pub fn resolve_with_generic(
             {
                 let imported_class = ic.to_owned();
                 drop(cm);
+                let class = parent::include_parent(imported_class, class_map, args);
+                if args.is_empty() {
+                    return Ok(ResolveState {
+                        jtype: JType::Class(lang_class_key),
+                        class,
+                    });
+                }
                 return Ok(ResolveState {
-                    jtype: JType::Generic(c, args),
-                    class: parent::include_parent(imported_class, class_map),
+                    jtype: JType::Generic(c, args.to_vec()),
+                    class,
                 });
             }
             Err(TyresError::ClassNotFound { class_path: c })
@@ -305,7 +326,7 @@ fn resolve_classpath(
     }
     Ok(ResolveState {
         jtype: JType::Class(class_path.into()),
-        class: parent::include_parent(imported_class, class_map),
+        class: parent::include_parent(imported_class, class_map, &[]),
     })
 }
 
@@ -483,13 +504,16 @@ fn call_chain_op(
                 return Err(TyresError::NoClassInOps);
             };
             let args_len = args.len();
-            // TODO: Improve parameter filter
+            // TODO: Improve parameter v
             if let Some(method) = class
                 .methods
                 .iter()
                 .filter(|m| m.name == Some(name.clone()))
                 .find(|i| i.parameters.len() == args_len)
             {
+                // if matches!(method.ret, JType::Generic(_, _)) {
+                // return resolve_with_generic(&method.ret, args, imports, class_map);
+                // }
                 return resolve_jtype(&method.ret, imports, class_map);
             }
             if let Some(m) = methods.iter().find(|i| i.name == *name) {
@@ -501,8 +525,8 @@ fn call_chain_op(
             let Some(ResolveState { class, jtype: _ }) = ops.last() else {
                 return Err(TyresError::NoClassInOps);
             };
-            if let Some(method) = class.fields.iter().find(|m| m.name == *name) {
-                return resolve_jtype(&method.jtype, imports, class_map);
+            if let Some(field) = class.fields.iter().find(|m| m.name == *name) {
+                return resolve_jtype(&field.jtype, imports, class_map);
             }
             if let Some(m) = fields.iter().find(|m| &m.name == name) {
                 return Ok(m.resolve_state.clone());
@@ -524,7 +548,7 @@ fn call_chain_op(
             name,
             range: _,
             args,
-        } => resolve_with_generic(name, args.clone(), imports, class_map),
+        } => resolve_with_generic(name, args, imports, class_map),
         CallItem::ClassOrVariable { name, range: _ } => {
             if let Some(lo) = lo_va.iter().find(|va| va.name == *name) {
                 return resolve_var(lo, imports, class_map);
@@ -626,7 +650,7 @@ fn call_chain_op_self(
             name,
             range: _,
             args,
-        } => resolve_with_generic(name, args.clone(), imports, class_map),
+        } => resolve_with_generic(name, args, imports, class_map),
         CallItem::ClassOrVariable { name, range: _ } => {
             if let Some(lo) = lo_va.iter().find(|va| va.name == *name) {
                 return resolve_var(lo, imports, class_map);
@@ -660,9 +684,17 @@ fn call_chain_op_self(
         }
     }
 }
-
 pub fn resolve_jtype(
     jtype: &JType,
+    imports: &[ImportUnit],
+    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+) -> Result<ResolveState, TyresError> {
+    resolve_jtype_with_generic(jtype, &[], imports, class_map)
+}
+
+pub fn resolve_jtype_with_generic(
+    jtype: &JType,
+    args: &[JType],
     imports: &[ImportUnit],
     class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
 ) -> Result<ResolveState, TyresError> {
@@ -755,7 +787,7 @@ pub fn resolve_jtype(
                 ..Default::default()
             },
         }),
-        JType::Class(c) | JType::Generic(c, _) => resolve(c, imports, class_map),
+        JType::Class(c) | JType::Generic(c, _) => resolve_with_generic(c, args, imports, class_map),
         JType::Parameter(p) => {
             let mut name = SmolStrBuilder::new();
             name.push('<');

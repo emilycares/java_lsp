@@ -24,6 +24,14 @@ impl AstRange {
     }
 
     #[must_use]
+    pub fn from_single(point: &PositionToken) -> Self {
+        Self {
+            start: point.start_point(),
+            end: point.end_point(),
+        }
+    }
+
+    #[must_use]
     pub fn is_in_range(&self, point: &AstPoint) -> bool {
         point >= &self.start && point <= &self.end
     }
@@ -63,21 +71,21 @@ impl AstPoint {
 
 #[derive(Debug, Clone)]
 pub struct AstFile {
-    pub package: Option<AstPackage>,
-    pub imports: Option<AstImports>,
-    pub things: Vec<AstThing>,
-    pub modules: Vec<AstModule>,
+    pub top: Vec<AstTopLevel>,
 }
+#[derive(Debug, Clone)]
+pub enum AstTopLevel {
+    Package(AstPackage),
+    Import(AstImport),
+    Thing(Box<AstThing>),
+    Module(AstModule),
+}
+
 #[derive(Debug, Clone)]
 pub struct AstPackage {
     pub range: AstRange,
     pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
-}
-#[derive(Debug, Clone)]
-pub struct AstImports {
-    pub range: AstRange,
-    pub imports: Vec<AstImport>,
 }
 #[derive(Debug, Clone)]
 pub struct AstImport {

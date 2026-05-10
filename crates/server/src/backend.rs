@@ -206,12 +206,16 @@ impl Backend {
         Self::progress_end_token(con, &token, task);
     }
 
-    fn compile(&self, path: &str) -> Vec<CompileErrorMessage> {
+    fn compile(&self, path: &str) -> Option<Vec<CompileErrorMessage>> {
+        let cache_dir = &common::CACHE_DIR;
+        if path.starts_with(cache_dir.as_str()) {
+            return None;
+        }
         match &self.project_kind {
             ProjectKind::Maven { executable } => {
                 match maven::compile::generate_classpath(executable) {
                     Ok(classpath) => match compile::maven_compile_java_file(path, &classpath) {
-                        Ok(errors) => return errors,
+                        Ok(errors) => return Some(errors),
                         Err(e) => eprintln!("Compile error: {e:?}"),
                     },
                     e => eprintln!("Failed to load classpath {e:?}"),
@@ -219,15 +223,15 @@ impl Backend {
             }
             ProjectKind::Gradle { executable, .. } => {
                 if let Some(errors) = gradle::compile::compile_java(executable) {
-                    return errors;
+                    return Some(errors);
                 }
             }
             ProjectKind::Unknown => match compile::compile_java_file(path) {
-                Ok(errors) => return errors,
+                Ok(errors) => return Some(errors),
                 Err(e) => eprintln!("Compile error: {e:?}"),
             },
         }
-        vec![]
+        None
     }
 
     fn publish_compile_errors(
@@ -516,11 +520,13 @@ impl Backend {
         let Ok(dm) = self.document_map.lock() else {
             return;
         };
-        let Some(document) = dm.get(&get_document_map_key(&params.text_document.uri).to_smolstr())
-        else {
+        let Some(document) = dm.get(&get_document_map_key(&params.text_document.uri)) else {
             eprintln!("on_change document not found");
             return;
         };
+        if let Err(DocumentError::Diagnostic(diag)) = document.reparse_no_change() {
+            current_file_diagnostics.push(*diag);
+        }
         let class = parser::update_project_java_file(PathBuf::from(path.as_str()), &document.ast);
         let class_path = class.class_path.clone();
         match references::reference_update_class(&class, &self.class_map, &self.reference_map) {
@@ -550,8 +556,8 @@ impl Backend {
     ) {
         if let Some(project) = self.project_dir.to_str()
             && path_str.starts_with(project)
+            && let Some(errors) = self.compile(path_str)
         {
-            let errors = self.compile(path_str);
             current_file_diagnostics.extend(self.publish_compile_errors(errors, uri));
         }
     }

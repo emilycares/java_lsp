@@ -80,15 +80,15 @@ pub fn parse_enumeration(
                 pos = npos;
                 continue;
             }
-            Err(e) => errors.push((SmolStr::new_inline("enum_members before comma"), e)),
+            Err(e) => errors.push((SmolStr::new_inline("enum_members"), e)),
         }
         return Err(AstError::AllChildrenFailed {
             parent: SmolStr::new_inline("enum_variant"),
             errors,
         });
     }
-    if !end_reached
-        && let Ok(npos) = parse_enum_members(
+    if !end_reached {
+        match parse_enum_members(
             tokens,
             pos,
             false,
@@ -97,9 +97,14 @@ pub fn parse_enumeration(
             &mut constructors,
             &mut static_blocks,
             &mut inner,
-        )
-    {
-        pos = npos;
+        ) {
+            Ok(npos) => {
+                pos = npos;
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
     }
     if !end_reached && let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
         pos = npos;
@@ -145,9 +150,6 @@ fn parse_enum_members(
     let mut errors = vec![];
     loop {
         errors.clear();
-        if tokens.get(pos).is_none() {
-            break;
-        }
         if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
             if braces {
                 pos = npos;

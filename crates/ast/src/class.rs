@@ -241,10 +241,10 @@ pub fn parse_class_variable(
     pos: usize,
 ) -> Result<(Vec<AstClassVariable>, usize), AstError> {
     let start = tokens.start(pos)?;
-    let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
     let mut availability = AstAvailability::empty();
     let mut pos = pos;
     let mut volatile_transient = AstVolatileTransient::empty();
+    let mut annotated = Vec::new();
     loop {
         let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
@@ -279,6 +279,8 @@ pub fn parse_class_variable(
     out.push(v);
     let mut pos = pos;
     while let Ok(npos) = assert_token(tokens, pos, Token::Comma) {
+        pos = npos;
+
         let (v, npos) = parse_class_variable_base(
             tokens,
             start,
@@ -286,7 +288,7 @@ pub fn parse_class_variable(
             availability.clone(),
             volatile_transient.clone(),
             &jtype,
-            npos,
+            pos,
         )?;
         pos = npos;
         out.push(v);
@@ -296,6 +298,7 @@ pub fn parse_class_variable(
 
     Ok((out, pos))
 }
+#[allow(clippy::too_many_arguments)]
 fn parse_class_variable_base(
     tokens: &[PositionToken],
     start: &PositionToken,

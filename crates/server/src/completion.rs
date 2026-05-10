@@ -5,7 +5,7 @@ use std::{
 
 use ast::{
     range::AstInRange,
-    types::{AstFile, AstImportUnit, AstMethodParameters, AstPoint, AstThing},
+    types::{AstFile, AstImportUnit, AstMethodParameters, AstPoint, AstThing, AstTopLevel},
 };
 use call_chain::get_call_chain;
 use document::{Document, DocumentError};
@@ -372,36 +372,44 @@ pub fn imports(
     let Ok(cm) = class_map.lock() else {
         return None;
     };
-    if document.ast.things.as_slice().is_in_range(point) {
+    let mut is_in_thing = false;
+    for thing in document.ast.top.iter().filter_map(|i| match i {
+        AstTopLevel::Thing(ast_thing) => Some(ast_thing),
+        AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => None,
+    }) {
+        if thing.is_in_range(point) {
+            is_in_thing = true;
+        }
+    }
+    if is_in_thing {
         return None;
     }
-    if let Some(imports) = &document.ast.imports
-        && imports.range.is_in_range(point)
-    {
-        for im in &imports.imports {
-            if im.range.start.line != point.line {
-                continue;
-            }
-            let mut out = Vec::with_capacity(LIMIT);
-            if let AstImportUnit::Class(i) = &im.unit {
-                let search = i.value.as_str();
-                for k in cm.keys() {
-                    if k.starts_with(search) {
-                        out.push(CompletionItem {
-                            label: k
-                                .trim_start_matches(search)
-                                .trim_start_matches('.')
-                                .to_string(),
-                            kind: Some(CompletionItemKind::CLASS),
-                            ..Default::default()
-                        });
-                        if out.len() == LIMIT {
-                            break;
-                        }
+    for im in document.ast.top.iter().filter_map(|i| match i {
+        AstTopLevel::Import(import) => Some(import),
+        AstTopLevel::Package(_) | AstTopLevel::Thing(_) | AstTopLevel::Module(_) => None,
+    }) {
+        if im.range.start.line != point.line {
+            continue;
+        }
+        let mut out = Vec::with_capacity(LIMIT);
+        if let AstImportUnit::Class(i) = &im.unit {
+            let search = i.value.as_str();
+            for k in cm.keys() {
+                if k.starts_with(search) {
+                    out.push(CompletionItem {
+                        label: k
+                            .trim_start_matches(search)
+                            .trim_start_matches('.')
+                            .to_string(),
+                        kind: Some(CompletionItemKind::CLASS),
+                        ..Default::default()
+                    });
+                    if out.len() == LIMIT {
+                        break;
                     }
                 }
-                return Some(out);
             }
+            return Some(out);
         }
     }
 
@@ -412,7 +420,10 @@ pub fn imports(
 pub fn parameter(document: &Document, point: &AstPoint) -> Option<Vec<CompletionItem>> {
     let mut out = Vec::new();
     let mut in_parameter = false;
-    for thing in &document.ast.things {
+    for thing in document.ast.top.iter().filter_map(|i| match i {
+        AstTopLevel::Thing(thing) => Some(thing),
+        AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => None,
+    }) {
         parameter_thing(point, &mut out, &mut in_parameter, thing);
     }
     if in_parameter {

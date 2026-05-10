@@ -1,7 +1,13 @@
-
+/**
+ * Has comments
+ */
 package ch.emilycares;
 
-public class Everything {
+/**
+ * Heheehee
+ * sdfasd
+ */
+public class FullOffComments {
 
     public int publicproperty;
     // Line comment
@@ -10,5 +16,15 @@ public class Everything {
     /**
      * Documentation
      */
-    private int privateproperty;
+    private int p;
+
+    /**
+     * Here is a method
+     */
+    public void a() {
+      // hehe
+      /* ._. */
+    }
+
+    // Trailing
 }

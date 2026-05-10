@@ -15,8 +15,8 @@ use ast::{
         AstClassMethod, AstExpression, AstExpressionKind, AstExpressionOrValue, AstFile, AstFor,
         AstForContent, AstForEnhanced, AstIf, AstIfContent, AstInterfaceConstant, AstJTypeKind,
         AstLambda, AstLambdaRhs, AstPoint, AstSwitch, AstSwitchCaseArrowContent,
-        AstSwitchCaseArrowType, AstSwitchCaseArrowVar, AstThing, AstTryCatch, AstWhile,
-        AstWhileContent,
+        AstSwitchCaseArrowType, AstSwitchCaseArrowVar, AstThing, AstTopLevel, AstTryCatch,
+        AstWhile, AstWhileContent,
     },
 };
 use dto::{Class, ImportUnit, JType};
@@ -43,8 +43,11 @@ pub fn get_vars(
 ) -> Result<Vec<LocalVariable>, VariablesError> {
     let mut out: Vec<LocalVariable> = vec![];
     let level = 0;
-    for th in &ast.things {
-        get_vars_thing(th, level, context, &mut out)?;
+    for thing in ast.top.iter().filter_map(|i| match i {
+        AstTopLevel::Thing(ast_thing) => Some(ast_thing),
+        AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => None,
+    }) {
+        get_vars_thing(thing, level, context, &mut out)?;
     }
 
     // let n = cursor.goto_first_child_for_point(*point);
@@ -141,7 +144,8 @@ fn get_block_entry_vars(
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
     match block_entry {
-        AstBlockEntry::Break(_)
+        AstBlockEntry::Semicolon(_)
+        | AstBlockEntry::Break(_)
         | AstBlockEntry::Continue(_)
         | AstBlockEntry::SwitchCase(_)
         | AstBlockEntry::SwitchDefault(_)
@@ -196,7 +200,6 @@ fn get_block_entry_vars(
         AstBlockEntry::InlineBlock(ast_block) => {
             get_block_vars(&ast_block.block, level, context, out)
         }
-        AstBlockEntry::Semicolon(_ast_range) => Ok(()),
     }
 }
 

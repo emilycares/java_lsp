@@ -56,19 +56,26 @@ pub fn to_ast_point(position: lsp_types::Position) -> AstPoint {
 #[must_use]
 pub fn lexer_error_to_diagnostic(error: &LexerError) -> Diagnostic {
     match error {
+        LexerError::EOF(line, col) => {
+            Diagnostic::new_simple(line_col_to_range(*line, *col), String::from("EOF"))
+        }
         LexerError::UnknownChar(char, line, col) => Diagnostic::new_simple(
-            Range {
-                start: Position {
-                    line: u32::try_from(*line).unwrap_or_default(),
-                    character: u32::try_from(*col).unwrap_or_default(),
-                },
-                end: Position {
-                    line: u32::try_from(*line).unwrap_or_default(),
-                    character: u32::try_from(*col).unwrap_or_default(),
-                },
-            },
+            line_col_to_range(*line, *col),
             format!("Unexpected char: '{char}'"),
         ),
+    }
+}
+
+fn line_col_to_range(line: usize, col: usize) -> Range {
+    Range {
+        start: Position {
+            line: u32::try_from(line).unwrap_or_default(),
+            character: u32::try_from(col).unwrap_or_default(),
+        },
+        end: Position {
+            line: u32::try_from(line).unwrap_or_default(),
+            character: u32::try_from(col).unwrap_or_default(),
+        },
     }
 }
 

@@ -14,7 +14,7 @@ use std::{
 
 use ast::{
     error::PrintErr,
-    types::{AstFile, AstThing},
+    types::{AstFile, AstThing, AstTopLevel},
 };
 use lsp_types::{Diagnostic, TextDocumentContentChangeEvent};
 use my_string::{
@@ -57,12 +57,7 @@ impl Document {
         let rope = Rope::from_str(&text);
         let mut o = Self {
             rope,
-            ast: AstFile {
-                package: None,
-                imports: None,
-                things: Vec::new(),
-                modules: Vec::new(),
-            },
+            ast: AstFile { top: Vec::new() },
             path,
         };
 
@@ -73,12 +68,7 @@ impl Document {
         let rope = Rope::from_str(text);
         let mut o = Self {
             rope,
-            ast: AstFile {
-                package: None,
-                imports: None,
-                things: Vec::new(),
-                modules: Vec::new(),
-            },
+            ast: AstFile { top: Vec::new() },
             path,
         };
 
@@ -97,12 +87,7 @@ impl Document {
         let rope = Rope::from_str(text);
         let mut o = Self {
             rope,
-            ast: AstFile {
-                package: None,
-                imports: None,
-                things: Vec::new(),
-                modules: Vec::new(),
-            },
+            ast: AstFile { top: Vec::new() },
             path,
         };
 
@@ -166,6 +151,28 @@ impl Document {
         }
         self.reparse(self.rope.to_string().as_bytes())
     }
+    pub fn reparse_no_change(&self) -> Result<(), DocumentError> {
+        let binding = self.rope.to_string();
+        let bytes = binding.as_bytes();
+        match ast::lexer::lex(bytes) {
+            Ok(tokens) => {
+                let ast = ast::parse_file(&tokens);
+                if let Err(e) = ast {
+                    e.print_err(&binding, &tokens);
+                    if let Ok(diag) = lsp_extra::ast_error_to_diagnostic(&e, &tokens) {
+                        return Err(DocumentError::Diagnostic(Box::new(diag)));
+                    }
+                }
+            }
+            Err(e) => {
+                return Err(DocumentError::Diagnostic(Box::new(
+                    lsp_extra::lexer_error_to_diagnostic(&e),
+                )));
+            }
+        }
+
+        Ok(())
+    }
     fn reparse(&mut self, bytes: &[u8]) -> Result<(), DocumentError> {
         match ast::lexer::lex(bytes) {
             Ok(tokens) => {
@@ -195,17 +202,24 @@ impl Document {
 
 #[must_use]
 pub fn get_class_path(ast: &AstFile) -> Option<MyString> {
-    if let Some(package) = &ast.package
-        && let Some(thing) = &ast.things.first()
-    {
-        let name = match thing {
-            AstThing::Class(ast_class) => &ast_class.name.value,
-            AstThing::Record(ast_record) => &ast_record.name.value,
-            AstThing::Interface(ast_interface) => &ast_interface.name.value,
-            AstThing::Enumeration(ast_enumeration) => &ast_enumeration.name.value,
-            AstThing::Annotation(ast_annotation) => &ast_annotation.name.value,
-        };
-        return Some(format_smolstr!("{}.{}", package.name.value, name));
+    let mut package = None;
+    for t in &ast.top {
+        match t {
+            AstTopLevel::Package(ast_package) => package = Some(ast_package),
+            AstTopLevel::Thing(ast_thing) => {
+                if let Some(package) = package {
+                    let name = match &**ast_thing {
+                        AstThing::Class(ast_class) => &ast_class.name.value,
+                        AstThing::Record(ast_record) => &ast_record.name.value,
+                        AstThing::Interface(ast_interface) => &ast_interface.name.value,
+                        AstThing::Enumeration(ast_enumeration) => &ast_enumeration.name.value,
+                        AstThing::Annotation(ast_annotation) => &ast_annotation.name.value,
+                    };
+                    return Some(format_smolstr!("{}.{}", package.name.value, name));
+                }
+            }
+            AstTopLevel::Import(_) | AstTopLevel::Module(_) => {}
+        }
     }
     None
 }

@@ -128,7 +128,7 @@ pub fn ast_check(path: &PathBuf, num: usize, tokens: &mut Vec<PositionToken>) {
 #[cfg(not(target_os = "windows"))]
 fn lex_and_ast(file: &Path, text: &[u8], num: usize, tokens: &mut Vec<PositionToken>) {
     // eprintln!("[{num}]Here: {:?}", file);
-    match ast::lexer::lex_mut(text, tokens) {
+    match ast::lexer::lex_mut::<false>(text, tokens) {
         Ok(()) => {
             let ast = ast::parse_file(tokens);
             if ast.is_err() {
