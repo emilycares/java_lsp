@@ -39,6 +39,22 @@ pub fn stdio() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
     main(connection, io_threads, project_dir, path)
 }
 
+/// Accept connection over tcp
+///
+/// # Panics
+/// When it could not init project
+pub fn listen(port: u16) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
+    let Ok(project_dir) = std::env::current_dir() else {
+        return Ok(());
+    };
+    let Some(path) = std::env::var_os("PATH") else {
+        return Ok(());
+    };
+    let addr = (String::from("127.0.0.1"), port);
+    let (connection, io_threads) = Connection::listen(addr)?;
+    main(connection, io_threads, project_dir, path)
+}
+
 /// Server main
 ///
 /// # Panics
@@ -85,6 +101,7 @@ fn main_loop(
     path: OsString,
 ) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
     backend.client_capabilities = Arc::new(Some(params.capabilities));
+    backend.fill_config(params.initialization_options);
     let connection = backend.connection.clone();
     let project_kind = backend.project_kind.clone();
     let class_map = backend.class_map.clone();

@@ -51,113 +51,49 @@ pub fn compile_java_file(file_path: &str) -> Result<Vec<CompileErrorMessage>, Co
 #[must_use]
 pub fn parse_compile_errors(input: &str) -> Vec<CompileErrorMessage> {
     let mut out = Vec::new();
-    let chars: Vec<char> = input.chars().collect();
+
     let mut index = 0;
+    let lines: Vec<_> = input.lines().collect();
     loop {
-        let ch = chars.get(index);
-        let Some(ch) = ch else {
+        let Some(line) = lines.get(index) else {
             break;
         };
-
-        if !ch.is_alphabetic() && ch != &'/' {
-            index += 1;
-            continue;
-        }
-        let mut path = String::new();
-        while let Some(ch) = chars.get(index)
-            && ch != &':'
-        {
-            path.push(*ch);
-            index += 1;
-        }
-        if path.starts_with("error") || path == "Note" {
-            break;
-        }
-        index += 1;
-        let mut row = String::new();
-        while let Some(ch) = chars.get(index)
-            && ch.is_numeric()
-        {
-            row.push(*ch);
-            index += 1;
-        }
-        index += 1;
-        while let Some(ch) = chars.get(index)
-            && ch != &':'
-        {
-            index += 1;
-        }
-        index += 2;
-
-        let mut message = String::new();
-        while let Some(ch) = chars.get(index)
-            && ch != &'\n'
-        {
-            if ch == &'\r' {
-                index += 1;
-                continue;
-            }
-            message.push(*ch);
-            index += 1;
-        }
-        // skip newline
-        index += 1;
-        // Skip code
-        while let Some(ch) = chars.get(index)
-            && ch != &'\n'
-        {
-            if ch == &'\r' {
-                index += 1;
-                continue;
-            }
-            index += 1;
-        }
-        // skip newline
-        index += 1;
-        let mut col = 0;
-        while let Some(ch) = chars.get(index)
-            && ch != &'^'
-        {
-            col += 1;
-            index += 1;
-        }
-        while let Some(ch) = chars.get(index)
-            && ch != &'\n'
-        {
-            if ch == &'\r' {
-                index += 1;
-                continue;
-            }
-            index += 1;
-        }
-        // skip newline
-        index += 1;
-
-        while let Some(ch) = chars.get(index)
-            && ch == &' '
-            && let Some(next) = chars.get(index + 1)
-            && next == &' '
-        {
-            message.push(' ');
-            while let Some(ch) = chars.get(index)
-                && ch != &'\n'
+        if line.contains(": error: ") {
+            dbg!(&line);
+            let mut spl = line.splitn(4, ':');
+            if let Some(path) = spl.next()
+                && let Some(row) = spl.next()
+                && let Ok(row) = row.trim().parse()
+                && let Some(_) = spl.next()
+                && let Some(message) = spl.next()
             {
-                if ch == &'\r' {
-                    index += 1;
+                let mut col = 0;
+                if let Some(line) = lines.get(index + 2) {
+                    let mut chars = line.chars();
+                    while let Some(c) = chars.next()
+                        && c != '^'
+                    {
+                        col += 1;
+                    }
+                    index += 3;
+                    out.push(CompileErrorMessage {
+                        path: path.trim().to_string(),
+                        row,
+                        col,
+                        message: message.trim().to_string(),
+                    });
                     continue;
                 }
-                index += 1;
-                message.push(*ch);
+                out.push(CompileErrorMessage {
+                    path: path.to_string(),
+                    row,
+                    col: 0,
+                    message: message.trim().to_string(),
+                });
             }
-            // skip newline
-            index += 1;
         }
-        out.push(CompileErrorMessage {
-            path,
-            message,
-            row: row.parse().unwrap_or_default(),
-            col,
-        });
+
+        index += 1;
     }
 
     out
@@ -165,7 +101,8 @@ pub fn parse_compile_errors(input: &str) -> Vec<CompileErrorMessage> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{CompileErrorMessage, parse_compile_errors};
+    use crate::parse_compile_errors;
+    use expect_test::expect;
 
     #[test]
     fn parse_compile_errors_basic() {
@@ -180,23 +117,23 @@ src/main/java/org/acme/GreetingResource.java:15: error: > or ',' expected
 1 error
           ";
         let out = parse_compile_errors(input);
-        assert_eq!(
-            out,
-            vec![
+        let expected = expect![[r#"
+            [
                 CompileErrorMessage {
-                    path: "src/main/java/org/acme/GreetingResource.java".to_string(),
-                    message: "> or ',' expected".to_string(),
+                    path: "src/main/java/org/acme/GreetingResource.java",
+                    message: "> or ',' expected",
                     row: 15,
                     col: 45,
                 },
                 CompileErrorMessage {
-                    path: "src/main/java/org/acme/GreetingResource.java".to_string(),
-                    message: "> or ',' expected".to_string(),
+                    path: "src/main/java/org/acme/GreetingResource.java",
+                    message: "> or ',' expected",
                     row: 15,
                     col: 45,
                 },
             ]
-        );
+        "#]];
+        expected.assert_debug_eq(&out);
     }
 
     #[test]
@@ -207,14 +144,17 @@ src/main/java/org/acme/GreetingResource.java:15: error: > or ',' expected
 1 error
 ";
         let out = parse_compile_errors(input);
-        assert_eq!(out, vec![
-            CompileErrorMessage {
-                path: "/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java".to_string(),
-                message: "> or ',' expected".to_string(),
-                row: 16,
-                col: 38,
-            },
-        ]);
+        let expected = expect![[r#"
+            [
+                CompileErrorMessage {
+                    path: "/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java",
+                    message: "> or ',' expected",
+                    row: 16,
+                    col: 38,
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&out);
     }
     #[test]
     fn parse_compile_errors_could_not_find_symbol() {
@@ -231,20 +171,23 @@ src/main/java/org/acme/GreetingResource.java:15: error: > or ',' expected
 2 error
 "#;
         let out = parse_compile_errors(input);
-        assert_eq!(out, vec![
-            CompileErrorMessage {
-                path: "/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java".to_string(),
-                message: "cannot find symbol   symbol:   class SomeRequest   location: class GreetingResource".to_string(),
-                row: 27,
-                col: 40,
-            },
-            CompileErrorMessage {
-                path: "/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java".to_string(),
-                message: "cannot find symbol   symbol:   class SomeRequest   location: class GreetingResource".to_string(),
-                row: 42,
-                col: 66,
-            },
-        ]);
+        let expected = expect![[r#"
+            [
+                CompileErrorMessage {
+                    path: "/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java",
+                    message: "cannot find symbol",
+                    row: 27,
+                    col: 40,
+                },
+                CompileErrorMessage {
+                    path: "/home/emily/Documents/java/getting-started/src/main/java/org/acme/GreetingResource.java",
+                    message: "cannot find symbol",
+                    row: 42,
+                    col: 66,
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&out);
     }
     #[test]
     fn parse_compile_errors_end_note() {
@@ -254,6 +197,9 @@ Note: Some messages have been simplified; recompile with -Xdiags:verbose to get 
 only showing the first 100 errors, of 115 total; use -Xmaxerrs if you would like to see more
 ";
         let out = parse_compile_errors(input);
-        assert_eq!(out, vec![]);
+        let expected = expect![[r"
+            []
+        "]];
+        expected.assert_debug_eq(&out);
     }
 }

@@ -17,6 +17,13 @@ async fn main() {
             };
             let _ = server::stdio();
         }
+        Some(Commands::ServerTcp { port }) => {
+            unsafe {
+                std::env::set_var("RUST_BACKTRACE", "1");
+                // std::env::set_var("RUST_LOG=lsp_server", "debug");
+            };
+            let _ = server::listen(port);
+        }
         Some(Commands::ReloadDependencies) => reload_dependencies_cli().await,
         Some(Commands::UpdateDependencies) => update_dependencies_cli().await,
         Some(Commands::Lex { file }) => {

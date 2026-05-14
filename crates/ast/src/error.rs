@@ -54,93 +54,83 @@ impl PrintErr for AstError {
     fn print_err(&self, content: &str, tokens: &[PositionToken]) {
         match self {
             Self::ExpectedToken(expected_token) => {
-                let found = tokens
-                    .get(expected_token.pos)
-                    .expect("Tokens should not be changed");
-                print_helper(
-                    content,
-                    found.line,
-                    found.col,
-                    &format!(
-                        "Expected token {:?} found: {:?}",
-                        expected_token.expected, found.token
-                    ),
-                );
+                if let Some(found) = tokens.get(expected_token.pos) {
+                    print_helper(
+                        content,
+                        found.line,
+                        found.col,
+                        &format!(
+                            "Expected token {:?} found: {:?}",
+                            expected_token.expected, found.token
+                        ),
+                    );
+                }
             }
             Self::UnexpectedEOF => {
                 eprintln!("Unexpected end of File");
             }
-            // Self::UnexpectedEOF(file, line, col) => {
-            //     eprintln!("Unexpected end of File: {file}:{line}:{col}");
-            // }
             Self::InvalidJtype(invalid_token) => {
-                let found = tokens
-                    .get(invalid_token.0)
-                    .expect("Tokens should not be changed");
-                print_helper(
-                    content,
-                    found.line,
-                    found.col,
-                    &format!(
-                        "Invalid Type token found: {:?} valid onese ar Int, String",
-                        found.token
-                    ),
-                );
+                if let Some(found) = tokens.get(invalid_token.0) {
+                    print_helper(
+                        content,
+                        found.line,
+                        found.col,
+                        &format!(
+                            "Invalid Type token found: {:?} valid onese ar Int, String",
+                            found.token
+                        ),
+                    );
+                }
             }
             Self::IdentifierEmpty(invalid_token) => {
-                let found = tokens
-                    .get(invalid_token.0)
-                    .expect("Tokens should not be changed");
-                print_helper(
-                    content,
-                    found.line,
-                    found.col,
-                    &format!("Identifier empty found: {:?}", found.token),
-                );
+                if let Some(found) = tokens.get(invalid_token.0) {
+                    print_helper(
+                        content,
+                        found.line,
+                        found.col,
+                        &format!("Identifier empty found: {:?}", found.token),
+                    );
+                }
             }
             Self::InvalidName(invalid_token) => {
-                let found = tokens
-                    .get(invalid_token.0)
-                    .expect("Tokens should not be changed");
-                print_helper(
-                    content,
-                    found.line,
-                    found.col,
-                    &format!("Token not allowed in name: {:?}", found.token),
-                );
+                if let Some(found) = tokens.get(invalid_token.0) {
+                    print_helper(
+                        content,
+                        found.line,
+                        found.col,
+                        &format!("Token not allowed in name: {:?}", found.token),
+                    );
+                }
             }
             Self::InvalidNuget(invalid_token) => {
-                let found = tokens
-                    .get(invalid_token.0)
-                    .expect("Tokens should not be changed");
-                print_helper(
-                    content,
-                    found.line,
-                    found.col,
-                    &format!("Token not allowed in nuget: {:?}", found.token),
-                );
+                if let Some(found) = tokens.get(invalid_token.0) {
+                    print_helper(
+                        content,
+                        found.line,
+                        found.col,
+                        &format!("Token not allowed in nuget: {:?}", found.token),
+                    );
+                }
             }
             Self::InvalidBoolean(invalid_token) => {
-                let found = tokens
-                    .get(invalid_token.0)
-                    .expect("Tokens should not be changed");
-                print_helper(
-                    content,
-                    found.line,
-                    found.col,
-                    &format!("Token not allowed in boolean: {:?}", found.token),
-                );
+                if let Some(found) = tokens.get(invalid_token.0) {
+                    print_helper(
+                        content,
+                        found.line,
+                        found.col,
+                        &format!("Token not allowed in boolean: {:?}", found.token),
+                    );
+                }
             }
             Self::InvalidString(invalid_token) => {
-                let found = tokens
-                    .get(invalid_token.0)
-                    .expect("Tokens should not be changed");
-                print_helper(
-                    content,
-                    found.line,
-                    found.col,
-                    &format!("Not a string literal: {:?}", found.token),
-                );
+                if let Some(found) = tokens.get(invalid_token.0) {
+                    print_helper(
+                        content,
+                        found.line,
+                        found.col,
+                        &format!("Not a string literal: {:?}", found.token),
+                    );
+                }
             }
             Self::AllChildrenFailed { parent, errors } => {
                 if PRINT_ALL_ERRORS {
@@ -158,15 +148,14 @@ impl PrintErr for AstError {
                 }
             }
             Self::EmptyExpression(invalid_token) => {
-                let found = tokens
-                    .get(invalid_token.0)
-                    .expect("Tokens should not be changed");
-                print_helper(
-                    content,
-                    found.line,
-                    found.col,
-                    &format!("Invalid expression it is empty {:?}", found.token),
-                );
+                if let Some(found) = tokens.get(invalid_token.0) {
+                    print_helper(
+                        content,
+                        found.line,
+                        found.col,
+                        &format!("Invalid expression it is empty {:?}", found.token),
+                    );
+                }
             }
         }
     }

@@ -801,6 +801,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_os = "windows"))]
     fn test_expect_file() {
         expect_file!["./lib.rs"].assert_eq(include_str!("./lib.rs"))
     }

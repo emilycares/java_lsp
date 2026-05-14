@@ -334,6 +334,7 @@ dependencies = [
 name = "compile"
 version = "0.1.0"
 dependencies = [
+ "expect-test",
  "workspace_hack",
 ]
 
@@ -635,7 +636,7 @@ name = "format"
 version = "0.1.0"
 dependencies = [
  "config",
- "tokio",
+ "expect-test",
  "workspace_hack",
 ]
 
@@ -739,6 +740,7 @@ dependencies = [
  "common",
  "compile",
  "dto",
+ "expect-test",
  "loader",
  "my_string",
  "tokio",
@@ -2029,6 +2031,7 @@ dependencies = [
  "call_chain",
  "common",
  "compile",
+ "config",
  "document",
  "dto",
  "expect-test",

@@ -1,17 +1,21 @@
-#![deny(clippy::redundant_clone)]
-use std::sync::LazyLock;
-
-pub static CONFIG: LazyLock<Configuration> = LazyLock::new(Configuration::default);
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
     pub formatter: FormatterConfig,
 }
 
+impl Configuration {
+    pub fn missing(field: &str) {
+        eprintln!(
+            r#"Missing configuration for {}, Please configure in LSP InitializeParams.initializationOptions, example: {{ "formatter": "google" }}"#,
+            field
+        )
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum FormatterConfig {
-    Intelij,
     None,
+    Google,
 }
 
 impl Default for Configuration {

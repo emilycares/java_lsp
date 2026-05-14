@@ -49,8 +49,7 @@ pub fn get_server_capabilities() -> ServerCapabilities {
         }),
         document_symbol_provider: Some(OneOf::Left(true)),
         workspace_symbol_provider: Some(OneOf::Left(true)),
-        // Not ready
-        // document_formatting_provider: Some(OneOf::Left(true)),
+        document_formatting_provider: Some(OneOf::Left(true)),
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         signature_help_provider: Some(SignatureHelpOptions {
             trigger_characters: Some(vec!['('.to_string(), ','.to_string(), '<'.to_string()]),

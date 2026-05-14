@@ -39,6 +39,10 @@ pub struct Args {
 pub enum Commands {
     /// Start the lsp server over stdio
     Server,
+    /// Start the lsp server tcp with specified port
+    ServerTcp {
+        port: u16,
+    },
     /// Reloads the dependencies of project
     ReloadDependencies,
     /// Update the dependencies of project

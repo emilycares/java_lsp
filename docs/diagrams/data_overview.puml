@@ -7,7 +7,7 @@ state Vec_Tokens_with_comments
 state Ast
 Ast : Fully typed syntax tree
 state Class
-Class : Simple sturcture to describe all methods and fields
+Class : Simple structure to describe all methods and fields
 
 state ClassFile
 ClassFile : Binarly file produced by javac

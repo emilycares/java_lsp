@@ -10,8 +10,10 @@ use ast::types::AstFile;
 use call_chain::get_call_chain;
 use common::{Dependency, TaskProgress, cache_dir, project_cache_dir, project_kind::ProjectKind};
 use compile::CompileErrorMessage;
+use config::{Configuration, FormatterConfig};
 use document::{Document, DocumentError, get_class_path, open_document};
 use dto::Class;
+use format::{FormatError, FormatLineError};
 use gradle::project::get_gradle_cache_path;
 use lsp_extra::{SERVER_NAME, source_to_uri, to_ast_point};
 use lsp_server::{Connection, Message};
@@ -60,6 +62,7 @@ pub struct Backend {
     pub client_capabilities: Arc<Option<ClientCapabilities>>,
     pub connection: Arc<Connection>,
     pub project_dir: PathBuf,
+    pub config: Configuration,
 }
 
 impl Backend {
@@ -73,6 +76,7 @@ impl Backend {
             reference_map: Arc::new(Mutex::new(HashMap::new())),
             client_capabilities: Arc::new(None),
             project_dir,
+            config: Configuration::default(),
         }
     }
 
@@ -286,6 +290,28 @@ impl Backend {
         let progress = Arc::new(progress);
         Self::progress_start_option_token(&con, &progress, "Init");
         let mut handles = JoinSet::new();
+        // {
+        //     let configuration_params = ConfigurationParams {
+        //         items: vec![
+        //             ConfigurationItem {
+        //                 scope_uri: None,
+        //                 section: Some(String::from("formatter")),
+        //             },
+        //             ConfigurationItem {
+        //                 scope_uri: None,
+        //                 section: Some(String::from("a")),
+        //             },
+        //         ],
+        //     };
+        //     if let Ok(params) = to_value(configuration_params) {
+        //         let _ = con.sender.send(Message::Request(lsp_server::Request {
+        //             id: "CONFIGURATION_REQUEST".to_string().into(),
+        //             // id: RequestId(IdRepr::String("CONFIGURATION_REQUEST")),
+        //             method: "workspace/configuration".to_string(),
+        //             params,
+        //         }));
+        //     }
+        // }
         {
             let con = con.clone();
             let class_map = class_map.clone();
@@ -620,6 +646,10 @@ impl Backend {
         {
             return None;
         }
+        if matches!(&self.config.formatter, config::FormatterConfig::None) {
+            Configuration::missing("formatter");
+            return None;
+        }
         let uri = params.text_document.uri;
         let Ok(mut dm) = self.document_map.lock() else {
             return None;
@@ -629,21 +659,32 @@ impl Backend {
             return None;
         };
         let lines = document.rope.lines().len();
-        if let Err(e) = format::format(document.path.clone()) {
-            eprintln!("Formatter error: {e:?}");
-            return None;
+        let formatter = format::get_formatter_name(&self.config.formatter);
+        match format::format(&self.config.formatter, document.rope.to_string().as_bytes()) {
+            Ok(o) => {
+                let out = String::from_utf8_lossy(&o);
+                let lines = u32::try_from(lines).unwrap_or_default();
+                Some(vec![TextEdit::new(
+                    Range::new(Position::new(0, 0), Position::new(lines - 1, 0)),
+                    out.to_string(),
+                )])
+            }
+            Err(FormatError::Diagnostic(errors)) => {
+                Self::send_diagnostic(
+                    &self.connection.clone(),
+                    uri,
+                    errors
+                        .into_iter()
+                        .map(|i| format_lines_to_diagnostic(i, formatter.clone()))
+                        .collect(),
+                );
+                None
+            }
+            Err(e) => {
+                eprintln!("Got formatter error {e:?}");
+                None
+            }
         }
-        if let Err(e) = document.reload_file_from_disk() {
-            eprintln!("Formatter unable to reload from disk: {e:?}");
-            return None;
-        }
-
-        let lines = u32::try_from(lines).unwrap_or_default();
-        // self.connection.
-        Some(vec![TextEdit::new(
-            Range::new(Position::new(0, 0), Position::new(lines - 1, 0)),
-            document.rope.to_string(),
-        )])
     }
 
     pub fn completion(&self, params: CompletionParams) -> Option<CompletionResponse> {
@@ -1095,6 +1136,25 @@ impl Backend {
         diagnostics.extend(diag);
         Self::send_diagnostic(&self.connection, uri, diagnostics);
     }
+
+    pub fn fill_config(&mut self, initialization_options: Option<Value>) {
+        let Some(Value::Object(init)) = initialization_options else {
+            return;
+        };
+        if let Some(Value::String(formatter)) = init.get("formatter") {
+            match formatter.to_lowercase().as_str() {
+                "none" => {
+                    self.config.formatter = FormatterConfig::None;
+                }
+                "google" => {
+                    self.config.formatter = FormatterConfig::Google;
+                }
+                _ => {
+                    eprintln!("Only formatters none and google are supported");
+                }
+            }
+        }
+    }
 }
 
 fn snippet_completion(name: &str, content: &str) -> CompletionItem {
@@ -1267,5 +1327,28 @@ pub fn report_maven_gradle_diagnostic(
         && let Ok(uri) = source_to_uri(source)
     {
         Backend::send_diagnostic(con, uri, diagnostics);
+    }
+}
+
+fn format_lines_to_diagnostic(e: FormatLineError, formatter: String) -> Diagnostic {
+    Diagnostic {
+        range: Range {
+            start: Position {
+                line: e.line,
+                character: e.col,
+            },
+            end: Position {
+                line: e.line,
+                character: e.col,
+            },
+        },
+        severity: Some(DiagnosticSeverity::ERROR),
+        code: None,
+        code_description: None,
+        source: Some(formatter),
+        message: e.message,
+        related_information: None,
+        tags: None,
+        data: None,
     }
 }

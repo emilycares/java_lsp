@@ -8,7 +8,7 @@ impl zed::Extension for JavaLsp {
         _language_server_id: &LanguageServerId,
         worktree: &Worktree,
     ) -> Result<Command> {
-        // When there are releases here is how to fetch the releas
+        // When there are releases here is how to fetch the release
         // https://github.com/zed-extensions/terraform/blob/5ea4664f1cf43e77456631f50639c970f944eea5/src/terraform.rs
         let lset = zed::settings::LspSettings::for_worktree("java_lsp", worktree)?;
         if let Some(s) = lset.binary
