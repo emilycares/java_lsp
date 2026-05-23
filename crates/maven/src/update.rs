@@ -1,40 +1,239 @@
 use std::{
+    collections::HashMap,
     fs,
     path::{Path, PathBuf},
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicU32, Ordering},
     },
     time::Duration,
 };
 
 use common::{Dependency, TaskProgress, deps_dir};
+use curl::easy::{Easy, List};
+use curl::multi::{EasyHandle, Multi};
 use dto::SourceDestination;
 use my_string::smol_str::ToSmolStr;
-use reqwest::{Client, StatusCode};
+use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinSet;
 
 use crate::{
-    m2::{MTwoError, get_maven_m2_folder, pom_classes_jar, pom_m2_sha1},
-    repository::Repository,
-};
-use crate::{
-    m2::{PomMTwo, pom_m2, pom_sources_jar},
+    m2::{
+        MTwoError, PomMTwo, get_maven_m2_folder, pom_classes_jar, pom_m2, pom_m2_sha1,
+        pom_sources_jar,
+    },
     metadata,
+    repository::{Repository, RepositoryCredentials},
 };
 
 #[derive(Debug)]
 pub enum MavenUpdateError {
     MTwo(MTwoError),
-    ClientBuilder(reqwest::Error),
-    ReqBuilder(reqwest::Error),
-    Request(reqwest::Error),
-    ShaBody(reqwest::Error),
-    JarBody(reqwest::Error),
+    Curl(curl::Error),
+    CurlMulti(curl::MultiError),
+    Driver,
     WriteHash(std::io::Error),
     WriteJar(std::io::Error),
     CreateDir(std::io::Error),
     WriteEtag(std::io::Error),
+}
+
+pub struct CurlResponse {
+    pub status: u32,
+    pub headers: HashMap<String, String>,
+    pub body: Vec<u8>,
+}
+
+impl CurlResponse {
+    const fn status_is_success(&self) -> bool {
+        self.status > 200 && self.status < 300
+    }
+}
+
+struct EasyState {
+    body: Arc<Mutex<Vec<u8>>>,
+    headers: Arc<Mutex<HashMap<String, String>>>,
+}
+
+fn make_easy(
+    url: &str,
+    credentials: Option<&RepositoryCredentials>,
+    if_none_match: Option<&str>,
+) -> Result<(Easy, EasyState), MavenUpdateError> {
+    let body: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::new()));
+    let headers: Arc<Mutex<HashMap<String, String>>> = Arc::new(Mutex::new(HashMap::new()));
+
+    let mut easy = Easy::new();
+    easy.url(url).map_err(MavenUpdateError::Curl)?;
+    easy.follow_location(true).map_err(MavenUpdateError::Curl)?;
+    easy.tcp_keepalive(true).map_err(MavenUpdateError::Curl)?;
+
+    if let Some(cred) = credentials {
+        easy.username(&cred.username)
+            .map_err(MavenUpdateError::Curl)?;
+        easy.password(&cred.password)
+            .map_err(MavenUpdateError::Curl)?;
+    }
+
+    if let Some(etag) = if_none_match {
+        let mut list = List::new();
+        list.append(&format!("If-None-Match: {etag}"))
+            .map_err(MavenUpdateError::Curl)?;
+        easy.http_headers(list).map_err(MavenUpdateError::Curl)?;
+    }
+
+    let body_cb = body.clone();
+    easy.write_function(move |data| {
+        if let Ok(mut b) = body_cb.lock() {
+            b.extend_from_slice(data);
+        }
+        Ok(data.len())
+    })
+    .map_err(MavenUpdateError::Curl)?;
+
+    let headers_cb = headers.clone();
+    easy.header_function(move |data| {
+        if let Ok(s) = std::str::from_utf8(data)
+            && let Some(pos) = s.find(':')
+        {
+            let key = s[..pos].trim().to_ascii_lowercase();
+            let val = s[pos + 1..]
+                .trim()
+                .trim_end_matches(['\r', '\n'])
+                .to_string();
+            if let Ok(mut h) = headers_cb.lock() {
+                h.insert(key, val);
+            }
+        }
+        true
+    })
+    .map_err(MavenUpdateError::Curl)?;
+
+    Ok((easy, EasyState { body, headers }))
+}
+
+type GetResult = Result<CurlResponse, MavenUpdateError>;
+type GetRequest = (Easy, EasyState, oneshot::Sender<GetResult>);
+
+pub struct CurlClient {
+    tx: mpsc::Sender<GetRequest>,
+}
+
+struct PendingEntry {
+    handle: EasyHandle,
+    state: EasyState,
+    tx: oneshot::Sender<GetResult>,
+}
+
+impl Default for CurlClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CurlClient {
+    #[must_use]
+    pub fn new() -> Self {
+        let (tx, rx) = mpsc::channel(64);
+        std::thread::spawn(move || Self::drive(rx));
+        Self { tx }
+    }
+
+    fn drive(mut rx: mpsc::Receiver<GetRequest>) {
+        let multi = Multi::new();
+        let mut pending: Vec<PendingEntry> = vec![];
+
+        loop {
+            loop {
+                use mpsc::error::TryRecvError;
+                match rx.try_recv() {
+                    Ok((easy, state, tx)) => match multi.add(easy) {
+                        Ok(handle) => pending.push(PendingEntry { handle, state, tx }),
+                        Err(e) => {
+                            let _ = tx.send(Err(MavenUpdateError::CurlMulti(e)));
+                        }
+                    },
+                    Err(TryRecvError::Empty | TryRecvError::Disconnected) => break,
+                }
+            }
+
+            if pending.is_empty() {
+                if rx.is_closed() {
+                    return;
+                }
+                std::thread::sleep(Duration::from_millis(1));
+                continue;
+            }
+
+            if multi.perform().is_err() {
+                return;
+            }
+
+            let mut completed: Vec<usize> = vec![];
+            multi.messages(|msg| {
+                for (i, entry) in pending.iter().enumerate() {
+                    if msg.is_for(&entry.handle) {
+                        completed.push(i);
+                        break;
+                    }
+                }
+            });
+
+            for i in completed.into_iter().rev() {
+                let entry = pending.remove(i);
+                let result = multi
+                    .remove(entry.handle)
+                    .map_err(MavenUpdateError::CurlMulti)
+                    .and_then(|mut easy| {
+                        let status = easy.response_code().map_err(MavenUpdateError::Curl)?;
+                        let body = entry
+                            .state
+                            .body
+                            .lock()
+                            .ok()
+                            .ok_or(MavenUpdateError::Driver)?
+                            .clone();
+                        let headers = entry
+                            .state
+                            .headers
+                            .lock()
+                            .ok()
+                            .ok_or(MavenUpdateError::Driver)?
+                            .clone();
+                        Ok(CurlResponse {
+                            status,
+                            headers,
+                            body,
+                        })
+                    });
+                let _ = entry.tx.send(result);
+            }
+
+            if pending.is_empty() && rx.is_closed() {
+                return;
+            }
+
+            let mut no_fds: [curl::multi::WaitFd; 0] = [];
+            multi.wait(&mut no_fds, Duration::from_millis(1)).ok();
+        }
+    }
+
+    pub async fn get(
+        &self,
+        url: &str,
+        credentials: Option<&RepositoryCredentials>,
+        if_none_match: Option<&str>,
+    ) -> Result<CurlResponse, MavenUpdateError> {
+        let (easy, state) = make_easy(url, credentials, if_none_match)?;
+        let (result_tx, result_rx) = oneshot::channel();
+        self.tx
+            .send((easy, state, result_tx))
+            .await
+            .map_err(|_| MavenUpdateError::Driver)?;
+        result_rx
+            .await
+            .map_or(Err(MavenUpdateError::Driver), |result| result)
+    }
 }
 
 pub async fn update(
@@ -42,11 +241,7 @@ pub async fn update(
     tree: &[Dependency],
     sender: tokio::sync::watch::Sender<TaskProgress>,
 ) -> Result<(), MavenUpdateError> {
-    let client = reqwest::Client::builder()
-        .tcp_keepalive(Duration::from_mins(1))
-        .build()
-        .map_err(MavenUpdateError::ClientBuilder)?;
-    let client = Arc::new(client);
+    let client = Arc::new(CurlClient::new());
     let m2 = get_maven_m2_folder().map_err(MavenUpdateError::MTwo)?;
     let mut handles = JoinSet::new();
     let tasks_number = u32::try_from(tree.len() + 1).unwrap_or(1);
@@ -109,16 +304,13 @@ pub async fn update(
             let mut source_url = pom_source_jar_url(&pom, &repo.url);
 
             if matches!(two, Ok(UpdateStateTwo::NotFound)) && pom.version.ends_with("SNAPSHOT") {
-                let url = pom_snapshot_maven_metadata_xml_url(&pom, &repo.url);
-                let mut builder = client.get(url);
-                if let Some(cred) = &repo.credentials {
-                    builder =
-                        builder.basic_auth(cred.username.clone(), Some(cred.password.clone()));
-                }
-                if let Ok(req) = builder.build()
-                    && let Ok(resp) = client.execute(req).await
-                    && resp.status().is_success()
-                    && let Ok(content) = resp.text().await
+                let metadata_url = pom_snapshot_maven_metadata_xml_url(&pom, &repo.url);
+                if let Ok(resp) = client
+                    .get(&metadata_url, repo.credentials.as_ref(), None)
+                    .await
+                    && resp.status > 200
+                    && resp.status < 300
+                    && let Ok(content) = String::from_utf8(resp.body)
                     && let Ok(info) = metadata::get_metadata_info(&content, &pom.artivact_id)
                     && let Some(classes) = info.classes
                 {
@@ -189,7 +381,7 @@ fn handle_repo_retry(
     pom: Arc<Dependency>,
     pom_mtwo: Arc<PomMTwo>,
     repo: Arc<Repository>,
-    client: &Arc<Client>,
+    client: &Arc<CurlClient>,
     source_url: String,
 ) -> bool {
     match two {
@@ -234,7 +426,7 @@ async fn fetch_extract_source(
     pom_mtwo: Arc<PathBuf>,
     d_source: Arc<PathBuf>,
     deps_bas: Arc<PathBuf>,
-    client: Arc<Client>,
+    client: Arc<CurlClient>,
     repo: Arc<Repository>,
     url: &str,
 ) -> bool {
@@ -346,74 +538,68 @@ pub async fn stage_two(
     jar: Arc<PathBuf>,
     deps_bas: &DepsBas,
     ignore_etag: bool,
-    client: &Arc<Client>,
+    client: &Arc<CurlClient>,
     jar_url: &str,
 ) -> Result<UpdateStateTwo, MavenUpdateError> {
-    let mut builder = client.get(jar_url);
-    if let Some(cred) = &repo.credentials {
-        builder = builder.basic_auth(cred.username.clone(), Some(cred.password.clone()));
-    }
     tokio::fs::create_dir_all(deps_bas)
         .await
         .map_err(MavenUpdateError::CreateDir)?;
     tokio::fs::create_dir_all(pom_mtwo.as_ref())
         .await
         .map_err(MavenUpdateError::CreateDir)?;
-    let etag = deps_get_etag(deps_bas, &pom);
-    if !ignore_etag
-        && etag.exists()
-        && let Ok(etag) = fs::read_to_string(&etag)
-    {
-        builder = builder.header("If-None-Match", etag);
-    }
-    let req = builder.build().map_err(MavenUpdateError::ReqBuilder)?;
+
+    let etag_path = deps_get_etag(deps_bas, &pom);
+    let if_none_match = if !ignore_etag && etag_path.exists() {
+        fs::read_to_string(&etag_path).ok()
+    } else {
+        None
+    };
 
     let resp = client
-        .execute(req)
-        .await
-        .map_err(MavenUpdateError::Request)?;
+        .get(jar_url, repo.credentials.as_ref(), if_none_match.as_deref())
+        .await?;
 
-    if resp.status() == StatusCode::NOT_MODIFIED {
+    if resp.status == 304 {
         return Ok(UpdateStateTwo::AlreadyLatest);
     }
-    if resp.status() == StatusCode::NOT_FOUND || !resp.status().is_success() {
+    if resp.status == 404 || !resp.status_is_success() {
         return Ok(UpdateStateTwo::NotFound);
     }
-    let hash = deps_get_hash(deps_bas, &pom);
-    let sha1 = pom_m2_sha1(&pom, &pom_mtwo);
-    if let Some(sha) = resp.headers().get("etag") {
-        tokio::fs::write(etag, sha)
+
+    if let Some(etag) = resp.headers.get("etag") {
+        tokio::fs::write(&etag_path, etag)
             .await
             .map_err(MavenUpdateError::WriteEtag)?;
     }
-    if let Some(sha) = resp.headers().get("x-checksum-sha1") {
-        tokio::fs::write(hash, sha)
+
+    let hash_path = deps_get_hash(deps_bas, &pom);
+    let sha1_path = pom_m2_sha1(&pom, &pom_mtwo);
+
+    if let Some(sha) = resp.headers.get("x-checksum-sha1") {
+        let sha_bytes = sha.as_bytes().to_vec();
+        tokio::fs::write(&hash_path, &sha_bytes)
             .await
             .map_err(MavenUpdateError::WriteHash)?;
-        tokio::fs::write(sha1, sha)
+        tokio::fs::write(&sha1_path, &sha_bytes)
             .await
             .map_err(MavenUpdateError::WriteHash)?;
     } else {
-        let mut builder = client.get(pom_jar_sha_url(&pom, &repo.url));
-        if let Some(cred) = &repo.credentials {
-            builder = builder.basic_auth(cred.username.clone(), Some(cred.password.clone()));
-        }
-        let req = builder.build().map_err(MavenUpdateError::ReqBuilder)?;
-        let resp = client
-            .execute(req)
-            .await
-            .map_err(MavenUpdateError::Request)?;
-
-        let contents = resp.bytes().await.map_err(MavenUpdateError::ShaBody)?;
-        tokio::fs::write(hash, &contents)
+        let sha_resp = client
+            .get(
+                &pom_jar_sha_url(&pom, &repo.url),
+                repo.credentials.as_ref(),
+                None,
+            )
+            .await?;
+        tokio::fs::write(&hash_path, &sha_resp.body)
             .await
             .map_err(MavenUpdateError::WriteHash)?;
-        tokio::fs::write(sha1, contents)
+        tokio::fs::write(&sha1_path, &sha_resp.body)
             .await
             .map_err(MavenUpdateError::WriteHash)?;
     }
-    let contents = &resp.bytes().await.map_err(MavenUpdateError::JarBody)?;
-    tokio::fs::write(jar.as_ref(), contents)
+
+    tokio::fs::write(jar.as_ref(), &resp.body)
         .await
         .map_err(MavenUpdateError::WriteJar)?;
 
@@ -425,36 +611,28 @@ pub enum UpdateStateSource {
     Updated,
     NotFound,
 }
+
 pub async fn fetch_source(
     pom_mtwo: &PomMTwo,
     repo: &Repository,
     source: &DepsSource,
     deps_bas: &DepsBas,
-    client: &Arc<Client>,
+    client: &Arc<CurlClient>,
     url: &str,
 ) -> Result<UpdateStateSource, MavenUpdateError> {
-    let mut builder = client.get(url);
-    if let Some(cred) = &repo.credentials {
-        builder = builder.basic_auth(cred.username.clone(), Some(cred.password.clone()));
-    }
     tokio::fs::create_dir_all(deps_bas)
         .await
         .map_err(MavenUpdateError::CreateDir)?;
     tokio::fs::create_dir_all(pom_mtwo)
         .await
         .map_err(MavenUpdateError::CreateDir)?;
-    let req = builder.build().map_err(MavenUpdateError::ReqBuilder)?;
 
-    let resp = client
-        .execute(req)
-        .await
-        .map_err(MavenUpdateError::Request)?;
+    let resp = client.get(url, repo.credentials.as_ref(), None).await?;
 
-    if resp.status() == StatusCode::NOT_FOUND || !resp.status().is_success() {
+    if resp.status == 404 || !resp.status_is_success() {
         return Ok(UpdateStateSource::NotFound);
     }
-    let contents = &resp.bytes().await.map_err(MavenUpdateError::JarBody)?;
-    tokio::fs::write(source, contents)
+    tokio::fs::write(source, &resp.body)
         .await
         .map_err(MavenUpdateError::WriteJar)?;
 
@@ -525,20 +703,16 @@ type DepsHash = PathBuf;
 #[must_use]
 pub fn deps_get_hash(deps_bas: &DepsBas, pom: &Dependency) -> DepsHash {
     let mut p = deps_bas.join("a");
-
     let file_name = format!("{}-{}.hash", pom.artivact_id, pom.version);
     p.set_file_name(file_name);
-
     p
 }
 type DepsCFC = PathBuf;
 #[must_use]
 pub fn deps_get_cfc(deps_bas: &DepsBas, pom: &Dependency) -> DepsCFC {
     let mut p = deps_bas.join("a");
-
     let file_name = format!("{}-{}.cfc", pom.artivact_id, pom.version);
     p.set_file_name(file_name);
-
     p
 }
 
@@ -546,10 +720,8 @@ type DepsEtag = PathBuf;
 #[must_use]
 pub fn deps_get_etag(deps_bas: &DepsBas, pom: &Dependency) -> DepsEtag {
     let mut p = deps_bas.join("a");
-
     let file_name = format!("{}-{}.etag", pom.artivact_id, pom.version);
     p.set_file_name(file_name);
-
     p
 }
 

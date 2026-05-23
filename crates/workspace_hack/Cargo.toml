@@ -20,27 +20,15 @@ crossbeam-utils = { version = "0.8" }
 memchr = { version = "2" }
 serde = { version = "1", features = ["alloc", "derive"] }
 serde_core = { version = "1", default-features = false, features = ["alloc", "result", "std"] }
-smallvec = { version = "1", default-features = false, features = ["const_generics"] }
 thiserror = { version = "2" }
 
 [build-dependencies]
 proc-macro2 = { version = "1" }
 quote = { version = "1" }
-syn = { version = "2", features = ["extra-traits", "fold", "full", "visit"] }
-
-[target.x86_64-unknown-linux-gnu.dependencies]
-futures-core = { version = "0.3" }
-slab = { version = "0.4" }
-smallvec = { version = "1", default-features = false, features = ["const_new"] }
-tracing = { version = "0.1", default-features = false, features = ["std"] }
-tracing-core = { version = "0.1", default-features = false, features = ["std"] }
+syn = { version = "2", features = ["extra-traits", "full"] }
 
 [target.x86_64-pc-windows-msvc.dependencies]
-futures-core = { version = "0.3" }
-slab = { version = "0.4" }
-smallvec = { version = "1", default-features = false, features = ["const_new"] }
-tracing = { version = "0.1", default-features = false, features = ["std"] }
-tracing-core = { version = "0.1", default-features = false, features = ["std"] }
-windows-sys = { version = "0.61", features = ["Wdk_Foundation", "Wdk_Storage_FileSystem", "Wdk_System_IO", "Win32_Globalization", "Win32_Networking_WinSock", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_System_Console", "Win32_System_IO", "Win32_System_Pipes", "Win32_System_SystemServices", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Shell"] }
+windows-sys-4db8c43aad08e7ae = { package = "windows-sys", version = "0.60", features = ["Win32_Globalization", "Win32_Networking_WinSock", "Win32_System_Com", "Win32_System_IO", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Shell"] }
+windows-sys-d4189bed749088b6 = { package = "windows-sys", version = "0.61", features = ["Wdk_Foundation", "Wdk_Storage_FileSystem", "Wdk_System_IO", "Win32_Networking_WinSock", "Win32_Security_Authentication_Identity", "Win32_Security_Credentials", "Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_IO", "Win32_System_LibraryLoader", "Win32_System_Memory", "Win32_System_Pipes", "Win32_System_SystemInformation", "Win32_System_SystemServices", "Win32_System_Threading", "Win32_System_WindowsProgramming"] }
 
 ### END HAKARI SECTION

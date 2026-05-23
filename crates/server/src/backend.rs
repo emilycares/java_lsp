@@ -1253,17 +1253,13 @@ pub async fn update_report(
     let mut diagnostics = Vec::new();
     let range = Range::default();
     match res {
-        MavenUpdateError::ClientBuilder(error)
-        | MavenUpdateError::ReqBuilder(error)
-        | MavenUpdateError::ShaBody(error)
-        | MavenUpdateError::JarBody(error)
-        | MavenUpdateError::Request(error) => {
+        MavenUpdateError::Driver | MavenUpdateError::CurlMulti(_) | MavenUpdateError::Curl(_) => {
             diagnostics.push(Diagnostic::new(
                 range,
                 Some(DiagnosticSeverity::ERROR),
                 None,
                 Some(String::from(SERVER_NAME)),
-                error.to_string(),
+                String::from("Error fetching depdendencies"),
                 None,
                 None,
             ));

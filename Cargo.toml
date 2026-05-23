@@ -117,5 +117,5 @@ rayon = "1.11.0"
 memmap2 = "0.9.9"
 memchr = "2.7.6"
 sha1_smol = "1.0.1"
-reqwest = "0.13.2"
+curl = "0.4"
 smol_str = { version= "0.3.6", features = ["serde"]}
