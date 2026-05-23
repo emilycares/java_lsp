@@ -27,7 +27,7 @@ use types::{
     AstValues, AstWhile,
 };
 
-use crate::types::AstTopLevel;
+use crate::types::{AstMethodParameterFlags, AstTopLevel};
 use crate::{
     class::parse_class_block,
     error::{GetStartEnd, assert_semicolon_options},
@@ -233,7 +233,7 @@ pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, us
             Token::Static => availability |= AstAvailability::Static,
             Token::Final => availability |= AstAvailability::Final,
             Token::Abstract => availability |= AstAvailability::Abstract,
-            Token::StrictFp => availability |= AstAvailability::StaticFp,
+            Token::StrictFp => (),
             Token::Sealed => attributes |= AstThingAttributes::Sealed,
             Token::Non => {
                 if let Ok(npos) = assert_token(tokens, pos + 1, Token::Dash)
@@ -3012,18 +3012,17 @@ fn parse_method_parameter(
     pos: usize,
 ) -> Result<(AstMethodParameter, usize), AstError> {
     let start = tokens.start(pos)?;
-    let mut fin = false;
-    let mut variatic = false;
+    let mut flags = AstMethodParameterFlags::empty();
     let (annotated, pos) = parse_annotated_list(tokens, pos)?;
     let mut pos = pos;
     if let Ok(npos) = assert_token(tokens, pos, Token::Final) {
-        fin = true;
+        flags |= AstMethodParameterFlags::Fin;
         pos = npos;
     }
     let (mut jtype, pos) = parse_jtype(tokens, pos)?;
     let mut pos = pos;
     if let Ok(npos) = parse_variadic(tokens, pos) {
-        variatic = true;
+        flags |= AstMethodParameterFlags::Variatic;
         pos = npos;
     }
     let (name, pos) = parse_name(tokens, pos)?;
@@ -3035,8 +3034,7 @@ fn parse_method_parameter(
             annotated,
             jtype,
             name,
-            fin,
-            variatic,
+            flags,
         },
         pos,
     ))

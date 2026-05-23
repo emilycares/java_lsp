@@ -17,8 +17,6 @@ use tyres::TyresError;
 #[derive(Debug)]
 pub enum HoverError {
     Tyres(TyresError),
-    CallChainEmpty,
-    ParseError(parser::java::ParseJavaError),
     ValidatedItemDoesNotExists,
     LocalVariableNotFound { name: MyString },
     Unimlemented,
@@ -65,11 +63,8 @@ pub fn base(
 pub enum ClassActionError {
     /// No class for actions found
     NotFound,
-    /// Under the cursor there was no text
-    CouldNotGetNode,
     /// In the type resolution error
     Tyres(TyresError),
-    VariableFound,
     ToLspRange(ToLspRangeError),
 }
 

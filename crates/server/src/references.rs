@@ -5,7 +5,7 @@ use std::{
 
 use ast::types::{AstFile, AstPoint};
 use call_chain::CallItem;
-use document::{Document, DocumentError};
+use document::Document;
 use dto::{Class, ImportUnit};
 use local_variable::LocalVariable;
 use lsp_extra::{SourceToUriError, ToLspRangeError, source_to_uri, to_lsp_range};
@@ -13,16 +13,11 @@ use lsp_types::Location;
 use my_string::MyString;
 use position::PositionSymbol;
 
-use crate::definition::DefinitionError;
-
 #[derive(Debug)]
 pub enum ReferencesError {
-    FindClassnameInClasspath(String),
     Tyres(tyres::TyresError),
     ValidatedItemDoesNotExists,
     ArgumentNotFound,
-    Definition(DefinitionError),
-    Document(DocumentError),
     ToLspRange(ToLspRangeError),
     SourceToUri(SourceToUriError),
     Locked,

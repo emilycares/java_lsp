@@ -49,7 +49,7 @@ use crate::{
     document_link::get_document_link,
     hover::{self, class_action},
     inlay_hint::get_inlay_hint,
-    references::{self, ReferenceUnit, ReferencesContext, ReferencesError},
+    references::{self, ReferenceUnit, ReferencesContext},
     signature, snipptes,
 };
 
@@ -881,10 +881,6 @@ impl Backend {
             &self.document_map,
         ) {
             Ok(refs) => Some(refs),
-            Err(ReferencesError::Document(DocumentError::Diagnostic(diag))) => {
-                self.handle_diagnostic(uri, Some(*diag));
-                None
-            }
             Err(e) => {
                 eprintln!("Got reference call_chain error: {e:?}");
                 None
@@ -1129,12 +1125,6 @@ impl Backend {
             eprintln!("Document is not opened.");
             None
         }
-    }
-
-    fn handle_diagnostic(&self, uri: Uri, diag: Option<Diagnostic>) {
-        let mut diagnostics = Vec::new();
-        diagnostics.extend(diag);
-        Self::send_diagnostic(&self.connection, uri, diagnostics);
     }
 
     pub fn fill_config(&mut self, initialization_options: Option<Value>) {

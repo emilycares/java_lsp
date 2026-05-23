@@ -1,5 +1,3 @@
-use std::str::Utf8Error;
-
 use ast::{
     dto_extra::access_from_availability,
     lexer,
@@ -16,17 +14,11 @@ use my_string::{
 };
 
 use dto::{
-    Access, Class, ClassError, Field, ImportUnit, JType, Method, Parameter, SourceDestination,
-    SuperClass,
+    Access, Class, Field, ImportUnit, JType, Method, Parameter, SourceDestination, SuperClass,
 };
 
 #[derive(Debug)]
 pub enum ParseJavaError {
-    Utf8(Utf8Error),
-    Class(ClassError),
-    Io(std::io::Error),
-    UnknownJType(String, String),
-    UnknownWildcard(String),
     Ast(ast::error::AstError),
     Lexer(ast::lexer::LexerError),
 }

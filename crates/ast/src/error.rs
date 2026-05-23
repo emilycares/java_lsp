@@ -44,8 +44,6 @@ pub enum AstError {
         /// Related errors
         errors: Vec<(MyString, Self)>,
     },
-    /// Invalid token in Boolean
-    InvalidBoolean(InvalidToken),
     /// Invalid string literal
     InvalidString(InvalidToken),
 }
@@ -112,16 +110,6 @@ impl PrintErr for AstError {
                     );
                 }
             }
-            Self::InvalidBoolean(invalid_token) => {
-                if let Some(found) = tokens.get(invalid_token.0) {
-                    print_helper(
-                        content,
-                        found.line,
-                        found.col,
-                        &format!("Token not allowed in boolean: {:?}", found.token),
-                    );
-                }
-            }
             Self::InvalidString(invalid_token) => {
                 if let Some(found) = tokens.get(invalid_token.0) {
                     print_helper(
@@ -170,7 +158,6 @@ const fn sort_helper_error(a: &(MyString, AstError)) -> usize {
         | AstError::IdentifierEmpty(invalid_token)
         | AstError::InvalidName(invalid_token)
         | AstError::InvalidNuget(invalid_token)
-        | AstError::InvalidBoolean(invalid_token)
         | AstError::InvalidString(invalid_token) => invalid_token.0,
         AstError::UnexpectedEOF
         | AstError::AllChildrenFailed {
@@ -209,7 +196,6 @@ pub fn get_pos(e: &AstError) -> (usize, usize) {
         | AstError::IdentifierEmpty(invalid_token)
         | AstError::InvalidName(invalid_token)
         | AstError::InvalidNuget(invalid_token)
-        | AstError::InvalidBoolean(invalid_token)
         | AstError::InvalidString(invalid_token) => (invalid_token.0, invalid_token.0),
     }
 }

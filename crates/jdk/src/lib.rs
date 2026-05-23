@@ -31,7 +31,6 @@ const JDK_CFC: &str = "jdk.cfc";
 
 #[derive(Debug)]
 pub enum JdkError {
-    NoSrcZip,
     Unzip(Option<String>),
     ParserLoader(loader::LoaderError),
     JavaVersionCommand(std::io::Error),

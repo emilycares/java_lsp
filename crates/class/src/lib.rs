@@ -469,7 +469,7 @@ fn assert_char(content: &[u8], pos: usize, p: u8) -> Result<usize, ClassParserEr
         // let expected = char::from_u32(p as u32);
         // let got = char::from_u32(*c as u32);
         // eprintln!("expected: {expected:?}, got: {got:?}");
-        return Err(ClassParserError::ExpectedOther { pos });
+        return Err(ClassParserError::ExpectedOther);
     }
 
     Ok(pos + 1)
@@ -667,9 +667,9 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(JType, usize), ClassP
             let (inner, npos) = parse_field_type(content, pos + 1)?;
             Ok((JType::Array(Box::new(inner)), npos))
         }
-        c => {
-            let got = char::from_u32(u32::from(*c));
-            Err(ClassParserError::UnknownType(got))
+        _ => {
+            // let got = char::from_u32(u32::from(*c));
+            Err(ClassParserError::UnknownType)
         }
     }
 }
@@ -1191,7 +1191,7 @@ fn parse_constant(data: &[u8], pos: usize) -> Result<(ConstEntry, usize, usize),
         18 => Ok(parse_invoke_dynamic_const(pos)),
         19 => parse_module_const(data, pos),
         20 => parse_package_const(data, pos),
-        u => Err(ClassParserError::UnknownConstant(u)),
+        _ => Err(ClassParserError::UnknownConstant),
     }
 }
 
@@ -1322,7 +1322,7 @@ fn expect_data(data: &[u8], pos: usize, expected: &[u8]) -> Result<usize, ClassP
 
     let cond = get != expected;
     if cond {
-        return Err(ClassParserError::NotAsExpected { pos, len });
+        return Err(ClassParserError::NotAsExpected);
     }
     Ok(pos + len)
 }

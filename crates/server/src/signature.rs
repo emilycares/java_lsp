@@ -20,7 +20,6 @@ pub enum SignatureError {
     NotAnArgumentList,
     CouldNotGetMethod,
     CouldNoteGetActiveSignature,
-    NoCallChain,
     Variables(VariablesError),
 }
 

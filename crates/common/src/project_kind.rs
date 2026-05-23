@@ -14,7 +14,6 @@ pub enum ProjectKind {
 
 #[derive(Debug)]
 pub enum ProjectKindError {
-    NoPath,
     PathToString,
     MvnNotInPath,
     GradleNotInPath,

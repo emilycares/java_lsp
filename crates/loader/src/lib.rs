@@ -12,11 +12,8 @@ use std::{
 };
 
 use class::{ModuleInfo, load_class, load_module};
-use dto::{CFC_VERSION, Class, ClassError, ClassFolder, ClassParserError, SourceDestination};
-use my_string::{
-    MyString,
-    smol_str::{SmolStr, ToSmolStr},
-};
+use dto::{CFC_VERSION, Class, ClassFolder, ClassParserError, SourceDestination};
+use my_string::{MyString, smol_str::ToSmolStr};
 use parser::java::{self, ParseJavaError};
 use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
 use std::fmt::Debug;
@@ -34,26 +31,20 @@ pub enum LoaderError {
     InvalidCfcCache,
     EmptyClassFolder,
     Module(ClassParserError),
-    Class {
-        re: SmolStr,
-        e: ClassError,
-    },
-    ClassParser {
-        re: SmolStr,
-        e: ClassParserError,
-    },
+    ClassParser(ClassParserError),
+    ParseJava(ParseJavaError),
 }
 
-pub fn load_java_fs<T>(path: T, source: SourceDestination) -> Result<Class, ParseJavaError>
+pub fn load_java_fs<T>(path: T, source: SourceDestination) -> Result<Class, LoaderError>
 where
     T: AsRef<Path> + Debug,
 {
-    let file = File::open(path).map_err(ParseJavaError::Io)?;
-    let mmap = unsafe { memmap2::Mmap::map(&file) }.map_err(ParseJavaError::Io)?;
+    let file = File::open(path).map_err(LoaderError::IO)?;
+    let mmap = unsafe { memmap2::Mmap::map(&file) }.map_err(LoaderError::IO)?;
     #[cfg(unix)]
     mmap.advise(memmap2::Advice::Sequential)
-        .map_err(ParseJavaError::Io)?;
-    java::load_java(&mmap[..], source)
+        .map_err(LoaderError::IO)?;
+    java::load_java(&mmap[..], source).map_err(LoaderError::ParseJava)
 }
 
 pub fn load_class_fs<T>(
@@ -61,16 +52,16 @@ pub fn load_class_fs<T>(
     source: SourceDestination,
     class_path: MyString,
     filter: bool,
-) -> Result<Class, ClassError>
+) -> Result<Class, LoaderError>
 where
     T: AsRef<Path> + Debug,
 {
-    let file = File::open(path).map_err(ClassError::IO)?;
-    let mmap = unsafe { memmap2::Mmap::map(&file) }.map_err(ClassError::IO)?;
+    let file = File::open(path).map_err(LoaderError::IO)?;
+    let mmap = unsafe { memmap2::Mmap::map(&file) }.map_err(LoaderError::IO)?;
     #[cfg(unix)]
     mmap.advise(memmap2::Advice::Sequential)
-        .map_err(ClassError::IO)?;
-    class::load_class(&mmap, class_path, source, filter).map_err(ClassError::ClassParser)
+        .map_err(LoaderError::IO)?;
+    class::load_class(&mmap, class_path, source, filter).map_err(LoaderError::ClassParser)
 }
 
 pub fn save_class_folder<P: AsRef<Path> + Debug>(
@@ -230,7 +221,7 @@ pub fn load_class_files(
             .trim_start_matches(root_prefix)
             .trim_start_matches('/')
             .trim_end_matches("module-info.class");
-        if let Ok(file) = File::open(p).map_err(ClassError::IO)
+        if let Ok(file) = File::open(p).map_err(LoaderError::IO)
             && let Ok(mmap) = unsafe { memmap2::Mmap::map(&file) }
         {
             #[cfg(unix)]
@@ -282,11 +273,11 @@ pub fn load_class_files(
             Ok(c) => {
                 out.push(c);
             }
-            Err(ClassError::ClassParser(
+            Err(LoaderError::ClassParser(
                 ClassParserError::NotAClass | ClassParserError::Ignoring,
             )) => (),
             Err(e) => {
-                return Err(LoaderError::Class { re: smol_str, e });
+                return Err(e);
             }
         }
     }
@@ -393,7 +384,7 @@ async fn base_load_classes_zip(
             Ok(c) => classes.push(c),
             Err(ClassParserError::Ignoring | ClassParserError::NotAClass) => (),
             Err(e) => {
-                return Err(LoaderError::ClassParser { re: class_path, e });
+                return Err(LoaderError::ClassParser(e));
             }
         }
     }
@@ -406,12 +397,14 @@ async fn base_load_classes_zip(
 
 #[cfg(test)]
 mod tests {
+    use crate::DEBUGGING;
     use dto::JType;
 
-    use crate::DEBUGGING;
     #[test]
     fn not_debugging() {
-        assert!(!DEBUGGING);
+        const {
+            assert!(!DEBUGGING);
+        }
     }
 
     #[test]

@@ -438,8 +438,9 @@ fn everything() {
                                                             },
                                                             value: "a",
                                                         },
-                                                        fin: false,
-                                                        variatic: false,
+                                                        flags: AstMethodParameterFlags(
+                                                            0x0,
+                                                        ),
                                                     },
                                                     AstMethodParameter {
                                                         range: AstRange {
@@ -462,8 +463,9 @@ fn everything() {
                                                             },
                                                             value: "b",
                                                         },
-                                                        fin: false,
-                                                        variatic: false,
+                                                        flags: AstMethodParameterFlags(
+                                                            0x0,
+                                                        ),
                                                     },
                                                 ],
                                             },
@@ -607,8 +609,9 @@ fn everything() {
                                                             },
                                                             value: "a",
                                                         },
-                                                        fin: false,
-                                                        variatic: false,
+                                                        flags: AstMethodParameterFlags(
+                                                            0x0,
+                                                        ),
                                                     },
                                                     AstMethodParameter {
                                                         range: AstRange {
@@ -631,8 +634,9 @@ fn everything() {
                                                             },
                                                             value: "b",
                                                         },
-                                                        fin: false,
-                                                        variatic: false,
+                                                        flags: AstMethodParameterFlags(
+                                                            0x0,
+                                                        ),
                                                     },
                                                 ],
                                             },
@@ -1494,8 +1498,9 @@ fn locale_variable_table() {
                                                             },
                                                             value: "a",
                                                         },
-                                                        fin: false,
-                                                        variatic: false,
+                                                        flags: AstMethodParameterFlags(
+                                                            0x0,
+                                                        ),
                                                     },
                                                     AstMethodParameter {
                                                         range: AstRange {
@@ -1518,8 +1523,9 @@ fn locale_variable_table() {
                                                             },
                                                             value: "b",
                                                         },
-                                                        fin: false,
-                                                        variatic: false,
+                                                        flags: AstMethodParameterFlags(
+                                                            0x0,
+                                                        ),
                                                     },
                                                 ],
                                             },
@@ -2211,8 +2217,9 @@ fn constants() {
                                                         },
                                                         value: "hostname",
                                                     },
-                                                    fin: false,
-                                                    variatic: false,
+                                                    flags: AstMethodParameterFlags(
+                                                        0x0,
+                                                    ),
                                                 },
                                                 AstMethodParameter {
                                                     range: AstRange {
@@ -2235,8 +2242,9 @@ fn constants() {
                                                         },
                                                         value: "port",
                                                     },
-                                                    fin: false,
-                                                    variatic: false,
+                                                    flags: AstMethodParameterFlags(
+                                                        0x0,
+                                                    ),
                                                 },
                                             ],
                                         },
@@ -2915,8 +2923,9 @@ fn interface_base() {
                                                         },
                                                         value: "mapper",
                                                     },
-                                                    fin: false,
-                                                    variatic: false,
+                                                    flags: AstMethodParameterFlags(
+                                                        0x0,
+                                                    ),
                                                 },
                                             ],
                                         },
@@ -3025,8 +3034,9 @@ fn interface_base() {
                                                         },
                                                         value: "arg",
                                                     },
-                                                    fin: true,
-                                                    variatic: false,
+                                                    flags: AstMethodParameterFlags(
+                                                        Fin,
+                                                    ),
                                                 },
                                             ],
                                         },
@@ -3482,8 +3492,9 @@ fn variants() {
                                                         },
                                                         value: "tag",
                                                     },
-                                                    fin: false,
-                                                    variatic: false,
+                                                    flags: AstMethodParameterFlags(
+                                                        0x0,
+                                                    ),
                                                 },
                                             ],
                                         },
@@ -4702,8 +4713,9 @@ fn types() {
                                                             },
                                                             value: "args",
                                                         },
-                                                        fin: false,
-                                                        variatic: false,
+                                                        flags: AstMethodParameterFlags(
+                                                            0x0,
+                                                        ),
                                                     },
                                                 ],
                                             },
@@ -5029,8 +5041,9 @@ fn annotated() {
                                                             },
                                                             value: "name",
                                                         },
-                                                        fin: false,
-                                                        variatic: false,
+                                                        flags: AstMethodParameterFlags(
+                                                            0x0,
+                                                        ),
                                                     },
                                                 ],
                                             },
@@ -6273,8 +6286,9 @@ fn more_syntax() {
                                                             },
                                                             value: "args",
                                                         },
-                                                        fin: false,
-                                                        variatic: false,
+                                                        flags: AstMethodParameterFlags(
+                                                            0x0,
+                                                        ),
                                                     },
                                                 ],
                                             },
@@ -15871,8 +15885,9 @@ fn method_no_body() {
                                     },
                                     value: "key",
                                 },
-                                fin: false,
-                                variatic: false,
+                                flags: AstMethodParameterFlags(
+                                    0x0,
+                                ),
                             },
                         ],
                     },

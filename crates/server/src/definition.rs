@@ -24,10 +24,8 @@ use crate::hover::{ClassActionError, class_action};
 pub enum DefinitionError {
     Tyres(TyresError),
     ClassActon(ClassActionError),
-    NoSourceFile { file: SmolStr },
     LocalVariableNotFound { name: SmolStr },
     ValidatedItemDoesNotExists,
-    NoCallChain,
     ArgumentNotFound,
     Document(DocumentError),
     ToLspRange(ToLspRangeError),

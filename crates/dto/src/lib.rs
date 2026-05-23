@@ -10,47 +10,26 @@ use my_string::{
 };
 use serde::{Deserialize, Serialize};
 
-pub const CFC_VERSION: usize = 14;
-
-#[derive(Debug)]
-pub enum ClassError {
-    IO(std::io::Error),
-    Asm,
-    Unknown,
-    ParseError,
-    ClassParser(ClassParserError),
-    UnknownClassName,
-    UnknownClassPath,
-    InvalidClassPath,
-    NoModuleAttribute,
-}
+pub const CFC_VERSION: usize = 15;
 
 #[derive(Debug)]
 pub enum ClassParserError {
     EOF,
-    ExpectedOther { pos: usize },
+    ExpectedOther,
     Ignoring,
     StringIndexZero,
     ExpectedString,
     InvalidName,
     NotEnogthParams,
     NoModuleAttribute,
-    UnknownType(Option<char>),
+    UnknownType,
     GenericParameterName,
     InvalidAttributeIndex,
-    CodeAttribute,
-    BaseParser,
-    MethodParameters,
-    SignatureAttribute,
-    ExceptionsAttribute,
-    LocalVariableTable,
-    Module,
-    ModuleAttribute,
-    NotAsExpected { pos: usize, len: usize },
+    NotAsExpected,
     NotAClass,
     NameRecursion,
     Number,
-    UnknownConstant(u8),
+    UnknownConstant,
     Mutf8,
     InvalidUtf8,
 }
@@ -169,17 +148,17 @@ bitflags! {
      const Private      = 0b0000_0000_0000_0010;
      const Protected    = 0b0000_0000_0000_0100;
      const Static       = 0b0000_0000_0000_1000;
-     const Final        = 0b0000_0000_0010_0000;
-     const Super        = 0b0000_0000_0100_0000;
-     const Volatile     = 0b0000_0000_1000_0000;
-     const Transient    = 0b0000_0001_0000_0000;
-     const Synthetic    = 0b0000_0010_0000_0000;
-     const Annotation   = 0b0000_0100_0000_0000;
-     const Enum         = 0b0000_1000_0000_0000;
-     const Interface    = 0b0001_0000_0000_0000;
-     const Abstract     = 0b0010_0000_0000_0000;
-     const Synchronized = 0b0100_0000_0000_0000;
-     const Deprecated   = 0b1000_0000_0000_0000;
+     const Final        = 0b0000_0000_0001_0000;
+     const Super        = 0b0000_0000_0010_0000;
+     const Volatile     = 0b0000_0000_0100_0000;
+     const Transient    = 0b0000_0000_1000_0000;
+     const Synthetic    = 0b0000_0001_0000_0000;
+     const Annotation   = 0b0000_0010_0000_0000;
+     const Enum         = 0b0000_0100_0000_0000;
+     const Interface    = 0b0000_1000_0000_0000;
+     const Abstract     = 0b0001_0000_0000_0000;
+     const Synchronized = 0b0010_0000_0000_0000;
+     const Deprecated   = 0b0100_0000_0000_0000;
    }
 }
 

@@ -124,7 +124,7 @@ fn path_without_subclass(source: &str) -> String {
 
 pub enum AstDiagnosticError {
     TokensModified,
-    Enpty,
+    Empty,
     ChildrenNotFound,
 }
 
@@ -149,7 +149,7 @@ pub fn ast_error_to_diagnostic(
             if let Some(last) = tokens.last() {
                 return Ok(diag("Unexpected end of File".to_string(), last));
             }
-            Err(AstDiagnosticError::Enpty)
+            Err(AstDiagnosticError::Empty)
         }
         AstError::InvalidJtype(invalid_token) => {
             let found = tokens
@@ -187,15 +187,6 @@ pub fn ast_error_to_diagnostic(
                 .ok_or(AstDiagnosticError::TokensModified)?;
             Ok(diag(
                 format!("Token not allowed in nuget: {:?}", found.token),
-                found,
-            ))
-        }
-        AstError::InvalidBoolean(invalid_token) => {
-            let found = tokens
-                .get(invalid_token.0)
-                .ok_or(AstDiagnosticError::TokensModified)?;
-            Ok(diag(
-                format!("Token not allowed in boolean: {:?}", found.token),
                 found,
             ))
         }

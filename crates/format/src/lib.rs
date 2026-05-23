@@ -10,7 +10,6 @@ use config::FormatterConfig;
 pub enum FormatError {
     IO(std::io::Error),
     Spawn(std::io::Error),
-    Google(Option<String>),
     Diagnostic(Vec<FormatLineError>),
     NoFormatterSpecified,
 }

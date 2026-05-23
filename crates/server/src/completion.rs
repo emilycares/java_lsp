@@ -8,7 +8,7 @@ use ast::{
     types::{AstFile, AstImportUnit, AstMethodParameters, AstPoint, AstThing, AstTopLevel},
 };
 use call_chain::get_call_chain;
-use document::{Document, DocumentError};
+use document::Document;
 use dto::{Access, Class, ImportUnit, JType, Method, Parameter};
 use local_variable::{LocalVariable, VarFlags};
 use lsp_types::{
@@ -24,8 +24,7 @@ use crate::{
 
 #[derive(Debug)]
 pub enum CompletionError {
-    Tyres { tyres_error: tyres::TyresError },
-    Document(DocumentError),
+    Tyres(tyres::TyresError),
 }
 
 /// Convert list `LocalVariable` to `CompletionItem`
@@ -258,7 +257,7 @@ pub fn complete_call_chain(
 
     match tyres::resolve_call_chain_to_point(&call_chain, vars, imports, class, class_map, &point) {
         Ok(resolve_state) => Ok(class_unpack(&resolve_state.class, imports, &document.ast)),
-        Err(tyres_error) => Err(CompletionError::Tyres { tyres_error }),
+        Err(tyres_error) => Err(CompletionError::Tyres(tyres_error)),
     }
 }
 

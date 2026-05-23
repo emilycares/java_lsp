@@ -112,16 +112,15 @@ bitflags! {
 
 bitflags! {
    #[derive(Debug, Clone, PartialEq, Eq)]
-   pub struct AstAvailability: u16 {
-        const Public       = 0b0000_0000_0000_0001;
-        const Synchronized = 0b0000_0000_0000_0010;
-        const Final        = 0b0000_0000_0000_0100;
-        const Static       = 0b0000_0000_0000_1000;
-        const Private      = 0b0000_0000_0001_0000;
-        const Protected    = 0b0000_0000_0010_0000;
-        const Abstract     = 0b0000_0000_0100_0000;
-        const Native       = 0b0000_0000_1000_0000;
-        const StaticFp     = 0b0000_0001_0000_0000;
+   pub struct AstAvailability: u8 {
+        const Public       = 0b0000_0001;
+        const Synchronized = 0b0000_0010;
+        const Final        = 0b0000_0100;
+        const Static       = 0b0000_1000;
+        const Private      = 0b0001_0000;
+        const Protected    = 0b0010_0000;
+        const Abstract     = 0b0100_0000;
+        const Native       = 0b1000_0000;
     }
 }
 #[derive(Debug, Clone)]
@@ -294,8 +293,14 @@ pub struct AstMethodParameter {
     pub annotated: Vec<AstAnnotated>,
     pub jtype: AstJType,
     pub name: AstIdentifier,
-    pub fin: bool,
-    pub variatic: bool,
+    pub flags: AstMethodParameterFlags,
+}
+bitflags! {
+   #[derive(Debug, Clone, PartialEq, Eq)]
+   pub struct AstMethodParameterFlags: u8 {
+        const Fin       = 0b0000_0001;
+        const Variatic  = 0b0000_0010;
+    }
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AstBlockEntry {
