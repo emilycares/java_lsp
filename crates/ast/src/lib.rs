@@ -245,9 +245,9 @@ pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, us
                 }
             }
             Token::At => {
-                let (annotated_after, npos) = parse_annotated_list(tokens, pos)?;
+                let (n, npos) = parse_annotated(tokens, pos)?;
                 pos = npos;
-                annotated.extend(annotated_after);
+                annotated.push(n);
                 continue;
             }
             _ => break,
@@ -273,21 +273,6 @@ pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, us
     }
 }
 
-fn parse_value(tokens: &[PositionToken], pos: usize) -> Result<(AstValue, usize), AstError> {
-    let mut errors = vec![];
-    match parse_boolean_literal(tokens, pos) {
-        Ok((nuget, pos)) => return Ok((nuget, pos)),
-        Err(e) => errors.push((SmolStr::new_inline("value boolean"), e)),
-    }
-    match parse_value_nuget(tokens, pos) {
-        Ok((nuget, pos)) => return Ok((nuget, pos)),
-        Err(e) => errors.push((SmolStr::new_inline("value nuget"), e)),
-    }
-    Err(AstError::AllChildrenFailed {
-        parent: SmolStr::new_inline("value"),
-        errors,
-    })
-}
 fn parse_annotated_list(
     tokens: &[PositionToken],
     pos: usize,
@@ -307,6 +292,7 @@ pub fn parse_annotated(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstAnnotated, usize), AstError> {
+    let expression_options = ExpressionOptions::NoLambda | ExpressionOptions::NoInlineIf;
     let start = tokens.start(pos)?;
     let pos = assert_token(tokens, pos, Token::At)?;
     let (name, pos) = parse_name_dot_logical(tokens, pos)?;
@@ -315,7 +301,7 @@ pub fn parse_annotated(
     let mut errors = vec![];
     if assert_token(tokens, pos, Token::LeftParen).is_ok() {
         'parameters: {
-            match parse_annotated_parameters(tokens, pos) {
+            match parse_annotated_parameters(tokens, pos, &expression_options) {
                 Ok((params, npos)) => {
                     parameters = AstAnnotatedParameterKind::Parameter(params);
                     pos = npos;
@@ -323,7 +309,7 @@ pub fn parse_annotated(
                 }
                 Err(e) => errors.push((SmolStr::new_inline("parameters"), e)),
             }
-            match parse_annotated_array(tokens, pos) {
+            match parse_annotated_array(tokens, pos, &expression_options) {
                 Ok((array, npos)) => {
                     parameters = AstAnnotatedParameterKind::Array(array);
                     pos = npos;
@@ -684,24 +670,6 @@ fn parse_boolean_literal_input(
     ))
 }
 
-fn parse_boolean_literal(
-    tokens: &[PositionToken],
-    pos: usize,
-) -> Result<(AstValue, usize), AstError> {
-    let start = tokens.start(pos)?;
-    let value = match start.token {
-        Token::True => true,
-        Token::False => false,
-        _ => return Err(AstError::InvalidBoolean(InvalidToken(pos))),
-    };
-    Ok((
-        AstValue::Nuget(AstValueNuget::BooleanLiteral(AstBoolean {
-            range: AstRange::from_position_token(start, start),
-            value,
-        })),
-        pos + 1,
-    ))
-}
 /// `"some string"`
 pub fn parse_string_literal(
     tokens: &[PositionToken],
@@ -829,10 +797,12 @@ fn parse_value_operator_options(
             }
             Err(AstError::InvalidNuget(InvalidToken(pos)))
         }
-        Token::ExclamationMark if expression_options != &ExpressionOptions::NoInlineIf => Ok((
-            AstExpressionOperator::ExclamationMark(AstRange::from_position_token(start, start)),
-            pos + 1,
-        )),
+        Token::ExclamationMark if !expression_options.intersects(ExpressionOptions::NoInlineIf) => {
+            Ok((
+                AstExpressionOperator::ExclamationMark(AstRange::from_position_token(start, start)),
+                pos + 1,
+            ))
+        }
         Token::Dot => Ok((
             AstExpressionOperator::Dot(AstRange::from_position_token(start, start)),
             pos + 1,
@@ -892,9 +862,10 @@ fn parse_value_operator_options(
 fn parse_annotated_array(
     tokens: &[PositionToken],
     pos: usize,
+    expression_options: &ExpressionOptions,
 ) -> Result<(AstValuesWithAnnotated, usize), AstError> {
     let pos = assert_token(tokens, pos, Token::LeftParen)?;
-    let (values, pos) = parse_array_with_annotated(tokens, pos, &ExpressionOptions::empty())?;
+    let (values, pos) = parse_array_with_annotated(tokens, pos, expression_options)?;
     let pos = assert_token(tokens, pos, Token::RightParen)?;
     Ok((values, pos))
 }
@@ -902,6 +873,7 @@ fn parse_annotated_array(
 fn parse_annotated_parameters(
     tokens: &[PositionToken],
     pos: usize,
+    expression_options: &ExpressionOptions,
 ) -> Result<(Vec<AstAnnotatedParameter>, usize), AstError> {
     let pos = assert_token(tokens, pos, Token::LeftParen)?;
     let mut out = vec![];
@@ -921,7 +893,7 @@ fn parse_annotated_parameters(
         if let Ok((name, npos)) = parse_name(tokens, pos)
             && let Ok(npos) = assert_token(tokens, npos, Token::Equal)
         {
-            match parse_array_with_annotated(tokens, npos, &ExpressionOptions::all()) {
+            match parse_array_with_annotated(tokens, npos, expression_options) {
                 Ok((an, npos)) => {
                     pos = npos;
                     let end_named = tokens.end(pos)?;
@@ -934,7 +906,7 @@ fn parse_annotated_parameters(
                 }
                 Err(e) => errors.push((SmolStr::new_inline("annotated"), e)),
             }
-            match parse_expression(tokens, npos, &ExpressionOptions::all()) {
+            match parse_expression(tokens, npos, expression_options) {
                 Ok((expression, npos)) => {
                     pos = npos;
                     let end_named = tokens.end(pos)?;
@@ -950,7 +922,7 @@ fn parse_annotated_parameters(
                 }
             }
         }
-        match parse_expression(tokens, pos, &ExpressionOptions::all()) {
+        match parse_expression(tokens, pos, expression_options) {
             Ok((expression, npos)) => {
                 pos = npos;
                 out.push(AstAnnotatedParameter::Expression(expression));
@@ -1217,10 +1189,10 @@ fn parse_instnceof(
         match t.token {
             Token::Final => availability |= AstAvailability::Final,
             Token::At => {
-                match parse_annotated_list(tokens, pos) {
+                match parse_annotated(tokens, pos) {
                     Ok((an, npos)) => {
                         pos = npos;
-                        annotated.extend(an);
+                        annotated.push(an);
                     }
                     Err(e) => return Err(e),
                 }
@@ -1334,7 +1306,7 @@ pub fn parse_base_expression(
                     }
                     Err(e) => errors.push((SmolStr::new_inline("operator"), e)),
                 }
-                match parse_value(tokens, pos) {
+                match parse_value_nuget(tokens, pos) {
                     Ok((value, npos)) => {
                         pos = npos;
                         out.ident = Some(AstExpressionIdentifier::Value(value));
@@ -1424,9 +1396,9 @@ fn parse_block_variable_no_semicolon(
         let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
             Token::At => {
-                let (annotated_after, npos) = parse_annotated_list(tokens, pos)?;
+                let (an, npos) = parse_annotated(tokens, pos)?;
                 pos = npos;
-                annotated.extend(annotated_after);
+                annotated.push(an);
             }
             _ => break,
         }
@@ -1491,7 +1463,7 @@ fn parse_block_variable_multi_type_no_semicolon(
 ) -> Result<(AstBlockVariableMultiType, usize), AstError> {
     let start = tokens.start(pos)?;
     let mut fin = false;
-    let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
+    let mut annotated = Vec::new();
     let mut pos = pos;
     loop {
         let t = tokens.get(pos).ok_or_else(AstError::eof)?;
@@ -1530,6 +1502,7 @@ fn parse_block_variable_multi_type_no_semicolon(
 
     Ok((
         AstBlockVariableMultiType {
+            annotated,
             name,
             fin,
             jtypes,
@@ -1803,9 +1776,9 @@ fn parse_constructor_header(
             Token::Static => availability |= AstAvailability::Static,
             Token::Final => availability |= AstAvailability::Final,
             Token::At => {
-                let (annotated_after, npos) = parse_annotated_list(tokens, pos)?;
+                let (an, npos) = parse_annotated(tokens, pos)?;
                 pos = npos;
-                annotated.extend(annotated_after);
+                annotated.push(an);
                 continue;
             }
             _ => break,

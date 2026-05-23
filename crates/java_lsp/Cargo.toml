@@ -6,7 +6,6 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
-clap.workspace = true
 tokio.workspace = true
 cli.workspace = true
 server.workspace = true

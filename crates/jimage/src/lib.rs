@@ -103,7 +103,7 @@ pub fn parser(
         let class_path = format_smolstr!("{}.{}", class_path.replace_smolstr("/", "."), class_name);
         match load_class(bytes, class_path.clone(), source, filter) {
             Ok(c) => classes.push(c),
-            Err(ClassParserError::Private | ClassParserError::NotAClass) => (),
+            Err(ClassParserError::NotAClass | ClassParserError::Ignoring) => (),
             Err(e) => {
                 return Err(JimageError::Class { re: class_path, e });
             }

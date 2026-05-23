@@ -9609,14 +9609,14 @@ fn more_syntax() {
                                                                     AstBaseExpression {
                                                                         range: AstRange {
                                                                             start: AstPoint { 42:20 },
-                                                                            end: AstPoint { 42:20 },
+                                                                            end: AstPoint { 42:21 },
                                                                         },
                                                                         ident: None,
                                                                         values: None,
                                                                         operator: QuestionMark(
                                                                             AstRange {
                                                                                 start: AstPoint { 42:20 },
-                                                                                end: AstPoint { 42:20 },
+                                                                                end: AstPoint { 42:21 },
                                                                             },
                                                                         ),
                                                                     },
@@ -9634,7 +9634,7 @@ fn more_syntax() {
                                                                                         AstIdentifier {
                                                                                             range: AstRange {
                                                                                                 start: AstPoint { 42:32 },
-                                                                                                end: AstPoint { 42:20 },
+                                                                                                end: AstPoint { 42:21 },
                                                                                             },
                                                                                             value: "Good day.",
                                                                                         },
@@ -9935,6 +9935,7 @@ fn more_syntax() {
                                                                                 ),
                                                                             },
                                                                         ],
+                                                                        annotated: [],
                                                                         expression: None,
                                                                     },
                                                                     block: AstBlock {
@@ -10325,6 +10326,7 @@ fn more_syntax() {
                                                                                 ),
                                                                             },
                                                                         ],
+                                                                        annotated: [],
                                                                         expression: None,
                                                                     },
                                                                     block: AstBlock {
@@ -10785,6 +10787,7 @@ fn more_syntax() {
                                                                                 ),
                                                                             },
                                                                         ],
+                                                                        annotated: [],
                                                                         expression: None,
                                                                     },
                                                                     block: AstBlock {
@@ -10896,6 +10899,7 @@ fn more_syntax() {
                                                                                 ),
                                                                             },
                                                                         ],
+                                                                        annotated: [],
                                                                         expression: None,
                                                                     },
                                                                     block: AstBlock {
@@ -11528,6 +11532,7 @@ fn more_syntax() {
                                                                                 ),
                                                                             },
                                                                         ],
+                                                                        annotated: [],
                                                                         expression: None,
                                                                     },
                                                                     block: AstBlock {

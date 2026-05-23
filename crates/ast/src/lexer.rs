@@ -5,8 +5,8 @@ use memchr::memchr;
 use memchr::memchr_iter;
 use memchr::memmem;
 use my_string::MyString;
+use my_string::smol_str::SmolStr;
 use my_string::smol_str::SmolStrBuilder;
-use phf::phf_map;
 
 use crate::types::AstPoint;
 
@@ -49,7 +49,7 @@ impl Token {
             Self::HexLiteral(n) | Self::BinaryLiteral(n) => n.len() + 2,
             Self::LineComment(c) => c.len() + 2,
             Self::BlockComment(c, _) => c.len() + 4,
-            Self::AtInterface => 11,
+            Self::AtInterface | Self::Protected => 11,
             Self::LeftParen
             | Self::RightParen
             | Self::Plus
@@ -76,78 +76,70 @@ impl Token {
             | Self::Underscore
             | Self::Caret
             | Self::Tilde
+            | Self::QuestionMark
             | Self::SingleQuote => 1,
-            Self::EqualDouble | Self::Le | Self::Ge | Self::Ne | Self::Arrow => 2,
+            Self::EqualDouble
+            | Self::Le
+            | Self::Ge
+            | Self::Ne
+            | Self::Arrow
+            | Self::Do
+            | Self::To
+            | Self::If => 2,
             Self::While
-            | Self::Package
-            | Self::Import
-            | Self::Public
-            | Self::Private
-            | Self::Protected
             | Self::Class
-            | Self::Interface
-            | Self::Enum
-            | Self::Void
-            | Self::Throws
-            | Self::Int
-            | Self::Double
-            | Self::Extends
-            | Self::Implements
-            | Self::True
             | Self::False
             | Self::Float
-            | Self::New
-            | Self::Return
-            | Self::QuestionMark
-            | Self::Char
-            | Self::Boolean
-            | Self::Byte
             | Self::Short
-            | Self::Long
-            | Self::Static
             | Self::Final
-            | Self::Default
-            | Self::Else
-            | Self::For
             | Self::Break
-            | Self::Continue
-            | Self::Switch
-            | Self::Case
-            | Self::Do
-            | Self::Try
             | Self::Catch
-            | Self::Finally
             | Self::Throw
             | Self::Yield
-            | Self::Var
-            | Self::This
-            | Self::Abstract
+            | Self::Super
+            | Self::Opens => 5,
+            Self::Package
+            | Self::Private
+            | Self::Extends
+            | Self::Boolean
+            | Self::Default
+            | Self::Finally
+            | Self::Permits
+            | Self::Exports => 7,
+            Self::Import
+            | Self::Public
+            | Self::Throws
+            | Self::Double
+            | Self::Return
+            | Self::Static
+            | Self::Switch
             | Self::Record
-            | Self::Synchronized
-            | Self::InstanceOf
-            | Self::Volatile
-            | Self::Transient
             | Self::Native
             | Self::Sealed
-            | Self::Non
-            | Self::Permits
-            | Self::Super
-            | Self::StrictFp
             | Self::Module
-            | Self::Exports
-            | Self::To
+            | Self::Assert => 6,
+            Self::Interface | Self::Transient => 9,
+            Self::Enum
+            | Self::Void
+            | Self::True
+            | Self::Char
+            | Self::Byte
+            | Self::Long
+            | Self::Else
+            | Self::Case
+            | Self::This
             | Self::Uses
-            | Self::Assert
-            | Self::Provides
             | Self::With
-            | Self::Requires
-            | Self::Transitive
-            | Self::Opens
-            | Self::Open
-            | Self::If => KEYWORDS
-                .entries()
-                .find(|i| i.1 == self)
-                .map_or(0, |i| i.0.len()),
+            | Self::Open => 4,
+            Self::Int | Self::New | Self::For | Self::Try | Self::Non | Self::Var => 3,
+            Self::Implements | Self::InstanceOf | Self::Transitive => 10,
+            Self::Continue
+            | Self::Abstract
+            | Self::Volatile
+            | Self::StrictFp
+            | Self::Provides
+            | Self::Requires => 8,
+            Self::Synchronized => 12,
         }
     }
 
@@ -638,74 +630,77 @@ pub enum LexerError {
     UnknownChar(char, usize, usize),
 }
 
-static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
-    "if" => Token::If,
-    "true" => Token::True,
-    "false" => Token::False,
-    "while" => Token::While,
-    "for" => Token::For,
-    "package" => Token::Package,
-    "import" => Token::Import,
-    "public" => Token::Public,
-    "private" => Token::Private,
-    "protected" => Token::Protected,
-    "class" => Token::Class,
-    "interface" => Token::Interface,
-    "enum" => Token::Enum,
-    "void" => Token::Void,
-    "throws" => Token::Throws,
-    "int" => Token::Int,
-    "double" => Token::Double,
-    "float" => Token::Float,
-    "extends" => Token::Extends,
-    "implements" => Token::Implements,
-    "new" => Token::New,
-    "return" => Token::Return,
-    "char" => Token::Char,
-    "boolean" => Token::Boolean,
-    "byte" => Token::Byte,
-    "short" => Token::Short,
-    "long" => Token::Long,
-    "static" => Token::Static,
-    "final" => Token::Final,
-    "default" => Token::Default,
-    "else" => Token::Else,
-    "break" => Token::Break,
-    "continue" => Token::Continue,
-    "switch" => Token::Switch,
-    "case" => Token::Case,
-    "do" => Token::Do,
-    "try" => Token::Try,
-    "catch" => Token::Catch,
-    "finally" => Token::Finally,
-    "throw" => Token::Throw,
-    "yield" => Token::Yield,
-    "var" => Token::Var,
-    "this" => Token::This,
-    "abstract" => Token::Abstract,
-    "record" => Token::Record,
-    "synchronized" => Token::Synchronized,
-    "instanceof" => Token::InstanceOf,
-    "volatile" => Token::Volatile,
-    "transient" => Token::Transient,
-    "native" => Token::Native,
-    "sealed" => Token::Sealed,
-    "non" => Token::Non,
-    "permits" => Token::Permits,
-    "super" => Token::Super,
-    "strictfp" => Token::StrictFp,
-    "module" => Token::Module,
-    "exports" => Token::Exports,
-    "to" => Token::To,
-    "uses" => Token::Uses,
-    "assert" => Token::Assert,
-    "provides" => Token::Provides,
-    "with" => Token::With,
-    "requires" => Token::Requires,
-    "transitive" => Token::Transitive,
-    "opens" => Token::Opens,
-    "open" => Token::Open,
-};
+fn keyword_to_token(key: &[u8]) -> Option<Token> {
+    match key {
+        b"if" => Some(Token::If),
+        b"true" => Some(Token::True),
+        b"false" => Some(Token::False),
+        b"while" => Some(Token::While),
+        b"for" => Some(Token::For),
+        b"package" => Some(Token::Package),
+        b"import" => Some(Token::Import),
+        b"public" => Some(Token::Public),
+        b"private" => Some(Token::Private),
+        b"protected" => Some(Token::Protected),
+        b"class" => Some(Token::Class),
+        b"interface" => Some(Token::Interface),
+        b"enum" => Some(Token::Enum),
+        b"void" => Some(Token::Void),
+        b"throws" => Some(Token::Throws),
+        b"int" => Some(Token::Int),
+        b"double" => Some(Token::Double),
+        b"float" => Some(Token::Float),
+        b"extends" => Some(Token::Extends),
+        b"implements" => Some(Token::Implements),
+        b"new" => Some(Token::New),
+        b"return" => Some(Token::Return),
+        b"char" => Some(Token::Char),
+        b"boolean" => Some(Token::Boolean),
+        b"byte" => Some(Token::Byte),
+        b"short" => Some(Token::Short),
+        b"long" => Some(Token::Long),
+        b"static" => Some(Token::Static),
+        b"final" => Some(Token::Final),
+        b"default" => Some(Token::Default),
+        b"else" => Some(Token::Else),
+        b"break" => Some(Token::Break),
+        b"continue" => Some(Token::Continue),
+        b"switch" => Some(Token::Switch),
+        b"case" => Some(Token::Case),
+        b"do" => Some(Token::Do),
+        b"try" => Some(Token::Try),
+        b"catch" => Some(Token::Catch),
+        b"finally" => Some(Token::Finally),
+        b"throw" => Some(Token::Throw),
+        b"yield" => Some(Token::Yield),
+        b"var" => Some(Token::Var),
+        b"this" => Some(Token::This),
+        b"abstract" => Some(Token::Abstract),
+        b"record" => Some(Token::Record),
+        b"synchronized" => Some(Token::Synchronized),
+        b"instanceof" => Some(Token::InstanceOf),
+        b"volatile" => Some(Token::Volatile),
+        b"transient" => Some(Token::Transient),
+        b"native" => Some(Token::Native),
+        b"sealed" => Some(Token::Sealed),
+        b"non" => Some(Token::Non),
+        b"permits" => Some(Token::Permits),
+        b"super" => Some(Token::Super),
+        b"strictfp" => Some(Token::StrictFp),
+        b"module" => Some(Token::Module),
+        b"exports" => Some(Token::Exports),
+        b"to" => Some(Token::To),
+        b"uses" => Some(Token::Uses),
+        b"assert" => Some(Token::Assert),
+        b"provides" => Some(Token::Provides),
+        b"with" => Some(Token::With),
+        b"requires" => Some(Token::Requires),
+        b"transitive" => Some(Token::Transitive),
+        b"opens" => Some(Token::Opens),
+        b"open" => Some(Token::Open),
+        _ => None,
+    }
+}
 /// Output token vec for document
 pub fn lex(input: &[u8]) -> Result<Vec<PositionToken>, LexerError> {
     lex_v::<false>(input)
@@ -1267,29 +1262,38 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                 continue;
             }
             b'A'..=b'Z' | b'a'..=b'z' | b'_' | b'$' => {
-                let mut ident = SmolStrBuilder::new();
+                let start = index;
                 while let Some(ch) = input.get(index) {
                     if !ch.is_ascii_alphanumeric() && ch != &b'_' && ch != &b'$' {
                         break;
                     }
-                    ident.push(*ch as char);
                     index += 1;
                 }
-                let ident = ident.finish();
-                let len = ident.len();
-                match KEYWORDS.get(&ident) {
-                    Some(t) => tokens.push(PositionToken {
-                        token: t.to_owned(),
-                        line,
-                        col,
-                    }),
-                    None => tokens.push(PositionToken {
-                        token: Token::Identifier(ident),
-                        line,
-                        col,
-                    }),
+                let end = index;
+                let content = &input[start..end];
+                match keyword_to_token(content) {
+                    Some(t) => {
+                        let len = content.len();
+                        tokens.push(PositionToken {
+                            token: t,
+                            line,
+                            col,
+                        });
+                        col += len;
+                    }
+                    None => {
+                        if let Ok(ident) = str::from_utf8(content) {
+                            let len = ident.len();
+                            let ident = SmolStr::from(ident);
+                            tokens.push(PositionToken {
+                                token: Token::Identifier(ident),
+                                line,
+                                col,
+                            });
+                            col += len;
+                        }
+                    }
                 }
-                col += len;
                 continue;
             }
             _ => return Err(LexerError::UnknownChar(*ch as char, line, col)),

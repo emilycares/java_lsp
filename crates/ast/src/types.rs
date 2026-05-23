@@ -496,6 +496,7 @@ pub struct AstBlockVariableMultiType {
     pub fin: bool,
     pub name: AstIdentifier,
     pub jtypes: Vec<AstJType>,
+    pub annotated: Vec<AstAnnotated>,
     pub expression: Option<AstExpression>,
 }
 

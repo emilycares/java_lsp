@@ -10,7 +10,6 @@ use std::{fs::canonicalize, path::PathBuf};
 use ast::error::PrintErr;
 #[cfg(not(target_os = "windows"))]
 use ast::lexer::PositionToken;
-use clap::{Parser, Subcommand, ValueEnum};
 use jdk::{test_load_jdk_jmod, test_load_jdk_modules_executable, test_load_jdk_modules_own};
 #[cfg(target_os = "windows")]
 use std::sync::Arc;
@@ -22,21 +21,171 @@ pub enum CheckError {
     ChannelSend(mpsc::SendError<PathBuf>),
 }
 
-/// A java lsp server
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-pub struct Args {
-    #[command(subcommand)]
-    pub cmd: Option<Commands>,
+pub fn print_help() {
+    println!(
+        "
+java-lsp
 
-    /// Unused flag required by vscode.
-    #[arg(short, long, default_value_t = true)]
-    pub stdio: bool,
-    // #[arg(long, default_value = "", required_if_eq("cmd", "ast-check"))]
-    // pub file: PathBuf,
+--help : Shows this help
+
+no arg : Starts lsp over stdio
+
+server-tcp <port> : Open tcp lsp socket
+
+reload-deps : Reload dependencies of current project
+
+update-deps : Update dependencies of current project
+
+lex <file path to java file> : Print tokens from file
+
+lex-pos <file path to java file> <index> : Print token at position
+
+ast-check <file path to java file> : Check for ast errors in java file
+
+ast-check-dir <directory path> <Optional ignore pattern> : Check for ast errors in directory
+
+ast-check-jdk : Check for ast errors in current jdk in path
+
+index-jdk <variant> : Index jdk in path with variant jimage-own/jimage-executable/jmod
+"
+    );
 }
-#[derive(Subcommand, Debug)]
-pub enum Commands {
+
+pub fn parse(args: &[String]) -> Option<Command> {
+    let args = &args[1..];
+    match args.first().map(std::string::String::as_str) {
+        None => Some(Command::Server),
+        Some("server-tcp") => parse_server_tcp(&args[1..]),
+        Some("reload-deps") => Some(Command::ReloadDependencies),
+        Some("update-deps") => Some(Command::UpdateDependencies),
+        Some("lex") => parse_lex(&args[1..]),
+        Some("lex-pos") => parse_lex_pos(&args[1..]),
+        Some("ast-check") => parse_ast_check(&args[1..]),
+        Some("ast-check-dir") => parse_ast_check_dir(&args[1..]),
+        Some("ast-check-jdk") => Some(Command::AstCheckJdk),
+        Some("index-jdk") => parse_index_jdk(&args[1..]),
+        Some("--help") => Some(Command::Help),
+        // for vscode
+        Some("--stdio") => None,
+        Some(u) => {
+            println!("unknown option {u}");
+            None
+        }
+    }
+}
+
+fn parse_index_jdk(args: &[String]) -> Option<Command> {
+    match args.first().map(std::string::String::as_str) {
+        Some("jimage-own") => Some(Command::IndexJdk {
+            variant: IndexJdkOptions::JimageOwn,
+        }),
+        Some("jimage-executable") => Some(Command::IndexJdk {
+            variant: IndexJdkOptions::JimageExecutable,
+        }),
+        Some("jmod") => Some(Command::IndexJdk {
+            variant: IndexJdkOptions::Jmod,
+        }),
+        None | Some(_) => {
+            println!("must provide variant jimage-own/jimage-executable/jmod");
+            None
+        }
+    }
+}
+
+fn parse_ast_check(args: &[String]) -> Option<Command> {
+    args.first().map_or_else(
+        || {
+            println!("Expected file path");
+            None
+        },
+        |path| {
+            let path = PathBuf::from(path);
+            Some(Command::AstCheck { file: path })
+        },
+    )
+}
+
+fn parse_ast_check_dir(args: &[String]) -> Option<Command> {
+    args.first().map_or_else(
+        || {
+            println!("Expected directory path");
+            None
+        },
+        |path| {
+            let path = PathBuf::from(path);
+            if let Some(ignore) = args.get(1) {
+                Some(Command::AstCheckDir {
+                    folder: path,
+                    ignore: Some(ignore.clone()),
+                })
+            } else {
+                Some(Command::AstCheckDir {
+                    folder: path,
+                    ignore: None,
+                })
+            }
+        },
+    )
+}
+
+fn parse_lex(args: &[String]) -> Option<Command> {
+    args.first().map_or_else(
+        || {
+            println!("Expected file path");
+            None
+        },
+        |path| {
+            let path = PathBuf::from(path);
+            Some(Command::Lex { file: path })
+        },
+    )
+}
+fn parse_lex_pos(args: &[String]) -> Option<Command> {
+    args.first().map_or_else(
+        || {
+            println!("Expected file path");
+            None
+        },
+        |path| {
+            args.get(1).map_or_else(
+                || {
+                    println!("Expected position");
+                    None
+                },
+                |index| {
+                    let path = PathBuf::from(path);
+                    Some(Command::LexPos {
+                        file: path,
+                        pos: index.parse().unwrap_or_default(),
+                    })
+                },
+            )
+        },
+    )
+}
+
+fn parse_server_tcp(args: &[String]) -> Option<Command> {
+    args.first().map_or_else(
+        || {
+            println!("Expected tcp port");
+            None
+        },
+        |port| {
+            port.parse().map_or_else(
+                |_| {
+                    println!("Port must be a number");
+                    None
+                },
+                |port| Some(Command::ServerTcp { port }),
+            )
+        },
+    )
+}
+
+#[derive(Debug)]
+pub enum Command {
+    // Print help
+    Help,
     /// Start the lsp server over stdio
     Server,
     /// Start the lsp server tcp with specified port
@@ -63,7 +212,6 @@ pub enum Commands {
     /// Recusivly check a directory for ast for java files
     AstCheckDir {
         folder: PathBuf,
-        #[arg(long)]
         ignore: Option<String>,
     },
     /// Check jdk in path
@@ -73,10 +221,10 @@ pub enum Commands {
     },
 }
 
-#[derive(Clone, Debug, ValueEnum)]
+#[derive(Clone, Debug)]
 pub enum IndexJdkOptions {
-    JimageOwn,
     JimageExecutable,
+    JimageOwn,
     Jmod,
 }
 

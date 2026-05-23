@@ -10,7 +10,7 @@ use my_string::{
 };
 use serde::{Deserialize, Serialize};
 
-pub const CFC_VERSION: usize = 13;
+pub const CFC_VERSION: usize = 14;
 
 #[derive(Debug)]
 pub enum ClassError {
@@ -29,10 +29,9 @@ pub enum ClassError {
 pub enum ClassParserError {
     EOF,
     ExpectedOther { pos: usize },
-    IgnoringLambda,
+    Ignoring,
     StringIndexZero,
     ExpectedString,
-    Private,
     InvalidName,
     NotEnogthParams,
     NoModuleAttribute,

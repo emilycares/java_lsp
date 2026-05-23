@@ -1,44 +1,44 @@
 #![deny(clippy::redundant_clone)]
-use clap::Parser;
-use cli::{Args, Commands};
+use cli::Command;
 use common::TaskProgress;
 use jdk::ForceLoader;
 use server::command::{reload_dependencies_cli, update_dependencies_cli};
 
 #[tokio::main]
 async fn main() {
-    let args = Args::parse();
-
-    match args.cmd {
-        Some(Commands::Server) | None => {
+    let args: Vec<String> = std::env::args().collect();
+    let args = cli::parse(&args);
+    match args {
+        Some(Command::Help) => cli::print_help(),
+        Some(Command::Server) | None => {
             unsafe {
                 std::env::set_var("RUST_BACKTRACE", "1");
                 // std::env::set_var("RUST_LOG=lsp_server", "debug");
             };
             let _ = server::stdio();
         }
-        Some(Commands::ServerTcp { port }) => {
+        Some(Command::ServerTcp { port }) => {
             unsafe {
                 std::env::set_var("RUST_BACKTRACE", "1");
                 // std::env::set_var("RUST_LOG=lsp_server", "debug");
             };
             let _ = server::listen(port);
         }
-        Some(Commands::ReloadDependencies) => reload_dependencies_cli().await,
-        Some(Commands::UpdateDependencies) => update_dependencies_cli().await,
-        Some(Commands::Lex { file }) => {
+        Some(Command::ReloadDependencies) => reload_dependencies_cli().await,
+        Some(Command::UpdateDependencies) => update_dependencies_cli().await,
+        Some(Command::Lex { file }) => {
             cli::lex(&file);
         }
-        Some(Commands::LexPos { file, pos }) => {
+        Some(Command::LexPos { file, pos }) => {
             cli::lex_pos(&file, pos);
         }
-        Some(Commands::AstCheck { file }) => {
+        Some(Command::AstCheck { file }) => {
             #[cfg(target_os = "windows")]
             cli::ast_check(&file);
             #[cfg(not(target_os = "windows"))]
             cli::ast_check(&file, 0, &mut Vec::new());
         }
-        Some(Commands::AstCheckDir { folder, ignore }) => {
+        Some(Command::AstCheckDir { folder, ignore }) => {
             if let Some(ignore) = ignore {
                 let collect: Vec<String> = ignore.split(',').map(|i| i.to_string()).collect();
                 cli::ast_check_dir_ignore(folder, &collect).await.unwrap();
@@ -46,7 +46,7 @@ async fn main() {
                 cli::ast_check_dir(folder).await.unwrap();
             }
         }
-        Some(Commands::AstCheckJdk) => {
+        Some(Command::AstCheckJdk) => {
             let Some(path) = std::env::var_os("PATH") else {
                 return;
             };
@@ -57,7 +57,7 @@ async fn main() {
                 .unwrap();
             cli::ast_check_dir(op_dir.join("src")).await.unwrap();
         }
-        Some(Commands::IndexJdk { variant }) => {
+        Some(Command::IndexJdk { variant }) => {
             cli::index_jdk(variant).await;
         }
     }

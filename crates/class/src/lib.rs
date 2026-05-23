@@ -30,7 +30,7 @@ pub fn load_class(
     let (c, _) = parser_base(data, 0)?;
 
     if filter && !c.access_flags.intersects(Access::Public) {
-        return Err(ClassParserError::Private);
+        return Err(ClassParserError::Ignoring);
     }
 
     let name = lookup_class_name(&c, c.this_class.into())?;
@@ -56,49 +56,42 @@ pub fn load_class(
         } else if attribute_name == "Code" {
             let info = a.lookup(data)?;
             let (out, _) = parse_code_attribute(info, 0, a.start, a.end)?;
-            used_classes.extend(parse_used_classes(&c, data, &out)?);
+            parse_used_classes(&c, data, &out, &mut used_classes)?;
         } else if attribute_name == "Deprecated" {
+            if filter {
+                return Err(ClassParserError::Ignoring);
+            }
             deprecated = true;
         }
     }
 
     for m in &c.methods {
-        if filter && m.access_flags.intersects(Access::Protected) {
-            continue;
-        }
-        let method = parse_method(&c, data, m);
-        if matches!(method, Err(ClassParserError::IgnoringLambda)) {
+        let method = parse_method(&c, data, m, filter);
+        if matches!(method, Err(ClassParserError::Ignoring)) {
             continue;
         }
         let (method, code_attribute) = method?;
         if let Some(code_attribute) = code_attribute {
-            let u = parse_used_classes(&c, data, &code_attribute)?;
-            used_classes.extend(u);
-            used_classes.extend(
-                method
-                    .parameters
-                    .iter()
-                    .filter(|i| {
-                        matches!(
-                            i.jtype,
-                            JType::Class(_) | JType::Array(_) | JType::Generic(_, _)
-                        )
-                    })
-                    .flat_map(|i| jtype_class_names(i.jtype.clone())),
-            );
+            parse_used_classes(&c, data, &code_attribute, &mut used_classes)?;
+            for p in &method.parameters {
+                if matches!(
+                    p.jtype,
+                    JType::Class(_) | JType::Array(_) | JType::Generic(_, _)
+                ) {
+                    jtype_class_names(p.jtype.clone(), &mut used_classes);
+                }
+            }
         }
-        used_classes.extend(jtype_class_names(method.ret.clone()));
+        jtype_class_names(method.ret.clone(), &mut used_classes);
         methods.push(method);
     }
     for f in &c.fields {
-        if filter
-            && f.access_flags
-                .intersects(Access::Private | Access::Protected)
-        {
+        let field = parse_field(&c, f, filter);
+        if matches!(field, Err(ClassParserError::Ignoring)) {
             continue;
         }
-        let field = parse_field(&c, f)?;
-        used_classes.extend(jtype_class_names(field.jtype.clone()));
+        let field = field?;
+        jtype_class_names(field.jtype.clone(), &mut used_classes);
         fields.push(field);
     }
 
@@ -159,7 +152,14 @@ fn lookup_class_name(c: &Base, index: usize) -> Result<MyString, ClassParserErro
     }
 }
 
-fn parse_field(c: &Base, field: &Field) -> Result<dto::Field, ClassParserError> {
+fn parse_field(c: &Base, field: &Field, filter: bool) -> Result<dto::Field, ClassParserError> {
+    if filter
+        && field
+            .access_flags
+            .intersects(Access::Private | Access::Protected)
+    {
+        return Err(ClassParserError::Ignoring);
+    }
     Ok(dto::Field {
         access: field.access_flags.clone(),
         name: lookup_string(c, field.name)?.to_smolstr(),
@@ -172,11 +172,19 @@ fn parse_method(
     c: &Base,
     data: &[u8],
     method: &Method,
+    filter: bool,
 ) -> Result<(dto::Method, Option<CodeAttribute>), ClassParserError> {
+    if filter
+        && method
+            .access_flags
+            .intersects(Access::Private | Access::Protected)
+    {
+        return Err(ClassParserError::Ignoring);
+    }
     let lname = lookup_string(c, method.name)?;
 
     if lname.starts_with("lambda$") {
-        return Err(ClassParserError::IgnoringLambda);
+        return Err(ClassParserError::Ignoring);
     }
 
     let mut code_attribute = None;
@@ -199,6 +207,9 @@ fn parse_method(
         } else if name == "Exceptions" {
             exception_index = Some(index);
         } else if name == "Deprecated" {
+            if filter {
+                return Err(ClassParserError::Ignoring);
+            }
             deprecated = true;
         } else if name == "Code" {
             let info = attribute.lookup(data)?;
@@ -528,8 +539,8 @@ fn parse_used_classes(
     c: &Base,
     data: &[u8],
     code_attribute: &CodeAttribute,
-) -> Result<Vec<MyString>, ClassParserError> {
-    let mut out = Vec::new();
+    used_classes: &mut Vec<SmolStr>,
+) -> Result<(), ClassParserError> {
     let info = code_attribute.lookup(data)?;
 
     for attribute in &code_attribute.attributes {
@@ -540,24 +551,26 @@ fn parse_used_classes(
             for f in descriptors {
                 let field_desc = lookup_string(c, f)?;
                 let (field_desc, _) = parse_field_type(field_desc.as_bytes(), 0)?;
-                let types = jtype_class_names(field_desc);
-                out.extend(types);
+                jtype_class_names(field_desc, used_classes);
             }
         }
     }
-    Ok(out)
+    Ok(())
 }
 
-fn jtype_class_names(i: JType) -> Vec<MyString> {
+fn jtype_class_names(i: JType, used_classes: &mut Vec<SmolStr>) {
     match i {
-        JType::Class(class) => vec![class],
-        JType::Array(jtype) => jtype_class_names(*jtype),
-        JType::Generic(class, jtypes) => {
-            let mut out: Vec<MyString> = jtypes.into_iter().flat_map(jtype_class_names).collect();
-            out.push(class);
-            out
+        JType::Class(class) => {
+            used_classes.push(class);
         }
-        _ => vec![],
+        JType::Array(jtype) => jtype_class_names(*jtype, used_classes),
+        JType::Generic(class, jtypes) => {
+            for j in jtypes {
+                jtype_class_names(j, used_classes);
+            }
+            used_classes.push(class);
+        }
+        _ => (),
     }
 }
 

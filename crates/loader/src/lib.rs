@@ -283,7 +283,7 @@ pub fn load_class_files(
                 out.push(c);
             }
             Err(ClassError::ClassParser(
-                ClassParserError::Private | ClassParserError::NotAClass,
+                ClassParserError::NotAClass | ClassParserError::Ignoring,
             )) => (),
             Err(e) => {
                 return Err(LoaderError::Class { re: smol_str, e });
@@ -391,7 +391,7 @@ async fn base_load_classes_zip(
 
         match load_class(buf.as_slice(), class_path.clone(), source.clone(), true) {
             Ok(c) => classes.push(c),
-            Err(ClassParserError::Private | ClassParserError::NotAClass) => (),
+            Err(ClassParserError::Ignoring | ClassParserError::NotAClass) => (),
             Err(e) => {
                 return Err(LoaderError::ClassParser { re: class_path, e });
             }
