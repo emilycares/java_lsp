@@ -117,6 +117,7 @@
               (craneLib.fileset.commonCargoSources ./crates/zip_util)
               (craneLib.fileset.commonCargoSources ./crates/lsp_extra)
               (craneLib.fileset.commonCargoSources ./crates/expect-test)
+              (craneLib.fileset.commonCargoSources ./crates/dirs)
               (craneLib.fileset.commonCargoSources ./crates/workspace_hack)
               (craneLib.fileset.commonCargoSources crate)
             ];
