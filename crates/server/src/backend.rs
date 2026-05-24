@@ -937,6 +937,16 @@ impl Backend {
         let imports = imports::imports(&document.ast);
 
         let class = self.get_class(&document.ast)?;
+
+        if let Some(imps) = codeaction::import_jtype(
+            &document.ast,
+            &point,
+            &imports,
+            &self.class_map,
+            &current_file,
+        ) {
+            return Some(imps);
+        }
         let vars = match variables::get_vars(
             &document.ast,
             &VariableContext {
@@ -961,9 +971,6 @@ impl Backend {
             vars: &vars,
             current_file: &current_file,
         };
-        if let Some(imps) = codeaction::import_jtype(&document.ast, &context) {
-            return Some(imps);
-        }
 
         match codeaction::replace_with_value_type(&document.ast, &context) {
             Ok(None) => (),

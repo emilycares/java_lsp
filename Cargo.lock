@@ -1308,6 +1308,7 @@ dependencies = [
  "ast",
  "call_chain",
  "dto",
+ "expect-test",
  "local_variable",
  "my_string",
  "workspace_hack",

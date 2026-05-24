@@ -24,6 +24,7 @@ pub fn include_parent(
     populate_super_interfaces(&class, class_map, &mut s);
 
     if s.is_empty() {
+        class_fill_generics(&mut class, args);
         return class;
     }
 
@@ -40,6 +41,12 @@ pub fn include_parent(
         return overlay_class(class, &b);
     }
 
+    class_fill_generics(&mut class, args);
+
+    class
+}
+
+fn class_fill_generics(class: &mut Class, args: &[JType]) {
     if let Some(sig) = &class.signature {
         let class_signature: Vec<_> = sig.args.iter().enumerate().collect();
         for m in &mut class.methods {
@@ -53,8 +60,6 @@ pub fn include_parent(
             replace_generic_jtype(&mut f.jtype, &class_signature, args);
         }
     }
-
-    class
 }
 
 fn replace_generic_jtype(jtype: &mut JType, class_signature: &[(usize, &SmolStr)], args: &[JType]) {

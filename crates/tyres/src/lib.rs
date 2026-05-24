@@ -136,7 +136,7 @@ fn get_methods_and_fields(
             | ImportUnit::Prefix(_)
             | ImportUnit::StaticPrefix(_) => (),
             ImportUnit::StaticClassMethod(c, name) => {
-                if let Ok(r) = resolve_classpath(c, class_map) {
+                if let Ok(r) = resolve_classpath(c, class_map, &[]) {
                     methods.push(ImportedMethod {
                         name: name.clone(),
                         resolve_state: r,
@@ -216,7 +216,7 @@ pub fn resolve(
     class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Result<ResolveState, TyresError> {
     if class_name.contains('.') {
-        return resolve_classpath(class_name, class_map);
+        return resolve_classpath(class_name, class_map, &[]);
     }
 
     let mut lang_class_key = SmolStrBuilder::new();
@@ -260,7 +260,7 @@ pub fn resolve_with_generic(
     class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Result<ResolveState, TyresError> {
     if class_name.contains('.') {
-        return resolve_classpath(class_name, class_map);
+        return resolve_classpath(class_name, class_map, args);
     }
 
     let mut lang_class_key = SmolStrBuilder::new();
@@ -313,6 +313,7 @@ pub fn resolve_with_generic(
 fn resolve_classpath(
     class_path: &str,
     class_map: &Arc<RwLock<HashMap<SmolStr, Class>>>,
+    args: &[JType],
 ) -> Result<ResolveState, TyresError> {
     let imported_class;
     if let Ok(cm) = class_map.read()
@@ -326,7 +327,7 @@ fn resolve_classpath(
     }
     Ok(ResolveState {
         jtype: JType::Class(class_path.into()),
-        class: parent::include_parent(imported_class, class_map, &[]),
+        class: parent::include_parent(imported_class, class_map, args),
     })
 }
 
@@ -504,16 +505,15 @@ fn call_chain_op(
                 return Err(TyresError::NoClassInOps);
             };
             let args_len = args.len();
-            // TODO: Improve parameter v
             if let Some(method) = class
                 .methods
                 .iter()
                 .filter(|m| m.name == Some(name.clone()))
                 .find(|i| i.parameters.len() == args_len)
             {
-                // if matches!(method.ret, JType::Generic(_, _)) {
-                // return resolve_with_generic(&method.ret, args, imports, class_map);
-                // }
+                if let JType::Generic(gname, args) = &method.ret {
+                    return resolve_with_generic(gname, args, imports, class_map);
+                }
                 return resolve_jtype(&method.ret, imports, class_map);
             }
             if let Some(m) = methods.iter().find(|i| i.name == *name) {
@@ -601,12 +601,24 @@ fn call_chain_op_self(
     match item {
         CallItem::MethodCall {
             name,
-            args: _,
+            args,
             range: _,
         } => {
             let Some(last) = ops.last() else {
                 return Err(TyresError::NoClassInOps);
             };
+            let args_len = args.len();
+            if let Some(method) = class
+                .methods
+                .iter()
+                .filter(|m| m.name == Some(name.clone()))
+                .find(|i| i.parameters.len() == args_len)
+            {
+                if let JType::Generic(gname, args) = &method.ret {
+                    return resolve_with_generic(gname, args, imports, class_map);
+                }
+                return resolve_jtype(&method.ret, imports, class_map);
+            }
             if last
                 .class
                 .methods
@@ -820,5 +832,102 @@ pub fn resolve_jtype_with_generic(
                 Err(TyresError::ClassNotFound { class_path: query })
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use dto::ClassSignature;
+    use expect_test::expect;
+
+    use super::*;
+
+    #[test]
+    fn resolve_generic() {
+        let out = resolve_with_generic(
+            "java.util.List",
+            &[JType::Class(SmolStr::new_inline("java.lang.String"))],
+            &[],
+            &get_class_map(),
+        );
+        let out = out.unwrap();
+        let expected_class_type = expect![[r#"
+            Class(
+                "java.util.List",
+            )
+        "#]];
+        expected_class_type.assert_debug_eq(&out.jtype);
+
+        let expected_method = expect![[r#"
+            Some(
+                Method {
+                    access: Access(
+                        0x0,
+                    ),
+                    name: Some(
+                        "first",
+                    ),
+                    parameters: [],
+                    throws: [],
+                    ret: Class(
+                        "java.lang.String",
+                    ),
+                    source: None,
+                },
+            )
+        "#]];
+        expected_method.assert_debug_eq(&out.class.methods.first());
+    }
+
+    fn get_class_map() -> Arc<RwLock<HashMap<MyString, Class>>> {
+        let mut class_map: HashMap<MyString, Class> = HashMap::new();
+        class_map.insert(
+            SmolStr::new_inline("java.util.List"),
+            Class {
+                signature: Some(ClassSignature {
+                    args: vec![SmolStr::new_inline("A")],
+                    ret: JType::Var,
+                }),
+                methods: vec![Method {
+                    name: Some(SmolStr::new_inline("first")),
+                    ret: JType::Parameter(SmolStr::new_inline("A")),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+        );
+        class_map.insert(
+            SmolStr::new_inline("java.lang.String"),
+            Class {
+                access: Access::Public,
+                name: SmolStr::new_inline("String"),
+                methods: vec![Method {
+                    access: Access::Public,
+                    name: Some(SmolStr::new_inline("length")),
+                    ret: JType::Int,
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+        );
+        class_map.insert(
+            SmolStr::new_inline("java.io.FileInputStream"),
+            Class {
+                access: Access::Public,
+                name: SmolStr::new_inline("FileInputStream"),
+                methods: vec![],
+                ..Default::default()
+            },
+        );
+        class_map.insert(
+            SmolStr::new_inline("java.io.File"),
+            Class {
+                access: Access::Public,
+                name: SmolStr::new_inline("FileInputStream"),
+                methods: vec![],
+                ..Default::default()
+            },
+        );
+        Arc::new(RwLock::new(class_map))
     }
 }

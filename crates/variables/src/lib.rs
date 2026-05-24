@@ -279,7 +279,7 @@ fn expression(
         //     && let Some(AstExpressionKind::Base(prev)) = expression.get(idx - 1)
         //     && prev.ident.is_some()
         // {
-        //     dbg!(expression, values);
+        //     d_b_g!(expression, values);
         // }
         match kind {
             AstExpressionKind::Base(exp) => {
@@ -752,7 +752,7 @@ public class Test {
 package ch.emilycares;
 public class Test {
     private static Logger logger = LoggerFactory.getLogger(App.class);
-     
+
 }
         ";
         let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
@@ -805,7 +805,7 @@ public class Test {
     public void hello(String[] a) {
         String[] local = \"\";
 
-        var lo = 
+        var lo =
         return;
     }
 }
@@ -1294,7 +1294,7 @@ public class Test {
     public Uni<Response> test() {
         return Thing.dothing(t -> {
                     Definition q = new Definition();
-                    
+
                     });
     }
 }

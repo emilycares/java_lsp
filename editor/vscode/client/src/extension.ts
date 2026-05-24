@@ -22,7 +22,7 @@ export function activate(context: ExtensionContext) {
   const config = workspace.getConfiguration("java_lsp");
   let serverModule = "";
   const configExecutablePath = config.get<string>("executablePath");
-  if (configExecutablePath.length == 0) {
+  if (configExecutablePath == undefined) {
     window.showErrorMessage("java_lsp please configure: java_lsp.executablePath");
     return;
   }
@@ -30,7 +30,7 @@ export function activate(context: ExtensionContext) {
 
   if (context.extensionMode == ExtensionMode.Development) {
     const serverOptions = async () => await createServerConnection("localhost", 4040);
-    client = new LanguageClient('java_lsp','java_lsp', serverOptions, {});
+    client = new LanguageClient('java_lsp', 'java_lsp', serverOptions, {});
     client.start();
     return;
   }
@@ -80,11 +80,11 @@ export function deactivate(): Thenable<void> | undefined {
   return client.stop();
 }
 
-async function createServerConnection(host, port): Promise<MessageTransports> {
-  const uport = await askForPort(port);
+async function createServerConnection(host: string, port: number): Promise<MessageTransports> {
+  const uport = await askForPort("" + port);
   const socket: Socket = await new Promise((resolve, reject) => {
     const so = new Socket();
-    so.connect(uport, host, () => resolve(so));
+    so.connect(uport as number, host, () => resolve(so));
     so.once('error', reject);
     so.setTimeout(5000, () => {
       so.destroy();

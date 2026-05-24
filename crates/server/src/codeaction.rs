@@ -280,13 +280,15 @@ fn find_var_for_content<'a>(
 
 pub fn import_jtype(
     ast: &AstFile,
-    context: &CodeActionContext,
+    point: &AstPoint,
+    imports: &[ImportUnit],
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    current_file: &Uri,
 ) -> Option<Vec<CodeActionOrCommand>> {
-    if let Some(class) = get_class::get_class(ast, context.point)
-        && !tyres::is_imported_class_name(&class.name, context.imports, &context.class_map)
+    if let Some(class) = get_class::get_class(ast, point)
+        && !tyres::is_imported_class_name(&class.name, imports, class_map)
     {
-        let mut resolve_import: Vec<String> =
-            tyres::resolve_import(&class.name, &context.class_map);
+        let mut resolve_import: Vec<String> = tyres::resolve_import(&class.name, class_map);
         // Prefer java imports
         resolve_import.sort_by(|a, b| {
             let a_j = a.starts_with("java");
@@ -302,7 +304,7 @@ pub fn import_jtype(
 
         let i = resolve_import
             .iter()
-            .map(|a| import_to_code_action(context.current_file, a, ast))
+            .map(|a| import_to_code_action(current_file, a, ast))
             .collect();
         return Some(i);
     }
