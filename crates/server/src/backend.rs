@@ -1259,7 +1259,7 @@ pub async fn update_report(
                 Some(DiagnosticSeverity::ERROR),
                 None,
                 Some(String::from(SERVER_NAME)),
-                String::from("Error fetching depdendencies"),
+                String::from("Error fetching dependencies"),
                 None,
                 None,
             ));

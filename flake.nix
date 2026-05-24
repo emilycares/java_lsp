@@ -55,6 +55,11 @@
           inherit src;
           strictDeps = true;
 
+	  nativeBuildInputs = with pkgs;[
+	    pkg-config
+	    openssl
+	  ];
+
           buildInputs = [
             # Add additional build inputs here
           ]
@@ -63,8 +68,7 @@
             pkgs.libiconv
           ];
 
-          # Additional environment variables can be set directly
-          # MY_CUSTOM_VAR = "some value";
+	  PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
         };
 
         cargoArtifacts = craneLib.buildDepsOnly commonArgs;
@@ -220,18 +224,17 @@
               export RUSTFLAGS="''${RUSTFLAGS:-""}"
             '';
 
+	    PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
+
             # Extra inputs can be added here; cargo and rustc are provided by default.
             packages =
               with pkgs;
               [
                 cargo-hakari
-                cargo-flamegraph
                 cargo-nextest
                 cargo-machete
                 javaPackages.compiler.openjdk25
-                lld_21
                 gdb
-                hyperfine
                 just
                 typos
                 # For vscode addon
@@ -246,6 +249,8 @@
             # Inherit inputs from checks.
             checks = self.checks.${system};
 
+	    PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
+
             packages = [
               java_lsp
               pkgs.javaPackages.compiler.openjdk25
@@ -254,6 +259,8 @@
           fuzz = craneNightlyLib.devShell {
             # Inherit inputs from checks.
             checks = self.checks.${system};
+
+	    PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
 
             packages = [
               pkgs.cargo-fuzz

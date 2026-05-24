@@ -59,7 +59,6 @@ pub fn parse_compile_errors(input: &str) -> Vec<CompileErrorMessage> {
             break;
         };
         if line.contains(": error: ") {
-            dbg!(&line);
             let mut spl = line.splitn(4, ':');
             if let Some(path) = spl.next()
                 && let Some(row) = spl.next()

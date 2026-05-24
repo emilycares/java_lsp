@@ -1,11 +1,19 @@
-import { workspace, ExtensionContext, window } from "vscode";
+import { Socket } from 'net';
+import { workspace, ExtensionContext, window, ExtensionMode } from "vscode";
+import * as vscode from 'vscode';
 
 import {
   LanguageClient,
   LanguageClientOptions,
+  MessageReader,
+  MessageTransports,
+  MessageWriter,
   ServerOptions,
+  SocketMessageReader,
+  SocketMessageWriter,
   TransportKind,
 } from "vscode-languageclient/node";
+
 
 let client: LanguageClient;
 
@@ -19,6 +27,13 @@ export function activate(context: ExtensionContext) {
     return;
   }
   serverModule = configExecutablePath;
+
+  if (context.extensionMode == ExtensionMode.Development) {
+    const serverOptions = async () => await createServerConnection("localhost", 4040);
+    client = new LanguageClient('java_lsp','java_lsp', serverOptions, {});
+    client.start();
+    return;
+  }
 
   //window.showErrorMessage("module: " + serverModule);
 
@@ -63,4 +78,37 @@ export function deactivate(): Thenable<void> | undefined {
     return undefined;
   }
   return client.stop();
+}
+
+async function createServerConnection(host, port): Promise<MessageTransports> {
+  const uport = await askForPort(port);
+  const socket: Socket = await new Promise((resolve, reject) => {
+    const so = new Socket();
+    so.connect(uport, host, () => resolve(so));
+    so.once('error', reject);
+    so.setTimeout(5000, () => {
+      so.destroy();
+      reject(new Error('TCP connect timeout'));
+    });
+  });
+  return {
+    reader: new SocketMessageReader(socket),
+    writer: new SocketMessageWriter(socket)
+  };
+}
+async function askForPort(defaultPort = '6009'): Promise<number | undefined> {
+  const input = await vscode.window.showInputBox({
+    prompt: 'Enter LSP TCP port',
+    value: defaultPort,
+    placeHolder: 'e.g. ' + defaultPort,
+    validateInput: (v) => {
+      const n = Number(v);
+      if (!v) return 'Port required';
+      if (!Number.isInteger(n) || n < 1 || n > 65535) return 'Enter valid port (1–65535)';
+      return null;
+    },
+    ignoreFocusOut: true
+  });
+  if (!input) return undefined;
+  return Number(input);
 }

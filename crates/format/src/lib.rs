@@ -53,7 +53,6 @@ fn google_java_format(content: &[u8]) -> Result<Vec<u8>, FormatError> {
 
     if out.stdout.is_empty() {
         let errors = String::from_utf8_lossy(&out.stderr);
-        dbg!(&errors);
         return Err(FormatError::Diagnostic(google_java_format_parse_errors(
             errors.as_ref(),
         )?));
