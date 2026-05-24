@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use ast::{
@@ -249,7 +249,7 @@ pub fn complete_call_chain(
     vars: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Result<Vec<CompletionItem>, CompletionError> {
     let call_chain = get_call_chain(&document.ast, point);
     let mut point = *point;
@@ -266,7 +266,7 @@ pub fn classes(
     document: &Document,
     point: &AstPoint,
     imports: &[ImportUnit],
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Vec<CompletionItem> {
     if point.col < 3 {
         return vec![];
@@ -276,7 +276,7 @@ pub fn classes(
     let mut point = *point;
     point.col -= 1;
     let text = get_class::get_class(&document.ast, &point).map(|i| i.name.to_string());
-    if let Ok(class_map) = class_map.lock() {
+    if let Ok(class_map) = class_map.read() {
         out.extend(
             imports
                 .iter()
@@ -327,7 +327,7 @@ pub fn classes(
 pub fn static_methods(
     ast: &AstFile,
     imports: &[ImportUnit],
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Vec<CompletionItem> {
     imports
         .iter()
@@ -337,7 +337,7 @@ pub fn static_methods(
             | ImportUnit::Class(_)
             | ImportUnit::StaticClass(_) => vec![],
             ImportUnit::StaticClassMethod(c, m) => {
-                if let Ok(cm) = class_map.lock()
+                if let Ok(cm) = class_map.read()
                     && let Some(class) = cm.get(c)
                 {
                     return class
@@ -350,7 +350,7 @@ pub fn static_methods(
                 Vec::new()
             }
             ImportUnit::StaticPrefix(c) => {
-                if let Ok(cm) = class_map.lock()
+                if let Ok(cm) = class_map.read()
                     && let Some(class) = cm.get(c)
                 {
                     return class.methods.iter().map(Method::clone).collect();
@@ -365,10 +365,10 @@ pub fn static_methods(
 pub fn imports(
     document: &Document,
     point: &AstPoint,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Option<Vec<CompletionItem>> {
     const LIMIT: usize = 20;
-    let Ok(cm) = class_map.lock() else {
+    let Ok(cm) = class_map.read() else {
         return None;
     };
     let mut is_in_thing = false;
@@ -526,7 +526,7 @@ mod tests {
     use std::{
         collections::HashMap,
         path::PathBuf,
-        sync::{Arc, Mutex},
+        sync::{Arc, RwLock},
     };
 
     #[test]
@@ -599,7 +599,7 @@ public class GreetingResource {
                 ..Default::default()
             },
         );
-        let class_map = Arc::new(Mutex::new(class_map));
+        let class_map = Arc::new(RwLock::new(class_map));
 
         let out = complete_call_chain(
             &doc,
@@ -669,7 +669,7 @@ public class Test {
                 ..Default::default()
             },
         );
-        let class_map = Arc::new(Mutex::new(class_map));
+        let class_map = Arc::new(RwLock::new(class_map));
 
         let out = complete_call_chain(
             &doc,
@@ -764,7 +764,7 @@ public class Test {
                 ..Default::default()
             },
         );
-        let class_map = Arc::new(Mutex::new(class_map));
+        let class_map = Arc::new(RwLock::new(class_map));
         let content = "
 package ch.emilycares;
 public class Test {
@@ -802,7 +802,7 @@ public class Test {
                 ..Default::default()
             },
         );
-        let class_map = Arc::new(Mutex::new(class_map));
+        let class_map = Arc::new(RwLock::new(class_map));
         let content = "
 package ch.emilycares;
 public class Test {
@@ -853,7 +853,7 @@ public class Test {
                 ..Default::default()
             },
         );
-        let class_map = Arc::new(Mutex::new(class_map));
+        let class_map = Arc::new(RwLock::new(class_map));
         let content = "
 package ch.emilycares;
 import java.lang.StringBuilder;

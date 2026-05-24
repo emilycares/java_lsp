@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use document::Document;
@@ -17,7 +17,7 @@ pub fn get_inlay_hint(
     document: &Document,
     class: &Class,
     imports: &[ImportUnit],
-    class_map: Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Option<Vec<InlayHint>> {
     let vars = match variables::get_vars(
         &document.ast,
@@ -140,7 +140,7 @@ public class Test {
         "#]];
         expected.assert_debug_eq(&out);
     }
-    fn get_class_map() -> Arc<Mutex<HashMap<MyString, Class>>> {
+    fn get_class_map() -> Arc<RwLock<HashMap<MyString, Class>>> {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
 
         class_map.insert(
@@ -158,6 +158,6 @@ public class Test {
                 ..Default::default()
             },
         );
-        Arc::new(Mutex::new(class_map))
+        Arc::new(RwLock::new(class_map))
     }
 }

@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use dto::{Access, Class, ImportUnit, JType, SuperClass};
@@ -13,7 +13,7 @@ use crate::{ImportResult, is_imported};
 
 pub fn include_parent(
     class: Class,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
     args: &[JType],
 ) -> Class {
     let mut s: Vec<Class> = vec![];
@@ -80,7 +80,7 @@ fn replace_generic_jtype(jtype: &mut JType, class_signature: &[(usize, &SmolStr)
 
 pub fn populate_super_class(
     class: &Class,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
     s: &mut Vec<Class>,
 ) {
     let parent = load_parent(&class.super_class, &class.imports, class_map);
@@ -92,7 +92,7 @@ pub fn populate_super_class(
 
 pub fn populate_super_interfaces(
     class: &Class,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
     s: &mut Vec<Class>,
 ) {
     for super_interface in &class.super_interfaces {
@@ -133,13 +133,13 @@ fn overlay_class(b: Class, c: &Class) -> Class {
 fn load_parent(
     super_class: &SuperClass,
     imports: &[ImportUnit],
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Option<Class> {
     match super_class {
         SuperClass::None => None,
         SuperClass::Name(n) => {
             let key = format_smolstr!("java.util.{n}");
-            if let Ok(class_map) = class_map.lock()
+            if let Ok(class_map) = class_map.read()
                 && let Some(o) = class_map.get(&key).map(ToOwned::to_owned)
             {
                 return Some(o);
@@ -149,7 +149,7 @@ fn load_parent(
                 _ => None,
             }) {
                 let key = format_smolstr!("{package}.{n}");
-                if let Ok(cm) = class_map.lock()
+                if let Ok(cm) = class_map.read()
                     && let Some(o) = cm.get(&key)
                 {
                     return Some(o.clone());
@@ -158,7 +158,7 @@ fn load_parent(
             let import_result = is_imported(n, imports, class_map);
             match import_result {
                 Some(ImportResult::Class(imp) | ImportResult::StaticClass(imp)) => {
-                    if let Ok(class_map) = class_map.lock()
+                    if let Ok(class_map) = class_map.read()
                         && let Some(o) = class_map.get(&imp).map(ToOwned::to_owned)
                     {
                         return Some(o);
@@ -169,7 +169,7 @@ fn load_parent(
             }
         }
         SuperClass::ClassPath(class_path) => class_map
-            .lock()
+            .read()
             .map_or(None, |cm| cm.get(class_path).map(ToOwned::to_owned)),
     }
 }

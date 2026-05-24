@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use common::{
@@ -27,7 +27,7 @@ pub fn reload_dependencies(
     con: &Arc<Connection>,
     progress: Option<ProgressToken>,
     project_kind: &ProjectKind,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
     project_dir: &Path,
 ) -> Option<serde_json::Value> {
     match project_kind.clone() {
@@ -79,7 +79,7 @@ pub fn reload_dependencies(
 /// Does not use a cache
 fn reload_gradle_project(
     con: &Arc<Connection>,
-    class_map: &Arc<Mutex<HashMap<my_string::smol_str::SmolStr, Class>>>,
+    class_map: &Arc<RwLock<HashMap<my_string::smol_str::SmolStr, Class>>>,
     project_dir: &Path,
     executable: String,
 ) {
@@ -135,7 +135,7 @@ async fn reload_dependencies_maven_cli(
     project_kind: ProjectKind,
 ) {
     let progress = Arc::new(None);
-    let class_map = Arc::new(Mutex::new(HashMap::new()));
+    let class_map = Arc::new(RwLock::new(HashMap::new()));
     let repos = Arc::new(maven::get_repositories(&project_dir));
     let tree_task = "Load Dependencies".to_string();
     Backend::progress_start_option_token(&con.clone(), &progress, &tree_task);
@@ -170,7 +170,7 @@ pub fn update_dependencies(
     con: &Arc<Connection>,
     progress: Option<ProgressToken>,
     project_kind: &ProjectKind,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
     project_dir: &Path,
 ) {
     match project_kind.clone() {
@@ -187,7 +187,7 @@ pub fn update_dependencies_maven(
     con: &Arc<Connection>,
     progress: Option<ProgressToken>,
     project_kind: &ProjectKind,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
     project_dir: &Path,
 ) {
     let repos = Arc::new(maven::get_repositories(project_dir));
@@ -258,7 +258,7 @@ pub async fn update_dependencies_cli() {
 /// For gradle there is no difference between update and reload
 /// Does not use a cache
 async fn reload_gradle_project_cli(con: Arc<Connection>, project_dir: PathBuf, executable: String) {
-    let class_map = Arc::new(Mutex::new(HashMap::new()));
+    let class_map = Arc::new(RwLock::new(HashMap::new()));
 
     let task = "Load gradle project".to_string();
     let progress = Arc::new(Option::Some(ProgressToken::String(task.clone())));
@@ -283,7 +283,7 @@ async fn update_dependencies_maven_cli(
     project_dir: PathBuf,
     project_kind: ProjectKind,
 ) {
-    let class_map = Arc::new(Mutex::new(HashMap::new()));
+    let class_map = Arc::new(RwLock::new(HashMap::new()));
     let repos = Arc::new(maven::get_repositories(&project_dir));
     let progress = Arc::new(None);
 

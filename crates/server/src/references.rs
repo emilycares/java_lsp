@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
 };
 
 use ast::types::{AstFile, AstPoint};
@@ -34,7 +34,7 @@ pub struct ReferencePosition(PositionSymbol);
 pub struct ReferencesContext<'a> {
     pub point: &'a AstPoint,
     pub imports: &'a [ImportUnit],
-    pub class_map: Arc<Mutex<HashMap<MyString, Class>>>,
+    pub class_map: Arc<RwLock<HashMap<MyString, Class>>>,
     pub class: &'a Class,
     pub vars: &'a [LocalVariable],
 }
@@ -43,13 +43,13 @@ pub struct ReferencesContext<'a> {
 pub fn class_path(
     class_path: &str,
     reference_map: &Arc<Mutex<HashMap<MyString, Vec<ReferenceUnit>>>>,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
-    document_map: &Arc<Mutex<HashMap<MyString, Document>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    document_map: &Arc<RwLock<HashMap<MyString, Document>>>,
 ) -> Option<Vec<Location>> {
-    if let Ok(class_map) = class_map.lock()
+    if let Ok(class_map) = class_map.read()
         && let Ok(reference_map) = reference_map.lock()
         && let Some(crefs) = reference_map.get(class_path)
-        && let Ok(document_map) = document_map.lock()
+        && let Ok(document_map) = document_map.read()
     {
         let refs = crefs
             .iter()
@@ -85,7 +85,7 @@ pub fn call_chain_references(
     call_chain: &[CallItem],
     context: &ReferencesContext,
     reference_map: &Arc<Mutex<HashMap<MyString, Vec<ReferenceUnit>>>>,
-    document_map: &Arc<Mutex<HashMap<MyString, Document>>>,
+    document_map: &Arc<RwLock<HashMap<MyString, Document>>>,
 ) -> Result<Vec<Location>, ReferencesError> {
     let (item, relevant) = call_chain::validate(call_chain, context.point);
 
@@ -103,7 +103,7 @@ pub fn call_chain_references(
             let mut locations = vec![];
             if let Ok(reference_map) = reference_map.lock()
                 && let Some(used_in) = reference_map.get(&reference_state.class.class_path)
-                && let Ok(class_map) = context.class_map.lock()
+                && let Ok(class_map) = context.class_map.read()
             {
                 for ref_unit in used_in {
                     let Some(class) = (match ref_unit {
@@ -149,7 +149,7 @@ pub fn call_chain_references(
 fn method_references(
     _class: &Class,
     _query_method_name: &str,
-    _document_map: &Arc<Mutex<HashMap<MyString, Document>>>,
+    _document_map: &Arc<RwLock<HashMap<MyString, Document>>>,
 ) -> Result<Vec<ReferencePosition>, ReferencesError> {
     //TODO
     Ok(Vec::new())
@@ -157,7 +157,7 @@ fn method_references(
 
 pub fn init_reference_map(
     project_classes: &[Class],
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
     reference_map: &Arc<Mutex<HashMap<MyString, Vec<ReferenceUnit>>>>,
 ) -> Result<(), ReferencesError> {
     for class in project_classes {
@@ -168,7 +168,7 @@ pub fn init_reference_map(
 
 pub fn reference_update_class(
     class: &Class,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
     reference_map: &Arc<Mutex<HashMap<MyString, Vec<ReferenceUnit>>>>,
 ) -> Result<(), ReferencesError> {
     let class_path = class.class_path.clone();
@@ -225,11 +225,11 @@ fn pos_refs_helper(ast: &AstFile, query_class_name: &str) -> Vec<ReferencePositi
 }
 
 fn get_implicit_imports(
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
     class: &Class,
     package: &MyString,
 ) -> Vec<MyString> {
-    let Ok(class_map) = class_map.lock() else {
+    let Ok(class_map) = class_map.read() else {
         return Vec::new();
     };
     class_map

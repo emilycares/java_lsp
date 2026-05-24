@@ -10,7 +10,7 @@ use std::{
     collections::HashMap,
     hash::{DefaultHasher, Hash, Hasher},
     path::Path,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 use tokio::task::JoinSet;
 
@@ -97,7 +97,7 @@ pub enum GradleProjectError {
 }
 
 pub async fn index_project(
-    class_map: Arc<Mutex<HashMap<MyString, Class, impl std::hash::BuildHasher>>>,
+    class_map: Arc<RwLock<HashMap<MyString, Class, impl std::hash::BuildHasher + Send + Sync>>>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
     use_cache: bool,
     cache_path: PathBuf,
@@ -112,7 +112,7 @@ pub async fn index_project(
 }
 
 async fn index(
-    class_map: Arc<Mutex<HashMap<MyString, Class, impl std::hash::BuildHasher>>>,
+    class_map: Arc<RwLock<HashMap<MyString, Class, impl std::hash::BuildHasher + Send + Sync>>>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
     use_cache: bool,
     cache_path: PathBuf,
@@ -122,7 +122,7 @@ async fn index(
         && cache_path.exists()
         && let Ok(classes) = loader::load_class_folder(&cache_path)
     {
-        if let Ok(mut cm) = class_map.lock() {
+        if let Ok(mut cm) = class_map.write() {
             for class in classes.classes {
                 cm.insert(class.class_path.clone(), class);
             }
@@ -168,7 +168,7 @@ async fn index(
     if let Err(e) = loader::save_class_folder(&cache_path, &class_folder) {
         eprintln!("Failed to save {} because: {e:?}", cache_path.display());
     }
-    if let Ok(mut cm) = class_map.lock() {
+    if let Ok(mut cm) = class_map.write() {
         for class in class_folder.classes {
             cm.insert(class.class_path.clone(), class);
         }

@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use ast::types::{AstFile, AstPoint};
@@ -31,7 +31,7 @@ pub fn base(
     point: &AstPoint,
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Result<Hover, HoverError> {
     match class_action(ast, point, lo_va, imports, class_map) {
         Ok((class, range)) => {
@@ -45,7 +45,7 @@ pub fn base(
         return Err(HoverError::CouldNotFindClassPath);
     };
     let class;
-    if let Ok(cm) = class_map.lock()
+    if let Ok(cm) = class_map.read()
         && let Some(c) = cm.get(&class_path)
     {
         class = c.clone();
@@ -73,7 +73,7 @@ pub fn class_action(
     point: &AstPoint,
     _lo_va: &[LocalVariable],
     imports: &[ImportUnit],
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Result<(Class, Range), ClassActionError> {
     if let Some(class) = get_class::get_class(ast, point) {
         let range = to_lsp_range(&class.range).map_err(ClassActionError::ToLspRange)?;
@@ -91,7 +91,7 @@ pub fn call_chain_hover(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Result<Hover, HoverError> {
     let (item, relevant) = call_chain::validate(call_chain, point);
     let Some(el) = call_chain.get(item) else {
@@ -359,7 +359,7 @@ mod tests {
     use std::{
         collections::HashMap,
         path::PathBuf,
-        sync::{Arc, Mutex},
+        sync::{Arc, RwLock},
     };
 
     use ast::types::AstPoint;
@@ -545,7 +545,7 @@ public class Test {
         expected.assert_debug_eq(&out);
     }
 
-    fn string_class_map() -> Arc<Mutex<HashMap<MyString, Class>>> {
+    fn string_class_map() -> Arc<RwLock<HashMap<MyString, Class>>> {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
             SmolStr::new_inline("java.lang.String"),
@@ -561,6 +561,6 @@ public class Test {
                 ..Default::default()
             },
         );
-        Arc::new(Mutex::new(class_map))
+        Arc::new(RwLock::new(class_map))
     }
 }

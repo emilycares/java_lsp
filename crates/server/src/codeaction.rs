@@ -2,7 +2,7 @@ use std::{
     cmp::Ordering,
     collections::HashMap,
     num::TryFromIntError,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use ast::types::{
@@ -26,7 +26,7 @@ use crate::{
 pub struct CodeActionContext<'a> {
     pub point: &'a AstPoint,
     pub imports: &'a [ImportUnit],
-    pub class_map: Arc<Mutex<HashMap<MyString, Class>>>,
+    pub class_map: Arc<RwLock<HashMap<MyString, Class>>>,
     pub class: &'a Class,
     pub vars: &'a [LocalVariable],
     pub current_file: &'a Uri,
@@ -478,7 +478,7 @@ pub mod tests {
         collections::HashMap,
         path::PathBuf,
         str::FromStr,
-        sync::{Arc, Mutex},
+        sync::{Arc, RwLock},
     };
 
     use ast::types::AstPoint;
@@ -695,7 +695,7 @@ public class Test {
         "#]];
         expected.assert_debug_eq(&result);
     }
-    fn get_class_map() -> Arc<Mutex<HashMap<MyString, Class>>> {
+    fn get_class_map() -> Arc<RwLock<HashMap<MyString, Class>>> {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
             SmolStr::new_inline("java.lang.String"),
@@ -729,6 +729,6 @@ public class Test {
                 ..Default::default()
             },
         );
-        Arc::new(Mutex::new(class_map))
+        Arc::new(RwLock::new(class_map))
     }
 }

@@ -8,7 +8,7 @@ mod parent;
 
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use ast::types::AstPoint;
@@ -49,7 +49,7 @@ pub struct ResolveState {
 pub fn is_imported_class_name(
     jtype: &str,
     imports: &[ImportUnit],
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> bool {
     is_imported(jtype, imports, class_map).is_some()
 }
@@ -64,7 +64,7 @@ pub enum ImportResult {
 pub fn is_imported<'a>(
     jtype: &'a str,
     imports: &'a [ImportUnit],
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Option<ImportResult> {
     if jtype.starts_with("java.lang") {
         return Some(ImportResult::Class(jtype.into()));
@@ -95,7 +95,7 @@ pub fn is_imported<'a>(
             possible_class_path.push('.');
             possible_class_path.push_str(jtype);
             let possible_class_path = possible_class_path.finish();
-            if let Ok(class_map) = class_map.lock()
+            if let Ok(class_map) = class_map.read()
                 && class_map.contains_key(&possible_class_path)
             {
                 return Some(ImportResult::StaticClass(possible_class_path));
@@ -121,7 +121,7 @@ struct ImportedMethod {
 fn get_methods_and_fields(
     class: &Class,
     imports: &[ImportUnit],
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> (Vec<ImportedMethod>, Vec<ImportedField>) {
     let mut methods = vec![];
     let mut fields = vec![];
@@ -151,7 +151,7 @@ fn get_methods_and_fields(
 
 fn parent_t(
     class: &Class,
-    class_map: &Arc<Mutex<HashMap<SmolStr, Class>>>,
+    class_map: &Arc<RwLock<HashMap<SmolStr, Class>>>,
     methods: &mut Vec<ImportedMethod>,
     fields: &mut Vec<ImportedField>,
 ) {
@@ -193,7 +193,7 @@ fn parent_t(
 
 fn star_import_subclass(
     jtype: &str,
-    class_map: &Arc<Mutex<HashMap<my_string::smol_str::SmolStr, Class>>>,
+    class_map: &Arc<RwLock<HashMap<my_string::smol_str::SmolStr, Class>>>,
     p: &my_string::smol_str::SmolStr,
 ) -> Option<ImportResult> {
     let mut possible_class_path = SmolStrBuilder::new();
@@ -202,7 +202,7 @@ fn star_import_subclass(
     possible_class_path.push_str(jtype);
     let possible_class_path = possible_class_path.finish();
 
-    if let Ok(class_map) = class_map.lock()
+    if let Ok(class_map) = class_map.read()
         && class_map.contains_key(&possible_class_path)
     {
         return Some(ImportResult::Class(possible_class_path));
@@ -213,7 +213,7 @@ fn star_import_subclass(
 pub fn resolve(
     class_name: &str,
     imports: &[ImportUnit],
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Result<ResolveState, TyresError> {
     if class_name.contains('.') {
         return resolve_classpath(class_name, class_map);
@@ -223,7 +223,7 @@ pub fn resolve(
     lang_class_key.push_str("java.lang.");
     lang_class_key.push_str(class_name);
     let lang_class_key = lang_class_key.finish();
-    if let Ok(cm) = class_map.lock()
+    if let Ok(cm) = class_map.read()
         && let Some(ic) = cm.get(&lang_class_key)
     {
         let lang_class = ic.to_owned();
@@ -237,7 +237,7 @@ pub fn resolve(
     let import_result = is_imported(class_name, imports, class_map);
     match import_result {
         Some(ImportResult::Class(c) | ImportResult::StaticClass(c)) => {
-            if let Ok(cm) = class_map.lock()
+            if let Ok(cm) = class_map.read()
                 && let Some(ic) = cm.get(&c)
             {
                 let imported_class = ic.to_owned();
@@ -257,7 +257,7 @@ pub fn resolve_with_generic(
     class_name: &str,
     args: &[JType],
     imports: &[ImportUnit],
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Result<ResolveState, TyresError> {
     if class_name.contains('.') {
         return resolve_classpath(class_name, class_map);
@@ -267,7 +267,7 @@ pub fn resolve_with_generic(
     lang_class_key.push_str("java.lang.");
     lang_class_key.push_str(class_name);
     let lang_class_key = lang_class_key.finish();
-    if let Ok(cm) = class_map.lock()
+    if let Ok(cm) = class_map.read()
         && let Some(ic) = cm.get(&lang_class_key)
     {
         let lang_class = ic.to_owned();
@@ -288,7 +288,7 @@ pub fn resolve_with_generic(
     let import_result = is_imported(class_name, imports, class_map);
     match import_result {
         Some(ImportResult::Class(c) | ImportResult::StaticClass(c)) => {
-            if let Ok(cm) = class_map.lock()
+            if let Ok(cm) = class_map.read()
                 && let Some(ic) = cm.get(&c)
             {
                 let imported_class = ic.to_owned();
@@ -312,10 +312,10 @@ pub fn resolve_with_generic(
 }
 fn resolve_classpath(
     class_path: &str,
-    class_map: &Arc<Mutex<HashMap<SmolStr, Class>>>,
+    class_map: &Arc<RwLock<HashMap<SmolStr, Class>>>,
 ) -> Result<ResolveState, TyresError> {
     let imported_class;
-    if let Ok(cm) = class_map.lock()
+    if let Ok(cm) = class_map.read()
         && let Some(ic) = cm.get(class_path)
     {
         imported_class = ic.to_owned();
@@ -333,7 +333,7 @@ fn resolve_classpath(
 #[must_use]
 pub fn resolve_import(
     jtype: &str,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Vec<String> {
     resolve_class_key(class_map, |class_path| {
         let Some((_, class_name)) = class_path.rsplit_once('.') else {
@@ -344,10 +344,10 @@ pub fn resolve_import(
 }
 
 pub fn resolve_class_key(
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
     infl: impl Fn(&&MyString) -> bool,
 ) -> Vec<String> {
-    if let Ok(cm) = class_map.lock() {
+    if let Ok(cm) = class_map.read() {
         return cm
             .keys()
             .filter(infl)
@@ -360,7 +360,7 @@ pub fn resolve_class_key(
 pub fn resolve_var(
     extend: &LocalVariable,
     imports: &[ImportUnit],
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Result<ResolveState, TyresError> {
     resolve_jtype(&extend.jtype, imports, class_map)
 }
@@ -371,7 +371,7 @@ pub fn resolve_params(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Vec<Result<ResolveState, TyresError>> {
     params
         .iter()
@@ -384,7 +384,7 @@ pub fn resolve_call_chain(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Result<ResolveState, TyresError> {
     if call_chain.is_empty() {
         return Err(TyresError::CallChainEmpty);
@@ -418,7 +418,7 @@ pub fn resolve_call_chain_value(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Result<ResolveState, TyresError> {
     if call_chain.is_empty() {
         return Err(TyresError::CallChainEmpty);
@@ -444,7 +444,7 @@ pub fn resolve_call_chain_to_point(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
     point: &AstPoint,
 ) -> Result<ResolveState, TyresError> {
     if call_chain.is_empty() {
@@ -490,7 +490,7 @@ fn call_chain_op(
     methods: &[ImportedMethod],
     fields: &[ImportedField],
     class: &Class,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
     resolve_argument: bool,
     return_value: bool,
 ) -> Result<ResolveState, TyresError> {
@@ -595,7 +595,7 @@ fn call_chain_op_self(
     methods: &[ImportedMethod],
     fields: &[ImportedField],
     class: &Class,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
     resolve_argument: bool,
 ) -> Result<ResolveState, TyresError> {
     match item {
@@ -687,7 +687,7 @@ fn call_chain_op_self(
 pub fn resolve_jtype(
     jtype: &JType,
     imports: &[ImportUnit],
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Result<ResolveState, TyresError> {
     resolve_jtype_with_generic(jtype, &[], imports, class_map)
 }
@@ -696,7 +696,7 @@ pub fn resolve_jtype_with_generic(
     jtype: &JType,
     args: &[JType],
     imports: &[ImportUnit],
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Result<ResolveState, TyresError> {
     match jtype {
         JType::Void => Ok(ResolveState {
@@ -806,7 +806,7 @@ pub fn resolve_jtype_with_generic(
         JType::Access { base, inner } => {
             let query = format_smolstr!("{}${}", &base, &inner);
             eprintln!("Resolve JType::Access: {query}");
-            if let Ok(cm) = class_map.lock()
+            if let Ok(cm) = class_map.read()
                 && let Some(out) = cm.get(&query)
             {
                 Ok(ResolveState {

@@ -9,7 +9,7 @@ use std::{
     collections::HashMap,
     fs,
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use ast::{
@@ -82,7 +82,7 @@ impl Document {
         text: &str,
         path: PathBuf,
         key: &MyString,
-        document_map: &Arc<Mutex<HashMap<MyString, Self>>>,
+        document_map: &Arc<RwLock<HashMap<MyString, Self>>>,
     ) -> Result<(), DocumentError> {
         let rope = Rope::from_str(text);
         let mut o = Self {
@@ -93,14 +93,14 @@ impl Document {
 
         match o.reparse(text.as_bytes()) {
             Ok(()) => {
-                let Ok(mut dm) = document_map.lock() else {
+                let Ok(mut dm) = document_map.write() else {
                     return Err(DocumentError::Locked);
                 };
                 dm.insert(key.to_smolstr(), o);
                 Ok(())
             }
             Err(e) => {
-                let Ok(mut dm) = document_map.lock() else {
+                let Ok(mut dm) = document_map.write() else {
                     return Err(DocumentError::Locked);
                 };
                 dm.insert(key.to_smolstr(), o);
@@ -227,7 +227,7 @@ pub fn get_class_path(ast: &AstFile) -> Option<MyString> {
 pub fn open_document(
     key: &str,
     content: &str,
-    document_map: &Arc<Mutex<HashMap<MyString, Document>>>,
+    document_map: &Arc<RwLock<HashMap<MyString, Document>>>,
 ) -> Result<(), DocumentError> {
     let path = path_without_subclass(key);
     Document::setup_insert(content, path, &key.to_smolstr(), document_map)?;
@@ -235,9 +235,9 @@ pub fn open_document(
 }
 pub fn read_document_or_open_class(
     source: &str,
-    document_map: &Arc<Mutex<HashMap<MyString, Document>>>,
+    document_map: &Arc<RwLock<HashMap<MyString, Document>>>,
 ) -> Result<Document, DocumentError> {
-    let Ok(mut dm) = document_map.lock() else {
+    let Ok(mut dm) = document_map.write() else {
         return Err(DocumentError::Locked);
     };
     if let Some(document) = dm.get(source) {
@@ -251,7 +251,7 @@ pub fn read_document_or_open_class(
 
 pub fn get_ast(
     source: &str,
-    document_map: &Arc<Mutex<HashMap<MyString, Document>>>,
+    document_map: &Arc<RwLock<HashMap<MyString, Document>>>,
 ) -> Result<AstFile, DocumentError> {
     read_document_or_open_class(source, document_map).map(|i| i.ast)
 }

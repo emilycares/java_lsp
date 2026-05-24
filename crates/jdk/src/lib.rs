@@ -11,7 +11,7 @@ use std::{
     path::{Path, PathBuf},
     str::{Utf8Error, from_utf8},
     sync::{
-        Arc, Mutex,
+        Arc, RwLock,
         atomic::{AtomicU32, Ordering},
     },
 };
@@ -50,7 +50,7 @@ pub enum JdkError {
 }
 
 pub async fn load_classes(
-    class_map: Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: Arc<RwLock<HashMap<MyString, Class>>>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
     path: &OsString,
 ) -> Result<(), JdkError> {
@@ -60,7 +60,7 @@ pub async fn load_classes(
     if cache_path.exists()
         && let Ok(classes) = loader::load_class_folder(&cache_path)
     {
-        if let Ok(mut cm) = class_map.lock() {
+        if let Ok(mut cm) = class_map.write() {
             for class in classes.classes {
                 cm.insert(class.class_path.clone(), class);
             }
@@ -71,7 +71,7 @@ pub async fn load_classes(
     if let Err(e) = loader::save_class_folder(cache_path, &class_folder) {
         eprintln!("Failed to save {JDK_CFC} because: {e:?}");
     }
-    if let Ok(mut cm) = class_map.lock() {
+    if let Ok(mut cm) = class_map.write() {
         for class in class_folder.classes {
             cm.insert(class.class_path.clone(), class);
         }

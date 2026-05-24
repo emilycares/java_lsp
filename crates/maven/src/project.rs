@@ -4,7 +4,7 @@ use std::{
     hash::{DefaultHasher, Hash, Hasher},
     path::{Path, PathBuf},
     sync::{
-        Arc, Mutex,
+        Arc, RwLock,
         atomic::{AtomicU32, Ordering},
     },
 };
@@ -27,7 +27,7 @@ pub enum MavenProjectError {
 }
 
 pub async fn project_deps(
-    class_map: Arc<Mutex<HashMap<MyString, Class, impl std::hash::BuildHasher>>>,
+    class_map: Arc<RwLock<HashMap<MyString, Class, impl std::hash::BuildHasher + Send + Sync>>>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
     use_cache: bool,
     tree: &[Dependency],
@@ -38,7 +38,7 @@ pub async fn project_deps(
         && cache_path.exists()
         && let Ok(classes) = loader::load_class_folder(&cache_path)
     {
-        if let Ok(mut cm) = class_map.lock() {
+        if let Ok(mut cm) = class_map.write() {
             for class in classes.classes {
                 cm.insert(class.class_path.clone(), class);
             }
@@ -150,7 +150,7 @@ pub async fn project_deps(
     if let Err(e) = loader::save_class_folder(&cache_path, &maven_class_folder) {
         eprintln!("Failed to save {} because: {e:?}", cache_path.display());
     }
-    if let Ok(mut cm) = class_map.lock() {
+    if let Ok(mut cm) = class_map.write() {
         for class in maven_class_folder.classes {
             cm.insert(class.class_path.clone(), class);
         }

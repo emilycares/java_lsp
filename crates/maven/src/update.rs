@@ -46,7 +46,7 @@ pub struct CurlResponse {
 
 impl CurlResponse {
     const fn status_is_success(&self) -> bool {
-        self.status > 200 && self.status < 300
+        self.status >= 200 && self.status < 300
     }
 }
 
@@ -67,6 +67,10 @@ fn make_easy(
     easy.url(url).map_err(MavenUpdateError::Curl)?;
     easy.follow_location(true).map_err(MavenUpdateError::Curl)?;
     easy.tcp_keepalive(true).map_err(MavenUpdateError::Curl)?;
+    easy.connect_timeout(Duration::from_secs(15))
+        .map_err(MavenUpdateError::Curl)?;
+    easy.timeout(Duration::from_secs(120))
+        .map_err(MavenUpdateError::Curl)?;
 
     if let Some(cred) = credentials {
         easy.username(&cred.username)
@@ -140,7 +144,7 @@ impl CurlClient {
     }
 
     fn drive(mut rx: mpsc::Receiver<GetRequest>) {
-        let multi = Multi::new();
+        let mut multi = Multi::new();
         let mut pending: Vec<PendingEntry> = vec![];
 
         loop {
@@ -165,8 +169,13 @@ impl CurlClient {
                 continue;
             }
 
-            if multi.perform().is_err() {
-                return;
+            if let Err(e) = multi.perform() {
+                eprintln!("curl multi perform error: {e:?}, resetting");
+                while let Some(entry) = pending.pop() {
+                    let _ = entry.tx.send(Err(MavenUpdateError::Driver));
+                }
+                multi = Multi::new();
+                continue;
             }
 
             let mut completed: Vec<usize> = vec![];

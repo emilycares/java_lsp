@@ -5,7 +5,7 @@
 #![allow(clippy::too_many_lines)]
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use ast::{
@@ -28,7 +28,7 @@ pub struct VariableContext<'a> {
     pub point: Option<AstPoint>,
     pub imports: &'a [ImportUnit],
     pub class: &'a Class,
-    pub class_map: Arc<Mutex<HashMap<MyString, Class>>>,
+    pub class_map: Arc<RwLock<HashMap<MyString, Class>>>,
 }
 
 #[derive(Debug)]
@@ -569,7 +569,7 @@ fn get_class_variables(
 pub mod tests {
     use std::{
         collections::HashMap,
-        sync::{Arc, Mutex},
+        sync::{Arc, RwLock},
     };
 
     use ast::{error::PrintErr, types::AstPoint};
@@ -579,7 +579,7 @@ pub mod tests {
 
     use crate::{VariableContext, get_vars};
 
-    fn get_class_map() -> Arc<Mutex<HashMap<MyString, Class>>> {
+    fn get_class_map() -> Arc<RwLock<HashMap<MyString, Class>>> {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
             SmolStr::new_inline("java.lang.Integer"),
@@ -605,7 +605,7 @@ pub mod tests {
         //         ..Default::default()
         //     },
         // );
-        Arc::new(Mutex::new(class_map))
+        Arc::new(RwLock::new(class_map))
     }
 
     #[test]

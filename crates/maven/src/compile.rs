@@ -24,7 +24,7 @@ pub static TREE: OnceCell<Vec<Dependency>> = OnceCell::const_new();
 
 pub fn generate_classpath(maven_executable: &str) -> Result<String, MavenClasspathError> {
     let target = Path::new("./target");
-    if Path::new(&CLASSPATH_FILE).exists() {
+    if should_load_existing_classpath() {
         let classpath =
             read_to_string(CLASSPATH_FILE).map_err(MavenClasspathError::ReadExisting)?;
         return Ok(classpath.trim().to_string());
@@ -55,4 +55,13 @@ pub fn generate_classpath(maven_executable: &str) -> Result<String, MavenClasspa
     fs::write(CLASSPATH_FILE, &full_classpath).map_err(MavenClasspathError::Overwrite)?;
 
     Ok(full_classpath)
+}
+
+fn should_load_existing_classpath() -> bool {
+    let classpath_mtime = fs::metadata(CLASSPATH_FILE).and_then(|m| m.modified()).ok();
+    let pom_mtime = fs::metadata("./pom.xml").and_then(|m| m.modified()).ok();
+    match (classpath_mtime, pom_mtime) {
+        (Some(cp), Some(pom)) => cp >= pom,
+        _ => false,
+    }
 }

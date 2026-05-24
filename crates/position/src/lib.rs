@@ -86,7 +86,7 @@ fn get_class_position_ast_thing(
                 && ast_interface.name.value == name
             {
                 out.push(PositionSymbol {
-                    range: ast_interface.range,
+                    range: ast_interface.name.range,
                     name: ast_interface.name.value.clone(),
                     kind: SymbolKind::INTERFACE,
                 });
@@ -108,7 +108,7 @@ fn get_class_position_ast_thing(
                 return;
             }
             out.push(PositionSymbol {
-                range: ast_enumeration.range,
+                range: ast_enumeration.name.range,
                 name: ast_enumeration.name.value.clone(),
                 kind: SymbolKind::ENUM,
             });

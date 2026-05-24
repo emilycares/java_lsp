@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use ast::types::AstPoint;
@@ -27,7 +27,7 @@ pub fn signature_driver(
     document: &Document,
     point: &AstPoint,
     class: &Class,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Result<SignatureHelp, SignatureError> {
     let call_chain = call_chain::get_call_chain(&document.ast, point);
     let imports = imports::imports(&document.ast);
@@ -48,7 +48,7 @@ pub fn get_signature(
     imports: &[ImportUnit],
     vars: &[LocalVariable],
     class: &Class,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
 ) -> Result<SignatureHelp, SignatureError> {
     let args = get_args(call_chain);
     let Some(CallItem::ArgumentList {
@@ -100,7 +100,7 @@ fn signature_help_for_method(
     imports: &[ImportUnit],
     vars: &[LocalVariable],
     class: &Class,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
     prev: &[CallItem],
     active_param: usize,
     num_params: usize,
@@ -142,7 +142,7 @@ fn signature_help_for_constructor(
     imports: &[ImportUnit],
     vars: &[LocalVariable],
     class: &Class,
-    class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
     prev: &[CallItem],
     active_param: usize,
     num_params: usize,
@@ -241,7 +241,7 @@ pub mod tests {
     use std::{
         collections::HashMap,
         path::PathBuf,
-        sync::{Arc, Mutex},
+        sync::{Arc, RwLock},
     };
 
     use super::signature_driver;
@@ -273,7 +273,7 @@ pub mod tests {
                 ..Default::default()
             },
         );
-        let class_map = Arc::new(Mutex::new(class_map));
+        let class_map = Arc::new(RwLock::new(class_map));
         let class = Class {
             access: Access::Public,
             name: SmolStr::new_inline("Test"),
@@ -366,7 +366,7 @@ public class Test {
                 ..Default::default()
             },
         );
-        let class_map = Arc::new(Mutex::new(class_map));
+        let class_map = Arc::new(RwLock::new(class_map));
         let class = Class {
             access: Access::Public,
             name: SmolStr::new_inline("Test"),
@@ -484,7 +484,7 @@ public class Test {
                 ..Default::default()
             },
         );
-        let class_map = Arc::new(Mutex::new(class_map));
+        let class_map = Arc::new(RwLock::new(class_map));
         let class = Class {
             access: Access::Public,
             name: SmolStr::new_inline("Test"),
@@ -583,7 +583,7 @@ public class Test {
                 ..Default::default()
             },
         );
-        let class_map = Arc::new(Mutex::new(class_map));
+        let class_map = Arc::new(RwLock::new(class_map));
         let class = Class {
             access: Access::Public,
             name: SmolStr::new_inline("Test"),

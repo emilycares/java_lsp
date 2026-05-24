@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use ast::types::{AstFile, AstPoint};
@@ -39,14 +39,14 @@ pub struct DefinitionContext<'a> {
     pub vars: &'a [LocalVariable],
     pub imports: &'a [ImportUnit],
     pub class: &'a Class,
-    pub class_map: Arc<Mutex<HashMap<MyString, Class>>>,
-    pub document_map: &'a Arc<Mutex<HashMap<MyString, Document>>>,
+    pub class_map: Arc<RwLock<HashMap<MyString, Class>>>,
+    pub document_map: &'a Arc<RwLock<HashMap<MyString, Document>>>,
 }
 
 pub fn class(
     ast: &AstFile,
     context: &DefinitionContext,
-    document_map: &Arc<Mutex<HashMap<MyString, Document>>>,
+    document_map: &Arc<RwLock<HashMap<MyString, Document>>>,
 ) -> Result<GotoDefinitionResponse, DefinitionError> {
     match class_action(
         ast,
@@ -302,7 +302,7 @@ public class Test {
             imports: &imports,
             class: &class,
             class_map: get_class_map(),
-            document_map: &Arc::new(Mutex::new(HashMap::new())),
+            document_map: &Arc::new(RwLock::new(HashMap::new())),
         };
         let out = call_chain_definition(&call_chain, &context);
         let expected = expect![[r#"
@@ -357,7 +357,7 @@ public class Test {
             imports: &imports,
             class: &class,
             class_map: get_class_map(),
-            document_map: &Arc::new(Mutex::new(HashMap::new())),
+            document_map: &Arc::new(RwLock::new(HashMap::new())),
         };
         let out = call_chain_definition(&call_chain, &context);
         let expected = expect![[r#"
@@ -407,7 +407,7 @@ public class Test extends ParGreet {
             imports: &imports,
             class: &class,
             class_map: get_class_map(),
-            document_map: &Arc::new(Mutex::new(HashMap::new())),
+            document_map: &Arc::new(RwLock::new(HashMap::new())),
         };
         let out = call_chain_definition(&call_chain, &context);
         let expected = expect![[r#"
@@ -423,7 +423,7 @@ public class Test extends ParGreet {
         "#]];
         expected.assert_debug_eq(&out);
     }
-    fn get_class_map() -> Arc<Mutex<HashMap<MyString, Class>>> {
+    fn get_class_map() -> Arc<RwLock<HashMap<MyString, Class>>> {
         let mut class_map: HashMap<MyString, Class> = HashMap::new();
         class_map.insert(
             SmolStr::new("ch.emilycares.a.ParGreet"),
@@ -496,6 +496,6 @@ public class Test extends ParGreet {
                 ..Default::default()
             },
         );
-        Arc::new(Mutex::new(class_map))
+        Arc::new(RwLock::new(class_map))
     }
 }

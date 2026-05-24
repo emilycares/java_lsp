@@ -3,7 +3,7 @@ use std::{
     ffi::OsString,
     fs,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
 };
 
 use ast::types::AstFile;
@@ -56,8 +56,8 @@ use crate::{
 pub struct Backend {
     pub error_files: Arc<Mutex<HashSet<String>>>,
     pub project_kind: ProjectKind,
-    pub document_map: Arc<Mutex<HashMap<MyString, Document>>>,
-    pub class_map: Arc<Mutex<HashMap<MyString, Class>>>,
+    pub document_map: Arc<RwLock<HashMap<MyString, Document>>>,
+    pub class_map: Arc<RwLock<HashMap<MyString, Class>>>,
     pub reference_map: Arc<Mutex<HashMap<MyString, Vec<ReferenceUnit>>>>,
     pub client_capabilities: Arc<Option<ClientCapabilities>>,
     pub connection: Arc<Connection>,
@@ -71,8 +71,8 @@ impl Backend {
             connection: Arc::new(connection),
             error_files: Arc::new(Mutex::new(HashSet::new())),
             project_kind,
-            document_map: Arc::new(Mutex::new(HashMap::new())),
-            class_map: Arc::new(Mutex::new(HashMap::new())),
+            document_map: Arc::new(RwLock::new(HashMap::new())),
+            class_map: Arc::new(RwLock::new(HashMap::new())),
             reference_map: Arc::new(Mutex::new(HashMap::new())),
             client_capabilities: Arc::new(None),
             project_dir,
@@ -246,6 +246,7 @@ impl Backend {
         let mut out = Vec::new();
         let mut emap = HashMap::<String, Vec<CompileErrorMessage>>::new();
         let Ok(mut error_files) = self.error_files.lock() else {
+            eprintln!("error_files mutex poisoned");
             return Vec::new();
         };
         for e in errors {
@@ -282,7 +283,7 @@ impl Backend {
         progress: Option<ProgressToken>,
         con: Arc<Connection>,
         project_kind: ProjectKind,
-        class_map: &Arc<Mutex<HashMap<MyString, Class>>>,
+        class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
         reference_map: Arc<Mutex<HashMap<MyString, Vec<ReferenceUnit>>>>,
         project_dir: &Path,
         path: &OsString,
@@ -432,10 +433,12 @@ impl Backend {
                     format!("Populating class map number: {}", project_classes.len()),
                     90,
                 );
-                if let Ok(cm) = class_map.lock().as_mut() {
+                if let Ok(mut cm) = class_map.write() {
                     for class in project_classes {
                         cm.insert(class.class_path.clone(), class);
                     }
+                } else {
+                    eprintln!("class_map mutex poisoned");
                 }
                 Self::progress_end_option_token(&con.clone(), &progress, task);
             });
@@ -490,7 +493,8 @@ impl Backend {
         let key = get_document_map_key(&params.text_document.uri);
         eprintln!("Closing file: {key}");
 
-        let Ok(mut dm) = self.document_map.lock() else {
+        let Ok(mut dm) = self.document_map.write() else {
+            eprintln!("document_map mutex poisoned");
             return;
         };
         dm.remove(&key.to_smolstr());
@@ -508,7 +512,8 @@ impl Backend {
             return;
         }
 
-        let Ok(mut dm) = self.document_map.lock() else {
+        let Ok(mut dm) = self.document_map.write() else {
+            eprintln!("document_map mutex poisoned");
             return;
         };
         let Some(document) =
@@ -543,7 +548,8 @@ impl Backend {
             &mut current_file_diagnostics,
         );
 
-        let Ok(dm) = self.document_map.lock() else {
+        let Ok(dm) = self.document_map.read() else {
+            eprintln!("document_map mutex poisoned");
             return;
         };
         let Some(document) = dm.get(&get_document_map_key(&params.text_document.uri)) else {
@@ -559,8 +565,10 @@ impl Backend {
             Ok(()) => {}
             Err(e) => eprintln!("Got reference error: {e:?}"),
         }
-        if let Ok(class_map) = self.class_map.lock().as_mut() {
+        if let Ok(mut class_map) = self.class_map.write() {
             class_map.insert(class_path, class);
+        } else {
+            eprintln!("class_map mutex poisoned");
         }
 
         Self::send_diagnostic(
@@ -601,7 +609,8 @@ impl Backend {
             return None;
         }
         let uri = params.text_document_position_params.text_document.uri;
-        let Ok(dm) = self.document_map.lock() else {
+        let Ok(dm) = self.document_map.read() else {
+            eprintln!("document_map mutex poisoned");
             return None;
         };
         let document = dm.get(&get_document_map_key(&uri).to_smolstr())?;
@@ -651,7 +660,8 @@ impl Backend {
             return None;
         }
         let uri = params.text_document.uri;
-        let Ok(mut dm) = self.document_map.lock() else {
+        let Ok(mut dm) = self.document_map.write() else {
+            eprintln!("document_map mutex poisoned");
             return None;
         };
         let Some(document) = dm.get_mut(&get_document_map_key(&uri).to_smolstr()) else {
@@ -1105,7 +1115,7 @@ impl Backend {
             return None;
         };
         let class;
-        if let Ok(cm) = self.class_map.lock()
+        if let Ok(cm) = self.class_map.read()
             && let Some(cl) = cm.get(&class_path)
         {
             class = cl.clone();
@@ -1117,7 +1127,7 @@ impl Backend {
     }
 
     fn get_document(&self, uri: &Uri) -> Option<Document> {
-        if let Ok(dm) = self.document_map.lock()
+        if let Ok(dm) = self.document_map.read()
             && let Some(doc) = dm.get(&get_document_map_key(uri))
         {
             Some(doc.clone())
@@ -1193,30 +1203,26 @@ pub async fn read_forward(
     task: String,
     token: Arc<Option<ProgressToken>>,
 ) {
-    tokio::spawn(async move {
-        loop {
-            if rx.changed().await.is_err() {
-                break;
-            }
-            let i = rx.borrow();
-            Backend::progress_update_percentage_option_token(
-                &con.clone(),
-                &token,
-                &task,
-                i.message.clone(),
-                i.percentage,
-            );
+    loop {
+        if rx.changed().await.is_err() {
+            break;
         }
-    })
-    .await
-    .expect("Forward failed");
+        let i = rx.borrow();
+        Backend::progress_update_percentage_option_token(
+            &con.clone(),
+            &token,
+            &task,
+            i.message.clone(),
+            i.percentage,
+        );
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
 pub async fn project_deps(
     sender: tokio::sync::watch::Sender<TaskProgress>,
     project_kind: ProjectKind,
-    class_map: Arc<Mutex<HashMap<MyString, Class>>>,
+    class_map: Arc<RwLock<HashMap<MyString, Class>>>,
     use_cache: bool,
     project_dir: &Path,
     project_cache_dir: &Path,
