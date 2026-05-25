@@ -123,7 +123,7 @@ pub fn call_chain_definition(
             let ast = document::get_ast(&source_file, context.document_map)
                 .map_err(DefinitionError::Document)?;
             let mut ranges = Vec::new();
-            position::get_method_position_ast(&ast, Some(name), &mut ranges);
+            position::get_method_position_ast(&ast, Some(name), Some(args_len), &mut ranges);
             let uri = source_to_uri(&source_file).map_err(DefinitionError::SourceToUri)?;
             Ok(go_to_definition_range(uri, &ranges)?)
         }

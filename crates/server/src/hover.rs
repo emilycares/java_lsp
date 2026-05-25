@@ -248,6 +248,7 @@ pub fn jtype_hover_display(jtype: &JType) -> String {
             jtype_hover_display(base),
             jtype_hover_display(inner)
         ),
+        JType::Extends { base, .. } => jtype_hover_display(base),
     }
 }
 

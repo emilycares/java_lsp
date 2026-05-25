@@ -38,9 +38,11 @@ pub fn get_inlay_hint(
         vars.iter()
             .filter(|i| i.flags.intersects(VarFlags::Computed))
             .filter_map(|i| {
+                let range = to_lsp_range(&i.range).ok()?;
+                let value = jtype_hover_display(&i.jtype);
                 Some(InlayHint {
-                    position: to_lsp_range(&i.range).ok()?.start,
-                    label: InlayHintLabel::String(jtype_hover_display(&i.jtype)),
+                    position: range.start,
+                    label: InlayHintLabel::String(value),
                     kind: Some(InlayHintKind::TYPE),
                     text_edits: None,
                     tooltip: None,

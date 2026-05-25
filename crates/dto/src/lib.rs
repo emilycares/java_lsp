@@ -10,7 +10,7 @@ use my_string::{
 };
 use serde::{Deserialize, Serialize};
 
-pub const CFC_VERSION: usize = 15;
+pub const CFC_VERSION: usize = 16;
 
 #[derive(Debug)]
 pub enum ClassParserError {
@@ -205,6 +205,10 @@ pub enum JType {
     Array(Box<Self>),
     Generic(MyString, Vec<Self>),
     Parameter(MyString),
+    Extends {
+        base: Box<Self>,
+        extends: Box<Self>,
+    },
     Var,
     Access {
         base: Box<Self>,
@@ -244,6 +248,9 @@ impl Display for JType {
             Self::Var => write!(f, "var"),
             Self::Access { base, inner } => {
                 write!(f, "{}.{}", **base, **inner)
+            }
+            Self::Extends { base, .. } => {
+                write!(f, "{}", **base)
             }
         }
     }

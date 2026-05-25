@@ -992,7 +992,7 @@ impl Backend {
 
         let mut symbols = vec![];
         position::get_class_position_ast(&document.ast, None, &mut symbols);
-        position::get_method_position_ast(&document.ast, None, &mut symbols);
+        position::get_method_position_ast(&document.ast, None, None, &mut symbols);
         position::get_field_position_ast(&document.ast, None, &mut symbols);
         let symbols = position::symbols_to_document_symbols(&symbols, &uri);
         Some(DocumentSymbolResponse::Flat(symbols))

@@ -456,7 +456,25 @@ fn parse_class_signature_info(sig: &str) -> Result<(ClassSignature, usize), Clas
             pos = npos;
         }
     }
-    let (ret, pos) = parse_field_type(content, pos)?;
+    let mut init = false;
+    let mut ret = JType::default();
+    let end = sig.len();
+    while pos < end
+        && let Ok((nret, npos)) = parse_field_type(content, pos)
+    {
+        pos = npos;
+
+        if init {
+            ret = JType::Extends {
+                extends: Box::new(ret),
+                base: Box::new(nret),
+            };
+        } else {
+            ret = nret;
+            init = true;
+        }
+    }
+
     Ok((ClassSignature { args, ret }, pos))
 }
 
@@ -1329,7 +1347,7 @@ fn expect_data(data: &[u8], pos: usize, expected: &[u8]) -> Result<usize, ClassP
 
 #[cfg(test)]
 mod tests {
-    use crate::{load_class, load_module, parse_field_type};
+    use crate::{load_class, load_module, parse_class_signature_info, parse_field_type};
     use dto::SourceDestination;
     use expect_test::expect;
     use my_string::smol_str::SmolStr;
@@ -1840,9 +1858,19 @@ mod tests {
                         args: [
                             "E",
                         ],
-                        ret: Class(
-                            "java.lang.Object",
-                        ),
+                        ret: Extends {
+                            base: Class(
+                                "java.util.List",
+                            ),
+                            extends: Extends {
+                                base: Class(
+                                    "java.util.Collection",
+                                ),
+                                extends: Class(
+                                    "java.lang.Object",
+                                ),
+                            },
+                        },
                     },
                 ),
                 name: "SuperInterface",
@@ -2283,6 +2311,34 @@ mod tests {
                 inner: Class(
                     "Factory",
                 ),
+            }
+        "#]];
+        expected.assert_debug_eq(&result.0);
+    }
+
+    #[test]
+    fn class_signature() {
+        let content =
+            "<E:Ljava/lang/Object;>Ljava/lang/Object;Ljava/util/SequencedCollection<TE;>;";
+        let result = parse_class_signature_info(content).unwrap();
+        let expected = expect![[r#"
+            ClassSignature {
+                args: [
+                    "E",
+                ],
+                ret: Extends {
+                    base: Generic(
+                        "java.util.SequencedCollection",
+                        [
+                            Parameter(
+                                "E",
+                            ),
+                        ],
+                    ),
+                    extends: Class(
+                        "java.lang.Object",
+                    ),
+                },
             }
         "#]];
         expected.assert_debug_eq(&result.0);

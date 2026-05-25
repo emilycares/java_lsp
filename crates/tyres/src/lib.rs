@@ -325,9 +325,16 @@ fn resolve_classpath(
             class_path: class_path.into(),
         });
     }
+    let class = parent::include_parent(imported_class, class_map, args);
+    if args.is_empty() {
+        return Ok(ResolveState {
+            jtype: JType::Class(class_path.into()),
+            class,
+        });
+    }
     Ok(ResolveState {
-        jtype: JType::Class(class_path.into()),
-        class: parent::include_parent(imported_class, class_map, args),
+        jtype: JType::Generic(class_path.into(), args.to_vec()),
+        class,
     })
 }
 
@@ -511,10 +518,14 @@ fn call_chain_op(
                 .filter(|m| m.name == Some(name.clone()))
                 .find(|i| i.parameters.len() == args_len)
             {
-                if let JType::Generic(gname, args) = &method.ret {
-                    return resolve_with_generic(gname, args, imports, class_map);
+                let mut oargs = Vec::with_capacity(args.len());
+
+                for c in args {
+                    let n = resolve_call_chain_value(c, lo_va, imports, class, class_map)?;
+                    oargs.push(n.jtype);
                 }
-                return resolve_jtype(&method.ret, imports, class_map);
+
+                return resolve_jtype_with_generic(&method.ret, &oargs, imports, class_map);
             }
             if let Some(m) = methods.iter().find(|i| i.name == *name) {
                 return Ok(m.resolve_state.clone());
@@ -832,6 +843,7 @@ pub fn resolve_jtype_with_generic(
                 Err(TyresError::ClassNotFound { class_path: query })
             }
         }
+        JType::Extends { base, .. } => resolve_jtype_with_generic(base, args, imports, class_map),
     }
 }
 
@@ -852,8 +864,13 @@ mod tests {
         );
         let out = out.unwrap();
         let expected_class_type = expect![[r#"
-            Class(
+            Generic(
                 "java.util.List",
+                [
+                    Class(
+                        "java.lang.String",
+                    ),
+                ],
             )
         "#]];
         expected_class_type.assert_debug_eq(&out.jtype);

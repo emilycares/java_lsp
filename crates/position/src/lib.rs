@@ -136,18 +136,24 @@ fn get_class_position_ast_thing(
     }
 }
 
-pub fn get_method_position_ast(file: &AstFile, name: Option<&str>, out: &mut Vec<PositionSymbol>) {
+pub fn get_method_position_ast(
+    file: &AstFile,
+    name: Option<&str>,
+    nargs: Option<usize>,
+    out: &mut Vec<PositionSymbol>,
+) {
     for thing in file.top.iter().filter_map(|i| match i {
         AstTopLevel::Thing(ast_thing) => Some(ast_thing),
         AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => None,
     }) {
-        get_method_position_ast_thing(thing, name, out);
+        get_method_position_ast_thing(thing, name, nargs, out);
     }
 }
 
 pub fn get_method_position_ast_thing(
     thing: &AstThing,
     name: Option<&str>,
+    nargs: Option<usize>,
     out: &mut Vec<PositionSymbol>,
 ) {
     match thing {
@@ -158,6 +164,7 @@ pub fn get_method_position_ast_thing(
                     .methods
                     .iter()
                     .filter(|i| is_valid_name(name, &i.header.name))
+                    .filter(|i| is_valid_args(i.header.parameters.parameters.len(), nargs))
                     .map(|i| PositionSymbol {
                         range: i.range,
                         name: i.header.name.value.clone(),
@@ -165,7 +172,7 @@ pub fn get_method_position_ast_thing(
                     }),
             );
             for inner in &ast_class.block.inner {
-                get_method_position_ast_thing(inner, name, out);
+                get_method_position_ast_thing(inner, name, nargs, out);
             }
         }
         AstThing::Record(ast_record) => {
@@ -175,6 +182,7 @@ pub fn get_method_position_ast_thing(
                     .methods
                     .iter()
                     .filter(|i| is_valid_name(name, &i.header.name))
+                    .filter(|i| is_valid_args(i.header.parameters.parameters.len(), nargs))
                     .map(|i| PositionSymbol {
                         range: i.range,
                         name: i.header.name.value.clone(),
@@ -182,7 +190,7 @@ pub fn get_method_position_ast_thing(
                     }),
             );
             for inner in &ast_record.block.inner {
-                get_method_position_ast_thing(inner, name, out);
+                get_method_position_ast_thing(inner, name, nargs, out);
             }
         }
         AstThing::Interface(ast_interface) => {
@@ -191,6 +199,7 @@ pub fn get_method_position_ast_thing(
                     .methods
                     .iter()
                     .filter(|i| is_valid_name(name, &i.header.name))
+                    .filter(|i| is_valid_args(i.header.parameters.parameters.len(), nargs))
                     .map(|i| PositionSymbol {
                         range: i.range,
                         name: i.header.name.value.clone(),
@@ -202,6 +211,7 @@ pub fn get_method_position_ast_thing(
                     .default_methods
                     .iter()
                     .filter(|i| is_valid_name(name, &i.header.name))
+                    .filter(|i| is_valid_args(i.header.parameters.parameters.len(), nargs))
                     .map(|i| PositionSymbol {
                         range: i.range,
                         name: i.header.name.value.clone(),
@@ -209,7 +219,7 @@ pub fn get_method_position_ast_thing(
                     }),
             );
             for inner in &ast_interface.inner {
-                get_method_position_ast_thing(inner, name, out);
+                get_method_position_ast_thing(inner, name, nargs, out);
             }
         }
         AstThing::Enumeration(ast_enumeration) => {
@@ -218,6 +228,7 @@ pub fn get_method_position_ast_thing(
                     .methods
                     .iter()
                     .filter(|i| is_valid_name(name, &i.header.name))
+                    .filter(|i| is_valid_args(i.header.parameters.parameters.len(), nargs))
                     .map(|i| PositionSymbol {
                         range: i.range,
                         name: i.header.name.value.clone(),
@@ -225,11 +236,18 @@ pub fn get_method_position_ast_thing(
                     }),
             );
             for inner in &ast_enumeration.inner {
-                get_method_position_ast_thing(inner, name, out);
+                get_method_position_ast_thing(inner, name, nargs, out);
             }
         }
         AstThing::Annotation(_ast_annotation) => (),
     }
+}
+
+const fn is_valid_args(len: usize, nargs: Option<usize>) -> bool {
+    let Some(nargs) = nargs else {
+        return true;
+    };
+    len == nargs
 }
 
 fn is_valid_name(name: Option<&str>, i: &AstIdentifier) -> bool {
@@ -527,7 +545,7 @@ public class Test {
         let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         let mut out = vec![];
-        get_method_position_ast(&ast, Some("hello"), &mut out);
+        get_method_position_ast(&ast, Some("hello"), None, &mut out);
         assert_eq!(
             out,
             vec![PositionSymbol {
