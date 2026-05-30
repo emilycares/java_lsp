@@ -347,6 +347,8 @@ pub fn get_import_position(ast: &AstFile) -> Result<Position, CodeActionError> {
         })
     }
 }
+
+#[must_use]
 pub fn import_text_edit(classpath: &str, ast: &AstFile) -> Vec<TextEdit> {
     let pos = get_import_position(ast).map_or(
         Position {

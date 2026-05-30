@@ -2,7 +2,7 @@
   description = "java_lsp";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
     crane.url = "github:ipetkov/crane";
     flake-utils.url = "github:numtide/flake-utils";
     rust-overlay = {
@@ -36,7 +36,7 @@
 
         craneLib = (crane.mkLib pkgs).overrideToolchain (
           p:
-          p.rust-bin.stable."1.94.0".default.override {
+          p.rust-bin.stable."1.96.0".default.override {
             extensions = [
               "rust-src"
               "rust-analyzer"

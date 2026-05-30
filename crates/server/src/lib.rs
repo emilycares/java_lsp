@@ -4,16 +4,18 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
 #![allow(clippy::implicit_hasher)]
-mod backend;
-mod codeaction;
+pub mod backend;
+pub mod code_lens;
+pub mod codeaction;
 pub mod command;
 pub mod completion;
-mod definition;
+pub mod definition;
 pub mod document_link;
-mod hover;
+pub mod folding_range;
+pub mod hover;
 pub mod inlay_hint;
 pub mod references;
-mod router;
+pub mod router;
 pub mod signature;
 pub mod snipptes;
 

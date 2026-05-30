@@ -1,20 +1,21 @@
 use lsp_types::{
     CodeActionKind, CodeActionOptions, CodeActionParams, CodeActionProviderCapability,
-    CompletionOptions, CompletionParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
-    DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentFormattingParams,
-    DocumentLinkOptions, DocumentLinkParams, DocumentSymbolParams, ExecuteCommandOptions,
-    ExecuteCommandParams, GotoDefinitionParams, HoverParams, HoverProviderCapability,
-    InlayHintParams, OneOf, ReferenceParams, ServerCapabilities, SignatureHelpOptions,
-    SignatureHelpParams, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
+    CodeLensOptions, CodeLensParams, CompletionOptions, CompletionParams,
+    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+    DidSaveTextDocumentParams, DocumentFormattingParams, DocumentLinkOptions, DocumentLinkParams,
+    DocumentSymbolParams, ExecuteCommandOptions, ExecuteCommandParams, FoldingRangeParams,
+    GotoDefinitionParams, HoverParams, HoverProviderCapability, InlayHintParams, OneOf,
+    ReferenceParams, ServerCapabilities, SignatureHelpOptions, SignatureHelpParams,
+    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
     WorkDoneProgressOptions, WorkspaceSymbolParams,
     notification::{
         Cancel, DidChangeConfiguration, DidChangeTextDocument, DidCloseTextDocument,
         DidOpenTextDocument, DidSaveTextDocument, Notification, SetTrace,
     },
     request::{
-        CodeActionRequest, Completion, DocumentLinkRequest, DocumentSymbolRequest, ExecuteCommand,
-        Formatting, GotoDefinition, HoverRequest, InlayHintRequest, References, Request,
-        SignatureHelpRequest, WorkspaceSymbolRequest,
+        CodeActionRequest, CodeLensRequest, Completion, DocumentLinkRequest, DocumentSymbolRequest,
+        ExecuteCommand, FoldingRangeRequest, Formatting, GotoDefinition, HoverRequest,
+        InlayHintRequest, References, Request, SignatureHelpRequest, WorkspaceSymbolRequest,
     },
 };
 
@@ -26,6 +27,7 @@ use crate::{
     command::{COMMAND_RELOAD_DEPENDENCIES, COMMAND_UPDATE_DEPENDENCIES},
 };
 
+#[must_use]
 pub fn get_server_capabilities() -> ServerCapabilities {
     ServerCapabilities {
         text_document_sync: Some(TextDocumentSyncCapability::Options(
@@ -72,6 +74,10 @@ pub fn get_server_capabilities() -> ServerCapabilities {
             },
         }),
         inlay_hint_provider: Some(OneOf::Left(true)),
+        code_lens_provider: Some(CodeLensOptions {
+            resolve_provider: None,
+        }),
+        folding_range_provider: Some(lsp_types::FoldingRangeProviderCapability::Simple(true)),
         ..Default::default()
     }
 }
@@ -153,6 +159,18 @@ pub fn route(backend: &Backend) -> Result<(), Box<dyn std::error::Error + Send +
                     InlayHintRequest::METHOD => {
                         if let Ok(params) = from_value::<InlayHintParams>(req.params) {
                             let result = backend.inlay_hint(params);
+                            send(backend, req.id, to_value(result).ok());
+                        }
+                    }
+                    CodeLensRequest::METHOD => {
+                        if let Ok(params) = from_value::<CodeLensParams>(req.params) {
+                            let result = backend.code_lens(params);
+                            send(backend, req.id, to_value(result).ok());
+                        }
+                    }
+                    FoldingRangeRequest::METHOD => {
+                        if let Ok(params) = from_value::<FoldingRangeParams>(req.params) {
+                            let result = backend.folding_range(params);
                             send(backend, req.id, to_value(result).ok());
                         }
                     }

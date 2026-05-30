@@ -1,3 +1,6 @@
+use std::fs::canonicalize;
+#[cfg(unix)]
+use std::path::Path;
 use std::{ffi::OsString, fmt::Display, path::PathBuf};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -20,6 +23,7 @@ pub enum ProjectKindError {
     ExecutableNotFound(std::io::Error),
     ExecutableNoMetadata(std::io::Error),
     NoPermissionToExecute(String),
+    Canonicalize(std::io::Error),
 }
 
 impl Display for ProjectKind {
@@ -56,9 +60,12 @@ pub fn get_project_kind(
 
 #[cfg(target_os = "windows")]
 fn get_maven_executable(path: &OsString) -> Result<ProjectKind, ProjectKindError> {
-    if PathBuf::from("./mvnw.cmd").exists() {
+    let cmd = PathBuf::from("./mvnw.cmd");
+    if cmd.exists() {
+        let cmd = canonicalize(cmd).map_err(ProjectKindError::Canonicalize)?;
+        let st = cmd.to_str().unwrap_or_default();
         return Ok(ProjectKind::Maven {
-            executable: "./mvnw.cmd".to_owned(),
+            executable: st.to_string(),
         });
     }
     let executable = get_executable_from_path("mvn.cmd", ProjectKindError::MvnNotInPath, path)?;
@@ -67,12 +74,14 @@ fn get_maven_executable(path: &OsString) -> Result<ProjectKind, ProjectKindError
 
 #[cfg(not(target_os = "windows"))]
 fn get_maven_executable(path: &OsString) -> Result<ProjectKind, ProjectKindError> {
-    if PathBuf::from("./mvnw").exists() {
-        let executable = "./mvnw";
+    let executable = PathBuf::from("./mvnw");
+    if executable.exists() {
+        let executable = canonicalize(executable).map_err(ProjectKindError::Canonicalize)?;
         #[cfg(unix)]
-        check_executable_permission(executable)?;
+        check_executable_permission_path(&executable)?;
+        let st = executable.to_str().unwrap_or_default();
         return Ok(ProjectKind::Maven {
-            executable: executable.to_owned(),
+            executable: st.to_owned(),
         });
     }
     let executable = get_executable_from_path("mvn", ProjectKindError::MvnNotInPath, path)?;
@@ -83,9 +92,12 @@ fn get_gradle_executable(
     path_build_gradle: PathBuf,
     path: &OsString,
 ) -> Result<ProjectKind, ProjectKindError> {
-    if PathBuf::from("./gradlew.bat").exists() {
+    let bat = PathBuf::from("./gradlew.bat");
+    if bat.exists() {
+        let bat = canonicalize(bat).map_err(ProjectKindError::Canonicalize)?;
+        let st = bat.to_str().unwrap_or_default();
         return Ok(ProjectKind::Gradle {
-            executable: "./gradlew.bat".to_owned(),
+            executable: st.to_string(),
             path_build_gradle,
         });
     }
@@ -102,12 +114,14 @@ fn get_gradle_executable(
     path_build_gradle: PathBuf,
     path: &OsString,
 ) -> Result<ProjectKind, ProjectKindError> {
-    if PathBuf::from("./gradlew").exists() {
-        let executable = "./gradlew";
+    let executable = PathBuf::from("./gradlew");
+    if executable.exists() {
+        let executable = canonicalize(executable).map_err(ProjectKindError::Canonicalize)?;
         #[cfg(unix)]
-        check_executable_permission(executable)?;
+        check_executable_permission_path(&executable)?;
+        let st = executable.to_str().unwrap_or_default();
         return Ok(ProjectKind::Gradle {
-            executable: executable.to_owned(),
+            executable: st.to_string(),
             path_build_gradle,
         });
     }
@@ -145,6 +159,20 @@ fn check_executable_permission(executable: &str) -> Result<(), ProjectKindError>
         return Err(ProjectKindError::NoPermissionToExecute(
             executable.to_owned(),
         ));
+    }
+    Ok(())
+}
+#[cfg(unix)]
+fn check_executable_permission_path(executable: &Path) -> Result<(), ProjectKindError> {
+    use std::{fs::File, os::unix::fs::PermissionsExt};
+    let f = File::open(executable).map_err(ProjectKindError::ExecutableNotFound)?;
+    let meta = f
+        .metadata()
+        .map_err(ProjectKindError::ExecutableNoMetadata)?;
+    let mode_exec = meta.permissions().mode() & 0o111 != 0;
+    if !mode_exec {
+        let st = executable.to_str().unwrap_or_default();
+        return Err(ProjectKindError::NoPermissionToExecute(st.to_string()));
     }
     Ok(())
 }

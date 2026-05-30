@@ -18,13 +18,14 @@ use gradle::project::get_gradle_cache_path;
 use lsp_extra::{SERVER_NAME, source_to_uri, to_ast_point};
 use lsp_server::{Connection, Message};
 use lsp_types::{
-    ClientCapabilities, CodeActionOrCommand, CodeActionParams, CodeActionResponse, Command,
-    CompletionItem, CompletionItemKind, CompletionList, CompletionParams, CompletionResponse,
-    Diagnostic, DiagnosticSeverity, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
-    DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentFormattingParams, DocumentLink,
-    DocumentLinkParams, DocumentSymbolParams, DocumentSymbolResponse, ExecuteCommandParams,
-    GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams, InlayHint, InlayHintParams,
-    InsertTextFormat, Location, Position, ProgressParams, ProgressParamsValue, ProgressToken,
+    ClientCapabilities, CodeActionOrCommand, CodeActionParams, CodeActionResponse, CodeLens,
+    CodeLensParams, Command, CompletionItem, CompletionItemKind, CompletionList, CompletionParams,
+    CompletionResponse, Diagnostic, DiagnosticSeverity, DidChangeTextDocumentParams,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
+    DocumentFormattingParams, DocumentLink, DocumentLinkParams, DocumentSymbolParams,
+    DocumentSymbolResponse, ExecuteCommandParams, FoldingRange, GotoDefinitionParams,
+    GotoDefinitionResponse, Hover, HoverParams, InlayHint, InlayHintParams, InsertTextFormat,
+    Location, Position, ProgressParams, ProgressParamsValue, ProgressToken,
     PublishDiagnosticsParams, Range, ReferenceParams, SignatureHelp, SignatureHelpParams, TextEdit,
     Uri, WorkDoneProgress, WorkDoneProgressBegin, WorkDoneProgressEnd, WorkDoneProgressReport,
     WorkspaceSymbolParams, WorkspaceSymbolResponse,
@@ -42,11 +43,13 @@ use tokio::task::JoinSet;
 use variables::VariableContext;
 
 use crate::{
+    code_lens::{self, CodeLensError},
     codeaction::{self, CodeActionContext},
     command::{self, COMMAND_RELOAD_DEPENDENCIES, COMMAND_UPDATE_DEPENDENCIES},
     completion,
     definition::{self, DefinitionContext},
     document_link::get_document_link,
+    folding_range,
     hover::{self, class_action},
     inlay_hint::get_inlay_hint,
     references::{self, ReferenceUnit, ReferencesContext},
@@ -66,6 +69,7 @@ pub struct Backend {
 }
 
 impl Backend {
+    #[must_use]
     pub fn new(connection: Connection, project_kind: ProjectKind, project_dir: PathBuf) -> Self {
         Self {
             connection: Arc::new(connection),
@@ -1069,6 +1073,7 @@ impl Backend {
         }
     }
 
+    #[must_use]
     pub fn execute_command(&self, params: ExecuteCommandParams) -> Option<Value> {
         let progress = params.work_done_progress_params.work_done_token;
         match params.command.as_str() {
@@ -1095,6 +1100,46 @@ impl Backend {
             }
         }
     }
+
+    pub fn code_lens(&self, params: CodeLensParams) -> Vec<CodeLens> {
+        let uri = params.text_document.uri;
+        let file = uri.path().as_str().to_lowercase();
+        let mut out = Vec::new();
+        #[allow(clippy::case_sensitive_file_extension_comparisons)]
+        if !file.ends_with(".java") {
+            return out;
+        }
+        let Some(document) = self.get_document(&uri) else {
+            return out;
+        };
+        match code_lens::tests(&document.ast, &file, &self.project_kind, &mut out) {
+            Ok(()) | Err(CodeLensError::SkipFile) => (),
+            Err(e) => {
+                eprintln!("Got error running CodeLens: {e:?}");
+            }
+        }
+        out
+    }
+    pub fn folding_range(&self, params: lsp_types::FoldingRangeParams) -> Vec<FoldingRange> {
+        let uri = params.text_document.uri;
+        let file = uri.path().as_str().to_lowercase();
+        let mut out = Vec::new();
+        #[allow(clippy::case_sensitive_file_extension_comparisons)]
+        if !file.ends_with(".java") {
+            return out;
+        }
+        let Some(document) = self.get_document(&uri) else {
+            return out;
+        };
+        match folding_range::fold(&document.ast, &mut out) {
+            Ok(()) => (),
+            Err(e) => {
+                eprintln!("Got error running FoldingRange: {e:?}");
+            }
+        }
+        out
+    }
+
     pub fn document_link(&self, params: DocumentLinkParams) -> Option<Vec<DocumentLink>> {
         let uri = params.text_document.uri;
         if !uri.path().as_str().to_lowercase().ends_with(".java") {

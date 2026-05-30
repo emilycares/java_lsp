@@ -69,7 +69,7 @@ fn make_easy(
     easy.tcp_keepalive(true).map_err(MavenUpdateError::Curl)?;
     easy.connect_timeout(Duration::from_secs(15))
         .map_err(MavenUpdateError::Curl)?;
-    easy.timeout(Duration::from_secs(120))
+    easy.timeout(Duration::from_mins(1))
         .map_err(MavenUpdateError::Curl)?;
 
     if let Some(cred) = credentials {
