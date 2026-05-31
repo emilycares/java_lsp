@@ -26,10 +26,11 @@ use lsp_types::{
     DocumentSymbolResponse, ExecuteCommandParams, FoldingRange, GotoDefinitionParams,
     GotoDefinitionResponse, Hover, HoverParams, InlayHint, InlayHintParams, InsertTextFormat,
     Location, Position, ProgressParams, ProgressParamsValue, ProgressToken,
-    PublishDiagnosticsParams, Range, ReferenceParams, SignatureHelp, SignatureHelpParams, TextEdit,
-    Uri, WorkDoneProgress, WorkDoneProgressBegin, WorkDoneProgressEnd, WorkDoneProgressReport,
-    WorkspaceSymbolParams, WorkspaceSymbolResponse,
+    PublishDiagnosticsParams, Range, ReferenceParams, ShowDocumentParams, SignatureHelp,
+    SignatureHelpParams, TextEdit, Uri, WorkDoneProgress, WorkDoneProgressBegin,
+    WorkDoneProgressEnd, WorkDoneProgressReport, WorkspaceSymbolParams, WorkspaceSymbolResponse,
     notification::{Notification, Progress, PublishDiagnostics},
+    request::{Request, ShowDocument},
 };
 use maven::{
     project::get_maven_cache_path,
@@ -45,7 +46,7 @@ use variables::VariableContext;
 use crate::{
     code_lens::{self, CodeLensError},
     codeaction::{self, CodeActionContext},
-    command::{self, COMMAND_RELOAD_DEPENDENCIES, COMMAND_UPDATE_DEPENDENCIES},
+    command::{self, COMMAND_CMD, COMMAND_RELOAD_DEPENDENCIES, COMMAND_UPDATE_DEPENDENCIES},
     completion,
     definition::{self, DefinitionContext},
     document_link::get_document_link,
@@ -1094,6 +1095,12 @@ impl Backend {
                 );
                 None
             }
+            COMMAND_CMD => {
+                if let Err(e) = command::cmd(&self.connection, &params.arguments, progress) {
+                    eprintln!("Got error in Command: {e:?}");
+                }
+                None
+            }
             u => {
                 eprintln!("Unhandled command: {u}");
                 None
@@ -1205,6 +1212,23 @@ impl Backend {
                     eprintln!("Only formatters none and google are supported");
                 }
             }
+        }
+    }
+
+    pub fn open_log(con: &Connection, path: &str) {
+        if let Ok(uri) = source_to_uri(path)
+            && let Ok(params) = serde_json::to_value(ShowDocumentParams {
+                uri,
+                external: None,
+                take_focus: Some(true),
+                selection: None,
+            })
+        {
+            let _ = con.sender.send(Message::Request(lsp_server::Request {
+                id: 1.into(),
+                method: ShowDocument::METHOD.to_string(),
+                params,
+            }));
         }
     }
 }

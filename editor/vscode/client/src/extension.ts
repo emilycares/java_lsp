@@ -5,9 +5,7 @@ import * as vscode from 'vscode';
 import {
   LanguageClient,
   LanguageClientOptions,
-  MessageReader,
   MessageTransports,
-  MessageWriter,
   ServerOptions,
   SocketMessageReader,
   SocketMessageWriter,
@@ -27,13 +25,36 @@ export function activate(context: ExtensionContext) {
     return;
   }
   serverModule = configExecutablePath;
+  
+  context.subscriptions.push(vscode.commands.registerCommand("java_lsp.cmd", (...args: string[]) => {
+    const na = args[0];
+    const command = args[1];
+    const commandArgs = args.slice(2);
 
-  if (context.extensionMode == ExtensionMode.Development) {
-    const serverOptions = async () => await createServerConnection("localhost", 4040);
-    client = new LanguageClient('java_lsp', 'java_lsp', serverOptions, {});
-    client.start();
-    return;
-  }
+    const task = new vscode.Task(
+        { type: 'shell' },
+        vscode.TaskScope.Workspace,
+        na,
+        'java_lsp',
+        new vscode.ProcessExecution(command, commandArgs)
+    );
+
+    task.group = vscode.TaskGroup.Build;
+    task.presentationOptions = {
+        reveal: vscode.TaskRevealKind.Always,
+        panel: vscode.TaskPanelKind.Dedicated,
+        clear: true,
+    };
+
+    return vscode.tasks.executeTask(task);
+  }));
+
+  // if (context.extensionMode == ExtensionMode.Development) {
+  //   const serverOptions = async () => await createServerConnection("localhost", 4040);
+  //   client = new LanguageClient('java_lsp', 'java_lsp', serverOptions, {});
+  //   client.start();
+  //   return;
+  // }
 
   //window.showErrorMessage("module: " + serverModule);
 

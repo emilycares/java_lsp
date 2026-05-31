@@ -46,6 +46,11 @@
         "command": "UpdateDependencies",
         "title": "Update Dependencies",
         "category": "java_lsp"
+      },
+      {
+        "command": "cmd",
+        "title": "cmd",
+        "category": "java_lsp"
       }
     ]
   },

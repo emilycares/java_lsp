@@ -5,7 +5,7 @@ use lsp_types::{CodeLens, Command};
 use my_string::smol_str::SmolStr;
 use serde_json::Value;
 
-use crate::document_link::SRC_TEST;
+use crate::{command::COMMAND_CMD, document_link::SRC_TEST};
 
 #[derive(Debug)]
 pub enum CodeLensError {
@@ -85,19 +85,24 @@ fn tests_thing(
 }
 
 fn command_test_class(class_name: &SmolStr, project_kind: &ProjectKind) -> Option<Command> {
+    let name = format!("Run Test: {}", &class_name);
     match project_kind {
         ProjectKind::Maven { executable } => Some(Command {
             title: format!("Test class: {class_name}"),
-            command: executable.to_owned(),
+            command: String::from(COMMAND_CMD),
             arguments: Some(vec![
+                Value::String(name),
+                Value::String(executable.to_owned()),
                 Value::String(String::from("test")),
                 Value::String(format!("-Dtest={class_name}")),
             ]),
         }),
         ProjectKind::Gradle { executable, .. } => Some(Command {
             title: format!("Test class: {class_name}"),
-            command: executable.to_owned(),
+            command: String::from(COMMAND_CMD),
             arguments: Some(vec![
+                Value::String(name),
+                Value::String(executable.to_owned()),
                 Value::String(String::from("test")),
                 Value::String(String::from("--tests")),
                 Value::String(class_name.to_string()),

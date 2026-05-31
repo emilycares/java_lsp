@@ -1,8 +1,10 @@
 use std::{
     collections::HashMap,
-    fs,
+    fs::{self, File},
     path::{Path, PathBuf},
+    process::{Command, Stdio},
     sync::{Arc, RwLock},
+    time::UNIX_EPOCH,
 };
 
 use common::{
@@ -13,13 +15,22 @@ use dto::Class;
 use gradle::project::get_gradle_cache_path;
 use lsp_extra::SERVER_NAME;
 use lsp_server::Connection;
-use lsp_types::{Diagnostic, DiagnosticSeverity, ProgressToken, Range};
+use lsp_types::{Diagnostic, DiagnosticSeverity, NumberOrString, ProgressToken, Range};
 use maven::{tree::MavenTreeError, update};
 use my_string::MyString;
+use serde_json::Value;
 
 use crate::backend::{
     Backend, project_deps, read_forward, report_maven_gradle_diagnostic, update_report,
 };
+
+#[derive(Debug)]
+pub enum CommandError {
+    Io(std::io::Error),
+    FileCreate(std::io::Error),
+    WriteFile(std::io::Error),
+    Command(std::io::Error),
+}
 
 pub const COMMAND_RELOAD_DEPENDENCIES: &str = "ReloadDependencies";
 #[must_use]
@@ -315,6 +326,53 @@ async fn update_dependencies_maven_cli(
         Backend::progress_end_option_token(&con.clone(), &progress, &task);
     }
     Backend::progress_end_option_token(&con.clone(), &progress, &task);
+}
+
+pub const COMMAND_CMD: &str = "java_lsp.cmd";
+pub fn cmd(
+    con: &Arc<Connection>,
+    arguments: &[Value],
+    token: Option<NumberOrString>,
+) -> Result<(), CommandError> {
+    let mut it = arguments.iter();
+    let _name = it.next();
+    let Some(Value::String(e)) = it.next() else {
+        return Ok(());
+    };
+    let mut args = Vec::with_capacity(arguments.len().saturating_sub(1));
+    while let Some(Value::String(a)) = it.next() {
+        args.push(a.clone());
+    }
+    let token = Arc::new(token);
+    let mut cmd_str = String::from(e);
+    cmd_str.push('_');
+    let j = args.join("_");
+    cmd_str.push_str(&j);
+
+    Backend::progress_start_option_token(con, &token, &cmd_str);
+    let out = Command::new(e)
+        .args(args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(CommandError::Command)?;
+    if let Some(temp) = dirs::temp_dir()
+        && let Ok(now) = std::time::SystemTime::now().duration_since(UNIX_EPOCH)
+    {
+        let cmd_str = cmd_str.replace(['/', '\\'], ".");
+        let mut path = temp.join(format!("{}_{cmd_str}", now.as_secs()));
+        path.set_extension("log");
+        if let Some(p) = path.to_str() {
+            Backend::open_log(con, p);
+        }
+        dbg!(&path);
+        File::create(&path).map_err(CommandError::FileCreate)?;
+        std::fs::write(&path, out.stderr).map_err(CommandError::WriteFile)?;
+        std::fs::write(path, out.stdout).map_err(CommandError::WriteFile)?;
+    }
+
+    Backend::progress_end_option_token(con, &token, "Run command");
+    Ok(())
 }
 
 #[must_use]

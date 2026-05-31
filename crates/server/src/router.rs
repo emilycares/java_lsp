@@ -24,11 +24,18 @@ use serde_json::{Value, from_value, to_value};
 
 use crate::{
     backend::Backend,
-    command::{COMMAND_RELOAD_DEPENDENCIES, COMMAND_UPDATE_DEPENDENCIES},
+    command::{COMMAND_CMD, COMMAND_RELOAD_DEPENDENCIES, COMMAND_UPDATE_DEPENDENCIES},
 };
 
 #[must_use]
-pub fn get_server_capabilities() -> ServerCapabilities {
+pub fn get_server_capabilities(editor_runs_commands: bool) -> ServerCapabilities {
+    let mut commands = vec![
+        COMMAND_RELOAD_DEPENDENCIES.to_owned(),
+        COMMAND_UPDATE_DEPENDENCIES.to_owned(),
+    ];
+    if !editor_runs_commands {
+        commands.push(COMMAND_CMD.to_owned());
+    }
     ServerCapabilities {
         text_document_sync: Some(TextDocumentSyncCapability::Options(
             TextDocumentSyncOptions {
@@ -59,10 +66,7 @@ pub fn get_server_capabilities() -> ServerCapabilities {
         }),
         document_highlight_provider: None,
         execute_command_provider: Some(ExecuteCommandOptions {
-            commands: vec![
-                COMMAND_RELOAD_DEPENDENCIES.to_owned(),
-                COMMAND_UPDATE_DEPENDENCIES.to_owned(),
-            ],
+            commands,
             work_done_progress_options: WorkDoneProgressOptions {
                 work_done_progress: Some(true),
             },

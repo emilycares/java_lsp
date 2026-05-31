@@ -77,7 +77,9 @@ pub fn main(
     let backend = Backend::new(connection, project_kind, project_dir);
 
     // Run the server and wait for the two threads to end (typically by trigger LSP Exit event).
-    let server_capabilities = serde_json::to_value(get_server_capabilities()).unwrap_or_default();
+    let server_capabilities =
+        serde_json::to_value(get_server_capabilities(true)).unwrap_or_default();
+    // TODO: Resolve client init first before generating server capabilities
     let initialization_params = match backend.connection.initialize(server_capabilities) {
         Ok(it) => it,
         Err(e) => {
