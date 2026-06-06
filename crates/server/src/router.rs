@@ -1,3 +1,4 @@
+use config::Configuration;
 use lsp_types::{
     CodeActionKind, CodeActionOptions, CodeActionParams, CodeActionProviderCapability,
     CodeLensOptions, CodeLensParams, CompletionOptions, CompletionParams,
@@ -28,12 +29,12 @@ use crate::{
 };
 
 #[must_use]
-pub fn get_server_capabilities(editor_runs_commands: bool) -> ServerCapabilities {
+pub fn get_server_capabilities(config: &Configuration) -> ServerCapabilities {
     let mut commands = vec![
         COMMAND_RELOAD_DEPENDENCIES.to_owned(),
         COMMAND_UPDATE_DEPENDENCIES.to_owned(),
     ];
-    if !editor_runs_commands {
+    if !config.editor_runs_commands {
         commands.push(COMMAND_CMD.to_owned());
     }
     ServerCapabilities {

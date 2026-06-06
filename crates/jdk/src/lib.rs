@@ -461,7 +461,7 @@ pub async fn test_load_jdk_modules_executable() {
     let string = out.classes.iter().find(|i| i.name == "String");
     assert!(string.is_some());
     assert_eq!(string.unwrap().class_path, "java.lang.String");
-    let source = &string.unwrap().get_source();
+    let source = &string.unwrap().get_source().unwrap();
     assert!(source.ends_with("src/java.base/java/lang/String.java"));
     assert!(fs::exists(source).unwrap());
 }
@@ -483,7 +483,7 @@ pub async fn test_load_jdk_modules_own() {
     let string = out.classes.iter().find(|i| i.name == "String");
     assert!(string.is_some());
     assert_eq!(string.unwrap().class_path, "java.lang.String");
-    let source = &string.unwrap().get_source();
+    let source = &string.unwrap().get_source().unwrap();
     assert!(
         source
             .replace('\\', "/")
@@ -509,7 +509,7 @@ pub async fn test_load_jdk_jmod() {
     let string = out.classes.iter().find(|i| i.name == "String");
     assert!(string.is_some());
     assert_eq!(string.unwrap().class_path, "java.lang.String");
-    let source = &string.unwrap().get_source();
+    let source = &string.unwrap().get_source().unwrap();
     assert!(
         source
             .replace('\\', "/")

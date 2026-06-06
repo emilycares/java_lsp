@@ -21,8 +21,8 @@ pub mod snipptes;
 
 use std::{ffi::OsString, path::PathBuf, sync::Arc};
 
-use lsp_server::{Connection, IoThreads};
-use lsp_types::InitializeParams;
+use lsp_server::{Connection, IoThreads, ProtocolError};
+use lsp_types::{InitializeParams, ProgressToken};
 
 use crate::{backend::Backend, router::get_server_capabilities};
 
@@ -74,13 +74,9 @@ pub fn main(
     }
     let project_kind = project_kind.expect("Program should already have exited");
     eprintln!("Start java_lsp with project_kind: {project_kind:?}");
-    let backend = Backend::new(connection, project_kind, project_dir);
+    let mut backend = Backend::new(connection, project_kind, project_dir);
 
-    // Run the server and wait for the two threads to end (typically by trigger LSP Exit event).
-    let server_capabilities =
-        serde_json::to_value(get_server_capabilities(true)).unwrap_or_default();
-    // TODO: Resolve client init first before generating server capabilities
-    let initialization_params = match backend.connection.initialize(server_capabilities) {
+    let progress = match initialize(&mut backend) {
         Ok(it) => it,
         Err(e) => {
             if e.channel_is_disconnected() {
@@ -89,9 +85,7 @@ pub fn main(
             return Err(e.into());
         }
     };
-    let params: InitializeParams =
-        serde_json::from_value(initialization_params).unwrap_or_default();
-    main_loop(backend, params, path)?;
+    main_loop(&backend, path, progress)?;
     io_threads.join()?;
 
     // Shut down gracefully.
@@ -99,13 +93,26 @@ pub fn main(
     Ok(())
 }
 
-fn main_loop(
-    mut backend: Backend,
-    params: InitializeParams,
-    path: OsString,
-) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
+fn initialize(backend: &mut Backend) -> Result<Option<ProgressToken>, ProtocolError> {
+    let (id, initialization_params) = backend.connection.initialize_start()?;
+    let params: InitializeParams =
+        serde_json::from_value(initialization_params).unwrap_or_default();
     backend.client_capabilities = Arc::new(Some(params.capabilities));
     backend.fill_config(params.initialization_options);
+    let server_capabilities =
+        serde_json::to_value(get_server_capabilities(&backend.config)).unwrap_or_default();
+    let initialize_data = serde_json::json!({
+        "capabilities": server_capabilities,
+    });
+    backend.connection.initialize_finish(id, initialize_data)?;
+    Ok(params.work_done_progress_params.work_done_token)
+}
+
+fn main_loop(
+    backend: &Backend,
+    path: OsString,
+    progress: Option<ProgressToken>,
+) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
     let connection = backend.connection.clone();
     let project_kind = backend.project_kind.clone();
     let class_map = backend.class_map.clone();
@@ -113,7 +120,7 @@ fn main_loop(
     let project_dir = backend.project_dir.clone();
     tokio::spawn(async move {
         Backend::initialized(
-            params.work_done_progress_params.work_done_token,
+            progress,
             connection,
             project_kind,
             &class_map,
@@ -123,6 +130,6 @@ fn main_loop(
         )
         .await;
     });
-    router::route(&backend)?;
+    router::route(backend)?;
     Ok(())
 }

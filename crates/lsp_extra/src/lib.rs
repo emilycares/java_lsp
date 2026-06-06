@@ -83,6 +83,7 @@ fn line_col_to_range(line: usize, col: usize) -> Range {
 pub enum SourceToUriError {
     UriInvalid { uri: String, error: String },
 }
+
 #[cfg(not(windows))]
 pub fn source_to_uri(source: &str) -> Result<Uri, SourceToUriError> {
     let source = path_without_subclass(source);

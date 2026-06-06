@@ -11,14 +11,9 @@ use ast::error::PrintErr;
 #[cfg(not(target_os = "windows"))]
 use ast::lexer::PositionToken;
 use jdk::{test_load_jdk_jmod, test_load_jdk_modules_executable, test_load_jdk_modules_own};
-#[cfg(target_os = "windows")]
-use std::sync::Arc;
-use std::sync::mpsc;
-
 #[derive(Debug)]
 pub enum CheckError {
     IO(std::io::Error),
-    ChannelSend(mpsc::SendError<PathBuf>),
 }
 
 pub fn print_help() {
@@ -392,7 +387,7 @@ pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: &[String]) -> Result<
 #[cfg(target_os = "windows")]
 fn visit_java_fies(
     dir: &PathBuf,
-    tx: &Arc<mpsc::Sender<PathBuf>>,
+    dirs: &mut std::collections::VecDeque<PathBuf>,
     cb: impl Fn(&PathBuf),
 ) -> Result<(), CheckError> {
     let read_dir = std::fs::read_dir(dir)
@@ -401,7 +396,7 @@ fn visit_java_fies(
         .filter_map(Result::ok);
     for entry in read_dir {
         if entry.is_dir() {
-            tx.send(entry).map_err(CheckError::ChannelSend)?;
+            dirs.push_back(entry);
         } else if let Some(e) = entry.extension()
             && e == "java"
         {
@@ -412,55 +407,34 @@ fn visit_java_fies(
 }
 #[cfg(target_os = "windows")]
 pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
-    use tokio::task::JoinSet;
-
-    use std::time::Duration;
-
     let time = Instant::now();
     let dir = canonicalize(folder).map_err(CheckError::IO)?;
-    let (tx, rx) = mpsc::channel();
-    tx.send(dir).map_err(CheckError::ChannelSend)?;
-    let tx = Arc::new(tx);
-    let mut handles = JoinSet::new();
-    while let Ok(dir) = rx.recv_timeout(Duration::from_millis(300)) {
-        let tx = tx.clone();
-        handles.spawn(async move { visit_java_fies(&dir, &tx, ast_check) });
+    let mut dirs = std::collections::VecDeque::new();
+    dirs.push_back(dir);
+    while let Some(dir) = dirs.pop_front() {
+        visit_java_fies(&dir, &mut dirs, ast_check)?;
     }
-    let _ = handles.join_all().await;
-
     println!("Checked all files. in: {:.2?}", time.elapsed());
     Ok(())
 }
 #[cfg(target_os = "windows")]
 pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: &[String]) -> Result<(), CheckError> {
-    use std::time::Duration;
-
-    use tokio::task::JoinSet;
-
     let time = Instant::now();
-    let (tx, rx) = mpsc::channel();
     let dir = canonicalize(folder).map_err(CheckError::IO)?;
-    tx.send(dir).map_err(CheckError::ChannelSend)?;
-    let tx = Arc::new(tx);
-    let mut handles = JoinSet::new();
-    let ignore = Arc::new(ignore.to_vec());
-    while let Ok(dir) = rx.recv_timeout(Duration::from_millis(300)) {
-        let tx = tx.clone();
-        let ignore = ignore.clone();
-        handles.spawn(async move {
-            visit_java_fies(&dir, &tx, |i| {
-                if let Some(s) = i.to_str() {
-                    for ig in ignore.iter() {
-                        if s.contains(ig) {
-                            return;
-                        }
+    let mut dirs = std::collections::VecDeque::new();
+    dirs.push_back(dir);
+    while let Some(dir) = dirs.pop_front() {
+        visit_java_fies(&dir, &mut dirs, |i| {
+            if let Some(s) = i.to_str() {
+                for ig in ignore {
+                    if s.contains(ig) {
+                        return;
                     }
                 }
-                ast_check(i);
-            })
-        });
+            }
+            ast_check(i);
+        })?;
     }
-    let _ = handles.join_all().await;
     println!("Checked all files. in: {:.2?}", time.elapsed());
     Ok(())
 }

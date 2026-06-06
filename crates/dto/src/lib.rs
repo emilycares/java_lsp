@@ -4,13 +4,10 @@ use std::{
 };
 
 use bitflags::bitflags;
-use my_string::{
-    MyString,
-    smol_str::{SmolStr, format_smolstr},
-};
+use my_string::{MyString, smol_str::format_smolstr};
 use serde::{Deserialize, Serialize};
 
-pub const CFC_VERSION: usize = 16;
+pub const CFC_VERSION: usize = 17;
 
 #[derive(Debug)]
 pub enum ClassParserError {
@@ -74,16 +71,16 @@ impl Class {
     }
 
     #[must_use]
-    pub fn get_source(&self) -> MyString {
+    pub fn get_source(&self) -> Option<MyString> {
         match &self.source {
-            SourceDestination::RelativeInFolder(e) => format_smolstr!(
+            SourceDestination::RelativeInFolder(e) => Some(format_smolstr!(
                 "{}{}{}.java",
                 e,
                 MAIN_SEPARATOR,
                 &self.class_path.replace('.', MAIN_SEPARATOR_STR)
-            ),
-            SourceDestination::Here(e) => e.clone(),
-            SourceDestination::None => SmolStr::new(""),
+            )),
+            SourceDestination::Here(e) => Some(e.clone()),
+            SourceDestination::None => None,
         }
     }
 }

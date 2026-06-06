@@ -48,7 +48,12 @@
         "category": "java_lsp"
       },
       {
-        "command": "cmd",
+        "command": "javalsp.cmd",
+        "title": "cmd",
+        "category": "java_lsp"
+      },
+      {
+        "command": "javalsp.cmd.editor",
         "title": "cmd",
         "category": "java_lsp"
       }

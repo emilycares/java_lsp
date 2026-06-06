@@ -329,6 +329,7 @@ async fn update_dependencies_maven_cli(
 }
 
 pub const COMMAND_CMD: &str = "java_lsp.cmd";
+pub const COMMAND_CMD_EDITOR: &str = "java_lsp.cmd.editor";
 pub fn cmd(
     con: &Arc<Connection>,
     arguments: &[Value],
@@ -365,7 +366,6 @@ pub fn cmd(
         if let Some(p) = path.to_str() {
             Backend::open_log(con, p);
         }
-        dbg!(&path);
         File::create(&path).map_err(CommandError::FileCreate)?;
         std::fs::write(&path, out.stderr).map_err(CommandError::WriteFile)?;
         std::fs::write(path, out.stdout).map_err(CommandError::WriteFile)?;

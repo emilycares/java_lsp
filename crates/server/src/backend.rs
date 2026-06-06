@@ -1119,7 +1119,13 @@ impl Backend {
         let Some(document) = self.get_document(&uri) else {
             return out;
         };
-        match code_lens::tests(&document.ast, &file, &self.project_kind, &mut out) {
+        match code_lens::tests(
+            &document.ast,
+            &file,
+            &self.project_kind,
+            &self.config,
+            &mut out,
+        ) {
             Ok(()) | Err(CodeLensError::SkipFile) => (),
             Err(e) => {
                 eprintln!("Got error running CodeLens: {e:?}");
@@ -1200,6 +1206,9 @@ impl Backend {
         let Some(Value::Object(init)) = initialization_options else {
             return;
         };
+        if let Some(Value::Bool(editor_runs_commands)) = init.get("editor_runs_commands") {
+            self.config.editor_runs_commands = *editor_runs_commands;
+        }
         if let Some(Value::String(formatter)) = init.get("formatter") {
             match formatter.to_lowercase().as_str() {
                 "none" => {

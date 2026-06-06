@@ -63,7 +63,6 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
                                 .map(|i| convert_class_method(i, class.type_parameters.as_ref())),
                         );
                         fields.extend(class.block.variables.iter().map(convert_class_field));
-                        //TODO: Handle others
                         super_class = match &class.superclass.first() {
                             None | Some(AstSuperClass::None) => SuperClass::None,
                             Some(AstSuperClass::Name(ast_identifier)) => {
@@ -82,13 +81,18 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
                                 .map(|i| convert_class_method(i, record.type_parameters.as_ref())),
                         );
                         fields.extend(record.block.variables.iter().map(convert_class_field));
-                        // TODO entries
                         super_class = match &record.superclass.first() {
                             None | Some(AstSuperClass::None) => SuperClass::None,
                             Some(AstSuperClass::Name(ast_identifier)) => {
                                 SuperClass::Name(ast_identifier.into())
                             }
                         };
+                        fields.extend(record.record_entries.entries.iter().map(|i| Field {
+                            access: Access::empty(),
+                            name: (&i.name).into(),
+                            jtype: (&i.jtype).into(),
+                            source: None,
+                        }));
                     }
                     AstThing::Enumeration(enumeration) => {
                         access =

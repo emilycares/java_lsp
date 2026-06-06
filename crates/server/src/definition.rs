@@ -32,6 +32,7 @@ pub enum DefinitionError {
     SourceToUri(SourceToUriError),
     FieldNotFound { name: SmolStr },
     NotAnArray,
+    NoSource,
 }
 pub struct DefinitionContext<'a> {
     pub document_uri: Uri,
@@ -58,7 +59,10 @@ pub fn class(
         Ok((class, _range)) => {
             let mut ranges = vec![];
             let uri = class_to_uri(&class)?;
-            if let Ok(c) = read_document_or_open_class(&class.get_source(), document_map) {
+            let Some(source) = class.get_source() else {
+                return Err(DefinitionError::NoSource);
+            };
+            if let Ok(c) = read_document_or_open_class(&source, document_map) {
                 position::get_class_position_ast(&c.ast, Some(&class.name), &mut ranges);
             }
             Ok(go_to_definition_range(uri, &ranges)?)
@@ -83,20 +87,21 @@ pub fn call_chain_definition(
         context.point,
     )
     .map_err(DefinitionError::Tyres)?;
+    let Some(source) = resolve_state.class.get_source() else {
+        return Err(DefinitionError::NoSource);
+    };
     match relevant.get(item) {
         Some(CallItem::This { range: _ }) => {
-            let uri = source_to_uri(&resolve_state.class.get_source())
-                .map_err(DefinitionError::SourceToUri)?;
-            let ast = document::get_ast(&resolve_state.class.get_source(), context.document_map)
+            let uri = source_to_uri(&source).map_err(DefinitionError::SourceToUri)?;
+            let ast = document::get_ast(&source, context.document_map)
                 .map_err(DefinitionError::Document)?;
             let mut ranges = Vec::new();
             position::get_class_position_ast(&ast, None, &mut ranges);
             Ok(go_to_definition_range(uri, &ranges)?)
         }
         Some(CallItem::Class { name, range: _ } | CallItem::ClassGeneric { name, .. }) => {
-            let uri = source_to_uri(&resolve_state.class.get_source())
-                .map_err(DefinitionError::SourceToUri)?;
-            let ast = document::get_ast(&resolve_state.class.get_source(), context.document_map)
+            let uri = source_to_uri(&source).map_err(DefinitionError::SourceToUri)?;
+            let ast = document::get_ast(&source, context.document_map)
                 .map_err(DefinitionError::Document)?;
             let mut ranges = Vec::new();
             position::get_class_position_ast(&ast, Some(name), &mut ranges);
@@ -108,17 +113,14 @@ pub fn call_chain_definition(
             range: _,
         }) => {
             let args_len = args.len();
-            let source_file = match resolve_state
+            let source_file = resolve_state
                 .class
                 .methods
                 .iter()
                 .filter(|i| i.name.as_ref().is_some_and(|i| i == name))
                 .filter(|i| i.parameters.len() == args_len)
                 .find_map(|i| i.source.clone())
-            {
-                Some(method_source) => method_source,
-                None => resolve_state.class.get_source(),
-            };
+                .map_or(source, |m| m);
 
             let ast = document::get_ast(&source_file, context.document_map)
                 .map_err(DefinitionError::Document)?;
@@ -184,7 +186,9 @@ pub fn call_chain_definition(
             if let JType::Array(i) = resolve_state.jtype
                 && let Ok(res) = tyres::resolve_jtype(&i, context.imports, &context.class_map)
             {
-                let source = res.class.get_source();
+                let Some(source) = res.class.get_source() else {
+                    return Err(DefinitionError::NoSource);
+                };
                 let ast = document::get_ast(&source, context.document_map)
                     .map_err(DefinitionError::Document)?;
                 let mut ranges = Vec::new();
@@ -208,10 +212,15 @@ fn field_definition(
     name: &SmolStr,
 ) -> Result<GotoDefinitionResponse, DefinitionError> {
     if let Some(field) = resolve_state.class.fields.iter().find(|i| &i.name == name) {
-        let source = field
-            .source
-            .as_ref()
-            .map_or_else(|| resolve_state.class.get_source(), ToOwned::to_owned);
+        let source = if let Some(s) = field.source.clone() {
+            s
+        } else {
+            let Some(s) = resolve_state.class.get_source() else {
+                return Err(DefinitionError::NoSource);
+            };
+            s
+        };
+
         let ast =
             document::get_ast(&source, context.document_map).map_err(DefinitionError::Document)?;
         let mut ranges = Vec::new();
@@ -225,7 +234,10 @@ fn field_definition(
 }
 
 pub fn class_to_uri(class: &Class) -> Result<Uri, DefinitionError> {
-    source_to_uri(&class.get_source()).map_err(DefinitionError::SourceToUri)
+    let Some(source) = class.get_source() else {
+        return Err(DefinitionError::NoSource);
+    };
+    source_to_uri(&source).map_err(DefinitionError::SourceToUri)
 }
 
 fn go_to_definition_range(
@@ -412,13 +424,7 @@ public class Test extends ParGreet {
         let out = call_chain_definition(&call_chain, &context);
         let expected = expect![[r#"
             Err(
-                Document(
-                    IoNotFound(
-                        Some(
-                            "greet",
-                        ),
-                    ),
-                ),
+                NoSource,
             )
         "#]];
         expected.assert_debug_eq(&out);

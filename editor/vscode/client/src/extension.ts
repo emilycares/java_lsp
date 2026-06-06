@@ -26,7 +26,7 @@ export function activate(context: ExtensionContext) {
   }
   serverModule = configExecutablePath;
   
-  context.subscriptions.push(vscode.commands.registerCommand("java_lsp.cmd", (...args: string[]) => {
+  context.subscriptions.push(vscode.commands.registerCommand("java_lsp.cmd.editor", (...args: string[]) => {
     const na = args[0];
     const command = args[1];
     const commandArgs = args.slice(2);
@@ -79,6 +79,10 @@ export function activate(context: ExtensionContext) {
     ],
     synchronize: {
       configurationSection: "java",
+    },
+    initializationOptions: {
+      editor_runs_commands: true,
+      formatter: "none",
     },
   };
 

@@ -49,7 +49,6 @@ pub fn get_modules_path(java_path: &Path) -> PathBuf {
 }
 
 /// Parser for jimage binary file
-/// <https://cr.openjdk.org/~sgehwolf/leyden/jimage_file_format_investigation_leyden.pdf>
 pub fn parser(
     data: &[u8],
     pos: usize,

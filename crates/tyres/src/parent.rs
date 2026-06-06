@@ -117,7 +117,7 @@ fn overlay_class(b: Class, c: &Class) -> Class {
         }
         let mut method = m.clone();
         if method.source.is_none() {
-            method.source = Some(c.get_source());
+            method.source = c.get_source();
         }
         out.methods.push(method);
     }
@@ -127,7 +127,7 @@ fn overlay_class(b: Class, c: &Class) -> Class {
         }
         let mut field = f.clone();
         if field.source.is_none() {
-            field.source = Some(c.get_source());
+            field.source = c.get_source();
         }
         out.fields.push(field);
     }

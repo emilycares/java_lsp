@@ -1,6 +1,7 @@
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
     pub formatter: FormatterConfig,
+    pub editor_runs_commands: bool,
 }
 
 impl Configuration {
@@ -22,6 +23,7 @@ impl Default for Configuration {
     fn default() -> Self {
         Self {
             formatter: FormatterConfig::None,
+            editor_runs_commands: false,
         }
     }
 }

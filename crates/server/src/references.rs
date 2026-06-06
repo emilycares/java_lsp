@@ -21,6 +21,7 @@ pub enum ReferencesError {
     ToLspRange(ToLspRangeError),
     SourceToUri(SourceToUriError),
     Locked,
+    NoSource,
 }
 
 #[derive(Debug)]
@@ -56,7 +57,8 @@ pub fn class_path(
             .filter_map(|i| match i {
                 ReferenceUnit::Class(s) | ReferenceUnit::StaticClass(s) => class_map.get(s),
             })
-            .filter_map(|i| document_map.get(&i.get_source()))
+            .filter_map(Class::get_source)
+            .filter_map(|i| document_map.get(&i))
             .filter_map(|lookup| {
                 let refs = pos_refs_helper(&lookup.ast, class_path);
                 let a = refs.first().map(|i| i.0.range);
@@ -112,7 +114,10 @@ pub fn call_chain_references(
                         continue;
                     };
                     let method_refs = method_references(class, name, document_map)?;
-                    let uri = source_to_uri(&class.get_source()).map_err(|e| {
+                    let Some(source) = class.get_source() else {
+                        return Err(ReferencesError::NoSource);
+                    };
+                    let uri = source_to_uri(&source).map_err(|e| {
                         eprintln!("Got into definition error: {e:?}");
                         ReferencesError::SourceToUri(e)
                     })?;

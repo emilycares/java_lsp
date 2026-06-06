@@ -1,11 +1,15 @@
 use ast::types::{AstFile, AstThing, AstTopLevel};
 use common::project_kind::ProjectKind;
+use config::Configuration;
 use lsp_extra::{ToLspRangeError, to_lsp_range};
 use lsp_types::{CodeLens, Command};
 use my_string::smol_str::SmolStr;
 use serde_json::Value;
 
-use crate::{command::COMMAND_CMD, document_link::SRC_TEST};
+use crate::{
+    command::{COMMAND_CMD, COMMAND_CMD_EDITOR},
+    document_link::SRC_TEST,
+};
 
 #[derive(Debug)]
 pub enum CodeLensError {
@@ -17,6 +21,7 @@ pub fn tests(
     ast: &AstFile,
     file: &str,
     project_kind: &ProjectKind,
+    config: &Configuration,
     out: &mut Vec<CodeLens>,
 ) -> Result<(), CodeLensError> {
     match project_kind {
@@ -30,7 +35,7 @@ pub fn tests(
 
     for t in &ast.top {
         if let AstTopLevel::Thing(t) = t {
-            tests_thing(t, out, project_kind)?;
+            tests_thing(t, out, project_kind, config)?;
         }
     }
 
@@ -41,6 +46,7 @@ fn tests_thing(
     t: &AstThing,
     out: &mut Vec<CodeLens>,
     project_kind: &ProjectKind,
+    config: &Configuration,
 ) -> Result<(), CodeLensError> {
     match t {
         AstThing::Class(ast_class) => {
@@ -48,7 +54,7 @@ fn tests_thing(
             let range = to_lsp_range(&name.range).map_err(CodeLensError::Range)?;
             out.push(CodeLens {
                 range,
-                command: command_test_class(&name.value, project_kind),
+                command: command_test_class(&name.value, project_kind, config),
                 data: None,
             });
         }
@@ -57,7 +63,7 @@ fn tests_thing(
             let range = to_lsp_range(&name.range).map_err(CodeLensError::Range)?;
             out.push(CodeLens {
                 range,
-                command: command_test_class(&name.value, project_kind),
+                command: command_test_class(&name.value, project_kind, config),
                 data: None,
             });
         }
@@ -66,7 +72,7 @@ fn tests_thing(
             let range = to_lsp_range(&name.range).map_err(CodeLensError::Range)?;
             out.push(CodeLens {
                 range,
-                command: command_test_class(&name.value, project_kind),
+                command: command_test_class(&name.value, project_kind, config),
                 data: None,
             });
         }
@@ -75,7 +81,7 @@ fn tests_thing(
             let range = to_lsp_range(&name.range).map_err(CodeLensError::Range)?;
             out.push(CodeLens {
                 range,
-                command: command_test_class(&name.value, project_kind),
+                command: command_test_class(&name.value, project_kind, config),
                 data: None,
             });
         }
@@ -84,12 +90,21 @@ fn tests_thing(
     Ok(())
 }
 
-fn command_test_class(class_name: &SmolStr, project_kind: &ProjectKind) -> Option<Command> {
+fn command_test_class(
+    class_name: &SmolStr,
+    project_kind: &ProjectKind,
+    config: &Configuration,
+) -> Option<Command> {
     let name = format!("Run Test: {}", &class_name);
+    let cmd = if config.editor_runs_commands {
+        COMMAND_CMD_EDITOR
+    } else {
+        COMMAND_CMD
+    };
     match project_kind {
         ProjectKind::Maven { executable } => Some(Command {
-            title: format!("Test class: {class_name}"),
-            command: String::from(COMMAND_CMD),
+            title: name.clone(),
+            command: String::from(cmd),
             arguments: Some(vec![
                 Value::String(name),
                 Value::String(executable.to_owned()),
@@ -98,8 +113,8 @@ fn command_test_class(class_name: &SmolStr, project_kind: &ProjectKind) -> Optio
             ]),
         }),
         ProjectKind::Gradle { executable, .. } => Some(Command {
-            title: format!("Test class: {class_name}"),
-            command: String::from(COMMAND_CMD),
+            title: name.clone(),
+            command: String::from(cmd),
             arguments: Some(vec![
                 Value::String(name),
                 Value::String(executable.to_owned()),
