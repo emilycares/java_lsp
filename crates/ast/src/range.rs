@@ -113,14 +113,6 @@ impl AstInRange for &AstIf {
         }
     }
 }
-impl AstInRange for &AstIfContent {
-    fn is_in_range(&self, point: &AstPoint) -> bool {
-        match self {
-            AstIfContent::Block(ast_block) => ast_block.range.is_in_range(point),
-            AstIfContent::BlockEntry(ast_block_entry) => (**ast_block_entry).is_in_range(point),
-        }
-    }
-}
 impl AstInRange for &AstForContent {
     fn is_in_range(&self, point: &AstPoint) -> bool {
         match self {
@@ -384,6 +376,15 @@ impl AstInRange for AstSuperClass {
         match self {
             Self::None => false,
             Self::Name(ast_identifier) => ast_identifier.range.is_in_range(point),
+        }
+    }
+}
+
+impl GetRange for &AstIfContent {
+    fn get_range(&self) -> AstRange {
+        match self {
+            AstIfContent::Block(ast_block) => ast_block.range,
+            AstIfContent::BlockEntry(ast_block_entry) => ast_block_entry.get_range(),
         }
     }
 }

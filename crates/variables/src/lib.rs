@@ -285,7 +285,6 @@ fn expression(
             AstExpressionKind::Base(exp) => {
                 base_expr(exp, level, context, out)?;
             }
-
             AstExpressionKind::Lambda(ast_lambda) => {
                 if is_in_range_c(ast_lambda.range, &context.point) {
                     lambda(ast_lambda, level, context, out)?;
@@ -294,8 +293,18 @@ fn expression(
             AstExpressionKind::InlineSwitch(ast_switch) => {
                 get_block_vars(&ast_switch.block, level, context, out)?;
             }
+            AstExpressionKind::InstanceOf(i) => {
+                if let Some(name) = &i.variable {
+                    out.push(LocalVariable {
+                        level,
+                        jtype: i.jtype.clone().into(),
+                        name: name.value.clone(),
+                        range: name.range,
+                        flags: VarFlags::empty(),
+                    });
+                }
+            }
             AstExpressionKind::NewClass(_)
-            | AstExpressionKind::InstanceOf(_)
             | AstExpressionKind::Generics(_)
             | AstExpressionKind::JType(_)
             | AstExpressionKind::Casted(_)
@@ -529,17 +538,26 @@ fn if_vars(
     match ast_if {
         AstIf::ElseIf {
             range,
-            control: _,
+            control,
             control_range: _,
             content,
         }
         | AstIf::If {
             range,
-            control: _,
+            control,
             control_range: _,
             content,
+        } => {
+            if is_in_range_c(content.get_range(), &context.point) {
+                expression(control, level, context, out)?;
+            }
+            if is_in_range_c(*range, &context.point)
+                && let AstIfContent::Block(block) = content
+            {
+                get_block_vars(block, level, context, out)?;
+            }
         }
-        | AstIf::Else { range, content } => {
+        AstIf::Else { range, content } => {
             if is_in_range_c(*range, &context.point)
                 && let AstIfContent::Block(block) = content
             {
@@ -1354,6 +1372,63 @@ public class Test {
                     range: AstRange {
                         start: AstPoint { 4:20 },
                         end: AstPoint { 4:51 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&out);
+    }
+
+    #[test]
+    fn instanceof_base() {
+        let content = "
+public class Test {
+    public void test() {
+       if (shape instanceof Circle c) {
+
+       }
+    }
+}
+";
+        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+        let ast = ast::parse_file(&tokens).unwrap();
+        let class = Class::default();
+        let out = get_vars(
+            &ast,
+            &VariableContext {
+                point: Some(AstPoint::new(4, 40)),
+                imports: Default::default(),
+                class: &class,
+                class_map: get_class_map(),
+            },
+        )
+        .unwrap();
+        let expected = expect![[r#"
+            [
+                LocalVariable {
+                    level: 2,
+                    jtype: Void,
+                    name: "test",
+                    range: AstRange {
+                        start: AstPoint { 2:4 },
+                        end: AstPoint { 6:5 },
+                    },
+                    flags: VarFlags(
+                        Function,
+                    ),
+                },
+                LocalVariable {
+                    level: 4,
+                    jtype: Class(
+                        "Circle",
+                    ),
+                    name: "c",
+                    range: AstRange {
+                        start: AstPoint { 3:35 },
+                        end: AstPoint { 3:36 },
                     },
                     flags: VarFlags(
                         0x0,

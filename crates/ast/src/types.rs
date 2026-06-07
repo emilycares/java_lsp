@@ -792,6 +792,7 @@ pub struct AstInstanceOf {
     pub annotated: Vec<AstAnnotated>,
     pub availability: AstAvailability,
     pub jtype: AstJType,
+    pub variable: Option<AstIdentifier>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AstBaseExpression {

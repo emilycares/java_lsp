@@ -1202,7 +1202,12 @@ fn parse_instnceof(
         }
         pos += 1;
     }
-    let (jtype, pos) = parse_jtype(tokens, pos)?;
+    let (jtype, mut pos) = parse_jtype(tokens, pos)?;
+    let mut variable = None;
+    if let Ok((name, npos)) = parse_name(tokens, pos) {
+        variable = Some(name);
+        pos = npos;
+    }
 
     let end = tokens.end(pos)?;
     Ok((
@@ -1211,6 +1216,7 @@ fn parse_instnceof(
             annotated,
             availability,
             jtype,
+            variable,
         },
         pos,
     ))
