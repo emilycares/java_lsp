@@ -33,6 +33,17 @@
           "type": "string",
           "default": "",
           "description": "The path to the java_lsp executable."
+        },
+        "java_lsp.formatter": {
+          "scope": "resource",
+          "type": "string",
+          "enum": [
+            "none",
+            "google",
+            "idea"
+          ],
+          "default": "none",
+          "description": "The formatter to use. (Formatter must be in PATH)"
         }
       }
     },

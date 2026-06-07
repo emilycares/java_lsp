@@ -25,50 +25,35 @@ export function activate(context: ExtensionContext) {
     return;
   }
   serverModule = configExecutablePath;
-  
+
   context.subscriptions.push(vscode.commands.registerCommand("java_lsp.cmd.editor", (...args: string[]) => {
     const na = args[0];
     const command = args[1];
     const commandArgs = args.slice(2);
 
     const task = new vscode.Task(
-        { type: 'shell' },
-        vscode.TaskScope.Workspace,
-        na,
-        'java_lsp',
-        new vscode.ProcessExecution(command, commandArgs)
+      { type: 'shell' },
+      vscode.TaskScope.Workspace,
+      na,
+      'java_lsp',
+      new vscode.ProcessExecution(command, commandArgs)
     );
 
     task.group = vscode.TaskGroup.Build;
     task.presentationOptions = {
-        reveal: vscode.TaskRevealKind.Always,
-        panel: vscode.TaskPanelKind.Dedicated,
-        clear: true,
+      reveal: vscode.TaskRevealKind.Always,
+      panel: vscode.TaskPanelKind.Dedicated,
+      clear: true,
     };
 
     return vscode.tasks.executeTask(task);
   }));
+  let formatter = "none";
+  const configFormatter = config.get<string>("formatter");
+  if (configFormatter) {
+    formatter = configFormatter;
+  }
 
-  // if (context.extensionMode == ExtensionMode.Development) {
-  //   const serverOptions = async () => await createServerConnection("localhost", 4040);
-  //   client = new LanguageClient('java_lsp', 'java_lsp', serverOptions, {});
-  //   client.start();
-  //   return;
-  // }
-
-  //window.showErrorMessage("module: " + serverModule);
-
-  // If the extension is launched in debug mode then the debug server options are used
-  // Otherwise the run options are used
-  const serverOptions: ServerOptions = {
-    run: { command: serverModule, transport: TransportKind.stdio },
-    debug: {
-      command: serverModule,
-      transport: TransportKind.stdio,
-    },
-  };
-
-  // Options to control the language client
   const clientOptions: LanguageClientOptions = {
     // Register the server for plain text documents
     documentSelector: [
@@ -82,7 +67,25 @@ export function activate(context: ExtensionContext) {
     },
     initializationOptions: {
       editor_runs_commands: true,
-      formatter: "none",
+      formatter,
+    },
+  };
+
+  // if (context.extensionMode == ExtensionMode.Development) {
+  //   const serverOptions = async () => await createServerConnection("localhost", 4040);
+  //   client = new LanguageClient('java_lsp', 'java_lsp', serverOptions, clientOptions);
+  //   client.start();
+  //   return;
+  // }
+
+
+  // If the extension is launched in debug mode then the debug server options are used
+  // Otherwise the run options are used
+  const serverOptions: ServerOptions = {
+    run: { command: serverModule, transport: TransportKind.stdio },
+    debug: {
+      command: serverModule,
+      transport: TransportKind.stdio,
     },
   };
 

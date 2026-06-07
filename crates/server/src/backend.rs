@@ -675,8 +675,13 @@ impl Backend {
         };
         let lines = document.rope.lines().len();
         let formatter = format::get_formatter_name(&self.config.formatter);
-        match format::format(&self.config.formatter, document.rope.to_string().as_bytes()) {
-            Ok(o) => {
+        match format::format(
+            &self.config.formatter,
+            document.rope.to_string().as_bytes(),
+            &document.path,
+            self.project_dir.as_path(),
+        ) {
+            Ok(Some(o)) => {
                 let out = String::from_utf8_lossy(&o);
                 let lines = u32::try_from(lines).unwrap_or_default();
                 Some(vec![TextEdit::new(
@@ -684,6 +689,7 @@ impl Backend {
                     out.to_string(),
                 )])
             }
+            Ok(None) => None,
             Err(FormatError::Diagnostic(errors)) => {
                 Self::send_diagnostic(
                     &self.connection.clone(),
@@ -1217,8 +1223,11 @@ impl Backend {
                 "google" => {
                     self.config.formatter = FormatterConfig::Google;
                 }
+                "idea" => {
+                    self.config.formatter = FormatterConfig::Idea;
+                }
                 _ => {
-                    eprintln!("Only formatters none and google are supported");
+                    eprintln!("Only formatters none and google and idea are supported");
                 }
             }
         }

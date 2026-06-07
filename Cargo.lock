@@ -144,7 +144,6 @@ dependencies = [
  "jdk",
  "jwalk",
  "memmap2",
- "tokio",
  "workspace_hack",
 ]
 

@@ -1,6 +1,7 @@
 #![deny(clippy::redundant_clone)]
 use std::{
     io::Write,
+    path::{Path, PathBuf},
     process::{Command, Stdio},
 };
 
@@ -24,21 +25,69 @@ pub fn get_formatter_name(formatter: &FormatterConfig) -> String {
     match formatter {
         FormatterConfig::None => String::from("No formatter"),
         FormatterConfig::Google => String::from("Google java format"),
+        FormatterConfig::Idea => String::from("Idea format"),
     }
 }
 
-pub fn format(formatter: &FormatterConfig, content: &[u8]) -> Result<Vec<u8>, FormatError> {
+pub fn format(
+    formatter: &FormatterConfig,
+    content: &[u8],
+    path: &Path,
+    project_dir: &Path,
+) -> Result<Option<Vec<u8>>, FormatError> {
     match formatter {
         FormatterConfig::None => Err(FormatError::NoFormatterSpecified),
         FormatterConfig::Google => google_java_format(content),
+        FormatterConfig::Idea => idea_java_format(path, project_dir),
     }
 }
 
-pub enum Formatter {
-    None,
+#[cfg(windows)]
+const IDEA_COMMAND: &str = "idea64.exe";
+#[cfg(not(windows))]
+const IDEA_COMMAND: &str = "idea-oss";
+
+fn idea_java_format(path: &Path, project_dir: &Path) -> Result<Option<Vec<u8>>, FormatError> {
+    let mut child = Command::new(IDEA_COMMAND);
+    let mut args = vec![];
+    if let Some(config) = idea_formatter_config(project_dir) {
+        args.push(String::from("-s"));
+        args.push(config);
+    } else {
+        args.push(String::from("-allowDefaults"));
+    }
+    child
+        .arg("format")
+        .args(args)
+        .arg(path)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(FormatError::IO)?;
+    // let mut buf = String::new();
+    // if let Some(mut e) = o.stderr {
+    //     let _ = e.read_to_string(&mut buf);
+    // }
+    // if let Some(mut e) = o.stdout {
+    //     let _ = e.read_to_string(&mut buf);
+    // }
+    // eprintln!(buf);
+    Ok(None)
 }
 
-fn google_java_format(content: &[u8]) -> Result<Vec<u8>, FormatError> {
+fn idea_formatter_config(project_dir: &Path) -> Option<String> {
+    let mut p = PathBuf::from(project_dir)
+        .join(".idea")
+        .join("codeStyles")
+        .join("Project");
+    p.set_extension("xml");
+    if !p.exists() {
+        return None;
+    }
+    p.to_str().map(ToString::to_string)
+}
+
+fn google_java_format(content: &[u8]) -> Result<Option<Vec<u8>>, FormatError> {
     let mut child = Command::new("google-java-format")
         .arg("-")
         .stdin(Stdio::piped())
@@ -60,7 +109,7 @@ fn google_java_format(content: &[u8]) -> Result<Vec<u8>, FormatError> {
 
     let buf = out.stdout.to_vec();
 
-    Ok(buf)
+    Ok(Some(buf))
 }
 
 fn google_java_format_parse_errors(errors: &str) -> Result<Vec<FormatLineError>, FormatError> {

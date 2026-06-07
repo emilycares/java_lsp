@@ -17,6 +17,7 @@ impl Configuration {
 pub enum FormatterConfig {
     None,
     Google,
+    Idea,
 }
 
 impl Default for Configuration {
