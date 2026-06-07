@@ -1,6 +1,7 @@
 #![deny(clippy::redundant_clone)]
 
 use std::{fs, path::PathBuf, sync::LazyLock};
+pub mod deps;
 pub mod project_kind;
 
 #[derive(Debug, Default, Clone)]

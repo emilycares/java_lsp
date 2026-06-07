@@ -1,4 +1,4 @@
-use config::Configuration;
+use config::{Configuration, FormatterConfig};
 use lsp_types::{
     CodeActionKind, CodeActionOptions, CodeActionParams, CodeActionProviderCapability,
     CodeLensOptions, CodeLensParams, CompletionOptions, CompletionParams,
@@ -59,7 +59,7 @@ pub fn get_server_capabilities(config: &Configuration) -> ServerCapabilities {
         }),
         document_symbol_provider: Some(OneOf::Left(true)),
         workspace_symbol_provider: Some(OneOf::Left(true)),
-        document_formatting_provider: Some(OneOf::Left(true)),
+        document_formatting_provider: Some(OneOf::Left(config.formatter != FormatterConfig::None)),
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         signature_help_provider: Some(SignatureHelpOptions {
             trigger_characters: Some(vec!['('.to_string(), ','.to_string(), '<'.to_string()]),

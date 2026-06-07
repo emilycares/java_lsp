@@ -422,11 +422,11 @@ public class Test extends ParGreet {
             document_map: &Arc::new(RwLock::new(HashMap::new())),
         };
         let out = call_chain_definition(&call_chain, &context);
-        let expected = expect![[r#"
+        let expected = expect![["
             Err(
                 NoSource,
             )
-        "#]];
+        "]];
         expected.assert_debug_eq(&out);
     }
     fn get_class_map() -> Arc<RwLock<HashMap<MyString, Class>>> {

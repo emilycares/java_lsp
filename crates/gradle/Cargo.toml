@@ -13,6 +13,7 @@ license.workspace = true
 tokio.workspace = true
 compile.workspace = true
 common.workspace = true
+maven.workspace = true
 dto.workspace = true
 loader.workspace = true
 my_string.workspace = true

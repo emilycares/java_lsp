@@ -9,7 +9,11 @@ use std::{
     },
 };
 
-use common::{Dependency, TaskProgress, deps_dir};
+use common::{
+    Dependency, TaskProgress,
+    deps::{deps_base, deps_get_cfc, deps_get_source},
+    deps_dir,
+};
 use dto::{CFC_VERSION, Class, ClassFolder, SourceDestination};
 use loader::LoaderError;
 use my_string::{MyString, smol_str::ToSmolStr};
@@ -18,7 +22,7 @@ use tokio::task::JoinSet;
 use crate::{
     m2::{self, MTwoError},
     repository::Repository,
-    update::{self, deps_base, deps_get_cfc, deps_get_source},
+    update::{self},
 };
 
 #[derive(Debug)]

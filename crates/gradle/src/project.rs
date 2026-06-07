@@ -1,6 +1,10 @@
-use common::TaskProgress;
+use common::deps::{deps_base, deps_get_source};
+use common::{Dependency, TaskProgress, deps_dir};
 use dto::{CFC_VERSION, Class, ClassFolder, SourceDestination};
+use maven::m2::{self, pom_m2, pom_sources_jar};
+use maven::update::{CurlClient, pom_source_jar_url};
 use my_string::MyString;
+use my_string::smol_str::ToSmolStr;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::process::Command;
@@ -78,7 +82,9 @@ pub fn run_init_script(executable_gradle: String) -> Result<InitScriptOutput, Gr
     let mut class_path = HashSet::new();
     for p in content.lines() {
         if p.starts_with("JAVA_LSP_CLASSPATH:") {
-            let value = p.trim_start_matches("JAVA_LSP_CLASSPATH:").to_string();
+            let value = p
+                .trim_start_matches("JAVA_LSP_CLASSPATH:")
+                .replace('\\', "/");
             if std::path::Path::new(&value)
                 .extension()
                 .is_some_and(|ext| ext.eq_ignore_ascii_case("jar"))
@@ -94,6 +100,7 @@ pub fn run_init_script(executable_gradle: String) -> Result<InitScriptOutput, Gr
 pub enum GradleProjectError {
     IO(std::io::Error),
     Utf8(Utf8Error),
+    MTwo(m2::MTwoError),
 }
 
 pub async fn index_project(
@@ -130,16 +137,53 @@ async fn index(
         return Ok(());
     }
     let mut handles = JoinSet::<Option<ClassFolder>>::new();
+    let deps_path = deps_dir();
+    let deps_path = deps_path.as_path();
 
     let inits = run_init_script(executable_gradle)?;
     let tasks_number = u32::try_from(inits.class_path.len()).unwrap_or(1);
     let completed_number = Arc::new(AtomicU32::new(0));
+    let m2 = m2::get_maven_m2_folder().map_err(GradleProjectError::MTwo)?;
+    let client = Arc::new(CurlClient::new());
+    let repo = Arc::new(maven::repository::central());
 
     for p in inits.class_path {
         let sender = sender.clone();
         let completed_number = completed_number.clone();
+        let source = get_dependency(&p).map_or(SourceDestination::None, |dep| {
+            let deps_base = Arc::new(deps_base(&dep, deps_path));
+            let deps_source = Arc::new(deps_get_source(&deps_base));
+            let pom_mtwo = Arc::new(pom_m2(&dep, &m2));
+            let source_file = Arc::new(pom_sources_jar(&dep, &pom_mtwo));
+            let source_url = pom_source_jar_url(&dep, &repo.url);
+
+            {
+                let deps_source = deps_source.clone();
+                let client = client.clone();
+                let repo = repo.clone();
+                handles.spawn(async move {
+                    maven::update::fetch_extract_source(
+                        source_file,
+                        pom_mtwo,
+                        deps_source,
+                        deps_base,
+                        client,
+                        repo,
+                        &source_url,
+                    )
+                    .await;
+                    None
+                });
+            }
+            deps_source
+                .to_str()
+                .map_or(SourceDestination::None, |source| {
+                    SourceDestination::RelativeInFolder(source.to_smolstr())
+                })
+        });
+
         handles.spawn(async move {
-            match loader::load_classes_jar(&p, SourceDestination::None).await {
+            match loader::load_classes_jar(&p, source).await {
                 Ok(classes) => {
                     let a = completed_number.fetch_add(1, Ordering::Relaxed);
                     let message = p.clone();
@@ -174,4 +218,42 @@ async fn index(
         }
     }
     Ok(())
+}
+
+fn get_dependency(p: &str) -> Option<Dependency> {
+    let (_, p) = p.split_once(".gradle/caches/modules-2/files-2.1/")?;
+    let mut spl = p.splitn(4, '/');
+    let group_id = spl.next()?;
+    let artivact_id = spl.next()?;
+    let version = spl.next()?;
+    Some(Dependency {
+        group_id: group_id.to_string(),
+        artivact_id: artivact_id.to_string(),
+        version: version.to_string(),
+        version_suffix: None,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use expect_test::expect;
+
+    use super::*;
+
+    #[test]
+    fn dep_from_path() {
+        let path = "/home/emily/.gradle/caches/modules-2/files-2.1/org.junit.jupiter/junit-jupiter-api/5.7.1/a7261dff44e64aea7f621842eac5977fd6d2412d/junit-jupiter-api-5.7.1.jar";
+        let out = get_dependency(path);
+        let expected = expect![[r#"
+            Some(
+                Dependency {
+                    group_id: "org.junit.jupiter",
+                    artivact_id: "junit-jupiter-api",
+                    version: "5.7.1",
+                    version_suffix: None,
+                },
+            )
+        "#]];
+        expected.assert_debug_eq(&out);
+    }
 }

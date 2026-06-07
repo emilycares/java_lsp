@@ -481,6 +481,7 @@ dependencies = [
  "dto",
  "expect-test",
  "loader",
+ "maven",
  "my_string",
  "tokio",
  "workspace_hack",
