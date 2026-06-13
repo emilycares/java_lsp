@@ -9,6 +9,7 @@ use std::{
     ffi::OsString,
     fs::{self, File},
     path::{Path, PathBuf},
+    process::Command,
     str::{Utf8Error, from_utf8},
     sync::{
         Arc, RwLock,
@@ -20,7 +21,7 @@ use common::TaskProgress;
 use dto::{Class, ClassFolder, SourceDestination};
 use loader::{LoaderError, load_class_files};
 use my_string::{MyString, smol_str::ToSmolStr};
-use tokio::{process::Command, task::JoinSet};
+use tokio::task::JoinSet;
 
 #[cfg(not(target_os = "windows"))]
 const EXECUTABLE_JAVA: &str = "java";
@@ -54,7 +55,7 @@ pub async fn load_classes(
     sender: tokio::sync::watch::Sender<TaskProgress>,
     path: &OsString,
 ) -> Result<(), JdkError> {
-    let (java_path, op_dir) = get_work_dirs(path).await?;
+    let (java_path, op_dir) = get_work_dirs(path)?;
     let cache_path = op_dir.join(JDK_CFC);
 
     if cache_path.exists()
@@ -135,8 +136,7 @@ pub async fn load_jdk(
         let source_dir = op_dir.join("src");
         let source_dir = source_dir.to_str().ok_or(JdkError::Str)?;
         let jimage_executable = get_jimage_executable(java_path);
-        return load_modules_with_command(jimage_executable, modules_file, op_dir, source_dir)
-            .await;
+        return load_modules_with_command(jimage_executable, modules_file, op_dir, source_dir);
     }
 
     if modules_file.exists() && force_loader.is_modules() {
@@ -165,8 +165,7 @@ pub async fn load_jdk(
         let jimage_executable = get_jimage_executable(java_path);
         let source_dir = op_dir.join("src");
         let source_dir = source_dir.to_str().ok_or(JdkError::Str)?;
-        return load_modules_with_command(jimage_executable, modules_file, op_dir, source_dir)
-            .await;
+        return load_modules_with_command(jimage_executable, modules_file, op_dir, source_dir);
     }
     eprintln!("There is no jmod in your jdk: {}", java_path.display());
     load_old(java_path, op_dir).await
@@ -181,7 +180,7 @@ fn get_jimage_executable(java_path: &Path) -> PathBuf {
     jimage_executable
 }
 
-async fn load_modules_with_command(
+fn load_modules_with_command(
     jimage_executable: PathBuf,
     modules_file: PathBuf,
     op_dir: &Path,
@@ -200,7 +199,6 @@ async fn load_modules_with_command(
             .arg(out_param)
             .arg(modules_file)
             .output()
-            .await
             .map_err(JdkError::JimageExtractCommand)?;
         if !output.status.success() {
             let err = from_utf8(&output.stderr).map_err(JdkError::Utf8)?;
@@ -399,28 +397,42 @@ async fn unzip_to_dir(dir: &Path, zip: &PathBuf) -> Result<(), JdkError> {
 }
 
 /// Returns java path and opdir
-pub async fn get_work_dirs(path: &OsString) -> Result<(PathBuf, PathBuf), JdkError> {
+pub fn get_work_dirs(path: &OsString) -> Result<(PathBuf, PathBuf), JdkError> {
     let java_path = java_executable_location(path).ok_or(JdkError::JavaNotInPath)?;
     let mut java_path = std::fs::canonicalize(java_path).map_err(JdkError::IO)?;
-    let version = get_java_version(&java_path).await?;
-    java_path.pop();
-    let mut java_folder = java_path.clone();
-    java_folder.pop();
-    if let Some(java_folder_name) = java_folder.file_name()
-        && let Some(java_folder_name) = java_folder_name.to_str()
-    {
-        let jdk_name = format!("{java_folder_name}_{version}");
-        let op_dir = opdir(&jdk_name);
-        return Ok((java_path, op_dir));
+    match get_java_version_from_exec(&java_path) {
+        Ok(version) => {
+            java_path.pop();
+            let mut java_folder = java_path.clone();
+            java_folder.pop();
+            if let Some(java_folder_name) = java_folder.file_name()
+                && let Some(java_folder_name) = java_folder_name.to_str()
+            {
+                let jdk_name = format!("{java_folder_name}_{version}");
+                let op_dir = opdir(&jdk_name);
+                return Ok((java_path, op_dir));
+            }
+            Err(JdkError::WorkDir)
+        }
+        Err(e) => {
+            java_path.pop();
+            let mut java_folder = java_path.clone();
+            java_folder.pop();
+            if let Some(java_folder_name) = java_folder.file_name()
+                && let Some(java_folder_name) = java_folder_name.to_str()
+            {
+                let op_dir = opdir(java_folder_name);
+                return Ok((java_path, op_dir));
+            }
+            Err(e)
+        }
     }
-    Err(JdkError::WorkDir)
 }
 
-async fn get_java_version(java_path: &PathBuf) -> Result<String, JdkError> {
+fn get_java_version_from_exec(java_path: &PathBuf) -> Result<String, JdkError> {
     let command_output = Command::new(java_path)
         .arg("-version")
         .output()
-        .await
         .map_err(JdkError::JavaVersionCommand)?;
     let stderr = std::str::from_utf8(&command_output.stderr).map_err(JdkError::Utf8)?;
     let mut lines = stderr.lines();
@@ -446,7 +458,7 @@ pub async fn test_load_jdk_modules_executable() {
     let Some(path) = std::env::var_os("PATH") else {
         return;
     };
-    let (java_path, op_dir) = get_work_dirs(&path).await.unwrap();
+    let (java_path, op_dir) = get_work_dirs(&path).unwrap();
     let (sender, _) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress::default());
     let out = load_jdk(&java_path, &op_dir, ForceLoader::ModulesExecutable, sender)
         .await
@@ -468,7 +480,7 @@ pub async fn test_load_jdk_modules_own() {
     let Some(path) = std::env::var_os("PATH") else {
         return;
     };
-    let (java_path, op_dir) = get_work_dirs(&path).await.unwrap();
+    let (java_path, op_dir) = get_work_dirs(&path).unwrap();
     let (sender, _) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress::default());
     let out = load_jdk(&java_path, &op_dir, ForceLoader::ModulesOwn, sender)
         .await
@@ -494,7 +506,7 @@ pub async fn test_load_jdk_jmod() {
     let Some(path) = std::env::var_os("PATH") else {
         return;
     };
-    let (java_path, op_dir) = get_work_dirs(&path).await.unwrap();
+    let (java_path, op_dir) = get_work_dirs(&path).unwrap();
     let (sender, _) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress::default());
     let out = load_jdk(&java_path, &op_dir, ForceLoader::Jmod, sender)
         .await

@@ -3,7 +3,7 @@ use crate::{
     class::parse_class_block,
     error::{AstError, GetStartEnd, assert_token},
     lexer::{PositionToken, Token},
-    parse_annotated_list, parse_implements, parse_jtype, parse_name, parse_superclass,
+    parse_annotated, parse_implements, parse_jtype, parse_name, parse_superclass,
     parse_type_parameters, parse_variadic,
     types::{
         AstAnnotated, AstAvailability, AstRange, AstRecord, AstRecordEntries, AstRecordEntry,
@@ -81,7 +81,12 @@ fn parse_record_entry(
     pos: usize,
 ) -> Result<(AstRecordEntry, usize), AstError> {
     let start = tokens.start(pos)?;
-    let (annotated, pos) = parse_annotated_list(tokens, pos)?;
+    let mut annotated = Vec::new();
+    let mut pos = pos;
+    while let Ok((ann, npos)) = parse_annotated(tokens, pos) {
+        annotated.push(ann);
+        pos = npos;
+    }
     let (jtype, mut pos) = parse_jtype(tokens, pos)?;
     let mut variadic = false;
     if let Ok(npos) = parse_variadic(tokens, pos) {

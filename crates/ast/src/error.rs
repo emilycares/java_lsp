@@ -29,6 +29,8 @@ pub enum AstError {
     InvalidJtype(InvalidToken),
     /// Expression was empty
     EmptyExpression(InvalidToken),
+    /// Expression does allow calls
+    FordbidenExpressionCall(InvalidToken),
     /// End of file reached
     UnexpectedEOF,
     /// Invalid token in Identifier
@@ -145,6 +147,16 @@ impl PrintErr for AstError {
                     );
                 }
             }
+            Self::FordbidenExpressionCall(invalid_token) => {
+                if let Some(found) = tokens.get(invalid_token.0) {
+                    print_helper(
+                        content,
+                        found.line,
+                        found.col,
+                        &format!("Method call now allowed {:?}", found.token),
+                    );
+                }
+            }
         }
     }
 }
@@ -155,6 +167,7 @@ const fn sort_helper_error(a: &(MyString, AstError)) -> usize {
         AstError::ExpectedToken(expected_token) => expected_token.pos,
         AstError::InvalidJtype(invalid_token)
         | AstError::EmptyExpression(invalid_token)
+        | AstError::FordbidenExpressionCall(invalid_token)
         | AstError::IdentifierEmpty(invalid_token)
         | AstError::InvalidName(invalid_token)
         | AstError::InvalidNuget(invalid_token)
@@ -193,6 +206,7 @@ pub fn get_pos(e: &AstError) -> (usize, usize) {
         }
         AstError::InvalidJtype(invalid_token)
         | AstError::EmptyExpression(invalid_token)
+        | AstError::FordbidenExpressionCall(invalid_token)
         | AstError::IdentifierEmpty(invalid_token)
         | AstError::InvalidName(invalid_token)
         | AstError::InvalidNuget(invalid_token)

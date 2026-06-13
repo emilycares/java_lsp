@@ -220,6 +220,15 @@ pub fn ast_error_to_diagnostic(
                 found,
             ))
         }
+        AstError::FordbidenExpressionCall(invalid_token) => {
+            let found = tokens
+                .get(invalid_token.0)
+                .ok_or(AstDiagnosticError::TokensModified)?;
+            Ok(diag(
+                format!("Method call now allowed {:?}", found.token),
+                found,
+            ))
+        }
     }
 }
 

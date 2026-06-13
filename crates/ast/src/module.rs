@@ -14,10 +14,10 @@ use crate::{
 /// module java.base { ... }
 pub fn parse_module(tokens: &[PositionToken], pos: usize) -> Result<(AstModule, usize), AstError> {
     let start = tokens.start(pos)?;
-    let (annotated, pos) = parse_annotated_list(tokens, pos)?;
+    let mut annotated = Vec::new();
+    let mut pos = parse_annotated_list(tokens, pos, &mut annotated)?;
 
     let mut open = false;
-    let mut pos = pos;
     if let Ok(npos) = assert_token(tokens, pos, Token::Open) {
         open = true;
         pos = npos;

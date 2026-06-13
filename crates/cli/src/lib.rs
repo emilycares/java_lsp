@@ -266,6 +266,7 @@ fn lex_and_ast(file: &Path, text: &[u8]) {
             }
         }
         Err(e) => {
+            eprintln!("Here: {}", file.display());
             eprintln!("Lexer error: {e:?}");
             std::process::exit(2);
         }

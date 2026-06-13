@@ -130,9 +130,8 @@ fn parse_package(tokens: &[PositionToken], pos: usize) -> Result<(AstPackage, us
         let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
             Token::At => {
-                let (annotated_after, npos) = parse_annotated_list(tokens, pos)?;
+                let npos = parse_annotated_list(tokens, pos, &mut annotated)?;
                 pos = npos;
-                annotated.extend(annotated_after);
             }
             _ => break,
         }
@@ -276,15 +275,15 @@ pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, us
 fn parse_annotated_list(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(Vec<AstAnnotated>, usize), AstError> {
-    let mut out = vec![];
+    out: &mut Vec<AstAnnotated>,
+) -> Result<usize, AstError> {
     let mut pos = pos;
     while assert_token(tokens, pos, Token::At).is_ok() {
         let (a, npos) = parse_annotated(tokens, pos)?;
         out.push(a);
         pos = npos;
     }
-    Ok((out, pos))
+    Ok(pos)
 }
 /// `@Overwrite`
 /// `@SuppressWarnings({"unchecked", "rawtypes"})`
@@ -292,7 +291,8 @@ pub fn parse_annotated(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstAnnotated, usize), AstError> {
-    let expression_options = ExpressionOptions::NoLambda | ExpressionOptions::NoInlineIf;
+    let expression_options =
+        ExpressionOptions::NoLambda | ExpressionOptions::NoInlineIf | ExpressionOptions::NoValues;
     let start = tokens.start(pos)?;
     let pos = assert_token(tokens, pos, Token::At)?;
     let (name, pos) = parse_name_dot_logical(tokens, pos)?;
@@ -1078,6 +1078,8 @@ bitflags! {
      const NoInlineIf= 0b0000_0001;
      /// Don't parse labdas
      const NoLambda = 0b0000_0010;
+     /// Don't values
+     const NoValues = 0b0000_0100;
    }
 }
 /// `a.a()`
@@ -1290,6 +1292,9 @@ pub fn parse_base_expression(
                     AstRange::from_position_token(start, end),
                 ));
             }
+        }
+        Token::LeftParen if expression_options.intersects(ExpressionOptions::NoValues) => {
+            return Err(AstError::FordbidenExpressionCall(InvalidToken(pos)));
         }
         Token::LeftParen => {
             let values_start = tokens.get(pos).ok_or_else(AstError::eof)?;
@@ -1853,7 +1858,8 @@ pub fn parse_type_parameters(
         }
 
         let start_p = tokens.start(pos)?;
-        let (annotated, npos) = parse_annotated_list(tokens, pos)?;
+        let mut annotated = Vec::new();
+        let npos = parse_annotated_list(tokens, pos, &mut annotated)?;
         pos = npos;
         let (name, npos) = parse_name(tokens, pos)?;
         pos = npos;
@@ -3019,7 +3025,8 @@ fn parse_method_parameter(
 ) -> Result<(AstMethodParameter, usize), AstError> {
     let start = tokens.start(pos)?;
     let mut flags = AstMethodParameterFlags::empty();
-    let (annotated, pos) = parse_annotated_list(tokens, pos)?;
+    let mut annotated = Vec::new();
+    let pos = parse_annotated_list(tokens, pos, &mut annotated)?;
     let mut pos = pos;
     if let Ok(npos) = assert_token(tokens, pos, Token::Final) {
         flags |= AstMethodParameterFlags::Fin;
@@ -3382,7 +3389,8 @@ fn parse_comma_separated_jtype(
 /// int
 pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, usize), AstError> {
     let start = tokens.start(pos)?;
-    let (mut annotated, pos) = parse_annotated_list(tokens, pos)?;
+    let mut annotated = Vec::new();
+    let pos = parse_annotated_list(tokens, pos, &mut annotated)?;
     let mut pos = pos;
     if let Ok((primitive, npos)) = parse_primitive_type(tokens, pos) {
         pos = npos;
@@ -3393,16 +3401,14 @@ pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, us
             value: primitive,
         };
 
-        if let Ok((anno, npos)) = parse_annotated_list(tokens, pos) {
-            annotated.extend(anno);
+        if let Ok(npos) = parse_annotated_list(tokens, pos, &mut annotated) {
             pos = npos;
         }
         while let Ok(npos) = assert_token(tokens, pos, Token::LeftParenSquare) {
             if let Ok(npos) = assert_token(tokens, npos, Token::RightParenSquare) {
                 pos = npos;
                 let end = tokens.end(pos)?;
-                if let Ok((anno, npos)) = parse_annotated_list(tokens, pos) {
-                    annotated.extend(anno);
+                if let Ok(npos) = parse_annotated_list(tokens, pos, &mut annotated) {
                     pos = npos;
                 }
                 out = AstJType {
@@ -3437,8 +3443,7 @@ pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, us
             let end = tokens.end(pos)?;
             out.range = AstRange::from_position_token(start, end);
 
-            if let Ok((anno, npos)) = parse_annotated_list(tokens, pos) {
-                annotated.extend(anno);
+            if let Ok(npos) = parse_annotated_list(tokens, pos, &mut annotated) {
                 pos = npos;
             }
             while let Ok(npos) = assert_token(tokens, pos, Token::LeftParenSquare) {
@@ -3450,8 +3455,7 @@ pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, us
                         range: AstRange::from_position_token(start, end),
                         value: AstJTypeKind::Array(Box::new(out)),
                     };
-                    if let Ok((anno, npos)) = parse_annotated_list(tokens, pos) {
-                        annotated.extend(anno);
+                    if let Ok(npos) = parse_annotated_list(tokens, pos, &mut annotated) {
                         pos = npos;
                     }
                 } else {
@@ -3463,8 +3467,7 @@ pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, us
 
             if let Ok(npos) = assert_token(tokens, pos, Token::Dot) {
                 let mut npos = npos;
-                if let Ok((anno, nnpos)) = parse_annotated_list(tokens, npos) {
-                    annotated.extend(anno);
+                if let Ok(nnpos) = parse_annotated_list(tokens, npos, &mut annotated) {
                     npos = nnpos;
                 }
                 if let Ok((inner, npos)) = parse_jtype(tokens, npos) {

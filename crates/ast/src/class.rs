@@ -5,7 +5,7 @@ use crate::{
     ExpressionOptions,
     error::{AstError, GetStartEnd, assert_semicolon, assert_token},
     lexer::{PositionToken, Token},
-    parse_annotated_list, parse_array_type_on_name, parse_block, parse_constructor_header,
+    parse_annotated, parse_array_type_on_name, parse_block, parse_constructor_header,
     parse_expression, parse_implements, parse_jtype, parse_method_header, parse_name,
     parse_permits, parse_superclass, parse_thing, parse_type_parameters,
     types::{
@@ -256,9 +256,9 @@ pub fn parse_class_variable(
             Token::Volatile => volatile_transient |= AstVolatileTransient::Volatile,
             Token::Transient => volatile_transient |= AstVolatileTransient::Transient,
             Token::At => {
-                let (annotated_after, npos) = parse_annotated_list(tokens, pos)?;
+                let (annotated_after, npos) = parse_annotated(tokens, pos)?;
                 pos = npos;
-                annotated.extend(annotated_after);
+                annotated.push(annotated_after);
                 continue;
             }
             _ => break,

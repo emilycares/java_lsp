@@ -47,7 +47,7 @@ async fn main() {
             let Some(path) = std::env::var_os("PATH") else {
                 return;
             };
-            let (java_path, op_dir) = jdk::get_work_dirs(&path).await.unwrap();
+            let (java_path, op_dir) = jdk::get_work_dirs(&path).unwrap();
             let (sender, _) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress::default());
             jdk::load_jdk(&java_path, &op_dir, ForceLoader::None, sender)
                 .await

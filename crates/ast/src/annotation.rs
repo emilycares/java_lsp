@@ -5,8 +5,7 @@ use crate::{
     ExpressionOptions,
     error::{AstError, GetStartEnd, assert_token},
     lexer::{PositionToken, Token},
-    parse_annotated_list, parse_expression, parse_jtype, parse_name, parse_name_single,
-    parse_thing,
+    parse_annotated, parse_expression, parse_jtype, parse_name, parse_name_single, parse_thing,
     types::{
         AstAnnotated, AstAnnotation, AstAnnotationField, AstAvailability, AstRange, AstThing,
         AstThingAttributes,
@@ -93,9 +92,9 @@ pub fn parse_annotation_field(
             Token::Static => availability |= AstAvailability::Static,
             Token::Final => availability |= AstAvailability::Final,
             Token::At => {
-                let (annotated_after, npos) = parse_annotated_list(tokens, pos)?;
+                let (annotated_after, npos) = parse_annotated(tokens, pos)?;
                 pos = npos;
-                annotated.extend(annotated_after);
+                annotated.push(annotated_after);
                 continue;
             }
             _ => break,

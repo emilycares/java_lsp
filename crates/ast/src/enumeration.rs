@@ -156,6 +156,9 @@ fn parse_enum_members(
             }
             break;
         }
+        if let Ok(npos) = assert_token(tokens, pos, Token::Semicolon) {
+            pos = npos;
+        }
         match parse_class_method(tokens, pos) {
             Ok((method, npos)) => {
                 methods.push(method);
@@ -220,7 +223,8 @@ pub fn parse_enum_variant(
     pos: usize,
 ) -> Result<(AstEnumerationVariant, usize), AstError> {
     let start = tokens.start(pos)?;
-    let (annotated, pos) = parse_annotated_list(tokens, pos)?;
+    let mut annotated = Vec::new();
+    let pos = parse_annotated_list(tokens, pos, &mut annotated)?;
     let (name, mut pos) = parse_name(tokens, pos)?;
     let mut parameters = vec![];
 

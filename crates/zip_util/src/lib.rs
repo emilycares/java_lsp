@@ -9,6 +9,7 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
 };
+use tokio::fs::read;
 
 #[derive(Debug)]
 pub enum ZipUtilError {
@@ -18,7 +19,7 @@ pub enum ZipUtilError {
 
 pub async fn extract_jar(jar: &PathBuf, source_dir: &Path) -> Result<(), ZipUtilError> {
     let dir = PathBuf::from(source_dir);
-    let buf = tokio::fs::read(jar).await.map_err(ZipUtilError::IO)?;
+    let buf = read(jar).await.map_err(ZipUtilError::IO)?;
     let reader = buf.read_zip().await.map_err(ZipUtilError::Zip)?;
 
     for entry in reader.entries() {

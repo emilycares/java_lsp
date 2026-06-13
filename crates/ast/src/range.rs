@@ -393,3 +393,23 @@ impl GetRange for &AstIfContent {
 pub fn is_in_range_c(range: AstRange, opoint: &Option<AstPoint>) -> bool {
     opoint.as_ref().is_none_or(|p| range.is_in_range(p))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn in_range() {
+        let r = AstRange {
+            start: AstPoint { line: 0, col: 4 },
+            end: AstPoint { line: 0, col: 6 },
+        };
+        assert!(!r.is_in_range(&AstPoint { line: 0, col: 2 }));
+        assert!(!r.is_in_range(&AstPoint { line: 0, col: 3 }));
+        assert!(r.is_in_range(&AstPoint { line: 0, col: 4 }));
+        assert!(r.is_in_range(&AstPoint { line: 0, col: 5 }));
+        assert!(r.is_in_range(&AstPoint { line: 0, col: 6 }));
+        assert!(!r.is_in_range(&AstPoint { line: 0, col: 7 }));
+        assert!(!r.is_in_range(&AstPoint { line: 0, col: 8 }));
+    }
+}

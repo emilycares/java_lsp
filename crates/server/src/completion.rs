@@ -77,13 +77,8 @@ pub fn class_unpack(val: &Class, imports: &[ImportUnit], ast: &AstFile) -> Vec<C
     out.extend(
         val.methods
             .iter()
-            .filter(|i| {
-                if i.access.is_empty() {
-                    return true;
-                }
-                i.access.intersects(Access::Public)
-            })
-            .filter_map(|i| complete_method(i, imports, ast)),
+            .filter(|i| !i.access.intersects(Access::Private | Access::Protected))
+            .filter_map(|i| complete_method(i, imports, ast, Some(&val.name))),
     );
 
     out.extend(
@@ -123,10 +118,12 @@ pub fn class_unpack(val: &Class, imports: &[ImportUnit], ast: &AstFile) -> Vec<C
     out
 }
 
-fn complete_method(m: &Method, imports: &[ImportUnit], ast: &AstFile) -> Option<CompletionItem> {
-    let Some(method_name) = &m.name else {
-        return None;
-    };
+fn complete_method(
+    m: &Method,
+    imports: &[ImportUnit],
+    ast: &AstFile,
+    class_name: Option<&SmolStr>,
+) -> Option<CompletionItem> {
     let params_detail: Vec<String> = m
         .parameters
         .iter()
@@ -138,10 +135,12 @@ fn complete_method(m: &Method, imports: &[ImportUnit], ast: &AstFile) -> Option<
         })
         .collect();
 
-    match method_snippet(m) {
+    let label = m.name.as_ref().or(class_name)?;
+
+    match method_snippet(m, class_name) {
         Some(Snippet::Simple(snippet)) => Some(access(
             CompletionItem {
-                label: method_name.to_string(),
+                label: label.to_string(),
                 label_details: Some(CompletionItemLabelDetails {
                     detail: Some(format!("{} ({})", m.ret, params_detail.join(", "))),
                     ..Default::default()
@@ -164,7 +163,7 @@ fn complete_method(m: &Method, imports: &[ImportUnit], ast: &AstFile) -> Option<
 
             Some(access(
                 CompletionItem {
-                    label: method_name.to_string(),
+                    label: label.to_string(),
                     label_details: Some(CompletionItemLabelDetails {
                         detail: Some(format!("{} ({})", m.ret, params_detail.join(", "))),
                         ..Default::default()
@@ -197,10 +196,7 @@ enum Snippet {
     Import { snippet: String, import: ImportUnit },
 }
 
-fn method_snippet(m: &Method) -> Option<Snippet> {
-    let Some(method_name) = &m.name else {
-        return None;
-    };
+fn method_snippet(m: &Method, class_name: Option<&SmolStr>) -> Option<Snippet> {
     let mut import = None;
     let mut params_snippet = String::new();
     let p_len = m.parameters.len();
@@ -213,6 +209,17 @@ fn method_snippet(m: &Method) -> Option<Snippet> {
             params_snippet.push_str(", ");
         }
     }
+
+    let Some(method_name) = &m.name else {
+        if let Some(class_name) = class_name {
+            let snippet = format!("{class_name}({params_snippet})");
+            return match import {
+                Some(import) => Some(Snippet::Import { snippet, import }),
+                None => Some(Snippet::Simple(snippet)),
+            };
+        }
+        return None;
+    };
 
     let snippet = format!("{method_name}({params_snippet})");
     match import {
@@ -358,7 +365,7 @@ pub fn static_methods(
                 Vec::new()
             }
         })
-        .filter_map(|m| complete_method(&m, imports, ast))
+        .filter_map(|m| complete_method(&m, imports, ast, None))
         .collect()
 }
 
@@ -705,7 +712,7 @@ public class Test {
             throws: vec![],
             source: None,
         };
-        let out = method_snippet(&method);
+        let out = method_snippet(&method, None);
         assert_eq!(out, Some(Snippet::Simple("length()".to_string())));
     }
 
@@ -722,8 +729,25 @@ public class Test {
             throws: vec![],
             source: None,
         };
-        let out = method_snippet(&method);
+        let out = method_snippet(&method, None);
         assert_eq!(out, Some(Snippet::Simple("compute(${1:int})".to_string())));
+    }
+
+    #[test]
+    fn constructor_snippet_base() {
+        let method = Method {
+            access: Access::Public,
+            name: None,
+            parameters: vec![Parameter {
+                name: None,
+                jtype: JType::Int,
+            }],
+            ret: JType::Int,
+            throws: vec![],
+            source: None,
+        };
+        let out = method_snippet(&method, Some(&SmolStr::new_inline("Computer")));
+        assert_eq!(out, Some(Snippet::Simple("Computer(${1:int})".to_string())));
     }
 
     #[test]
@@ -745,7 +769,7 @@ public class Test {
             throws: vec![],
             source: None,
         };
-        let out = method_snippet(&method);
+        let out = method_snippet(&method, None);
         assert_eq!(
             Some(Snippet::Simple("split(${1:String}, ${2:int})".to_string())),
             out

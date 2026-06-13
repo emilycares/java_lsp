@@ -5,9 +5,9 @@ use crate::{
     ExpressionOptions,
     error::{AstError, GetStartEnd, assert_token},
     lexer::{PositionToken, Token},
-    parse_annotated_list, parse_array_type_on_name, parse_block, parse_expression, parse_extends,
-    parse_identifier, parse_jtype, parse_method_header, parse_name, parse_permits, parse_thing,
-    parse_type_parameters,
+    parse_annotated, parse_annotated_list, parse_array_type_on_name, parse_block, parse_expression,
+    parse_extends, parse_identifier, parse_jtype, parse_method_header, parse_name, parse_permits,
+    parse_thing, parse_type_parameters,
     types::{
         AstAnnotated, AstAvailability, AstInterface, AstInterfaceConstant, AstInterfaceMethod,
         AstInterfaceMethodDefault, AstJType, AstRange, AstThing, AstThingAttributes,
@@ -157,9 +157,9 @@ pub fn parse_interface_constant(
             Token::Static => availability |= AstAvailability::Static,
             Token::Final => availability |= AstAvailability::Final,
             Token::At => {
-                let (annotated_after, npos) = parse_annotated_list(tokens, pos)?;
+                let (annotated_after, npos) = parse_annotated(tokens, pos)?;
                 pos = npos;
-                annotated.extend(annotated_after);
+                annotated.push(annotated_after);
                 continue;
             }
             _ => break,
@@ -241,7 +241,8 @@ pub fn parse_interface_method(
     pos: usize,
 ) -> Result<(AstInterfaceMethod, usize), AstError> {
     let start = tokens.start(pos)?;
-    let (annotated, pos) = parse_annotated_list(tokens, pos)?;
+    let mut annotated = Vec::new();
+    let pos = parse_annotated_list(tokens, pos, &mut annotated)?;
     let (header, pos) = parse_method_header(tokens, pos, AstAvailability::empty())?;
     let pos = assert_token(tokens, pos, Token::Semicolon)?;
     let end = tokens.end(pos)?;
@@ -272,9 +273,9 @@ pub fn parse_interface_method_impl(
             Token::Protected => availability |= AstAvailability::Protected,
             Token::Default => (),
             Token::At => {
-                let (annotated_after, npos) = parse_annotated_list(tokens, pos)?;
+                let (annotated_after, npos) = parse_annotated(tokens, pos)?;
                 pos = npos;
-                annotated.extend(annotated_after);
+                annotated.push(annotated_after);
                 continue;
             }
             _ => break,

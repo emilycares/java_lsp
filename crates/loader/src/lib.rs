@@ -4,6 +4,7 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
 use std::collections::VecDeque;
+use std::fs::read;
 use std::{
     fs::{File, OpenOptions},
     io::Write,
@@ -20,7 +21,6 @@ use my_string::{MyString, smol_str::ToSmolStr};
 use parser::java::{self, ParseJavaError};
 use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
 use std::fmt::Debug;
-use tokio::fs::read;
 
 pub const DEBUGGING: bool = false;
 
@@ -42,12 +42,8 @@ pub fn load_java_fs<T>(path: T, source: SourceDestination) -> Result<Class, Load
 where
     T: AsRef<Path> + Debug,
 {
-    let file = File::open(path).map_err(LoaderError::IO)?;
-    let mmap = unsafe { memmap2::Mmap::map(&file) }.map_err(LoaderError::IO)?;
-    #[cfg(unix)]
-    mmap.advise(memmap2::Advice::Sequential)
-        .map_err(LoaderError::IO)?;
-    java::load_java(&mmap[..], source).map_err(LoaderError::ParseJava)
+    let buf = read(path).map_err(LoaderError::IO)?;
+    java::load_java(&buf, source).map_err(LoaderError::ParseJava)
 }
 
 pub fn load_class_fs<T>(
@@ -59,12 +55,8 @@ pub fn load_class_fs<T>(
 where
     T: AsRef<Path> + Debug,
 {
-    let file = File::open(path).map_err(LoaderError::IO)?;
-    let mmap = unsafe { memmap2::Mmap::map(&file) }.map_err(LoaderError::IO)?;
-    #[cfg(unix)]
-    mmap.advise(memmap2::Advice::Sequential)
-        .map_err(LoaderError::IO)?;
-    class::load_class(&mmap, class_path, source, filter).map_err(LoaderError::ClassParser)
+    let buf = read(path).map_err(LoaderError::IO)?;
+    class::load_class(&buf, class_path, source, filter).map_err(LoaderError::ClassParser)
 }
 
 pub fn save_class_folder<P: AsRef<Path> + Debug>(
@@ -260,7 +252,7 @@ pub async fn load_classes_jar<P: AsRef<Path> + Debug + Clone>(
     source: SourceDestination,
 ) -> Result<ClassFolder, LoaderError> {
     let src_zip = format!("{path:?}");
-    let buf = read(path).await.map_err(LoaderError::IO)?;
+    let buf = read(path).map_err(LoaderError::IO)?;
 
     base_load_classes_zip(src_zip, source, buf, None).await
 }
@@ -269,7 +261,7 @@ pub async fn load_classes_jmod<P: AsRef<Path> + Debug>(
     source: SourceDestination,
 ) -> Result<ClassFolder, LoaderError> {
     let src_zip = format!("{path:?}");
-    let mut buf = read(path).await.map_err(LoaderError::IO)?;
+    let mut buf = read(path).map_err(LoaderError::IO)?;
     buf.drain(0..4);
 
     base_load_classes_zip(src_zip, source, buf, Some("classes.")).await

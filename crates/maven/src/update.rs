@@ -20,8 +20,11 @@ use curl::easy::{Easy, List};
 use curl::multi::{EasyHandle, Multi};
 use dto::SourceDestination;
 use my_string::smol_str::ToSmolStr;
-use tokio::sync::{mpsc, oneshot};
-use tokio::task::JoinSet;
+use tokio::{fs::remove_dir, task::JoinSet};
+use tokio::{
+    fs::{create_dir_all, write},
+    sync::{mpsc, oneshot},
+};
 
 use crate::{
     m2::{
@@ -199,7 +202,7 @@ impl CurlClient {
                 let result = multi
                     .remove(entry.handle)
                     .map_err(MavenUpdateError::CurlMulti)
-                    .and_then(|mut easy| {
+                    .and_then(|easy| {
                         let status = easy.response_code().map_err(MavenUpdateError::Curl)?;
                         let body = entry
                             .state
@@ -428,7 +431,7 @@ pub async fn fetch_extract_source(
 ) -> bool {
     match fetch_source(&pom_mtwo, &repo, &f_source, &deps_bas, &client, url).await {
         Ok(UpdateStateSource::Updated) => {
-            let _ = tokio::fs::remove_dir(&d_source.as_path()).await;
+            let _ = remove_dir(&d_source.as_path()).await;
             eprintln!("Extract: {}", f_source.display());
             match zip_util::extract_jar(&f_source, &d_source).await {
                 Ok(()) => (),
@@ -540,10 +543,10 @@ pub async fn stage_two(
     client: &Arc<CurlClient>,
     jar_url: &str,
 ) -> Result<UpdateStateTwo, MavenUpdateError> {
-    tokio::fs::create_dir_all(deps_bas)
+    create_dir_all(deps_bas)
         .await
         .map_err(MavenUpdateError::CreateDir)?;
-    tokio::fs::create_dir_all(pom_mtwo.as_ref())
+    create_dir_all(pom_mtwo.as_ref())
         .await
         .map_err(MavenUpdateError::CreateDir)?;
 
@@ -566,7 +569,7 @@ pub async fn stage_two(
     }
 
     if let Some(etag) = resp.headers.get("etag") {
-        tokio::fs::write(&etag_path, etag)
+        write(&etag_path, etag)
             .await
             .map_err(MavenUpdateError::WriteEtag)?;
     }
@@ -576,10 +579,10 @@ pub async fn stage_two(
 
     if let Some(sha) = resp.headers.get("x-checksum-sha1") {
         let sha_bytes = sha.as_bytes().to_vec();
-        tokio::fs::write(&hash_path, &sha_bytes)
+        write(&hash_path, &sha_bytes)
             .await
             .map_err(MavenUpdateError::WriteHash)?;
-        tokio::fs::write(&sha1_path, &sha_bytes)
+        write(&sha1_path, &sha_bytes)
             .await
             .map_err(MavenUpdateError::WriteHash)?;
     } else {
@@ -590,15 +593,15 @@ pub async fn stage_two(
                 None,
             )
             .await?;
-        tokio::fs::write(&hash_path, &sha_resp.body)
+        write(&hash_path, &sha_resp.body)
             .await
             .map_err(MavenUpdateError::WriteHash)?;
-        tokio::fs::write(&sha1_path, &sha_resp.body)
+        write(&sha1_path, &sha_resp.body)
             .await
             .map_err(MavenUpdateError::WriteHash)?;
     }
 
-    tokio::fs::write(jar.as_ref(), &resp.body)
+    write(jar.as_ref(), &resp.body)
         .await
         .map_err(MavenUpdateError::WriteJar)?;
 
@@ -619,10 +622,10 @@ pub async fn fetch_source(
     client: &Arc<CurlClient>,
     url: &str,
 ) -> Result<UpdateStateSource, MavenUpdateError> {
-    tokio::fs::create_dir_all(deps_bas)
+    create_dir_all(deps_bas)
         .await
         .map_err(MavenUpdateError::CreateDir)?;
-    tokio::fs::create_dir_all(pom_mtwo)
+    create_dir_all(pom_mtwo)
         .await
         .map_err(MavenUpdateError::CreateDir)?;
 
@@ -631,7 +634,7 @@ pub async fn fetch_source(
     if resp.status == 404 || !resp.status_is_success() {
         return Ok(UpdateStateSource::NotFound);
     }
-    tokio::fs::write(source, &resp.body)
+    write(source, &resp.body)
         .await
         .map_err(MavenUpdateError::WriteJar)?;
 
