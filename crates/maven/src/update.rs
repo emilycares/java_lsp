@@ -284,25 +284,6 @@ pub async fn update(
         let jar = Arc::new(pom_classes_jar(&pom, &pom_mtwo));
         let mut found = false;
         for repo in repos.as_ref() {
-            {
-                let repo = Arc::new(repo.clone());
-                let source_url = pom_source_jar_url(&pom, &repo.url);
-                if matches!(one, UpdateStateOne::SourceNotFound) {
-                    let fetched = fetch_extract_source(
-                        f_source.clone(),
-                        pom_mtwo.clone(),
-                        d_source.clone(),
-                        deps_bas.clone(),
-                        client.clone(),
-                        repo.clone(),
-                        &source_url,
-                    )
-                    .await;
-                    if fetched {
-                        break;
-                    }
-                }
-            }
             let jar_url = pom_jar_url(&pom, &repo.url);
             let mut two = stage_two(
                 pom.clone(),
@@ -455,7 +436,9 @@ pub async fn fetch_extract_source(
             }
             return true;
         }
-        Ok(UpdateStateSource::NotFound) => {}
+        Ok(UpdateStateSource::NotFound) => {
+            eprintln!("Source not found: {:?}", &f_source);
+        }
         Err(e) => eprintln!("Get error: {e:?}"),
     }
     false
@@ -500,6 +483,7 @@ pub fn stage_one(pom: &Dependency, deps_bas: &DepsBas, pom_mtwo: &PomMTwo) -> Up
         return UpdateStateOne::NoOwnHash;
     }
     let source = deps_get_source(deps_bas);
+
     if !source.exists() {
         return UpdateStateOne::SourceNotFound;
     }

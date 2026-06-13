@@ -19,20 +19,16 @@ pub struct PositionSymbol {
     pub kind: SymbolKind,
 }
 
-pub fn get_class_position_ast(ast: &AstFile, name: Option<&str>, out: &mut Vec<PositionSymbol>) {
+pub fn get_class_position(ast: &AstFile, name: Option<&str>, out: &mut Vec<PositionSymbol>) {
     for thing in ast.top.iter().filter_map(|i| match i {
         AstTopLevel::Thing(ast_thing) => Some(ast_thing),
         AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => None,
     }) {
-        get_class_position_ast_thing(thing, name, out);
+        get_class_position_thing(thing, name, out);
     }
 }
 
-fn get_class_position_ast_thing(
-    thing: &AstThing,
-    name: Option<&str>,
-    out: &mut Vec<PositionSymbol>,
-) {
+fn get_class_position_thing(thing: &AstThing, name: Option<&str>, out: &mut Vec<PositionSymbol>) {
     let kind = SymbolKind::CLASS;
     match &thing {
         AstThing::Class(ast_class) => {
@@ -52,7 +48,7 @@ fn get_class_position_ast_thing(
                 });
             }
             for inner in &ast_class.block.inner {
-                get_class_position_ast_thing(inner, name, out);
+                get_class_position_thing(inner, name, out);
             }
         }
         AstThing::Record(ast_record) => {
@@ -72,7 +68,7 @@ fn get_class_position_ast_thing(
                 });
             }
             for inner in &ast_record.block.inner {
-                get_class_position_ast_thing(inner, name, out);
+                get_class_position_thing(inner, name, out);
             }
         }
         AstThing::Interface(ast_interface) => {
@@ -92,7 +88,7 @@ fn get_class_position_ast_thing(
                 });
             }
             for inner in &ast_interface.inner {
-                get_class_position_ast_thing(inner, name, out);
+                get_class_position_thing(inner, name, out);
             }
         }
         AstThing::Enumeration(ast_enumeration) => {
@@ -113,7 +109,7 @@ fn get_class_position_ast_thing(
                 kind: SymbolKind::ENUM,
             });
             for inner in &ast_enumeration.inner {
-                get_class_position_ast_thing(inner, name, out);
+                get_class_position_thing(inner, name, out);
             }
         }
         AstThing::Annotation(ast_annotation) => {
@@ -136,7 +132,7 @@ fn get_class_position_ast_thing(
     }
 }
 
-pub fn get_method_position_ast(
+pub fn get_method_position(
     file: &AstFile,
     name: Option<&str>,
     nargs: Option<usize>,
@@ -146,11 +142,11 @@ pub fn get_method_position_ast(
         AstTopLevel::Thing(ast_thing) => Some(ast_thing),
         AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => None,
     }) {
-        get_method_position_ast_thing(thing, name, nargs, out);
+        get_method_position_thing(thing, name, nargs, out);
     }
 }
 
-pub fn get_method_position_ast_thing(
+pub fn get_method_position_thing(
     thing: &AstThing,
     name: Option<&str>,
     nargs: Option<usize>,
@@ -172,7 +168,7 @@ pub fn get_method_position_ast_thing(
                     }),
             );
             for inner in &ast_class.block.inner {
-                get_method_position_ast_thing(inner, name, nargs, out);
+                get_method_position_thing(inner, name, nargs, out);
             }
         }
         AstThing::Record(ast_record) => {
@@ -190,7 +186,7 @@ pub fn get_method_position_ast_thing(
                     }),
             );
             for inner in &ast_record.block.inner {
-                get_method_position_ast_thing(inner, name, nargs, out);
+                get_method_position_thing(inner, name, nargs, out);
             }
         }
         AstThing::Interface(ast_interface) => {
@@ -219,7 +215,7 @@ pub fn get_method_position_ast_thing(
                     }),
             );
             for inner in &ast_interface.inner {
-                get_method_position_ast_thing(inner, name, nargs, out);
+                get_method_position_thing(inner, name, nargs, out);
             }
         }
         AstThing::Enumeration(ast_enumeration) => {
@@ -236,7 +232,7 @@ pub fn get_method_position_ast_thing(
                     }),
             );
             for inner in &ast_enumeration.inner {
-                get_method_position_ast_thing(inner, name, nargs, out);
+                get_method_position_thing(inner, name, nargs, out);
             }
         }
         AstThing::Annotation(_ast_annotation) => (),
@@ -257,15 +253,15 @@ fn is_valid_name(name: Option<&str>, i: &AstIdentifier) -> bool {
     name == i.value
 }
 
-pub fn get_field_position_ast(file: &AstFile, name: Option<&str>, out: &mut Vec<PositionSymbol>) {
+pub fn get_field_position(file: &AstFile, name: Option<&str>, out: &mut Vec<PositionSymbol>) {
     for thing in file.top.iter().filter_map(|i| match i {
         AstTopLevel::Thing(ast_thing) => Some(ast_thing),
         AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => None,
     }) {
-        get_field_position_ast_thing(thing, name, out);
+        get_field_position_thing(thing, name, out);
     }
 }
-pub fn get_field_position_ast_thing(
+pub fn get_field_position_thing(
     thing: &AstThing,
     name: Option<&str>,
     out: &mut Vec<PositionSymbol>,
@@ -329,7 +325,7 @@ pub fn get_field_position_ast_thing(
                     get_field_position_block(i, name, out);
                 });
             for inner in &ast_enumeration.inner {
-                get_field_position_ast_thing(inner, name, out);
+                get_field_position_thing(inner, name, out);
             }
         }
         AstThing::Annotation(_ast_annotation) => (),
@@ -523,8 +519,7 @@ pub fn symbols_to_document_symbols(
 #[cfg(test)]
 mod tests {
     use crate::{
-        PositionSymbol, get_class_position_ast, get_field_position_ast, get_method_position_ast,
-        get_type_usage,
+        PositionSymbol, get_class_position, get_field_position, get_method_position, get_type_usage,
     };
     use ast::types::{AstPoint, AstRange};
     use lsp_types::SymbolKind;
@@ -545,7 +540,7 @@ public class Test {
         let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         let mut out = vec![];
-        get_method_position_ast(&ast, Some("hello"), None, &mut out);
+        get_method_position(&ast, Some("hello"), None, &mut out);
         assert_eq!(
             out,
             vec![PositionSymbol {
@@ -570,7 +565,7 @@ public class Test {
         let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         let mut out = vec![];
-        get_field_position_ast(&ast, Some("a"), &mut out);
+        get_field_position(&ast, Some("a"), &mut out);
         assert_eq!(
             vec![PositionSymbol {
                 range: AstRange {
@@ -599,7 +594,7 @@ public class Test {
         let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         let mut out = vec![];
-        get_field_position_ast(&ast, None, &mut out);
+        get_field_position(&ast, None, &mut out);
         assert_eq!(
             vec![
                 PositionSymbol {
@@ -632,7 +627,7 @@ public class Test {}
         let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         let mut out = vec![];
-        get_class_position_ast(&ast, Some("Test"), &mut out);
+        get_class_position(&ast, Some("Test"), &mut out);
         assert_eq!(
             out,
             vec![PositionSymbol {

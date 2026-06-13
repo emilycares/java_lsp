@@ -63,7 +63,7 @@ pub fn class(
                 return Err(DefinitionError::NoSource);
             };
             if let Ok(c) = read_document_or_open_class(&source, document_map) {
-                position::get_class_position_ast(&c.ast, Some(&class.name), &mut ranges);
+                position::get_class_position(&c.ast, Some(&class.name), &mut ranges);
             }
             Ok(go_to_definition_range(uri, &ranges)?)
         }
@@ -96,7 +96,7 @@ pub fn call_chain_definition(
             let ast = document::get_ast(&source, context.document_map)
                 .map_err(DefinitionError::Document)?;
             let mut ranges = Vec::new();
-            position::get_class_position_ast(&ast, None, &mut ranges);
+            position::get_class_position(&ast, None, &mut ranges);
             Ok(go_to_definition_range(uri, &ranges)?)
         }
         Some(CallItem::Class { name, range: _ } | CallItem::ClassGeneric { name, .. }) => {
@@ -104,7 +104,7 @@ pub fn call_chain_definition(
             let ast = document::get_ast(&source, context.document_map)
                 .map_err(DefinitionError::Document)?;
             let mut ranges = Vec::new();
-            position::get_class_position_ast(&ast, Some(name), &mut ranges);
+            position::get_class_position(&ast, Some(name), &mut ranges);
             Ok(go_to_definition_range(uri, &ranges)?)
         }
         Some(CallItem::MethodCall {
@@ -125,7 +125,7 @@ pub fn call_chain_definition(
             let ast = document::get_ast(&source_file, context.document_map)
                 .map_err(DefinitionError::Document)?;
             let mut ranges = Vec::new();
-            position::get_method_position_ast(&ast, Some(name), Some(args_len), &mut ranges);
+            position::get_method_position(&ast, Some(name), Some(args_len), &mut ranges);
             let uri = source_to_uri(&source_file).map_err(DefinitionError::SourceToUri)?;
             Ok(go_to_definition_range(uri, &ranges)?)
         }
@@ -196,7 +196,7 @@ pub fn call_chain_definition(
                     JType::Class(name) | JType::Generic(name, _) => Some(name),
                     _ => None,
                 };
-                position::get_class_position_ast(&ast, name.as_deref(), &mut ranges);
+                position::get_class_position(&ast, name.as_deref(), &mut ranges);
                 let uri = source_to_uri(&source).map_err(DefinitionError::SourceToUri)?;
                 return go_to_definition_range(uri, &ranges);
             }
@@ -224,7 +224,7 @@ fn field_definition(
         let ast =
             document::get_ast(&source, context.document_map).map_err(DefinitionError::Document)?;
         let mut ranges = Vec::new();
-        position::get_field_position_ast(&ast, Some(name), &mut ranges);
+        position::get_field_position(&ast, Some(name), &mut ranges);
         let uri = source_to_uri(&source).map_err(DefinitionError::SourceToUri)?;
         return go_to_definition_range(uri, &ranges);
     }

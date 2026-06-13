@@ -8,7 +8,7 @@ test:
   cargo-nextest nextest run --workspace
 
 wtest:
-  watchexec -e rs cargo nextest run --workspace
+  watchexec -e rs cargo-nextest nextest run --workspace
 
 check:
   cargo check

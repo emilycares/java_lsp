@@ -9,7 +9,7 @@ pub const SRC_TEST: &str = "src/test/java";
 
 pub fn get_document_link(uri: &Uri, document: &Document) -> Option<Vec<DocumentLink>> {
     let mut symbols = vec![];
-    position::get_class_position_ast(&document.ast, None, &mut symbols);
+    position::get_class_position(&document.ast, None, &mut symbols);
     let PositionSymbol { range, .. } = symbols.first()?;
 
     let path = uri.path().as_str();

@@ -14,10 +14,8 @@ parser.workspace = true
 class.workspace = true
 dto.workspace = true
 my_string.workspace = true
-jwalk.workspace = true
 rc-zip-tokio.workspace = true
-postcard.workspace = true
-rayon.workspace = true
+dto_rw.workspace = true
 tokio.workspace = true
 memmap2.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }

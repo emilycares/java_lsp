@@ -222,7 +222,7 @@ pub fn reference_update_class(
 
 fn pos_refs_helper(ast: &AstFile, query_class_name: &str) -> Vec<ReferencePosition> {
     let mut usages = vec![];
-    position::get_class_position_ast(ast, Some(query_class_name), &mut usages);
+    position::get_class_position(ast, Some(query_class_name), &mut usages);
     usages
         .into_iter()
         .map(ReferencePosition)

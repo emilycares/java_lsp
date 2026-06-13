@@ -11,6 +11,5 @@ license.workspace = true
 
 [dependencies]
 my_string.workspace = true
-serde.workspace = true
 bitflags.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }

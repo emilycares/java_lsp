@@ -14,8 +14,8 @@ use common::{
     deps::{deps_base, deps_get_cfc, deps_get_source},
     deps_dir,
 };
-use dto::{CFC_VERSION, Class, ClassFolder, SourceDestination};
-use loader::LoaderError;
+use dto::{Class, ClassFolder, SourceDestination};
+use loader::{DtoRwError, LoaderError};
 use my_string::{MyString, smol_str::ToSmolStr};
 use tokio::task::JoinSet;
 
@@ -77,8 +77,9 @@ pub async fn project_deps(
             let _ = fs::create_dir_all(&pom_mtwo);
         }
         let jar = m2::pom_classes_jar(dep, &pom_mtwo);
+        let source = deps_get_source(&deps_bas);
 
-        if !jar.exists() {
+        if !jar.exists() || !source.exists() {
             update_tree.push(dep.to_owned());
             continue;
         }
@@ -96,7 +97,7 @@ pub async fn project_deps(
                     });
                     Some(classes)
                 }
-                Err(LoaderError::InvalidCfcCache | LoaderError::IO(_)) => {
+                Err(LoaderError::DtoRw(DtoRwError::InvalidCfcCache) | LoaderError::IO(_)) => {
                     reindex(
                         tasks_number,
                         completed_number,
@@ -148,7 +149,6 @@ pub async fn project_deps(
 
     let maven_class_folder = ClassFolder {
         classes: done.into_iter().flatten().flat_map(|i| i.classes).collect(),
-        version: CFC_VERSION,
     };
 
     if let Err(e) = loader::save_class_folder(&cache_path, &maven_class_folder) {

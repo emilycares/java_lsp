@@ -19,6 +19,9 @@ path = "../crates/jimage"
 [dependencies.dto]
 path = "../crates/dto"
 
+[dependencies.dto_rw]
+path = "../crates/dto_rw"
+
 [dependencies.ast]
 path = "../crates/ast"
 
@@ -49,6 +52,13 @@ bench = false
 [[bin]]
 name = "parser_java"
 path = "fuzz_targets/parser_java.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "cfc"
+path = "fuzz_targets/cfc.rs"
 test = false
 doc = false
 bench = false

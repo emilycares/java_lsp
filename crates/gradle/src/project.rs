@@ -1,6 +1,6 @@
 use common::deps::{deps_base, deps_get_source};
 use common::{Dependency, TaskProgress, deps_dir};
-use dto::{CFC_VERSION, Class, ClassFolder, SourceDestination};
+use dto::{Class, ClassFolder, SourceDestination};
 use maven::m2::{self, pom_m2, pom_sources_jar};
 use maven::update::{CurlClient, pom_source_jar_url};
 use my_string::MyString;
@@ -206,7 +206,6 @@ async fn index(
 
     let class_folder = ClassFolder {
         classes: done.into_iter().flatten().flat_map(|i| i.classes).collect(),
-        version: CFC_VERSION,
     };
 
     if let Err(e) = loader::save_class_folder(&cache_path, &class_folder) {

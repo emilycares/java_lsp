@@ -8,7 +8,7 @@ use lsp_types::{
     GotoDefinitionParams, HoverParams, HoverProviderCapability, InlayHintParams, OneOf,
     ReferenceParams, ServerCapabilities, SignatureHelpOptions, SignatureHelpParams,
     TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
-    WorkDoneProgressOptions, WorkspaceSymbolParams,
+    WorkDoneProgressOptions,
     notification::{
         Cancel, DidChangeConfiguration, DidChangeTextDocument, DidCloseTextDocument,
         DidOpenTextDocument, DidSaveTextDocument, Notification, SetTrace,
@@ -16,7 +16,7 @@ use lsp_types::{
     request::{
         CodeActionRequest, CodeLensRequest, Completion, DocumentLinkRequest, DocumentSymbolRequest,
         ExecuteCommand, FoldingRangeRequest, Formatting, GotoDefinition, HoverRequest,
-        InlayHintRequest, References, Request, SignatureHelpRequest, WorkspaceSymbolRequest,
+        InlayHintRequest, References, Request, SignatureHelpRequest,
     },
 };
 
@@ -58,7 +58,6 @@ pub fn get_server_capabilities(config: &Configuration) -> ServerCapabilities {
             ..CompletionOptions::default()
         }),
         document_symbol_provider: Some(OneOf::Left(true)),
-        workspace_symbol_provider: Some(OneOf::Left(true)),
         document_formatting_provider: Some(OneOf::Left(config.formatter != FormatterConfig::None)),
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         signature_help_provider: Some(SignatureHelpOptions {
@@ -134,12 +133,6 @@ pub fn route(backend: &Backend) -> Result<(), Box<dyn std::error::Error + Send +
                     DocumentSymbolRequest::METHOD => {
                         if let Ok(params) = from_value::<DocumentSymbolParams>(req.params) {
                             let result = backend.document_symbol(params);
-                            send(backend, req.id, to_value(result).ok());
-                        }
-                    }
-                    WorkspaceSymbolRequest::METHOD => {
-                        if let Ok(params) = from_value::<WorkspaceSymbolParams>(req.params) {
-                            let result = backend.workspace_document_symbol(&params);
                             send(backend, req.id, to_value(result).ok());
                         }
                     }

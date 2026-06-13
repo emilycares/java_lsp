@@ -8,8 +8,6 @@ use std::time::Instant;
 use std::{fs::canonicalize, path::PathBuf};
 
 use ast::error::PrintErr;
-#[cfg(not(target_os = "windows"))]
-use ast::lexer::PositionToken;
 use jdk::{test_load_jdk_jmod, test_load_jdk_modules_executable, test_load_jdk_modules_own};
 #[derive(Debug)]
 pub enum CheckError {
@@ -223,7 +221,6 @@ pub enum IndexJdkOptions {
     Jmod,
 }
 
-#[cfg(target_os = "windows")]
 pub fn ast_check(path: &PathBuf) {
     use std::fs::File;
 
@@ -246,53 +243,7 @@ pub fn ast_check(path: &PathBuf) {
         }
     }
 }
-#[cfg(not(target_os = "windows"))]
-pub fn ast_check(path: &PathBuf, num: usize, tokens: &mut Vec<PositionToken>) {
-    use std::fs::File;
 
-    match File::open(path) {
-        Ok(file) => {
-            let mmap = unsafe { memmap2::Mmap::map(&file) };
-            match mmap {
-                Ok(mmap) => {
-                    #[cfg(unix)]
-                    let _ = mmap.advise(memmap2::Advice::Sequential);
-                    lex_and_ast(path, &mmap, num, tokens);
-                }
-                Err(e) => {
-                    eprintln!("unable to memmap: {e:?}");
-                    std::process::exit(2);
-                }
-            }
-        }
-        Err(e) => {
-            eprintln!("unable to open file: {e:?}");
-            std::process::exit(1);
-        }
-    }
-}
-
-#[cfg(not(target_os = "windows"))]
-fn lex_and_ast(file: &Path, text: &[u8], num: usize, tokens: &mut Vec<PositionToken>) {
-    // eprintln!("[{num}]Here: {:?}", file);
-    match ast::lexer::lex_mut::<false>(text, tokens) {
-        Ok(()) => {
-            let ast = ast::parse_file(tokens);
-            if ast.is_err() {
-                eprintln!("[{num}]Here: {}", file.display());
-                if let Ok(text) = str::from_utf8(text) {
-                    ast.print_err(text, tokens);
-                }
-                std::process::exit(3);
-            }
-        }
-        Err(e) => {
-            eprintln!("[{num}]Lexer error: {e:?}");
-            std::process::exit(2);
-        }
-    }
-}
-#[cfg(target_os = "windows")]
 fn lex_and_ast(file: &Path, text: &[u8]) {
     // eprintln!("Here: {:?}", file);
     match ast::lexer::lex(text) {
@@ -320,71 +271,7 @@ fn lex_and_ast(file: &Path, text: &[u8]) {
         }
     }
 }
-#[cfg(not(target_os = "windows"))]
-pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
-    let mut count = 0;
-    let time = Instant::now();
-    let mut tokens = Vec::new();
-    let root = canonicalize(folder).map_err(CheckError::IO)?;
-    for i in jwalk::WalkDir::new(root)
-        // Check in the same order always
-        .sort(true)
-        // .follow_links(true)
-        .into_iter()
-        .filter_map(Result::ok)
-        .filter(|e| !e.file_type().is_dir())
-        .map(|i| i.path())
-        .filter(|i| {
-            if let Some(e) = i.extension() {
-                return e == "java";
-            }
-            false
-        })
-        .enumerate()
-    {
-        count += 1;
-        ast_check(&i.1, i.0, &mut tokens);
-    }
-    println!("Checked all files. {count}, in: {:.2?}", time.elapsed());
-    Ok(())
-}
-#[cfg(not(target_os = "windows"))]
-pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: &[String]) -> Result<(), CheckError> {
-    let mut count = 0;
-    let time = Instant::now();
-    let mut tokens = Vec::new();
-    let root = canonicalize(folder).map_err(CheckError::IO)?;
-    for i in jwalk::WalkDir::new(root)
-        // Check in the same order always
-        .sort(true)
-        // .follow_links(true)
-        .into_iter()
-        .filter_map(Result::ok)
-        .filter(|e| !e.file_type().is_dir())
-        .map(|i| i.path())
-        .filter(|i| {
-            if let Some(s) = i.to_str() {
-                for ig in ignore {
-                    if s.contains(ig) {
-                        return false;
-                    }
-                }
-            }
-            if let Some(e) = i.extension() {
-                return e == "java";
-            }
-            false
-        })
-        .enumerate()
-    {
-        count += 1;
-        ast_check(&i.1, i.0, &mut tokens);
-    }
-    println!("Checked all files. {count}, in: {:.2?}", time.elapsed());
-    Ok(())
-}
 
-#[cfg(target_os = "windows")]
 fn visit_java_fies(
     dir: &PathBuf,
     dirs: &mut std::collections::VecDeque<PathBuf>,
@@ -405,8 +292,7 @@ fn visit_java_fies(
     }
     Ok(())
 }
-#[cfg(target_os = "windows")]
-pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
+pub fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
     let time = Instant::now();
     let dir = canonicalize(folder).map_err(CheckError::IO)?;
     let mut dirs = std::collections::VecDeque::new();
@@ -417,7 +303,6 @@ pub async fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
     println!("Checked all files. in: {:.2?}", time.elapsed());
     Ok(())
 }
-#[cfg(target_os = "windows")]
 pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: &[String]) -> Result<(), CheckError> {
     let time = Instant::now();
     let dir = canonicalize(folder).map_err(CheckError::IO)?;

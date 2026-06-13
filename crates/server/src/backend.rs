@@ -28,7 +28,7 @@ use lsp_types::{
     Location, Position, ProgressParams, ProgressParamsValue, ProgressToken,
     PublishDiagnosticsParams, Range, ReferenceParams, ShowDocumentParams, SignatureHelp,
     SignatureHelpParams, TextEdit, Uri, WorkDoneProgress, WorkDoneProgressBegin,
-    WorkDoneProgressEnd, WorkDoneProgressReport, WorkspaceSymbolParams, WorkspaceSymbolResponse,
+    WorkDoneProgressEnd, WorkDoneProgressReport,
     notification::{Notification, Progress, PublishDiagnostics},
     request::{Request, ShowDocument},
 };
@@ -38,7 +38,6 @@ use maven::{
     update::{self, MavenUpdateError},
 };
 use my_string::{MyString, smol_str::ToSmolStr};
-use rayon::iter::{ParallelBridge, ParallelIterator};
 use serde_json::Value;
 use tokio::task::JoinSet;
 use variables::VariableContext;
@@ -1002,55 +1001,11 @@ impl Backend {
         let document = self.get_document(&uri)?;
 
         let mut symbols = vec![];
-        position::get_class_position_ast(&document.ast, None, &mut symbols);
-        position::get_method_position_ast(&document.ast, None, None, &mut symbols);
-        position::get_field_position_ast(&document.ast, None, &mut symbols);
+        position::get_class_position(&document.ast, None, &mut symbols);
+        position::get_method_position(&document.ast, None, None, &mut symbols);
+        position::get_field_position(&document.ast, None, &mut symbols);
         let symbols = position::symbols_to_document_symbols(&symbols, &uri);
         Some(DocumentSymbolResponse::Flat(symbols))
-    }
-
-    #[allow(clippy::unnecessary_wraps)]
-    pub fn workspace_document_symbol(
-        &self,
-        params: &WorkspaceSymbolParams,
-    ) -> Option<WorkspaceSymbolResponse> {
-        let symbols = jwalk::WalkDir::new(self.project_dir.join("src"))
-            .into_iter()
-            .par_bridge()
-            .filter_map(Result::ok)
-            .filter(|e| !e.file_type().is_dir())
-            .filter(|i| {
-                i.path()
-                    .extension()
-                    .is_some_and(|i| i.eq_ignore_ascii_case("java"))
-            })
-            .filter_map(|e| e.path().to_str().map(ToString::to_string))
-            .filter_map(|i| {
-                let class_source =
-                    document::read_document_or_open_class(&i, &self.document_map).ok()?;
-                Some((i, class_source))
-            })
-            .filter_map(|(path, source)| {
-                let mut out = vec![];
-                position::get_class_position_ast(&source.ast, None, &mut out);
-                Some((path, out))
-            })
-            .map(|(path, symbols)| {
-                (
-                    path,
-                    symbols
-                        .into_iter()
-                        .filter(|i| i.name.contains(&params.query))
-                        .collect::<Vec<_>>(),
-                )
-            })
-            .filter_map(|(path, symbols)| {
-                let uri = source_to_uri(&path).ok()?;
-                Some(position::symbols_to_document_symbols(&symbols, &uri))
-            })
-            .flatten()
-            .collect();
-        Some(WorkspaceSymbolResponse::Flat(symbols))
     }
 
     pub fn signature_help(&self, params: SignatureHelpParams) -> Option<SignatureHelp> {

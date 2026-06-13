@@ -5,7 +5,6 @@ use std::{
 
 use bitflags::bitflags;
 use my_string::{MyString, smol_str::format_smolstr};
-use serde::{Deserialize, Serialize};
 
 pub const CFC_VERSION: usize = 17;
 
@@ -31,9 +30,8 @@ pub enum ClassParserError {
     InvalidUtf8,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct ClassFolder {
-    pub version: usize,
     pub classes: Vec<Class>,
 }
 
@@ -43,14 +41,14 @@ impl ClassFolder {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct ClassSignature {
     // Generics defined on class level
     pub args: Vec<MyString>,
     pub ret: JType,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct Class {
     pub class_path: MyString,
     pub source: SourceDestination,
@@ -85,7 +83,7 @@ impl Class {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum SourceDestination {
     Here(MyString),
     RelativeInFolder(MyString),
@@ -93,7 +91,7 @@ pub enum SourceDestination {
     None,
 }
 
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone, Default)]
+#[derive(Debug, Eq, PartialEq, Clone, Default)]
 pub enum SuperClass {
     #[default]
     None,
@@ -101,7 +99,7 @@ pub enum SuperClass {
     ClassPath(MyString),
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ImportUnit {
     Package(MyString),
     Class(MyString),
@@ -139,7 +137,7 @@ impl ImportUnit {
 }
 
 bitflags! {
-   #[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Debug, Default)]
+   #[derive(Clone, Eq, PartialEq, Debug, Default)]
    pub struct Access: u16 {
      const Public       = 0b0000_0000_0000_0001;
      const Private      = 0b0000_0000_0000_0010;
@@ -159,7 +157,7 @@ bitflags! {
    }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct Method {
     pub access: Access,
     pub name: Option<MyString>,
@@ -170,7 +168,7 @@ pub struct Method {
     pub source: Option<MyString>,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Field {
     pub access: Access,
     pub name: MyString,
@@ -179,13 +177,13 @@ pub struct Field {
     pub source: Option<MyString>,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Parameter {
     pub name: Option<MyString>,
     pub jtype: JType,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub enum JType {
     #[default]
     Void,

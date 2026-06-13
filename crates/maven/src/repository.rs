@@ -8,12 +8,12 @@ pub enum RepositoryError {
     Pom(pom::PomError),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Repository {
     pub url: String,
     pub credentials: Option<RepositoryCredentials>,
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RepositoryCredentials {
     pub username: String,
     pub password: String,
@@ -36,17 +36,21 @@ pub fn load_repositories(
     let project = pom::load_pom_xml(project_dir).map_err(RepositoryError::Pom)?;
 
     let Some(repositories) = project.repositories else {
+        out.push(central());
         return Ok(out);
     };
     let Some(repositories) = repositories.repository else {
+        out.push(central());
         return Ok(out);
     };
     if repositories.is_empty() {
+        out.push(central());
         return Ok(out);
     }
 
     let se = settings::load_settings_xml(m2_folder).map_err(RepositoryError::Settings)?;
     let Some(servers) = se.servers else {
+        out.push(central());
         return Ok(out);
     };
 

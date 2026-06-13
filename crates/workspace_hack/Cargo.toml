@@ -15,12 +15,8 @@ publish = false
 
 ### BEGIN HAKARI SECTION
 [dependencies]
-crossbeam-channel = { version = "0.5" }
-crossbeam-utils = { version = "0.8" }
 memchr = { version = "2" }
-serde = { version = "1", features = ["alloc", "derive"] }
-serde_core = { version = "1", default-features = false, features = ["alloc", "result", "std"] }
-thiserror = { version = "2" }
+serde_core = { version = "1", default-features = false, features = ["result", "std"] }
 
 [build-dependencies]
 proc-macro2 = { version = "1" }

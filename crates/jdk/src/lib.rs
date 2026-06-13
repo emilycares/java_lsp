@@ -17,7 +17,7 @@ use std::{
 };
 
 use common::TaskProgress;
-use dto::{CFC_VERSION, Class, ClassFolder, SourceDestination};
+use dto::{Class, ClassFolder, SourceDestination};
 use loader::{LoaderError, load_class_files};
 use my_string::{MyString, smol_str::ToSmolStr};
 use tokio::{process::Command, task::JoinSet};
@@ -210,10 +210,7 @@ async fn load_modules_with_command(
 
     let classes = load_class_files(&out, 3, true, source_dir).map_err(JdkError::Loader)?;
 
-    Ok(ClassFolder {
-        version: CFC_VERSION,
-        classes,
-    })
+    Ok(ClassFolder { classes })
 }
 
 fn load_jimage(modules_file: &Path, source_dir: &str) -> Result<ClassFolder, JdkError> {
@@ -347,10 +344,7 @@ async fn load_jmods(
         }
     }
 
-    Ok(ClassFolder {
-        classes,
-        version: CFC_VERSION,
-    })
+    Ok(ClassFolder { classes })
 }
 
 fn get_jmods_dir(path: &Path) -> PathBuf {

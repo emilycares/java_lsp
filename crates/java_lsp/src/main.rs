@@ -33,17 +33,14 @@ async fn main() {
             cli::lex_pos(&file, pos);
         }
         Some(Command::AstCheck { file }) => {
-            #[cfg(target_os = "windows")]
             cli::ast_check(&file);
-            #[cfg(not(target_os = "windows"))]
-            cli::ast_check(&file, 0, &mut Vec::new());
         }
         Some(Command::AstCheckDir { folder, ignore }) => {
             if let Some(ignore) = ignore {
                 let collect: Vec<String> = ignore.split(',').map(|i| i.to_string()).collect();
                 cli::ast_check_dir_ignore(folder, &collect).await.unwrap();
             } else {
-                cli::ast_check_dir(folder).await.unwrap();
+                cli::ast_check_dir(folder).unwrap();
             }
         }
         Some(Command::AstCheckJdk) => {
@@ -55,7 +52,7 @@ async fn main() {
             jdk::load_jdk(&java_path, &op_dir, ForceLoader::None, sender)
                 .await
                 .unwrap();
-            cli::ast_check_dir(op_dir.join("src")).await.unwrap();
+            cli::ast_check_dir(op_dir.join("src")).unwrap();
         }
         Some(Command::IndexJdk { variant }) => {
             cli::index_jdk(variant).await;

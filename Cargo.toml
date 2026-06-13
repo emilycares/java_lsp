@@ -46,6 +46,7 @@ members = [
     "crates/class",
     "crates/mutf8",
     "crates/dirs",
+    "crates/dto_rw",
 ]
 exclude = [
     "editor/zed",
@@ -72,6 +73,7 @@ debug = "line-tables-only"
 [workspace.dependencies]
 # In this project
 dto = { path = "crates/dto"}
+dto_rw = { path = "crates/dto_rw"}
 class = { path = "crates/class"}
 parser = { path = "crates/parser"}
 ast = { path = "crates/ast"}
@@ -104,7 +106,6 @@ dirs = { path = "crates/dirs"}
 
 # Rest
 bitflags = { version = "2.11.1", features = ["serde"] }
-postcard = { version = "1.1.3", features = ["alloc"] }
 ropey = "1.6.1"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
@@ -112,9 +113,7 @@ serde-xml-rs = "0.8.2"
 tokio = { version = "1.51.1", features = ["full"] }
 lsp-server = "0.7.9"
 lsp-types = "0.97.0"
-jwalk = "0.8.1"
 rc-zip-tokio = "4.3.1"
-rayon = "1.11.0"
 memmap2 = "0.9.9"
 memchr = "2.7.6"
 sha1_smol = "1.0.1"

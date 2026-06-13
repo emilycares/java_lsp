@@ -360,7 +360,10 @@ pub fn cmd(
     if let Some(temp) = dirs::temp_dir()
         && let Ok(now) = std::time::SystemTime::now().duration_since(UNIX_EPOCH)
     {
-        let cmd_str = cmd_str.replace(['/', '\\'], ".");
+        #[cfg(windows)]
+        let cmd_str = cmd_str.replace('\\', ".");
+        #[cfg(not(windows))]
+        let cmd_str = cmd_str.replace('/', ".");
         let mut path = temp.join(format!("{}_{cmd_str}", now.as_secs()));
         path.set_extension("log");
         if let Some(p) = path.to_str() {

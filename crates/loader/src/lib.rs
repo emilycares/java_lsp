@@ -3,7 +3,6 @@
 #![deny(clippy::nursery)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
-#[cfg(target_os = "windows")]
 use std::collections::VecDeque;
 use std::{
     fs::{File, OpenOptions},
@@ -12,7 +11,11 @@ use std::{
 };
 
 use class::{ModuleInfo, load_class, load_module};
-use dto::{CFC_VERSION, Class, ClassFolder, ClassParserError, SourceDestination};
+use dto::{Class, ClassFolder, ClassParserError, SourceDestination};
+pub use dto_rw::DtoRwError;
+use my_string::smol_str::SmolStr;
+#[cfg(windows)]
+use my_string::smol_str::StrExt;
 use my_string::{MyString, smol_str::ToSmolStr};
 use parser::java::{self, ParseJavaError};
 use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
@@ -28,11 +31,11 @@ pub enum LoaderError {
         e: rc_zip_tokio::rc_zip::error::Error,
         path: String,
     },
-    InvalidCfcCache,
     EmptyClassFolder,
     Module(ClassParserError),
     ClassParser(ClassParserError),
     ParseJava(ParseJavaError),
+    DtoRw(DtoRwError),
 }
 
 pub fn load_java_fs<T>(path: T, source: SourceDestination) -> Result<Class, LoaderError>
@@ -77,7 +80,7 @@ pub fn save_class_folder<P: AsRef<Path> + Debug>(
         .write(true)
         .open(path)
         .map_err(LoaderError::IO)?;
-    let data = postcard::to_allocvec(class_folder).map_err(|_| LoaderError::InvalidCfcCache)?;
+    let data = dto_rw::write(class_folder);
 
     file.write_all(&data).map_err(LoaderError::IO)?;
     file.flush().map_err(LoaderError::IO)?;
@@ -86,55 +89,14 @@ pub fn save_class_folder<P: AsRef<Path> + Debug>(
 
 pub fn load_class_folder<P: AsRef<Path> + Debug>(path: P) -> Result<ClassFolder, LoaderError> {
     if DEBUGGING {
-        return Err(LoaderError::InvalidCfcCache);
+        return Err(LoaderError::DtoRw(DtoRwError::InvalidCfcCache));
     }
     let file = File::open(&path).map_err(LoaderError::IO)?;
     let mmap = unsafe { memmap2::Mmap::map(&file) }.map_err(LoaderError::IO)?;
-    if let Ok(o) = postcard::from_bytes::<ClassFolder>(&mmap[..]) {
-        if o.version != CFC_VERSION {
-            return Err(LoaderError::InvalidCfcCache);
-        }
-        Ok(o)
-    } else {
-        Err(LoaderError::InvalidCfcCache)
-    }
+    dto_rw::parse(&mmap[..]).map_err(LoaderError::DtoRw)
 }
 
-#[cfg(not(target_os = "windows"))]
-pub fn load_java_files(folder: PathBuf) -> Vec<Class> {
-    use jwalk::WalkDir;
-    use my_string::smol_str::ToSmolStr;
-    use rayon::iter::{ParallelBridge, ParallelIterator};
-
-    WalkDir::new(folder)
-        .into_iter()
-        .par_bridge()
-        .filter_map(Result::ok)
-        .filter(|e| !e.file_type().is_dir())
-        .filter(|e| {
-            e.path()
-                .extension()
-                .is_some_and(|i| i.eq_ignore_ascii_case("java"))
-        })
-        .filter_map(|e| {
-            e.path()
-                .to_str()
-                .map(ToString::to_string)
-                .map(|i| i.replace('\\', "/"))
-        })
-        .filter_map(
-            |p| match load_java_fs(&p, SourceDestination::Here(p.to_smolstr())) {
-                Ok(c) => Some(c),
-                Err(e) => {
-                    eprintln!("Unable to load java: {p}: {e:?}");
-                    None
-                }
-            },
-        )
-        .collect::<Vec<_>>()
-}
 #[must_use]
-#[cfg(target_os = "windows")]
 pub fn load_java_files(dir: PathBuf) -> Vec<Class> {
     let mut dirs = VecDeque::new();
     dirs.push_back(dir);
@@ -151,7 +113,6 @@ pub fn load_java_files(dir: PathBuf) -> Vec<Class> {
     }
     out
 }
-#[cfg(target_os = "windows")]
 fn visit_java_files(
     dir: &PathBuf,
     dirs: &mut VecDeque<PathBuf>,
@@ -175,15 +136,42 @@ fn visit_java_files(
     Ok(out)
 }
 
+fn visit_class_files(
+    dir: &PathBuf,
+    dirs: &mut VecDeque<PathBuf>,
+) -> Result<Vec<SmolStr>, LoaderError> {
+    let read_dir = std::fs::read_dir(dir)
+        .map_err(LoaderError::IO)?
+        .map(|res| res.map(|e| e.path()))
+        .filter_map(Result::ok);
+    let mut out: Vec<SmolStr> = Vec::new();
+    for entry in read_dir {
+        if entry.is_dir() {
+            dirs.push_back(entry);
+        } else if let Some(e) = entry.extension()
+            && e == "class"
+            && let Some(p) = entry.to_str()
+        {
+            #[cfg(windows)]
+            let p = p.replace_smolstr("\\", "/");
+            #[cfg(not(windows))]
+            let p = p.to_smolstr();
+            out.push(p);
+        }
+    }
+    Ok(out)
+}
+
 pub fn load_class_files(
-    folder: &PathBuf,
+    folder: &Path,
     trim_prefix: usize,
     filter: bool,
     source: &str,
 ) -> Result<Vec<Class>, LoaderError> {
-    use jwalk::WalkDir;
     use my_string::smol_str::ToSmolStr;
-    use rayon::iter::{ParallelBridge, ParallelIterator};
+    let mut dirs = VecDeque::new();
+    dirs.push_back(folder.to_path_buf());
+
     let Some(root_prefix) = folder.to_str() else {
         return Ok(vec![]);
     };
@@ -193,25 +181,17 @@ pub fn load_class_files(
     #[cfg(windows)]
     let root_prefix = root_prefix.as_str();
 
-    let filter_map: Vec<_> = WalkDir::new(folder)
-        .into_iter()
-        .par_bridge()
-        .filter_map(Result::ok)
-        .filter(|e| !e.file_type().is_dir())
-        .filter(|e| {
-            e.path()
-                .extension()
-                .is_some_and(|i| i.eq_ignore_ascii_case("class"))
-        })
-        .filter_map(|e| e.path().to_str().map(|i| i.replace('\\', "/")))
-        .collect();
+    let mut files = Vec::new();
+    while let Some(dir) = dirs.pop_front() {
+        if let Ok(o) = visit_class_files(&dir, &mut dirs) {
+            files.extend(o);
+        }
+    }
+
     // Prefix for module info
     let mut rules: Vec<(String, ModuleInfo)> = Vec::new();
 
-    for p in filter_map
-        .iter()
-        .filter(|i| i.ends_with("module-info.class"))
-    {
+    for p in files.iter().filter(|i| i.ends_with("module-info.class")) {
         let prefix = p
             .trim_start_matches(root_prefix)
             .trim_start_matches('/')
@@ -234,10 +214,7 @@ pub fn load_class_files(
 
     let mut out = Vec::new();
 
-    'outer: for p in filter_map
-        .iter()
-        .filter(|i| !i.ends_with("module-info.class"))
-    {
+    'outer: for p in files.iter().filter(|i| !i.ends_with("module-info.class")) {
         use my_string::smol_str::{StrExt, format_smolstr};
 
         let prefix = p.trim_start_matches(root_prefix).trim_start_matches('/');
@@ -384,30 +361,17 @@ async fn base_load_classes_zip(
         }
     }
 
-    Ok(ClassFolder {
-        version: CFC_VERSION,
-        classes,
-    })
+    Ok(ClassFolder { classes })
 }
 
 #[cfg(test)]
 mod tests {
     use crate::DEBUGGING;
-    use dto::JType;
 
     #[test]
     fn not_debugging() {
         const {
             assert!(!DEBUGGING);
         }
-    }
-
-    #[test]
-    fn ser() {
-        let inp = JType::Void;
-        let ser: Vec<u8> = postcard::to_allocvec(&inp).unwrap();
-        let out: JType = postcard::from_bytes(&ser).unwrap();
-
-        assert_eq!(inp, out);
     }
 }

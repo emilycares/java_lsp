@@ -19,7 +19,7 @@ use std::{
     str::from_utf8,
 };
 
-use dto::{CFC_VERSION, ClassFolder, ClassParserError, SourceDestination};
+use dto::{ClassFolder, ClassParserError, SourceDestination};
 use my_string::{
     MyString,
     smol_str::{StrExt, ToSmolStr, format_smolstr},
@@ -109,10 +109,7 @@ pub fn parser(
         }
     }
 
-    Ok(ClassFolder {
-        version: CFC_VERSION,
-        classes,
-    })
+    Ok(ClassFolder { classes })
 }
 
 fn load_module_info(
