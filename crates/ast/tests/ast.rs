@@ -18659,3 +18659,478 @@ fn inline_switch() {
     "#]];
     expected.assert_debug_eq(&parsed);
 }
+
+#[test]
+fn top_level_function() {
+    let content = r#"void main() {
+        System.out.println("Hey");
+    }"#;
+    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let parsed = parse_file(&tokens);
+    parsed.print_err(content, &tokens);
+    let parsed = parsed.unwrap();
+    let expected = expect![[r#"
+        AstFile {
+            top: [
+                Method(
+                    AstClassMethod {
+                        range: AstRange {
+                            start: AstPoint { 0:0 },
+                            end: AstPoint { 2:5 },
+                        },
+                        header: AstMethodHeader {
+                            range: AstRange {
+                                start: AstPoint { 0:0 },
+                                end: AstPoint { 0:11 },
+                            },
+                            availability: AstAvailability(
+                                0x0,
+                            ),
+                            name: AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint { 0:5 },
+                                    end: AstPoint { 0:9 },
+                                },
+                                value: "main",
+                            },
+                            jtype: AstJType {
+                                annotated: [],
+                                range: AstRange {
+                                    start: AstPoint { 0:0 },
+                                    end: AstPoint { 0:4 },
+                                },
+                                value: Void,
+                            },
+                            parameters: AstMethodParameters {
+                                range: AstRange {
+                                    start: AstPoint { 0:9 },
+                                    end: AstPoint { 0:11 },
+                                },
+                                parameters: [],
+                            },
+                            throws: None,
+                            type_parameters: None,
+                            annotated: [],
+                        },
+                        block: Some(
+                            AstBlock {
+                                range: AstRange {
+                                    start: AstPoint { 0:12 },
+                                    end: AstPoint { 2:5 },
+                                },
+                                entries: [
+                                    Expression(
+                                        AstBlockExpression {
+                                            range: AstRange {
+                                                start: AstPoint { 1:8 },
+                                                end: AstPoint { 1:34 },
+                                            },
+                                            value: [
+                                                Base(
+                                                    AstBaseExpression {
+                                                        range: AstRange {
+                                                            start: AstPoint { 1:8 },
+                                                            end: AstPoint { 1:14 },
+                                                        },
+                                                        ident: Some(
+                                                            Identifier(
+                                                                AstIdentifier {
+                                                                    range: AstRange {
+                                                                        start: AstPoint { 1:8 },
+                                                                        end: AstPoint { 1:14 },
+                                                                    },
+                                                                    value: "System",
+                                                                },
+                                                            ),
+                                                        ),
+                                                        values: None,
+                                                        operator: None,
+                                                    },
+                                                ),
+                                                Base(
+                                                    AstBaseExpression {
+                                                        range: AstRange {
+                                                            start: AstPoint { 1:14 },
+                                                            end: AstPoint { 1:15 },
+                                                        },
+                                                        ident: None,
+                                                        values: None,
+                                                        operator: Dot(
+                                                            AstRange {
+                                                                start: AstPoint { 1:14 },
+                                                                end: AstPoint { 1:15 },
+                                                            },
+                                                        ),
+                                                    },
+                                                ),
+                                                Base(
+                                                    AstBaseExpression {
+                                                        range: AstRange {
+                                                            start: AstPoint { 1:15 },
+                                                            end: AstPoint { 1:18 },
+                                                        },
+                                                        ident: Some(
+                                                            Identifier(
+                                                                AstIdentifier {
+                                                                    range: AstRange {
+                                                                        start: AstPoint { 1:15 },
+                                                                        end: AstPoint { 1:18 },
+                                                                    },
+                                                                    value: "out",
+                                                                },
+                                                            ),
+                                                        ),
+                                                        values: None,
+                                                        operator: None,
+                                                    },
+                                                ),
+                                                Base(
+                                                    AstBaseExpression {
+                                                        range: AstRange {
+                                                            start: AstPoint { 1:18 },
+                                                            end: AstPoint { 1:19 },
+                                                        },
+                                                        ident: None,
+                                                        values: None,
+                                                        operator: Dot(
+                                                            AstRange {
+                                                                start: AstPoint { 1:18 },
+                                                                end: AstPoint { 1:19 },
+                                                            },
+                                                        ),
+                                                    },
+                                                ),
+                                                Base(
+                                                    AstBaseExpression {
+                                                        range: AstRange {
+                                                            start: AstPoint { 1:19 },
+                                                            end: AstPoint { 1:26 },
+                                                        },
+                                                        ident: Some(
+                                                            Identifier(
+                                                                AstIdentifier {
+                                                                    range: AstRange {
+                                                                        start: AstPoint { 1:19 },
+                                                                        end: AstPoint { 1:26 },
+                                                                    },
+                                                                    value: "println",
+                                                                },
+                                                            ),
+                                                        ),
+                                                        values: None,
+                                                        operator: None,
+                                                    },
+                                                ),
+                                                Base(
+                                                    AstBaseExpression {
+                                                        range: AstRange {
+                                                            start: AstPoint { 1:26 },
+                                                            end: AstPoint { 1:33 },
+                                                        },
+                                                        ident: None,
+                                                        values: Some(
+                                                            AstValues {
+                                                                range: AstRange {
+                                                                    start: AstPoint { 1:26 },
+                                                                    end: AstPoint { 1:33 },
+                                                                },
+                                                                values: [
+                                                                    [
+                                                                        Base(
+                                                                            AstBaseExpression {
+                                                                                range: AstRange {
+                                                                                    start: AstPoint { 1:31 },
+                                                                                    end: AstPoint { 1:34 },
+                                                                                },
+                                                                                ident: Some(
+                                                                                    Value(
+                                                                                        Nuget(
+                                                                                            StringLiteral(
+                                                                                                AstIdentifier {
+                                                                                                    range: AstRange {
+                                                                                                        start: AstPoint { 1:31 },
+                                                                                                        end: AstPoint { 1:27 },
+                                                                                                    },
+                                                                                                    value: "Hey",
+                                                                                                },
+                                                                                            ),
+                                                                                        ),
+                                                                                    ),
+                                                                                ),
+                                                                                values: None,
+                                                                                operator: None,
+                                                                            },
+                                                                        ),
+                                                                    ],
+                                                                ],
+                                                            },
+                                                        ),
+                                                        operator: None,
+                                                    },
+                                                ),
+                                            ],
+                                        },
+                                    ),
+                                ],
+                            },
+                        ),
+                    },
+                ),
+            ],
+        }
+    "#]];
+    expected.assert_debug_eq(&parsed);
+}
+
+#[test]
+fn method_inner_class() {
+    let content = r#"
+    public static Logger getLogger() {
+
+        class Holder {
+            private static final Logger LOGGER = null;
+        }
+
+        return Holder.LOGGER;
+    }
+    "#;
+    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let parsed = parse_file(&tokens);
+    parsed.print_err(content, &tokens);
+    let parsed = parsed.unwrap();
+    let expected = expect![[r#"
+        AstFile {
+            top: [
+                Method(
+                    AstClassMethod {
+                        range: AstRange {
+                            start: AstPoint { 1:4 },
+                            end: AstPoint { 8:5 },
+                        },
+                        header: AstMethodHeader {
+                            range: AstRange {
+                                start: AstPoint { 1:4 },
+                                end: AstPoint { 1:36 },
+                            },
+                            availability: AstAvailability(
+                                Public | Static,
+                            ),
+                            name: AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint { 1:25 },
+                                    end: AstPoint { 1:34 },
+                                },
+                                value: "getLogger",
+                            },
+                            jtype: AstJType {
+                                annotated: [],
+                                range: AstRange {
+                                    start: AstPoint { 1:18 },
+                                    end: AstPoint { 1:24 },
+                                },
+                                value: Class(
+                                    AstIdentifier {
+                                        range: AstRange {
+                                            start: AstPoint { 1:18 },
+                                            end: AstPoint { 1:24 },
+                                        },
+                                        value: "Logger",
+                                    },
+                                ),
+                            },
+                            parameters: AstMethodParameters {
+                                range: AstRange {
+                                    start: AstPoint { 1:34 },
+                                    end: AstPoint { 1:36 },
+                                },
+                                parameters: [],
+                            },
+                            throws: None,
+                            type_parameters: None,
+                            annotated: [],
+                        },
+                        block: Some(
+                            AstBlock {
+                                range: AstRange {
+                                    start: AstPoint { 1:37 },
+                                    end: AstPoint { 8:5 },
+                                },
+                                entries: [
+                                    Thing(
+                                        Class(
+                                            AstClass {
+                                                range: AstRange {
+                                                    start: AstPoint { 3:8 },
+                                                    end: AstPoint { 5:9 },
+                                                },
+                                                availability: AstAvailability(
+                                                    0x0,
+                                                ),
+                                                attributes: AstThingAttributes(
+                                                    0x0,
+                                                ),
+                                                annotated: [],
+                                                name: AstIdentifier {
+                                                    range: AstRange {
+                                                        start: AstPoint { 3:14 },
+                                                        end: AstPoint { 3:20 },
+                                                    },
+                                                    value: "Holder",
+                                                },
+                                                type_parameters: None,
+                                                superclass: [],
+                                                implements: [],
+                                                permits: [],
+                                                block: AstClassBlock {
+                                                    variables: [
+                                                        AstClassVariable {
+                                                            range: AstRange {
+                                                                start: AstPoint { 4:12 },
+                                                                end: AstPoint { 4:53 },
+                                                            },
+                                                            availability: AstAvailability(
+                                                                Final | Static | Private,
+                                                            ),
+                                                            annotated: [],
+                                                            name: AstIdentifier {
+                                                                range: AstRange {
+                                                                    start: AstPoint { 4:40 },
+                                                                    end: AstPoint { 4:46 },
+                                                                },
+                                                                value: "LOGGER",
+                                                            },
+                                                            jtype: AstJType {
+                                                                annotated: [],
+                                                                range: AstRange {
+                                                                    start: AstPoint { 4:33 },
+                                                                    end: AstPoint { 4:39 },
+                                                                },
+                                                                value: Class(
+                                                                    AstIdentifier {
+                                                                        range: AstRange {
+                                                                            start: AstPoint { 4:33 },
+                                                                            end: AstPoint { 4:39 },
+                                                                        },
+                                                                        value: "Logger",
+                                                                    },
+                                                                ),
+                                                            },
+                                                            expression: Some(
+                                                                [
+                                                                    Base(
+                                                                        AstBaseExpression {
+                                                                            range: AstRange {
+                                                                                start: AstPoint { 4:49 },
+                                                                                end: AstPoint { 4:53 },
+                                                                            },
+                                                                            ident: Some(
+                                                                                Identifier(
+                                                                                    AstIdentifier {
+                                                                                        range: AstRange {
+                                                                                            start: AstPoint { 4:49 },
+                                                                                            end: AstPoint { 4:53 },
+                                                                                        },
+                                                                                        value: "null",
+                                                                                    },
+                                                                                ),
+                                                                            ),
+                                                                            values: None,
+                                                                            operator: None,
+                                                                        },
+                                                                    ),
+                                                                ],
+                                                            ),
+                                                            volatile_transient: AstVolatileTransient(
+                                                                0x0,
+                                                            ),
+                                                        },
+                                                    ],
+                                                    methods: [],
+                                                    constructors: [],
+                                                    static_blocks: [],
+                                                    inner: [],
+                                                    blocks: [],
+                                                },
+                                            },
+                                        ),
+                                    ),
+                                    Return(
+                                        AstBlockReturn {
+                                            range: AstRange {
+                                                start: AstPoint { 7:8 },
+                                                end: AstPoint { 7:29 },
+                                            },
+                                            expression: Expression(
+                                                [
+                                                    Base(
+                                                        AstBaseExpression {
+                                                            range: AstRange {
+                                                                start: AstPoint { 7:15 },
+                                                                end: AstPoint { 7:21 },
+                                                            },
+                                                            ident: Some(
+                                                                Identifier(
+                                                                    AstIdentifier {
+                                                                        range: AstRange {
+                                                                            start: AstPoint { 7:15 },
+                                                                            end: AstPoint { 7:21 },
+                                                                        },
+                                                                        value: "Holder",
+                                                                    },
+                                                                ),
+                                                            ),
+                                                            values: None,
+                                                            operator: None,
+                                                        },
+                                                    ),
+                                                    Base(
+                                                        AstBaseExpression {
+                                                            range: AstRange {
+                                                                start: AstPoint { 7:21 },
+                                                                end: AstPoint { 7:22 },
+                                                            },
+                                                            ident: None,
+                                                            values: None,
+                                                            operator: Dot(
+                                                                AstRange {
+                                                                    start: AstPoint { 7:21 },
+                                                                    end: AstPoint { 7:22 },
+                                                                },
+                                                            ),
+                                                        },
+                                                    ),
+                                                    Base(
+                                                        AstBaseExpression {
+                                                            range: AstRange {
+                                                                start: AstPoint { 7:22 },
+                                                                end: AstPoint { 7:28 },
+                                                            },
+                                                            ident: Some(
+                                                                Identifier(
+                                                                    AstIdentifier {
+                                                                        range: AstRange {
+                                                                            start: AstPoint { 7:22 },
+                                                                            end: AstPoint { 7:28 },
+                                                                        },
+                                                                        value: "LOGGER",
+                                                                    },
+                                                                ),
+                                                            ),
+                                                            values: None,
+                                                            operator: None,
+                                                        },
+                                                    ),
+                                                ],
+                                            ),
+                                        },
+                                    ),
+                                ],
+                            },
+                        ),
+                    },
+                ),
+            ],
+        }
+    "#]];
+    expected.assert_debug_eq(&parsed);
+}

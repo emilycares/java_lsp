@@ -41,7 +41,7 @@ pub fn imports(ast: &AstFile) -> Vec<ImportUnit> {
             AstTopLevel::Import(ast_import) => {
                 out.push(ast_import.into());
             }
-            AstTopLevel::Thing(_) | AstTopLevel::Module(_) => (),
+            AstTopLevel::Thing(_) | AstTopLevel::Module(_) | AstTopLevel::Method(_) => (),
         }
     }
     out

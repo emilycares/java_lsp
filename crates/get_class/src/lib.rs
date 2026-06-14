@@ -56,6 +56,13 @@ pub fn get_class(ast: &AstFile, point: &AstPoint) -> Option<FoundClass> {
                     return Some(t);
                 }
             }
+            AstTopLevel::Method(m) => {
+                if m.range.is_in_range(point)
+                    && let Some(o) = get_class_class_method(m, point)
+                {
+                    return Some(o);
+                }
+            }
             AstTopLevel::Package(_) | AstTopLevel::Module(_) => (),
         }
     }
@@ -463,28 +470,8 @@ fn get_class_cblock(block: &AstClassBlock, point: &AstPoint) -> Option<FoundClas
         if !m.range.is_in_range(point) {
             continue;
         }
-        if let Some(value) = get_class_annotated_vec(&m.header.annotated, point) {
+        if let Some(value) = get_class_class_method(m, point) {
             return Some(value);
-        }
-
-        if let Some(o) = get_class_jtype(&m.header.jtype, point) {
-            return Some(o);
-        }
-        if m.header.parameters.range.is_in_range(point) {
-            for p in &m.header.parameters.parameters {
-                if let Some(o) = get_class_annotated_vec(&p.annotated, point) {
-                    return Some(o);
-                }
-                if let Some(o) = get_class_jtype(&p.jtype, point) {
-                    return Some(o);
-                }
-            }
-        }
-
-        if let Some(block) = &m.block
-            && let Some(b) = get_class_block(block, point)
-        {
-            return Some(b);
         }
     }
     for c in &block.constructors {
@@ -532,6 +519,32 @@ fn get_class_cblock(block: &AstClassBlock, point: &AstPoint) -> Option<FoundClas
         {
             return Some(t);
         }
+    }
+    None
+}
+
+fn get_class_class_method(m: &ast::types::AstClassMethod, point: &AstPoint) -> Option<FoundClass> {
+    if let Some(value) = get_class_annotated_vec(&m.header.annotated, point) {
+        return Some(value);
+    }
+    if let Some(o) = get_class_jtype(&m.header.jtype, point) {
+        return Some(o);
+    }
+    if m.header.parameters.range.is_in_range(point) {
+        for p in &m.header.parameters.parameters {
+            if let Some(o) = get_class_annotated_vec(&p.annotated, point) {
+                return Some(o);
+            }
+            if let Some(o) = get_class_jtype(&p.jtype, point) {
+                return Some(o);
+            }
+        }
+    }
+
+    if let Some(block) = &m.block
+        && let Some(b) = get_class_block(block, point)
+    {
+        return Some(b);
     }
     None
 }

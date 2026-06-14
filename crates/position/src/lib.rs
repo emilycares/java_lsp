@@ -22,7 +22,10 @@ pub struct PositionSymbol {
 pub fn get_class_position(ast: &AstFile, name: Option<&str>, out: &mut Vec<PositionSymbol>) {
     for thing in ast.top.iter().filter_map(|i| match i {
         AstTopLevel::Thing(ast_thing) => Some(ast_thing),
-        AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => None,
+        AstTopLevel::Package(_)
+        | AstTopLevel::Import(_)
+        | AstTopLevel::Module(_)
+        | AstTopLevel::Method(_) => None,
     }) {
         get_class_position_thing(thing, name, out);
     }
@@ -138,11 +141,24 @@ pub fn get_method_position(
     nargs: Option<usize>,
     out: &mut Vec<PositionSymbol>,
 ) {
-    for thing in file.top.iter().filter_map(|i| match i {
-        AstTopLevel::Thing(ast_thing) => Some(ast_thing),
-        AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => None,
-    }) {
-        get_method_position_thing(thing, name, nargs, out);
+    for thing in &file.top {
+        match thing {
+            AstTopLevel::Thing(ast_thing) => {
+                get_method_position_thing(ast_thing, name, nargs, out);
+            }
+            AstTopLevel::Method(m) => {
+                if is_valid_name(name, &m.header.name)
+                    && is_valid_args(m.header.parameters.parameters.len(), nargs)
+                {
+                    out.push(PositionSymbol {
+                        range: m.range,
+                        name: m.header.name.value.clone(),
+                        kind: SymbolKind::METHOD,
+                    });
+                }
+            }
+            AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => (),
+        }
     }
 }
 
@@ -256,7 +272,10 @@ fn is_valid_name(name: Option<&str>, i: &AstIdentifier) -> bool {
 pub fn get_field_position(file: &AstFile, name: Option<&str>, out: &mut Vec<PositionSymbol>) {
     for thing in file.top.iter().filter_map(|i| match i {
         AstTopLevel::Thing(ast_thing) => Some(ast_thing),
-        AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => None,
+        AstTopLevel::Package(_)
+        | AstTopLevel::Import(_)
+        | AstTopLevel::Module(_)
+        | AstTopLevel::Method(_) => None,
     }) {
         get_field_position_thing(thing, name, out);
     }

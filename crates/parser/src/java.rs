@@ -44,6 +44,9 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
                 imports.push(ImportUnit::Package(ast_package.name.clone().into()));
             }
             AstTopLevel::Import(ast_import) => imports.push(ast_import.into()),
+            AstTopLevel::Method(m) => {
+                methods.push(convert_class_method(m, None));
+            }
             AstTopLevel::Thing(ast_thing) => {
                 match &**ast_thing {
                     AstThing::Class(class) => {

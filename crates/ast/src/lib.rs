@@ -27,6 +27,7 @@ use types::{
     AstValues, AstWhile,
 };
 
+use crate::class::parse_class_method;
 use crate::types::{AstMethodParameterFlags, AstTopLevel};
 use crate::{
     class::parse_class_block,
@@ -100,6 +101,16 @@ pub fn parse_file(tokens: &[PositionToken]) -> Result<AstFile, AstError> {
             }
             Err(e) => {
                 errors.push((SmolStr::new_inline("thing"), e));
+            }
+        }
+        match parse_class_method(tokens, pos) {
+            Ok((method, npos)) => {
+                pos = npos;
+                top.push(AstTopLevel::Method(Box::new(method)));
+                continue;
+            }
+            Err(e) => {
+                errors.push((SmolStr::new_inline("method"), e));
             }
         }
         match parse_module(tokens, pos) {

@@ -381,7 +381,10 @@ pub fn imports(
     let mut is_in_thing = false;
     for thing in document.ast.top.iter().filter_map(|i| match i {
         AstTopLevel::Thing(ast_thing) => Some(ast_thing),
-        AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => None,
+        AstTopLevel::Package(_)
+        | AstTopLevel::Import(_)
+        | AstTopLevel::Module(_)
+        | AstTopLevel::Method(_) => None,
     }) {
         if thing.is_in_range(point) {
             is_in_thing = true;
@@ -392,7 +395,10 @@ pub fn imports(
     }
     for im in document.ast.top.iter().filter_map(|i| match i {
         AstTopLevel::Import(import) => Some(import),
-        AstTopLevel::Package(_) | AstTopLevel::Thing(_) | AstTopLevel::Module(_) => None,
+        AstTopLevel::Package(_)
+        | AstTopLevel::Thing(_)
+        | AstTopLevel::Module(_)
+        | AstTopLevel::Method(_) => None,
     }) {
         if im.range.start.line != point.line {
             continue;
@@ -426,11 +432,16 @@ pub fn imports(
 pub fn parameter(document: &Document, point: &AstPoint) -> Option<Vec<CompletionItem>> {
     let mut out = Vec::new();
     let mut in_parameter = false;
-    for thing in document.ast.top.iter().filter_map(|i| match i {
-        AstTopLevel::Thing(thing) => Some(thing),
-        AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => None,
-    }) {
-        parameter_thing(point, &mut out, &mut in_parameter, thing);
+    for i in &document.ast.top {
+        match i {
+            AstTopLevel::Thing(thing) => {
+                parameter_thing(point, &mut out, &mut in_parameter, thing);
+            }
+            AstTopLevel::Method(m) => {
+                parameter_helper(point, &mut out, &mut in_parameter, &m.header.parameters);
+            }
+            AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => (),
+        }
     }
     if in_parameter {
         out.dedup_by_key(|i| i.insert_text.clone());

@@ -218,7 +218,7 @@ pub fn get_class_path(ast: &AstFile) -> Option<MyString> {
                     return Some(format_smolstr!("{}.{}", package.name.value, name));
                 }
             }
-            AstTopLevel::Import(_) | AstTopLevel::Module(_) => {}
+            AstTopLevel::Import(_) | AstTopLevel::Module(_) | AstTopLevel::Method(_) => {}
         }
     }
     None

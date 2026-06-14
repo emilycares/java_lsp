@@ -43,11 +43,16 @@ pub fn get_vars(
 ) -> Result<Vec<LocalVariable>, VariablesError> {
     let mut out: Vec<LocalVariable> = vec![];
     let level = 0;
-    for thing in ast.top.iter().filter_map(|i| match i {
-        AstTopLevel::Thing(ast_thing) => Some(ast_thing),
-        AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => None,
-    }) {
-        get_vars_thing(thing, level, context, &mut out)?;
+    for top in &ast.top {
+        match top {
+            AstTopLevel::Thing(ast_thing) => {
+                get_vars_thing(ast_thing, level, context, &mut out)?;
+            }
+            AstTopLevel::Method(m) => {
+                get_vars_method(m, level, context, &mut out)?;
+            }
+            AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => (),
+        }
     }
 
     // let n = cursor.goto_first_child_for_point(*point);
@@ -103,19 +108,29 @@ fn get_class_methods(
     let level = level + 1;
 
     for method in methods {
-        out.push(LocalVariable::from_class_method(method, level));
-        if is_in_range_c(method.range, &context.point) {
-            out.extend(
-                method
-                    .header
-                    .parameters
-                    .parameters
-                    .iter()
-                    .map(move |i| LocalVariable::from_method_parameter(i, level)),
-            );
-            if let Some(block) = &method.block {
-                get_block_vars(block, level, context, out)?;
-            }
+        get_vars_method(method, level, context, out)?;
+    }
+    Ok(())
+}
+
+fn get_vars_method(
+    method: &AstClassMethod,
+    level: usize,
+    context: &VariableContext<'_>,
+    out: &mut Vec<LocalVariable>,
+) -> Result<(), VariablesError> {
+    out.push(LocalVariable::from_class_method(method, level));
+    if is_in_range_c(method.range, &context.point) {
+        out.extend(
+            method
+                .header
+                .parameters
+                .parameters
+                .iter()
+                .map(move |i| LocalVariable::from_method_parameter(i, level)),
+        );
+        if let Some(block) = &method.block {
+            get_block_vars(block, level, context, out)?;
         }
     }
     Ok(())

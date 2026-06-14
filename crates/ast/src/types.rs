@@ -78,6 +78,7 @@ pub enum AstTopLevel {
     Package(AstPackage),
     Import(AstImport),
     Thing(Box<AstThing>),
+    Method(Box<AstClassMethod>),
     Module(AstModule),
 }
 

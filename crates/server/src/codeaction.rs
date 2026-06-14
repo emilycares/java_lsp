@@ -48,55 +48,65 @@ pub fn replace_with_value_type(
 ) -> Result<Option<CodeActionOrCommand>, CodeActionError> {
     let mut classvar = None;
     let mut blockvar = None;
-    for thing in ast.top.iter().filter_map(|i| match i {
-        AstTopLevel::Thing(ast_thing) => Some(ast_thing),
-        AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => None,
-    }) {
-        match &**thing {
-            AstThing::Class(ast_class) => {
-                let cvars = ast_class
-                    .block
-                    .variables
-                    .iter()
-                    .find(|i| i.range.is_in_range(context.point));
-                if let Some(v) = cvars {
-                    classvar = Some(v);
-                } else {
-                    let bvars = ast_class.block.methods.iter().find_map(|i| {
-                        if let Some(block) = &i.block {
-                            return find_var_block(block, context.point);
-                        }
-                        None
-                    });
+    for top in &ast.top {
+        match top {
+            AstTopLevel::Thing(ast_thing) => match &**ast_thing {
+                AstThing::Class(ast_class) => {
+                    let cvars = ast_class
+                        .block
+                        .variables
+                        .iter()
+                        .find(|i| i.range.is_in_range(context.point));
+                    if let Some(v) = cvars {
+                        classvar = Some(v);
+                    } else {
+                        let bvars = ast_class.block.methods.iter().find_map(|i| {
+                            if let Some(block) = &i.block {
+                                return find_var_block(block, context.point);
+                            }
+                            None
+                        });
 
-                    if let Some(v) = bvars {
-                        blockvar = Some(v);
-                    }
-                }
-            }
-            AstThing::Record(ast_record) => {
-                let cvars = ast_record
-                    .block
-                    .variables
-                    .iter()
-                    .find(|i| i.range.is_in_range(context.point));
-                if let Some(v) = cvars {
-                    classvar = Some(v);
-                } else {
-                    let bvars = ast_record.block.methods.iter().find_map(|i| {
-                        if let Some(block) = &i.block {
-                            return find_var_block(block, context.point);
+                        if let Some(v) = bvars {
+                            blockvar = Some(v);
                         }
-                        None
-                    });
-                    if let Some(v) = bvars {
-                        blockvar = Some(v);
                     }
                 }
+                AstThing::Record(ast_record) => {
+                    let cvars = ast_record
+                        .block
+                        .variables
+                        .iter()
+                        .find(|i| i.range.is_in_range(context.point));
+                    if let Some(v) = cvars {
+                        classvar = Some(v);
+                    } else {
+                        let bvars = ast_record.block.methods.iter().find_map(|i| {
+                            if let Some(block) = &i.block {
+                                return find_var_block(block, context.point);
+                            }
+                            None
+                        });
+                        if let Some(v) = bvars {
+                            blockvar = Some(v);
+                        }
+                    }
+                }
+                AstThing::Interface(_ast_interface) => (),
+                AstThing::Enumeration(_ast_enumeration) => (),
+                AstThing::Annotation(_ast_annotation) => (),
+            },
+            AstTopLevel::Method(m) => {
+                let bvar = m
+                    .block
+                    .as_ref()
+                    .and_then(|block| find_var_block(block, context.point));
+
+                if let Some(v) = bvar {
+                    blockvar = Some(v);
+                }
             }
-            AstThing::Interface(_ast_interface) => (),
-            AstThing::Enumeration(_ast_enumeration) => (),
-            AstThing::Annotation(_ast_annotation) => (),
+            AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => (),
         }
     }
     let mut point;
@@ -317,7 +327,10 @@ pub fn get_import_position(ast: &AstFile) -> Result<Position, CodeActionError> {
         .iter()
         .filter_map(|i| match i {
             AstTopLevel::Import(import) => Some(import),
-            AstTopLevel::Package(_) | AstTopLevel::Thing(_) | AstTopLevel::Module(_) => None,
+            AstTopLevel::Package(_)
+            | AstTopLevel::Thing(_)
+            | AstTopLevel::Module(_)
+            | AstTopLevel::Method(_) => None,
         })
         .next_back()
     {
@@ -330,7 +343,10 @@ pub fn get_import_position(ast: &AstFile) -> Result<Position, CodeActionError> {
         })
     } else if let Some(package) = ast.top.iter().find_map(|i| match i {
         AstTopLevel::Package(package) => Some(package),
-        AstTopLevel::Thing(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => None,
+        AstTopLevel::Thing(_)
+        | AstTopLevel::Import(_)
+        | AstTopLevel::Module(_)
+        | AstTopLevel::Method(_) => None,
     }) {
         // After package
         let end = package.range.end;

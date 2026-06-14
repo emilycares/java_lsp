@@ -137,6 +137,15 @@ pub fn get_call_chain(ast: &AstFile, point: &AstPoint) -> Vec<CallItem> {
                     }
                 }
             }
+            AstTopLevel::Method(m) => {
+                if let Some(block) = &m.block
+                    && block.range.is_in_range(point)
+                {
+                    cc_block(block, point, &mut out);
+                } else {
+                    cc_method_header(&m.header, point, &mut out);
+                }
+            }
             AstTopLevel::Thing(thing) => cc_thing(thing, point, &mut out),
         }
     }

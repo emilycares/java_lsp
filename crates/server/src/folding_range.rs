@@ -35,6 +35,9 @@ pub fn fold(ast: &AstFile, out: &mut Vec<FoldingRange>) -> Result<(), FoldingRan
                     imports.end_line = line;
                 }
             }
+            AstTopLevel::Method(m) => {
+                fold_o_block(m.block.as_ref(), out)?;
+            }
             AstTopLevel::Thing(ast_thing) => fold_thing(ast_thing, out)?,
         }
     }
