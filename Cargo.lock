@@ -304,6 +304,7 @@ dependencies = [
 name = "format"
 version = "0.1.0"
 dependencies = [
+ "ast",
  "config",
  "expect-test",
  "workspace_hack",

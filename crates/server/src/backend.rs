@@ -1175,6 +1175,9 @@ impl Backend {
                 "none" => {
                     self.config.formatter = FormatterConfig::None;
                 }
+                "internal" => {
+                    self.config.formatter = FormatterConfig::Internal;
+                }
                 "google" => {
                     self.config.formatter = FormatterConfig::Google;
                 }

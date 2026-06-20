@@ -11,6 +11,7 @@ license.workspace = true
 
 [dependencies]
 config.workspace = true
+ast.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]

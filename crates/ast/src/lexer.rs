@@ -403,6 +403,10 @@ impl fmt::Debug for Token {
 /// Tokens of document
 #[derive(PartialEq, Eq, Clone)]
 pub enum Token {
+    /// Line comment
+    LineComment(Vec<u8>),
+    /// Block comment
+    BlockComment(Vec<u8>, usize),
     /// Data
     Identifier(MyString),
     /// Data
@@ -615,10 +619,6 @@ pub enum Token {
     Opens,
     /// open
     Open,
-    /// Line comment
-    LineComment(Vec<u8>),
-    /// Block comment
-    BlockComment(Vec<u8>, usize),
 }
 
 /// Error during lex function

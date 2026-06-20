@@ -352,22 +352,22 @@ impl GetRange for &AstAnnotatedParameter {
         }
     }
 }
-impl<T> AstInRange for &[T]
+
+impl<T> GetRange for &[T]
 where
-    T: GetRange + AstInRange,
+    T: GetRange,
 {
-    fn is_in_range(&self, point: &AstPoint) -> bool {
+    fn get_range(&self) -> AstRange {
         let Some(first) = self.first().map(GetRange::get_range) else {
-            return false;
+            return AstRange::default();
         };
         if self.len() == 1 {
-            return first.is_in_range(point);
+            return first;
         }
         let Some(last) = self.last().map(GetRange::get_range) else {
-            return false;
+            return AstRange::default();
         };
-        let range = add_ranges(first, last);
-        range.is_in_range(point)
+        add_ranges(first, last)
     }
 }
 

@@ -16,6 +16,7 @@ impl Configuration {
 #[derive(Debug, PartialEq, Clone)]
 pub enum FormatterConfig {
     None,
+    Internal,
     Google,
     Idea,
 }
