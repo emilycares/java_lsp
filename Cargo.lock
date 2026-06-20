@@ -37,9 +37,6 @@ name = "bitflags"
 version = "2.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4388bee8683e3d04af747c73422af53102d2bd24d9eadb6cbc100baef4b43f8"
-dependencies = [
- "serde_core",
-]
 
 [[package]]
 name = "borsh"
@@ -301,7 +298,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "format"
+name = "formatter"
 version = "0.1.0"
 dependencies = [
  "ast",
@@ -483,6 +480,17 @@ name = "log"
 version = "0.4.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13dc2df351e3202783a1fe0d44375f7295ffb4049267b0f3018346dc122a1d94"
+
+[[package]]
+name = "lombok"
+version = "0.1.0"
+dependencies = [
+ "ast",
+ "bitflags 2.13.0",
+ "expect-test",
+ "my_string",
+ "workspace_hack",
+]
 
 [[package]]
 name = "lsp-server"
@@ -686,6 +694,7 @@ dependencies = [
  "ast",
  "dto",
  "expect-test",
+ "lombok",
  "my_string",
  "workspace_hack",
 ]
@@ -935,7 +944,7 @@ dependencies = [
  "document",
  "dto",
  "expect-test",
- "format",
+ "formatter",
  "get_class",
  "gradle",
  "imports",
@@ -1348,7 +1357,6 @@ dependencies = [
  "memchr",
  "proc-macro2",
  "quote",
- "serde_core",
  "syn",
  "tokio",
  "windows-sys 0.60.2",

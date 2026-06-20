@@ -25,7 +25,7 @@ pub fn google_java_format(content: &[u8]) -> Result<Option<Vec<u8>>, FormatError
         )?));
     }
 
-    let buf = out.stdout.to_vec();
+    let buf = out.stdout;
 
     Ok(Some(buf))
 }
@@ -38,7 +38,7 @@ pub fn google_java_format_parse_errors(errors: &str) -> Result<Vec<FormatLineErr
         }
         let l = l.trim_start_matches("<stdin>:");
 
-        let mut spl = l.splitn(3, ":");
+        let mut spl = l.splitn(3, ':');
         if let Some(line) = spl.next()
             && let Ok(line) = line.parse()
             && let Some(col) = spl.next()

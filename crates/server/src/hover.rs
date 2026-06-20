@@ -181,14 +181,15 @@ fn format_method(m: &Method, class_name: &str) -> String {
     if m.access.intersects(Access::Static) {
         out.push_str("static ");
     }
-    out.push_str(jtype_hover_display(&m.ret).as_str());
-    out.push(' ');
 
     if let Some(name) = &m.name {
+        out.push_str(jtype_hover_display(&m.ret).as_str());
+        out.push(' ');
         out.push_str(name.as_str());
     } else {
         out.push_str(class_name);
     }
+
     out.push('(');
     let mut params = m.parameters.iter().peekable();
     while let Some(param) = params.next() {

@@ -1,4 +1,9 @@
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
 #![deny(clippy::redundant_clone)]
+#![deny(clippy::enum_glob_use)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::too_many_lines)]
 use std::path::Path;
 
 use ast::{
@@ -40,6 +45,7 @@ pub struct FormatLineError {
     pub col: u32,
     pub message: String,
 }
+#[must_use]
 pub fn get_formatter_name(formatter: &FormatterConfig) -> String {
     match formatter {
         FormatterConfig::None => String::from("No formatter"),
@@ -71,12 +77,12 @@ fn internal(content: &[u8]) -> Result<Option<Vec<u8>>, FormatError> {
     for t in ast.top {
         match t {
             AstTopLevel::Package(p) => {
-                write_package(p, &mut formatter)?;
+                write_package(&p, &mut formatter);
             }
             AstTopLevel::Import(ast_import) => write_import(&ast_import, &mut formatter),
             AstTopLevel::Thing(ast_thing) => write_thing(&ast_thing, &mut formatter),
             AstTopLevel::Method(ast_class_method) => {
-                write_class_method(&ast_class_method, &mut formatter)
+                write_class_method(&ast_class_method, &mut formatter);
             }
             AstTopLevel::Module(ast_module) => write_module(&ast_module, &mut formatter),
         }
@@ -185,7 +191,10 @@ impl Formatter {
 
     pub fn skip_to(&mut self, up_to: AstPoint) {
         loop {
-            let pos = self.with_comments.get(self.index).map(|t| t.start_point());
+            let pos = self
+                .with_comments
+                .get(self.index)
+                .map(PositionToken::start_point);
             let Some(pos) = pos else { break };
             if pos >= up_to {
                 break;
@@ -195,7 +204,7 @@ impl Formatter {
     }
 }
 
-fn write_package(p: AstPackage, formatter: &mut Formatter) -> Result<(), FormatError> {
+fn write_package(p: &AstPackage, formatter: &mut Formatter) {
     for ann in &p.annotated {
         write_annotation(ann, formatter);
     }
@@ -203,7 +212,6 @@ fn write_package(p: AstPackage, formatter: &mut Formatter) -> Result<(), FormatE
     formatter.write_identifier(&p.name);
     formatter.write(b";");
     formatter.buf.push(b'\n');
-    Ok(())
 }
 
 fn write_annotation(ann: &AstAnnotated, formatter: &mut Formatter) {
@@ -1137,11 +1145,10 @@ fn write_class_method(method: &AstClassMethod, formatter: &mut Formatter) {
     if let Some(block) = &method.block {
         formatter.buf.push(b' ');
         write_block(block, formatter);
-        formatter.buf.push(b'\n');
     } else {
         formatter.write(b";");
-        formatter.buf.push(b'\n');
     }
+    formatter.buf.push(b'\n');
 }
 
 fn write_class_constructor(c: &AstClassConstructor, formatter: &mut Formatter) {
@@ -1198,10 +1205,8 @@ fn write_method_parameters(params: &AstMethodParameters, formatter: &mut Formatt
         if params.parameters.len() > NEWLINE {
             formatter.buf.push(b'\n');
             formatter.write_indent();
-        } else {
-            if i > 0 {
-                formatter.write(b" ");
-            }
+        } else if i > 0 {
+            formatter.write(b" ");
         }
         for ann in &param.annotated {
             write_annotation(ann, formatter);
@@ -1815,12 +1820,12 @@ mod tests {
         ";
 
         let o = internal(content).unwrap();
-        let expected = expect![[r#"
+        let expected = expect![[r"
             // This is a cool file
             @Thing(Type.IMPORTANT)
             @Retention(RetentionPolicy.RUNTIME)
             package ch.emilycares;
-        "#]];
+        "]];
         expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
     }
 
@@ -1859,7 +1864,7 @@ mod tests {
 
     #[test]
     fn method_parameters() {
-        let content = br#"
+        let content = br"
         package ch.emilycares;
         public class Application {
 
@@ -1875,10 +1880,10 @@ mod tests {
                 this.obs = obs;
             }
         }
-        "#;
+        ";
 
         let o = internal(content).unwrap();
-        let expected = expect![[r#"
+        let expected = expect![[r"
             package ch.emilycares;
             public class Application {
                 private final Database db;
@@ -1897,12 +1902,12 @@ mod tests {
                     this.obs = obs;
                 }
             }
-        "#]];
+        "]];
         expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
     }
     #[test]
     fn enum_base() {
-        let content = br#"
+        let content = br"
         package ch.emilycares;
         public enum EType {
             A, B,
@@ -1920,10 +1925,10 @@ mod tests {
                }
             }
         }
-        "#;
+        ";
 
         let o = internal(content).unwrap();
-        let expected = expect![[r#"
+        let expected = expect![[r"
             package ch.emilycares;
             public enum EType {
                 A,
@@ -1942,13 +1947,13 @@ mod tests {
                     }
                 }
             }
-        "#]];
+        "]];
         expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
     }
 
     #[test]
     fn long_plus() {
-        let content = br#"
+        let content = br"
         package ch.emilycares;
         public class Test {
             public int aaa() {
@@ -1957,10 +1962,10 @@ mod tests {
                  + this.boing + b;
             }
         }
-        "#;
+        ";
 
         let o = internal(content).unwrap();
-        let expected = expect![[r#"
+        let expected = expect![[r"
             package ch.emilycares;
             public class Test {
                 public int aaa() {
@@ -1972,7 +1977,7 @@ mod tests {
                          + b;
                 }
             }
-        "#]];
+        "]];
         expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
     }
 

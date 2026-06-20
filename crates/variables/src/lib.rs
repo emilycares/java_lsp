@@ -335,13 +335,20 @@ fn lambda(
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
-    out.extend(lambda.parameters.values.iter().map(|i| LocalVariable {
-        level,
-        jtype: JType::Var,
-        name: i.name.value.clone(),
-        range: i.range,
-        flags: VarFlags::empty(),
-    }));
+    out.extend(
+        lambda
+            .parameters
+            .values
+            .iter()
+            .filter(|i| i.name.value != "_")
+            .map(|i| LocalVariable {
+                level,
+                jtype: JType::Var,
+                name: i.name.value.clone(),
+                range: i.range,
+                flags: VarFlags::empty(),
+            }),
+    );
 
     match &lambda.rhs {
         AstLambdaRhs::None => Ok(()),

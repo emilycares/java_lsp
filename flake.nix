@@ -99,7 +99,7 @@
               (craneLib.fileset.commonCargoSources ./crates/compile)
               (craneLib.fileset.commonCargoSources ./crates/config)
               (craneLib.fileset.commonCargoSources ./crates/document)
-              (craneLib.fileset.commonCargoSources ./crates/format)
+              (craneLib.fileset.commonCargoSources ./crates/formatter)
               (craneLib.fileset.commonCargoSources ./crates/get_class)
               (craneLib.fileset.commonCargoSources ./crates/gradle)
               (craneLib.fileset.commonCargoSources ./crates/imports)
@@ -119,6 +119,7 @@
               (craneLib.fileset.commonCargoSources ./crates/lsp_extra)
               (craneLib.fileset.commonCargoSources ./crates/expect-test)
               (craneLib.fileset.commonCargoSources ./crates/dirs)
+              (craneLib.fileset.commonCargoSources ./crates/lombok)
               (craneLib.fileset.commonCargoSources ./crates/workspace_hack)
               (craneLib.fileset.commonCargoSources crate)
             ];

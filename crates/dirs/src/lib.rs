@@ -34,14 +34,16 @@ pub fn home_dir() -> Option<PathBuf> {
 #[cfg(windows)]
 /// Returns the user-specific cache directory.
 pub fn cache_dir() -> Option<PathBuf> {
-    std::env::var_os("LOCALAPPDATA").map(PathBuf::from)
+    std::env::var_os("LOCALAPPDATA")
+        .map(PathBuf::from)
+        .map(|i| i.join("java_lsp"))
 }
 
 #[must_use]
 #[cfg(target_os = "macos")]
 /// Returns the user-specific cache directory.
 pub fn cache_dir() -> Option<PathBuf> {
-    home_dir().map(|h| h.join("Library").join("Caches"))
+    home_dir().map(|h| h.join("Library").join("Caches").join("java_lsp"))
 }
 
 #[must_use]
@@ -50,7 +52,7 @@ pub fn cache_dir() -> Option<PathBuf> {
 pub fn cache_dir() -> Option<PathBuf> {
     std::env::var_os("XDG_CACHE_HOME")
         .map(PathBuf::from)
-        .or_else(|| home_dir().map(|h| h.join(".cache")))
+        .or_else(|| home_dir().map(|h| h.join(".cache").join("java_lsp")))
 }
 
 #[must_use]

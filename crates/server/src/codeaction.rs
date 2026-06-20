@@ -446,7 +446,7 @@ pub fn generate_class(
             vec![TextEdit {
                 range: Range::default(),
                 new_text: format!(
-                    "package {package}
+                    "package {package};
 
 public class {name} {{
 }}
@@ -697,7 +697,7 @@ public class Test {
                                                     character: 0,
                                                 },
                                             },
-                                            new_text: "package my.thing.some\n\npublic class Thing {\n}\n",
+                                            new_text: "package my.thing.some;\n\npublic class Thing {\n}\n",
                                         },
                                     ],
                                 },

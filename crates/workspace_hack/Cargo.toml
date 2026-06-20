@@ -16,7 +16,6 @@ publish = false
 ### BEGIN HAKARI SECTION
 [dependencies]
 memchr = { version = "2" }
-serde_core = { version = "1", default-features = false, features = ["result", "std"] }
 tokio = { version = "1", features = ["full"] }
 
 [build-dependencies]

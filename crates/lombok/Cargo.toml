@@ -1,6 +1,6 @@
 [package]
-name = "format"
-version = "0.1.0"
+name = "lombok"
+version.workspace = true
 edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
@@ -10,8 +10,9 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
-config.workspace = true
 ast.workspace = true
+bitflags.workspace = true
+my_string.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]

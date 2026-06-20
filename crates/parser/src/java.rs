@@ -25,7 +25,13 @@ pub enum ParseJavaError {
 pub fn load_java(bytes: &[u8], source: SourceDestination) -> Result<Class, ParseJavaError> {
     let tokens = lexer::lex(bytes).map_err(ParseJavaError::Lexer)?;
     let parsed = ast::parse_file(&tokens).map_err(ParseJavaError::Ast)?;
-    Ok(load_java_tree(&parsed, source))
+    let preprocessed = preprocessor(parsed);
+
+    Ok(load_java_tree(&preprocessed, source))
+}
+
+fn preprocessor(ast: AstFile) -> AstFile {
+    lombok::preprocessor(ast)
 }
 
 pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {

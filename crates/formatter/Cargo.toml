@@ -1,5 +1,5 @@
 [package]
-name = "parser"
+name = "formatter"
 version = "0.1.0"
 edition.workspace = true
 authors.workspace = true
@@ -8,13 +8,10 @@ repository.workspace = true
 documentation.workspace = true
 readme.workspace = true
 license.workspace = true
-publish = false
 
 [dependencies]
+config.workspace = true
 ast.workspace = true
-my_string.workspace = true
-dto.workspace = true
-lombok.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]

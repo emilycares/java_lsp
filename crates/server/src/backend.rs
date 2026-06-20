@@ -13,7 +13,7 @@ use compile::CompileErrorMessage;
 use config::{Configuration, FormatterConfig};
 use document::{Document, DocumentError, get_class_path, open_document};
 use dto::Class;
-use format::{FormatError, FormatLineError};
+use formatter::{FormatError, FormatLineError};
 use gradle::project::get_gradle_cache_path;
 use lsp_extra::{SERVER_NAME, source_to_uri, to_ast_point};
 use lsp_server::{Connection, Message};
@@ -673,8 +673,8 @@ impl Backend {
             return None;
         };
         let lines = document.rope.lines().len();
-        let formatter = format::get_formatter_name(&self.config.formatter);
-        match format::format(
+        let name = formatter::get_formatter_name(&self.config.formatter);
+        match formatter::format(
             &self.config.formatter,
             document.rope.to_string().as_bytes(),
             &document.path,
@@ -695,7 +695,7 @@ impl Backend {
                     uri,
                     errors
                         .into_iter()
-                        .map(|i| format_lines_to_diagnostic(i, formatter.clone()))
+                        .map(|i| format_lines_to_diagnostic(i, name.clone()))
                         .collect(),
                 );
                 None
