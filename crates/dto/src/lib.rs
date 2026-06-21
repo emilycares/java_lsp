@@ -6,7 +6,7 @@ use std::{
 use bitflags::bitflags;
 use my_string::{MyString, smol_str::format_smolstr};
 
-pub const CFC_VERSION: usize = 17;
+pub const CFC_VERSION: usize = 18;
 
 #[derive(Debug)]
 pub enum ClassParserError {
@@ -77,6 +77,13 @@ impl Class {
                 MAIN_SEPARATOR,
                 &self.class_path.replace('.', MAIN_SEPARATOR_STR)
             )),
+            SourceDestination::RelativeInFolderLang(e, lang) => Some(format_smolstr!(
+                "{}{}{}.{}",
+                e,
+                MAIN_SEPARATOR,
+                &self.class_path.replace('.', MAIN_SEPARATOR_STR),
+                lang
+            )),
             SourceDestination::Here(e) => Some(e.clone()),
             SourceDestination::None => None,
         }
@@ -85,10 +92,11 @@ impl Class {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum SourceDestination {
-    Here(MyString),
-    RelativeInFolder(MyString),
     #[default]
     None,
+    Here(MyString),
+    RelativeInFolder(MyString),
+    RelativeInFolderLang(MyString, MyString),
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Default)]

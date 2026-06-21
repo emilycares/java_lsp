@@ -40,6 +40,7 @@ pub fn load_class(
     let mut fields = Vec::new();
     let mut deprecated = false;
     let mut class_signature = None;
+    let mut source = source;
 
     for a in &c.attributes {
         if a.name == 0 {
@@ -62,6 +63,16 @@ pub fn load_class(
                 return Err(ClassParserError::Ignoring);
             }
             deprecated = true;
+        } else if attribute_name == "SourceFile" {
+            let info = a.lookup(data)?;
+            let (name, _) = get_u16(info, 0)?;
+            let name = lookup_string(&c, name)?;
+            if !name.to_lowercase().ends_with(".java")
+                && let Some((_, l)) = name.split_once('.')
+                && let SourceDestination::RelativeInFolder(r) = source
+            {
+                source = SourceDestination::RelativeInFolderLang(r, l.to_smolstr());
+            }
         }
     }
 

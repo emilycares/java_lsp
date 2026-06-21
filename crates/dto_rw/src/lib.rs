@@ -149,6 +149,11 @@ fn write_source_destination(source_destination: &SourceDestination, out: &mut Ve
             write_u8(2, out);
             write_string(smol_str, out);
         }
+        SourceDestination::RelativeInFolderLang(smol_str, lang) => {
+            write_u8(3, out);
+            write_string(smol_str, out);
+            write_string(lang, out);
+        }
         SourceDestination::None => write_u8(0, out),
     }
 }
@@ -166,6 +171,11 @@ fn parse_source_destination(
         2 => {
             let (st, pos) = parse_string(data, pos)?;
             Ok((SourceDestination::RelativeInFolder(st), pos))
+        }
+        3 => {
+            let (st, pos) = parse_string(data, pos)?;
+            let (lang, pos) = parse_string(data, pos)?;
+            Ok((SourceDestination::RelativeInFolderLang(st, lang), pos))
         }
         _ => Err(DtoRwError::SourceDestination),
     }
