@@ -60,35 +60,41 @@ pub fn format(
     content: &[u8],
     path: &Path,
     project_dir: &Path,
+    space: &str,
 ) -> Result<Option<Vec<u8>>, FormatError> {
     match formatter {
         FormatterConfig::None => Err(FormatError::NoFormatterSpecified),
-        FormatterConfig::Internal => internal(content),
+        FormatterConfig::Internal => internal(content, space),
         FormatterConfig::Google => google::google_java_format(content),
         FormatterConfig::Idea => idea::idea_java_format(path, project_dir),
     }
 }
 
-fn internal(content: &[u8]) -> Result<Option<Vec<u8>>, FormatError> {
-    let mut formatter = Formatter::new(content)?;
+fn internal(content: &[u8], space: &str) -> Result<Option<Vec<u8>>, FormatError> {
+    let mut f = Formatter::new(content, space)?;
     let tokens = ast::lexer::lex_v::<false>(content).map_err(FormatError::Lexer)?;
     let ast = ast::parse_file(&tokens).map_err(FormatError::Ast)?;
 
-    for t in ast.top {
+    let mut top = ast.top.iter().peekable();
+
+    while let Some(t) = top.next() {
         match t {
             AstTopLevel::Package(p) => {
-                write_package(&p, &mut formatter);
+                write_package(p, &mut f);
             }
-            AstTopLevel::Import(ast_import) => write_import(&ast_import, &mut formatter),
-            AstTopLevel::Thing(ast_thing) => write_thing(&ast_thing, &mut formatter),
+            AstTopLevel::Import(ast_import) => write_import(ast_import, &mut f),
+            AstTopLevel::Thing(ast_thing) => write_thing(ast_thing, &mut f),
             AstTopLevel::Method(ast_class_method) => {
-                write_class_method(&ast_class_method, &mut formatter);
+                write_class_method(ast_class_method, &mut f);
             }
-            AstTopLevel::Module(ast_module) => write_module(&ast_module, &mut formatter),
+            AstTopLevel::Module(ast_module) => write_module(ast_module, &mut f),
+        }
+        if let Some(next) = top.peek() {
+            f.insert_new_lines(t.get_range().end.line, next.get_range().start.line);
         }
     }
 
-    Ok(Some(formatter.buf))
+    Ok(Some(f.buf))
 }
 
 struct Formatter {
@@ -96,22 +102,24 @@ struct Formatter {
     pub index: usize,
     pub buf: Vec<u8>,
     pub indent: usize,
+    pub space: String,
 }
 
 impl Formatter {
-    pub fn new(content: &[u8]) -> Result<Self, FormatError> {
+    pub fn new(content: &[u8], space: &str) -> Result<Self, FormatError> {
         let with_comments = ast::lexer::lex_v::<true>(content).map_err(FormatError::Lexer)?;
         Ok(Self {
             with_comments,
             index: 0,
             buf: Vec::new(),
             indent: 0,
+            space: space.to_string(),
         })
     }
 
     fn write_indent(&mut self) {
         for _ in 0..self.indent {
-            self.buf.extend_from_slice(b"    ");
+            self.buf.extend_from_slice(self.space.as_bytes());
         }
     }
 
@@ -180,12 +188,11 @@ impl Formatter {
             .checked_sub(1)
             .and_then(|i| self.with_comments.get(i))
             .map(|t| t.line);
-        let next_line = self.with_comments.get(self.index).map(|t| t.line);
+        let next_line = self.with_comments.get(self.index + 1).map(|t| t.line);
         if matches!((last_line, next_line), (Some(a), Some(b)) if a == b) {
             self.buf.push(b' ');
         } else {
-            self.buf.extend_from_slice(b"\n");
-            self.write_indent();
+            self.new_line();
         }
     }
 
@@ -202,347 +209,397 @@ impl Formatter {
             self.index += 1;
         }
     }
-}
 
-fn write_package(p: &AstPackage, formatter: &mut Formatter) {
-    for ann in &p.annotated {
-        write_annotation(ann, formatter);
+    fn insert_new_lines(&mut self, end_line: usize, next_line: usize) {
+        let lns = next_line.saturating_sub(end_line) > 1;
+        if lns {
+            self.new_line();
+        }
     }
-    formatter.write(b"package ");
-    formatter.write_identifier(&p.name);
-    formatter.write(b";");
-    formatter.buf.push(b'\n');
+
+    fn new_line(&mut self) {
+        self.buf.push(b'\n');
+    }
 }
 
-fn write_annotation(ann: &AstAnnotated, formatter: &mut Formatter) {
-    formatter.write(b"@");
-    formatter.write_identifier(&ann.name);
+fn write_package(p: &AstPackage, f: &mut Formatter) {
+    for ann in &p.annotated {
+        write_annotation(ann, f);
+    }
+    f.write(b"package ");
+    f.write_identifier(&p.name);
+    f.write(b";");
+    f.new_line();
+}
+
+fn write_annotation(ann: &AstAnnotated, f: &mut Formatter) {
+    f.write(b"@");
+    f.write_identifier(&ann.name);
     match &ann.parameters {
         AstAnnotatedParameterKind::None => {}
         AstAnnotatedParameterKind::Parameter(params) => {
-            formatter.write(b"(");
+            f.write(b"(");
             for (i, param) in params.iter().enumerate() {
                 if i > 0 {
-                    formatter.write(b", ");
+                    f.write(b", ");
                 }
-                write_annotation_parameter(param, formatter);
+                write_annotation_parameter(param, f);
             }
-            formatter.write(b")");
+            f.write(b")");
         }
         AstAnnotatedParameterKind::Array(values) => {
-            formatter.write(b"(");
-            write_values_with_annotated(values, formatter);
-            formatter.write(b")");
+            f.write(b"(");
+            write_values_with_annotated(values, f);
+            f.write(b")");
         }
     }
-    formatter.insert_line_or_space();
+    f.insert_line_or_space();
 }
 
-fn write_annotation_parameter(param: &AstAnnotatedParameter, formatter: &mut Formatter) {
+fn write_annotation_parameter(param: &AstAnnotatedParameter, f: &mut Formatter) {
     match param {
         AstAnnotatedParameter::Expression(expr) => {
-            write_expression(expr, formatter);
+            write_expression(expr, f);
         }
         AstAnnotatedParameter::NamedExpression {
             name, expression, ..
         } => {
-            formatter.write_identifier(name);
-            formatter.write(b" = ");
-            write_expression(expression, formatter);
+            f.write_identifier(name);
+            f.write(b" = ");
+            write_expression(expression, f);
         }
         AstAnnotatedParameter::Annotated(ann) => {
-            write_annotation(ann, formatter);
+            write_annotation(ann, f);
         }
         AstAnnotatedParameter::NamedArray { name, values, .. } => {
-            formatter.write_identifier(name);
-            formatter.write(b" = ");
-            write_values_with_annotated(values, formatter);
+            f.write_identifier(name);
+            f.write(b" = ");
+            write_values_with_annotated(values, f);
         }
     }
 }
 
-fn write_values_with_annotated(values: &AstValuesWithAnnotated, formatter: &mut Formatter) {
-    formatter.write(b"{");
+fn write_values_with_annotated(values: &AstValuesWithAnnotated, f: &mut Formatter) {
+    f.write(b"{");
     for (i, v) in values.values.iter().enumerate() {
         if i > 0 {
-            formatter.write(b", ");
+            f.write(b", ");
         }
         match v {
-            AstExpressionOrAnnotated::Expression(expr) => write_expression(expr, formatter),
-            AstExpressionOrAnnotated::Annotated(ann) => write_annotation(ann, formatter),
+            AstExpressionOrAnnotated::Expression(expr) => write_expression(expr, f),
+            AstExpressionOrAnnotated::Annotated(ann) => write_annotation(ann, f),
         }
     }
-    formatter.write(b"}");
+    f.write(b"}");
 }
 
-fn write_expression(expr: &[AstExpressionKind], formatter: &mut Formatter) {
+fn write_expression(expr: &[AstExpressionKind], f: &mut Formatter) {
     let mut is_large = false;
     let range = expr.get_range();
     if range.start.line != range.end.line {
-        is_large = true;
+        let ops = expr
+            .iter()
+            .filter_map(|i| {
+                if let AstExpressionKind::Base(b) = i {
+                    return Some(b);
+                }
+                None
+            })
+            .filter(|i| {
+                matches!(
+                    i.operator,
+                    AstExpressionOperator::VerticalBarVerticalBar(_)
+                        | AstExpressionOperator::AmpersandAmpersand(_)
+                        | AstExpressionOperator::Plus(_)
+                        | AstExpressionOperator::Minus(_)
+                        | AstExpressionOperator::Dot(_)
+                )
+            })
+            .count();
+        is_large = ops != 1;
     }
+
+    let dot = !expr
+        .iter()
+        .filter_map(|i| {
+            if let AstExpressionKind::Base(b) = i {
+                return Some(b);
+            }
+            None
+        })
+        .any(|i| {
+            matches!(
+                i.operator,
+                AstExpressionOperator::VerticalBarVerticalBar(_)
+                    | AstExpressionOperator::AmpersandAmpersand(_)
+                    | AstExpressionOperator::Plus(_)
+                    | AstExpressionOperator::Minus(_)
+            )
+        });
+
     if is_large {
-        formatter.indent += 1;
+        f.indent += 1;
     }
+
     for kind in expr {
-        write_expression_kind(kind, formatter, is_large);
+        write_expression_kind(kind, f, is_large, dot);
     }
     if is_large {
-        formatter.indent -= 1;
+        f.indent -= 1;
     }
 }
 
-fn write_expression_kind(kind: &AstExpressionKind, formatter: &mut Formatter, is_large: bool) {
+fn write_expression_kind(kind: &AstExpressionKind, f: &mut Formatter, is_large: bool, dot: bool) {
     match kind {
         AstExpressionKind::Base(base) => {
             if let Some(ident) = &base.ident {
-                write_expression_identifier(ident, formatter);
+                write_expression_identifier(ident, f);
             }
             if let Some(values) = &base.values {
-                formatter.write(b"(");
+                f.write(b"(");
                 for (i, expr) in values.values.iter().enumerate() {
                     if i > 0 {
-                        formatter.write(b", ");
+                        f.write(b", ");
                     }
-                    write_expression(expr, formatter);
+                    write_expression(expr, f);
                 }
-                formatter.write(b")");
+                f.write(b")");
             }
-            write_expression_operator(&base.operator, formatter, is_large);
+            write_expression_operator(&base.operator, f, is_large, dot);
         }
         AstExpressionKind::Casted(casted) => {
-            formatter.write(b"(");
-            write_jtype(&casted.cast, formatter);
-            formatter.write(b")");
+            f.write(b"(");
+            write_jtype(&casted.cast, f);
+            f.write(b")");
         }
         AstExpressionKind::JType(jtype_expr) => {
-            write_jtype(&jtype_expr.cast, formatter);
+            write_jtype(&jtype_expr.cast, f);
         }
         AstExpressionKind::Array(values) => {
-            formatter.write(b"{");
+            f.write(b"{");
             for (i, expr) in values.values.iter().enumerate() {
                 if i > 0 {
-                    formatter.write(b", ");
+                    f.write(b", ");
                 }
-                write_expression(expr, formatter);
+                write_expression(expr, f);
             }
-            formatter.write(b"}");
+            f.write(b"}");
         }
         AstExpressionKind::Generics(generics) => {
-            formatter.write(b"<");
+            f.write(b"<");
             for (i, jtype) in generics.jtypes.iter().enumerate() {
                 if i > 0 {
-                    formatter.write(b", ");
+                    f.write(b", ");
                 }
-                write_jtype(jtype, formatter);
+                write_jtype(jtype, f);
             }
-            formatter.write(b">");
+            f.write(b">");
         }
         AstExpressionKind::InstanceOf(instanceof) => {
-            formatter.write(b"instanceof ");
+            f.write(b"instanceof ");
             if instanceof.availability.contains(AstAvailability::Final) {
-                formatter.write(b"final ");
+                f.write(b"final ");
             }
             for ann in &instanceof.annotated {
-                write_annotation(ann, formatter);
+                write_annotation(ann, f);
             }
-            write_jtype(&instanceof.jtype, formatter);
+            write_jtype(&instanceof.jtype, f);
             if let Some(var) = &instanceof.variable {
-                formatter.buf.push(b' ');
-                formatter.write_identifier(var);
+                f.buf.push(b' ');
+                f.write_identifier(var);
             }
         }
         AstExpressionKind::Lambda(lambda) => {
-            let has_brace = lambda.parameters.values.len() > 1;
+            let has_brace = lambda.parameters.values.len() != 1;
             if has_brace {
-                formatter.write(b"(");
+                f.write(b"(");
             }
             for (i, param) in lambda.parameters.values.iter().enumerate() {
                 if i > 0 {
-                    formatter.write(b", ");
+                    f.write(b", ");
                 }
                 if let Some(jtype) = &param.jtype {
-                    write_jtype(jtype, formatter);
-                    formatter.buf.push(b' ');
+                    write_jtype(jtype, f);
+                    f.buf.push(b' ');
                 }
-                formatter.write_identifier(&param.name);
+                f.write_identifier(&param.name);
             }
             if has_brace {
-                formatter.write(b")");
+                f.write(b")");
             }
-            formatter.write(b" -> ");
+            f.write(b" -> ");
             match &lambda.rhs {
                 AstLambdaRhs::None => {}
-                AstLambdaRhs::Expr(expr) => write_expression(expr, formatter),
-                AstLambdaRhs::Block(block) => write_block(block, formatter),
+                AstLambdaRhs::Expr(expr) => write_expression(expr, f),
+                AstLambdaRhs::Block(block) => write_block(block, f),
             }
         }
         AstExpressionKind::NewClass(new_class) => {
-            formatter.write(b"new ");
-            write_jtype(&new_class.jtype, formatter);
+            f.write(b"new ");
+            write_jtype(&new_class.jtype, f);
             match new_class.rhs.as_ref() {
                 AstNewRhs::None => {}
                 AstNewRhs::Parameters(_range, exprs) => {
-                    formatter.write(b"(");
+                    f.write(b"(");
                     for (i, expr) in exprs.iter().enumerate() {
                         if i > 0 {
-                            formatter.write(b", ");
+                            f.write(b", ");
                         }
-                        write_expression(expr, formatter);
+                        write_expression(expr, f);
                     }
-                    formatter.write(b")");
+                    f.write(b")");
                 }
                 AstNewRhs::ParametersAndBlock(_range, exprs, block) => {
-                    formatter.write(b"(");
+                    f.write(b"(");
                     for (i, expr) in exprs.iter().enumerate() {
                         if i > 0 {
-                            formatter.write(b", ");
+                            f.write(b", ");
                         }
-                        write_expression(expr, formatter);
+                        write_expression(expr, f);
                     }
-                    formatter.write(b")");
-                    formatter.buf.push(b' ');
-                    write_class_block_braced(block, formatter);
+                    f.write(b")");
+                    f.buf.push(b' ');
+                    write_class_block_braced(block, f);
                 }
                 AstNewRhs::ArrayParameters(param_groups) => {
                     for group in param_groups {
-                        formatter.write(b"[");
+                        f.write(b"[");
                         for (i, expr) in group.iter().enumerate() {
                             if i > 0 {
-                                formatter.write(b", ");
+                                f.write(b", ");
                             }
-                            write_expression(expr, formatter);
+                            write_expression(expr, f);
                         }
-                        formatter.write(b"]");
+                        f.write(b"]");
                     }
                 }
                 AstNewRhs::Array(values) => {
-                    formatter.write(b"{");
+                    f.write(b"{");
                     for (i, expr) in values.values.iter().enumerate() {
                         if i > 0 {
-                            formatter.write(b", ");
+                            f.write(b", ");
                         }
-                        write_expression(expr, formatter);
+                        write_expression(expr, f);
                     }
-                    formatter.write(b"}");
+                    f.write(b"}");
                 }
                 AstNewRhs::Block(block) => {
-                    formatter.buf.push(b' ');
-                    write_class_block_braced(block, formatter);
+                    f.buf.push(b' ');
+                    write_class_block_braced(block, f);
                 }
             }
         }
         AstExpressionKind::InlineSwitch(switch) => {
-            formatter.write(b"switch ");
-            formatter.write(b"(");
-            write_expression(&switch.check, formatter);
-            formatter.write(b")");
-            formatter.buf.push(b' ');
-            write_block(&switch.block, formatter);
+            f.write(b"switch ");
+            f.write(b"(");
+            write_expression(&switch.check, f);
+            f.write(b")");
+            f.buf.push(b' ');
+            write_block(&switch.block, f);
         }
     }
 }
 
-fn write_jtype(jtype: &AstJType, formatter: &mut Formatter) {
+fn write_jtype(jtype: &AstJType, f: &mut Formatter) {
     for ann in &jtype.annotated {
-        write_annotation(ann, formatter);
+        write_annotation(ann, f);
     }
     match &jtype.value {
         AstJTypeKind::Void => {
-            formatter.write_with_comments(jtype.range.start, b"void");
-            formatter.skip_to(jtype.range.end);
+            f.write_with_comments(jtype.range.start, b"void");
+            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Byte => {
-            formatter.write_with_comments(jtype.range.start, b"byte");
-            formatter.skip_to(jtype.range.end);
+            f.write_with_comments(jtype.range.start, b"byte");
+            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Char => {
-            formatter.write_with_comments(jtype.range.start, b"char");
-            formatter.skip_to(jtype.range.end);
+            f.write_with_comments(jtype.range.start, b"char");
+            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Double => {
-            formatter.write_with_comments(jtype.range.start, b"double");
-            formatter.skip_to(jtype.range.end);
+            f.write_with_comments(jtype.range.start, b"double");
+            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Float => {
-            formatter.write_with_comments(jtype.range.start, b"float");
-            formatter.skip_to(jtype.range.end);
+            f.write_with_comments(jtype.range.start, b"float");
+            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Int => {
-            formatter.write_with_comments(jtype.range.start, b"int");
-            formatter.skip_to(jtype.range.end);
+            f.write_with_comments(jtype.range.start, b"int");
+            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Long => {
-            formatter.write_with_comments(jtype.range.start, b"long");
-            formatter.skip_to(jtype.range.end);
+            f.write_with_comments(jtype.range.start, b"long");
+            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Short => {
-            formatter.write_with_comments(jtype.range.start, b"short");
-            formatter.skip_to(jtype.range.end);
+            f.write_with_comments(jtype.range.start, b"short");
+            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Boolean => {
-            formatter.write_with_comments(jtype.range.start, b"boolean");
-            formatter.skip_to(jtype.range.end);
+            f.write_with_comments(jtype.range.start, b"boolean");
+            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Wildcard => {
-            formatter.write_with_comments(jtype.range.start, b"?");
-            formatter.skip_to(jtype.range.end);
+            f.write_with_comments(jtype.range.start, b"?");
+            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Var => {
-            formatter.write_with_comments(jtype.range.start, b"var");
-            formatter.skip_to(jtype.range.end);
+            f.write_with_comments(jtype.range.start, b"var");
+            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Class(ident) => {
-            formatter.write_identifier(ident);
+            f.write_identifier(ident);
         }
         AstJTypeKind::Array(inner) => {
-            write_jtype(inner, formatter);
-            formatter.write(b"[");
-            formatter.write(b"]");
+            write_jtype(inner, f);
+            f.write(b"[");
+            f.write(b"]");
         }
         AstJTypeKind::Generic(ident, types) => {
-            formatter.write_identifier(ident);
-            formatter.write(b"<");
+            f.write_identifier(ident);
+            f.write(b"<");
             for (i, t) in types.iter().enumerate() {
                 if i > 0 {
-                    formatter.write(b", ");
+                    f.write(b", ");
                 }
-                write_jtype(t, formatter);
+                write_jtype(t, f);
             }
-            formatter.write(b">");
+            f.write(b">");
         }
         AstJTypeKind::Access { base, inner } => {
-            write_jtype(base, formatter);
-            formatter.write(b".");
-            write_jtype(inner, formatter);
+            write_jtype(base, f);
+            f.write(b".");
+            write_jtype(inner, f);
         }
     }
 }
 
-fn write_availability(availability: &AstAvailability, formatter: &mut Formatter) {
+fn write_availability(availability: &AstAvailability, f: &mut Formatter) {
     if availability.contains(AstAvailability::Public) {
-        formatter.write(b"public ");
+        f.write(b"public ");
     }
     if availability.contains(AstAvailability::Protected) {
-        formatter.write(b"protected ");
+        f.write(b"protected ");
     }
     if availability.contains(AstAvailability::Private) {
-        formatter.write(b"private ");
+        f.write(b"private ");
     }
     if availability.contains(AstAvailability::Abstract) {
-        formatter.write(b"abstract ");
+        f.write(b"abstract ");
     }
     if availability.contains(AstAvailability::Static) {
-        formatter.write(b"static ");
+        f.write(b"static ");
     }
     if availability.contains(AstAvailability::Final) {
-        formatter.write(b"final ");
+        f.write(b"final ");
     }
     if availability.contains(AstAvailability::Synchronized) {
-        formatter.write(b"synchronized ");
+        f.write(b"synchronized ");
     }
     if availability.contains(AstAvailability::Native) {
-        formatter.write(b"native ");
+        f.write(b"native ");
     }
 }
 
@@ -554,450 +611,458 @@ fn write_expr_or_value(eov: &AstExpressionOrValue, formatter: &mut Formatter) {
     }
 }
 
-fn write_block(block: &AstBlock, formatter: &mut Formatter) {
-    formatter.write(b"{");
-    formatter.buf.push(b'\n');
-    formatter.indent += 1;
-    for entry in &block.entries {
-        write_block_entry(entry, formatter, true);
+fn write_block(block: &AstBlock, f: &mut Formatter) {
+    f.write(b"{");
+    f.new_line();
+    f.indent += 1;
+    let mut entries = block.entries.iter().peekable();
+    while let Some(entry) = entries.next() {
+        let next_if = matches!(
+            entries.peek(),
+            Some(AstBlockEntry::If(AstIf::Else { .. } | AstIf::ElseIf { .. }))
+        );
+        write_block_entry(entry, f, true, next_if);
+        if let Some(next) = entries.peek() {
+            f.insert_new_lines(entry.get_range().end.line, next.get_range().start.line);
+        }
     }
-    formatter.indent -= 1;
-    formatter.write_indent();
-    formatter.write(b"}");
+    f.indent -= 1;
+    f.write_indent();
+    f.write(b"}");
 }
 
-fn write_block_entry(entry: &AstBlockEntry, formatter: &mut Formatter, around: bool) {
+fn write_block_entry(entry: &AstBlockEntry, f: &mut Formatter, around: bool, next_if: bool) {
     match entry {
         AstBlockEntry::Semicolon(_) => {
             if around {
-                formatter.write_indent();
+                f.write_indent();
             }
-            formatter.write(b";");
+            f.write(b";");
             if around {
-                formatter.buf.push(b'\n');
+                f.new_line();
             }
         }
         AstBlockEntry::Return(ret) => {
             if around {
-                formatter.write_indent();
+                f.write_indent();
             }
-            formatter.write(b"return");
+            f.write(b"return");
             if !matches!(ret.expression, AstExpressionOrValue::None) {
-                formatter.buf.push(b' ');
-                write_expr_or_value(&ret.expression, formatter);
+                f.buf.push(b' ');
+                write_expr_or_value(&ret.expression, f);
             }
             if around {
-                formatter.write(b";");
-                formatter.buf.push(b'\n');
+                f.write(b";");
+                f.new_line();
             }
         }
         AstBlockEntry::Yield(yield_) => {
             if around {
-                formatter.write_indent();
+                f.write_indent();
             }
-            formatter.write(b"yield");
+            f.write(b"yield");
             if !matches!(yield_.expression, AstExpressionOrValue::None) {
-                formatter.buf.push(b' ');
-                write_expr_or_value(&yield_.expression, formatter);
+                f.buf.push(b' ');
+                write_expr_or_value(&yield_.expression, f);
             }
             if around {
-                formatter.write(b";");
-                formatter.buf.push(b'\n');
+                f.write(b";");
+                f.new_line();
             }
         }
         AstBlockEntry::Throw(throw) => {
             if around {
-                formatter.write_indent();
+                f.write_indent();
             }
-            formatter.write(b"throw ");
-            write_expression(&throw.expression, formatter);
+            f.write(b"throw ");
+            write_expression(&throw.expression, f);
             if around {
-                formatter.write(b";");
-                formatter.buf.push(b'\n');
+                f.write(b";");
+                f.new_line();
             }
         }
         AstBlockEntry::Break(br) => {
             if around {
-                formatter.write_indent();
+                f.write_indent();
             }
-            formatter.write(b"break");
+            f.write(b"break");
             if let Some(label) = &br.label {
-                formatter.buf.push(b' ');
-                formatter.write_identifier(label);
+                f.buf.push(b' ');
+                f.write_identifier(label);
             }
             if around {
-                formatter.write(b";");
-                formatter.buf.push(b'\n');
+                f.write(b";");
+                f.new_line();
             }
         }
         AstBlockEntry::Continue(cont) => {
             if around {
-                formatter.write_indent();
+                f.write_indent();
             }
-            formatter.write(b"continue");
+            f.write(b"continue");
             if let Some(label) = &cont.label {
-                formatter.buf.push(b' ');
-                formatter.write_identifier(label);
+                f.buf.push(b' ');
+                f.write_identifier(label);
             }
             if around {
-                formatter.write(b";");
-                formatter.buf.push(b'\n');
+                f.write(b";");
+                f.new_line();
             }
         }
         AstBlockEntry::Assert(assert) => {
             if around {
-                formatter.write_indent();
+                f.write_indent();
             }
-            formatter.write(b"assert ");
-            write_expression(&assert.expression, formatter);
+            f.write(b"assert ");
+            write_expression(&assert.expression, f);
             if around {
-                formatter.write(b";");
-                formatter.buf.push(b'\n');
+                f.write(b";");
+                f.new_line();
             }
         }
         AstBlockEntry::Expression(expr) => {
             if around {
-                formatter.write_indent();
+                f.write_indent();
             }
-            write_expression(&expr.value, formatter);
+            write_expression(&expr.value, f);
             if around {
-                formatter.write(b";");
-                formatter.buf.push(b'\n');
+                f.write(b";");
+                f.new_line();
             }
         }
         AstBlockEntry::Assign(assign) => {
             if around {
-                formatter.write_indent();
+                f.write_indent();
             }
-            write_expression(&assign.key, formatter);
-            formatter.write(b" = ");
-            write_expression(&assign.expression, formatter);
+            write_expression(&assign.key, f);
+            f.write(b" = ");
+            write_expression(&assign.expression, f);
             if around {
-                formatter.write(b";");
-                formatter.buf.push(b'\n');
+                f.write(b";");
+                f.new_line();
             }
         }
         AstBlockEntry::Variable(vars) if !vars.is_empty() => {
             if around {
-                formatter.write_indent();
+                f.write_indent();
             }
             for ann in &vars[0].annotated {
-                write_annotation(ann, formatter);
-                formatter.write_indent();
+                write_annotation(ann, f);
+                f.write_indent();
             }
             if vars[0].fin {
-                formatter.write(b"final ");
+                f.write(b"final ");
             }
-            write_jtype(&vars[0].jtype, formatter);
-            formatter.buf.push(b' ');
-            formatter.write_identifier(&vars[0].name);
+            write_jtype(&vars[0].jtype, f);
+            f.buf.push(b' ');
+            f.write_identifier(&vars[0].name);
             if let Some(val) = &vars[0].value {
-                formatter.write(b" = ");
-                write_expression(val, formatter);
+                f.write(b" = ");
+                write_expression(val, f);
             }
             for var in &vars[1..] {
-                formatter.write(b", ");
-                formatter.write_identifier(&var.name);
+                f.write(b", ");
+                f.write_identifier(&var.name);
                 if let Some(val) = &var.value {
-                    formatter.write(b" = ");
-                    write_expression(val, formatter);
+                    f.write(b" = ");
+                    write_expression(val, f);
                 }
             }
             if around {
-                formatter.write(b";");
-                formatter.buf.push(b'\n');
+                f.write(b";");
+                f.new_line();
             }
         }
         AstBlockEntry::Variable(_) => {}
-        AstBlockEntry::If(if_) => write_if_entry(if_, formatter),
+        AstBlockEntry::If(if_) => write_if_entry(if_, f, next_if),
         AstBlockEntry::While(while_) => {
-            formatter.write_indent();
+            f.write_indent();
             if let Some(label) = &while_.label {
-                formatter.write_identifier(label);
-                formatter.write(b": ");
+                f.write_identifier(label);
+                f.write(b": ");
             }
-            formatter.write(b"while ");
-            formatter.write(b"(");
-            write_expression(&while_.control, formatter);
-            formatter.write(b") ");
-            write_while_content(&while_.content, formatter);
+            f.write(b"while ");
+            f.write(b"(");
+            write_expression(&while_.control, f);
+            f.write(b") ");
+            write_while_content(&while_.content, f);
         }
         AstBlockEntry::For(for_) => {
-            formatter.write_indent();
+            f.write_indent();
             if let Some(label) = &for_.label {
-                formatter.write_identifier(label);
-                formatter.write(b": ");
+                f.write_identifier(label);
+                f.write(b": ");
             }
-            formatter.write(b"for ");
-            formatter.write(b"(");
+            f.write(b"for ");
+            f.write(b"(");
             for (i, entry) in for_.vars.iter().enumerate() {
                 if i > 0 {
-                    formatter.write(b", ");
+                    f.write(b", ");
                 }
-                write_block_entry(entry, formatter, false);
+                write_block_entry(entry, f, false, false);
             }
-            formatter.write(b"; ");
+            f.write(b"; ");
             for (i, entry) in for_.check.iter().enumerate() {
                 if i > 0 {
-                    formatter.write(b", ");
+                    f.write(b", ");
                 }
-                write_block_entry(entry, formatter, false);
+                write_block_entry(entry, f, false, false);
             }
-            formatter.write(b"; ");
+            f.write(b"; ");
             for (i, entry) in for_.changes.iter().enumerate() {
                 if i > 0 {
-                    formatter.write(b", ");
+                    f.write(b", ");
                 }
-                write_block_entry(entry, formatter, false);
+                write_block_entry(entry, f, false, false);
             }
-            formatter.write(b") ");
-            write_for_content(&for_.content, formatter);
+            f.write(b") ");
+            write_for_content(&for_.content, f);
         }
         AstBlockEntry::ForEnhanced(for_) => {
-            formatter.write_indent();
+            f.write_indent();
             if let Some(label) = &for_.label {
-                formatter.write_identifier(label);
-                formatter.write(b": ");
+                f.write_identifier(label);
+                f.write(b": ");
             }
-            formatter.write(b"for ");
-            formatter.write(b"(");
+            f.write(b"for ");
+            f.write(b"(");
             for var in &for_.var {
                 for ann in &var.annotated {
-                    write_annotation(ann, formatter);
+                    write_annotation(ann, f);
                 }
                 if var.fin {
-                    formatter.write(b"final ");
+                    f.write(b"final ");
                 }
-                write_jtype(&var.jtype, formatter);
-                formatter.buf.push(b' ');
-                formatter.write_identifier(&var.name);
+                write_jtype(&var.jtype, f);
+                f.buf.push(b' ');
+                f.write_identifier(&var.name);
             }
-            formatter.write(b" : ");
-            write_expression(&for_.rhs, formatter);
-            formatter.write(b") ");
-            write_for_content(&for_.content, formatter);
+            f.write(b" : ");
+            write_expression(&for_.rhs, f);
+            f.write(b") ");
+            write_for_content(&for_.content, f);
         }
         AstBlockEntry::Switch(switch) => {
-            formatter.write_indent();
-            formatter.write(b"switch ");
-            formatter.write(b"(");
-            write_expression(&switch.check, formatter);
-            formatter.write(b") ");
-            write_block(&switch.block, formatter);
-            formatter.buf.push(b'\n');
+            f.write_indent();
+            f.write(b"switch ");
+            f.write(b"(");
+            write_expression(&switch.check, f);
+            f.write(b") ");
+            write_block(&switch.block, f);
+            f.new_line();
         }
         AstBlockEntry::SwitchCase(case) => {
-            formatter.write_indent();
-            formatter.write(b"case ");
+            f.write_indent();
+            f.write(b"case ");
             for (i, expr) in case.expressions.iter().enumerate() {
                 if i > 0 {
-                    formatter.write(b", ");
+                    f.write(b", ");
                 }
-                write_expression_or_default(expr, formatter);
+                write_expression_or_default(expr, f);
             }
-            formatter.write(b":");
-            formatter.buf.push(b'\n');
+            f.write(b":");
+            f.new_line();
         }
         AstBlockEntry::SwitchDefault(_) => {
-            formatter.write_indent();
-            formatter.write(b"default:");
-            formatter.buf.push(b'\n');
+            f.write_indent();
+            f.write(b"default:");
+            f.new_line();
         }
         AstBlockEntry::SwitchCaseArrowValues(arrow) => {
-            formatter.write_indent();
-            formatter.write(b"case ");
+            f.write_indent();
+            f.write(b"case ");
             for (i, val) in arrow.values.iter().enumerate() {
                 if i > 0 {
-                    formatter.write(b", ");
+                    f.write(b", ");
                 }
-                write_expression_or_default(val, formatter);
+                write_expression_or_default(val, f);
             }
-            formatter.write(b" -> ");
-            write_switch_arrow_content(&arrow.content, formatter);
+            f.write(b" -> ");
+            write_switch_arrow_content(&arrow.content, f);
         }
         AstBlockEntry::SwitchCaseArrowType(arrow) => {
-            formatter.write_indent();
-            formatter.write(b"case ");
-            write_jtype(&arrow.var.jtype, formatter);
-            formatter.buf.push(b' ');
-            formatter.write_identifier(&arrow.var.name);
-            formatter.write(b" -> ");
-            write_switch_arrow_content(&arrow.content, formatter);
+            f.write_indent();
+            f.write(b"case ");
+            write_jtype(&arrow.var.jtype, f);
+            f.buf.push(b' ');
+            f.write_identifier(&arrow.var.name);
+            f.write(b" -> ");
+            write_switch_arrow_content(&arrow.content, f);
         }
         AstBlockEntry::SwitchCaseArrowDefault(arrow) => {
-            formatter.write_indent();
-            formatter.write(b"default -> ");
-            write_switch_arrow_content(&arrow.content, formatter);
+            f.write_indent();
+            f.write(b"default -> ");
+            write_switch_arrow_content(&arrow.content, f);
         }
         AstBlockEntry::TryCatch(try_catch) => {
-            formatter.write_indent();
-            formatter.write(b"try ");
+            f.write_indent();
+            f.write(b"try ");
             if let Some(resources) = &try_catch.resources_block {
-                write_block_delimited(resources, b"(", b")", formatter);
-                formatter.buf.push(b' ');
+                write_block_delimited(resources, b"(", b")", f);
+                f.buf.push(b' ');
             }
-            write_block(&try_catch.block, formatter);
+            write_block(&try_catch.block, f);
             for case in &try_catch.cases {
-                formatter.buf.extend_from_slice(b" catch ");
-                formatter.write(b"(");
+                f.buf.extend_from_slice(b" catch ");
+                f.write(b"(");
                 if case.variable.fin {
-                    formatter.write(b"final ");
+                    f.write(b"final ");
                 }
                 for (i, jtype) in case.variable.jtypes.iter().enumerate() {
                     if i > 0 {
-                        formatter.write(b" | ");
+                        f.write(b" | ");
                     }
-                    write_jtype(jtype, formatter);
+                    write_jtype(jtype, f);
                 }
-                formatter.buf.push(b' ');
-                formatter.write_identifier(&case.variable.name);
-                formatter.write(b") ");
-                write_block(&case.block, formatter);
+                f.buf.push(b' ');
+                f.write_identifier(&case.variable.name);
+                f.write(b") ");
+                write_block(&case.block, f);
             }
             if let Some(finally) = &try_catch.finally_block {
-                formatter.buf.extend_from_slice(b" finally ");
-                write_block(finally, formatter);
+                f.buf.extend_from_slice(b" finally ");
+                write_block(finally, f);
             }
-            formatter.buf.push(b'\n');
+            f.new_line();
         }
         AstBlockEntry::SynchronizedBlock(sync) => {
-            formatter.write_indent();
-            formatter.write(b"synchronized ");
-            formatter.write(b"(");
-            write_expression(&sync.expression, formatter);
-            formatter.write(b") ");
-            write_block(&sync.block, formatter);
-            formatter.buf.push(b'\n');
+            f.write_indent();
+            f.write(b"synchronized ");
+            f.write(b"(");
+            write_expression(&sync.expression, f);
+            f.write(b") ");
+            write_block(&sync.block, f);
+            f.new_line();
         }
         AstBlockEntry::InlineBlock(inline) => {
-            formatter.write_indent();
+            f.write_indent();
             if let Some(label) = &inline.label {
-                formatter.write_identifier(label);
-                formatter.write(b": ");
+                f.write_identifier(label);
+                f.write(b": ");
             }
-            write_block(&inline.block, formatter);
-            formatter.buf.push(b'\n');
+            write_block(&inline.block, f);
+            f.new_line();
         }
         AstBlockEntry::Thing(thing) => {
-            write_thing(thing, formatter);
+            write_thing(thing, f);
         }
     }
 }
 
-fn write_if_entry(aif: &AstIf, formatter: &mut Formatter) {
+fn write_if_entry(aif: &AstIf, f: &mut Formatter, next_if: bool) {
     match aif {
         AstIf::If {
             control, content, ..
         } => {
-            formatter.write_indent();
-            formatter.write(b"if ");
-            formatter.write(b"(");
-            write_expression(control, formatter);
-            formatter.write(b") ");
-            write_if_content(content, formatter);
+            f.write_indent();
+            f.write(b"if ");
+            f.write(b"(");
+            write_expression(control, f);
+            f.write(b") ");
+            write_if_content(content, f, next_if);
         }
         AstIf::ElseIf {
             control, content, ..
         } => {
-            formatter.write_indent();
-            formatter.buf.extend_from_slice(b"else if ");
-            formatter.write(b"(");
-            write_expression(control, formatter);
-            formatter.write(b") ");
-            write_if_content(content, formatter);
+            f.buf.extend_from_slice(b" else if ");
+            f.write(b"(");
+            write_expression(control, f);
+            f.write(b") ");
+            write_if_content(content, f, next_if);
         }
         AstIf::Else { content, .. } => {
-            formatter.write_indent();
-            formatter.buf.extend_from_slice(b"else ");
-            write_if_content(content, formatter);
+            f.buf.extend_from_slice(b" else ");
+            write_if_content(content, f, next_if);
         }
     }
 }
 
-fn write_if_content(content: &AstIfContent, formatter: &mut Formatter) {
+fn write_if_content(content: &AstIfContent, f: &mut Formatter, next_if: bool) {
     match content {
         AstIfContent::Block(block) => {
-            write_block(block, formatter);
-            formatter.buf.push(b'\n');
+            write_block(block, f);
+            if !next_if {
+                f.new_line();
+            }
         }
         AstIfContent::BlockEntry(entry) => {
-            formatter.buf.push(b'\n');
-            formatter.indent += 1;
-            write_block_entry(entry, formatter, true);
-            formatter.indent -= 1;
+            f.new_line();
+            f.indent += 1;
+            write_block_entry(entry, f, true, false);
+            f.indent -= 1;
         }
     }
 }
 
-fn write_while_content(content: &AstWhileContent, formatter: &mut Formatter) {
+fn write_while_content(content: &AstWhileContent, f: &mut Formatter) {
     match content {
         AstWhileContent::None => {
-            formatter.write(b";");
-            formatter.buf.push(b'\n');
+            f.write(b";");
+            f.new_line();
         }
         AstWhileContent::Block(block) => {
-            write_block(block, formatter);
-            formatter.buf.push(b'\n');
+            write_block(block, f);
+            f.new_line();
         }
         AstWhileContent::BlockEntry(entry) => {
-            formatter.buf.push(b'\n');
-            formatter.indent += 1;
-            write_block_entry(entry, formatter, true);
-            formatter.indent -= 1;
+            f.new_line();
+            f.indent += 1;
+            write_block_entry(entry, f, true, false);
+            f.indent -= 1;
         }
     }
 }
 
-fn write_for_content(content: &AstForContent, formatter: &mut Formatter) {
+fn write_for_content(content: &AstForContent, f: &mut Formatter) {
     match content {
         AstForContent::None => {
-            formatter.write(b";");
-            formatter.buf.push(b'\n');
+            f.write(b";");
+            f.new_line();
         }
         AstForContent::Block(block) => {
-            write_block(block, formatter);
-            formatter.buf.push(b'\n');
+            write_block(block, f);
+            f.new_line();
         }
         AstForContent::BlockEntry(entry) => {
-            formatter.buf.push(b'\n');
-            formatter.indent += 1;
-            write_block_entry(entry, formatter, true);
-            formatter.indent -= 1;
+            f.new_line();
+            f.indent += 1;
+            write_block_entry(entry, f, true, false);
+            f.indent -= 1;
         }
     }
 }
 
-fn write_expression_or_default(eod: &AstExpressionOrDefault, formatter: &mut Formatter) {
+fn write_expression_or_default(eod: &AstExpressionOrDefault, f: &mut Formatter) {
     match eod {
         AstExpressionOrDefault::Default => {
-            formatter.write(b"default");
+            f.write(b"default");
         }
-        AstExpressionOrDefault::Expression(e) => write_expression(e, formatter),
+        AstExpressionOrDefault::Expression(e) => write_expression(e, f),
     }
 }
 
-fn write_switch_arrow_content(content: &AstSwitchCaseArrowContent, formatter: &mut Formatter) {
+fn write_switch_arrow_content(content: &AstSwitchCaseArrowContent, f: &mut Formatter) {
     match content {
         AstSwitchCaseArrowContent::Block(block) => {
-            write_block(block, formatter);
-            formatter.buf.push(b'\n');
+            write_block(block, f);
+            f.new_line();
         }
         AstSwitchCaseArrowContent::Entry(entry) => {
-            write_block_entry(entry, formatter, true);
+            write_block_entry(entry, f, true, false);
         }
     }
 }
 
-fn write_block_delimited(block: &AstBlock, open: &[u8], close: &[u8], formatter: &mut Formatter) {
-    formatter.write(open);
-    formatter.buf.push(b'\n');
-    formatter.indent += 1;
+fn write_block_delimited(block: &AstBlock, open: &[u8], close: &[u8], f: &mut Formatter) {
+    f.write(open);
+    f.new_line();
+    f.indent += 1;
     for entry in &block.entries {
-        write_block_entry(entry, formatter, true);
+        write_block_entry(entry, f, true, false);
     }
-    formatter.indent -= 1;
-    formatter.write_indent();
-    formatter.write(close);
+    f.indent -= 1;
+    f.write_indent();
+    f.write(close);
 }
 
 fn write_thing(thing: &AstThing, formatter: &mut Formatter) {
@@ -1010,350 +1075,362 @@ fn write_thing(thing: &AstThing, formatter: &mut Formatter) {
     }
 }
 
-fn write_class(class: &AstClass, formatter: &mut Formatter) {
+fn write_class(class: &AstClass, f: &mut Formatter) {
     for ann in &class.annotated {
-        formatter.write_indent();
-        write_annotation(ann, formatter);
+        f.write_indent();
+        write_annotation(ann, f);
     }
-    formatter.write_indent();
-    write_availability(&class.availability, formatter);
+    f.write_indent();
+    write_availability(&class.availability, f);
     if class.attributes.contains(AstThingAttributes::Sealed) {
-        formatter.write(b"sealed ");
+        f.write(b"sealed ");
     }
-    formatter.write(b"class ");
-    formatter.write_identifier(&class.name);
+    f.write(b"class ");
+    f.write_identifier(&class.name);
     if let Some(tp) = &class.type_parameters {
-        write_type_parameters(tp, formatter);
+        write_type_parameters(tp, f);
     }
     if !class.superclass.is_empty() {
-        formatter.write(b" extends ");
+        f.write(b" extends ");
         for (i, sc) in class.superclass.iter().enumerate() {
             if i > 0 {
-                formatter.write(b", ");
+                f.write(b", ");
             }
             if let AstSuperClass::Name(ident) = sc {
-                formatter.write_identifier(ident);
+                f.write_identifier(ident);
             }
         }
     }
     if !class.implements.is_empty() {
-        formatter.write(b" implements ");
+        f.write(b" implements ");
         for (i, jtype) in class.implements.iter().enumerate() {
             if i > 0 {
-                formatter.write(b", ");
+                f.write(b", ");
             }
-            write_jtype(jtype, formatter);
+            write_jtype(jtype, f);
         }
     }
     if !class.permits.is_empty() {
-        formatter.write(b" permits ");
+        f.write(b" permits ");
         for (i, jtype) in class.permits.iter().enumerate() {
             if i > 0 {
-                formatter.write(b", ");
+                f.write(b", ");
             }
-            write_jtype(jtype, formatter);
+            write_jtype(jtype, f);
         }
     }
-    formatter.buf.push(b' ');
-    write_class_block_braced(&class.block, formatter);
-    formatter.buf.push(b'\n');
+    f.buf.push(b' ');
+    write_class_block_braced(&class.block, f);
+    f.new_line();
 }
 
-fn write_class_block_braced(block: &AstClassBlock, formatter: &mut Formatter) {
-    formatter.write(b"{");
-    formatter.buf.push(b'\n');
-    formatter.indent += 1;
-    write_class_block(block, formatter);
-    formatter.indent -= 1;
-    formatter.write_indent();
-    formatter.write(b"}");
+fn write_class_block_braced(block: &AstClassBlock, f: &mut Formatter) {
+    f.write(b"{");
+    f.new_line();
+    f.indent += 1;
+    write_class_block(block, f);
+    f.indent -= 1;
+    f.write_indent();
+    f.write(b"}");
 }
 
-fn write_class_block(block: &AstClassBlock, formatter: &mut Formatter) {
-    let mut members: Vec<(AstPoint, u8, usize)> = Vec::new();
+fn write_class_block(block: &AstClassBlock, f: &mut Formatter) {
+    let mut members = Vec::new();
     for (i, v) in block.variables.iter().enumerate() {
-        members.push((v.range.start, 0, i));
+        members.push((v.range, 0, i));
     }
     for (i, m) in block.methods.iter().enumerate() {
-        members.push((m.range.start, 1, i));
+        members.push((m.range, 1, i));
     }
     for (i, c) in block.constructors.iter().enumerate() {
-        members.push((c.range.start, 2, i));
+        members.push((c.range, 2, i));
     }
     for (i, s) in block.static_blocks.iter().enumerate() {
-        members.push((s.range.start, 3, i));
+        members.push((s.range, 3, i));
     }
     for (i, t) in block.inner.iter().enumerate() {
-        members.push((t.get_range().start, 4, i));
+        members.push((t.get_range(), 4, i));
     }
     for (i, b) in block.blocks.iter().enumerate() {
-        members.push((b.range.start, 5, i));
+        members.push((b.range, 5, i));
     }
-    members.sort_by(|(a, _, _), (b, _, _)| a.line.cmp(&b.line).then(a.col.cmp(&b.col)));
-    for (_, type_id, idx) in &members {
+    members.sort_by(|(a, _, _), (b, _, _)| {
+        a.start
+            .line
+            .cmp(&b.start.line)
+            .then(a.start.col.cmp(&b.start.col))
+    });
+    if let Some(first) = members.first() {
+        f.insert_new_lines(block.range.start.line, first.0.start.line);
+    }
+    let mut members = members.iter().peekable();
+    while let Some((range, type_id, idx)) = members.next() {
         match type_id {
-            0 => write_class_variable(&block.variables[*idx], formatter),
-            1 => write_class_method(&block.methods[*idx], formatter),
-            2 => write_class_constructor(&block.constructors[*idx], formatter),
+            0 => write_class_variable(&block.variables[*idx], f),
+            1 => write_class_method(&block.methods[*idx], f),
+            2 => write_class_constructor(&block.constructors[*idx], f),
             3 => {
-                formatter.write_indent();
-                formatter.write(b"static ");
-                write_block(&block.static_blocks[*idx].block, formatter);
-                formatter.buf.push(b'\n');
+                f.write_indent();
+                f.write(b"static ");
+                write_block(&block.static_blocks[*idx].block, f);
+                f.new_line();
             }
-            4 => write_thing(&block.inner[*idx], formatter),
+            4 => write_thing(&block.inner[*idx], f),
             5 => {
-                formatter.write_indent();
-                write_block(&block.blocks[*idx], formatter);
-                formatter.buf.push(b'\n');
+                f.write_indent();
+                write_block(&block.blocks[*idx], f);
+                f.new_line();
             }
             _ => unreachable!(),
         }
+        if let Some(next) = members.peek() {
+            f.insert_new_lines(range.end.line, next.0.start.line);
+        }
     }
 }
 
-fn write_class_variable(v: &AstClassVariable, formatter: &mut Formatter) {
+fn write_class_variable(v: &AstClassVariable, f: &mut Formatter) {
     for ann in &v.annotated {
-        formatter.write_indent();
-        write_annotation(ann, formatter);
+        f.write_indent();
+        write_annotation(ann, f);
     }
-    formatter.write_indent();
-    write_availability(&v.availability, formatter);
+    f.write_indent();
+    write_availability(&v.availability, f);
     if v.volatile_transient
         .contains(AstVolatileTransient::Volatile)
     {
-        formatter.write(b"volatile ");
+        f.write(b"volatile ");
     }
     if v.volatile_transient
         .contains(AstVolatileTransient::Transient)
     {
-        formatter.write(b"transient ");
+        f.write(b"transient ");
     }
-    write_jtype(&v.jtype, formatter);
-    formatter.buf.push(b' ');
-    formatter.write_identifier(&v.name);
+    write_jtype(&v.jtype, f);
+    f.buf.push(b' ');
+    f.write_identifier(&v.name);
     if let Some(expr) = &v.expression {
-        formatter.write(b" = ");
-        write_expression(expr, formatter);
+        f.write(b" = ");
+        write_expression(expr, f);
     }
-    formatter.write(b";");
-    formatter.buf.push(b'\n');
+    f.write(b";");
+    f.new_line();
 }
 
-fn write_class_method(method: &AstClassMethod, formatter: &mut Formatter) {
-    write_method_header(&method.header, formatter);
+fn write_class_method(method: &AstClassMethod, f: &mut Formatter) {
+    write_method_header(&method.header, f);
     if let Some(block) = &method.block {
-        formatter.buf.push(b' ');
-        write_block(block, formatter);
+        f.buf.push(b' ');
+        write_block(block, f);
     } else {
-        formatter.write(b";");
+        f.write(b";");
     }
-    formatter.buf.push(b'\n');
+    f.new_line();
 }
 
-fn write_class_constructor(c: &AstClassConstructor, formatter: &mut Formatter) {
+fn write_class_constructor(c: &AstClassConstructor, f: &mut Formatter) {
     for ann in &c.header.annotated {
-        formatter.write_indent();
-        write_annotation(ann, formatter);
+        f.write_indent();
+        write_annotation(ann, f);
     }
-    formatter.write_indent();
-    write_availability(&c.header.availability, formatter);
+    f.write_indent();
+    write_availability(&c.header.availability, f);
     if let Some(tp) = &c.header.type_parameters {
-        write_type_parameters(tp, formatter);
-        formatter.buf.push(b' ');
+        write_type_parameters(tp, f);
+        f.buf.push(b' ');
     }
-    formatter.write_identifier(&c.header.name);
-    write_method_parameters(&c.header.parameters, formatter);
+    f.write_identifier(&c.header.name);
+    write_method_parameters(&c.header.parameters, f);
     if let Some(throws) = &c.header.throws {
-        write_throws(throws, formatter);
+        write_throws(throws, f);
     }
-    formatter.buf.push(b' ');
-    write_block(&c.block, formatter);
-    formatter.buf.push(b'\n');
+    f.buf.push(b' ');
+    write_block(&c.block, f);
+    f.new_line();
 }
 
-fn write_method_header(header: &AstMethodHeader, formatter: &mut Formatter) {
+fn write_method_header(header: &AstMethodHeader, f: &mut Formatter) {
     for ann in &header.annotated {
-        formatter.write_indent();
-        write_annotation(ann, formatter);
+        f.write_indent();
+        write_annotation(ann, f);
     }
-    formatter.write_indent();
-    write_availability(&header.availability, formatter);
+    f.write_indent();
+    write_availability(&header.availability, f);
     if let Some(tp) = &header.type_parameters {
-        write_type_parameters(tp, formatter);
-        formatter.buf.push(b' ');
+        write_type_parameters(tp, f);
+        f.buf.push(b' ');
     }
-    write_jtype(&header.jtype, formatter);
-    formatter.buf.push(b' ');
-    formatter.write_identifier(&header.name);
-    write_method_parameters(&header.parameters, formatter);
+    write_jtype(&header.jtype, f);
+    f.buf.push(b' ');
+    f.write_identifier(&header.name);
+    write_method_parameters(&header.parameters, f);
     if let Some(throws) = &header.throws {
-        write_throws(throws, formatter);
+        write_throws(throws, f);
     }
 }
 
-fn write_method_parameters(params: &AstMethodParameters, formatter: &mut Formatter) {
-    const NEWLINE: usize = 3;
-    formatter.write(b"(");
-    if params.parameters.len() > NEWLINE {
-        formatter.indent += 1;
+fn write_method_parameters(params: &AstMethodParameters, f: &mut Formatter) {
+    let nl = params.range.start.line != params.range.end.line;
+    f.write(b"(");
+    if nl {
+        f.indent += 1;
     }
     for (i, param) in params.parameters.iter().enumerate() {
         if i > 0 {
-            formatter.write(b",");
+            f.write(b",");
         }
-        if params.parameters.len() > NEWLINE {
-            formatter.buf.push(b'\n');
-            formatter.write_indent();
+        if nl {
+            f.new_line();
+            f.write_indent();
         } else if i > 0 {
-            formatter.write(b" ");
+            f.write(b" ");
         }
         for ann in &param.annotated {
-            write_annotation(ann, formatter);
+            write_annotation(ann, f);
         }
         if param.flags.contains(AstMethodParameterFlags::Fin) {
-            formatter.write(b"final ");
+            f.write(b"final ");
         }
-        write_jtype(&param.jtype, formatter);
+        write_jtype(&param.jtype, f);
         if param.flags.contains(AstMethodParameterFlags::Variatic) {
-            formatter.write(b".");
-            formatter.write(b".");
-            formatter.write(b".");
+            f.write(b".");
+            f.write(b".");
+            f.write(b".");
         }
-        formatter.buf.push(b' ');
-        formatter.write_identifier(&param.name);
+        f.buf.push(b' ');
+        f.write_identifier(&param.name);
     }
-    if params.parameters.len() > NEWLINE {
-        formatter.indent -= 1;
-        formatter.buf.push(b'\n');
-        formatter.write_indent();
+    if nl {
+        f.indent -= 1;
+        f.new_line();
+        f.write_indent();
     }
-    formatter.write(b")");
+    f.write(b")");
 }
 
-fn write_throws(throws: &AstThrowsDeclaration, formatter: &mut Formatter) {
-    formatter.write(b" throws ");
+fn write_throws(throws: &AstThrowsDeclaration, f: &mut Formatter) {
+    f.write(b" throws ");
     for (i, t) in throws.parameters.iter().enumerate() {
         if i > 0 {
-            formatter.write(b", ");
+            f.write(b", ");
         }
-        write_jtype(t, formatter);
+        write_jtype(t, f);
     }
 }
 
-fn write_type_parameters(tp: &AstTypeParameters, formatter: &mut Formatter) {
-    formatter.write(b"<");
+fn write_type_parameters(tp: &AstTypeParameters, f: &mut Formatter) {
+    f.write(b"<");
     for (i, param) in tp.parameters.iter().enumerate() {
         if i > 0 {
-            formatter.write(b", ");
+            f.write(b", ");
         }
         for ann in &param.annotated {
-            write_annotation(ann, formatter);
+            write_annotation(ann, f);
         }
-        formatter.write_identifier(&param.name);
+        f.write_identifier(&param.name);
         if let Some(superclasses) = &param.supperclass
             && !superclasses.is_empty()
         {
-            formatter.write(b" extends ");
+            f.write(b" extends ");
             for (j, sc) in superclasses.iter().enumerate() {
                 if j > 0 {
-                    formatter.write(b" & ");
+                    f.write(b" & ");
                 }
                 if let AstSuperClass::Name(ident) = sc {
-                    formatter.write_identifier(ident);
+                    f.write_identifier(ident);
                 }
             }
         }
-        formatter.skip_to(param.range.end);
+        f.skip_to(param.range.end);
     }
-    formatter.write(b">");
+    f.write(b">");
 }
 
-fn write_record(record: &AstRecord, formatter: &mut Formatter) {
+fn write_record(record: &AstRecord, f: &mut Formatter) {
     for ann in &record.annotated {
-        formatter.write_indent();
-        write_annotation(ann, formatter);
+        f.write_indent();
+        write_annotation(ann, f);
     }
-    formatter.write_indent();
-    write_availability(&record.availability, formatter);
-    formatter.write(b"record ");
-    formatter.write_identifier(&record.name);
+    f.write_indent();
+    write_availability(&record.availability, f);
+    f.write(b"record ");
+    f.write_identifier(&record.name);
     if let Some(tp) = &record.type_parameters {
-        write_type_parameters(tp, formatter);
+        write_type_parameters(tp, f);
     }
-    write_record_entries(&record.record_entries, formatter);
+    write_record_entries(&record.record_entries, f);
     if !record.implements.is_empty() {
-        formatter.write(b" implements ");
+        f.write(b" implements ");
         for (i, jtype) in record.implements.iter().enumerate() {
             if i > 0 {
-                formatter.write(b", ");
+                f.write(b", ");
             }
-            write_jtype(jtype, formatter);
+            write_jtype(jtype, f);
         }
     }
-    formatter.buf.push(b' ');
-    write_class_block_braced(&record.block, formatter);
-    formatter.buf.push(b'\n');
+    f.buf.push(b' ');
+    write_class_block_braced(&record.block, f);
+    f.new_line();
 }
 
-fn write_record_entries(entries: &AstRecordEntries, formatter: &mut Formatter) {
-    formatter.write(b"(");
+fn write_record_entries(entries: &AstRecordEntries, f: &mut Formatter) {
+    f.write(b"(");
     for (i, entry) in entries.entries.iter().enumerate() {
         if i > 0 {
-            formatter.write(b", ");
+            f.write(b", ");
         }
         for ann in &entry.annotated {
-            write_annotation(ann, formatter);
+            write_annotation(ann, f);
         }
-        write_jtype(&entry.jtype, formatter);
+        write_jtype(&entry.jtype, f);
         if entry.variadic {
-            formatter.write(b".");
-            formatter.write(b".");
-            formatter.write(b".");
+            f.write(b".");
+            f.write(b".");
+            f.write(b".");
         }
-        formatter.buf.push(b' ');
-        formatter.write_identifier(&entry.name);
+        f.buf.push(b' ');
+        f.write_identifier(&entry.name);
     }
-    formatter.write(b")");
+    f.write(b")");
 }
 
-fn write_interface(iface: &AstInterface, formatter: &mut Formatter) {
+fn write_interface(iface: &AstInterface, f: &mut Formatter) {
     for ann in &iface.annotated {
-        formatter.write_indent();
-        write_annotation(ann, formatter);
+        f.write_indent();
+        write_annotation(ann, f);
     }
-    formatter.write_indent();
-    write_availability(&iface.availability, formatter);
+    f.write_indent();
+    write_availability(&iface.availability, f);
     if iface.attributes.contains(AstThingAttributes::Sealed) {
-        formatter.write(b"sealed ");
+        f.write(b"sealed ");
     }
-    formatter.write(b"interface ");
-    formatter.write_identifier(&iface.name);
+    f.write(b"interface ");
+    f.write_identifier(&iface.name);
     if let Some(tp) = &iface.type_parameters {
-        write_type_parameters(tp, formatter);
+        write_type_parameters(tp, f);
     }
     if let Some(extends) = &iface.extends {
-        formatter.write(b" extends ");
+        f.write(b" extends ");
         for (i, jtype) in extends.parameters.iter().enumerate() {
             if i > 0 {
-                formatter.write(b", ");
+                f.write(b", ");
             }
-            write_jtype(jtype, formatter);
+            write_jtype(jtype, f);
         }
     }
     if !iface.permits.is_empty() {
-        formatter.write(b" permits ");
+        f.write(b" permits ");
         for (i, jtype) in iface.permits.iter().enumerate() {
             if i > 0 {
-                formatter.write(b", ");
+                f.write(b", ");
             }
-            write_jtype(jtype, formatter);
+            write_jtype(jtype, f);
         }
     }
-    formatter.buf.push(b' ');
-    formatter.write(b"{");
-    formatter.buf.push(b'\n');
-    formatter.indent += 1;
+    f.buf.push(b' ');
+    f.write(b"{");
+    f.new_line();
+    f.indent += 1;
     let mut members: Vec<(AstPoint, u8, usize)> = Vec::new();
     for (i, c) in iface.constants.iter().enumerate() {
         members.push((c.range.start, 0, i));
@@ -1370,99 +1447,99 @@ fn write_interface(iface: &AstInterface, formatter: &mut Formatter) {
     members.sort_by(|(a, _, _), (b, _, _)| a.line.cmp(&b.line).then(a.col.cmp(&b.col)));
     for (_, type_id, idx) in &members {
         match type_id {
-            0 => write_interface_constant(&iface.constants[*idx], formatter),
-            1 => write_interface_method(&iface.methods[*idx], formatter),
-            2 => write_interface_default_method(&iface.default_methods[*idx], formatter),
-            3 => write_thing(&iface.inner[*idx], formatter),
+            0 => write_interface_constant(&iface.constants[*idx], f),
+            1 => write_interface_method(&iface.methods[*idx], f),
+            2 => write_interface_default_method(&iface.default_methods[*idx], f),
+            3 => write_thing(&iface.inner[*idx], f),
             _ => unreachable!(),
         }
     }
-    formatter.indent -= 1;
-    formatter.write_indent();
-    formatter.write(b"}");
-    formatter.buf.push(b'\n');
+    f.indent -= 1;
+    f.write_indent();
+    f.write(b"}");
+    f.new_line();
 }
 
-fn write_interface_constant(c: &AstInterfaceConstant, formatter: &mut Formatter) {
+fn write_interface_constant(c: &AstInterfaceConstant, f: &mut Formatter) {
     for ann in &c.annotated {
-        formatter.write_indent();
-        write_annotation(ann, formatter);
+        f.write_indent();
+        write_annotation(ann, f);
     }
-    formatter.write_indent();
-    write_availability(&c.availability, formatter);
-    write_jtype(&c.jtype, formatter);
-    formatter.buf.push(b' ');
-    formatter.write_identifier(&c.name);
+    f.write_indent();
+    write_availability(&c.availability, f);
+    write_jtype(&c.jtype, f);
+    f.buf.push(b' ');
+    f.write_identifier(&c.name);
     if let Some(expr) = &c.expression {
-        formatter.write(b" = ");
-        write_expression(expr, formatter);
+        f.write(b" = ");
+        write_expression(expr, f);
     }
-    formatter.write(b";");
-    formatter.buf.push(b'\n');
+    f.write(b";");
+    f.new_line();
 }
 
-fn write_interface_method(m: &AstInterfaceMethod, formatter: &mut Formatter) {
+fn write_interface_method(m: &AstInterfaceMethod, f: &mut Formatter) {
     for ann in &m.annotated {
-        formatter.write_indent();
-        write_annotation(ann, formatter);
+        f.write_indent();
+        write_annotation(ann, f);
     }
-    write_method_header(&m.header, formatter);
-    formatter.write(b";");
-    formatter.buf.push(b'\n');
+    write_method_header(&m.header, f);
+    f.write(b";");
+    f.new_line();
 }
 
-fn write_interface_default_method(m: &AstInterfaceMethodDefault, formatter: &mut Formatter) {
+fn write_interface_default_method(m: &AstInterfaceMethodDefault, f: &mut Formatter) {
     for ann in &m.annotated {
-        formatter.write_indent();
-        write_annotation(ann, formatter);
+        f.write_indent();
+        write_annotation(ann, f);
     }
-    write_method_header(&m.header, formatter);
-    formatter.buf.push(b' ');
-    write_block(&m.block, formatter);
-    formatter.buf.push(b'\n');
+    write_method_header(&m.header, f);
+    f.buf.push(b' ');
+    write_block(&m.block, f);
+    f.new_line();
 }
 
-fn write_enumeration(e: &AstEnumeration, formatter: &mut Formatter) {
+fn write_enumeration(e: &AstEnumeration, f: &mut Formatter) {
     for ann in &e.annotated {
-        formatter.write_indent();
-        write_annotation(ann, formatter);
+        f.write_indent();
+        write_annotation(ann, f);
     }
-    formatter.write_indent();
-    write_availability(&e.availability, formatter);
-    formatter.write(b"enum ");
-    formatter.write_identifier(&e.name);
+    f.write_indent();
+    write_availability(&e.availability, f);
+    f.write(b"enum ");
+    f.write_identifier(&e.name);
     if !e.implements.is_empty() {
-        formatter.write(b" implements ");
+        f.write(b" implements ");
         for (i, jtype) in e.implements.iter().enumerate() {
             if i > 0 {
-                formatter.write(b", ");
+                f.write(b", ");
             }
-            write_jtype(jtype, formatter);
+            write_jtype(jtype, f);
         }
     }
-    formatter.buf.push(b' ');
-    formatter.write(b"{");
-    formatter.buf.push(b'\n');
-    formatter.indent += 1;
+    f.buf.push(b' ');
+    f.write(b"{");
+    f.new_line();
+    f.indent += 1;
     for (i, variant) in e.variants.iter().enumerate() {
         if i > 0 {
-            formatter.write(b",");
-            formatter.buf.push(b'\n');
+            f.write(b",");
+            f.new_line();
         }
-        formatter.write_indent();
+        f.write_indent();
         for ann in &variant.annotated {
-            write_annotation(ann, formatter);
+            write_annotation(ann, f);
         }
-        formatter.write_identifier(&variant.name);
+        f.write_identifier(&variant.name);
         if !variant.parameters.is_empty() {
-            formatter.write(b"(");
+            f.write(b"(");
             for (j, param) in variant.parameters.iter().enumerate() {
                 if j > 0 {
-                    formatter.write(b", ");
+                    f.write(b", ");
                 }
-                write_expression(param, formatter);
+                write_expression(param, f);
             }
-            formatter.write(b")");
+            f.write(b")");
         }
     }
     let has_members = !e.methods.is_empty()
@@ -1471,9 +1548,10 @@ fn write_enumeration(e: &AstEnumeration, formatter: &mut Formatter) {
         || !e.static_blocks.is_empty()
         || !e.inner.is_empty();
     if has_members {
-        formatter.write(b";");
-        formatter.buf.push(b'\n');
+        f.write(b";");
+        f.new_line();
         let block = AstClassBlock {
+            range: e.range,
             variables: e.variables.clone(),
             methods: e.methods.clone(),
             constructors: e.constructors.clone(),
@@ -1481,139 +1559,140 @@ fn write_enumeration(e: &AstEnumeration, formatter: &mut Formatter) {
             inner: e.inner.clone(),
             blocks: vec![],
         };
-        write_class_block(&block, formatter);
+        write_class_block(&block, f);
     } else if !e.variants.is_empty() {
-        formatter.buf.push(b'\n');
+        f.new_line();
     }
-    formatter.indent -= 1;
-    formatter.write_indent();
-    formatter.write(b"}");
-    formatter.buf.push(b'\n');
+    f.indent -= 1;
+    f.write_indent();
+    f.write(b"}");
+    f.new_line();
 }
 
-fn write_annotation_type(ann_type: &AstAnnotation, formatter: &mut Formatter) {
+fn write_annotation_type(ann_type: &AstAnnotation, f: &mut Formatter) {
     for ann in &ann_type.annotated {
-        formatter.write_indent();
-        write_annotation(ann, formatter);
+        f.write_indent();
+        write_annotation(ann, f);
     }
-    formatter.write_indent();
-    write_availability(&ann_type.availability, formatter);
-    formatter.write(b"@");
-    formatter.write(b"interface ");
-    formatter.write_identifier(&ann_type.name);
-    formatter.buf.push(b' ');
-    formatter.write(b"{");
-    formatter.buf.push(b'\n');
-    formatter.indent += 1;
+    f.write_indent();
+    write_availability(&ann_type.availability, f);
+    f.write(b"@");
+    f.write(b"interface ");
+    f.write_identifier(&ann_type.name);
+    f.buf.push(b' ');
+    f.write(b"{");
+    f.new_line();
+    f.indent += 1;
     for field in &ann_type.fields {
-        write_annotation_field(field, formatter);
+        write_annotation_field(field, f);
     }
     for inner in &ann_type.inner {
-        write_thing(inner, formatter);
+        write_thing(inner, f);
     }
-    formatter.indent -= 1;
-    formatter.write_indent();
-    formatter.write(b"}");
-    formatter.buf.push(b'\n');
+    f.indent -= 1;
+    f.write_indent();
+    f.write(b"}");
+    f.new_line();
 }
 
-fn write_annotation_field(field: &AstAnnotationField, formatter: &mut Formatter) {
+fn write_annotation_field(field: &AstAnnotationField, f: &mut Formatter) {
     for ann in &field.annotated {
-        formatter.write_indent();
-        write_annotation(ann, formatter);
+        f.write_indent();
+        write_annotation(ann, f);
     }
-    formatter.write_indent();
-    write_availability(&field.availability, formatter);
-    write_jtype(&field.jtype, formatter);
-    formatter.buf.push(b' ');
-    formatter.write_identifier(&field.name);
-    formatter.write(b"(");
-    formatter.write(b")");
+    f.write_indent();
+    write_availability(&field.availability, f);
+    write_jtype(&field.jtype, f);
+    f.buf.push(b' ');
+    f.write_identifier(&field.name);
+    f.write(b"(");
+    f.write(b")");
     if let Some(expr) = &field.expression {
-        formatter.write(b" default ");
-        write_expression(expr, formatter);
+        f.write(b" default ");
+        write_expression(expr, f);
     }
-    formatter.write(b";");
-    formatter.buf.push(b'\n');
+    f.write(b";");
+    f.new_line();
 }
 
-fn write_expression_identifier(ident: &AstExpressionIdentifier, formatter: &mut Formatter) {
+fn write_expression_identifier(ident: &AstExpressionIdentifier, f: &mut Formatter) {
     match ident {
-        AstExpressionIdentifier::Identifier(i) => formatter.write_identifier(i),
-        AstExpressionIdentifier::Nuget(n) => write_value_nuget(n, formatter),
-        AstExpressionIdentifier::Value(v) => write_value(v, formatter),
+        AstExpressionIdentifier::Identifier(i) => f.write_identifier(i),
+        AstExpressionIdentifier::Nuget(n) => write_value_nuget(n, f),
+        AstExpressionIdentifier::Value(v) => write_value(v, f),
         AstExpressionIdentifier::ArrayAccess { expr, .. } => {
-            formatter.write(b"[");
-            write_expression(expr, formatter);
-            formatter.write(b"]");
+            f.write(b"[");
+            write_expression(expr, f);
+            f.write(b"]");
         }
 
         AstExpressionIdentifier::EmptyArrayAccess(_) => {
-            formatter.write(b"[]");
+            f.write(b"[]");
         }
     }
 }
 
-fn write_value(value: &AstValue, formatter: &mut Formatter) {
+fn write_value(value: &AstValue, f: &mut Formatter) {
     match value {
-        AstValue::Variable(i) => formatter.write_identifier(i),
-        AstValue::Nuget(n) => write_value_nuget(n, formatter),
+        AstValue::Variable(i) => f.write_identifier(i),
+        AstValue::Nuget(n) => write_value_nuget(n, f),
     }
 }
 
-fn write_value_nuget(nuget: &AstValueNuget, formatter: &mut Formatter) {
+fn write_value_nuget(nuget: &AstValueNuget, f: &mut Formatter) {
     match nuget {
         AstValueNuget::Int(i) => {
-            formatter.write_with_comments(i.range.start, i.value.as_bytes());
-            formatter.skip_to(i.range.end);
+            f.write_with_comments(i.range.start, i.value.as_bytes());
+            f.skip_to(i.range.end);
         }
         AstValueNuget::Long(l) => {
-            formatter.write_with_comments(l.range.start, l.value.as_bytes());
-            formatter.skip_to(l.range.end);
-            formatter.write(b"L");
+            f.write_with_comments(l.range.start, l.value.as_bytes());
+            f.skip_to(l.range.end);
+            f.write(b"L");
         }
         AstValueNuget::Double(d) => {
-            formatter.write_with_comments(d.range.start, d.value.as_bytes());
-            formatter.skip_to(d.range.end);
+            f.write_with_comments(d.range.start, d.value.as_bytes());
+            f.skip_to(d.range.end);
         }
-        AstValueNuget::Float(f) => {
-            formatter.write_with_comments(f.range.start, f.value.as_bytes());
-            formatter.skip_to(f.range.end);
-            formatter.write(b"f");
+        AstValueNuget::Float(fl) => {
+            f.write_with_comments(fl.range.start, fl.value.as_bytes());
+            f.skip_to(fl.range.end);
+            f.write(b"f");
         }
         AstValueNuget::StringLiteral(s) => {
-            formatter.write_with_comments(s.range.start, b"\"");
-            formatter.buf.extend_from_slice(s.value.as_bytes());
-            formatter.buf.extend_from_slice(b"\"");
-            formatter.skip_to(s.range.end);
+            f.write_with_comments(s.range.start, b"\"");
+            f.buf.extend_from_slice(s.value.as_bytes());
+            f.buf.extend_from_slice(b"\"");
+            f.skip_to(s.range.end);
         }
         AstValueNuget::CharLiteral(c) => {
-            formatter.write_with_comments(c.range.start, b"'");
-            formatter.buf.extend_from_slice(c.value.as_bytes());
-            formatter.buf.extend_from_slice(b"'");
-            formatter.skip_to(c.range.end);
+            f.write_with_comments(c.range.start, b"'");
+            f.buf.extend_from_slice(c.value.as_bytes());
+            f.buf.extend_from_slice(b"'");
+            f.skip_to(c.range.end);
         }
         AstValueNuget::BooleanLiteral(b) => {
-            formatter.write_with_comments(b.range.start, if b.value { b"true" } else { b"false" });
-            formatter.skip_to(b.range.end);
+            f.write_with_comments(b.range.start, if b.value { b"true" } else { b"false" });
+            f.skip_to(b.range.end);
         }
         AstValueNuget::HexLiteral(h) => {
-            formatter.write_with_comments(h.range.start, b"0x");
-            formatter.buf.extend_from_slice(h.value.as_bytes());
-            formatter.skip_to(h.range.end);
+            f.write_with_comments(h.range.start, b"0x");
+            f.buf.extend_from_slice(h.value.as_bytes());
+            f.skip_to(h.range.end);
         }
         AstValueNuget::BinaryLiteral(b) => {
-            formatter.write_with_comments(b.range.start, b"0b");
-            formatter.buf.extend_from_slice(b.value.as_bytes());
-            formatter.skip_to(b.range.end);
+            f.write_with_comments(b.range.start, b"0b");
+            f.buf.extend_from_slice(b.value.as_bytes());
+            f.skip_to(b.range.end);
         }
     }
 }
 
 fn write_expression_operator(
     op: &AstExpressionOperator,
-    formatter: &mut Formatter,
+    f: &mut Formatter,
     is_large: bool,
+    dot: bool,
 ) {
     let (r, bytes): (_, &[u8]) = match op {
         AstExpressionOperator::None => return,
@@ -1644,66 +1723,66 @@ fn write_expression_operator(
         AstExpressionOperator::Caret(r) => (r, b" ^ "),
     };
     if is_large
-        && matches!(
+        && (matches!(
             op,
             AstExpressionOperator::VerticalBarVerticalBar(_)
                 | AstExpressionOperator::AmpersandAmpersand(_)
                 | AstExpressionOperator::Plus(_)
                 | AstExpressionOperator::Minus(_)
-        )
+        ) || dot)
     {
-        formatter.buf.push(b'\n');
-        formatter.write_indent();
+        f.new_line();
+        f.write_indent();
     }
-    formatter.write_with_comments(r.start, bytes);
-    formatter.skip_to(r.end);
+    f.write_with_comments(r.start, bytes);
+    f.skip_to(r.end);
 }
 
-fn write_import(import: &AstImport, formatter: &mut Formatter) {
-    formatter.write(b"import ");
+fn write_import(import: &AstImport, f: &mut Formatter) {
+    f.write(b"import ");
     match &import.unit {
         AstImportUnit::Class(ident) => {
-            formatter.write_identifier(ident);
+            f.write_identifier(ident);
         }
         AstImportUnit::StaticClass(ident) => {
-            formatter.write(b"static ");
-            formatter.write_identifier(ident);
+            f.write(b"static ");
+            f.write_identifier(ident);
         }
         AstImportUnit::StaticClassMethod(class, method) => {
-            formatter.write(b"static ");
-            formatter.write_identifier(class);
-            formatter.buf.push(b'.');
-            formatter.write_identifier(method);
+            f.write(b"static ");
+            f.write_identifier(class);
+            f.buf.push(b'.');
+            f.write_identifier(method);
         }
         AstImportUnit::Prefix(ident) => {
-            formatter.write_identifier(ident);
-            formatter.write(b".");
-            formatter.write(b"*");
+            f.write_identifier(ident);
+            f.write(b".");
+            f.write(b"*");
         }
         AstImportUnit::StaticPrefix(ident) => {
-            formatter.write(b"static ");
-            formatter.write_identifier(ident);
-            formatter.write(b".");
-            formatter.write(b"*");
+            f.write(b"static ");
+            f.write_identifier(ident);
+            f.write(b".");
+            f.write(b"*");
         }
     }
-    formatter.write(b";");
-    formatter.buf.push(b'\n');
+    f.write(b";");
+    f.new_line();
 }
 
-fn write_module(module: &AstModule, formatter: &mut Formatter) {
+fn write_module(module: &AstModule, f: &mut Formatter) {
     for ann in &module.annotated {
-        write_annotation(ann, formatter);
+        write_annotation(ann, f);
     }
     if module.open {
-        formatter.write(b"open ");
+        f.write(b"open ");
     }
-    formatter.write(b"module ");
-    formatter.write_identifier(&module.name);
-    formatter.buf.push(b' ');
-    formatter.write(b"{");
-    formatter.buf.push(b'\n');
-    formatter.indent += 1;
+    f.write(b"module ");
+    f.write_identifier(&module.name);
+    f.buf.push(b' ');
+    f.write(b"{");
+    f.new_line();
+    f.indent += 1;
 
     let mut entries: Vec<(AstPoint, u8, usize)> = Vec::new();
     for (i, e) in module.exports.iter().enumerate() {
@@ -1724,82 +1803,82 @@ fn write_module(module: &AstModule, formatter: &mut Formatter) {
     entries.sort_by(|(a, _, _), (b, _, _)| a.line.cmp(&b.line).then(a.col.cmp(&b.col)));
 
     for (_, type_id, idx) in &entries {
-        formatter.write_indent();
+        f.write_indent();
         match type_id {
             0 => {
                 let e = &module.exports[*idx];
-                formatter.write(b"exports ");
-                formatter.write_identifier(&e.name);
+                f.write(b"exports ");
+                f.write_identifier(&e.name);
                 if !e.to.is_empty() {
-                    formatter.write(b" to ");
+                    f.write(b" to ");
                     for (i, t) in e.to.iter().enumerate() {
                         if i > 0 {
-                            formatter.write(b", ");
+                            f.write(b", ");
                         }
-                        formatter.write_identifier(t);
+                        f.write_identifier(t);
                     }
                 }
-                formatter.write(b";");
-                formatter.buf.push(b'\n');
+                f.write(b";");
+                f.new_line();
             }
             1 => {
                 let o = &module.opens[*idx];
-                formatter.write(b"opens ");
-                formatter.write_identifier(&o.name);
+                f.write(b"opens ");
+                f.write_identifier(&o.name);
                 if !o.to.is_empty() {
-                    formatter.write(b" to ");
+                    f.write(b" to ");
                     for (i, t) in o.to.iter().enumerate() {
                         if i > 0 {
-                            formatter.write(b", ");
+                            f.write(b", ");
                         }
-                        formatter.write_identifier(t);
+                        f.write_identifier(t);
                     }
                 }
-                formatter.write(b";");
-                formatter.buf.push(b'\n');
+                f.write(b";");
+                f.new_line();
             }
             2 => {
                 let u = &module.uses[*idx];
-                formatter.write(b"uses ");
-                formatter.write_identifier(&u.name);
-                formatter.write(b";");
-                formatter.buf.push(b'\n');
+                f.write(b"uses ");
+                f.write_identifier(&u.name);
+                f.write(b";");
+                f.new_line();
             }
             3 => {
                 let p = &module.provides[*idx];
-                formatter.write(b"provides ");
-                formatter.write_identifier(&p.name);
-                formatter.write(b" with ");
+                f.write(b"provides ");
+                f.write_identifier(&p.name);
+                f.write(b" with ");
                 for (i, w) in p.with.iter().enumerate() {
                     if i > 0 {
-                        formatter.write(b", ");
+                        f.write(b", ");
                     }
-                    formatter.write_identifier(w);
+                    f.write_identifier(w);
                 }
-                formatter.write(b";");
-                formatter.buf.push(b'\n');
+                f.write(b";");
+                f.new_line();
             }
             4 => {
                 let r = &module.requires[*idx];
-                formatter.write(b"requires ");
+                f.write(b"requires ");
                 if r.flags.contains(AstModuleRequiresFlags::Transitive) {
-                    formatter.write(b"transitive ");
+                    f.write(b"transitive ");
                 }
                 if r.flags.contains(AstModuleRequiresFlags::Static) {
-                    formatter.write(b"static ");
+                    f.write(b"static ");
                 }
-                formatter.write_identifier(&r.name);
-                formatter.write(b";");
-                formatter.buf.push(b'\n');
+                f.write_identifier(&r.name);
+                f.write(b";");
+                f.new_line();
             }
             _ => unreachable!(),
         }
     }
 
-    formatter.indent -= 1;
-    formatter.write_indent();
-    formatter.write(b"}");
-    formatter.buf.push(b'\n');
+    f.indent -= 1;
+    f.write_indent();
+    f.write(b"}");
+    f.new_line();
 }
 
 #[cfg(test)]
@@ -1807,6 +1886,8 @@ mod tests {
     use expect_test::expect;
 
     use super::*;
+
+    const SPACE: &str = "    ";
 
     #[test]
     fn package() {
@@ -1819,7 +1900,7 @@ mod tests {
         // Now the imports
         ";
 
-        let o = internal(content).unwrap();
+        let o = internal(content, SPACE).unwrap();
         let expected = expect![[r"
             // This is a cool file
             @Thing(Type.IMPORTANT)
@@ -1845,9 +1926,10 @@ mod tests {
         }
         "#;
 
-        let o = internal(content).unwrap();
+        let o = internal(content, SPACE).unwrap();
         let expected = expect![[r#"
             package ch.emilycares;
+
             /**
                      * hostile getter
                      */
@@ -1856,6 +1938,7 @@ mod tests {
                 if (g.name().equals("thorben")) {
                     return false;
                 }
+
                 return true;
             }
         "#]];
@@ -1873,7 +1956,8 @@ mod tests {
             private final Telemetry tel;
             private final Obeservability obs;
 
-            public Application(Database db, Messages msgs, Telemetry tel, Obeservability obs) {
+            public Application(Database db, Messages msgs, Telemetry tel, 
+            Obeservability obs) {
                 this.db = db;
                 this.msgs = msgs;
                 this.tel = tel;
@@ -1882,14 +1966,16 @@ mod tests {
         }
         ";
 
-        let o = internal(content).unwrap();
+        let o = internal(content, SPACE).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
             public class Application {
+
                 private final Database db;
                 private final Messages msgs;
                 private final Telemetry tel;
                 private final Obeservability obs;
+
                 public Application(
                     Database db,
                     Messages msgs,
@@ -1917,8 +2003,10 @@ mod tests {
                switch (this) {
                    case A:
                       return 1
+
                    case B:
                       return 2
+
                    case C: {
                       return 2
                       }
@@ -1927,19 +2015,22 @@ mod tests {
         }
         ";
 
-        let o = internal(content).unwrap();
+        let o = internal(content, SPACE).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
             public enum EType {
                 A,
                 B,
                 C;
+
                 public int aaa() {
                     switch (this) {
                         case A:
                         return 1;
+
                         case B:
                         return 2;
+
                         case C:
                         {
                             return 2;
@@ -1958,19 +2049,19 @@ mod tests {
         public class Test {
             public int aaa() {
                  int b = 1;
-                 return this.that + this.other + this.taetsch 
+                 return (this.that) + this.other + this.taetsch 
                  + this.boing + b;
             }
         }
         ";
 
-        let o = internal(content).unwrap();
+        let o = internal(content, SPACE).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
             public class Test {
                 public int aaa() {
                     int b = 1;
-                    return this.that
+                    return (this.that)
                          + this.other
                          + this.taetsch
                          + this.boing
@@ -1996,7 +2087,7 @@ mod tests {
         }
         "#;
 
-        let o = internal(content).unwrap();
+        let o = internal(content, SPACE).unwrap();
         let expected = expect![[r#"
             package ch.emilycares;
             public class Test {
@@ -2007,6 +2098,172 @@ mod tests {
                 }
             }
         "#]];
+        expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
+    }
+
+    #[test]
+    fn stream() {
+        let content = br"
+        package ch.emilycares;
+
+        public class Test {
+            public int aaa() {
+                return intem
+                .stream() .map(a -> a + 1) .filter(a > 5) .toList();
+
+            }
+        }
+        ";
+
+        let o = internal(content, SPACE).unwrap();
+        let expected = expect![[r"
+            package ch.emilycares;
+
+            public class Test {
+                public int aaa() {
+                    return intem
+                        .stream()
+                        .map(a -> a + 1)
+                        .filter(a > 5)
+                        .toList();
+                }
+            }
+        "]];
+        expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
+    }
+
+    #[test]
+    fn annotated() {
+        let content = br#"
+@Path("/api/v1/thing")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
+public class ThingResource {
+
+    @Inject
+    ObjectMapper mapper;
+
+    @POST
+    @Path("/thing")
+    @WithTransaction
+    public Uni<Response> createThing(CreateThingRequest request) {
+    Campaign c = new Campaign();
+    c.slug = request.slug;
+    c.displayName = request.displayName;
+    c.style = request.style;
+    c.active = true;
+    return c
+      .persist()
+      .map(entity -> Response.status(201).entity(entity).build());
+  }
+  }
+        "#;
+
+        let o = internal(content, SPACE).unwrap();
+        let expected = expect![[r#"
+            @Path("/api/v1/thing")
+            @Produces(MediaType.APPLICATION_JSON)
+            @Consumes(MediaType.APPLICATION_JSON)
+            public class ThingResource {
+
+                @Inject
+                ObjectMapper mapper;
+
+                @POST
+                @Path("/thing")
+                @WithTransaction
+                public Uni<Response> createThing(CreateThingRequest request) {
+                    Campaign c = new Campaign();
+                    c.slug = request.slug;
+                    c.displayName = request.displayName;
+                    c.style = request.style;
+                    c.active = true;
+                    return c
+                        .persist()
+                        .map(entity -> Response.status(201).entity(entity).build());
+                }
+            }
+        "#]];
+        expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
+    }
+
+    #[test]
+    fn if_else() {
+        let content = br"
+        package ch.emilycares;
+
+        public class Test {
+            public int aaa() {
+            if (true) {
+            return 1;
+            } else if (false) {
+            return 2;
+
+            } else {
+            return 2;
+            }
+
+            }
+        }
+        ";
+
+        let o = internal(content, SPACE).unwrap();
+        let expected = expect![[r"
+            package ch.emilycares;
+
+            public class Test {
+                public int aaa() {
+                    if (true) {
+                        return 1;
+                    } else if (false) {
+                        return 2;
+                    } else {
+                        return 2;
+                    }
+                }
+            }
+        "]];
+        expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
+    }
+
+    #[test]
+    fn lambda_newline() {
+        let content = br"
+        package ch.emilycares;
+
+        public class Test {
+            public int aaa() {
+                Suppliers.momoize(() -> {
+                   // some processing
+                   return true;
+                });
+
+                Thread.ofVirtual().start(() -> {
+                            // do something
+                        });
+            }
+        }
+        ";
+
+        let o = internal(content, SPACE).unwrap();
+        let expected = expect![[r"
+            package ch.emilycares;
+
+            public class Test {
+                public int aaa() {
+                    Suppliers.momoize(() -> {
+                            // some processing
+                            return true;
+                        });
+
+                    Thread
+                        .ofVirtual()
+                        .start(() -> {
+                            // do something
+                            });
+                }
+            }
+        "]];
         expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
     }
 }

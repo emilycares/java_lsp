@@ -214,6 +214,7 @@ pub struct AstRecordEntry {
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AstClassBlock {
+    pub range: AstRange,
     pub variables: Vec<AstClassVariable>,
     pub methods: Vec<AstClassMethod>,
     pub constructors: Vec<AstClassConstructor>,

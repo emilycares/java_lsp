@@ -93,6 +93,7 @@ pub fn parse_class_block(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstClassBlock, usize), AstError> {
+    let start = tokens.start(pos)?;
     let pos = assert_token(tokens, pos, Token::LeftParenCurly)?;
     let mut static_blocks = vec![];
     let mut blocks = vec![];
@@ -183,8 +184,11 @@ pub fn parse_class_block(
             errors,
         });
     }
+
+    let end = tokens.end(pos)?;
     Ok((
         AstClassBlock {
+            range: AstRange::from_position_token(start, end),
             variables,
             methods,
             constructors,

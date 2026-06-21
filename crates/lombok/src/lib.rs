@@ -482,6 +482,10 @@ public class MyData {
                                 implements: [],
                                 permits: [],
                                 block: AstClassBlock {
+                                    range: AstRange {
+                                        start: AstPoint { 3:20 },
+                                        end: AstPoint { 5:1 },
+                                    },
                                     variables: [
                                         AstClassVariable {
                                             range: AstRange {
@@ -956,6 +960,10 @@ public class AllArgs {
                                 implements: [],
                                 permits: [],
                                 block: AstClassBlock {
+                                    range: AstRange {
+                                        start: AstPoint { 5:21 },
+                                        end: AstPoint { 7:1 },
+                                    },
                                     variables: [
                                         AstClassVariable {
                                             range: AstRange {

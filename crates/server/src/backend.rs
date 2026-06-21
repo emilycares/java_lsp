@@ -673,12 +673,18 @@ impl Backend {
             return None;
         };
         let lines = document.rope.lines().len();
+        let space = if params.options.insert_spaces {
+            " ".repeat(params.options.tab_size as usize)
+        } else {
+            "\t".to_string()
+        };
         let name = formatter::get_formatter_name(&self.config.formatter);
         match formatter::format(
             &self.config.formatter,
             document.rope.to_string().as_bytes(),
             &document.path,
             self.project_dir.as_path(),
+            &space,
         ) {
             Ok(Some(o)) => {
                 let out = String::from_utf8_lossy(&o);

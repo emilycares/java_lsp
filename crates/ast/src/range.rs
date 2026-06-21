@@ -2,7 +2,7 @@
 use crate::types::{
     AstAnnotated, AstAnnotatedParameter, AstBlockEntry, AstExpression, AstExpressionIdentifier,
     AstExpressionKind, AstForContent, AstIf, AstIfContent, AstPoint, AstRange, AstSuperClass,
-    AstThing, AstValue, AstValueNuget, AstValues,
+    AstThing, AstTopLevel, AstValue, AstValueNuget, AstValues,
 };
 
 /// Join two ranges a must be before b
@@ -388,6 +388,19 @@ impl GetRange for &AstIfContent {
         }
     }
 }
+
+impl GetRange for &AstTopLevel {
+    fn get_range(&self) -> AstRange {
+        match self {
+            AstTopLevel::Package(ast_package) => ast_package.range,
+            AstTopLevel::Import(ast_import) => ast_import.range,
+            AstTopLevel::Thing(ast_thing) => ast_thing.get_range(),
+            AstTopLevel::Method(ast_class_method) => ast_class_method.range,
+            AstTopLevel::Module(ast_module) => ast_module.range,
+        }
+    }
+}
+
 /// When None true
 #[must_use]
 pub fn is_in_range_c(range: AstRange, opoint: &Option<AstPoint>) -> bool {

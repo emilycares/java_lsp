@@ -59,6 +59,10 @@ fn everything() {
                             implements: [],
                             permits: [],
                             block: AstClassBlock {
+                                range: AstRange {
+                                    start: AstPoint { 2:24 },
+                                    end: AstPoint { 36:1 },
+                                },
                                 variables: [
                                     AstClassVariable {
                                         range: AstRange {
@@ -831,6 +835,10 @@ fn skip_comments() {
                             implements: [],
                             permits: [],
                             block: AstClassBlock {
+                                range: AstRange {
+                                    start: AstPoint { 9:29 },
+                                    end: AstPoint { 29:1 },
+                                },
                                 variables: [
                                     AstClassVariable {
                                         range: AstRange {
@@ -1053,6 +1061,10 @@ fn locale_variable_table() {
                             implements: [],
                             permits: [],
                             block: AstClassBlock {
+                                range: AstRange {
+                                    start: AstPoint { 2:32 },
+                                    end: AstPoint { 14:1 },
+                                },
                                 variables: [
                                     AstClassVariable {
                                         range: AstRange {
@@ -1800,6 +1812,10 @@ fn superee() {
                             implements: [],
                             permits: [],
                             block: AstClassBlock {
+                                range: AstRange {
+                                    start: AstPoint { 4:39 },
+                                    end: AstPoint { 5:1 },
+                                },
                                 variables: [],
                                 methods: [],
                                 constructors: [],
@@ -3679,6 +3695,10 @@ fn types() {
                             implements: [],
                             permits: [],
                             block: AstClassBlock {
+                                range: AstRange {
+                                    start: AstPoint { 1:19 },
+                                    end: AstPoint { 15:1 },
+                                },
                                 variables: [
                                     AstClassVariable {
                                         range: AstRange {
@@ -4930,6 +4950,10 @@ fn annotated() {
                             implements: [],
                             permits: [],
                             block: AstClassBlock {
+                                range: AstRange {
+                                    start: AstPoint { 9:30 },
+                                    end: AstPoint { 21:1 },
+                                },
                                 variables: [
                                     AstClassVariable {
                                         range: AstRange {
@@ -6212,6 +6236,10 @@ fn more_syntax() {
                             implements: [],
                             permits: [],
                             block: AstClassBlock {
+                                range: AstRange {
+                                    start: AstPoint { 1:20 },
+                                    end: AstPoint { 125:1 },
+                                },
                                 variables: [],
                                 methods: [
                                     AstClassMethod {
@@ -12909,6 +12937,10 @@ fn more_syntax() {
                                                                                     },
                                                                                     [],
                                                                                     AstClassBlock {
+                                                                                        range: AstRange {
+                                                                                            start: AstPoint { 114:29 },
+                                                                                            end: AstPoint { 120:9 },
+                                                                                        },
                                                                                         variables: [],
                                                                                         methods: [
                                                                                             AstClassMethod {
@@ -13471,6 +13503,10 @@ fn more_syntax() {
                             implements: [],
                             permits: [],
                             block: AstClassBlock {
+                                range: AstRange {
+                                    start: AstPoint { 126:17 },
+                                    end: AstPoint { 132:1 },
+                                },
                                 variables: [
                                     AstClassVariable {
                                         range: AstRange {
@@ -13559,6 +13595,10 @@ fn more_syntax() {
                                             implements: [],
                                             permits: [],
                                             block: AstClassBlock {
+                                                range: AstRange {
+                                                    start: AstPoint { 129:19 },
+                                                    end: AstPoint { 131:3 },
+                                                },
                                                 variables: [
                                                     AstClassVariable {
                                                         range: AstRange {
@@ -13658,6 +13698,10 @@ fn more_syntax() {
                             implements: [],
                             permits: [],
                             block: AstClassBlock {
+                                range: AstRange {
+                                    start: AstPoint { 133:22 },
+                                    end: AstPoint { 138:1 },
+                                },
                                 variables: [],
                                 methods: [
                                     AstClassMethod {
@@ -16880,6 +16924,10 @@ fn class_block_annotation() {
     let expected = expect![[r#"
         (
             AstClassBlock {
+                range: AstRange {
+                    start: AstPoint { 0:0 },
+                    end: AstPoint { 5:5 },
+                },
                 variables: [],
                 methods: [],
                 constructors: [],
@@ -18982,6 +19030,10 @@ fn method_inner_class() {
                                                 implements: [],
                                                 permits: [],
                                                 block: AstClassBlock {
+                                                    range: AstRange {
+                                                        start: AstPoint { 3:21 },
+                                                        end: AstPoint { 5:9 },
+                                                    },
                                                     variables: [
                                                         AstClassVariable {
                                                             range: AstRange {
