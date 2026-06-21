@@ -2,16 +2,17 @@ use config::{Configuration, FormatterConfig};
 use lsp_types::{
     CodeActionKind, CodeActionOptions, CodeActionParams, CodeActionProviderCapability,
     CodeLensOptions, CodeLensParams, CompletionOptions, CompletionParams,
-    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    DidSaveTextDocumentParams, DocumentFormattingParams, DocumentLinkOptions, DocumentLinkParams,
-    DocumentSymbolParams, ExecuteCommandOptions, ExecuteCommandParams, FoldingRangeParams,
-    GotoDefinitionParams, HoverParams, HoverProviderCapability, InlayHintParams, OneOf,
-    ReferenceParams, ServerCapabilities, SignatureHelpOptions, SignatureHelpParams,
-    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
-    WorkDoneProgressOptions,
+    DidChangeTextDocumentParams, DidChangeWorkspaceFoldersParams, DidCloseTextDocumentParams,
+    DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentFormattingParams,
+    DocumentLinkOptions, DocumentLinkParams, DocumentSymbolParams, ExecuteCommandOptions,
+    ExecuteCommandParams, FoldingRangeParams, GotoDefinitionParams, HoverParams,
+    HoverProviderCapability, InlayHintParams, OneOf, ReferenceParams, ServerCapabilities,
+    SignatureHelpOptions, SignatureHelpParams, TextDocumentSyncCapability, TextDocumentSyncKind,
+    TextDocumentSyncOptions, WorkDoneProgressOptions, WorkspaceFoldersServerCapabilities,
+    WorkspaceServerCapabilities,
     notification::{
-        Cancel, DidChangeConfiguration, DidChangeTextDocument, DidCloseTextDocument,
-        DidOpenTextDocument, DidSaveTextDocument, Notification, SetTrace,
+        Cancel, DidChangeConfiguration, DidChangeTextDocument, DidChangeWorkspaceFolders,
+        DidCloseTextDocument, DidOpenTextDocument, DidSaveTextDocument, Notification, SetTrace,
     },
     request::{
         CodeActionRequest, CodeLensRequest, Completion, DocumentLinkRequest, DocumentSymbolRequest,
@@ -82,6 +83,13 @@ pub fn get_server_capabilities(config: &Configuration) -> ServerCapabilities {
             resolve_provider: None,
         }),
         folding_range_provider: Some(lsp_types::FoldingRangeProviderCapability::Simple(true)),
+        workspace: Some(WorkspaceServerCapabilities {
+            workspace_folders: Some(WorkspaceFoldersServerCapabilities {
+                supported: Some(true),
+                change_notifications: Some(OneOf::Left(true)),
+            }),
+            file_operations: None,
+        }),
         ..Default::default()
     }
 }
@@ -199,6 +207,11 @@ pub fn route(backend: &Backend) -> Result<(), Box<dyn std::error::Error + Send +
                 DidSaveTextDocument::METHOD => {
                     if let Ok(params) = from_value::<DidSaveTextDocumentParams>(not.params) {
                         backend.did_save(&params);
+                    }
+                }
+                DidChangeWorkspaceFolders::METHOD => {
+                    if let Ok(params) = from_value::<DidChangeWorkspaceFoldersParams>(not.params) {
+                        backend.did_change_folders(&params);
                     }
                 }
                 DidChangeConfiguration::METHOD | SetTrace::METHOD | Cancel::METHOD => {}

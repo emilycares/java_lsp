@@ -1698,7 +1698,7 @@ fn write_expression_operator(
         AstExpressionOperator::None => return,
         AstExpressionOperator::Dot(r) => (r, b"."),
         AstExpressionOperator::Plus(r) => (r, b" + "),
-        AstExpressionOperator::PlusPlus(r) => (r, b"++ "),
+        AstExpressionOperator::PlusPlus(r) => (r, b"++"),
         AstExpressionOperator::Minus(r) => (r, b" - "),
         AstExpressionOperator::MinusMinus(r) => (r, b" -- "),
         AstExpressionOperator::Multiply(r) => (r, b" * "),
@@ -2092,7 +2092,7 @@ mod tests {
             package ch.emilycares;
             public class Test {
                 public int aaa() {
-                    for (int i; i < 5; i++ ) {
+                    for (int i; i < 5; i++) {
                         log.info("hihihaha");
                     }
                 }

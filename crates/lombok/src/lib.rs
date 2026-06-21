@@ -8,7 +8,7 @@ use ast::types::{
     AstAvailability, AstBlock, AstClass, AstClassConstructor, AstClassMethod, AstClassVariable,
     AstConstructorHeader, AstFile, AstIdentifier, AstImportUnit, AstJType, AstJTypeKind,
     AstMethodHeader, AstMethodParameter, AstMethodParameterFlags, AstMethodParameters, AstRange,
-    AstThing, AstTopLevel,
+    AstThing, AstTopLevel, AstVolatileTransient,
 };
 use bitflags::bitflags;
 use my_string::smol_str::{SmolStr, format_smolstr};
@@ -23,6 +23,7 @@ bitflags! {
      const ToString                 = 0b0001_0000;
      const EqualsAndHashCode        = 0b0010_0000;
      const Value                    = 0b0100_0000;
+     const Slf4j                    = 0b1000_0000;
    }
 }
 
@@ -64,6 +65,9 @@ pub fn preprocessor(ast: AstFile) -> AstFile {
                 }
                 AstImportUnit::Class(c) if c.value == "lombok.Value" => {
                     features |= Features::Value;
+                }
+                AstImportUnit::Class(c) if c.value == "lombok.extern.slf4j.Slf4j" => {
+                    features |= Features::Slf4j;
                 }
                 _ => (),
             }
@@ -166,12 +170,38 @@ fn thing(ast_thing: &mut AstThing, features: &Features) {
                         }
                     }
                 }
+
+                if an.name.value.as_str() == "Slf4j" && features.intersects(Features::Slf4j) {
+                    ast_class.block.variables.push(slf4j());
+                }
             }
         }
         AstThing::Interface(_)
         | AstThing::Enumeration(_)
         | AstThing::Record(_)
         | AstThing::Annotation(_) => (),
+    }
+}
+
+fn slf4j() -> AstClassVariable {
+    AstClassVariable {
+        range: AstRange::default(),
+        availability: AstAvailability::Private | AstAvailability::Static | AstAvailability::Final,
+        annotated: Vec::new(),
+        name: AstIdentifier {
+            value: SmolStr::from("log"),
+            range: AstRange::default(),
+        },
+        jtype: AstJType {
+            annotated: Vec::new(),
+            range: AstRange::default(),
+            value: AstJTypeKind::Class(AstIdentifier {
+                value: SmolStr::from("org.slf4j.Logger"),
+                range: AstRange::default(),
+            }),
+        },
+        expression: None,
+        volatile_transient: AstVolatileTransient::empty(),
     }
 }
 

@@ -3,14 +3,18 @@ use std::process::{Command, Stdio};
 use compile::{CompileErrorMessage, parse_compile_errors};
 
 #[must_use]
-pub fn compile_java(executable_gradle: &str) -> Option<Vec<CompileErrorMessage>> {
-    run_compile_java(executable_gradle).map(|log| parse_compile_errors(&log))
+pub fn compile_java(
+    executable_gradle: &str,
+    project_dir: &str,
+) -> Option<Vec<CompileErrorMessage>> {
+    run_compile_java(executable_gradle, project_dir).map(|log| parse_compile_errors(&log))
 }
 
 /// Telling gradle to give java compiler errors
-fn run_compile_java(executable_gradle: &str) -> Option<String> {
+fn run_compile_java(executable_gradle: &str, project_dir: &str) -> Option<String> {
     // ./gradlew compileJava -q
     let child = Command::new(executable_gradle)
+        .current_dir(project_dir)
         .arg("compileJava")
         .arg("-q")
         .stdout(Stdio::piped())

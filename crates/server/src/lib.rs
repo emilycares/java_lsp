@@ -24,7 +24,10 @@ use std::{ffi::OsString, path::PathBuf, sync::Arc};
 use lsp_server::{Connection, IoThreads, ProtocolError};
 use lsp_types::{InitializeParams, ProgressToken};
 
-use crate::{backend::Backend, router::get_server_capabilities};
+use crate::{
+    backend::{Backend, project_kind_to_project},
+    router::get_server_capabilities,
+};
 
 /// Accept connection over stdio
 ///
@@ -38,7 +41,7 @@ pub fn stdio() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
         return Ok(());
     };
     let (connection, io_threads) = Connection::stdio();
-    main(connection, io_threads, project_dir, path)
+    main(connection, io_threads, &project_dir, path)
 }
 
 /// Accept connection over tcp
@@ -54,7 +57,7 @@ pub fn listen(port: u16) -> Result<(), Box<dyn std::error::Error + Sync + Send>>
     };
     let addr = (String::from("127.0.0.1"), port);
     let (connection, io_threads) = Connection::listen(addr)?;
-    main(connection, io_threads, project_dir, path)
+    main(connection, io_threads, &project_dir, path)
 }
 
 /// Server main
@@ -64,17 +67,23 @@ pub fn listen(port: u16) -> Result<(), Box<dyn std::error::Error + Sync + Send>>
 pub fn main(
     connection: Connection,
     io_threads: IoThreads,
-    project_dir: PathBuf,
+    project_dir: &PathBuf,
     path: OsString,
 ) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
-    let project_kind = common::project_kind::get_project_kind(&project_dir, &path);
+    let project_kind = common::project_kind::get_project_kind(project_dir, &path);
     if let Err(e) = project_kind {
         eprintln!("Error with project init: {e:?}");
         std::process::exit(1);
     }
     let project_kind = project_kind.expect("Program should already have exited");
     eprintln!("Start java_lsp with project_kind: {project_kind:?}");
-    let mut backend = Backend::new(connection, project_kind, project_dir);
+    let mut backend = Backend::new(connection);
+    if let Some(dir) = project_dir.to_str()
+        && let Ok(mut projects) = backend.projects.write()
+        && let Some(p) = project_kind_to_project(dir, project_kind)
+    {
+        projects.push(p);
+    }
 
     let progress = match initialize(&mut backend) {
         Ok(it) => it,
@@ -98,6 +107,7 @@ fn initialize(backend: &mut Backend) -> Result<Option<ProgressToken>, ProtocolEr
     let params: InitializeParams =
         serde_json::from_value(initialization_params).unwrap_or_default();
     backend.client_capabilities = Arc::new(Some(params.capabilities));
+    backend.fill_projects(params.workspace_folders);
     backend.fill_config(params.initialization_options);
     let server_capabilities =
         serde_json::to_value(get_server_capabilities(&backend.config)).unwrap_or_default();
@@ -114,19 +124,17 @@ fn main_loop(
     progress: Option<ProgressToken>,
 ) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
     let connection = backend.connection.clone();
-    let project_kind = backend.project_kind.clone();
     let class_map = backend.class_map.clone();
     let reference_map = backend.reference_map.clone();
-    let project_dir = backend.project_dir.clone();
+    let projects = backend.projects.clone();
     tokio::spawn(async move {
         Backend::initialized(
             progress,
             connection,
-            project_kind,
             &class_map,
             reference_map,
-            &project_dir,
             &path,
+            projects,
         )
         .await;
     });

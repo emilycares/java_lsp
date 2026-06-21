@@ -37,6 +37,7 @@ pub async fn project_deps(
     tree: &[Dependency],
     cache_path: PathBuf,
     repos: Arc<Vec<Repository>>,
+    project_artifacts: Arc<Vec<String>>,
 ) -> Result<(), MavenProjectError> {
     if use_cache
         && cache_path.exists()
@@ -60,6 +61,10 @@ pub async fn project_deps(
     let mut update_tree = Vec::new();
 
     for dep in tree {
+        if project_artifacts.contains(&dep.artivact_id) {
+            continue;
+        }
+
         let sender = sender.clone();
         let completed_number = completed_number.clone();
         let deps_path = deps_path.clone();

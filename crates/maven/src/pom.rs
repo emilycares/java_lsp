@@ -11,6 +11,8 @@ pub enum PomError {
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename = "project")]
 pub struct Pom {
+    #[serde(rename = "artifactId")]
+    pub artifact_id: String,
     pub repositories: Option<PomRepositories>,
 }
 
@@ -39,6 +41,7 @@ mod tests {
     fn load() {
         let content = "
         <project>
+            <artifactId>some-service</artifactId>
             <repositories>
                 <repository>
                     <id>org-public</id>
@@ -52,6 +55,7 @@ mod tests {
         </project>
         ";
         let expect = Pom {
+            artifact_id: String::from("some-service"),
             repositories: Some(PomRepositories {
                 repository: Some(vec![
                     PomRepository {
@@ -75,9 +79,13 @@ mod tests {
     fn no_repositories() {
         let content = "
         <project>
+            <artifactId>some-service</artifactId>
         </project>
         ";
-        let expect = Pom { repositories: None };
+        let expect = Pom {
+            artifact_id: String::from("some-service"),
+            repositories: None,
+        };
 
         let out: Pom = serde_xml_rs::from_str(content).unwrap();
 
@@ -88,10 +96,12 @@ mod tests {
     fn no_repositories_2() {
         let content = "
         <project>
+            <artifactId>some-service</artifactId>
             <repositories />
         </project>
         ";
         let expect = Pom {
+            artifact_id: String::from("some-service"),
             repositories: Some(PomRepositories { repository: None }),
         };
 

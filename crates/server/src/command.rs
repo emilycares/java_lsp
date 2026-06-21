@@ -19,9 +19,14 @@ use lsp_types::{Diagnostic, DiagnosticSeverity, NumberOrString, ProgressToken, R
 use maven::{tree::MavenTreeError, update};
 use my_string::MyString;
 use serde_json::Value;
+use tokio::task::JoinSet;
 
-use crate::backend::{
-    Backend, project_deps, read_forward, report_maven_gradle_diagnostic, update_report,
+use crate::{
+    backend::{
+        Backend, Project, get_project_artifacts, project_deps, read_forward,
+        report_maven_gradle_diagnostic, update_report,
+    },
+    command,
 };
 
 #[derive(Debug)]
@@ -35,69 +40,101 @@ pub enum CommandError {
 pub const COMMAND_RELOAD_DEPENDENCIES: &str = "ReloadDependencies";
 #[must_use]
 pub fn reload_dependencies(
-    con: &Arc<Connection>,
+    con: Arc<Connection>,
     progress: Option<ProgressToken>,
-    project_kind: &ProjectKind,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
-    project_dir: &Path,
+    class_map: Arc<RwLock<HashMap<MyString, Class>>>,
+    projects: &Arc<RwLock<Vec<Project>>>,
 ) -> Option<serde_json::Value> {
-    match project_kind.clone() {
-        ProjectKind::Maven { .. } => {
-            let repos = Arc::new(maven::get_repositories(project_dir));
-            let con = con.clone();
-            let project_kind = project_kind.clone();
-            let class_map = class_map.clone();
-            let project_dir = project_dir.to_owned();
-            tokio::spawn(async move {
-                let progress = Arc::new(progress);
-                let tree_task = "Load Dependencies".to_string();
-                Backend::progress_start_option_token(&con.clone(), &progress, &tree_task);
-                let tree = get_tree(&project_kind, &con).await;
-                Backend::progress_end_option_token(&con.clone(), &progress, &tree_task);
+    let project_artifacts = projects.read().map_or_else(
+        |_| Arc::new(Vec::new()),
+        |projs| get_project_artifacts(&projs),
+    );
+    let Ok(projs) = projects.read() else {
+        return None;
+    };
+    let projs = projs.clone();
+    tokio::spawn(async move {
+        let mut handles = JoinSet::new();
+        let progress = Arc::new(progress);
 
-                let task = format!("Command: {COMMAND_RELOAD_DEPENDENCIES}");
-                Backend::progress_start_option_token(&con.clone(), &progress, &task);
-                let (sender, receiver) =
-                    tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
-                        percentage: 0,
-                        error: false,
-                        message: "...".to_string(),
-                    });
-
-                let cache = PathBuf::from(maven::compile::CLASSPATH_FILE);
-                if cache.exists() {
-                    let _ = fs::remove_file(cache);
+        for p in projs.clone() {
+            match p.kind {
+                ProjectKind::Maven { .. } => {
+                    reload_maven_project(
+                        &con,
+                        progress.clone(),
+                        &class_map,
+                        &mut handles,
+                        &project_artifacts,
+                        &p,
+                    );
                 }
-                if let Some(tree) = tree {
-                    let cache = cache_dir();
-                    tokio::select! {
-                        () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-                        () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree, repos) => {}
-                    }
+                ProjectKind::Gradle { executable, .. } => {
+                    reload_gradle_project(
+                        &con,
+                        &class_map,
+                        PathBuf::from(p.dir.clone()).as_path(),
+                        executable,
+                        &mut handles,
+                    );
                 }
-                Backend::progress_end_option_token(&con.clone(), &progress, &task);
-            });
+                ProjectKind::Unknown => (),
+            }
         }
-        ProjectKind::Gradle { executable, .. } => {
-            reload_gradle_project(con, class_map, project_dir, executable);
-        }
-        ProjectKind::Unknown => (),
-    }
+        let _ = handles.join_all().await;
+    });
     None
+}
+
+pub fn reload_maven_project(
+    con: &Arc<Connection>,
+    progress: Arc<Option<ProgressToken>>,
+    class_map: &Arc<RwLock<HashMap<my_string::smol_str::SmolStr, Class>>>,
+    handles: &mut JoinSet<()>,
+    project_artifacts: &Arc<Vec<String>>,
+    p: &Project,
+) {
+    let con = con.clone();
+    let task = format!("Load maven dependencies {}", p.artifact_id);
+    let class_map = class_map.clone();
+    let project_dir = PathBuf::from(p.dir.clone());
+    let repos = Arc::new(maven::get_repositories(&project_dir));
+    let project_kind = p.kind.clone();
+    let project_artifacts = project_artifacts.clone();
+    handles.spawn(async move {
+        let project_dir = project_dir.as_path();
+        Backend::progress_start_option_token(&con.clone(), &progress, &task);
+        let (sender, receiver) =
+            tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
+                percentage: 0,
+                error: false,
+                message: "...".to_string(),
+            });
+        let cache = cache_dir();
+        let tree = command::get_tree(&project_kind, &con).await;
+        if let Some(tree) = tree {
+            tokio::select! {
+                () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
+                () = project_deps(sender, project_kind.clone(), class_map.clone(), true, project_dir, &cache, &tree, repos, project_artifacts) => {}
+            }
+        }
+        Backend::progress_end_option_token(&con, &progress, &task);
+    });
 }
 
 /// For gradle there is no difference between update and reload
 /// Does not use a cache
-fn reload_gradle_project(
+pub fn reload_gradle_project(
     con: &Arc<Connection>,
     class_map: &Arc<RwLock<HashMap<my_string::smol_str::SmolStr, Class>>>,
     project_dir: &Path,
     executable: String,
+    handles: &mut JoinSet<()>,
 ) {
     let project_dir = project_dir.to_owned();
     let con = con.clone();
     let class_map = class_map.clone();
-    tokio::spawn(async move {
+    handles.spawn(async move {
         let task = "Load gradle project".to_string();
         let progress = Arc::new(Option::Some(ProgressToken::String(task.clone())));
         Backend::progress_start_option_token(&con.clone(), &progress, &task);
@@ -170,7 +207,7 @@ async fn reload_dependencies_maven_cli(
         let cache = cache_dir();
         tokio::select! {
             () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-            () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree, repos) => {}
+            () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree, repos, Arc::new(Vec::new())) => {}
         }
     }
     Backend::progress_end_option_token(&con.clone(), &progress, &task);
@@ -178,37 +215,64 @@ async fn reload_dependencies_maven_cli(
 
 pub const COMMAND_UPDATE_DEPENDENCIES: &str = "UpdateDependencies";
 pub fn update_dependencies(
-    con: &Arc<Connection>,
+    con: Arc<Connection>,
     progress: Option<ProgressToken>,
-    project_kind: &ProjectKind,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
-    project_dir: &Path,
+    class_map: Arc<RwLock<HashMap<MyString, Class>>>,
+    projects: &Arc<RwLock<Vec<Project>>>,
 ) {
-    match project_kind.clone() {
-        ProjectKind::Maven { .. } => {
-            update_dependencies_maven(con, progress, project_kind, class_map, project_dir);
+    let Ok(projs) = projects.read() else {
+        return;
+    };
+    let projs = projs.clone();
+    tokio::spawn(async move {
+        let mut handles = JoinSet::new();
+        let progress = Arc::new(progress);
+        let project_artifacts = get_project_artifacts(&projs);
+
+        for p in projs.clone() {
+            match p.kind {
+                ProjectKind::Maven { .. } => {
+                    update_dependencies_maven(
+                        &con,
+                        progress.clone(),
+                        &p.kind,
+                        &class_map,
+                        PathBuf::from(p.dir.clone()).as_path(),
+                        &project_artifacts,
+                        &mut handles,
+                    );
+                }
+                ProjectKind::Gradle { executable, .. } => {
+                    reload_gradle_project(
+                        &con,
+                        &class_map,
+                        PathBuf::from(p.dir.clone()).as_path(),
+                        executable,
+                        &mut handles,
+                    );
+                }
+                ProjectKind::Unknown => (),
+            }
         }
-        ProjectKind::Gradle { executable, .. } => {
-            reload_gradle_project(con, class_map, project_dir, executable);
-        }
-        ProjectKind::Unknown => (),
-    }
+        let _ = handles.join_all().await;
+    });
 }
 pub fn update_dependencies_maven(
     con: &Arc<Connection>,
-    progress: Option<ProgressToken>,
+    progress: Arc<Option<ProgressToken>>,
     project_kind: &ProjectKind,
     class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
     project_dir: &Path,
+    project_artifacts: &Arc<Vec<String>>,
+    handles: &mut JoinSet<()>,
 ) {
     let repos = Arc::new(maven::get_repositories(project_dir));
     let con = con.clone();
     let project_kind = project_kind.clone();
     let project_dir = project_dir.to_owned();
     let class_map = class_map.clone();
-    tokio::spawn(async move {
-        let progress = Arc::new(progress);
-
+    let project_artifacts = project_artifacts.clone();
+    handles.spawn(async move {
         let task = "Load Dependency Tree".to_string();
         Backend::progress_start_option_token(&con.clone(), &progress, &task);
         let tree = get_tree(&project_kind, &con).await;
@@ -236,7 +300,7 @@ pub fn update_dependencies_maven(
             Backend::progress_start_option_token(&con.clone(), &progress, &task);
             tokio::select! {
                 () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-                () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree, repos) => {}
+                () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree, repos, project_artifacts) => {}
             }
             Backend::progress_end_option_token(&con.clone(), &progress, &task);
         }
@@ -321,6 +385,7 @@ async fn update_dependencies_maven_cli(
             &cache,
             &tree,
             repos,
+            Arc::new(Vec::new()),
         )
         .await;
         Backend::progress_end_option_token(&con.clone(), &progress, &task);

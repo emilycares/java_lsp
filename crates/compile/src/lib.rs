@@ -22,9 +22,11 @@ pub struct CompileErrorMessage {
 pub fn maven_compile_java_file(
     file_path: &str,
     classpath: &str,
+    project: &str,
 ) -> Result<Vec<CompileErrorMessage>, CompileError> {
     // Compile the Java file using `javac` with the generated classpath
     let out = Command::new("javac")
+        .current_dir(project)
         .arg("-cp")
         .arg(classpath)
         .arg("-d")
