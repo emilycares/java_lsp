@@ -729,66 +729,52 @@ fn parse_value_operator_options(
 ) -> Result<(AstExpressionOperator, usize), AstError> {
     let start = tokens.start(pos)?;
     match &start.token {
-        Token::Plus => {
-            if let Ok(npos) = assert_token(tokens, pos + 1, Token::Plus) {
-                let end = tokens.end(pos)?;
-                Ok((
-                    AstExpressionOperator::PlusPlus(AstRange::from_position_token(start, end)),
-                    npos,
-                ))
-            } else {
-                Ok((
-                    AstExpressionOperator::Plus(AstRange::from_position_token(start, start)),
-                    pos + 1,
-                ))
-            }
-        }
-        Token::Dash => {
-            if let Ok(npos) = assert_token(tokens, pos + 1, Token::Dash) {
-                let end = tokens.end(pos)?;
-                Ok((
-                    AstExpressionOperator::MinusMinus(AstRange::from_position_token(start, end)),
-                    npos,
-                ))
-            } else {
-                Ok((
-                    AstExpressionOperator::Minus(AstRange::from_position_token(start, start)),
-                    pos + 1,
-                ))
-            }
-        }
-        Token::Ampersand => {
-            if let Ok(npos) = assert_token(tokens, pos + 1, Token::Ampersand) {
-                let end = tokens.end(pos)?;
-                Ok((
-                    AstExpressionOperator::AmpersandAmpersand(AstRange::from_position_token(
-                        start, end,
-                    )),
-                    npos,
-                ))
-            } else {
-                Ok((
-                    AstExpressionOperator::Ampersand(AstRange::from_position_token(start, start)),
-                    pos + 1,
-                ))
-            }
-        }
-        Token::VerticalBar => {
-            if let Ok(npos) = assert_token(tokens, pos + 1, Token::VerticalBar) {
-                let end = tokens.end(pos)?;
-                Ok((
-                    AstExpressionOperator::VerticalBarVerticalBar(AstRange::from_position_token(
-                        start, end,
-                    )),
-                    npos,
-                ))
-            } else {
-                Ok((
-                    AstExpressionOperator::VerticalBar(AstRange::from_position_token(start, start)),
-                    pos + 1,
-                ))
-            }
-        }
+        Token::Plus => Ok((
+            AstExpressionOperator::Plus(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::PlusPlus => Ok((
+            AstExpressionOperator::PlusPlus(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::PlusEqual => Ok((
+            AstExpressionOperator::PlusEqual(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::Dash => Ok((
+            AstExpressionOperator::Minus(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::DashDash => Ok((
+            AstExpressionOperator::MinusMinus(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::DashEqual => Ok((
+            AstExpressionOperator::MinusEqual(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::Ampersand => Ok((
+            AstExpressionOperator::Ampersand(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::AmpersandAmpersand => Ok((
+            AstExpressionOperator::AmpersandAmpersand(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::VerticalBarEqual => Ok((
+            AstExpressionOperator::VerticalBarEqual(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::VerticalBarVerticalBar => Ok((
+            AstExpressionOperator::VerticalBarVerticalBar(AstRange::from_position_token(
+                start, start,
+            )),
+            pos + 1,
+        )),
+        Token::VerticalBar => Ok((
+            AstExpressionOperator::VerticalBar(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
         Token::QuestionMark => Ok((
             AstExpressionOperator::QuestionMark(AstRange::from_position_token(start, start)),
             pos + 1,
@@ -822,12 +808,24 @@ fn parse_value_operator_options(
             AstExpressionOperator::Multiply(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
+        Token::StarEqual => Ok((
+            AstExpressionOperator::MultiplyEqual(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
         Token::Slash => Ok((
             AstExpressionOperator::Divide(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
+        Token::SlashEqual => Ok((
+            AstExpressionOperator::DivideEqual(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
         Token::Percent => Ok((
             AstExpressionOperator::Modulo(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::PercentEqual => Ok((
+            AstExpressionOperator::ModuloEqual(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
         Token::EqualDouble => Ok((
@@ -842,16 +840,36 @@ fn parse_value_operator_options(
             AstExpressionOperator::NotEqual(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
-        Token::Gt => Ok((
-            AstExpressionOperator::Gt(AstRange::from_position_token(start, start)),
-            pos + 1,
-        )),
+        Token::Gt => {
+            if let Ok(npos) = assert_token(tokens, pos + 1, Token::Gt) {
+                if let Ok(npos) = assert_token(tokens, pos + 2, Token::Gt) {
+                    let end = tokens.end(pos)?;
+                    return Ok((
+                        AstExpressionOperator::GtGtGt(AstRange::from_position_token(start, end)),
+                        npos,
+                    ));
+                }
+                let end = tokens.end(pos)?;
+                return Ok((
+                    AstExpressionOperator::GtGt(AstRange::from_position_token(start, end)),
+                    npos,
+                ));
+            }
+            Ok((
+                AstExpressionOperator::Gt(AstRange::from_position_token(start, start)),
+                pos + 1,
+            ))
+        }
         Token::Ge => Ok((
             AstExpressionOperator::Ge(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
         Token::Lt => Ok((
             AstExpressionOperator::Lt(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::LtLt => Ok((
+            AstExpressionOperator::LtLt(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
         Token::Le => Ok((

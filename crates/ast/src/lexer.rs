@@ -80,11 +80,22 @@ impl Token {
             | Self::SingleQuote => 1,
             Self::EqualDouble
             | Self::Le
+            | Self::LtLt
             | Self::Ge
             | Self::Ne
             | Self::Arrow
             | Self::Do
             | Self::To
+            | Self::PlusEqual
+            | Self::PlusPlus
+            | Self::VerticalBarEqual
+            | Self::VerticalBarVerticalBar
+            | Self::DashDash
+            | Self::DashEqual
+            | Self::AmpersandAmpersand
+            | Self::PercentEqual
+            | Self::SlashEqual
+            | Self::StarEqual
             | Self::If => 2,
             Self::While
             | Self::Class
@@ -172,14 +183,23 @@ impl fmt::Display for Token {
             Self::LeftParen => write!(f, "("),
             Self::RightParen => write!(f, ")"),
             Self::Plus => write!(f, "+"),
+            Self::PlusEqual => write!(f, "+="),
+            Self::PlusPlus => write!(f, "++"),
             Self::Dash => write!(f, "-"),
+            Self::DashDash => write!(f, "--"),
+            Self::DashEqual => write!(f, "-="),
             Self::Star => write!(f, "*"),
+            Self::StarEqual => write!(f, "*="),
             Self::Dot => write!(f, "."),
             Self::Semicolon => write!(f, ";"),
             Self::Colon => write!(f, ":"),
             Self::Percent => write!(f, "%"),
+            Self::PercentEqual => write!(f, "%="),
             Self::Ampersand => write!(f, "&"),
+            Self::AmpersandAmpersand => write!(f, "&&"),
             Self::VerticalBar => write!(f, "|"),
+            Self::VerticalBarEqual => write!(f, "|="),
+            Self::VerticalBarVerticalBar => write!(f, "||"),
             Self::LeftParenCurly => write!(f, "{{"),
             Self::RightParenCurly => write!(f, "}}"),
             Self::LeftParenSquare => write!(f, "["),
@@ -201,10 +221,12 @@ impl fmt::Display for Token {
             Self::Double => write!(f, "double"),
             Self::Float => write!(f, "float"),
             Self::Slash => write!(f, "/"),
+            Self::SlashEqual => write!(f, "/="),
             Self::BackSlash => write!(f, "\\"),
             Self::At => write!(f, "@"),
             Self::Le => write!(f, "<="),
             Self::Lt => write!(f, "<"),
+            Self::LtLt => write!(f, "<<"),
             Self::Ge => write!(f, ">="),
             Self::Gt => write!(f, ">"),
             Self::Extends => write!(f, "extends"),
@@ -299,14 +321,23 @@ impl fmt::Debug for Token {
             Self::LeftParen => write!(f, ""),
             Self::RightParen => write!(f, ")"),
             Self::Plus => write!(f, "+"),
+            Self::PlusEqual => write!(f, "+="),
+            Self::PlusPlus => write!(f, "++"),
             Self::Dash => write!(f, "-"),
+            Self::DashDash => write!(f, "--"),
+            Self::DashEqual => write!(f, "-="),
             Self::Star => write!(f, "*"),
+            Self::StarEqual => write!(f, "*="),
             Self::Dot => write!(f, "."),
             Self::Semicolon => write!(f, ";"),
             Self::Colon => write!(f, ":"),
             Self::Percent => write!(f, "%"),
+            Self::PercentEqual => write!(f, "%="),
             Self::Ampersand => write!(f, "&"),
+            Self::AmpersandAmpersand => write!(f, "&&"),
             Self::VerticalBar => write!(f, "|"),
+            Self::VerticalBarEqual => write!(f, "|="),
+            Self::VerticalBarVerticalBar => write!(f, "||"),
             Self::LeftParenCurly => write!(f, "{{"),
             Self::RightParenCurly => write!(f, "}}"),
             Self::LeftParenSquare => write!(f, "["),
@@ -328,10 +359,12 @@ impl fmt::Debug for Token {
             Self::Double => write!(f, "double"),
             Self::Float => write!(f, "float"),
             Self::Slash => write!(f, "/"),
+            Self::SlashEqual => write!(f, "/="),
             Self::BackSlash => write!(f, "\\"),
             Self::At => write!(f, "@"),
             Self::Le => write!(f, "<="),
             Self::Lt => write!(f, "<"),
+            Self::LtLt => write!(f, "<<"),
             Self::Ge => write!(f, ">="),
             Self::Gt => write!(f, ">"),
             Self::Extends => write!(f, "extends"),
@@ -425,10 +458,20 @@ pub enum Token {
     RightParen,
     /// +
     Plus,
+    /// +=
+    PlusEqual,
+    /// ++
+    PlusPlus,
     /// -
     Dash,
+    /// --
+    DashDash,
+    /// -=
+    DashEqual,
     /// *
     Star,
+    /// *=
+    StarEqual,
     /// .
     Dot,
     /// ;
@@ -437,10 +480,18 @@ pub enum Token {
     Colon,
     /// %
     Percent,
+    /// %=
+    PercentEqual,
     /// &
     Ampersand,
+    /// &&
+    AmpersandAmpersand,
     /// |
     VerticalBar,
+    /// |=
+    VerticalBarEqual,
+    /// ||
+    VerticalBarVerticalBar,
     /// {
     LeftParenCurly,
     /// }
@@ -481,6 +532,8 @@ pub enum Token {
     Float,
     /// /
     Slash,
+    /// /=
+    SlashEqual,
     /// \
     BackSlash,
     /// @
@@ -489,6 +542,8 @@ pub enum Token {
     Le,
     /// <
     Lt,
+    /// <<
+    LtLt,
     /// >=
     Ge,
     /// >
@@ -796,28 +851,51 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                 col += 1;
             }
             b'+' => {
-                tokens.push(PositionToken {
-                    token: Token::Plus,
-                    line,
-                    col,
-                });
-                col += 1;
-            }
-            b'-' => {
-                if matches!(input.get(index + 1), Some(b'-')) {
+                let peek = input.get(index + 1);
+                if matches!(peek, Some(b'=')) {
                     tokens.push(PositionToken {
-                        token: Token::Dash,
-                        line,
-                        col,
-                    });
-                    tokens.push(PositionToken {
-                        token: Token::Dash,
+                        token: Token::PlusEqual,
                         line,
                         col,
                     });
                     index += 1;
                     col += 2;
-                } else if matches!(input.get(index + 1), Some(b'>')) {
+                } else if matches!(peek, Some(b'+')) {
+                    tokens.push(PositionToken {
+                        token: Token::PlusPlus,
+                        line,
+                        col,
+                    });
+                    index += 1;
+                    col += 2;
+                } else {
+                    tokens.push(PositionToken {
+                        token: Token::Plus,
+                        line,
+                        col,
+                    });
+                    col += 1;
+                }
+            }
+            b'-' => {
+                let peek = input.get(index + 1);
+                if matches!(peek, Some(b'-')) {
+                    tokens.push(PositionToken {
+                        token: Token::DashDash,
+                        line,
+                        col,
+                    });
+                    index += 1;
+                    col += 2;
+                } else if matches!(peek, Some(b'=')) {
+                    tokens.push(PositionToken {
+                        token: Token::DashEqual,
+                        line,
+                        col,
+                    });
+                    index += 1;
+                    col += 2;
+                } else if matches!(peek, Some(b'>')) {
                     tokens.push(PositionToken {
                         token: Token::Arrow,
                         line,
@@ -835,12 +913,23 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                 }
             }
             b'*' => {
-                tokens.push(PositionToken {
-                    token: Token::Star,
-                    line,
-                    col,
-                });
-                col += 1;
+                let peek = input.get(index + 1);
+                if matches!(peek, Some(b'=')) {
+                    tokens.push(PositionToken {
+                        token: Token::StarEqual,
+                        line,
+                        col,
+                    });
+                    col += 1;
+                    index += 1;
+                } else {
+                    tokens.push(PositionToken {
+                        token: Token::Star,
+                        line,
+                        col,
+                    });
+                    col += 1;
+                }
             }
             b'^' => {
                 tokens.push(PositionToken {
@@ -912,28 +1001,74 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                 col += 1;
             }
             b'%' => {
-                tokens.push(PositionToken {
-                    token: Token::Percent,
-                    line,
-                    col,
-                });
+                if matches!(input.get(index + 1), Some(b'=')) {
+                    tokens.push(PositionToken {
+                        token: Token::PercentEqual,
+                        line,
+                        col,
+                    });
+                    index += 1;
+                } else {
+                    tokens.push(PositionToken {
+                        token: Token::Percent,
+                        line,
+                        col,
+                    });
+                }
                 col += 1;
             }
             b'&' => {
-                tokens.push(PositionToken {
-                    token: Token::Ampersand,
-                    line,
-                    col,
-                });
-                col += 1;
+                if matches!(input.get(index + 1), Some(b'&')) {
+                    tokens.push(PositionToken {
+                        token: Token::AmpersandAmpersand,
+                        line,
+                        col,
+                    });
+                    col += 2;
+                    index += 1;
+                } else {
+                    tokens.push(PositionToken {
+                        token: Token::Ampersand,
+                        line,
+                        col,
+                    });
+                    col += 1;
+                }
             }
             b'|' => {
-                tokens.push(PositionToken {
-                    token: Token::VerticalBar,
-                    line,
-                    col,
-                });
-                col += 1;
+                if let Some(peek) = input.get(index + 1) {
+                    if peek == &b'=' {
+                        tokens.push(PositionToken {
+                            token: Token::VerticalBarEqual,
+                            line,
+                            col,
+                        });
+                        col += 2;
+                        index += 1;
+                    } else if peek == &b'|' {
+                        tokens.push(PositionToken {
+                            token: Token::VerticalBarVerticalBar,
+                            line,
+                            col,
+                        });
+                        col += 2;
+                        index += 1;
+                    } else {
+                        tokens.push(PositionToken {
+                            token: Token::VerticalBar,
+                            line,
+                            col,
+                        });
+                        col += 1;
+                    }
+                } else {
+                    tokens.push(PositionToken {
+                        token: Token::VerticalBar,
+                        line,
+                        col,
+                    });
+                    col += 1;
+                }
             }
             b'?' => {
                 tokens.push(PositionToken {
@@ -947,7 +1082,15 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                 let Some(peek) = input.get(index + 1) else {
                     break;
                 };
-                if peek == &b'/' {
+                if peek == &b'=' {
+                    tokens.push(PositionToken {
+                        token: Token::SlashEqual,
+                        line,
+                        col,
+                    });
+                    col += 1;
+                    index += 1;
+                } else if peek == &b'/' {
                     let s = index + 2;
                     let slice = &input[s..];
                     let Some(m) = memchr(b'\n', slice) else {
@@ -1011,13 +1154,14 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     // slice is offset my 2
                     index += length + 2;
                     continue;
+                } else {
+                    tokens.push(PositionToken {
+                        token: Token::Slash,
+                        line,
+                        col,
+                    });
+                    col += 1;
                 }
-                tokens.push(PositionToken {
-                    token: Token::Slash,
-                    line,
-                    col,
-                });
-                col += 1;
             }
             b'\\' => {
                 tokens.push(PositionToken {
@@ -1156,9 +1300,18 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                 }
             }
             b'<' => {
-                if matches!(input.get(index + 1), Some(b'=')) {
+                let peek = input.get(index + 1);
+                if matches!(peek, Some(b'=')) {
                     tokens.push(PositionToken {
                         token: Token::Le,
+                        line,
+                        col,
+                    });
+                    col += 2;
+                    index += 1;
+                } else if matches!(peek, Some(b'<')) {
+                    tokens.push(PositionToken {
+                        token: Token::LtLt,
                         line,
                         col,
                     });
@@ -1174,7 +1327,8 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                 }
             }
             b'>' => {
-                if matches!(input.get(index + 1), Some(b'=')) {
+                let peek = input.get(index + 1);
+                if matches!(peek, Some(b'=')) {
                     tokens.push(PositionToken {
                         token: Token::Ge,
                         line,

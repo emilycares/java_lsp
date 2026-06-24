@@ -223,12 +223,12 @@ impl Backend {
         Self::progress_end_token(con, &token, task);
     }
 
-    fn compile(&self, path: &str) -> Option<Vec<CompileErrorMessage>> {
+    fn compile(&self, path: &str, uri: &Uri) -> Option<Vec<CompileErrorMessage>> {
         let cache_dir = &common::CACHE_DIR;
         if path.starts_with(cache_dir.as_str()) {
             return None;
         }
-        let project = self.get_project(path)?;
+        let project = self.get_project(uri)?;
         match &project.kind {
             ProjectKind::Maven { executable } => {
                 match maven::compile::generate_classpath(executable) {
@@ -565,7 +565,7 @@ impl Backend {
         path_str: &str,
         current_file_diagnostics: &mut Vec<Diagnostic>,
     ) {
-        if let Some(errors) = self.compile(path_str) {
+        if let Some(errors) = self.compile(path_str, uri) {
             current_file_diagnostics.extend(self.publish_compile_errors(errors, uri));
         }
     }
@@ -649,7 +649,7 @@ impl Backend {
             "\t".to_string()
         };
         let name = formatter::get_formatter_name(&self.config.formatter);
-        let project = self.get_project(uri.path().as_str())?;
+        let project = self.get_project(&uri)?;
         match formatter::format(
             &self.config.formatter,
             document.rope.to_string().as_bytes(),
@@ -1055,7 +1055,7 @@ impl Backend {
         let Some(document) = self.get_document(&uri) else {
             return out;
         };
-        let Some(project) = self.get_project(uri.path().as_str()) else {
+        let Some(project) = self.get_project(&uri) else {
             return out;
         };
         match code_lens::tests(&document.ast, &file, &project.kind, &self.config, &mut out) {
@@ -1202,7 +1202,8 @@ impl Backend {
         }
     }
 
-    fn get_project(&self, path: &str) -> Option<Project> {
+    fn get_project(&self, uri: &Uri) -> Option<Project> {
+        let path = get_document_map_key(uri);
         let Ok(projects) = self.projects.read() else {
             return None;
         };

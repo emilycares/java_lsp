@@ -6735,7 +6735,7 @@ fn more_syntax() {
                                                                                     operator: PlusPlus(
                                                                                         AstRange {
                                                                                             start: AstPoint { 13:26 },
-                                                                                            end: AstPoint { 13:26 },
+                                                                                            end: AstPoint { 13:28 },
                                                                                         },
                                                                                     ),
                                                                                 },
@@ -6934,7 +6934,7 @@ fn more_syntax() {
                                                                                     operator: PlusPlus(
                                                                                         AstRange {
                                                                                             start: AstPoint { 15:33 },
-                                                                                            end: AstPoint { 15:33 },
+                                                                                            end: AstPoint { 15:35 },
                                                                                         },
                                                                                     ),
                                                                                 },
@@ -8340,7 +8340,7 @@ fn more_syntax() {
                                                                         operator: PlusPlus(
                                                                             AstRange {
                                                                                 start: AstPoint { 27:8 },
-                                                                                end: AstPoint { 26:38 },
+                                                                                end: AstPoint { 27:10 },
                                                                             },
                                                                         ),
                                                                     },
@@ -8380,14 +8380,14 @@ fn more_syntax() {
                                                                     AstBaseExpression {
                                                                         range: AstRange {
                                                                             start: AstPoint { 28:8 },
-                                                                            end: AstPoint { 28:9 },
+                                                                            end: AstPoint { 28:10 },
                                                                         },
                                                                         ident: None,
                                                                         values: None,
                                                                         operator: MinusMinus(
                                                                             AstRange {
                                                                                 start: AstPoint { 28:8 },
-                                                                                end: AstPoint { 27:12 },
+                                                                                end: AstPoint { 28:10 },
                                                                             },
                                                                         ),
                                                                     },
@@ -8963,7 +8963,7 @@ fn more_syntax() {
                                                                         operator: AmpersandAmpersand(
                                                                             AstRange {
                                                                                 start: AstPoint { 36:13 },
-                                                                                end: AstPoint { 36:12 },
+                                                                                end: AstPoint { 36:15 },
                                                                             },
                                                                         ),
                                                                     },
@@ -9004,7 +9004,7 @@ fn more_syntax() {
                                                                         operator: VerticalBarVerticalBar(
                                                                             AstRange {
                                                                                 start: AstPoint { 36:21 },
-                                                                                end: AstPoint { 36:20 },
+                                                                                end: AstPoint { 36:23 },
                                                                             },
                                                                         ),
                                                                     },
@@ -9162,7 +9162,7 @@ fn more_syntax() {
                                                                                                 operator: VerticalBarVerticalBar(
                                                                                                     AstRange {
                                                                                                         start: AstPoint { 38:15 },
-                                                                                                        end: AstPoint { 38:14 },
+                                                                                                        end: AstPoint { 38:17 },
                                                                                                     },
                                                                                                 ),
                                                                                             },
@@ -15826,7 +15826,7 @@ fn double_plus() {
                                             operator: PlusPlus(
                                                 AstRange {
                                                     start: AstPoint { 0:8 },
-                                                    end: AstPoint { 0:8 },
+                                                    end: AstPoint { 0:10 },
                                                 },
                                             ),
                                         },
@@ -15843,7 +15843,7 @@ fn double_plus() {
                     },
                 ),
             ],
-            6,
+            5,
         )
     "#]];
     expected.assert_debug_eq(&parsed.unwrap());
