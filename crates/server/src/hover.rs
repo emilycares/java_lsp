@@ -232,7 +232,7 @@ pub fn jtype_hover_display(jtype: &JType) -> String {
         JType::Boolean => "boolean".to_owned(),
         JType::Wildcard => "?".to_owned(),
         JType::Var => "var".to_owned(),
-        JType::Class(s) => class_name_hover(s),
+        JType::Class(s) | JType::ClassOrPackage(s) => class_name_hover(s),
         JType::Array(jtype) => format!("{}[]", jtype_hover_display(jtype)),
         JType::Generic(jtype, jtypes) => format!(
             "{}<{}>",

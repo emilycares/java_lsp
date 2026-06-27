@@ -6,7 +6,7 @@ use std::{
 use bitflags::bitflags;
 use my_string::{MyString, smol_str::format_smolstr};
 
-pub const CFC_VERSION: usize = 18;
+pub const CFC_VERSION: usize = 19;
 
 #[derive(Debug)]
 pub enum ClassParserError {
@@ -205,6 +205,7 @@ pub enum JType {
     Boolean,
     Wildcard,
     Class(MyString),
+    ClassOrPackage(MyString),
     Array(Box<Self>),
     Generic(MyString, Vec<Self>),
     Parameter(MyString),
@@ -232,7 +233,7 @@ impl Display for JType {
             Self::Short => write!(f, "short"),
             Self::Boolean => write!(f, "boolean"),
             Self::Wildcard => write!(f, "?"),
-            Self::Class(c) => {
+            Self::Class(c) | Self::ClassOrPackage(c) => {
                 if c.starts_with("java.lang.") {
                     return write!(f, "{}", c.trim_start_matches("java.lang."));
                 }

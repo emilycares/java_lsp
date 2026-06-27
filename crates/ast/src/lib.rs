@@ -950,6 +950,25 @@ fn parse_annotated_parameters(
                     errors.push((SmolStr::new_inline("named expression"), e));
                 }
             }
+            match parse_annotated(tokens, npos) {
+                Ok((annotated, npos)) => {
+                    pos = npos;
+                    let end_named = tokens.end(pos)?;
+                    out.push(AstAnnotatedParameter::NamedAnnotated {
+                        range: AstRange::from_position_token(start_named, end_named),
+                        name,
+                        annotated,
+                    });
+                    continue;
+                }
+                Err(e) => {
+                    errors.push((SmolStr::new_inline("named annotated"), e));
+                }
+            }
+            return Err(AstError::AllChildrenFailed {
+                parent: SmolStr::new_inline("named annotation"),
+                errors,
+            });
         }
         match parse_expression(tokens, pos, expression_options) {
             Ok((expression, npos)) => {
@@ -1179,7 +1198,7 @@ fn parse_expression_inner(
         },
         _ => (),
     }
-    if expression_options != &ExpressionOptions::NoLambda {
+    if !expression_options.contains(ExpressionOptions::NoLambda) {
         match parse_lambda(tokens, pos, expression_options) {
             Ok((lambda, pos)) => {
                 return Ok((AstExpressionKind::Lambda(lambda), pos));
@@ -3119,6 +3138,30 @@ pub const fn can_be_ident(token: &Token) -> bool {
     )
 }
 
+/// If token can be name
+#[must_use]
+pub const fn can_be_name(token: &Token) -> bool {
+    matches!(
+        token,
+        Token::Yield
+            | Token::This
+            | Token::Permits
+            | Token::Super
+            | Token::Sealed
+            | Token::Non
+            | Token::Module
+            | Token::Exports
+            | Token::To
+            | Token::Uses
+            | Token::Provides
+            | Token::With
+            | Token::Requires
+            | Token::Transitive
+            | Token::Opens
+            | Token::Open
+    )
+}
+
 /// `thing1_`
 pub fn parse_name(
     tokens: &[PositionToken],
@@ -3280,27 +3323,26 @@ pub fn parse_name_single(
 ) -> Result<(AstIdentifier, usize), AstError> {
     let start = tokens.start(pos)?;
     let mut pos = pos;
-    let mut ident = None;
+    let value;
     let t = tokens.get(pos).ok_or_else(AstError::eof)?;
     match &t.token {
         Token::Identifier(id) => {
-            ident = Some(id);
+            value = id.clone();
+            pos += 1;
+        }
+        _ if can_be_name(&t.token) => {
+            value = t.token.to_smolstr();
             pos += 1;
         }
         _ => {
-            if tokens.get(pos).is_some() {
-                return Err(AstError::InvalidName(InvalidToken(pos)));
-            }
+            return Err(AstError::InvalidName(InvalidToken(pos)));
         }
     }
-    let Some(ident) = ident else {
-        return Err(AstError::IdentifierEmpty(InvalidToken(pos)));
-    };
     let end = tokens.end(pos)?;
     Ok((
         AstIdentifier {
             range: AstRange::from_position_token(start, end),
-            value: ident.clone(),
+            value,
         },
         pos,
     ))
@@ -3355,10 +3397,9 @@ fn parse_superclass(
     let mut pos = pos;
     let mut out = vec![sp];
     while let Ok(npos) = assert_token(tokens, pos, Token::Ampersand) {
-        if let Ok((sp, npos)) = parse_supper_class_inner(tokens, npos) {
-            out.push(sp);
-            pos = npos;
-        }
+        let (sp, npos) = parse_supper_class_inner(tokens, npos)?;
+        out.push(sp);
+        pos = npos;
     }
 
     Ok((out, pos))
@@ -3370,7 +3411,8 @@ fn parse_supper_class_inner(
 ) -> Result<(AstSuperClass, usize), AstError> {
     let (jtype, pos) = parse_jtype(tokens, pos)?;
     let sp = match jtype.value {
-        AstJTypeKind::Class(c) | AstJTypeKind::Generic(c, _) => AstSuperClass::Name(c),
+        AstJTypeKind::Class(c) => AstSuperClass::Name(c),
+        AstJTypeKind::Generic(_, _) | AstJTypeKind::Access { .. } => AstSuperClass::JType(jtype),
         _ => AstSuperClass::None,
     };
     Ok((sp, pos))
@@ -3450,78 +3492,100 @@ pub fn parse_jtype(tokens: &[PositionToken], pos: usize) -> Result<(AstJType, us
             }
         }
         out.annotated = annotated;
-        Ok((out, pos))
-    } else if let Ok(current) = tokens.get(pos).ok_or_else(AstError::eof) {
-        let mut out = AstJType {
-            annotated: Vec::new(),
-            range: AstRange::default(),
-            value: AstJTypeKind::Void,
-        };
-        if let Token::Identifier(ident) = &current.token {
-            let ast_identifier = AstIdentifier {
-                range: AstRange::from_position_token(current, current),
-                value: ident.to_owned(),
-            };
-            pos += 1;
-            if let Ok((generic_argmuants, npos)) = parse_jtype_generics(tokens, pos) {
-                pos = npos;
-                out.value = AstJTypeKind::Generic(ast_identifier, generic_argmuants.jtypes);
-            } else {
-                out.value = AstJTypeKind::Class(ast_identifier);
-            }
-            let end = tokens.end(pos)?;
-            out.range = AstRange::from_position_token(start, end);
+        return Ok((out, pos));
+    }
+    let (ast_identifier, pos) = parse_name_single(tokens, pos)?;
+    let mut pos = pos;
+    let o = if let Ok((generic_argmuants, npos)) = parse_jtype_generics(tokens, pos) {
+        pos = npos;
+        AstJTypeKind::Generic(ast_identifier, generic_argmuants.jtypes)
+    } else {
+        AstJTypeKind::Class(ast_identifier)
+    };
+    let end = tokens.end(pos)?;
+    let out = AstJType {
+        annotated: Vec::new(),
+        range: AstRange::from_position_token(start, end),
+        value: o,
+    };
 
+    let (mut out, pos) = parse_jtype_access(tokens, pos, out, &mut annotated)?;
+    let end = tokens.end(pos)?;
+    out.range = AstRange::from_position_token(start, end);
+    let mut pos = pos;
+
+    if let Ok(npos) = parse_annotated_list(tokens, pos, &mut annotated) {
+        pos = npos;
+    }
+    while let Ok(npos) = assert_token(tokens, pos, Token::LeftParenSquare) {
+        if let Ok(npos) = assert_token(tokens, npos, Token::RightParenSquare) {
+            pos = npos;
+            let end = tokens.end(pos)?;
+            out = AstJType {
+                annotated: Vec::new(),
+                range: AstRange::from_position_token(start, end),
+                value: AstJTypeKind::Array(Box::new(out)),
+            };
             if let Ok(npos) = parse_annotated_list(tokens, pos, &mut annotated) {
                 pos = npos;
             }
-            while let Ok(npos) = assert_token(tokens, pos, Token::LeftParenSquare) {
-                if let Ok(npos) = assert_token(tokens, npos, Token::RightParenSquare) {
-                    pos = npos;
-                    let end = tokens.end(pos)?;
-                    out = AstJType {
-                        annotated: Vec::new(),
-                        range: AstRange::from_position_token(start, end),
-                        value: AstJTypeKind::Array(Box::new(out)),
-                    };
-                    if let Ok(npos) = parse_annotated_list(tokens, pos, &mut annotated) {
-                        pos = npos;
-                    }
-                } else {
-                    break;
-                }
-            }
-            let end = tokens.end(pos)?;
-            out.range = AstRange::from_position_token(start, end);
-
-            if let Ok(npos) = assert_token(tokens, pos, Token::Dot) {
-                let mut npos = npos;
-                if let Ok(nnpos) = parse_annotated_list(tokens, npos, &mut annotated) {
-                    npos = nnpos;
-                }
-                if let Ok((inner, npos)) = parse_jtype(tokens, npos) {
-                    out.value = AstJTypeKind::Access {
-                        base: Box::new(AstJType {
-                            annotated: Vec::new(),
-                            range: AstRange::from_position_token(start, end),
-                            value: out.value,
-                        }),
-                        inner: Box::new(inner),
-                    };
-                    pos = npos;
-                    let end = tokens.end(pos)?;
-                    out.range = AstRange::from_position_token(start, end);
-                }
-            }
+        } else {
+            break;
         }
-        if matches!(out.value, AstJTypeKind::Void) {
-            return Err(AstError::InvalidJtype(InvalidToken(pos)));
-        }
-        out.annotated = annotated;
-        Ok((out, pos))
-    } else {
-        Err(AstError::InvalidJtype(InvalidToken(pos)))
     }
+
+    if matches!(out.value, AstJTypeKind::Void) {
+        return Err(AstError::InvalidJtype(InvalidToken(pos)));
+    }
+    out.annotated = annotated;
+    Ok((out, pos))
+}
+
+fn parse_jtype_access(
+    tokens: &[PositionToken],
+    pos: usize,
+    base: AstJType,
+    annotated: &mut Vec<AstAnnotated>,
+) -> Result<(AstJType, usize), AstError> {
+    let start_pos = pos;
+    let Ok(mut pos) = assert_token(tokens, pos, Token::Dot) else {
+        return Ok((base, start_pos));
+    };
+    let start = tokens.start(pos)?;
+    if let Ok(npos) = parse_annotated_list(tokens, pos, annotated) {
+        pos = npos;
+    }
+    let Ok((ident, mut pos)) = parse_name_single(tokens, pos) else {
+        return Ok((base, start_pos));
+    };
+    let o = if let Ok((generic_arguments, npos)) = parse_jtype_generics(tokens, pos) {
+        pos = npos;
+        AstJTypeKind::Generic(ident, generic_arguments.jtypes)
+    } else {
+        AstJTypeKind::ClassOrPackage(ident)
+    };
+    let end = tokens.end(pos)?;
+    let seg = AstJType {
+        annotated: Vec::new(),
+        range: AstRange::from_position_token(start, end),
+        value: o,
+    };
+
+    let (inner, pos) = parse_jtype_access(tokens, pos, seg, annotated)?;
+
+    let end = tokens.end(pos)?;
+    let node = AstJType {
+        annotated: Vec::new(),
+        range: AstRange {
+            start: base.range.start,
+            end: end.end_point(),
+        },
+        value: AstJTypeKind::Access {
+            base: Box::new(base),
+            inner: Box::new(inner),
+        },
+    };
+    Ok((node, pos))
 }
 
 fn parse_jtype_generics(

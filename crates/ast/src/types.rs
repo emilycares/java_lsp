@@ -594,6 +594,7 @@ pub struct AstDouble {
 pub enum AstSuperClass {
     None,
     Name(AstIdentifier),
+    JType(AstJType),
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// Usage of a Annotation
@@ -675,6 +676,7 @@ pub enum AstJTypeKind {
     Boolean,
     Wildcard,
     Class(AstIdentifier),
+    ClassOrPackage(AstIdentifier),
     Array(Box<AstJType>),
     Generic(AstIdentifier, Vec<AstJType>),
     /// Untyped variable
@@ -712,7 +714,9 @@ impl fmt::Display for AstJTypeKind {
             Self::Boolean => write!(f, "boolean"),
             Self::Wildcard => write!(f, "?"),
             Self::Var => write!(f, "var"),
-            Self::Class(ast_identifier) => write!(f, "{}", ast_identifier.value),
+            Self::Class(ast_identifier) | Self::ClassOrPackage(ast_identifier) => {
+                write!(f, "{}", ast_identifier.value)
+            }
             Self::Array(ast_jtype) => {
                 std::fmt::Display::fmt(&ast_jtype.value, f)?;
                 write!(f, "[]")
@@ -1008,5 +1012,10 @@ pub enum AstAnnotatedParameter {
         range: AstRange,
         name: AstIdentifier,
         values: AstValuesWithAnnotated,
+    },
+    NamedAnnotated {
+        range: AstRange,
+        name: AstIdentifier,
+        annotated: AstAnnotated,
     },
 }

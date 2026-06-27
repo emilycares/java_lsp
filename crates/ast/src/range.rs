@@ -344,11 +344,8 @@ impl GetRange for &AstAnnotatedParameter {
                 expression,
             } => expression.get_range(),
             AstAnnotatedParameter::Annotated(ast_annotated) => ast_annotated.range,
-            AstAnnotatedParameter::NamedArray {
-                range,
-                name: _,
-                values: _,
-            } => *range,
+            AstAnnotatedParameter::NamedArray { range, .. }
+            | AstAnnotatedParameter::NamedAnnotated { range, .. } => *range,
         }
     }
 }
@@ -376,6 +373,7 @@ impl AstInRange for AstSuperClass {
         match self {
             Self::None => false,
             Self::Name(ast_identifier) => ast_identifier.range.is_in_range(point),
+            Self::JType(j) => j.range.is_in_range(point),
         }
     }
 }

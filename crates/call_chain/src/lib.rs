@@ -462,6 +462,7 @@ fn cc_superclass(i: &AstSuperClass, out: &mut Vec<CallItem>) {
                 range: ast_identifier.range,
             });
         }
+        AstSuperClass::JType(j) => cc_jtype(j, out),
     }
 }
 
@@ -546,8 +547,9 @@ fn cc_annotated_parameter(
             } => {
                 cc_expr(expression, point, false, out);
             }
-            AstAnnotatedParameter::Annotated(ast_annotated) => {
-                cc_annotated_single(ast_annotated, point, out);
+            AstAnnotatedParameter::Annotated(annotated)
+            | AstAnnotatedParameter::NamedAnnotated { annotated, .. } => {
+                cc_annotated_single(annotated, point, out);
             }
             AstAnnotatedParameter::NamedArray {
                 range: _,
@@ -1076,10 +1078,11 @@ fn cc_jtype(jtype: &AstJType, out: &mut Vec<CallItem>) {
             name: jtype.value.to_smolstr(),
             range: jtype.range,
         }),
-        AstJTypeKind::Class(ast_identifier) => out.push(CallItem::Class {
-            name: ast_identifier.value.clone(),
-            range: jtype.range,
-        }),
+        AstJTypeKind::Class(ast_identifier) | AstJTypeKind::ClassOrPackage(ast_identifier) => out
+            .push(CallItem::Class {
+                name: ast_identifier.value.clone(),
+                range: jtype.range,
+            }),
         AstJTypeKind::Array(ast_jtype) => cc_jtype(ast_jtype, out),
         AstJTypeKind::Generic(ast_identifier, _ast_jtypes) => out.push(CallItem::Class {
             name: ast_identifier.value.clone(),
@@ -1108,10 +1111,11 @@ fn cc_jtype_not_sure_class(jtype: &AstJType, out: &mut Vec<CallItem>) {
             name: jtype.value.to_smolstr(),
             range: jtype.range,
         }),
-        AstJTypeKind::Class(ast_identifier) => out.push(CallItem::ClassOrVariable {
-            name: ast_identifier.value.clone(),
-            range: jtype.range,
-        }),
+        AstJTypeKind::Class(ast_identifier) | AstJTypeKind::ClassOrPackage(ast_identifier) => out
+            .push(CallItem::ClassOrVariable {
+                name: ast_identifier.value.clone(),
+                range: jtype.range,
+            }),
         AstJTypeKind::Array(ast_jtype) => cc_jtype(ast_jtype, out),
         AstJTypeKind::Generic(ast_identifier, _ast_jtypes) => out.push(CallItem::ClassOrVariable {
             name: ast_identifier.value.clone(),

@@ -810,7 +810,10 @@ pub fn resolve_jtype_with_generic(
                 ..Default::default()
             },
         }),
-        JType::Class(c) | JType::Generic(c, _) => resolve_with_generic(c, args, imports, class_map),
+        JType::Class(c) | JType::Generic(c, _) | JType::ClassOrPackage(c) => {
+            // TODO: Genireics not used
+            resolve_with_generic(c, args, imports, class_map)
+        }
         JType::Parameter(p) => {
             let mut name = SmolStrBuilder::new();
             name.push('<');

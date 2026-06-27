@@ -1193,6 +1193,9 @@ impl Backend {
         {
             for w in wf {
                 let dir = w.uri.path().as_str();
+                if projects.iter().any(|i| i.dir == dir) {
+                    continue;
+                }
                 if let Ok(kind) = common::project_kind::get_project_kind(&PathBuf::from(dir), &path)
                     && let Some(p) = project_kind_to_project(dir, kind)
                 {
@@ -1240,8 +1243,7 @@ pub fn project_kind_to_project(dir: &str, kind: ProjectKind) -> Option<Project> 
                 None
             }
         }
-        ProjectKind::Gradle { .. } => None,
-        ProjectKind::Unknown => Some(Project {
+        ProjectKind::Gradle { .. } | ProjectKind::Unknown => Some(Project {
             artifact_id: String::from("default"),
             dir: dir.to_string(),
             kind,

@@ -322,12 +322,16 @@ fn write_jtype(t: &JType, out: &mut Vec<u8>) {
             write_u8(11, out);
             write_string(smol_str, out);
         }
-        JType::Array(jtype) => {
+        JType::ClassOrPackage(smol_str) => {
             write_u8(12, out);
+            write_string(smol_str, out);
+        }
+        JType::Array(jtype) => {
+            write_u8(13, out);
             write_jtype(jtype, out);
         }
         JType::Generic(smol_str, jtypes) => {
-            write_u8(13, out);
+            write_u8(14, out);
             write_string(smol_str, out);
             write_usize(jtypes.len(), out);
             for t in jtypes {
@@ -335,16 +339,16 @@ fn write_jtype(t: &JType, out: &mut Vec<u8>) {
             }
         }
         JType::Parameter(smol_str) => {
-            write_u8(14, out);
+            write_u8(15, out);
             write_string(smol_str, out);
         }
         JType::Extends { base, extends } => {
-            write_u8(15, out);
+            write_u8(16, out);
             write_jtype(base, out);
             write_jtype(extends, out);
         }
         JType::Access { base, inner } => {
-            write_u8(16, out);
+            write_u8(17, out);
             write_jtype(base, out);
             write_jtype(inner, out);
         }
@@ -369,10 +373,14 @@ fn parse_jtype(data: &[u8], pos: usize) -> Result<(JType, usize), DtoRwError> {
             Ok((JType::Class(name), pos))
         }
         12 => {
+            let (name, pos) = parse_string(data, pos)?;
+            Ok((JType::ClassOrPackage(name), pos))
+        }
+        13 => {
             let (inner, pos) = parse_jtype(data, pos)?;
             Ok((JType::Array(Box::new(inner)), pos))
         }
-        13 => {
+        14 => {
             let (name, pos) = parse_string(data, pos)?;
             let (len, pos) = parse_usize(data, pos)?;
             let mut i = 0;
@@ -386,11 +394,11 @@ fn parse_jtype(data: &[u8], pos: usize) -> Result<(JType, usize), DtoRwError> {
             }
             Ok((JType::Generic(name, args), pos))
         }
-        14 => {
+        15 => {
             let (name, pos) = parse_string(data, pos)?;
             Ok((JType::Parameter(name), pos))
         }
-        15 => {
+        16 => {
             let (base, pos) = parse_jtype(data, pos)?;
             let (extends, pos) = parse_jtype(data, pos)?;
             Ok((
@@ -401,7 +409,7 @@ fn parse_jtype(data: &[u8], pos: usize) -> Result<(JType, usize), DtoRwError> {
                 pos,
             ))
         }
-        16 => {
+        17 => {
             let (base, pos) = parse_jtype(data, pos)?;
             let (inner, pos) = parse_jtype(data, pos)?;
             Ok((

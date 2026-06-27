@@ -88,6 +88,9 @@ impl From<&AstJType> for JType {
             AstJTypeKind::Boolean => Self::Boolean,
             AstJTypeKind::Wildcard => Self::Wildcard,
             AstJTypeKind::Class(ast_identifier) => Self::Class(ast_identifier.into()),
+            AstJTypeKind::ClassOrPackage(ast_identifier) => {
+                Self::ClassOrPackage(ast_identifier.into())
+            }
             AstJTypeKind::Array(ast_jtype) => Self::Array(Box::new(ast_jtype.as_ref().into())),
             AstJTypeKind::Generic(ast_identifier, ast_jtypes) => Self::Generic(
                 ast_identifier.into(),
@@ -116,6 +119,9 @@ impl From<AstJType> for JType {
             AstJTypeKind::Boolean => Self::Boolean,
             AstJTypeKind::Wildcard => Self::Wildcard,
             AstJTypeKind::Class(ast_identifier) => Self::Class(ast_identifier.into()),
+            AstJTypeKind::ClassOrPackage(ast_identifier) => {
+                Self::ClassOrPackage(ast_identifier.into())
+            }
             AstJTypeKind::Array(ast_jtype) => Self::Array(Box::new(ast_jtype.as_ref().into())),
             AstJTypeKind::Generic(ast_identifier, ast_jtypes) => Self::Generic(
                 ast_identifier.into(),

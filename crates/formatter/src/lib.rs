@@ -18,7 +18,7 @@ use ast::{
         AstIdentifier, AstIf, AstIfContent, AstImport, AstImportUnit, AstInterface,
         AstInterfaceConstant, AstInterfaceMethod, AstInterfaceMethodDefault, AstJType,
         AstJTypeKind, AstLambdaRhs, AstMethodHeader, AstMethodParameterFlags, AstMethodParameters,
-        AstModule, AstModuleRequiresFlags, AstNewRhs, AstPackage, AstPoint, AstRange, AstRecord,
+        AstModule, AstModuleRequiresFlags, AstNewRhs, AstPackage, AstPoint, AstRecord,
         AstRecordEntries, AstSuperClass, AstSwitchCaseArrowContent, AstThing, AstThingAttributes,
         AstThrowsDeclaration, AstTopLevel, AstTypeParameters, AstValue, AstValueNuget,
         AstValuesWithAnnotated, AstVolatileTransient, AstWhileContent,
@@ -139,7 +139,9 @@ impl Formatter {
                     self.buf.extend_from_slice(b"/*");
                     self.buf.extend_from_slice(c);
                     self.buf.extend_from_slice(b"*/");
-                    self.insert_line_or_space();
+                    if self.insert_line_or_space() {
+                        self.write_indent();
+                    }
                 }
                 _ => {}
             }
@@ -221,20 +223,6 @@ impl Formatter {
         }
     }
 
-    pub fn insert_spaces(&mut self, prev: &AstRange, next: &AstRange) {
-        if prev.end.line != next.start.line {
-            return;
-        }
-        let sps = next
-            .start
-            .col
-            .saturating_sub(prev.end.col)
-            .saturating_sub(2);
-        for _ in 0..sps {
-            self.buf.push(b' ');
-        }
-    }
-
     #[inline]
     fn new_line(&mut self) {
         self.buf.push(b'\n');
@@ -294,6 +282,13 @@ fn write_annotation_parameter(param: &AstAnnotatedParameter, f: &mut Formatter) 
             f.write_identifier(name);
             f.write(b" = ");
             write_values_with_annotated(values, f);
+        }
+        AstAnnotatedParameter::NamedAnnotated {
+            name, annotated, ..
+        } => {
+            f.write_identifier(name);
+            f.write(b" = ");
+            write_annotation(annotated, f);
         }
     }
 }
@@ -585,7 +580,7 @@ fn write_jtype(jtype: &AstJType, f: &mut Formatter) {
             f.write_with_comments(jtype.range.start, b"var");
             f.skip_to(jtype.range.end);
         }
-        AstJTypeKind::Class(ident) => {
+        AstJTypeKind::Class(ident) | AstJTypeKind::ClassOrPackage(ident) => {
             f.write_identifier(ident);
         }
         AstJTypeKind::Array(inner) => {
@@ -1269,7 +1264,6 @@ fn write_class_variable(v: &AstClassVariable, f: &mut Formatter) {
     f.buf.push(b' ');
     f.write_identifier(&v.name);
     if let Some(expr) = &v.expression {
-        f.insert_spaces(&v.name.range, &expr.get_range());
         f.write(b" = ");
         write_expression(expr, f);
     }
@@ -2149,7 +2143,7 @@ mod tests {
             public class Test {
                 public int aaa() {
                     int b = 1;
-                    return (this.that) + this.other
+                    return (this.that)  + this.other
                          + this.taetsch
                          + this.boing
                          + b;
@@ -2222,8 +2216,8 @@ mod tests {
     fn annotated() {
         let content = br#"
 @Path("/api/v1/thing")
-@Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON)
+@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"otherUuid", "thing_id"}))
 public class ThingResource {
 
     @Inject
@@ -2248,8 +2242,8 @@ public class ThingResource {
         let o = internal(content, SPACE).unwrap();
         let expected = expect![[r#"
             @Path("/api/v1/thing")
-            @Produces(MediaType.APPLICATION_JSON)
-            @Consumes(MediaType.APPLICATION_JSON)
+            @Consumes(MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON)
+            @Table(uniqueConstraints = @UniqueConstraint(columnNames = {"otherUuid", "thing_id"}) )
             public class ThingResource {
 
                 @Inject
@@ -2375,12 +2369,12 @@ public class Test {
             package ch.emilycares;
 
             public class Test {
-                private String a         = "a";
-                private String aa         = "aa";
-                private String aaa         = "aaa";
-                private String aaaa         = "aaaa";
-                private String aaaaa         = "aaaaa";
-                private String aaaaaa         = "aaaaaa";
+                private String a = "a";
+                private String aa = "aa";
+                private String aaa = "aaa";
+                private String aaaa = "aaaa";
+                private String aaaaa = "aaaaa";
+                private String aaaaaa = "aaaaaa";
             }
         "#]];
         expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
@@ -2481,6 +2475,28 @@ public class Test {
                 }
             }
         "]];
+        expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
+    }
+
+    #[test]
+    fn interface_indent() {
+        let content = br"
+        public interface Test {
+            void a();
+
+            /** hehehhehehe */
+            void b();
+        }
+        ";
+
+        let o = internal(content, SPACE).unwrap();
+        let expected = expect![[r#"
+            public interface Test {
+                void a();
+                /** hehehhehehe */
+                void b();
+            }
+        "#]];
         expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
     }
 }

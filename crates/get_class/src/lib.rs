@@ -337,8 +337,9 @@ fn get_class_annotated_parameters(
             | AstAnnotatedParameter::Expression(expression) => {
                 get_class_expression(expression, point)
             }
-            AstAnnotatedParameter::Annotated(ast_annotated) => {
-                get_class_annotated(ast_annotated, point)
+            AstAnnotatedParameter::Annotated(annotated)
+            | AstAnnotatedParameter::NamedAnnotated { annotated, .. } => {
+                get_class_annotated(annotated, point)
             }
             AstAnnotatedParameter::NamedArray {
                 range: _,
@@ -1009,7 +1010,7 @@ fn get_class_jtype(jtype: &AstJType, point: &AstPoint) -> Option<FoundClass> {
         | AstJTypeKind::Boolean
         | AstJTypeKind::Wildcard
         | AstJTypeKind::Var => None,
-        AstJTypeKind::Class(ast_identifier) => {
+        AstJTypeKind::Class(ast_identifier) | AstJTypeKind::ClassOrPackage(ast_identifier) => {
             if !ast_identifier.range.is_in_range(point) {
                 return None;
             }

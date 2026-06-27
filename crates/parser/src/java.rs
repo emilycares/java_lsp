@@ -73,7 +73,9 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
                         );
                         fields.extend(class.block.variables.iter().map(convert_class_field));
                         super_class = match &class.superclass.first() {
-                            None | Some(AstSuperClass::None) => SuperClass::None,
+                            None | Some(AstSuperClass::None | AstSuperClass::JType(_)) => {
+                                SuperClass::None
+                            }
                             Some(AstSuperClass::Name(ast_identifier)) => {
                                 SuperClass::Name(ast_identifier.into())
                             }
@@ -91,7 +93,9 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
                         );
                         fields.extend(record.block.variables.iter().map(convert_class_field));
                         super_class = match &record.superclass.first() {
-                            None | Some(AstSuperClass::None) => SuperClass::None,
+                            None | Some(AstSuperClass::None | AstSuperClass::JType(_)) => {
+                                SuperClass::None
+                            }
                             Some(AstSuperClass::Name(ast_identifier)) => {
                                 SuperClass::Name(ast_identifier.into())
                             }

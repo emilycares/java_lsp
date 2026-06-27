@@ -17444,7 +17444,6 @@ fn jtype_access() {
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
-    assert_eq!(tokens.len(), parsed.1);
     let expected = expect![[r#"
         (
             AstJType {
@@ -17476,7 +17475,7 @@ fn jtype_access() {
                             start: AstPoint { 0:10 },
                             end: AstPoint { 0:15 },
                         },
-                        value: Class(
+                        value: ClassOrPackage(
                             AstIdentifier {
                                 range: AstRange {
                                     start: AstPoint { 0:10 },
@@ -17493,6 +17492,90 @@ fn jtype_access() {
     "#]];
     expected.assert_debug_eq(&parsed);
 }
+
+#[test]
+fn jtype_nested_generics() {
+    let content = r#"Supplier<Map<ClassDesc, ClassHierarchyInfo>>"#;
+    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let parsed = parse_jtype(&tokens, 0);
+    parsed.print_err(content, &tokens);
+    let parsed = parsed.unwrap();
+    let expected = expect![[r#"
+        (
+            AstJType {
+                annotated: [],
+                range: AstRange {
+                    start: AstPoint { 0:0 },
+                    end: AstPoint { 0:44 },
+                },
+                value: Generic(
+                    AstIdentifier {
+                        range: AstRange {
+                            start: AstPoint { 0:0 },
+                            end: AstPoint { 0:8 },
+                        },
+                        value: "Supplier",
+                    },
+                    [
+                        AstJType {
+                            annotated: [],
+                            range: AstRange {
+                                start: AstPoint { 0:9 },
+                                end: AstPoint { 0:43 },
+                            },
+                            value: Generic(
+                                AstIdentifier {
+                                    range: AstRange {
+                                        start: AstPoint { 0:9 },
+                                        end: AstPoint { 0:12 },
+                                    },
+                                    value: "Map",
+                                },
+                                [
+                                    AstJType {
+                                        annotated: [],
+                                        range: AstRange {
+                                            start: AstPoint { 0:13 },
+                                            end: AstPoint { 0:22 },
+                                        },
+                                        value: Class(
+                                            AstIdentifier {
+                                                range: AstRange {
+                                                    start: AstPoint { 0:13 },
+                                                    end: AstPoint { 0:22 },
+                                                },
+                                                value: "ClassDesc",
+                                            },
+                                        ),
+                                    },
+                                    AstJType {
+                                        annotated: [],
+                                        range: AstRange {
+                                            start: AstPoint { 0:24 },
+                                            end: AstPoint { 0:42 },
+                                        },
+                                        value: Class(
+                                            AstIdentifier {
+                                                range: AstRange {
+                                                    start: AstPoint { 0:24 },
+                                                    end: AstPoint { 0:42 },
+                                                },
+                                                value: "ClassHierarchyInfo",
+                                            },
+                                        ),
+                                    },
+                                ],
+                            ),
+                        },
+                    ],
+                ),
+            },
+            9,
+        )
+    "#]];
+    expected.assert_debug_eq(&parsed);
+}
+
 #[test]
 fn jtype_package() {
     let content = r#"javax.crypto.interfaces.DHPrivateKey"#;
@@ -17500,7 +17583,6 @@ fn jtype_package() {
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
-    assert_eq!(tokens.len(), parsed.1);
     let expected = expect![[r#"
         (
             AstJType {
@@ -17539,7 +17621,7 @@ fn jtype_package() {
                                     start: AstPoint { 0:6 },
                                     end: AstPoint { 0:12 },
                                 },
-                                value: Class(
+                                value: ClassOrPackage(
                                     AstIdentifier {
                                         range: AstRange {
                                             start: AstPoint { 0:6 },
@@ -17562,7 +17644,7 @@ fn jtype_package() {
                                             start: AstPoint { 0:13 },
                                             end: AstPoint { 0:23 },
                                         },
-                                        value: Class(
+                                        value: ClassOrPackage(
                                             AstIdentifier {
                                                 range: AstRange {
                                                     start: AstPoint { 0:13 },
@@ -17578,7 +17660,7 @@ fn jtype_package() {
                                             start: AstPoint { 0:24 },
                                             end: AstPoint { 0:36 },
                                         },
-                                        value: Class(
+                                        value: ClassOrPackage(
                                             AstIdentifier {
                                                 range: AstRange {
                                                     start: AstPoint { 0:24 },
@@ -17985,6 +18067,149 @@ fn name_dot_logical() {
     "#]];
     expected.assert_debug_eq(&parsed);
 }
+
+#[test]
+fn annotated_named() {
+    let content =
+        r#"@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"otherUuid", "thing_id"}))"#;
+    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let parsed = parse_annotated(&tokens, 0);
+    parsed.print_err(content, &tokens);
+    let parsed = parsed.unwrap();
+    assert_eq!(tokens.len(), parsed.1);
+    let expected = expect![[r#"
+        (
+            AstAnnotated {
+                range: AstRange {
+                    start: AstPoint { 0:0 },
+                    end: AstPoint { 0:86 },
+                },
+                name: AstIdentifier {
+                    range: AstRange {
+                        start: AstPoint { 0:1 },
+                        end: AstPoint { 0:6 },
+                    },
+                    value: "Table",
+                },
+                parameters: Parameter(
+                    [
+                        NamedAnnotated {
+                            range: AstRange {
+                                start: AstPoint { 0:7 },
+                                end: AstPoint { 0:85 },
+                            },
+                            name: AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint { 0:7 },
+                                    end: AstPoint { 0:24 },
+                                },
+                                value: "uniqueConstraints",
+                            },
+                            annotated: AstAnnotated {
+                                range: AstRange {
+                                    start: AstPoint { 0:27 },
+                                    end: AstPoint { 0:85 },
+                                },
+                                name: AstIdentifier {
+                                    range: AstRange {
+                                        start: AstPoint { 0:28 },
+                                        end: AstPoint { 0:44 },
+                                    },
+                                    value: "UniqueConstraint",
+                                },
+                                parameters: Parameter(
+                                    [
+                                        NamedArray {
+                                            range: AstRange {
+                                                start: AstPoint { 0:45 },
+                                                end: AstPoint { 0:84 },
+                                            },
+                                            name: AstIdentifier {
+                                                range: AstRange {
+                                                    start: AstPoint { 0:45 },
+                                                    end: AstPoint { 0:56 },
+                                                },
+                                                value: "columnNames",
+                                            },
+                                            values: AstValuesWithAnnotated {
+                                                range: AstRange {
+                                                    start: AstPoint { 0:59 },
+                                                    end: AstPoint { 0:84 },
+                                                },
+                                                values: [
+                                                    Expression(
+                                                        [
+                                                            Base(
+                                                                AstBaseExpression {
+                                                                    range: AstRange {
+                                                                        start: AstPoint { 0:70 },
+                                                                        end: AstPoint { 0:79 },
+                                                                    },
+                                                                    ident: Some(
+                                                                        Value(
+                                                                            Nuget(
+                                                                                StringLiteral(
+                                                                                    AstIdentifier {
+                                                                                        range: AstRange {
+                                                                                            start: AstPoint { 0:70 },
+                                                                                            end: AstPoint { 0:60 },
+                                                                                        },
+                                                                                        value: "otherUuid",
+                                                                                    },
+                                                                                ),
+                                                                            ),
+                                                                        ),
+                                                                    ),
+                                                                    values: None,
+                                                                    operator: None,
+                                                                },
+                                                            ),
+                                                        ],
+                                                    ),
+                                                    Expression(
+                                                        [
+                                                            Base(
+                                                                AstBaseExpression {
+                                                                    range: AstRange {
+                                                                        start: AstPoint { 0:82 },
+                                                                        end: AstPoint { 0:90 },
+                                                                    },
+                                                                    ident: Some(
+                                                                        Value(
+                                                                            Nuget(
+                                                                                StringLiteral(
+                                                                                    AstIdentifier {
+                                                                                        range: AstRange {
+                                                                                            start: AstPoint { 0:82 },
+                                                                                            end: AstPoint { 0:72 },
+                                                                                        },
+                                                                                        value: "thing_id",
+                                                                                    },
+                                                                                ),
+                                                                            ),
+                                                                        ),
+                                                                    ),
+                                                                    values: None,
+                                                                    operator: None,
+                                                                },
+                                                            ),
+                                                        ],
+                                                    ),
+                                                ],
+                                            },
+                                        },
+                                    ],
+                                ),
+                            },
+                        },
+                    ],
+                ),
+            },
+            17,
+        )
+    "#]];
+    expected.assert_debug_eq(&parsed);
+}
 #[test]
 fn annotated_array() {
     let content = r#"@SuppressWarnings({"unchecked", "rawtypes"})"#;
@@ -18148,7 +18373,6 @@ fn complicated_type() {
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
-    assert_eq!(tokens.len(), parsed.1);
     let expected = expect![[r#"
         (
             AstJType {
@@ -18192,7 +18416,7 @@ fn complicated_type() {
                     inner: AstJType {
                         annotated: [],
                         range: AstRange {
-                            start: AstPoint { 0:29 },
+                            start: AstPoint { 0:20 },
                             end: AstPoint { 0:73 },
                         },
                         value: Generic(
@@ -18251,6 +18475,7 @@ fn complicated_type() {
             12,
         )
     "#]];
+    assert_eq!(tokens.len(), parsed.1);
     expected.assert_debug_eq(&parsed);
 }
 #[test]
@@ -18704,6 +18929,201 @@ fn inline_switch() {
             },
             35,
         )
+    "#]];
+    expected.assert_debug_eq(&parsed);
+}
+
+#[test]
+fn import_with_module_in_name() {
+    let content = r#"
+    import info.asdf.module.a.base;
+    public class Test extends info.asdf.module.a.base {}
+    "#;
+    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let parsed = parse_file(&tokens);
+    parsed.print_err(content, &tokens);
+    let parsed = parsed.unwrap();
+    let expected = expect![[r#"
+        AstFile {
+            top: [
+                Import(
+                    AstImport {
+                        range: AstRange {
+                            start: AstPoint { 1:4 },
+                            end: AstPoint { 1:35 },
+                        },
+                        unit: Class(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint { 1:11 },
+                                    end: AstPoint { 1:34 },
+                                },
+                                value: "info.asdf.module.a.base",
+                            },
+                        ),
+                    },
+                ),
+                Thing(
+                    Class(
+                        AstClass {
+                            range: AstRange {
+                                start: AstPoint { 2:4 },
+                                end: AstPoint { 2:56 },
+                            },
+                            availability: AstAvailability(
+                                Public,
+                            ),
+                            attributes: AstThingAttributes(
+                                0x0,
+                            ),
+                            annotated: [],
+                            name: AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint { 2:17 },
+                                    end: AstPoint { 2:21 },
+                                },
+                                value: "Test",
+                            },
+                            type_parameters: None,
+                            superclass: [
+                                JType(
+                                    AstJType {
+                                        annotated: [],
+                                        range: AstRange {
+                                            start: AstPoint { 2:30 },
+                                            end: AstPoint { 2:53 },
+                                        },
+                                        value: Access {
+                                            base: AstJType {
+                                                annotated: [],
+                                                range: AstRange {
+                                                    start: AstPoint { 2:30 },
+                                                    end: AstPoint { 2:34 },
+                                                },
+                                                value: Class(
+                                                    AstIdentifier {
+                                                        range: AstRange {
+                                                            start: AstPoint { 2:30 },
+                                                            end: AstPoint { 2:34 },
+                                                        },
+                                                        value: "info",
+                                                    },
+                                                ),
+                                            },
+                                            inner: AstJType {
+                                                annotated: [],
+                                                range: AstRange {
+                                                    start: AstPoint { 2:35 },
+                                                    end: AstPoint { 2:53 },
+                                                },
+                                                value: Access {
+                                                    base: AstJType {
+                                                        annotated: [],
+                                                        range: AstRange {
+                                                            start: AstPoint { 2:35 },
+                                                            end: AstPoint { 2:39 },
+                                                        },
+                                                        value: ClassOrPackage(
+                                                            AstIdentifier {
+                                                                range: AstRange {
+                                                                    start: AstPoint { 2:35 },
+                                                                    end: AstPoint { 2:39 },
+                                                                },
+                                                                value: "asdf",
+                                                            },
+                                                        ),
+                                                    },
+                                                    inner: AstJType {
+                                                        annotated: [],
+                                                        range: AstRange {
+                                                            start: AstPoint { 2:40 },
+                                                            end: AstPoint { 2:53 },
+                                                        },
+                                                        value: Access {
+                                                            base: AstJType {
+                                                                annotated: [],
+                                                                range: AstRange {
+                                                                    start: AstPoint { 2:40 },
+                                                                    end: AstPoint { 2:46 },
+                                                                },
+                                                                value: ClassOrPackage(
+                                                                    AstIdentifier {
+                                                                        range: AstRange {
+                                                                            start: AstPoint { 2:40 },
+                                                                            end: AstPoint { 2:46 },
+                                                                        },
+                                                                        value: "module",
+                                                                    },
+                                                                ),
+                                                            },
+                                                            inner: AstJType {
+                                                                annotated: [],
+                                                                range: AstRange {
+                                                                    start: AstPoint { 2:47 },
+                                                                    end: AstPoint { 2:53 },
+                                                                },
+                                                                value: Access {
+                                                                    base: AstJType {
+                                                                        annotated: [],
+                                                                        range: AstRange {
+                                                                            start: AstPoint { 2:47 },
+                                                                            end: AstPoint { 2:48 },
+                                                                        },
+                                                                        value: ClassOrPackage(
+                                                                            AstIdentifier {
+                                                                                range: AstRange {
+                                                                                    start: AstPoint { 2:47 },
+                                                                                    end: AstPoint { 2:48 },
+                                                                                },
+                                                                                value: "a",
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                    inner: AstJType {
+                                                                        annotated: [],
+                                                                        range: AstRange {
+                                                                            start: AstPoint { 2:49 },
+                                                                            end: AstPoint { 2:53 },
+                                                                        },
+                                                                        value: ClassOrPackage(
+                                                                            AstIdentifier {
+                                                                                range: AstRange {
+                                                                                    start: AstPoint { 2:49 },
+                                                                                    end: AstPoint { 2:53 },
+                                                                                },
+                                                                                value: "base",
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                },
+                                                            },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                ),
+                            ],
+                            implements: [],
+                            permits: [],
+                            block: AstClassBlock {
+                                range: AstRange {
+                                    start: AstPoint { 2:54 },
+                                    end: AstPoint { 2:56 },
+                                },
+                                variables: [],
+                                methods: [],
+                                constructors: [],
+                                static_blocks: [],
+                                inner: [],
+                                blocks: [],
+                            },
+                        },
+                    ),
+                ),
+            ],
+        }
     "#]];
     expected.assert_debug_eq(&parsed);
 }
