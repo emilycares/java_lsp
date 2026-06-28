@@ -322,7 +322,6 @@ fn expression(
             AstExpressionKind::NewClass(_)
             | AstExpressionKind::Generics(_)
             | AstExpressionKind::JType(_)
-            | AstExpressionKind::Casted(_)
             | AstExpressionKind::Array(_) => (),
         }
     }

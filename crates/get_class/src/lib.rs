@@ -870,12 +870,11 @@ fn get_class_expression(
 
 fn get_class_expression_kind(ex: &AstExpressionKind, point: &AstPoint) -> Option<FoundClass> {
     match &ex {
-        AstExpressionKind::Casted(ast_casted_expression)
-        | AstExpressionKind::JType(ast_casted_expression) => {
+        AstExpressionKind::JType(ast_casted_expression) => {
             if !ast_casted_expression.range.is_in_range(point) {
                 return None;
             }
-            if let Some(o) = get_class_jtype(&ast_casted_expression.cast, point) {
+            if let Some(o) = get_class_jtype(&ast_casted_expression.jtype, point) {
                 return Some(o);
             }
             None

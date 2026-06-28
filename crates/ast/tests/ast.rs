@@ -7928,28 +7928,47 @@ fn more_syntax() {
                                                                                             operator: None,
                                                                                         },
                                                                                     ),
-                                                                                    Casted(
-                                                                                        AstCastedExpression {
+                                                                                    Base(
+                                                                                        AstBaseExpression {
                                                                                             range: AstRange {
                                                                                                 start: AstPoint { 22:28 },
                                                                                                 end: AstPoint { 22:31 },
                                                                                             },
-                                                                                            cast: AstJType {
-                                                                                                annotated: [],
-                                                                                                range: AstRange {
-                                                                                                    start: AstPoint { 22:29 },
-                                                                                                    end: AstPoint { 22:30 },
-                                                                                                },
-                                                                                                value: Class(
-                                                                                                    AstIdentifier {
-                                                                                                        range: AstRange {
-                                                                                                            start: AstPoint { 22:29 },
-                                                                                                            end: AstPoint { 22:30 },
-                                                                                                        },
-                                                                                                        value: "i",
+                                                                                            ident: None,
+                                                                                            values: Some(
+                                                                                                AstValues {
+                                                                                                    range: AstRange {
+                                                                                                        start: AstPoint { 22:28 },
+                                                                                                        end: AstPoint { 22:31 },
                                                                                                     },
-                                                                                                ),
-                                                                                            },
+                                                                                                    values: [
+                                                                                                        [
+                                                                                                            Base(
+                                                                                                                AstBaseExpression {
+                                                                                                                    range: AstRange {
+                                                                                                                        start: AstPoint { 22:29 },
+                                                                                                                        end: AstPoint { 22:30 },
+                                                                                                                    },
+                                                                                                                    ident: Some(
+                                                                                                                        Identifier(
+                                                                                                                            AstIdentifier {
+                                                                                                                                range: AstRange {
+                                                                                                                                    start: AstPoint { 22:29 },
+                                                                                                                                    end: AstPoint { 22:30 },
+                                                                                                                                },
+                                                                                                                                value: "i",
+                                                                                                                            },
+                                                                                                                        ),
+                                                                                                                    ),
+                                                                                                                    values: None,
+                                                                                                                    operator: None,
+                                                                                                                },
+                                                                                                            ),
+                                                                                                        ],
+                                                                                                    ],
+                                                                                                },
+                                                                                            ),
+                                                                                            operator: None,
                                                                                         },
                                                                                     ),
                                                                                 ],
@@ -8043,20 +8062,47 @@ fn more_syntax() {
                                                                 },
                                                                 value: Some(
                                                                     [
-                                                                        Casted(
-                                                                            AstCastedExpression {
+                                                                        Base(
+                                                                            AstBaseExpression {
                                                                                 range: AstRange {
                                                                                     start: AstPoint { 25:20 },
                                                                                     end: AstPoint { 25:25 },
                                                                                 },
-                                                                                cast: AstJType {
-                                                                                    annotated: [],
-                                                                                    range: AstRange {
-                                                                                        start: AstPoint { 25:21 },
-                                                                                        end: AstPoint { 25:24 },
+                                                                                ident: None,
+                                                                                values: Some(
+                                                                                    AstValues {
+                                                                                        range: AstRange {
+                                                                                            start: AstPoint { 25:20 },
+                                                                                            end: AstPoint { 25:25 },
+                                                                                        },
+                                                                                        values: [
+                                                                                            [
+                                                                                                Base(
+                                                                                                    AstBaseExpression {
+                                                                                                        range: AstRange {
+                                                                                                            start: AstPoint { 25:21 },
+                                                                                                            end: AstPoint { 25:24 },
+                                                                                                        },
+                                                                                                        ident: Some(
+                                                                                                            Identifier(
+                                                                                                                AstIdentifier {
+                                                                                                                    range: AstRange {
+                                                                                                                        start: AstPoint { 25:21 },
+                                                                                                                        end: AstPoint { 25:24 },
+                                                                                                                    },
+                                                                                                                    value: "int",
+                                                                                                                },
+                                                                                                            ),
+                                                                                                        ),
+                                                                                                        values: None,
+                                                                                                        operator: None,
+                                                                                                    },
+                                                                                                ),
+                                                                                            ],
+                                                                                        ],
                                                                                     },
-                                                                                    value: Int,
-                                                                                },
+                                                                                ),
+                                                                                operator: None,
                                                                             },
                                                                         ),
                                                                         Base(
@@ -12483,28 +12529,47 @@ fn more_syntax() {
                                                                                                                                 operator: None,
                                                                                                                             },
                                                                                                                         ),
-                                                                                                                        Casted(
-                                                                                                                            AstCastedExpression {
+                                                                                                                        Base(
+                                                                                                                            AstBaseExpression {
                                                                                                                                 range: AstRange {
                                                                                                                                     start: AstPoint { 101:52 },
                                                                                                                                     end: AstPoint { 101:55 },
                                                                                                                                 },
-                                                                                                                                cast: AstJType {
-                                                                                                                                    annotated: [],
-                                                                                                                                    range: AstRange {
-                                                                                                                                        start: AstPoint { 101:53 },
-                                                                                                                                        end: AstPoint { 101:54 },
-                                                                                                                                    },
-                                                                                                                                    value: Class(
-                                                                                                                                        AstIdentifier {
-                                                                                                                                            range: AstRange {
-                                                                                                                                                start: AstPoint { 101:53 },
-                                                                                                                                                end: AstPoint { 101:54 },
-                                                                                                                                            },
-                                                                                                                                            value: "n",
+                                                                                                                                ident: None,
+                                                                                                                                values: Some(
+                                                                                                                                    AstValues {
+                                                                                                                                        range: AstRange {
+                                                                                                                                            start: AstPoint { 101:52 },
+                                                                                                                                            end: AstPoint { 101:55 },
                                                                                                                                         },
-                                                                                                                                    ),
-                                                                                                                                },
+                                                                                                                                        values: [
+                                                                                                                                            [
+                                                                                                                                                Base(
+                                                                                                                                                    AstBaseExpression {
+                                                                                                                                                        range: AstRange {
+                                                                                                                                                            start: AstPoint { 101:53 },
+                                                                                                                                                            end: AstPoint { 101:54 },
+                                                                                                                                                        },
+                                                                                                                                                        ident: Some(
+                                                                                                                                                            Identifier(
+                                                                                                                                                                AstIdentifier {
+                                                                                                                                                                    range: AstRange {
+                                                                                                                                                                        start: AstPoint { 101:53 },
+                                                                                                                                                                        end: AstPoint { 101:54 },
+                                                                                                                                                                    },
+                                                                                                                                                                    value: "n",
+                                                                                                                                                                },
+                                                                                                                                                            ),
+                                                                                                                                                        ),
+                                                                                                                                                        values: None,
+                                                                                                                                                        operator: None,
+                                                                                                                                                    },
+                                                                                                                                                ),
+                                                                                                                                            ],
+                                                                                                                                        ],
+                                                                                                                                    },
+                                                                                                                                ),
+                                                                                                                                operator: None,
                                                                                                                             },
                                                                                                                         ),
                                                                                                                     ],
@@ -13276,28 +13341,47 @@ fn more_syntax() {
                                                                         operator: None,
                                                                     },
                                                                 ),
-                                                                Casted(
-                                                                    AstCastedExpression {
+                                                                Base(
+                                                                    AstBaseExpression {
                                                                         range: AstRange {
                                                                             start: AstPoint { 121:21 },
                                                                             end: AstPoint { 121:28 },
                                                                         },
-                                                                        cast: AstJType {
-                                                                            annotated: [],
-                                                                            range: AstRange {
-                                                                                start: AstPoint { 121:22 },
-                                                                                end: AstPoint { 121:27 },
-                                                                            },
-                                                                            value: Class(
-                                                                                AstIdentifier {
-                                                                                    range: AstRange {
-                                                                                        start: AstPoint { 121:22 },
-                                                                                        end: AstPoint { 121:27 },
-                                                                                    },
-                                                                                    value: "names",
+                                                                        ident: None,
+                                                                        values: Some(
+                                                                            AstValues {
+                                                                                range: AstRange {
+                                                                                    start: AstPoint { 121:21 },
+                                                                                    end: AstPoint { 121:28 },
                                                                                 },
-                                                                            ),
-                                                                        },
+                                                                                values: [
+                                                                                    [
+                                                                                        Base(
+                                                                                            AstBaseExpression {
+                                                                                                range: AstRange {
+                                                                                                    start: AstPoint { 121:22 },
+                                                                                                    end: AstPoint { 121:27 },
+                                                                                                },
+                                                                                                ident: Some(
+                                                                                                    Identifier(
+                                                                                                        AstIdentifier {
+                                                                                                            range: AstRange {
+                                                                                                                start: AstPoint { 121:22 },
+                                                                                                                end: AstPoint { 121:27 },
+                                                                                                            },
+                                                                                                            value: "names",
+                                                                                                        },
+                                                                                                    ),
+                                                                                                ),
+                                                                                                values: None,
+                                                                                                operator: None,
+                                                                                            },
+                                                                                        ),
+                                                                                    ],
+                                                                                ],
+                                                                            },
+                                                                        ),
+                                                                        operator: None,
                                                                     },
                                                                 ),
                                                                 Base(
@@ -14381,28 +14465,47 @@ fn lambda() {
                                                 operator: None,
                                             },
                                         ),
-                                        Casted(
-                                            AstCastedExpression {
+                                        Base(
+                                            AstBaseExpression {
                                                 range: AstRange {
                                                     start: AstPoint { 0:27 },
                                                     end: AstPoint { 0:30 },
                                                 },
-                                                cast: AstJType {
-                                                    annotated: [],
-                                                    range: AstRange {
-                                                        start: AstPoint { 0:28 },
-                                                        end: AstPoint { 0:29 },
-                                                    },
-                                                    value: Class(
-                                                        AstIdentifier {
-                                                            range: AstRange {
-                                                                start: AstPoint { 0:28 },
-                                                                end: AstPoint { 0:29 },
-                                                            },
-                                                            value: "n",
+                                                ident: None,
+                                                values: Some(
+                                                    AstValues {
+                                                        range: AstRange {
+                                                            start: AstPoint { 0:27 },
+                                                            end: AstPoint { 0:30 },
                                                         },
-                                                    ),
-                                                },
+                                                        values: [
+                                                            [
+                                                                Base(
+                                                                    AstBaseExpression {
+                                                                        range: AstRange {
+                                                                            start: AstPoint { 0:28 },
+                                                                            end: AstPoint { 0:29 },
+                                                                        },
+                                                                        ident: Some(
+                                                                            Identifier(
+                                                                                AstIdentifier {
+                                                                                    range: AstRange {
+                                                                                        start: AstPoint { 0:28 },
+                                                                                        end: AstPoint { 0:29 },
+                                                                                    },
+                                                                                    value: "n",
+                                                                                },
+                                                                            ),
+                                                                        ),
+                                                                        values: None,
+                                                                        operator: None,
+                                                                    },
+                                                                ),
+                                                            ],
+                                                        ],
+                                                    },
+                                                ),
+                                                operator: None,
                                             },
                                         ),
                                     ],
@@ -14956,28 +15059,47 @@ fn lambda_in_expression() {
                                                                                 operator: None,
                                                                             },
                                                                         ),
-                                                                        Casted(
-                                                                            AstCastedExpression {
+                                                                        Base(
+                                                                            AstBaseExpression {
                                                                                 range: AstRange {
                                                                                     start: AstPoint { 0:44 },
                                                                                     end: AstPoint { 0:47 },
                                                                                 },
-                                                                                cast: AstJType {
-                                                                                    annotated: [],
-                                                                                    range: AstRange {
-                                                                                        start: AstPoint { 0:45 },
-                                                                                        end: AstPoint { 0:46 },
-                                                                                    },
-                                                                                    value: Class(
-                                                                                        AstIdentifier {
-                                                                                            range: AstRange {
-                                                                                                start: AstPoint { 0:45 },
-                                                                                                end: AstPoint { 0:46 },
-                                                                                            },
-                                                                                            value: "n",
+                                                                                ident: None,
+                                                                                values: Some(
+                                                                                    AstValues {
+                                                                                        range: AstRange {
+                                                                                            start: AstPoint { 0:44 },
+                                                                                            end: AstPoint { 0:47 },
                                                                                         },
-                                                                                    ),
-                                                                                },
+                                                                                        values: [
+                                                                                            [
+                                                                                                Base(
+                                                                                                    AstBaseExpression {
+                                                                                                        range: AstRange {
+                                                                                                            start: AstPoint { 0:45 },
+                                                                                                            end: AstPoint { 0:46 },
+                                                                                                        },
+                                                                                                        ident: Some(
+                                                                                                            Identifier(
+                                                                                                                AstIdentifier {
+                                                                                                                    range: AstRange {
+                                                                                                                        start: AstPoint { 0:45 },
+                                                                                                                        end: AstPoint { 0:46 },
+                                                                                                                    },
+                                                                                                                    value: "n",
+                                                                                                                },
+                                                                                                            ),
+                                                                                                        ),
+                                                                                                        values: None,
+                                                                                                        operator: None,
+                                                                                                    },
+                                                                                                ),
+                                                                                            ],
+                                                                                        ],
+                                                                                    },
+                                                                                ),
+                                                                                operator: None,
                                                                             },
                                                                         ),
                                                                     ],
@@ -15704,20 +15826,47 @@ fn cast() {
                         },
                         values: [
                             [
-                                Casted(
-                                    AstCastedExpression {
+                                Base(
+                                    AstBaseExpression {
                                         range: AstRange {
                                             start: AstPoint { 0:12 },
                                             end: AstPoint { 0:18 },
                                         },
-                                        cast: AstJType {
-                                            annotated: [],
-                                            range: AstRange {
-                                                start: AstPoint { 0:13 },
-                                                end: AstPoint { 0:17 },
+                                        ident: None,
+                                        values: Some(
+                                            AstValues {
+                                                range: AstRange {
+                                                    start: AstPoint { 0:12 },
+                                                    end: AstPoint { 0:18 },
+                                                },
+                                                values: [
+                                                    [
+                                                        Base(
+                                                            AstBaseExpression {
+                                                                range: AstRange {
+                                                                    start: AstPoint { 0:13 },
+                                                                    end: AstPoint { 0:17 },
+                                                                },
+                                                                ident: Some(
+                                                                    Identifier(
+                                                                        AstIdentifier {
+                                                                            range: AstRange {
+                                                                                start: AstPoint { 0:13 },
+                                                                                end: AstPoint { 0:17 },
+                                                                            },
+                                                                            value: "byte",
+                                                                        },
+                                                                    ),
+                                                                ),
+                                                                values: None,
+                                                                operator: None,
+                                                            },
+                                                        ),
+                                                    ],
+                                                ],
                                             },
-                                            value: Byte,
-                                        },
+                                        ),
+                                        operator: None,
                                     },
                                 ),
                                 Base(
@@ -15962,55 +16111,91 @@ fn return_casted_newclass() {
                 },
                 expression: Expression(
                     [
-                        Casted(
-                            AstCastedExpression {
+                        Base(
+                            AstBaseExpression {
                                 range: AstRange {
                                     start: AstPoint { 0:7 },
                                     end: AstPoint { 0:19 },
                                 },
-                                cast: AstJType {
-                                    annotated: [],
-                                    range: AstRange {
-                                        start: AstPoint { 0:8 },
-                                        end: AstPoint { 0:18 },
-                                    },
-                                    value: Array(
-                                        AstJType {
-                                            annotated: [],
-                                            range: AstRange {
-                                                start: AstPoint { 0:8 },
-                                                end: AstPoint { 0:16 },
-                                            },
-                                            value: Generic(
-                                                AstIdentifier {
-                                                    range: AstRange {
-                                                        start: AstPoint { 0:8 },
-                                                        end: AstPoint { 0:13 },
-                                                    },
-                                                    value: "Entry",
-                                                },
-                                                [
-                                                    AstJType {
-                                                        annotated: [],
+                                ident: None,
+                                values: Some(
+                                    AstValues {
+                                        range: AstRange {
+                                            start: AstPoint { 0:7 },
+                                            end: AstPoint { 0:19 },
+                                        },
+                                        values: [
+                                            [
+                                                Base(
+                                                    AstBaseExpression {
                                                         range: AstRange {
-                                                            start: AstPoint { 0:14 },
-                                                            end: AstPoint { 0:15 },
+                                                            start: AstPoint { 0:8 },
+                                                            end: AstPoint { 0:13 },
                                                         },
-                                                        value: Class(
-                                                            AstIdentifier {
+                                                        ident: Some(
+                                                            Identifier(
+                                                                AstIdentifier {
+                                                                    range: AstRange {
+                                                                        start: AstPoint { 0:8 },
+                                                                        end: AstPoint { 0:13 },
+                                                                    },
+                                                                    value: "Entry",
+                                                                },
+                                                            ),
+                                                        ),
+                                                        values: None,
+                                                        operator: None,
+                                                    },
+                                                ),
+                                                Generics(
+                                                    AstGenerics {
+                                                        range: AstRange {
+                                                            start: AstPoint { 0:13 },
+                                                            end: AstPoint { 0:16 },
+                                                        },
+                                                        jtypes: [
+                                                            AstJType {
+                                                                annotated: [],
                                                                 range: AstRange {
                                                                     start: AstPoint { 0:14 },
                                                                     end: AstPoint { 0:15 },
                                                                 },
-                                                                value: "T",
+                                                                value: Class(
+                                                                    AstIdentifier {
+                                                                        range: AstRange {
+                                                                            start: AstPoint { 0:14 },
+                                                                            end: AstPoint { 0:15 },
+                                                                        },
+                                                                        value: "T",
+                                                                    },
+                                                                ),
                                                             },
-                                                        ),
+                                                        ],
                                                     },
-                                                ],
-                                            ),
-                                        },
-                                    ),
-                                },
+                                                ),
+                                                Base(
+                                                    AstBaseExpression {
+                                                        range: AstRange {
+                                                            start: AstPoint { 0:16 },
+                                                            end: AstPoint { 0:18 },
+                                                        },
+                                                        ident: Some(
+                                                            EmptyArrayAccess(
+                                                                AstRange {
+                                                                    start: AstPoint { 0:16 },
+                                                                    end: AstPoint { 0:18 },
+                                                                },
+                                                            ),
+                                                        ),
+                                                        values: None,
+                                                        operator: None,
+                                                    },
+                                                ),
+                                            ],
+                                        ],
+                                    },
+                                ),
+                                operator: None,
                             },
                         ),
                         NewClass(
@@ -16413,20 +16598,47 @@ fn new_casted_parameter() {
                             ),
                         ],
                         [
-                            Casted(
-                                AstCastedExpression {
+                            Base(
+                                AstBaseExpression {
                                     range: AstRange {
                                         start: AstPoint { 0:21 },
                                         end: AstPoint { 0:28 },
                                     },
-                                    cast: AstJType {
-                                        annotated: [],
-                                        range: AstRange {
-                                            start: AstPoint { 0:22 },
-                                            end: AstPoint { 0:27 },
+                                    ident: None,
+                                    values: Some(
+                                        AstValues {
+                                            range: AstRange {
+                                                start: AstPoint { 0:21 },
+                                                end: AstPoint { 0:28 },
+                                            },
+                                            values: [
+                                                [
+                                                    Base(
+                                                        AstBaseExpression {
+                                                            range: AstRange {
+                                                                start: AstPoint { 0:22 },
+                                                                end: AstPoint { 0:27 },
+                                                            },
+                                                            ident: Some(
+                                                                Identifier(
+                                                                    AstIdentifier {
+                                                                        range: AstRange {
+                                                                            start: AstPoint { 0:22 },
+                                                                            end: AstPoint { 0:27 },
+                                                                        },
+                                                                        value: "float",
+                                                                    },
+                                                                ),
+                                                            ),
+                                                            values: None,
+                                                            operator: None,
+                                                        },
+                                                    ),
+                                                ],
+                                            ],
                                         },
-                                        value: Float,
-                                    },
+                                    ),
+                                    operator: None,
                                 },
                             ),
                             Base(
@@ -17910,20 +18122,47 @@ fn casted_calculation() {
                                 end: AstPoint { 0:54 },
                             },
                             value: [
-                                Casted(
-                                    AstCastedExpression {
+                                Base(
+                                    AstBaseExpression {
                                         range: AstRange {
                                             start: AstPoint { 0:21 },
                                             end: AstPoint { 0:26 },
                                         },
-                                        cast: AstJType {
-                                            annotated: [],
-                                            range: AstRange {
-                                                start: AstPoint { 0:22 },
-                                                end: AstPoint { 0:25 },
+                                        ident: None,
+                                        values: Some(
+                                            AstValues {
+                                                range: AstRange {
+                                                    start: AstPoint { 0:21 },
+                                                    end: AstPoint { 0:26 },
+                                                },
+                                                values: [
+                                                    [
+                                                        Base(
+                                                            AstBaseExpression {
+                                                                range: AstRange {
+                                                                    start: AstPoint { 0:22 },
+                                                                    end: AstPoint { 0:25 },
+                                                                },
+                                                                ident: Some(
+                                                                    Identifier(
+                                                                        AstIdentifier {
+                                                                            range: AstRange {
+                                                                                start: AstPoint { 0:22 },
+                                                                                end: AstPoint { 0:25 },
+                                                                            },
+                                                                            value: "int",
+                                                                        },
+                                                                    ),
+                                                                ),
+                                                                values: None,
+                                                                operator: None,
+                                                            },
+                                                        ),
+                                                    ],
+                                                ],
                                             },
-                                            value: Int,
-                                        },
+                                        ),
+                                        operator: None,
                                     },
                                 ),
                                 Base(

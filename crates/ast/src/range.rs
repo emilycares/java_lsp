@@ -296,9 +296,7 @@ impl GetRange for AstValues {
 impl GetRange for AstExpressionKind {
     fn get_range(&self) -> AstRange {
         match self {
-            Self::Casted(ast_casted_expression) | Self::JType(ast_casted_expression) => {
-                ast_casted_expression.range
-            }
+            Self::JType(ast_jtype_expression) => ast_jtype_expression.range,
             Self::Base(exp) => exp.range,
             Self::Lambda(ast_lambda) => ast_lambda.range,
             Self::InlineSwitch(ast_switch) => ast_switch.range,

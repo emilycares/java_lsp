@@ -18,11 +18,11 @@ use my_string::smol_str::{SmolStr, SmolStrBuilder, format_smolstr};
 use types::{
     AstAnnotated, AstAvailability, AstBaseExpression, AstBlock, AstBlockAssign, AstBlockBreak,
     AstBlockContinue, AstBlockEntry, AstBlockExpression, AstBlockReturn, AstBlockVariable,
-    AstBlockVariableMultiType, AstBoolean, AstCastedExpression, AstDouble, AstExpression,
-    AstExpressionIdentifier, AstExpressionOperator, AstExtends, AstFile, AstFor, AstForEnhanced,
-    AstIdentifier, AstIf, AstIfContent, AstImport, AstImportUnit, AstInt, AstJType, AstJTypeKind,
-    AstLambda, AstLambdaParameters, AstMethodHeader, AstMethodParameter, AstMethodParameters,
-    AstNewClass, AstPoint, AstRange, AstSuperClass, AstSwitch, AstSwitchCase, AstThing, AstThrow,
+    AstBlockVariableMultiType, AstBoolean, AstDouble, AstExpression, AstExpressionIdentifier,
+    AstExpressionOperator, AstExtends, AstFile, AstFor, AstForEnhanced, AstIdentifier, AstIf,
+    AstIfContent, AstImport, AstImportUnit, AstInt, AstJType, AstJTypeKind, AstLambda,
+    AstLambdaParameters, AstMethodHeader, AstMethodParameter, AstMethodParameters, AstNewClass,
+    AstPoint, AstRange, AstSuperClass, AstSwitch, AstSwitchCase, AstThing, AstThrow,
     AstThrowsDeclaration, AstTryCatch, AstTryCatchCase, AstTypeParameters, AstValue, AstValueNuget,
     AstValues, AstWhile,
 };
@@ -1207,12 +1207,6 @@ fn parse_expression_inner(
         }
     }
 
-    match parse_casted_expression(tokens, pos) {
-        Ok((casted, pos)) => {
-            return Ok((AstExpressionKind::Casted(casted), pos));
-        }
-        Err(e) => errors.push((SmolStr::new_inline("casted"), e)),
-    }
     match parse_base_expression(tokens, pos, expression_options) {
         Ok((exp, pos)) => {
             return Ok((AstExpressionKind::Base(exp), pos));
@@ -1267,23 +1261,6 @@ fn parse_instnceof(
             availability,
             jtype,
             variable,
-        },
-        pos,
-    ))
-}
-fn parse_casted_expression(
-    tokens: &[PositionToken],
-    pos: usize,
-) -> Result<(AstCastedExpression, usize), AstError> {
-    let start = tokens.start(pos)?;
-    let pos = assert_token(tokens, pos, Token::LeftParen)?;
-    let (cast, pos) = parse_jtype(tokens, pos)?;
-    let pos = assert_token(tokens, pos, Token::RightParen)?;
-    let end = tokens.end(pos)?;
-    Ok((
-        AstCastedExpression {
-            range: AstRange::from_position_token(start, end),
-            cast,
         },
         pos,
     ))

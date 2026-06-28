@@ -376,7 +376,13 @@ fn write_expression_kind(
                 write_expression_identifier(ident, f);
             }
             if let Some(values) = &base.values {
-                let nl = values.range.start.line != values.range.end.line;
+                let mut nl = values.range.start.line != values.range.end.line;
+                if nl && values.values.len() == 1 {
+                    let f = values.values.iter().flatten().next();
+                    if matches!(f, Some(AstExpressionKind::Lambda(_))) {
+                        nl = false;
+                    }
+                }
                 f.write(b"(");
                 for (i, expr) in values.values.iter().enumerate() {
                     if i > 0 {
@@ -398,13 +404,8 @@ fn write_expression_kind(
             }
             write_expression_operator(&base.operator, f, is_large, dot, nth);
         }
-        AstExpressionKind::Casted(casted) => {
-            f.write(b"(");
-            write_jtype(&casted.cast, f);
-            f.write(b") ");
-        }
         AstExpressionKind::JType(jtype_expr) => {
-            write_jtype(&jtype_expr.cast, f);
+            write_jtype(&jtype_expr.jtype, f);
         }
         AstExpressionKind::Array(values) => {
             f.write(b"{");
@@ -2143,7 +2144,7 @@ mod tests {
             public class Test {
                 public int aaa() {
                     int b = 1;
-                    return (this.that)  + this.other
+                    return (this.that) + this.other
                          + this.taetsch
                          + this.boing
                          + b;
@@ -2259,7 +2260,7 @@ public class ThingResource {
                     c.style = request.style;
                     c.active = true;
                     return c.persist()
-                        .map(entity -> Response.status(201).entity(entity) .build());
+                        .map(entity -> Response.status(201).entity(entity).build());
                 }
             }
         "#]];
@@ -2325,27 +2326,23 @@ public class ThingResource {
         ";
 
         let o = internal(content, SPACE).unwrap();
-        let expected = expect![[r"
+        let expected = expect![[r#"
             package ch.emilycares;
 
             public class Test {
                 public int aaa() {
-                    Suppliers.momoize(
-                    () -> {
+                    Suppliers.momoize(() -> {
                             // some processing
                             return true;
-                        }
-                    );
+                        });
 
                     Thread.ofVirtual()
-                        .start(
-                        () -> {
+                        .start(() -> {
                             // do something
-                            }
-                        );
+                            });
                 }
             }
-        "]];
+        "#]];
         expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
     }
 
@@ -2490,13 +2487,13 @@ public class Test {
         ";
 
         let o = internal(content, SPACE).unwrap();
-        let expected = expect![[r#"
+        let expected = expect![[r"
             public interface Test {
                 void a();
                 /** hehehhehehe */
                 void b();
             }
-        "#]];
+        "]];
         expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
     }
 }

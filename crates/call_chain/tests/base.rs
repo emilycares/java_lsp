@@ -775,7 +775,17 @@ public class Test {
                             start: AstPoint { 5:14 },
                             end: AstPoint { 5:20 },
                         },
-                        args: [],
+                        args: [
+                            [
+                                ClassOrVariable {
+                                    name: "local",
+                                    range: AstRange {
+                                        start: AstPoint { 5:21 },
+                                        end: AstPoint { 5:26 },
+                                    },
+                                },
+                            ],
+                        ],
                     },
                 ],
                 active_param: Some(
@@ -1136,7 +1146,24 @@ public class Test {
                             start: AstPoint { 5:10 },
                             end: AstPoint { 5:16 },
                         },
-                        args: [],
+                        args: [
+                            [
+                                ClassOrVariable {
+                                    name: "b",
+                                    range: AstRange {
+                                        start: AstPoint { 5:17 },
+                                        end: AstPoint { 5:18 },
+                                    },
+                                },
+                                FieldAccess {
+                                    name: "a",
+                                    range: AstRange {
+                                        start: AstPoint { 5:19 },
+                                        end: AstPoint { 5:20 },
+                                    },
+                                },
+                            ],
+                        ],
                     },
                 ],
                 active_param: Some(
@@ -1151,7 +1178,7 @@ public class Test {
                                 end: AstPoint { 5:18 },
                             },
                         },
-                        ClassOrVariable {
+                        FieldAccess {
                             name: "a",
                             range: AstRange {
                                 start: AstPoint { 5:19 },
@@ -1172,7 +1199,7 @@ public class Test {
                     end: AstPoint { 5:18 },
                 },
             },
-            ClassOrVariable {
+            FieldAccess {
                 name: "a",
                 range: AstRange {
                     start: AstPoint { 5:19 },
@@ -1920,26 +1947,36 @@ return a.length > 0
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 20));
-    assert_eq!(
-        vec![
-            CallItem::ClassOrVariable {
-                name: SmolStr::new_inline("Other"),
+    let expected = expect![[r#"
+        [
+            ClassOrVariable {
+                name: "Other",
                 range: AstRange {
-                    start: AstPoint { line: 5, col: 12 },
-                    end: AstPoint { line: 5, col: 17 },
+                    start: AstPoint { 5:12 },
+                    end: AstPoint { 5:17 },
                 },
             },
-            CallItem::MethodCall {
-                name: SmolStr::new_inline("thing"),
+            MethodCall {
+                name: "thing",
                 range: AstRange {
-                    start: AstPoint { line: 5, col: 18 },
-                    end: AstPoint { line: 5, col: 23 },
+                    start: AstPoint { 5:18 },
+                    end: AstPoint { 5:23 },
                 },
-                args: vec![]
-            }
-        ],
-        out,
-    );
+                args: [
+                    [
+                        ClassOrVariable {
+                            name: "a",
+                            range: AstRange {
+                                start: AstPoint { 5:24 },
+                                end: AstPoint { 5:25 },
+                            },
+                        },
+                    ],
+                ],
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]
@@ -1958,26 +1995,36 @@ return a.length > 0
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(6, 20));
-    assert_eq!(
-        vec![
-            CallItem::ClassOrVariable {
-                name: SmolStr::new_inline("Some"),
+    let expected = expect![[r#"
+        [
+            ClassOrVariable {
+                name: "Some",
                 range: AstRange {
-                    start: AstPoint { line: 6, col: 12 },
-                    end: AstPoint { line: 6, col: 16 },
+                    start: AstPoint { 6:12 },
+                    end: AstPoint { 6:16 },
                 },
             },
-            CallItem::MethodCall {
-                name: SmolStr::new_inline("aaaa"),
+            MethodCall {
+                name: "aaaa",
                 range: AstRange {
-                    start: AstPoint { line: 6, col: 17 },
-                    end: AstPoint { line: 6, col: 21 },
+                    start: AstPoint { 6:17 },
+                    end: AstPoint { 6:21 },
                 },
-                args: vec![]
-            }
-        ],
-        out,
-    );
+                args: [
+                    [
+                        ClassOrVariable {
+                            name: "a",
+                            range: AstRange {
+                                start: AstPoint { 6:22 },
+                                end: AstPoint { 6:23 },
+                            },
+                        },
+                    ],
+                ],
+            },
+        ]
+    "#]];
+    expected.assert_debug_eq(&out);
 }
 
 #[test]

@@ -8,11 +8,11 @@ use std::cmp::{self, max, min};
 use ast::range::{AstInRange, GetRange, add_ranges};
 use ast::types::{
     AstAnnotated, AstAnnotatedParameter, AstAnnotatedParameterKind, AstBaseExpression, AstBlock,
-    AstBlockEntry, AstBlockVariable, AstCastedExpression, AstClassBlock, AstConstructorHeader,
-    AstExpression, AstExpressionIdentifier, AstExpressionKind, AstExpressionOperator,
-    AstExpressionOrAnnotated, AstExpressionOrDefault, AstExpressionOrValue, AstExtends, AstFile,
-    AstForContent, AstIdentifier, AstIf, AstIfContent, AstImportUnit, AstInterfaceConstant,
-    AstInterfaceMethod, AstJType, AstJTypeKind, AstLambdaRhs, AstMethodHeader, AstMethodParameter,
+    AstBlockEntry, AstBlockVariable, AstClassBlock, AstConstructorHeader, AstExpression,
+    AstExpressionIdentifier, AstExpressionKind, AstExpressionOperator, AstExpressionOrAnnotated,
+    AstExpressionOrDefault, AstExpressionOrValue, AstExtends, AstFile, AstForContent,
+    AstIdentifier, AstIf, AstIfContent, AstImportUnit, AstInterfaceConstant, AstInterfaceMethod,
+    AstJType, AstJTypeExpression, AstJTypeKind, AstLambdaRhs, AstMethodHeader, AstMethodParameter,
     AstMethodParameters, AstNewClass, AstNewRhs, AstPoint, AstRange, AstRecordEntries,
     AstRecordEntry, AstSuperClass, AstSwitchCaseArrowContent, AstThing, AstThrowsDeclaration,
     AstTopLevel, AstTypeParameter, AstTypeParameters, AstValue, AstValueNuget, AstValues,
@@ -984,8 +984,7 @@ pub fn cc_expr(
                 cc_jtype(j, out);
             }
         }
-        AstExpressionKind::Casted(c) => cc_casted(c, point, out),
-        AstExpressionKind::JType(_) => (),
+        AstExpressionKind::JType(c) => cc_jtype_expression(c, point, out),
         AstExpressionKind::InstanceOf(ast_instance_of) => cc_jtype(&ast_instance_of.jtype, out),
     }
     cc_expr(&ast_expression[1..], point, has_parent, out);
@@ -1043,8 +1042,7 @@ fn cut_expression<'a>(
                     current.clear();
                 }
             },
-            AstExpressionKind::Casted(_)
-            | AstExpressionKind::Lambda(_)
+            AstExpressionKind::Lambda(_)
             | AstExpressionKind::InlineSwitch(_)
             | AstExpressionKind::NewClass(_)
             | AstExpressionKind::Generics(_)
@@ -1140,7 +1138,6 @@ fn cc_expr_base(
             cc_base_next_oprerator(ast_expression, current, point, has_parent, out, next);
         } else {
             let has_values = match next {
-                AstExpressionKind::Casted(_) => true,
                 AstExpressionKind::Base(r) => r.values.is_some(),
                 AstExpressionKind::Lambda(_)
                 | AstExpressionKind::InlineSwitch(_)
@@ -1271,18 +1268,18 @@ fn cc_base_no_next(
         }
     }
 }
-fn cc_casted(casted: &AstCastedExpression, point: &AstPoint, out: &mut Vec<CallItem>) {
-    if !casted.range.is_in_range(point) {
+fn cc_jtype_expression(je: &AstJTypeExpression, point: &AstPoint, out: &mut Vec<CallItem>) {
+    if !je.range.is_in_range(point) {
         return;
     }
     let mut inner = vec![];
 
-    cc_jtype_not_sure_class(&casted.cast, &mut inner);
+    cc_jtype_not_sure_class(&je.jtype, &mut inner);
     let args = CallItem::ArgumentList {
         prev: out.clone(),
         active_param: Some(0),
         filled_params: vec![inner.clone()],
-        range: casted.range,
+        range: je.range,
     };
     out.clear();
 

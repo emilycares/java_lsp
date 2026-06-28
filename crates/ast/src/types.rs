@@ -761,14 +761,13 @@ pub type AstExpression = Vec<AstExpressionKind>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AstExpressionKind {
-    Casted(AstCastedExpression),
     Base(AstBaseExpression),
     Lambda(AstLambda),
     InlineSwitch(AstSwitch),
     NewClass(AstNewClass),
     Generics(AstGenerics),
     Array(AstValues),
-    JType(AstCastedExpression),
+    JType(AstJTypeExpression),
     InstanceOf(AstInstanceOf),
 }
 impl AstExpressionKind {
@@ -776,8 +775,7 @@ impl AstExpressionKind {
     pub fn has_content(&self) -> bool {
         match self {
             Self::Base(exp) => exp.has_content(),
-            Self::Casted(_)
-            | Self::JType(_)
+            Self::JType(_)
             | Self::Lambda(_)
             | Self::InlineSwitch(_)
             | Self::NewClass(_)
@@ -788,9 +786,9 @@ impl AstExpressionKind {
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AstCastedExpression {
+pub struct AstJTypeExpression {
     pub range: AstRange,
-    pub cast: AstJType,
+    pub jtype: AstJType,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AstInstanceOf {
