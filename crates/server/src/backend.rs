@@ -1192,12 +1192,15 @@ impl Backend {
             && let Some(wf) = workspace_folders
         {
             for w in wf {
-                let dir = w.uri.path().as_str();
+                let dir = w.uri.path().as_str().to_string();
+                #[cfg(target_os = "windows")]
+                let dir = dir.trim_start_matches('/').replacen("%3A", ":", 1);
                 if projects.iter().any(|i| i.dir == dir) {
                     continue;
                 }
-                if let Ok(kind) = common::project_kind::get_project_kind(&PathBuf::from(dir), &path)
-                    && let Some(p) = project_kind_to_project(dir, kind)
+                if let Ok(kind) =
+                    common::project_kind::get_project_kind(&PathBuf::from(&dir), &path)
+                    && let Some(p) = project_kind_to_project(&dir, kind)
                 {
                     projects.push(p);
                 }

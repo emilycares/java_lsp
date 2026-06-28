@@ -80,7 +80,7 @@ pub fn main(
     let mut backend = Backend::new(connection);
     if let Some(dir) = project_dir.to_str()
         && let Ok(mut projects) = backend.projects.write()
-        && let Some(p) = project_kind_to_project(dir, project_kind)
+        && let Some(p) = project_kind_to_project(&dir.replace('\\', "/"), project_kind)
     {
         projects.push(p);
     }
