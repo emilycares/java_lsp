@@ -1425,15 +1425,16 @@ fn locale_variable_table() {
                                                                                                 ident: Some(
                                                                                                     Value(
                                                                                                         Nuget(
-                                                                                                            StringLiteral(
-                                                                                                                AstIdentifier {
+                                                                                                            StringLiteral {
+                                                                                                                value: AstIdentifier {
                                                                                                                     range: AstRange {
                                                                                                                         start: AstPoint { 8:14 },
                                                                                                                         end: AstPoint { 8:12 },
                                                                                                                     },
                                                                                                                     value: "",
                                                                                                                 },
-                                                                                                            ),
+                                                                                                                multi_line: false,
+                                                                                                            },
                                                                                                         ),
                                                                                                     ),
                                                                                                 ),
@@ -1975,15 +1976,16 @@ fn constants() {
                                                     ident: Some(
                                                         Value(
                                                             Nuget(
-                                                                StringLiteral(
-                                                                    AstIdentifier {
+                                                                StringLiteral {
+                                                                    value: AstIdentifier {
                                                                         range: AstRange {
                                                                             start: AstPoint { 8:33 },
                                                                             end: AstPoint { 8:31 },
                                                                         },
                                                                         value: "A",
                                                                     },
-                                                                ),
+                                                                    multi_line: false,
+                                                                },
                                                             ),
                                                         ),
                                                     ),
@@ -2037,15 +2039,16 @@ fn constants() {
                                                     ident: Some(
                                                         Value(
                                                             Nuget(
-                                                                StringLiteral(
-                                                                    AstIdentifier {
+                                                                StringLiteral {
+                                                                    value: AstIdentifier {
                                                                         range: AstRange {
                                                                             start: AstPoint { 9:26 },
                                                                             end: AstPoint { 9:24 },
                                                                         },
                                                                         value: "B",
                                                                     },
-                                                                ),
+                                                                    multi_line: false,
+                                                                },
                                                             ),
                                                         ),
                                                     ),
@@ -2099,15 +2102,16 @@ fn constants() {
                                                     ident: Some(
                                                         Value(
                                                             Nuget(
-                                                                StringLiteral(
-                                                                    AstIdentifier {
+                                                                StringLiteral {
+                                                                    value: AstIdentifier {
                                                                         range: AstRange {
                                                                             start: AstPoint { 11:26 },
                                                                             end: AstPoint { 11:24 },
                                                                         },
                                                                         value: "C",
                                                                     },
-                                                                ),
+                                                                    multi_line: false,
+                                                                },
                                                             ),
                                                         ),
                                                     ),
@@ -3214,15 +3218,16 @@ fn variants() {
                                                     ident: Some(
                                                         Value(
                                                             Nuget(
-                                                                StringLiteral(
-                                                                    AstIdentifier {
+                                                                StringLiteral {
+                                                                    value: AstIdentifier {
                                                                         range: AstRange {
                                                                             start: AstPoint { 2:8 },
                                                                             end: AstPoint { 2:6 },
                                                                         },
                                                                         value: "a",
                                                                     },
-                                                                ),
+                                                                    multi_line: false,
+                                                                },
                                                             ),
                                                         ),
                                                     ),
@@ -3257,15 +3262,16 @@ fn variants() {
                                                     ident: Some(
                                                         Value(
                                                             Nuget(
-                                                                StringLiteral(
-                                                                    AstIdentifier {
+                                                                StringLiteral {
+                                                                    value: AstIdentifier {
                                                                         range: AstRange {
                                                                             start: AstPoint { 3:8 },
                                                                             end: AstPoint { 3:6 },
                                                                         },
                                                                         value: "b",
                                                                     },
-                                                                ),
+                                                                    multi_line: false,
+                                                                },
                                                             ),
                                                         ),
                                                     ),
@@ -3300,15 +3306,16 @@ fn variants() {
                                                     ident: Some(
                                                         Value(
                                                             Nuget(
-                                                                StringLiteral(
-                                                                    AstIdentifier {
+                                                                StringLiteral {
+                                                                    value: AstIdentifier {
                                                                         range: AstRange {
                                                                             start: AstPoint { 4:8 },
                                                                             end: AstPoint { 4:6 },
                                                                         },
                                                                         value: "c",
                                                                     },
-                                                                ),
+                                                                    multi_line: false,
+                                                                },
                                                             ),
                                                         ),
                                                     ),
@@ -4377,15 +4384,16 @@ fn types() {
                                                         ident: Some(
                                                             Value(
                                                                 Nuget(
-                                                                    StringLiteral(
-                                                                        AstIdentifier {
+                                                                    StringLiteral {
+                                                                        value: AstIdentifier {
                                                                             range: AstRange {
                                                                                 start: AstPoint { 11:27 },
                                                                                 end: AstPoint { 11:22 },
                                                                             },
                                                                             value: "hihi",
                                                                         },
-                                                                    ),
+                                                                        multi_line: false,
+                                                                    },
                                                                 ),
                                                             ),
                                                         ),
@@ -4533,15 +4541,16 @@ fn types() {
                                                                                 ident: Some(
                                                                                     Value(
                                                                                         Nuget(
-                                                                                            StringLiteral(
-                                                                                                AstIdentifier {
+                                                                                            StringLiteral {
+                                                                                                value: AstIdentifier {
                                                                                                     range: AstRange {
                                                                                                         start: AstPoint { 12:39 },
                                                                                                         end: AstPoint { 12:34 },
                                                                                                     },
                                                                                                     value: "haha",
                                                                                                 },
-                                                                                            ),
+                                                                                                multi_line: false,
+                                                                                            },
                                                                                         ),
                                                                                     ),
                                                                                 ),
@@ -4916,15 +4925,16 @@ fn annotated() {
                                                             ident: Some(
                                                                 Value(
                                                                     Nuget(
-                                                                        StringLiteral(
-                                                                            AstIdentifier {
+                                                                        StringLiteral {
+                                                                            value: AstIdentifier {
                                                                                 range: AstRange {
                                                                                     start: AstPoint { 8:13 },
                                                                                     end: AstPoint { 8:6 },
                                                                                 },
                                                                                 value: "/hello",
                                                                             },
-                                                                        ),
+                                                                            multi_line: false,
+                                                                        },
                                                                     ),
                                                                 ),
                                                             ),
@@ -5099,15 +5109,16 @@ fn annotated() {
                                                                             ident: Some(
                                                                                 Value(
                                                                                     Nuget(
-                                                                                        StringLiteral(
-                                                                                            AstIdentifier {
+                                                                                        StringLiteral {
+                                                                                            value: AstIdentifier {
                                                                                                 range: AstRange {
                                                                                                     start: AstPoint { 12:17 },
                                                                                                     end: AstPoint { 12:10 },
                                                                                                 },
                                                                                                 value: "{name}",
                                                                                             },
-                                                                                        ),
+                                                                                            multi_line: false,
+                                                                                        },
                                                                                     ),
                                                                                 ),
                                                                             ),
@@ -5382,15 +5393,16 @@ fn annotated() {
                                                                             ident: Some(
                                                                                 Value(
                                                                                     Nuget(
-                                                                                        StringLiteral(
-                                                                                            AstIdentifier {
+                                                                                        StringLiteral {
+                                                                                            value: AstIdentifier {
                                                                                                 range: AstRange {
                                                                                                     start: AstPoint { 17:39 },
                                                                                                     end: AstPoint { 17:14 },
                                                                                                 },
                                                                                                 value: "Hello from Quarkus REST",
                                                                                             },
-                                                                                        ),
+                                                                                            multi_line: false,
+                                                                                        },
                                                                                     ),
                                                                                 ),
                                                                             ),
@@ -5897,15 +5909,16 @@ fn equasion_method_call() {
                         ident: Some(
                             Value(
                                 Nuget(
-                                    StringLiteral(
-                                        AstIdentifier {
+                                    StringLiteral {
+                                        value: AstIdentifier {
                                             range: AstRange {
                                                 start: AstPoint { 0:2 },
                                                 end: AstPoint { 0:3 },
                                             },
                                             value: "z",
                                         },
-                                    ),
+                                        multi_line: false,
+                                    },
                                 ),
                             ),
                         ),
@@ -6156,15 +6169,16 @@ fn annotation() {
                                                     ident: Some(
                                                         Value(
                                                             Nuget(
-                                                                StringLiteral(
-                                                                    AstIdentifier {
+                                                                StringLiteral {
+                                                                    value: AstIdentifier {
                                                                         range: AstRange {
                                                                             start: AstPoint { 3:32 },
                                                                             end: AstPoint { 3:25 },
                                                                         },
                                                                         value: "Hello",
                                                                     },
-                                                                ),
+                                                                    multi_line: false,
+                                                                },
                                                             ),
                                                         ),
                                                     ),
@@ -7023,15 +7037,16 @@ fn more_syntax() {
                                                                                                 ident: Some(
                                                                                                     Value(
                                                                                                         Nuget(
-                                                                                                            StringLiteral(
-                                                                                                                AstIdentifier {
+                                                                                                            StringLiteral {
+                                                                                                                value: AstIdentifier {
                                                                                                                     range: AstRange {
                                                                                                                         start: AstPoint { 17:31 },
                                                                                                                         end: AstPoint { 17:25 },
                                                                                                                     },
                                                                                                                     value: "Volvo",
                                                                                                                 },
-                                                                                                            ),
+                                                                                                                multi_line: false,
+                                                                                                            },
                                                                                                         ),
                                                                                                     ),
                                                                                                 ),
@@ -7050,15 +7065,16 @@ fn more_syntax() {
                                                                                                 ident: Some(
                                                                                                     Value(
                                                                                                         Nuget(
-                                                                                                            StringLiteral(
-                                                                                                                AstIdentifier {
+                                                                                                            StringLiteral {
+                                                                                                                value: AstIdentifier {
                                                                                                                     range: AstRange {
                                                                                                                         start: AstPoint { 17:38 },
                                                                                                                         end: AstPoint { 17:33 },
                                                                                                                     },
                                                                                                                     value: "BMW",
                                                                                                                 },
-                                                                                                            ),
+                                                                                                                multi_line: false,
+                                                                                                            },
                                                                                                         ),
                                                                                                     ),
                                                                                                 ),
@@ -7077,15 +7093,16 @@ fn more_syntax() {
                                                                                                 ident: Some(
                                                                                                     Value(
                                                                                                         Nuget(
-                                                                                                            StringLiteral(
-                                                                                                                AstIdentifier {
+                                                                                                            StringLiteral {
+                                                                                                                value: AstIdentifier {
                                                                                                                     range: AstRange {
                                                                                                                         start: AstPoint { 17:46 },
                                                                                                                         end: AstPoint { 17:40 },
                                                                                                                     },
                                                                                                                     value: "Ford",
                                                                                                                 },
-                                                                                                            ),
+                                                                                                                multi_line: false,
+                                                                                                            },
                                                                                                         ),
                                                                                                     ),
                                                                                                 ),
@@ -7104,15 +7121,16 @@ fn more_syntax() {
                                                                                                 ident: Some(
                                                                                                     Value(
                                                                                                         Nuget(
-                                                                                                            StringLiteral(
-                                                                                                                AstIdentifier {
+                                                                                                            StringLiteral {
+                                                                                                                value: AstIdentifier {
                                                                                                                     range: AstRange {
                                                                                                                         start: AstPoint { 17:55 },
                                                                                                                         end: AstPoint { 17:48 },
                                                                                                                     },
                                                                                                                     value: "Mazda",
                                                                                                                 },
-                                                                                                            ),
+                                                                                                                multi_line: false,
+                                                                                                            },
                                                                                                         ),
                                                                                                     ),
                                                                                                 ),
@@ -9291,15 +9309,16 @@ fn more_syntax() {
                                                                                 ident: Some(
                                                                                     Value(
                                                                                         Nuget(
-                                                                                            StringLiteral(
-                                                                                                AstIdentifier {
+                                                                                            StringLiteral {
+                                                                                                value: AstIdentifier {
                                                                                                     range: AstRange {
                                                                                                         start: AstPoint { 39:32 },
                                                                                                         end: AstPoint { 39:27 },
                                                                                                     },
                                                                                                     value: "John",
                                                                                                 },
-                                                                                            ),
+                                                                                                multi_line: false,
+                                                                                            },
                                                                                         ),
                                                                                     ),
                                                                                 ),
@@ -9355,15 +9374,16 @@ fn more_syntax() {
                                                                                 ident: Some(
                                                                                     Value(
                                                                                         Nuget(
-                                                                                            StringLiteral(
-                                                                                                AstIdentifier {
+                                                                                            StringLiteral {
+                                                                                                value: AstIdentifier {
                                                                                                     range: AstRange {
                                                                                                         start: AstPoint { 40:30 },
                                                                                                         end: AstPoint { 40:26 },
                                                                                                     },
                                                                                                     value: "Doe",
                                                                                                 },
-                                                                                            ),
+                                                                                                multi_line: false,
+                                                                                            },
                                                                                         ),
                                                                                     ),
                                                                                 ),
@@ -9539,15 +9559,16 @@ fn more_syntax() {
                                                                                                 ident: Some(
                                                                                                     Value(
                                                                                                         Nuget(
-                                                                                                            StringLiteral(
-                                                                                                                AstIdentifier {
+                                                                                                            StringLiteral {
+                                                                                                                value: AstIdentifier {
                                                                                                                     range: AstRange {
                                                                                                                         start: AstPoint { 41:41 },
                                                                                                                         end: AstPoint { 41:38 },
                                                                                                                     },
                                                                                                                     value: " ",
                                                                                                                 },
-                                                                                                            ),
+                                                                                                                multi_line: false,
+                                                                                                            },
                                                                                                         ),
                                                                                                     ),
                                                                                                 ),
@@ -9718,15 +9739,16 @@ fn more_syntax() {
                                                                         ident: Some(
                                                                             Value(
                                                                                 Nuget(
-                                                                                    StringLiteral(
-                                                                                        AstIdentifier {
+                                                                                    StringLiteral {
+                                                                                        value: AstIdentifier {
                                                                                             range: AstRange {
                                                                                                 start: AstPoint { 42:32 },
                                                                                                 end: AstPoint { 42:21 },
                                                                                             },
                                                                                             value: "Good day.",
                                                                                         },
-                                                                                    ),
+                                                                                        multi_line: false,
+                                                                                    },
                                                                                 ),
                                                                             ),
                                                                         ),
@@ -9759,15 +9781,16 @@ fn more_syntax() {
                                                                         ident: Some(
                                                                             Value(
                                                                                 Nuget(
-                                                                                    StringLiteral(
-                                                                                        AstIdentifier {
+                                                                                    StringLiteral {
+                                                                                        value: AstIdentifier {
                                                                                             range: AstRange {
                                                                                                 start: AstPoint { 42:50 },
                                                                                                 end: AstPoint { 42:35 },
                                                                                             },
                                                                                             value: "Good evening.",
                                                                                         },
-                                                                                    ),
+                                                                                        multi_line: false,
+                                                                                    },
                                                                                 ),
                                                                             ),
                                                                         ),
@@ -10549,15 +10572,16 @@ fn more_syntax() {
                                                                                                                         ident: Some(
                                                                                                                             Value(
                                                                                                                                 Nuget(
-                                                                                                                                    StringLiteral(
-                                                                                                                                        AstIdentifier {
+                                                                                                                                    StringLiteral {
+                                                                                                                                        value: AstIdentifier {
                                                                                                                                             range: AstRange {
                                                                                                                                                 start: AstPoint { 69:51 },
                                                                                                                                                 end: AstPoint { 69:29 },
                                                                                                                                             },
                                                                                                                                             value: "Something went wrong.",
                                                                                                                                         },
-                                                                                                                                    ),
+                                                                                                                                        multi_line: false,
+                                                                                                                                    },
                                                                                                                                 ),
                                                                                                                             ),
                                                                                                                         ),
@@ -10712,15 +10736,16 @@ fn more_syntax() {
                                                                                                                     ident: Some(
                                                                                                                         Value(
                                                                                                                             Nuget(
-                                                                                                                                StringLiteral(
-                                                                                                                                    AstIdentifier {
+                                                                                                                                StringLiteral {
+                                                                                                                                    value: AstIdentifier {
                                                                                                                                         range: AstRange {
                                                                                                                                             start: AstPoint { 71:58 },
                                                                                                                                             end: AstPoint { 71:29 },
                                                                                                                                         },
                                                                                                                                         value: "The 'try catch' is finished.",
                                                                                                                                     },
-                                                                                                                                ),
+                                                                                                                                    multi_line: false,
+                                                                                                                                },
                                                                                                                             ),
                                                                                                                         ),
                                                                                                                     ),
@@ -10799,15 +10824,16 @@ fn more_syntax() {
                                                                                                 ident: Some(
                                                                                                     Value(
                                                                                                         Nuget(
-                                                                                                            StringLiteral(
-                                                                                                                AstIdentifier {
+                                                                                                            StringLiteral {
+                                                                                                                value: AstIdentifier {
                                                                                                                     range: AstRange {
                                                                                                                         start: AstPoint { 74:29 },
                                                                                                                         end: AstPoint { 74:27 },
                                                                                                                     },
                                                                                                                     value: "s",
                                                                                                                 },
-                                                                                                            ),
+                                                                                                                multi_line: false,
+                                                                                                            },
                                                                                                         ),
                                                                                                     ),
                                                                                                 ),
@@ -10927,15 +10953,16 @@ fn more_syntax() {
                                                                                                         ident: Some(
                                                                                                             Value(
                                                                                                                 Nuget(
-                                                                                                                    StringLiteral(
-                                                                                                                        AstIdentifier {
+                                                                                                                    StringLiteral {
+                                                                                                                        value: AstIdentifier {
                                                                                                                             range: AstRange {
                                                                                                                                 start: AstPoint { 76:30 },
                                                                                                                                 end: AstPoint { 76:28 },
                                                                                                                             },
                                                                                                                             value: "o",
                                                                                                                         },
-                                                                                                                    ),
+                                                                                                                        multi_line: false,
+                                                                                                                    },
                                                                                                                 ),
                                                                                                             ),
                                                                                                         ),
@@ -11039,15 +11066,16 @@ fn more_syntax() {
                                                                                                         ident: Some(
                                                                                                             Value(
                                                                                                                 Nuget(
-                                                                                                                    StringLiteral(
-                                                                                                                        AstIdentifier {
+                                                                                                                    StringLiteral {
+                                                                                                                        value: AstIdentifier {
                                                                                                                             range: AstRange {
                                                                                                                                 start: AstPoint { 78:30 },
                                                                                                                                 end: AstPoint { 78:28 },
                                                                                                                             },
                                                                                                                             value: "o",
                                                                                                                         },
-                                                                                                                    ),
+                                                                                                                        multi_line: false,
+                                                                                                                    },
                                                                                                                 ),
                                                                                                             ),
                                                                                                         ),
@@ -11114,15 +11142,16 @@ fn more_syntax() {
                                                                                                     ident: Some(
                                                                                                         Value(
                                                                                                             Nuget(
-                                                                                                                StringLiteral(
-                                                                                                                    AstIdentifier {
+                                                                                                                StringLiteral {
+                                                                                                                    value: AstIdentifier {
                                                                                                                         range: AstRange {
                                                                                                                             start: AstPoint { 80:28 },
                                                                                                                             end: AstPoint { 80:26 },
                                                                                                                         },
                                                                                                                         value: "a",
                                                                                                                     },
-                                                                                                                ),
+                                                                                                                    multi_line: false,
+                                                                                                                },
                                                                                                             ),
                                                                                                         ),
                                                                                                     ),
@@ -11250,15 +11279,16 @@ fn more_syntax() {
                                                                                                                                 ident: Some(
                                                                                                                                     Value(
                                                                                                                                         Nuget(
-                                                                                                                                            StringLiteral(
-                                                                                                                                                AstIdentifier {
+                                                                                                                                            StringLiteral {
+                                                                                                                                                value: AstIdentifier {
                                                                                                                                                     range: AstRange {
                                                                                                                                                         start: AstPoint { 83:52 },
                                                                                                                                                         end: AstPoint { 83:43 },
                                                                                                                                                     },
                                                                                                                                                     value: "test.txt",
                                                                                                                                                 },
-                                                                                                                                            ),
+                                                                                                                                                multi_line: false,
+                                                                                                                                            },
                                                                                                                                         ),
                                                                                                                                     ),
                                                                                                                                 ),
@@ -12288,15 +12318,16 @@ fn more_syntax() {
                                                                                             ident: Some(
                                                                                                 Value(
                                                                                                     Nuget(
-                                                                                                        StringLiteral(
-                                                                                                            AstIdentifier {
+                                                                                                        StringLiteral {
+                                                                                                            value: AstIdentifier {
                                                                                                                 range: AstRange {
                                                                                                                     start: AstPoint { 100:52 },
                                                                                                                     end: AstPoint { 100:38 },
                                                                                                                 },
                                                                                                                 value: "Access denied",
                                                                                                             },
-                                                                                                        ),
+                                                                                                            multi_line: false,
+                                                                                                        },
                                                                                                     ),
                                                                                                 ),
                                                                                             ),
@@ -12716,15 +12747,16 @@ fn more_syntax() {
                                                                                                                                     ident: Some(
                                                                                                                                         Value(
                                                                                                                                             Nuget(
-                                                                                                                                                StringLiteral(
-                                                                                                                                                    AstIdentifier {
+                                                                                                                                                StringLiteral {
+                                                                                                                                                    value: AstIdentifier {
                                                                                                                                                         range: AstRange {
                                                                                                                                                             start: AstPoint { 104:30 },
                                                                                                                                                             end: AstPoint { 104:21 },
                                                                                                                                                         },
                                                                                                                                                         value: "Got a 1",
                                                                                                                                                     },
-                                                                                                                                                ),
+                                                                                                                                                    multi_line: false,
+                                                                                                                                                },
                                                                                                                                             ),
                                                                                                                                         ),
                                                                                                                                     ),
@@ -12798,15 +12830,16 @@ fn more_syntax() {
                                                                                                                                     ident: Some(
                                                                                                                                         Value(
                                                                                                                                             Nuget(
-                                                                                                                                                StringLiteral(
-                                                                                                                                                    AstIdentifier {
+                                                                                                                                                StringLiteral {
+                                                                                                                                                    value: AstIdentifier {
                                                                                                                                                         range: AstRange {
                                                                                                                                                             start: AstPoint { 107:30 },
                                                                                                                                                             end: AstPoint { 107:21 },
                                                                                                                                                         },
                                                                                                                                                         value: "Got a 2",
                                                                                                                                                     },
-                                                                                                                                                ),
+                                                                                                                                                    multi_line: false,
+                                                                                                                                                },
                                                                                                                                             ),
                                                                                                                                         ),
                                                                                                                                     ),
@@ -12905,15 +12938,16 @@ fn more_syntax() {
                                                                                                                                     ident: Some(
                                                                                                                                         Value(
                                                                                                                                             Nuget(
-                                                                                                                                                StringLiteral(
-                                                                                                                                                    AstIdentifier {
+                                                                                                                                                StringLiteral {
+                                                                                                                                                    value: AstIdentifier {
                                                                                                                                                         range: AstRange {
                                                                                                                                                             start: AstPoint { 110:34 },
                                                                                                                                                             end: AstPoint { 110:21 },
                                                                                                                                                         },
                                                                                                                                                         value: "More than 2",
                                                                                                                                                     },
-                                                                                                                                                ),
+                                                                                                                                                    multi_line: false,
+                                                                                                                                                },
                                                                                                                                             ),
                                                                                                                                         ),
                                                                                                                                     ),
@@ -13195,15 +13229,16 @@ fn more_syntax() {
                                                                                                                                                         ident: Some(
                                                                                                                                                             Value(
                                                                                                                                                                 Nuget(
-                                                                                                                                                                    StringLiteral(
-                                                                                                                                                                        AstIdentifier {
+                                                                                                                                                                    StringLiteral {
+                                                                                                                                                                        value: AstIdentifier {
                                                                                                                                                                             range: AstRange {
                                                                                                                                                                                 start: AstPoint { 118:41 },
                                                                                                                                                                                 end: AstPoint { 118:33 },
                                                                                                                                                                             },
                                                                                                                                                                             value: "Age is ",
                                                                                                                                                                         },
-                                                                                                                                                                    ),
+                                                                                                                                                                        multi_line: false,
+                                                                                                                                                                    },
                                                                                                                                                                 ),
                                                                                                                                                             ),
                                                                                                                                                         ),
@@ -13520,15 +13555,16 @@ fn more_syntax() {
                                                                         ident: Some(
                                                                             Value(
                                                                                 Nuget(
-                                                                                    StringLiteral(
-                                                                                        AstIdentifier {
+                                                                                    StringLiteral {
+                                                                                        value: AstIdentifier {
                                                                                             range: AstRange {
                                                                                                 start: AstPoint { 122:51 },
                                                                                                 end: AstPoint { 121:51 },
                                                                                             },
                                                                                             value: "\n        Java is better\n        --Thorben",
                                                                                         },
-                                                                                    ),
+                                                                                        multi_line: true,
+                                                                                    },
                                                                                 ),
                                                                             ),
                                                                         ),
@@ -14001,15 +14037,16 @@ fn more_syntax() {
                                                                                                 ident: Some(
                                                                                                     Value(
                                                                                                         Nuget(
-                                                                                                            StringLiteral(
-                                                                                                                AstIdentifier {
+                                                                                                            StringLiteral {
+                                                                                                                value: AstIdentifier {
                                                                                                                     range: AstRange {
                                                                                                                         start: AstPoint { 136:27 },
                                                                                                                         end: AstPoint { 136:23 },
                                                                                                                     },
                                                                                                                     value: "Zzz",
                                                                                                                 },
-                                                                                                            ),
+                                                                                                                multi_line: false,
+                                                                                                            },
                                                                                                         ),
                                                                                                     ),
                                                                                                 ),
@@ -14113,15 +14150,16 @@ fn variable_array() {
                                                     ident: Some(
                                                         Value(
                                                             Nuget(
-                                                                StringLiteral(
-                                                                    AstIdentifier {
+                                                                StringLiteral {
+                                                                    value: AstIdentifier {
                                                                         range: AstRange {
                                                                             start: AstPoint { 0:23 },
                                                                             end: AstPoint { 0:17 },
                                                                         },
                                                                         value: "Volvo",
                                                                     },
-                                                                ),
+                                                                    multi_line: false,
+                                                                },
                                                             ),
                                                         ),
                                                     ),
@@ -14140,15 +14178,16 @@ fn variable_array() {
                                                     ident: Some(
                                                         Value(
                                                             Nuget(
-                                                                StringLiteral(
-                                                                    AstIdentifier {
+                                                                StringLiteral {
+                                                                    value: AstIdentifier {
                                                                         range: AstRange {
                                                                             start: AstPoint { 0:30 },
                                                                             end: AstPoint { 0:25 },
                                                                         },
                                                                         value: "BMW",
                                                                     },
-                                                                ),
+                                                                    multi_line: false,
+                                                                },
                                                             ),
                                                         ),
                                                     ),
@@ -14167,15 +14206,16 @@ fn variable_array() {
                                                     ident: Some(
                                                         Value(
                                                             Nuget(
-                                                                StringLiteral(
-                                                                    AstIdentifier {
+                                                                StringLiteral {
+                                                                    value: AstIdentifier {
                                                                         range: AstRange {
                                                                             start: AstPoint { 0:38 },
                                                                             end: AstPoint { 0:32 },
                                                                         },
                                                                         value: "Ford",
                                                                     },
-                                                                ),
+                                                                    multi_line: false,
+                                                                },
                                                             ),
                                                         ),
                                                     ),
@@ -14194,15 +14234,16 @@ fn variable_array() {
                                                     ident: Some(
                                                         Value(
                                                             Nuget(
-                                                                StringLiteral(
-                                                                    AstIdentifier {
+                                                                StringLiteral {
+                                                                    value: AstIdentifier {
                                                                         range: AstRange {
                                                                             start: AstPoint { 0:47 },
                                                                             end: AstPoint { 0:40 },
                                                                         },
                                                                         value: "Mazda",
                                                                     },
-                                                                ),
+                                                                    multi_line: false,
+                                                                },
                                                             ),
                                                         ),
                                                     ),
@@ -14286,15 +14327,16 @@ fn multi_line_string() {
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
         (
-            StringLiteral(
-                AstIdentifier {
+            StringLiteral {
+                value: AstIdentifier {
                     range: AstRange {
                         start: AstPoint { 1:72 },
                         end: AstPoint { 1:136 },
                     },
                     value: "\n        Here is a muilti\n        line\n        string\"\"\n        ",
                 },
-            ),
+                multi_line: true,
+            },
             1,
         )
     "#]];
@@ -15345,15 +15387,16 @@ fn new_array() {
                                                                         ident: Some(
                                                                             Value(
                                                                                 Nuget(
-                                                                                    StringLiteral(
-                                                                                        AstIdentifier {
+                                                                                    StringLiteral {
+                                                                                        value: AstIdentifier {
                                                                                             range: AstRange {
                                                                                                 start: AstPoint { 2:29 },
                                                                                                 end: AstPoint { 2:13 },
                                                                                             },
                                                                                             value: "NumberPatterns",
                                                                                         },
-                                                                                    ),
+                                                                                        multi_line: false,
+                                                                                    },
                                                                                 ),
                                                                             ),
                                                                         ),
@@ -15411,15 +15454,16 @@ fn new_array() {
                                                                                                 ident: Some(
                                                                                                     Value(
                                                                                                         Nuget(
-                                                                                                            StringLiteral(
-                                                                                                                AstIdentifier {
+                                                                                                            StringLiteral {
+                                                                                                                value: AstIdentifier {
                                                                                                                     range: AstRange {
                                                                                                                         start: AstPoint { 4:20 },
                                                                                                                         end: AstPoint { 3:30 },
                                                                                                                     },
                                                                                                                     value: "",
                                                                                                                 },
-                                                                                                            ),
+                                                                                                                multi_line: false,
+                                                                                                            },
                                                                                                         ),
                                                                                                     ),
                                                                                                 ),
@@ -15438,15 +15482,16 @@ fn new_array() {
                                                                                                 ident: Some(
                                                                                                     Value(
                                                                                                         Nuget(
-                                                                                                            StringLiteral(
-                                                                                                                AstIdentifier {
+                                                                                                            StringLiteral {
+                                                                                                                value: AstIdentifier {
                                                                                                                     range: AstRange {
                                                                                                                         start: AstPoint { 5:20 },
                                                                                                                         end: AstPoint { 4:22 },
                                                                                                                     },
                                                                                                                     value: "",
                                                                                                                 },
-                                                                                                            ),
+                                                                                                                multi_line: false,
+                                                                                                            },
                                                                                                         ),
                                                                                                     ),
                                                                                                 ),
@@ -15625,15 +15670,16 @@ fn long_expr() {
                                                 ident: Some(
                                                     Value(
                                                         Nuget(
-                                                            StringLiteral(
-                                                                AstIdentifier {
+                                                            StringLiteral {
+                                                                value: AstIdentifier {
                                                                     range: AstRange {
                                                                         start: AstPoint { 0:40 },
                                                                         end: AstPoint { 0:30 },
                                                                     },
                                                                     value: "localhost",
                                                                 },
-                                                            ),
+                                                                multi_line: false,
+                                                            },
                                                         ),
                                                     ),
                                                 ),
@@ -17087,15 +17133,16 @@ fn multiline_string_arg() {
                                                                 ident: Some(
                                                                     Value(
                                                                         Nuget(
-                                                                            StringLiteral(
-                                                                                AstIdentifier {
+                                                                            StringLiteral {
+                                                                                value: AstIdentifier {
                                                                                     range: AstRange {
                                                                                         start: AstPoint { 1:509 },
                                                                                         end: AstPoint { 1:43 },
                                                                                     },
                                                                                     value: "\n                                          The VFORK launch mechanism has been deprecated for being dangerous.\n                                          It will be removed in a future java version. Either remove the\n                                          jdk.lang.Process.launchMechanism property (preferred) or use FORK mode\n                                          instead (-Djdk.lang.Process.launchMechanism=FORK).\n                                          ",
                                                                                 },
-                                                                            ),
+                                                                                multi_line: true,
+                                                                            },
                                                                         ),
                                                                     ),
                                                                 ),
@@ -18387,15 +18434,16 @@ fn annotated_named() {
                                                                     ident: Some(
                                                                         Value(
                                                                             Nuget(
-                                                                                StringLiteral(
-                                                                                    AstIdentifier {
+                                                                                StringLiteral {
+                                                                                    value: AstIdentifier {
                                                                                         range: AstRange {
                                                                                             start: AstPoint { 0:70 },
                                                                                             end: AstPoint { 0:60 },
                                                                                         },
                                                                                         value: "otherUuid",
                                                                                     },
-                                                                                ),
+                                                                                    multi_line: false,
+                                                                                },
                                                                             ),
                                                                         ),
                                                                     ),
@@ -18416,15 +18464,16 @@ fn annotated_named() {
                                                                     ident: Some(
                                                                         Value(
                                                                             Nuget(
-                                                                                StringLiteral(
-                                                                                    AstIdentifier {
+                                                                                StringLiteral {
+                                                                                    value: AstIdentifier {
                                                                                         range: AstRange {
                                                                                             start: AstPoint { 0:82 },
                                                                                             end: AstPoint { 0:72 },
                                                                                         },
                                                                                         value: "thing_id",
                                                                                     },
-                                                                                ),
+                                                                                    multi_line: false,
+                                                                                },
                                                                             ),
                                                                         ),
                                                                     ),
@@ -18492,15 +18541,16 @@ fn annotated_array() {
                                                         ident: Some(
                                                             Value(
                                                                 Nuget(
-                                                                    StringLiteral(
-                                                                        AstIdentifier {
+                                                                    StringLiteral {
+                                                                        value: AstIdentifier {
                                                                             range: AstRange {
                                                                                 start: AstPoint { 0:29 },
                                                                                 end: AstPoint { 0:19 },
                                                                             },
                                                                             value: "unchecked",
                                                                         },
-                                                                    ),
+                                                                        multi_line: false,
+                                                                    },
                                                                 ),
                                                             ),
                                                         ),
@@ -18519,15 +18569,16 @@ fn annotated_array() {
                                                         ident: Some(
                                                             Value(
                                                                 Nuget(
-                                                                    StringLiteral(
-                                                                        AstIdentifier {
+                                                                    StringLiteral {
+                                                                        value: AstIdentifier {
                                                                             range: AstRange {
                                                                                 start: AstPoint { 0:41 },
                                                                                 end: AstPoint { 0:31 },
                                                                             },
                                                                             value: "rawtypes",
                                                                         },
-                                                                    ),
+                                                                        multi_line: false,
+                                                                    },
                                                                 ),
                                                             ),
                                                         ),
@@ -19552,15 +19603,16 @@ fn top_level_function() {
                                                                                 ident: Some(
                                                                                     Value(
                                                                                         Nuget(
-                                                                                            StringLiteral(
-                                                                                                AstIdentifier {
+                                                                                            StringLiteral {
+                                                                                                value: AstIdentifier {
                                                                                                     range: AstRange {
                                                                                                         start: AstPoint { 1:31 },
                                                                                                         end: AstPoint { 1:27 },
                                                                                                     },
                                                                                                     value: "Hey",
                                                                                                 },
-                                                                                            ),
+                                                                                                multi_line: false,
+                                                                                            },
                                                                                         ),
                                                                                     ),
                                                                                 ),

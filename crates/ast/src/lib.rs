@@ -654,7 +654,7 @@ pub fn parse_value_nuget(
                 pos + 1,
             ))
         }
-        Token::StringLiteral(_) => {
+        Token::StringLiteral(_) | Token::StringLiteralMulti(_) => {
             parse_string_literal(tokens, pos).map(|i| (AstValue::Nuget(i.0), i.1))
         }
         Token::CharLiteral(_) => {
@@ -691,10 +691,26 @@ pub fn parse_string_literal(
         Token::StringLiteral(str) => {
             let end = tokens.end(pos)?;
             Ok((
-                AstValueNuget::StringLiteral(AstIdentifier {
-                    range: AstRange::from_position_token(start, end),
-                    value: str.clone(),
-                }),
+                AstValueNuget::StringLiteral {
+                    value: AstIdentifier {
+                        range: AstRange::from_position_token(start, end),
+                        value: str.clone(),
+                    },
+                    multi_line: false,
+                },
+                pos + 1,
+            ))
+        }
+        Token::StringLiteralMulti(str) => {
+            let end = tokens.end(pos)?;
+            Ok((
+                AstValueNuget::StringLiteral {
+                    value: AstIdentifier {
+                        range: AstRange::from_position_token(start, end),
+                        value: str.clone(),
+                    },
+                    multi_line: true,
+                },
                 pos + 1,
             ))
         }

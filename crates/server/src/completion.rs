@@ -586,7 +586,6 @@ public class GreetingResource {
             ..Default::default()
         };
         let lo_va = vec![LocalVariable {
-            level: 3,
             jtype: JType::Class(SmolStr::new_inline("String")),
             name: SmolStr::new_inline("other"),
             range: AstRange::default(),
@@ -660,7 +659,6 @@ public class Test {
     fn extend_completion_method() {
         let doc = Document::setup(SYMBOL_METHOD, PathBuf::new()).unwrap();
         let lo_va = vec![LocalVariable {
-            level: 3,
             jtype: JType::Class(SmolStr::new_inline("String")),
             name: SmolStr::new_inline("local"),
             range: AstRange::default(),

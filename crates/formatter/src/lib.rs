@@ -1714,11 +1714,23 @@ fn write_value_nuget(nuget: &AstValueNuget, f: &mut Formatter) {
             f.skip_to(fl.range.end);
             f.write(b"f");
         }
-        AstValueNuget::StringLiteral(s) => {
-            f.write_with_comments(s.range.start, b"\"");
-            f.buf.extend_from_slice(s.value.as_bytes());
+        AstValueNuget::StringLiteral {
+            value,
+            multi_line: false,
+        } => {
+            f.write_with_comments(value.range.start, b"\"");
+            f.buf.extend_from_slice(value.value.as_bytes());
             f.buf.extend_from_slice(b"\"");
-            f.skip_to(s.range.end);
+            f.skip_to(value.range.end);
+        }
+        AstValueNuget::StringLiteral {
+            value,
+            multi_line: true,
+        } => {
+            f.write_with_comments(value.range.start, b"\"\"\"");
+            f.buf.extend_from_slice(value.value.as_bytes());
+            f.buf.extend_from_slice(b"\"\"\"");
+            f.skip_to(value.range.end);
         }
         AstValueNuget::CharLiteral(c) => {
             f.write_with_comments(c.range.start, b"'");
@@ -2184,6 +2196,36 @@ mod tests {
     }
 
     #[test]
+    fn multi_line_string() {
+        let content = br#"
+        package ch.emilycares;
+        public class Test {
+            public int aaa() {
+               var description = """
+               HIHI HAHA
+               HIHI HAHA
+               """;
+
+            }
+        }
+        "#;
+
+        let o = internal(content, SPACE).unwrap();
+        let expected = expect![[r#"
+            package ch.emilycares;
+            public class Test {
+                public int aaa() {
+                    var description = """
+                           HIHI HAHA
+                           HIHI HAHA
+                           """;
+                }
+            }
+        "#]];
+        expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
+    }
+
+    #[test]
     fn stream() {
         let content = br"
         package ch.emilycares;
@@ -2326,7 +2368,7 @@ public class ThingResource {
         ";
 
         let o = internal(content, SPACE).unwrap();
-        let expected = expect![[r#"
+        let expected = expect![[r"
             package ch.emilycares;
 
             public class Test {
@@ -2342,7 +2384,7 @@ public class ThingResource {
                             });
                 }
             }
-        "#]];
+        "]];
         expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
     }
 

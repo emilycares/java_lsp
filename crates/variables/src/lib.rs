@@ -12,9 +12,10 @@ use ast::{
     range::{GetRange, is_in_range_c},
     types::{
         AstBaseExpression, AstBlock, AstBlockEntry, AstBlockExpression, AstBlockVariable,
-        AstClassMethod, AstExpression, AstExpressionKind, AstExpressionOrValue, AstFile, AstFor,
-        AstForContent, AstForEnhanced, AstIf, AstIfContent, AstInterfaceConstant, AstJTypeKind,
-        AstLambda, AstLambdaRhs, AstPoint, AstSwitch, AstSwitchCaseArrowContent,
+        AstClassConstructor, AstClassMethod, AstExpression, AstExpressionKind,
+        AstExpressionOrValue, AstFile, AstFor, AstForContent, AstForEnhanced, AstIf, AstIfContent,
+        AstInterfaceConstant, AstInterfaceMethod, AstInterfaceMethodDefault, AstJTypeKind,
+        AstLambda, AstLambdaRhs, AstNewRhs, AstPoint, AstSwitch, AstSwitchCaseArrowContent,
         AstSwitchCaseArrowType, AstSwitchCaseArrowVar, AstThing, AstTopLevel, AstTryCatch,
         AstWhile, AstWhileContent,
     },
@@ -42,14 +43,13 @@ pub fn get_vars(
     context: &VariableContext,
 ) -> Result<Vec<LocalVariable>, VariablesError> {
     let mut out: Vec<LocalVariable> = vec![];
-    let level = 0;
     for top in &ast.top {
         match top {
             AstTopLevel::Thing(ast_thing) => {
-                get_vars_thing(ast_thing, level, context, &mut out)?;
+                get_vars_thing(ast_thing, context, &mut out)?;
             }
             AstTopLevel::Method(m) => {
-                get_vars_method(m, level, context, &mut out)?;
+                get_vars_method(m, context, &mut out)?;
             }
             AstTopLevel::Package(_) | AstTopLevel::Import(_) | AstTopLevel::Module(_) => (),
         }
@@ -61,36 +61,76 @@ pub fn get_vars(
 
 fn get_vars_thing(
     thing: &AstThing,
-    level: usize,
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
     match &thing {
         AstThing::Class(ast_class) => {
-            let level = level + 1;
-            out.extend(get_class_variables(&ast_class.block.variables, level));
-            get_class_methods(&ast_class.block.methods, level, context, out)
-        }
-        AstThing::Record(ast_record) => {
-            let level = level + 1;
-            out.extend(get_class_variables(&ast_record.block.variables, level));
-            get_class_methods(&ast_record.block.methods, level, context, out)
-        }
-        AstThing::Interface(ast_interface) => {
-            let level = level + 1;
-            out.extend(get_interface_constants(&ast_interface.constants, level));
+            out.extend(variables(&ast_class.block.variables));
+            class_block(&ast_class.block, context, out)?;
             Ok(())
         }
-        AstThing::Enumeration(_) | AstThing::Annotation(_) => Ok(()),
+        AstThing::Record(ast_record) => {
+            out.extend(variables(&ast_record.block.variables));
+            methods(&ast_record.block.methods, context, out)?;
+            for b in &ast_record.block.static_blocks {
+                get_block_vars(&b.block, context, out)?;
+            }
+            for b in &ast_record.block.blocks {
+                get_block_vars(b, context, out)?;
+            }
+            for b in &ast_record.block.inner {
+                get_vars_thing(b, context, out)?;
+            }
+            Ok(())
+        }
+        AstThing::Interface(ast_interface) => {
+            out.extend(get_interface_constants(&ast_interface.constants));
+            interface_methods(&ast_interface.methods, context, out);
+            for m in &ast_interface.default_methods {
+                interface_default_method(m, context, out)?;
+            }
+            for b in &ast_interface.inner {
+                get_vars_thing(b, context, out)?;
+            }
+            Ok(())
+        }
+        AstThing::Enumeration(e) => {
+            out.extend(variables(&e.variables));
+            methods(&e.methods, context, out)?;
+            constructors(&e.constructors, context, out)?;
+            for b in &e.static_blocks {
+                get_block_vars(&b.block, context, out)?;
+            }
+            for b in &e.inner {
+                get_vars_thing(b, context, out)?;
+            }
+            Ok(())
+        }
+        AstThing::Annotation(_) => Ok(()),
     }
+}
+
+fn class_block(
+    block: &ast::types::AstClassBlock,
+    context: &VariableContext,
+    out: &mut Vec<LocalVariable>,
+) -> Result<(), VariablesError> {
+    methods(&block.methods, context, out)?;
+    constructors(&block.constructors, context, out)?;
+    for b in &block.static_blocks {
+        get_block_vars(&b.block, context, out)?;
+    }
+    for b in &block.blocks {
+        get_block_vars(b, context, out)?;
+    }
+    Ok(())
 }
 
 fn get_interface_constants(
     constants: &[AstInterfaceConstant],
-    level: usize,
 ) -> impl Iterator<Item = LocalVariable> {
     constants.iter().map(move |i| LocalVariable {
-        level,
         jtype: (&i.jtype).into(),
         name: (&i.name).into(),
         range: i.range,
@@ -98,28 +138,52 @@ fn get_interface_constants(
     })
 }
 
-fn get_class_methods(
+fn methods(
     methods: &[AstClassMethod],
 
-    level: usize,
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
-    let level = level + 1;
-
     for method in methods {
-        get_vars_method(method, level, context, out)?;
+        get_vars_method(method, context, out)?;
     }
     Ok(())
 }
 
-fn get_vars_method(
-    method: &AstClassMethod,
-    level: usize,
-    context: &VariableContext<'_>,
+fn interface_methods(
+    methods: &[AstInterfaceMethod],
+
+    context: &VariableContext,
+    out: &mut Vec<LocalVariable>,
+) {
+    for method in methods {
+        interface_method(method, context, out);
+    }
+}
+
+fn constructors(
+    methods: &[AstClassConstructor],
+
+    context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
-    out.push(LocalVariable::from_class_method(method, level));
+    for cons in methods {
+        constructor(cons, context, out)?;
+    }
+    Ok(())
+}
+
+fn interface_method(
+    method: &AstInterfaceMethod,
+    context: &VariableContext<'_>,
+    out: &mut Vec<LocalVariable>,
+) {
+    out.push(LocalVariable {
+        jtype: (&method.header.jtype).into(),
+        name: (&method.header.name).into(),
+        range: method.range,
+        flags: VarFlags::Function,
+    });
     if is_in_range_c(method.range, &context.point) {
         out.extend(
             method
@@ -127,33 +191,102 @@ fn get_vars_method(
                 .parameters
                 .parameters
                 .iter()
-                .map(move |i| LocalVariable::from_method_parameter(i, level)),
+                .map(LocalVariable::from_method_parameter),
+        );
+    }
+}
+
+fn interface_default_method(
+    method: &AstInterfaceMethodDefault,
+    context: &VariableContext<'_>,
+    out: &mut Vec<LocalVariable>,
+) -> Result<(), VariablesError> {
+    out.push(LocalVariable {
+        jtype: (&method.header.jtype).into(),
+        name: (&method.header.name).into(),
+        range: method.range,
+        flags: VarFlags::Function,
+    });
+    if is_in_range_c(method.range, &context.point) {
+        out.extend(
+            method
+                .header
+                .parameters
+                .parameters
+                .iter()
+                .map(LocalVariable::from_method_parameter),
+        );
+        get_block_vars(&method.block, context, out)?;
+    }
+    Ok(())
+}
+
+fn get_vars_method(
+    method: &AstClassMethod,
+    context: &VariableContext<'_>,
+    out: &mut Vec<LocalVariable>,
+) -> Result<(), VariablesError> {
+    out.push(LocalVariable {
+        jtype: (&method.header.jtype).into(),
+        name: (&method.header.name).into(),
+        range: method.range,
+        flags: VarFlags::Function,
+    });
+    if is_in_range_c(method.range, &context.point) {
+        out.extend(
+            method
+                .header
+                .parameters
+                .parameters
+                .iter()
+                .map(LocalVariable::from_method_parameter),
         );
         if let Some(block) = &method.block {
-            get_block_vars(block, level, context, out)?;
+            get_block_vars(block, context, out)?;
         }
+    }
+    Ok(())
+}
+
+fn constructor(
+    cons: &AstClassConstructor,
+    context: &VariableContext<'_>,
+    out: &mut Vec<LocalVariable>,
+) -> Result<(), VariablesError> {
+    out.push(LocalVariable {
+        jtype: JType::Class(cons.header.name.clone().into()),
+        name: (&cons.header.name).into(),
+        range: cons.range,
+        flags: VarFlags::Function,
+    });
+    if is_in_range_c(cons.range, &context.point) {
+        out.extend(
+            cons.header
+                .parameters
+                .parameters
+                .iter()
+                .map(LocalVariable::from_method_parameter),
+        );
+        get_block_vars(&cons.block, context, out)?;
     }
     Ok(())
 }
 
 fn get_block_vars(
     block: &AstBlock,
-    level: usize,
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
-    let level = level + 1;
     if !is_in_range_c(block.range, &context.point) {
         return Ok(());
     }
     for e in &block.entries {
-        get_block_entry_vars(level, e, context, out)?;
+        get_block_entry_vars(e, context, out)?;
     }
     Ok(())
 }
 
 fn get_block_entry_vars(
-    level: usize,
     block_entry: &AstBlockEntry,
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
@@ -169,33 +302,29 @@ fn get_block_entry_vars(
         | AstBlockEntry::Assign(_) => Ok(()),
         AstBlockEntry::Variable(i) => {
             for v in i {
-                from_block_variable(v, level, context, out)?;
+                from_block_variable(v, context, out)?;
             }
             Ok(())
         }
-        AstBlockEntry::Throw(t) => expression(&t.expression, level, context, out),
-        AstBlockEntry::Return(r) => expression_or_value(&r.expression, level, context, out),
-        AstBlockEntry::Expression(ast_expression) => {
-            block_expr(ast_expression, level, context, out)
-        }
-        AstBlockEntry::If(ast_if) => if_vars(ast_if, level, context, out),
-        AstBlockEntry::While(ast_while) => while_vars(ast_while, level, context, out),
-        AstBlockEntry::For(ast_for) => for_vars(ast_for, level, context, out),
+        AstBlockEntry::Throw(t) => expression(&t.expression, context, out),
+        AstBlockEntry::Return(r) => expression_or_value(&r.expression, context, out),
+        AstBlockEntry::Expression(ast_expression) => block_expr(ast_expression, context, out),
+        AstBlockEntry::If(ast_if) => if_vars(ast_if, context, out),
+        AstBlockEntry::While(ast_while) => while_vars(ast_while, context, out),
+        AstBlockEntry::For(ast_for) => for_vars(ast_for, context, out),
         AstBlockEntry::ForEnhanced(ast_for_enhanced) => {
-            for_enanced_vars(ast_for_enhanced, level, context, out)
+            for_enanced_vars(ast_for_enhanced, context, out)
         }
-        AstBlockEntry::Switch(ast_switch) => switch_vars(ast_switch, level, context, out),
-        AstBlockEntry::TryCatch(ast_try_catch) => {
-            try_catch_vars(ast_try_catch, level, context, out)
-        }
+        AstBlockEntry::Switch(ast_switch) => switch_vars(ast_switch, context, out),
+        AstBlockEntry::TryCatch(ast_try_catch) => try_catch_vars(ast_try_catch, context, out),
         AstBlockEntry::SynchronizedBlock(ast_synchronized_block) => {
-            get_block_vars(&ast_synchronized_block.block, level, context, out)
+            get_block_vars(&ast_synchronized_block.block, context, out)
         }
         AstBlockEntry::SwitchCaseArrowDefault(ast_switch_case_arrow_default) => {
-            switch_case_arrow_content(&ast_switch_case_arrow_default.content, level, context, out)
+            switch_case_arrow_content(&ast_switch_case_arrow_default.content, context, out)
         }
         AstBlockEntry::SwitchCaseArrowValues(ast_switch_case_arrow) => {
-            switch_case_arrow_content(&ast_switch_case_arrow.content, level, context, out)
+            switch_case_arrow_content(&ast_switch_case_arrow.content, context, out)
         }
         AstBlockEntry::SwitchCaseArrowType(AstSwitchCaseArrowType {
             var: AstSwitchCaseArrowVar { jtype, name, range },
@@ -203,47 +332,40 @@ fn get_block_entry_vars(
             ..
         }) => {
             out.push(LocalVariable {
-                level,
                 jtype: jtype.into(),
                 name: name.into(),
                 range: *range,
                 flags: VarFlags::empty(),
             });
-            switch_case_arrow_content(content, level, context, out)
+            switch_case_arrow_content(content, context, out)
         }
-        AstBlockEntry::Thing(ast_thing) => get_vars_thing(ast_thing, level, context, out),
-        AstBlockEntry::InlineBlock(ast_block) => {
-            get_block_vars(&ast_block.block, level, context, out)
-        }
+        AstBlockEntry::Thing(ast_thing) => get_vars_thing(ast_thing, context, out),
+        AstBlockEntry::InlineBlock(ast_block) => get_block_vars(&ast_block.block, context, out),
     }
 }
 
 fn switch_case_arrow_content(
     arrow_content: &AstSwitchCaseArrowContent,
-    level: usize,
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
     match arrow_content {
-        AstSwitchCaseArrowContent::Block(ast_block) => {
-            get_block_vars(ast_block, level, context, out)
-        }
+        AstSwitchCaseArrowContent::Block(ast_block) => get_block_vars(ast_block, context, out),
         AstSwitchCaseArrowContent::Entry(ast_block_entry) => {
-            get_block_entry_vars(level, ast_block_entry, context, out)
+            get_block_entry_vars(ast_block_entry, context, out)
         }
     }
 }
 fn expression_or_value(
     e: &AstExpressionOrValue,
 
-    level: usize,
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
     match e {
         AstExpressionOrValue::None | AstExpressionOrValue::Value(_) => Ok(()),
         AstExpressionOrValue::Expression(ast_expression_kinds) => {
-            expression(ast_expression_kinds, level, context, out)
+            expression(ast_expression_kinds, context, out)
         }
     }
 }
@@ -251,7 +373,6 @@ fn expression_or_value(
 fn block_expr(
     ast_expression: &AstBlockExpression,
 
-    level: usize,
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
@@ -259,12 +380,11 @@ fn block_expr(
         return Ok(());
     }
 
-    expression(&ast_expression.value, level, context, out)
+    expression(&ast_expression.value, context, out)
 }
 
 fn base_expr(
     expr: &AstBaseExpression,
-    level: usize,
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
@@ -275,7 +395,7 @@ fn base_expr(
         && !v.values.is_empty()
     {
         for v in &v.values {
-            expression(v, level, context, out)?;
+            expression(v, context, out)?;
         }
     }
     Ok(())
@@ -283,35 +403,25 @@ fn base_expr(
 
 fn expression(
     expression: &AstExpression,
-    level: usize,
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
     for kind in expression {
-        // if let AstExpressionKind::Base(b) = kind
-        //     && let Some(values) = &b.values
-        //     && kind.get_range().is_in_range(&context.point)
-        //     && let Some(AstExpressionKind::Base(prev)) = expression.get(idx - 1)
-        //     && prev.ident.is_some()
-        // {
-        //     d_b_g!(expression, values);
-        // }
         match kind {
             AstExpressionKind::Base(exp) => {
-                base_expr(exp, level, context, out)?;
+                base_expr(exp, context, out)?;
             }
             AstExpressionKind::Lambda(ast_lambda) => {
                 if is_in_range_c(ast_lambda.range, &context.point) {
-                    lambda(ast_lambda, level, context, out)?;
+                    lambda(ast_lambda, context, out)?;
                 }
             }
             AstExpressionKind::InlineSwitch(ast_switch) => {
-                get_block_vars(&ast_switch.block, level, context, out)?;
+                get_block_vars(&ast_switch.block, context, out)?;
             }
             AstExpressionKind::InstanceOf(i) => {
                 if let Some(name) = &i.variable {
                     out.push(LocalVariable {
-                        level,
                         jtype: i.jtype.clone().into(),
                         name: name.value.clone(),
                         range: name.range,
@@ -319,8 +429,8 @@ fn expression(
                     });
                 }
             }
-            AstExpressionKind::NewClass(_)
-            | AstExpressionKind::Generics(_)
+            AstExpressionKind::NewClass(nc) => new_class(nc, context, out)?,
+            AstExpressionKind::Generics(_)
             | AstExpressionKind::JType(_)
             | AstExpressionKind::Array(_) => (),
         }
@@ -328,9 +438,28 @@ fn expression(
     Ok(())
 }
 
+fn new_class(
+    nc: &ast::types::AstNewClass,
+    context: &VariableContext<'_>,
+    out: &mut Vec<LocalVariable>,
+) -> Result<(), VariablesError> {
+    if !is_in_range_c(nc.range, &context.point) {
+        return Ok(());
+    }
+    match &*nc.rhs {
+        AstNewRhs::Array(_)
+        | AstNewRhs::None
+        | AstNewRhs::ArrayParameters(_)
+        | AstNewRhs::Parameters(_, _) => Ok(()),
+        AstNewRhs::Block(ast_class_block)
+        | AstNewRhs::ParametersAndBlock(_, _, ast_class_block) => {
+            class_block(ast_class_block, context, out)
+        }
+    }
+}
+
 fn lambda(
     lambda: &AstLambda,
-    level: usize,
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
@@ -341,7 +470,6 @@ fn lambda(
             .iter()
             .filter(|i| i.name.value != "_")
             .map(|i| LocalVariable {
-                level,
                 jtype: JType::Var,
                 name: i.name.value.clone(),
                 range: i.range,
@@ -351,27 +479,23 @@ fn lambda(
 
     match &lambda.rhs {
         AstLambdaRhs::None => Ok(()),
-        AstLambdaRhs::Block(ast_block) => get_block_vars(ast_block, level, context, out),
-        AstLambdaRhs::Expr(ast_base_expression) => {
-            expression(ast_base_expression, level, context, out)
-        }
+        AstLambdaRhs::Block(ast_block) => get_block_vars(ast_block, context, out),
+        AstLambdaRhs::Expr(ast_base_expression) => expression(ast_base_expression, context, out),
     }
 }
 
 fn try_catch_vars(
     ast_try_catch: &AstTryCatch,
-    level: usize,
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
     if !is_in_range_c(ast_try_catch.range, &context.point) {
         return Ok(());
     }
-    let level = level + 1;
     if let Some(resources) = &ast_try_catch.resources_block {
-        get_block_vars(resources, level, context, out)?;
+        get_block_vars(resources, context, out)?;
     }
-    get_block_vars(&ast_try_catch.block, level, context, out)?;
+    get_block_vars(&ast_try_catch.block, context, out)?;
     if let Some(case) = ast_try_catch
         .cases
         .iter()
@@ -379,44 +503,39 @@ fn try_catch_vars(
     {
         for ty in &case.variable.jtypes {
             out.push(LocalVariable {
-                level,
                 jtype: ty.into(),
                 name: case.variable.name.value.clone(),
                 range: case.variable.range,
                 flags: VarFlags::empty(),
             });
         }
-        get_block_vars(&case.block, level, context, out)?;
+        get_block_vars(&case.block, context, out)?;
     }
     if let Some(finally_block) = &ast_try_catch.finally_block {
-        get_block_vars(finally_block, level, context, out)?;
+        get_block_vars(finally_block, context, out)?;
     }
     Ok(())
 }
 
 fn switch_vars(
     ast_for_enhanced: &AstSwitch,
-    level: usize,
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
     if !is_in_range_c(ast_for_enhanced.range, &context.point) {
         return Ok(());
     }
-    let level = level + 1;
-    get_block_vars(&ast_for_enhanced.block, level, context, out)
+    get_block_vars(&ast_for_enhanced.block, context, out)
 }
 
 fn for_enanced_vars(
     ast_for_enhanced: &AstForEnhanced,
-    level: usize,
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
     if !is_in_range_c(ast_for_enhanced.range, &context.point) {
         return Ok(());
     }
-    let level = level + 1;
     for v in &ast_for_enhanced.var {
         if v.value.is_none() && matches!(v.jtype.value, AstJTypeKind::Var) {
             let point = ast_for_enhanced.rhs.get_range().end;
@@ -435,7 +554,6 @@ fn for_enanced_vars(
                     ..
                 }) => {
                     out.push(LocalVariable {
-                        level,
                         jtype: *i,
                         name: v.name.value.clone(),
                         range: v.range,
@@ -444,7 +562,6 @@ fn for_enanced_vars(
                 }
                 Ok(ResolveState { jtype, .. }) => {
                     out.push(LocalVariable {
-                        level,
                         jtype,
                         name: v.name.value.clone(),
                         range: v.range,
@@ -455,14 +572,13 @@ fn for_enanced_vars(
             }
             continue;
         }
-        from_block_variable(v, level, context, out)?;
+        from_block_variable(v, context, out)?;
     }
-    for_content_vars(&ast_for_enhanced.content, level, context, out)
+    for_content_vars(&ast_for_enhanced.content, context, out)
 }
 
 pub fn from_block_variable(
     v: &AstBlockVariable,
-    level: usize,
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
@@ -483,7 +599,6 @@ pub fn from_block_variable(
         match value_resolve_state {
             Ok(ResolveState { jtype, .. }) => {
                 out.push(LocalVariable {
-                    level,
                     jtype,
                     name: v.name.value.clone(),
                     range: v.range,
@@ -495,7 +610,6 @@ pub fn from_block_variable(
         }
     }
     out.push(LocalVariable {
-        level,
         jtype: (&v.jtype).into(),
         name: v.name.value.clone(),
         range: v.range,
@@ -505,14 +619,13 @@ pub fn from_block_variable(
 }
 fn for_content_vars(
     fc: &AstForContent,
-    level: usize,
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
     match fc {
-        AstForContent::Block(ast_block) => get_block_vars(ast_block, level, context, out),
+        AstForContent::Block(ast_block) => get_block_vars(ast_block, context, out),
         AstForContent::BlockEntry(ast_block_entry) => {
-            get_block_entry_vars(level, ast_block_entry, context, out)
+            get_block_entry_vars(ast_block_entry, context, out)
         }
 
         AstForContent::None => Ok(()),
@@ -521,41 +634,35 @@ fn for_content_vars(
 
 fn for_vars(
     ast_for: &AstFor,
-    level: usize,
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
     if !is_in_range_c(ast_for.range, &context.point) {
         return Ok(());
     }
-    let level = level + 1;
     for v in &ast_for.vars {
-        get_block_entry_vars(level, v, context, out)?;
+        get_block_entry_vars(v, context, out)?;
     }
-    for_content_vars(&ast_for.content, level, context, out)
+    for_content_vars(&ast_for.content, context, out)
 }
 fn while_vars(
     ast_while: &AstWhile,
-    level: usize,
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
     if !is_in_range_c(ast_while.range, &context.point) {
         return Ok(());
     }
-    let level = level + 1;
     if let AstWhileContent::Block(b) = &ast_while.content {
-        get_block_vars(b, level, context, out)?;
+        get_block_vars(b, context, out)?;
     }
     Ok(())
 }
 fn if_vars(
     ast_if: &AstIf,
-    level: usize,
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
-    let level = level + 1;
     match ast_if {
         AstIf::ElseIf {
             range,
@@ -570,33 +677,29 @@ fn if_vars(
             content,
         } => {
             if is_in_range_c(content.get_range(), &context.point) {
-                expression(control, level, context, out)?;
+                expression(control, context, out)?;
             }
             if is_in_range_c(*range, &context.point)
                 && let AstIfContent::Block(block) = content
             {
-                get_block_vars(block, level, context, out)?;
+                get_block_vars(block, context, out)?;
             }
         }
         AstIf::Else { range, content } => {
             if is_in_range_c(*range, &context.point)
                 && let AstIfContent::Block(block) = content
             {
-                get_block_vars(block, level, context, out)?;
+                get_block_vars(block, context, out)?;
             }
         }
     }
     Ok(())
 }
-fn get_class_variables(
-    variables: &[ast::types::AstClassVariable],
-    level: usize,
-) -> impl Iterator<Item = LocalVariable> {
+fn variables(variables: &[ast::types::AstClassVariable]) -> impl Iterator<Item = LocalVariable> {
     variables.iter().map(move |i| {
         let jtype: JType = (&i.jtype).into();
         LocalVariable {
             range: i.range,
-            level,
             jtype,
             name: i.name.value.clone(),
             flags: VarFlags::empty(),
@@ -685,7 +788,6 @@ public class Test {
         let expected = expect![[r#"
             [
                 LocalVariable {
-                    level: 1,
                     jtype: Class(
                         "String",
                     ),
@@ -699,7 +801,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 1,
                     jtype: Class(
                         "String",
                     ),
@@ -713,7 +814,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 1,
                     jtype: Class(
                         "String",
                     ),
@@ -727,7 +827,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 2,
                     jtype: Void,
                     name: "hello",
                     range: AstRange {
@@ -739,7 +838,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 2,
                     jtype: Class(
                         "String",
                     ),
@@ -753,7 +851,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 3,
                     jtype: Class(
                         "String",
                     ),
@@ -767,7 +864,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 3,
                     jtype: Class(
                         "java.lang.Integer",
                     ),
@@ -811,7 +907,6 @@ public class Test {
         let expected = expect![[r#"
             [
                 LocalVariable {
-                    level: 1,
                     jtype: Class(
                         "Logger",
                     ),
@@ -868,7 +963,6 @@ public class Test {
         let expected = expect![[r#"
             [
                 LocalVariable {
-                    level: 1,
                     jtype: Array(
                         Class(
                             "String",
@@ -884,7 +978,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 1,
                     jtype: Array(
                         Class(
                             "String",
@@ -900,7 +993,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 1,
                     jtype: Array(
                         Class(
                             "String",
@@ -916,7 +1008,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 2,
                     jtype: Void,
                     name: "hello",
                     range: AstRange {
@@ -928,7 +1019,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 2,
                     jtype: Array(
                         Class(
                             "String",
@@ -944,7 +1034,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 3,
                     jtype: Array(
                         Class(
                             "String",
@@ -960,7 +1049,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 3,
                     jtype: Var,
                     name: "lo",
                     range: AstRange {
@@ -1012,7 +1100,6 @@ public class Test {
         let expected = expect![[r#"
             [
                 LocalVariable {
-                    level: 2,
                     jtype: Void,
                     name: "hello",
                     range: AstRange {
@@ -1024,7 +1111,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 3,
                     jtype: Generic(
                         "List",
                         [
@@ -1043,7 +1129,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 4,
                     jtype: Int,
                     name: "i",
                     range: AstRange {
@@ -1055,7 +1140,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 6,
                     jtype: Class(
                         "String",
                     ),
@@ -1069,7 +1153,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 7,
                     jtype: Var,
                     name: "n",
                     range: AstRange {
@@ -1081,7 +1164,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 7,
                     jtype: Var,
                     name: "m",
                     range: AstRange {
@@ -1093,7 +1175,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 8,
                     jtype: Var,
                     name: "c",
                     range: AstRange {
@@ -1162,7 +1243,6 @@ public class Test {
         let expected = expect![[r#"
             [
                 LocalVariable {
-                    level: 2,
                     jtype: Void,
                     name: "hello",
                     range: AstRange {
@@ -1174,7 +1254,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 5,
                     jtype: Class(
                         "String",
                     ),
@@ -1221,7 +1300,6 @@ public class Test {
         let expected = expect![[r#"
             [
                 LocalVariable {
-                    level: 2,
                     jtype: Void,
                     name: "ioStuff",
                     range: AstRange {
@@ -1233,7 +1311,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 4,
                     jtype: Class(
                         "IOException",
                     ),
@@ -1280,7 +1357,6 @@ public class Test {
         let expected = expect![[r#"
             [
                 LocalVariable {
-                    level: 2,
                     jtype: Class(
                         "String",
                     ),
@@ -1294,7 +1370,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 2,
                     jtype: Class(
                         "String",
                     ),
@@ -1308,7 +1383,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 3,
                     jtype: Class(
                         "String",
                     ),
@@ -1354,7 +1428,6 @@ public class Test {
         let expected = expect![[r#"
             [
                 LocalVariable {
-                    level: 2,
                     jtype: Generic(
                         "Uni",
                         [
@@ -1373,7 +1446,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 3,
                     jtype: Var,
                     name: "t",
                     range: AstRange {
@@ -1385,7 +1457,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 4,
                     jtype: Class(
                         "Definition",
                     ),
@@ -1430,7 +1501,6 @@ public class Test {
         let expected = expect![[r#"
             [
                 LocalVariable {
-                    level: 2,
                     jtype: Void,
                     name: "test",
                     range: AstRange {
@@ -1442,7 +1512,6 @@ public class Test {
                     ),
                 },
                 LocalVariable {
-                    level: 4,
                     jtype: Class(
                         "Circle",
                     ),

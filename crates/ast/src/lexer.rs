@@ -44,7 +44,10 @@ impl Token {
     #[must_use]
     pub fn len(&self) -> usize {
         match self {
-            Self::Identifier(i) | Self::StringLiteral(i) | Self::CharLiteral(i) => i.len(),
+            Self::Identifier(i)
+            | Self::StringLiteral(i)
+            | Self::StringLiteralMulti(i)
+            | Self::CharLiteral(i) => i.len(),
             Self::Number(n) => n.len(),
             Self::HexLiteral(n) | Self::BinaryLiteral(n) => n.len() + 2,
             Self::LineComment(c) => c.len() + 2,
@@ -168,6 +171,9 @@ impl fmt::Display for Token {
             }
             Self::StringLiteral(s) => {
                 write!(f, "\"{s}\"")
+            }
+            Self::StringLiteralMulti(s) => {
+                write!(f, "\"\"\"{s}\"\"\"")
             }
             Self::CharLiteral(s) => {
                 write!(f, "'{s}'")
@@ -307,6 +313,9 @@ impl fmt::Debug for Token {
             Self::StringLiteral(s) => {
                 write!(f, "String(\"{s}\")")
             }
+            Self::StringLiteralMulti(s) => {
+                write!(f, "\"\"\"{s}\"\"\"")
+            }
             Self::CharLiteral(s) => {
                 write!(f, "Char('{s}')")
             }
@@ -442,8 +451,10 @@ pub enum Token {
     BlockComment(Vec<u8>, usize),
     /// Data
     Identifier(MyString),
-    /// Data
+    /// "Data"
     StringLiteral(MyString),
+    /// """Data"""
+    StringLiteralMulti(MyString),
     /// \r
     CharLiteral(MyString),
     /// 123
@@ -1220,11 +1231,19 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     index += 1;
                     col += 1;
                 }
-                tokens.push(PositionToken {
-                    token: Token::StringLiteral(str.finish()),
-                    line,
-                    col,
-                });
+                if multi_line {
+                    tokens.push(PositionToken {
+                        token: Token::StringLiteralMulti(str.finish()),
+                        line,
+                        col,
+                    });
+                } else {
+                    tokens.push(PositionToken {
+                        token: Token::StringLiteral(str.finish()),
+                        line,
+                        col,
+                    });
+                }
                 col += 1;
             }
             b'\'' => {

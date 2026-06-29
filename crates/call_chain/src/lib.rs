@@ -924,9 +924,9 @@ fn cc_value_nuget(ast_nuget: &AstValueNuget, out: &mut Vec<CallItem>) {
             name: SmolStr::new_inline("Float"),
             range: float.range,
         }),
-        AstValueNuget::StringLiteral(ast_identifier) => out.push(CallItem::Class {
+        AstValueNuget::StringLiteral { value, .. } => out.push(CallItem::Class {
             name: SmolStr::new_inline("String"),
-            range: ast_identifier.range,
+            range: value.range,
         }),
         AstValueNuget::CharLiteral(char) => out.push(CallItem::Class {
             name: SmolStr::new_inline("Char"),

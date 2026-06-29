@@ -6,7 +6,6 @@ use my_string::MyString;
 /// variable or function in a ast
 #[derive(Debug, PartialEq, Clone)]
 pub struct LocalVariable {
-    pub level: usize,
     pub jtype: JType,
     pub name: MyString,
     pub range: AstRange,
@@ -23,9 +22,8 @@ bitflags! {
 
 impl LocalVariable {
     #[must_use]
-    pub fn from_class_method(i: &AstClassMethod, level: usize) -> Self {
+    pub fn from_class_method(i: &AstClassMethod) -> Self {
         Self {
-            level,
             jtype: (&i.header.jtype).into(),
             name: (&i.header.name).into(),
             range: i.range,
@@ -33,9 +31,8 @@ impl LocalVariable {
         }
     }
 
-    pub fn from_method_parameter(parameter: &AstMethodParameter, level: usize) -> Self {
+    pub fn from_method_parameter(parameter: &AstMethodParameter) -> Self {
         Self {
-            level,
             jtype: (&parameter.jtype).into(),
             name: (&parameter.name).into(),
             range: parameter.range,

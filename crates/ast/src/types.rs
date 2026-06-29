@@ -751,7 +751,10 @@ pub enum AstValueNuget {
     Long(AstInt),
     Double(AstDouble),
     Float(AstDouble),
-    StringLiteral(AstIdentifier),
+    StringLiteral {
+        value: AstIdentifier,
+        multi_line: bool,
+    },
     CharLiteral(AstIdentifier),
     BooleanLiteral(AstBoolean),
     HexLiteral(AstHexLiteral),
