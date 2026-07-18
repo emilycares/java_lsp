@@ -57,5 +57,7 @@ async fn main() {
         Some(Command::IndexJdk { variant }) => {
             cli::index_jdk(variant).await;
         }
+        Some(Command::FormatFile(p)) => cli::format_file(&p, true),
+        Some(Command::FormatDir(p)) => cli::format_dir(&p),
     }
 }

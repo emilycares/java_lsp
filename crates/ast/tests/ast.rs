@@ -11,7 +11,7 @@ use expect_test::expect;
 #[test]
 fn everything() {
     let content = include_str!("../../parser/test/Everything.java");
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -787,7 +787,7 @@ fn everything() {
 #[test]
 fn skip_comments() {
     let content = include_str!("../test/FullOffComments.java");
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -996,7 +996,7 @@ fn skip_comments() {
 #[test]
 fn locale_variable_table() {
     let content = include_str!("../../parser/test/LocalVariableTable.java");
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -1738,7 +1738,7 @@ fn locale_variable_table() {
 #[test]
 fn superee() {
     let content = include_str!("../../parser/test/Super.java");
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -1836,7 +1836,7 @@ fn superee() {
 #[test]
 fn constants() {
     let content = include_str!("../../parser/test/Constants.java");
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -2129,7 +2129,6 @@ fn constants() {
                                         start: AstPoint { 13:4 },
                                         end: AstPoint { 13:19 },
                                     },
-                                    annotated: [],
                                     header: AstMethodHeader {
                                         range: AstRange {
                                             start: AstPoint { 13:4 },
@@ -2170,7 +2169,6 @@ fn constants() {
                                         start: AstPoint { 15:4 },
                                         end: AstPoint { 15:70 },
                                     },
-                                    annotated: [],
                                     header: AstMethodHeader {
                                         range: AstRange {
                                             start: AstPoint { 15:4 },
@@ -2314,7 +2312,7 @@ fn constants() {
 #[test]
 fn super_interface() {
     let content = include_str!("../../parser/test/SuperInterface.java");
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -2502,10 +2500,9 @@ fn super_interface() {
                                         start: AstPoint { 9:4 },
                                         end: AstPoint { 11:5 },
                                     },
-                                    annotated: [],
                                     header: AstMethodHeader {
                                         range: AstRange {
-                                            start: AstPoint { 9:12 },
+                                            start: AstPoint { 9:4 },
                                             end: AstPoint { 9:30 },
                                         },
                                         availability: AstAvailability(
@@ -2746,7 +2743,7 @@ fn super_interface() {
 #[test]
 fn interface_base() {
     let content = include_str!("../../parser/test/InterfaceBase.java");
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -2832,7 +2829,6 @@ fn interface_base() {
                                         start: AstPoint { 6:4 },
                                         end: AstPoint { 6:60 },
                                     },
-                                    annotated: [],
                                     header: AstMethodHeader {
                                         range: AstRange {
                                             start: AstPoint { 6:4 },
@@ -2913,23 +2909,24 @@ fn interface_base() {
                                                                     annotated: [],
                                                                     range: AstRange {
                                                                         start: AstPoint { 6:39 },
-                                                                        end: AstPoint { 6:50 },
+                                                                        end: AstPoint { 6:51 },
                                                                     },
-                                                                    value: Wildcard,
-                                                                },
-                                                                AstJType {
-                                                                    annotated: [],
-                                                                    range: AstRange {
-                                                                        start: AstPoint { 6:49 },
-                                                                        end: AstPoint { 6:50 },
-                                                                    },
-                                                                    value: Class(
-                                                                        AstIdentifier {
+                                                                    value: WildcardExtends(
+                                                                        AstJType {
+                                                                            annotated: [],
                                                                             range: AstRange {
                                                                                 start: AstPoint { 6:49 },
                                                                                 end: AstPoint { 6:50 },
                                                                             },
-                                                                            value: "U",
+                                                                            value: Class(
+                                                                                AstIdentifier {
+                                                                                    range: AstRange {
+                                                                                        start: AstPoint { 6:49 },
+                                                                                        end: AstPoint { 6:50 },
+                                                                                    },
+                                                                                    value: "U",
+                                                                                },
+                                                                            ),
                                                                         },
                                                                     ),
                                                                 },
@@ -2987,10 +2984,9 @@ fn interface_base() {
                                         start: AstPoint { 8:4 },
                                         end: AstPoint { 10:5 },
                                     },
-                                    annotated: [],
                                     header: AstMethodHeader {
                                         range: AstRange {
-                                            start: AstPoint { 8:11 },
+                                            start: AstPoint { 8:4 },
                                             end: AstPoint { 8:37 },
                                         },
                                         availability: AstAvailability(
@@ -3147,7 +3143,7 @@ fn interface_base() {
 #[test]
 fn variants() {
     let content = include_str!("../../parser/test/Variants.java");
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -3471,7 +3467,7 @@ fn variants() {
                                             end: AstPoint { 7:32 },
                                         },
                                         availability: AstAvailability(
-                                            Public | Private,
+                                            Private,
                                         ),
                                         name: AstIdentifier {
                                             range: AstRange {
@@ -3654,7 +3650,7 @@ fn variants() {
 #[test]
 fn types() {
     let content = include_str!("../../parser/test/Types.java");
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -4779,7 +4775,7 @@ fn types() {
 #[test]
 fn annotated() {
     let content = include_str!("../../parser/test/Annotated.java");
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -5484,7 +5480,7 @@ fn annotated() {
 #[test]
 fn expression_base() {
     let content = "Logger.getLogger(Test.class)";
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -5637,7 +5633,7 @@ fn expression_base() {
 #[test]
 fn expression_array_access() {
     let content = "numbers[0]";
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let ast = parsed.unwrap();
@@ -5720,7 +5716,7 @@ fn expression_array_access() {
 #[test]
 fn expression_multi_array_access() {
     let content = "numbers[0][0][0]";
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let ast = parsed.unwrap();
@@ -5894,7 +5890,7 @@ fn expression_multi_array_access() {
 #[test]
 fn equasion_method_call() {
     let content = r#""z" + a.getThing()"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -6028,7 +6024,7 @@ fn equasion_method_call() {
 #[test]
 fn annotation() {
     let content = include_str!("../../parser/test/Annotation.java");
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -6202,7 +6198,7 @@ fn annotation() {
 #[test]
 fn more_syntax() {
     let content = include_str!("../../parser/test/Syntax.java");
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -14086,7 +14082,7 @@ fn more_syntax() {
 #[test]
 fn variable_array() {
     let content = r#"String[] cars = {"Volvo", "BMW", "Ford", "Mazda"};"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_block_variable(&tokens, 0);
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -14267,7 +14263,7 @@ fn variable_array() {
 #[test]
 fn variable_var_no_value() {
     let content = r#"{var a = }"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_block(&tokens, 0);
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -14322,7 +14318,7 @@ fn multi_line_string() {
         line
         string""
         "#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_string_literal(&tokens, 0);
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -14346,7 +14342,7 @@ fn multi_line_string() {
 #[test]
 fn name() {
     let content = "Logger3m3m3m3";
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_name(&tokens, 0);
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -14366,7 +14362,7 @@ fn name() {
 #[test]
 fn lambda() {
     let content = "(n) -> { System.out.println(n); }";
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -14565,7 +14561,7 @@ fn lambda() {
 #[test]
 fn lambda_1() {
     let content = "n -> { }";
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -14615,7 +14611,7 @@ fn lambda_1() {
 #[test]
 fn lambda_2() {
     let content = "(a, b, c) -> { }";
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -14693,7 +14689,7 @@ fn lambda_2() {
 #[test]
 fn lambda_value() {
     let content = "n -> true";
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -14763,7 +14759,7 @@ fn lambda_value() {
 #[test]
 fn lambda_expr() {
     let content = "n -> v.toString()";
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -14885,7 +14881,7 @@ fn lambda_expr() {
 #[test]
 fn lambda_in_expression() {
     let content = "numbers.forEach( (n) -> { System.out.println(n); } )";
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -15169,7 +15165,7 @@ fn lambda_in_expression() {
 #[test]
 fn equal_expr() {
     let content = "a == b ";
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -15246,7 +15242,7 @@ fn new_string() {
     let content = r#"
      return new String();   
     "#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_block_return(&tokens, 0);
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -15310,7 +15306,7 @@ fn new_array() {
             },
         };   
     "#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_block_return(&tokens, 0);
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -15526,7 +15522,7 @@ fn new_array() {
 #[test]
 fn long_expr() {
     let content = r#"IAFactory.getInstance().getIA("localhost", 1344, SERVICE).support(true)"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -15837,7 +15833,7 @@ fn long_expr() {
 #[test]
 fn cast() {
     let content = r#"new byte[] {(byte)'a'}"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_new_class(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -15953,7 +15949,7 @@ fn cast() {
 #[test]
 fn double_plus() {
     let content = r#"values[i++]"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
@@ -16046,7 +16042,7 @@ fn double_plus() {
 #[test]
 fn method_no_body() {
     let content = r#"protected abstract T create(Object key);"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_class_method(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -16144,7 +16140,7 @@ fn method_no_body() {
 #[test]
 fn return_casted_newclass() {
     let content = r#"return (Entry<T>[]) new Entry<?>[length];"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_block_return(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -16320,7 +16316,7 @@ fn return_casted_newclass() {
 #[test]
 fn jtype_generic_array() {
     let content = r#"Entry<T>[]"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -16378,7 +16374,7 @@ fn jtype_generic_array() {
 #[test]
 fn class_var_hashmap_genirics() {
     let content = r#"private HashMap<String, List<PropertyDescriptor>> pdStore = new HashMap<>();"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_class_variable(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -16519,7 +16515,7 @@ fn class_var_hashmap_genirics() {
 #[test]
 fn name_dot() {
     let content = r#"Thing1.other."#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_name_dot_logical(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -16541,7 +16537,7 @@ fn name_dot() {
 #[test]
 fn labeled_empty_for() {
     let content = r#" l: for (;;) {} "#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_for(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -16583,7 +16579,7 @@ fn labeled_empty_for() {
 #[test]
 fn new_casted_parameter() {
     let content = r#" new HandleTable(10, (float) 3.00) "#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_new_class(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -16696,7 +16692,7 @@ fn new_casted_parameter() {
                                     ident: Some(
                                         Value(
                                             Nuget(
-                                                Float(
+                                                Double(
                                                     AstDouble {
                                                         range: AstRange {
                                                             start: AstPoint { 0:30 },
@@ -16724,7 +16720,7 @@ fn new_casted_parameter() {
 #[test]
 fn class_colon_colon_new() {
     let content = r#"Class<?>[]::new"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -16834,7 +16830,7 @@ fn class_colon_colon_new() {
 #[test]
 fn parameter_class_function_pass() {
     let content = r#"toArray(Class<?>[]::new)"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -16995,7 +16991,7 @@ fn multiline_string_arg() {
                                           """);
                                           }
     "#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_block(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -17176,7 +17172,7 @@ fn class_block_annotation() {
     }
     }
     "#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_class_block(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -17386,7 +17382,7 @@ fn class_block_annotation() {
 #[test]
 fn lambda_with_types() {
     let content = r#"(T t, U u) -> after.apply(apply(t, u))"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -17647,7 +17643,7 @@ fn lambda_with_types() {
 #[test]
 fn lambda_with_no_parameters() {
     let content = r#"() -> a"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -17699,7 +17695,7 @@ fn lambda_with_no_parameters() {
 #[test]
 fn jtype_access() {
     let content = r#"Something.Inner"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -17755,7 +17751,7 @@ fn jtype_access() {
 #[test]
 fn jtype_nested_generics() {
     let content = r#"Supplier<Map<ClassDesc, ClassHierarchyInfo>>"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -17838,7 +17834,7 @@ fn jtype_nested_generics() {
 #[test]
 fn jtype_package() {
     let content = r#"javax.crypto.interfaces.DHPrivateKey"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -17943,7 +17939,7 @@ fn jtype_package() {
 #[test]
 fn jtype_int() {
     let content = r#"int"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -17966,7 +17962,7 @@ fn jtype_int() {
 #[test]
 fn jtype_int_array() {
     let content = r#"int[]"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -17998,7 +17994,7 @@ fn jtype_int_array() {
 #[test]
 fn jtype_class_generic() {
     let content = r#"HashMap<String, Integer>"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -18063,7 +18059,7 @@ fn jtype_class_generic() {
 #[test]
 fn jtype_class_generic_generic() {
     let content = r#"Predicate<Class<?>>"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -18122,7 +18118,7 @@ fn jtype_class_generic_generic() {
 #[test]
 fn casted_calculation() {
     let content = r#"case MILLI_OF_DAY -> (int) (toNanoOfDay() / 1000_000);"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_switch_case_arrow_value(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -18328,7 +18324,7 @@ fn casted_calculation() {
 #[test]
 fn name_dot_logical() {
     let content = r#"@Overwrite Other."#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_annotated(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -18358,7 +18354,7 @@ fn name_dot_logical() {
 fn annotated_named() {
     let content =
         r#"@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"otherUuid", "thing_id"}))"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_annotated(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -18501,7 +18497,7 @@ fn annotated_named() {
 #[test]
 fn annotated_array() {
     let content = r#"@SuppressWarnings({"unchecked", "rawtypes"})"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_annotated(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -18603,7 +18599,7 @@ fn annotated_array() {
 #[test]
 fn colon_colon_new() {
     let content = r#"byte[]"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -18659,7 +18655,7 @@ fn colon_colon_new() {
 #[test]
 fn complicated_type() {
     let content = r#"CustomPacketPayload.@NotNull Type<? extends @NotNull CustomPacketPayload>"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -18722,38 +18718,39 @@ fn complicated_type() {
                                     annotated: [],
                                     range: AstRange {
                                         start: AstPoint { 0:34 },
-                                        end: AstPoint { 0:45 },
+                                        end: AstPoint { 0:73 },
                                     },
-                                    value: Wildcard,
-                                },
-                                AstJType {
-                                    annotated: [
-                                        AstAnnotated {
+                                    value: WildcardExtends(
+                                        AstJType {
+                                            annotated: [
+                                                AstAnnotated {
+                                                    range: AstRange {
+                                                        start: AstPoint { 0:44 },
+                                                        end: AstPoint { 0:52 },
+                                                    },
+                                                    name: AstIdentifier {
+                                                        range: AstRange {
+                                                            start: AstPoint { 0:45 },
+                                                            end: AstPoint { 0:52 },
+                                                        },
+                                                        value: "NotNull",
+                                                    },
+                                                    parameters: None,
+                                                },
+                                            ],
                                             range: AstRange {
                                                 start: AstPoint { 0:44 },
-                                                end: AstPoint { 0:52 },
-                                            },
-                                            name: AstIdentifier {
-                                                range: AstRange {
-                                                    start: AstPoint { 0:45 },
-                                                    end: AstPoint { 0:52 },
-                                                },
-                                                value: "NotNull",
-                                            },
-                                            parameters: None,
-                                        },
-                                    ],
-                                    range: AstRange {
-                                        start: AstPoint { 0:44 },
-                                        end: AstPoint { 0:72 },
-                                    },
-                                    value: Class(
-                                        AstIdentifier {
-                                            range: AstRange {
-                                                start: AstPoint { 0:53 },
                                                 end: AstPoint { 0:72 },
                                             },
-                                            value: "CustomPacketPayload",
+                                            value: Class(
+                                                AstIdentifier {
+                                                    range: AstRange {
+                                                        start: AstPoint { 0:53 },
+                                                        end: AstPoint { 0:72 },
+                                                    },
+                                                    value: "CustomPacketPayload",
+                                                },
+                                            ),
                                         },
                                     ),
                                 },
@@ -18771,7 +18768,7 @@ fn complicated_type() {
 #[test]
 fn nuget_long_underscore() {
     let content = "10_000_000_000L";
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_value_nuget(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -18802,7 +18799,7 @@ fn inline_switch() {
         case false -> { log(1); yield -1; }
     });
     }"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_block(&tokens, 0);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -19229,7 +19226,7 @@ fn import_with_module_in_name() {
     import info.asdf.module.a.base;
     public class Test extends info.asdf.module.a.base {}
     "#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -19423,7 +19420,7 @@ fn top_level_function() {
     let content = r#"void main() {
         System.out.println("Hey");
     }"#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
@@ -19653,7 +19650,7 @@ fn method_inner_class() {
         return Holder.LOGGER;
     }
     "#;
-    let tokens = lexer::lex(content.as_bytes()).unwrap();
+    let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();

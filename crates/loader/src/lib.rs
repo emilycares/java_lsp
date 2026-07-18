@@ -4,7 +4,7 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
 use std::collections::VecDeque;
-use std::fs::read;
+use std::fs::{read, read_to_string};
 use std::{
     fs::{File, OpenOptions},
     io::Write,
@@ -42,7 +42,7 @@ pub fn load_java_fs<T>(path: T, source: SourceDestination) -> Result<Class, Load
 where
     T: AsRef<Path> + Debug,
 {
-    let buf = read(path).map_err(LoaderError::IO)?;
+    let buf = read_to_string(path).map_err(LoaderError::IO)?;
     java::load_java(&buf, source).map_err(LoaderError::ParseJava)
 }
 

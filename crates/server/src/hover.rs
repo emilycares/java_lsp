@@ -9,7 +9,7 @@ use document::get_class_path;
 use dto::{Access, Class, Field, ImportUnit, JType, Method};
 use local_variable::{LocalVariable, VarFlags};
 use lsp_extra::{ToLspRangeError, to_lsp_range};
-use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Range};
+use lsp_types::{Hover, HoverContents, LanguageString, MarkupContent, MarkupKind, Range};
 use my_string::MyString;
 use tyres::TyresError;
 
@@ -284,8 +284,8 @@ fn format_variable_hover(var: &LocalVariable) -> String {
 fn field_to_hover(f: &Field, range: Range) -> Hover {
     Hover {
         contents: HoverContents::Markup(MarkupContent {
-            kind: MarkupKind::Markdown,
-            value: format!("```java\n{} {}\n```", f.jtype, f.name),
+            kind: MarkupKind::PlainText,
+            value: format!("{} {}", f.jtype, f.name),
         }),
         range: Some(range),
     }
@@ -299,25 +299,21 @@ fn methods_to_hover(methods: &[Method], range: Range, class_name: &str) -> Hover
         .collect::<Vec<_>>()
         .join("\n");
     Hover {
-        contents: HoverContents::Markup(MarkupContent {
-            kind: MarkupKind::Markdown,
-            value: format!("```java\n{value}\n```"),
-        }),
+        contents: HoverContents::Scalar(lsp_types::MarkedString::LanguageString(LanguageString {
+            language: String::from("java"),
+            value,
+        })),
         range: Some(range),
     }
 }
 
 fn class_to_hover(class: &Class, range: Range) -> Hover {
-    let value = format!(
-        "# {}\n```java\n{}\n```",
-        class.name,
-        class_to_markdown(class)
-    );
+    let value = format!("// {}\n{}", class.name, class_to_markdown(class));
     Hover {
-        contents: HoverContents::Markup(MarkupContent {
-            kind: MarkupKind::Markdown,
+        contents: HoverContents::Scalar(lsp_types::MarkedString::LanguageString(LanguageString {
+            language: String::from("java"),
             value,
-        }),
+        })),
         range: Some(range),
     }
 }
@@ -524,11 +520,13 @@ public class Test {
             call_chain_hover(&chain, &point, &vars, &[], &class, &string_class_map()).unwrap();
         let expected = expect![[r#"
             Hover {
-                contents: Markup(
-                    MarkupContent {
-                        kind: Markdown,
-                        value: "```java\nint length();\n```",
-                    },
+                contents: Scalar(
+                    LanguageString(
+                        LanguageString {
+                            language: "java",
+                            value: "int length();",
+                        },
+                    ),
                 ),
                 range: Some(
                     Range {

@@ -21,7 +21,7 @@ public class Test {
     }
 }
         ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens);
     ast.print_err(content, &tokens);
     let ast = ast.unwrap();
@@ -52,7 +52,7 @@ public class Test {
     }
 }
         ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens);
     ast.print_err(content, &tokens);
     let ast = ast.unwrap();
@@ -88,7 +88,7 @@ public class Test {
 
 #[test]
 fn call_chain_method_a() {
-    let tokens = ast::lexer::lex(SYMBOL_METHOD.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(SYMBOL_METHOD).unwrap();
     let ast = ast::parse_file(&tokens);
     ast.print_err(SYMBOL_METHOD, &tokens);
     let ast = ast.unwrap();
@@ -137,7 +137,7 @@ public class Test {
     }
 }
 "#;
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens);
     ast.print_err(content, &tokens);
     let ast = ast.unwrap();
@@ -169,7 +169,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 26));
@@ -206,7 +206,7 @@ public class GreetingResource {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 24));
@@ -253,7 +253,7 @@ public class GreetingResource {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     // the cursor is on the concat method_call
@@ -310,7 +310,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 30));
@@ -355,7 +355,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 30));
@@ -400,7 +400,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 23));
@@ -430,7 +430,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 28));
@@ -475,7 +475,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 28));
@@ -520,7 +520,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 20));
@@ -565,7 +565,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 16));
@@ -595,7 +595,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 28));
@@ -625,7 +625,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 22));
@@ -677,7 +677,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 27));
@@ -754,7 +754,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 27));
@@ -831,7 +831,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 23));
@@ -935,7 +935,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 19));
@@ -1030,7 +1030,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 22));
@@ -1125,7 +1125,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 22));
@@ -1222,7 +1222,7 @@ public class Test {
     }
 }
 "#;
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 28));
@@ -1315,7 +1315,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 18));
@@ -1361,7 +1361,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 23));
@@ -1457,7 +1457,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens);
     ast.print_err(content, &tokens);
     let ast = ast.unwrap();
@@ -1487,7 +1487,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens);
     ast.print_err(content, &tokens);
     let ast = ast.unwrap();
@@ -1517,7 +1517,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 18));
@@ -1543,7 +1543,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 22));
@@ -1580,7 +1580,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens);
     ast.print_err(content, &tokens);
     let ast = ast.unwrap();
@@ -1611,7 +1611,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens);
     ast.print_err(content, &tokens);
     let ast = ast.unwrap();
@@ -1649,7 +1649,7 @@ public class Test {
     }
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens);
     ast.print_err(content, &tokens);
     let ast = ast.unwrap();
@@ -1685,7 +1685,7 @@ public class Test {
     private static Logger LOG = Logger.getLogger(Test.class);
 }
 ";
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(3, 43));
@@ -1738,7 +1738,7 @@ public class Test {
     }
 }
 "#;
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens);
     ast.print_err(content, &tokens);
     let ast = ast.unwrap();
@@ -1775,7 +1775,7 @@ public class Test {
     }
 }
 "#;
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens);
     ast.print_err(content, &tokens);
     let ast = ast.unwrap();
@@ -1820,7 +1820,7 @@ public class Test {
     }
 }
 "#;
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 15));
@@ -1855,7 +1855,7 @@ public class Test {
     }
 }
 "#;
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 48));
@@ -1882,7 +1882,7 @@ public class Test {
     }
 }
 "#;
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 23));
@@ -1906,7 +1906,7 @@ public class Test {
 public static Map<Long, String> m = new HashMap<>( );
 }
 "#;
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(3, 51));
@@ -1943,7 +1943,7 @@ return a.length > 0
 }
 }
 "#;
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(5, 20));
@@ -1991,7 +1991,7 @@ return a.length > 0
 }
 }
 "#;
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(6, 20));
@@ -2033,7 +2033,7 @@ fn call_chain_import_method() {
 package ch.emilycares;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 "#;
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(2, 28));
@@ -2069,7 +2069,7 @@ return a[0]. ;
 }
 }
 "#;
-    let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+    let tokens = ast::lexer::lex(content).unwrap();
     let ast = ast::parse_file(&tokens).unwrap();
 
     let out = get_call_chain(&ast, &AstPoint::new(4, 13));

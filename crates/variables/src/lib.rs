@@ -770,7 +770,7 @@ public class Test {
     }
 }
         ";
-        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
 
         let class = Class::default();
@@ -890,7 +890,7 @@ public class Test {
 
 }
         ";
-        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         let class = Class::default();
 
@@ -944,7 +944,7 @@ public class Test {
     }
 }
         ";
-        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
         let ast = ast::parse_file(&tokens);
         ast.print_err(content, &tokens);
         let ast = ast.unwrap();
@@ -1083,7 +1083,7 @@ public class Test {
     }
 }
         ";
-        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
 
         let class = Class::default();
@@ -1226,7 +1226,7 @@ public class Test {
     }
 }
         "#;
-        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
 
         let class = Class::default();
@@ -1283,7 +1283,7 @@ public class Test {
     }
 }
         ";
-        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
 
         let class = Class::default();
@@ -1340,7 +1340,7 @@ public class Test {
     }
 }
         "#;
-        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
 
         let class = Class::default();
@@ -1412,7 +1412,7 @@ public class Test {
     }
 }
 ";
-        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         let class = Class::default();
         let out = get_vars(
@@ -1485,7 +1485,7 @@ public class Test {
     }
 }
 ";
-        let tokens = ast::lexer::lex(content.as_bytes()).unwrap();
+        let tokens = ast::lexer::lex(content).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         let class = Class::default();
         let out = get_vars(

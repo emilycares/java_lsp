@@ -4,7 +4,8 @@ use lsp_types::{
     CodeLensOptions, CodeLensParams, CompletionOptions, CompletionParams,
     DidChangeTextDocumentParams, DidChangeWorkspaceFoldersParams, DidCloseTextDocumentParams,
     DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentFormattingParams,
-    DocumentLinkOptions, DocumentLinkParams, DocumentSymbolParams, ExecuteCommandOptions,
+    DocumentLinkOptions, DocumentLinkParams, DocumentOnTypeFormattingOptions,
+    DocumentOnTypeFormattingParams, DocumentSymbolParams, ExecuteCommandOptions,
     ExecuteCommandParams, FoldingRangeParams, GotoDefinitionParams, HoverParams,
     HoverProviderCapability, InlayHintParams, OneOf, ReferenceParams, ServerCapabilities,
     SignatureHelpOptions, SignatureHelpParams, TextDocumentSyncCapability, TextDocumentSyncKind,
@@ -17,7 +18,7 @@ use lsp_types::{
     request::{
         CodeActionRequest, CodeLensRequest, Completion, DocumentLinkRequest, DocumentSymbolRequest,
         ExecuteCommand, FoldingRangeRequest, Formatting, GotoDefinition, HoverRequest,
-        InlayHintRequest, References, Request, SignatureHelpRequest,
+        InlayHintRequest, OnTypeFormatting, References, Request, SignatureHelpRequest,
     },
 };
 
@@ -38,6 +39,7 @@ pub fn get_server_capabilities(config: &Configuration) -> ServerCapabilities {
     if !config.editor_runs_commands {
         commands.push(COMMAND_CMD.to_owned());
     }
+    let formatter_none = config.formatter != FormatterConfig::None;
     ServerCapabilities {
         text_document_sync: Some(TextDocumentSyncCapability::Options(
             TextDocumentSyncOptions {
@@ -59,7 +61,19 @@ pub fn get_server_capabilities(config: &Configuration) -> ServerCapabilities {
             ..CompletionOptions::default()
         }),
         document_symbol_provider: Some(OneOf::Left(true)),
-        document_formatting_provider: Some(OneOf::Left(config.formatter != FormatterConfig::None)),
+        document_formatting_provider: Some(OneOf::Left(formatter_none)),
+        document_on_type_formatting_provider: if formatter_none {
+            None
+        } else {
+            Some(DocumentOnTypeFormattingOptions {
+                first_trigger_character: String::from("}"),
+                more_trigger_character: Some(vec![
+                    String::from(";"),
+                    String::from(","),
+                    String::from(">"),
+                ]),
+            })
+        },
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         signature_help_provider: Some(SignatureHelpOptions {
             trigger_characters: Some(vec!['('.to_string(), ','.to_string(), '<'.to_string()]),
@@ -104,13 +118,20 @@ pub fn route(backend: &Backend) -> Result<(), Box<dyn std::error::Error + Send +
                 match req.method.as_str() {
                     HoverRequest::METHOD => {
                         if let Ok(params) = from_value::<HoverParams>(req.params) {
-                            let result = backend.hover(params);
+                            let result = backend.hover(&params);
                             send(backend, req.id, to_value(result).ok());
                         }
                     }
                     Formatting::METHOD => {
                         if let Ok(params) = from_value::<DocumentFormattingParams>(req.params) {
                             let result = backend.formatting(params);
+                            send(backend, req.id, to_value(result).ok());
+                        }
+                    }
+                    OnTypeFormatting::METHOD => {
+                        if let Ok(params) = from_value::<DocumentOnTypeFormattingParams>(req.params)
+                        {
+                            let result = backend.on_type_formatting(params);
                             send(backend, req.id, to_value(result).ok());
                         }
                     }

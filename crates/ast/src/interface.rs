@@ -5,9 +5,9 @@ use crate::{
     ExpressionOptions,
     error::{AstError, GetStartEnd, assert_token},
     lexer::{PositionToken, Token},
-    parse_annotated, parse_annotated_list, parse_array_type_on_name, parse_block, parse_expression,
-    parse_extends, parse_identifier, parse_jtype, parse_method_header, parse_name, parse_permits,
-    parse_thing, parse_type_parameters,
+    parse_annotated, parse_array_type_on_name, parse_block, parse_expression, parse_extends,
+    parse_identifier, parse_jtype, parse_method_header, parse_name, parse_permits, parse_thing,
+    parse_type_parameters,
     types::{
         AstAnnotated, AstAvailability, AstInterface, AstInterfaceConstant, AstInterfaceMethod,
         AstInterfaceMethodDefault, AstJType, AstRange, AstThing, AstThingAttributes,
@@ -241,15 +241,12 @@ pub fn parse_interface_method(
     pos: usize,
 ) -> Result<(AstInterfaceMethod, usize), AstError> {
     let start = tokens.start(pos)?;
-    let mut annotated = Vec::new();
-    let pos = parse_annotated_list(tokens, pos, &mut annotated)?;
-    let (header, pos) = parse_method_header(tokens, pos, AstAvailability::empty())?;
+    let (header, pos) = parse_method_header(tokens, pos)?;
     let pos = assert_token(tokens, pos, Token::Semicolon)?;
     let end = tokens.end(pos)?;
     Ok((
         AstInterfaceMethod {
             range: AstRange::from_position_token(start, end),
-            annotated,
             header,
         },
         pos,
@@ -262,33 +259,12 @@ pub fn parse_interface_method_impl(
     pos: usize,
 ) -> Result<(AstInterfaceMethodDefault, usize), AstError> {
     let start = tokens.start(pos)?;
-    let mut availability = AstAvailability::empty();
-    let mut pos = pos;
-    let mut annotated = Vec::new();
-    loop {
-        let t = tokens.get(pos).ok_or_else(AstError::eof)?;
-        match t.token {
-            Token::Public => availability |= AstAvailability::Public,
-            Token::Private => availability |= AstAvailability::Private,
-            Token::Protected => availability |= AstAvailability::Protected,
-            Token::Default => (),
-            Token::At => {
-                let (annotated_after, npos) = parse_annotated(tokens, pos)?;
-                pos = npos;
-                annotated.push(annotated_after);
-                continue;
-            }
-            _ => break,
-        }
-        pos += 1;
-    }
-    let (header, pos) = parse_method_header(tokens, pos, availability)?;
+    let (header, pos) = parse_method_header(tokens, pos)?;
     let (block, pos) = parse_block(tokens, pos)?;
     let end = tokens.end(pos)?;
     Ok((
         AstInterfaceMethodDefault {
             range: AstRange::from_position_token(start, end),
-            annotated,
             header,
             block,
         },

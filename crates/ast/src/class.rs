@@ -225,7 +225,7 @@ pub fn parse_class_constructor(
     pos: usize,
 ) -> Result<(AstClassConstructor, usize), AstError> {
     let start = tokens.start(pos)?;
-    let (header, pos) = parse_constructor_header(tokens, pos, AstAvailability::Public)?;
+    let (header, pos) = parse_constructor_header(tokens, pos)?;
     let (block, pos) = parse_block(tokens, pos)?;
 
     let end = tokens.end(pos)?;
@@ -343,7 +343,7 @@ pub fn parse_class_method(
     pos: usize,
 ) -> Result<(AstClassMethod, usize), AstError> {
     let start = tokens.start(pos)?;
-    let (header, pos) = parse_method_header(tokens, pos, AstAvailability::empty())?;
+    let (header, pos) = parse_method_header(tokens, pos)?;
     let mut block = None;
     let mut pos = pos;
     if let Ok(npos) = assert_token(tokens, pos, Token::Semicolon) {

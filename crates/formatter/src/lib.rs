@@ -4,21 +4,20 @@
 #![deny(clippy::enum_glob_use)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
-use std::path::Path;
 
 use ast::{
     lexer::{PositionToken, Token},
     range::GetRange,
     types::{
         AstAnnotated, AstAnnotatedParameter, AstAnnotatedParameterKind, AstAnnotation,
-        AstAnnotationField, AstAvailability, AstBlock, AstBlockEntry, AstClass, AstClassBlock,
-        AstClassConstructor, AstClassMethod, AstClassVariable, AstEnumeration,
+        AstAnnotationField, AstAvailability, AstBaseExpression, AstBlock, AstBlockEntry, AstClass,
+        AstClassBlock, AstClassConstructor, AstClassMethod, AstClassVariable, AstEnumeration,
         AstExpressionIdentifier, AstExpressionKind, AstExpressionOperator,
-        AstExpressionOrAnnotated, AstExpressionOrDefault, AstExpressionOrValue, AstForContent,
-        AstIdentifier, AstIf, AstIfContent, AstImport, AstImportUnit, AstInterface,
+        AstExpressionOrAnnotated, AstExpressionOrDefault, AstExpressionOrValue, AstFile,
+        AstForContent, AstIdentifier, AstIf, AstIfContent, AstImport, AstImportUnit, AstInterface,
         AstInterfaceConstant, AstInterfaceMethod, AstInterfaceMethodDefault, AstJType,
         AstJTypeKind, AstLambdaRhs, AstMethodHeader, AstMethodParameterFlags, AstMethodParameters,
-        AstModule, AstModuleRequiresFlags, AstNewRhs, AstPackage, AstPoint, AstRecord,
+        AstModule, AstModuleRequiresFlags, AstNewRhs, AstPackage, AstPoint, AstRange, AstRecord,
         AstRecordEntries, AstSuperClass, AstSwitchCaseArrowContent, AstThing, AstThingAttributes,
         AstThrowsDeclaration, AstTopLevel, AstTypeParameters, AstValue, AstValueNuget,
         AstValuesWithAnnotated, AstVolatileTransient, AstWhileContent,
@@ -26,16 +25,9 @@ use ast::{
 };
 use config::FormatterConfig;
 
-pub mod google;
-pub mod idea;
-
 #[derive(Debug)]
 pub enum FormatError {
-    IO(std::io::Error),
-    Spawn(std::io::Error),
-    Diagnostic(Vec<FormatLineError>),
     NoFormatterSpecified,
-    Ast(ast::error::AstError),
     Lexer(ast::lexer::LexerError),
 }
 
@@ -50,30 +42,23 @@ pub fn get_formatter_name(formatter: &FormatterConfig) -> String {
     match formatter {
         FormatterConfig::None => String::from("No formatter"),
         FormatterConfig::Internal => String::from("java_lsp format"),
-        FormatterConfig::Google => String::from("Google java format"),
-        FormatterConfig::Idea => String::from("Idea format"),
     }
 }
 
 pub fn format(
     formatter: &FormatterConfig,
-    content: &[u8],
-    path: &Path,
-    project_dir: &Path,
+    ast: &AstFile,
+    content: &str,
     space: &str,
-) -> Result<Option<Vec<u8>>, FormatError> {
+) -> Result<Vec<u8>, FormatError> {
     match formatter {
         FormatterConfig::None => Err(FormatError::NoFormatterSpecified),
-        FormatterConfig::Internal => internal(content, space),
-        FormatterConfig::Google => google::google_java_format(content),
-        FormatterConfig::Idea => idea::idea_java_format(path, project_dir),
+        FormatterConfig::Internal => internal(ast, content, space),
     }
 }
 
-fn internal(content: &[u8], space: &str) -> Result<Option<Vec<u8>>, FormatError> {
+fn internal(ast: &AstFile, content: &str, space: &str) -> Result<Vec<u8>, FormatError> {
     let mut f = Formatter::new(content, space)?;
-    let tokens = ast::lexer::lex_v::<false>(content).map_err(FormatError::Lexer)?;
-    let ast = ast::parse_file(&tokens).map_err(FormatError::Ast)?;
 
     let mut top = ast.top.iter().peekable();
 
@@ -94,7 +79,7 @@ fn internal(content: &[u8], space: &str) -> Result<Option<Vec<u8>>, FormatError>
         }
     }
 
-    Ok(Some(f.buf))
+    Ok(f.buf)
 }
 
 struct Formatter {
@@ -106,7 +91,7 @@ struct Formatter {
 }
 
 impl Formatter {
-    pub fn new(content: &[u8], space: &str) -> Result<Self, FormatError> {
+    pub fn new(content: &str, space: &str) -> Result<Self, FormatError> {
         let with_comments = ast::lexer::lex_v::<true>(content).map_err(FormatError::Lexer)?;
         Ok(Self {
             with_comments,
@@ -226,6 +211,56 @@ impl Formatter {
     #[inline]
     fn new_line(&mut self) {
         self.buf.push(b'\n');
+    }
+
+    pub fn end_line_comments(&mut self, range: &AstRange) {
+        let line = range.end.line;
+        while let Some(t) = self.with_comments.get(self.index)
+            && t.start_point().line == line
+        {
+            match &t.token {
+                Token::LineComment(l) => {
+                    self.buf.extend_from_slice(b" //");
+                    self.buf.extend_from_slice(l);
+                    self.index += 1;
+                }
+                Token::BlockComment(c, _) => {
+                    self.buf.extend_from_slice(b" /*");
+                    self.buf.extend_from_slice(c);
+                    self.buf.extend_from_slice(b"*/");
+                    self.index += 1;
+                }
+                _ => {
+                    self.index += 1;
+                    break;
+                }
+            }
+        }
+    }
+
+    pub fn before_line_comments(&mut self, range: &AstRange) {
+        let line = range.start.line;
+        while let Some(t) = self.with_comments.get(self.index)
+            && t.start_point().line < line
+        {
+            match &t.token {
+                Token::LineComment(l) => {
+                    self.buf.extend_from_slice(b"//");
+                    self.buf.extend_from_slice(l);
+                    self.index += 1;
+                }
+                Token::BlockComment(c, _) => {
+                    self.buf.extend_from_slice(b" /*");
+                    self.buf.extend_from_slice(c);
+                    self.buf.extend_from_slice(b"*/");
+                    self.index += 1;
+                }
+                _ => {
+                    self.index += 1;
+                    break;
+                }
+            }
+        }
     }
 }
 
@@ -355,8 +390,22 @@ fn write_expression(expr: &[AstExpressionKind], f: &mut Formatter) {
         f.indent += 1;
     }
 
+    let mut minus_with_space = false;
+
     for (nth, k) in expr.iter().enumerate() {
-        write_expression_kind(k, f, is_large, dot, nth);
+        write_expression_kind(k, f, is_large, dot, nth, minus_with_space);
+
+        if let AstExpressionKind::Base(AstBaseExpression { operator, .. }) = k {
+            minus_with_space = !matches!(
+                operator,
+                AstExpressionOperator::Gt(_)
+                    | AstExpressionOperator::Ge(_)
+                    | AstExpressionOperator::Le(_)
+                    | AstExpressionOperator::Lt(_)
+            );
+        } else {
+            minus_with_space = true;
+        }
     }
     if is_large {
         f.indent -= 1;
@@ -369,6 +418,7 @@ fn write_expression_kind(
     is_large: bool,
     dot: bool,
     nth: usize,
+    minus_with_space: bool,
 ) {
     match kind {
         AstExpressionKind::Base(base) => {
@@ -402,7 +452,7 @@ fn write_expression_kind(
                 }
                 f.write(b")");
             }
-            write_expression_operator(&base.operator, f, is_large, dot, nth);
+            write_expression_operator(&base.operator, f, is_large, dot, nth, minus_with_space);
         }
         AstExpressionKind::JType(jtype_expr) => {
             write_jtype(&jtype_expr.jtype, f);
@@ -577,6 +627,21 @@ fn write_jtype(jtype: &AstJType, f: &mut Formatter) {
             f.write_with_comments(jtype.range.start, b"?");
             f.skip_to(jtype.range.end);
         }
+        AstJTypeKind::WildcardImplements(j) => {
+            f.write_with_comments(jtype.range.start, b"? implements ");
+            write_jtype(j, f);
+            f.skip_to(jtype.range.end);
+        }
+        AstJTypeKind::WildcardExtends(j) => {
+            f.write_with_comments(jtype.range.start, b"? extends ");
+            write_jtype(j, f);
+            f.skip_to(jtype.range.end);
+        }
+        AstJTypeKind::WildcardSuper(j) => {
+            f.write_with_comments(jtype.range.start, b"? super ");
+            write_jtype(j, f);
+            f.skip_to(jtype.range.end);
+        }
         AstJTypeKind::Var => {
             f.write_with_comments(jtype.range.start, b"var");
             f.skip_to(jtype.range.end);
@@ -676,7 +741,7 @@ fn write_block(block: &AstBlock, f: &mut Formatter) {
                 f.indent = base_indent + 1;
             }
         }
-        write_block_entry(entry, f, true, next_if);
+        write_block_entry(entry, f, true, true, next_if);
         if let Some(next) = entries.peek() {
             f.insert_new_lines(entry.get_range().end.line, next.get_range().start.line);
         }
@@ -686,10 +751,16 @@ fn write_block(block: &AstBlock, f: &mut Formatter) {
     f.write(b"}");
 }
 
-fn write_block_entry(entry: &AstBlockEntry, f: &mut Formatter, around: bool, next_if: bool) {
+fn write_block_entry(
+    entry: &AstBlockEntry,
+    f: &mut Formatter,
+    around: bool,
+    indent: bool,
+    next_if: bool,
+) {
     match entry {
         AstBlockEntry::Semicolon(_) => {
-            if around {
+            if indent {
                 f.write_indent();
             }
             f.write(b";");
@@ -704,7 +775,9 @@ fn write_block_entry(entry: &AstBlockEntry, f: &mut Formatter, around: bool, nex
             f.write(b"return");
             if !matches!(ret.expression, AstExpressionOrValue::None) {
                 f.buf.push(b' ');
+                f.indent += 1;
                 write_expr_or_value(&ret.expression, f);
+                f.indent -= 1;
             }
             if around {
                 f.write(b";");
@@ -712,13 +785,15 @@ fn write_block_entry(entry: &AstBlockEntry, f: &mut Formatter, around: bool, nex
             }
         }
         AstBlockEntry::Yield(yield_) => {
-            if around {
+            if indent {
                 f.write_indent();
             }
             f.write(b"yield");
             if !matches!(yield_.expression, AstExpressionOrValue::None) {
                 f.buf.push(b' ');
+                f.indent += 1;
                 write_expr_or_value(&yield_.expression, f);
+                f.indent -= 1;
             }
             if around {
                 f.write(b";");
@@ -726,24 +801,28 @@ fn write_block_entry(entry: &AstBlockEntry, f: &mut Formatter, around: bool, nex
             }
         }
         AstBlockEntry::Throw(throw) => {
-            if around {
+            if indent {
                 f.write_indent();
             }
             f.write(b"throw ");
+            f.indent += 1;
             write_expression(&throw.expression, f);
+            f.indent -= 1;
             if around {
                 f.write(b";");
                 f.new_line();
             }
         }
         AstBlockEntry::Break(br) => {
-            if around {
+            if indent {
                 f.write_indent();
             }
             f.write(b"break");
             if let Some(label) = &br.label {
                 f.buf.push(b' ');
+                f.indent += 1;
                 f.write_identifier(label);
+                f.indent -= 1;
             }
             if around {
                 f.write(b";");
@@ -751,13 +830,15 @@ fn write_block_entry(entry: &AstBlockEntry, f: &mut Formatter, around: bool, nex
             }
         }
         AstBlockEntry::Continue(cont) => {
-            if around {
+            if indent {
                 f.write_indent();
             }
             f.write(b"continue");
             if let Some(label) = &cont.label {
                 f.buf.push(b' ');
+                f.indent += 1;
                 f.write_identifier(label);
+                f.indent -= 1;
             }
             if around {
                 f.write(b";");
@@ -765,40 +846,47 @@ fn write_block_entry(entry: &AstBlockEntry, f: &mut Formatter, around: bool, nex
             }
         }
         AstBlockEntry::Assert(assert) => {
-            if around {
+            if indent {
                 f.write_indent();
             }
             f.write(b"assert ");
+            f.indent += 1;
             write_expression(&assert.expression, f);
+            f.indent -= 1;
             if around {
                 f.write(b";");
                 f.new_line();
             }
         }
         AstBlockEntry::Expression(expr) => {
-            if around {
+            if indent {
                 f.write_indent();
             }
+            f.indent += 1;
             write_expression(&expr.value, f);
+            f.end_line_comments(&expr.range);
+            f.indent -= 1;
             if around {
                 f.write(b";");
                 f.new_line();
             }
         }
         AstBlockEntry::Assign(assign) => {
-            if around {
+            if indent {
                 f.write_indent();
             }
             write_expression(&assign.key, f);
             f.write(b" = ");
+            f.indent += 1;
             write_expression(&assign.expression, f);
+            f.indent -= 1;
             if around {
                 f.write(b";");
                 f.new_line();
             }
         }
         AstBlockEntry::Variable(vars) if !vars.is_empty() => {
-            if around {
+            if indent {
                 f.write_indent();
             }
             for ann in &vars[0].annotated {
@@ -813,14 +901,18 @@ fn write_block_entry(entry: &AstBlockEntry, f: &mut Formatter, around: bool, nex
             f.write_identifier(&vars[0].name);
             if let Some(val) = &vars[0].value {
                 f.write(b" = ");
+                f.indent += 1;
                 write_expression(val, f);
+                f.indent -= 1;
             }
             for var in &vars[1..] {
                 f.write(b", ");
                 f.write_identifier(&var.name);
                 if let Some(val) = &var.value {
                     f.write(b" = ");
+                    f.indent += 1;
                     write_expression(val, f);
+                    f.indent -= 1;
                 }
             }
             if around {
@@ -854,21 +946,21 @@ fn write_block_entry(entry: &AstBlockEntry, f: &mut Formatter, around: bool, nex
                 if i > 0 {
                     f.write(b", ");
                 }
-                write_block_entry(entry, f, false, false);
+                write_block_entry(entry, f, false, false, false);
             }
             f.write(b"; ");
             for (i, entry) in for_.check.iter().enumerate() {
                 if i > 0 {
                     f.write(b", ");
                 }
-                write_block_entry(entry, f, false, false);
+                write_block_entry(entry, f, false, false, false);
             }
             f.write(b"; ");
             for (i, entry) in for_.changes.iter().enumerate() {
                 if i > 0 {
                     f.write(b", ");
                 }
-                write_block_entry(entry, f, false, false);
+                write_block_entry(entry, f, false, false, false);
             }
             f.write(b") ");
             write_for_content(&for_.content, f);
@@ -1043,7 +1135,7 @@ fn write_if_content(content: &AstIfContent, f: &mut Formatter, next_if: bool) {
         AstIfContent::BlockEntry(entry) => {
             f.new_line();
             f.indent += 1;
-            write_block_entry(entry, f, true, false);
+            write_block_entry(entry, f, true, true, false);
             f.indent -= 1;
         }
     }
@@ -1062,7 +1154,7 @@ fn write_while_content(content: &AstWhileContent, f: &mut Formatter) {
         AstWhileContent::BlockEntry(entry) => {
             f.new_line();
             f.indent += 1;
-            write_block_entry(entry, f, true, false);
+            write_block_entry(entry, f, true, true, false);
             f.indent -= 1;
         }
     }
@@ -1081,7 +1173,7 @@ fn write_for_content(content: &AstForContent, f: &mut Formatter) {
         AstForContent::BlockEntry(entry) => {
             f.new_line();
             f.indent += 1;
-            write_block_entry(entry, f, true, false);
+            write_block_entry(entry, f, true, true, false);
             f.indent -= 1;
         }
     }
@@ -1103,7 +1195,7 @@ fn write_switch_arrow_content(content: &AstSwitchCaseArrowContent, f: &mut Forma
             f.new_line();
         }
         AstSwitchCaseArrowContent::Entry(entry) => {
-            write_block_entry(entry, f, true, false);
+            write_block_entry(entry, f, true, false, false);
         }
     }
 }
@@ -1113,7 +1205,7 @@ fn write_block_delimited(block: &AstBlock, open: &[u8], close: &[u8], f: &mut Fo
     f.new_line();
     f.indent += 1;
     for entry in &block.entries {
-        write_block_entry(entry, f, true, false);
+        write_block_entry(entry, f, true, true, false);
     }
     f.indent -= 1;
     f.write_indent();
@@ -1151,8 +1243,12 @@ fn write_class(class: &AstClass, f: &mut Formatter) {
             if i > 0 {
                 f.write(b", ");
             }
-            if let AstSuperClass::Name(ident) = sc {
-                f.write_identifier(ident);
+            match sc {
+                AstSuperClass::Name(ident) => {
+                    f.write_identifier(ident);
+                }
+                AstSuperClass::None => (),
+                AstSuperClass::JType(ast_jtype) => write_jtype(ast_jtype, f),
             }
         }
     }
@@ -1245,6 +1341,7 @@ fn write_class_block(block: &AstClassBlock, f: &mut Formatter) {
 }
 
 fn write_class_variable(v: &AstClassVariable, f: &mut Formatter) {
+    f.before_line_comments(&v.range);
     for ann in &v.annotated {
         f.write_indent();
         write_annotation(ann, f);
@@ -1266,9 +1363,12 @@ fn write_class_variable(v: &AstClassVariable, f: &mut Formatter) {
     f.write_identifier(&v.name);
     if let Some(expr) = &v.expression {
         f.write(b" = ");
+        f.indent += 1;
         write_expression(expr, f);
+        f.indent -= 1;
     }
     f.write(b";");
+    f.end_line_comments(&v.name.range);
     f.new_line();
 }
 
@@ -1391,8 +1491,12 @@ fn write_type_parameters(tp: &AstTypeParameters, f: &mut Formatter) {
                 if j > 0 {
                     f.write(b" & ");
                 }
-                if let AstSuperClass::Name(ident) = sc {
-                    f.write_identifier(ident);
+                match sc {
+                    AstSuperClass::Name(ident) => {
+                        f.write_identifier(ident);
+                    }
+                    AstSuperClass::None => (),
+                    AstSuperClass::JType(ast_jtype) => write_jtype(ast_jtype, f),
                 }
             }
         }
@@ -1534,20 +1638,12 @@ fn write_interface_constant(c: &AstInterfaceConstant, f: &mut Formatter) {
 }
 
 fn write_interface_method(m: &AstInterfaceMethod, f: &mut Formatter) {
-    for ann in &m.annotated {
-        f.write_indent();
-        write_annotation(ann, f);
-    }
     write_method_header(&m.header, f);
     f.write(b";");
     f.new_line();
 }
 
 fn write_interface_default_method(m: &AstInterfaceMethodDefault, f: &mut Formatter) {
-    for ann in &m.annotated {
-        f.write_indent();
-        write_annotation(ann, f);
-    }
     write_method_header(&m.header, f);
     f.buf.push(b' ');
     write_block(&m.block, f);
@@ -1708,6 +1804,7 @@ fn write_value_nuget(nuget: &AstValueNuget, f: &mut Formatter) {
         AstValueNuget::Double(d) => {
             f.write_with_comments(d.range.start, d.value.as_bytes());
             f.skip_to(d.range.end);
+            f.write(b"d");
         }
         AstValueNuget::Float(fl) => {
             f.write_with_comments(fl.range.start, fl.value.as_bytes());
@@ -1761,6 +1858,7 @@ fn write_expression_operator(
     is_large: bool,
     dot: bool,
     nth: usize,
+    minus_with_space: bool,
 ) {
     let (r, bytes): (_, &[u8]) = match op {
         AstExpressionOperator::None => return,
@@ -1768,7 +1866,13 @@ fn write_expression_operator(
         AstExpressionOperator::Plus(r) => (r, b" + "),
         AstExpressionOperator::PlusPlus(r) => (r, b"++"),
         AstExpressionOperator::PlusEqual(r) => (r, b" += "),
-        AstExpressionOperator::Minus(r) => (r, b" - "),
+        AstExpressionOperator::Minus(r) => {
+            if minus_with_space {
+                (r, b" - ")
+            } else {
+                (r, b"-")
+            }
+        }
         AstExpressionOperator::MinusEqual(r) => (r, b" -= "),
         AstExpressionOperator::MinusMinus(r) => (r, b"--"),
         AstExpressionOperator::Multiply(r) => (r, b" * "),
@@ -1967,9 +2071,15 @@ mod tests {
 
     const SPACE: &str = "    ";
 
+    fn fmt(content: &str, space: &str) -> Result<Vec<u8>, FormatError> {
+        let tokens = ast::lexer::lex_v::<false>(content).expect("In unit test lexer must not fail");
+        let ast = ast::parse_file(&tokens).expect("In unit test ast must be valid");
+        internal(&ast, content, space)
+    }
+
     #[test]
     fn package() {
-        let content = b"// This is a cool file
+        let content = "// This is a cool file
 
         @Thing(Type.IMPORTANT)
         @Retention(RetentionPolicy.RUNTIME)
@@ -1978,19 +2088,19 @@ mod tests {
         // Now the imports
         ";
 
-        let o = internal(content, SPACE).unwrap();
+        let o = fmt(content, SPACE).unwrap();
         let expected = expect![[r"
             // This is a cool file
             @Thing(Type.IMPORTANT)
             @Retention(RetentionPolicy.RUNTIME)
             package ch.emilycares;
         "]];
-        expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
+        expected.assert_eq(str::from_utf8(&o).unwrap());
     }
 
     #[test]
     fn method() {
-        let content = br#"package ch.emilycares;
+        let content = r#"package ch.emilycares;
         /**
          * hostile getter
          */
@@ -2012,7 +2122,7 @@ mod tests {
         }
         "#;
 
-        let o = internal(content, SPACE).unwrap();
+        let o = fmt(content, SPACE).unwrap();
         let expected = expect![[r#"
             package ch.emilycares;
 
@@ -2037,12 +2147,12 @@ mod tests {
                 }
             }
         "#]];
-        expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
+        expected.assert_eq(str::from_utf8(&o).unwrap());
     }
 
     #[test]
     fn method_parameters() {
-        let content = br"
+        let content = r"
         package ch.emilycares;
         public class Application {
 
@@ -2061,7 +2171,7 @@ mod tests {
         }
         ";
 
-        let o = internal(content, SPACE).unwrap();
+        let o = fmt(content, SPACE).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
             public class Application {
@@ -2084,11 +2194,11 @@ mod tests {
                 }
             }
         "]];
-        expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
+        expected.assert_eq(str::from_utf8(&o).unwrap());
     }
     #[test]
     fn enum_base() {
-        let content = br"
+        let content = r"
         package ch.emilycares;
         public enum EType {
             A, B,
@@ -2110,7 +2220,7 @@ mod tests {
         }
         ";
 
-        let o = internal(content, SPACE).unwrap();
+        let o = fmt(content, SPACE).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
             public enum EType {
@@ -2134,12 +2244,12 @@ mod tests {
                     }
                 }
         "]];
-        expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
+        expected.assert_eq(str::from_utf8(&o).unwrap());
     }
 
     #[test]
     fn long_plus() {
-        let content = br"
+        let content = r"
         package ch.emilycares;
         public class Test {
             public int aaa() {
@@ -2150,25 +2260,25 @@ mod tests {
         }
         ";
 
-        let o = internal(content, SPACE).unwrap();
+        let o = fmt(content, SPACE).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
             public class Test {
                 public int aaa() {
                     int b = 1;
                     return (this.that) + this.other
-                         + this.taetsch
-                         + this.boing
-                         + b;
+                             + this.taetsch
+                             + this.boing
+                             + b;
                 }
             }
         "]];
-        expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
+        expected.assert_eq(str::from_utf8(&o).unwrap());
     }
 
     #[test]
     fn for_base() {
-        let content = br#"
+        let content = r#"
         package ch.emilycares;
         public class Test {
             public int aaa() {
@@ -2181,7 +2291,7 @@ mod tests {
         }
         "#;
 
-        let o = internal(content, SPACE).unwrap();
+        let o = fmt(content, SPACE).unwrap();
         let expected = expect![[r#"
             package ch.emilycares;
             public class Test {
@@ -2192,12 +2302,12 @@ mod tests {
                 }
             }
         "#]];
-        expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
+        expected.assert_eq(str::from_utf8(&o).unwrap());
     }
 
     #[test]
     fn multi_line_string() {
-        let content = br#"
+        let content = r#"
         package ch.emilycares;
         public class Test {
             public int aaa() {
@@ -2210,7 +2320,7 @@ mod tests {
         }
         "#;
 
-        let o = internal(content, SPACE).unwrap();
+        let o = fmt(content, SPACE).unwrap();
         let expected = expect![[r#"
             package ch.emilycares;
             public class Test {
@@ -2222,12 +2332,12 @@ mod tests {
                 }
             }
         "#]];
-        expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
+        expected.assert_eq(str::from_utf8(&o).unwrap());
     }
 
     #[test]
     fn stream() {
-        let content = br"
+        let content = r"
         package ch.emilycares;
 
         public class Test {
@@ -2239,25 +2349,25 @@ mod tests {
         }
         ";
 
-        let o = internal(content, SPACE).unwrap();
+        let o = fmt(content, SPACE).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
 
             public class Test {
                 public int aaa() {
                     return intem.stream()
-                        .map(a -> a + 1)
-                        .filter(a > 5)
-                        .toList();
+                            .map(a -> a + 1)
+                            .filter(a > 5)
+                            .toList();
                 }
             }
         "]];
-        expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
+        expected.assert_eq(str::from_utf8(&o).unwrap());
     }
 
     #[test]
     fn annotated() {
-        let content = br#"
+        let content = r#"
 @Path("/api/v1/thing")
 @Consumes(MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON)
 @Table(uniqueConstraints = @UniqueConstraint(columnNames = {"otherUuid", "thing_id"}))
@@ -2282,7 +2392,7 @@ public class ThingResource {
   }
         "#;
 
-        let o = internal(content, SPACE).unwrap();
+        let o = fmt(content, SPACE).unwrap();
         let expected = expect![[r#"
             @Path("/api/v1/thing")
             @Consumes(MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON)
@@ -2302,16 +2412,16 @@ public class ThingResource {
                     c.style = request.style;
                     c.active = true;
                     return c.persist()
-                        .map(entity -> Response.status(201).entity(entity).build());
+                            .map(entity -> Response.status(201).entity(entity).build());
                 }
             }
         "#]];
-        expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
+        expected.assert_eq(str::from_utf8(&o).unwrap());
     }
 
     #[test]
     fn if_else() {
-        let content = br"
+        let content = r"
         package ch.emilycares;
 
         public class Test {
@@ -2329,7 +2439,7 @@ public class ThingResource {
         }
         ";
 
-        let o = internal(content, SPACE).unwrap();
+        let o = fmt(content, SPACE).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
 
@@ -2345,12 +2455,12 @@ public class ThingResource {
                 }
             }
         "]];
-        expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
+        expected.assert_eq(str::from_utf8(&o).unwrap());
     }
 
     #[test]
     fn lambda_newline() {
-        let content = br"
+        let content = r"
         package ch.emilycares;
 
         public class Test {
@@ -2367,30 +2477,30 @@ public class ThingResource {
         }
         ";
 
-        let o = internal(content, SPACE).unwrap();
+        let o = fmt(content, SPACE).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
 
             public class Test {
                 public int aaa() {
                     Suppliers.momoize(() -> {
-                            // some processing
-                            return true;
-                        });
+                                // some processing
+                                return true;
+                            });
 
                     Thread.ofVirtual()
-                        .start(() -> {
-                            // do something
-                            });
+                            .start(() -> {
+                                // do something
+                                });
                 }
             }
         "]];
-        expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
+        expected.assert_eq(str::from_utf8(&o).unwrap());
     }
 
     #[test]
     fn dyn_space_after_name() {
-        let content = br#"
+        let content = r#"
 package ch.emilycares;
 
 public class Test {
@@ -2403,7 +2513,7 @@ public class Test {
 }
         "#;
 
-        let o = internal(content, SPACE).unwrap();
+        let o = fmt(content, SPACE).unwrap();
         let expected = expect![[r#"
             package ch.emilycares;
 
@@ -2416,12 +2526,12 @@ public class Test {
                 private String aaaaaa = "aaaaaa";
             }
         "#]];
-        expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
+        expected.assert_eq(str::from_utf8(&o).unwrap());
     }
 
     #[test]
     fn operators() {
-        let content = br"
+        let content = r"
         package ch.emilycares;
 
         public class Test {
@@ -2451,7 +2561,7 @@ public class Test {
         }
         ";
 
-        let o = internal(content, SPACE).unwrap();
+        let o = fmt(content, SPACE).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
 
@@ -2460,8 +2570,8 @@ public class Test {
                     t |= avc();
                     t |= a().b().c();
                     t |= a()
-                        .b()
-                        .c();
+                            .b()
+                            .c();
                     t += 1;
                     t -= 1;
                     t *= 1;
@@ -2483,12 +2593,12 @@ public class Test {
                 }
             }
         "]];
-        expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
+        expected.assert_eq(str::from_utf8(&o).unwrap());
     }
 
     #[test]
     fn nl_arguments() {
-        let content = br"
+        let content = r"
         package ch.emilycares;
 
         public class Test {
@@ -2501,41 +2611,49 @@ public class Test {
         }
         ";
 
-        let o = internal(content, SPACE).unwrap();
+        let o = fmt(content, SPACE).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
 
             public class Test {
                 public int aaa() {
                     other(
-                        1 + 2,
-                        1
-                        );
+                            1 + 2,
+                            1
+                            );
                 }
             }
         "]];
-        expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
+        expected.assert_eq(str::from_utf8(&o).unwrap());
     }
 
     #[test]
     fn interface_indent() {
-        let content = br"
-        public interface Test {
-            void a();
+        let content = r"
+public interface Test {
+    void a();
 
-            /** hehehhehehe */
-            void b();
-        }
+    /**
+     * heheh
+     * hehehe
+     */
+    public void b() {
+    }
+}
         ";
 
-        let o = internal(content, SPACE).unwrap();
+        let o = fmt(content, SPACE).unwrap();
         let expected = expect![[r"
             public interface Test {
                 void a();
-                /** hehehhehehe */
-                void b();
+                /**
+                 * heheh
+                 * hehehe
+                 */
+                public void b() {
+                }
             }
         "]];
-        expected.assert_eq(str::from_utf8(&o.unwrap_or_default()).unwrap());
+        expected.assert_eq(str::from_utf8(&o).unwrap());
     }
 }

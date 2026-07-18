@@ -768,14 +768,14 @@ fn keyword_to_token(key: &[u8]) -> Option<Token> {
     }
 }
 /// Output token vec for document
-pub fn lex(input: &[u8]) -> Result<Vec<PositionToken>, LexerError> {
+pub fn lex(input: &str) -> Result<Vec<PositionToken>, LexerError> {
     lex_v::<false>(input)
 }
 /// Output token vec for document
-pub fn lex_v<const INCLUDE_COMMENTS: bool>(input: &[u8]) -> Result<Vec<PositionToken>, LexerError> {
+pub fn lex_v<const INCLUDE_COMMENTS: bool>(input: &str) -> Result<Vec<PositionToken>, LexerError> {
     let mut tokens = Vec::new();
 
-    lex_mut::<INCLUDE_COMMENTS>(input, &mut tokens)?;
+    lex_mut::<INCLUDE_COMMENTS>(input.as_bytes(), &mut tokens)?;
 
     Ok(tokens)
 }
@@ -1193,10 +1193,6 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     index += 2;
                 }
                 'string_literal: while let Some(ch) = input.get(index) {
-                    if *ch == b'\r' {
-                        index += 1;
-                        continue;
-                    }
                     if *ch == b'\\' {
                         let Some(peek) = input.get(index + 1) else {
                             break;
@@ -1491,7 +1487,7 @@ pub mod tests {
     #[test]
     fn local_variable_table() {
         let content = include_str!("../../parser/test/LocalVariableTable.java");
-        let tokens = lexer::lex(content.as_bytes()).expect("Test");
+        let tokens = lexer::lex(content).expect("Test");
         let expected = expect![[r#"
             [
                 PositionToken {
@@ -1932,7 +1928,7 @@ pub mod tests {
     #[test]
     fn supere() {
         let content = include_str!("../../parser/test/Super.java");
-        let tokens = lexer::lex(content.as_bytes()).expect("Test");
+        let tokens = lexer::lex(content).expect("Test");
         let expected = expect![[r#"
             [
                 PositionToken {
@@ -2038,7 +2034,7 @@ pub mod tests {
     #[test]
     fn super_interface() {
         let content = include_str!("../../parser/test/SuperInterface.java");
-        let tokens = lexer::lex(content.as_bytes()).expect("Test");
+        let tokens = lexer::lex(content).expect("Test");
         let expected = expect![[r#"
             [
                 PositionToken {
@@ -2404,7 +2400,7 @@ pub mod tests {
     #[test]
     fn everything() {
         let content = include_str!("../../parser/test/Everything.java");
-        let tokens = lexer::lex(content.as_bytes()).expect("Test");
+        let tokens = lexer::lex(content).expect("Test");
         let expected = expect![[r#"
             [
                 PositionToken {
@@ -2860,7 +2856,7 @@ pub mod tests {
     #[test]
     fn thrower() {
         let content = include_str!("../../parser/test/Thrower.java");
-        let tokens = lexer::lex(content.as_bytes()).expect("Test");
+        let tokens = lexer::lex(content).expect("Test");
         let expected = expect![[r#"
             [
                 PositionToken {
@@ -3065,7 +3061,7 @@ pub mod tests {
     #[test]
     fn escaped_double_quetes() {
         let content = r#"return "\"" + s + "\"";"#;
-        let tokens = lexer::lex(content.as_bytes()).expect("Test");
+        let tokens = lexer::lex(content).expect("Test");
         let expected = expect![[r#"
             [
                 PositionToken {
@@ -3110,7 +3106,7 @@ pub mod tests {
     #[test]
     fn escaped_backslash() {
         let content = r#" "\\" "#;
-        let tokens = lexer::lex(content.as_bytes()).expect("Test");
+        let tokens = lexer::lex(content).expect("Test");
         let expected = expect![[r#"
             [
                 PositionToken {
@@ -3133,7 +3129,7 @@ pub mod tests {
             '\"' +
             '\\' + 
          "#;
-        let tokens = lexer::lex(content.as_bytes()).expect("Test");
+        let tokens = lexer::lex(content).expect("Test");
         let expected = expect![[r#"
             [
                 PositionToken {

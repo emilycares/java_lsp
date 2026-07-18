@@ -101,6 +101,9 @@ impl From<&AstJType> for JType {
                 base: Box::new((&**base).into()),
                 inner: Box::new((&**inner).into()),
             },
+            AstJTypeKind::WildcardImplements(ast_jtype)
+            | AstJTypeKind::WildcardExtends(ast_jtype)
+            | AstJTypeKind::WildcardSuper(ast_jtype) => (&**ast_jtype).into(),
         }
     }
 }
@@ -132,6 +135,9 @@ impl From<AstJType> for JType {
                 base: Box::new((&**base).into()),
                 inner: Box::new((&**inner).into()),
             },
+            AstJTypeKind::WildcardImplements(ast_jtype)
+            | AstJTypeKind::WildcardExtends(ast_jtype)
+            | AstJTypeKind::WildcardSuper(ast_jtype) => (&**ast_jtype).into(),
         }
     }
 }

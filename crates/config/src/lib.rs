@@ -7,7 +7,7 @@ pub struct Configuration {
 impl Configuration {
     pub fn missing(field: &str) {
         eprintln!(
-            r#"Missing configuration for {}, Please configure in LSP InitializeParams.initializationOptions, example: {{ "formatter": "google" }}"#,
+            r#"Missing configuration for {}, Please configure in LSP InitializeParams.initializationOptions, example: {{ "formatter": "internal" }}"#,
             field
         )
     }
@@ -17,8 +17,6 @@ impl Configuration {
 pub enum FormatterConfig {
     None,
     Internal,
-    Google,
-    Idea,
 }
 
 impl Default for Configuration {

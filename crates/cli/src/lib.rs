@@ -9,10 +9,6 @@ use std::{fs::canonicalize, path::PathBuf};
 
 use ast::error::PrintErr;
 use jdk::{test_load_jdk_jmod, test_load_jdk_modules_executable, test_load_jdk_modules_own};
-#[derive(Debug)]
-pub enum CheckError {
-    IO(std::io::Error),
-}
 
 pub fn print_help() {
     println!(
@@ -22,23 +18,18 @@ java-lsp
 --help : Shows this help
 
 no arg : Starts lsp over stdio
-
 server-tcp <port> : Open tcp lsp socket
 
 reload-deps : Reload dependencies of current project
-
 update-deps : Update dependencies of current project
 
+format <path> : Format java file or all files in directory
+
 lex <file path to java file> : Print tokens from file
-
 lex-pos <file path to java file> <index> : Print token at position
-
 ast-check <file path to java file> : Check for ast errors in java file
-
 ast-check-dir <directory path> <Optional ignore pattern> : Check for ast errors in directory
-
 ast-check-jdk : Check for ast errors in current jdk in path
-
 index-jdk <variant> : Index jdk in path with variant jimage-own/jimage-executable/jmod
 "
     );
@@ -51,6 +42,7 @@ pub fn parse(args: &[String]) -> Option<Command> {
         Some("server-tcp") => parse_server_tcp(&args[1..]),
         Some("reload-deps") => Some(Command::ReloadDependencies),
         Some("update-deps") => Some(Command::UpdateDependencies),
+        Some("format") => parse_format(&args[1..]),
         Some("lex") => parse_lex(&args[1..]),
         Some("lex-pos") => parse_lex_pos(&args[1..]),
         Some("ast-check") => parse_ast_check(&args[1..]),
@@ -133,6 +125,23 @@ fn parse_lex(args: &[String]) -> Option<Command> {
         },
     )
 }
+
+fn parse_format(args: &[String]) -> Option<Command> {
+    args.first().map_or_else(
+        || {
+            println!("Expected file path");
+            None
+        },
+        |path| {
+            let path = PathBuf::from(path);
+            if path.is_dir() {
+                return Some(Command::FormatDir(path));
+            }
+            Some(Command::FormatFile(path))
+        },
+    )
+}
+
 fn parse_lex_pos(args: &[String]) -> Option<Command> {
     args.first().map_or_else(
         || {
@@ -212,6 +221,8 @@ pub enum Command {
     IndexJdk {
         variant: IndexJdkOptions,
     },
+    FormatDir(PathBuf),
+    FormatFile(PathBuf),
 }
 
 #[derive(Clone, Debug)]
@@ -222,21 +233,8 @@ pub enum IndexJdkOptions {
 }
 
 pub fn ast_check(path: &PathBuf) {
-    use std::fs::File;
-
-    match File::open(path) {
-        Ok(file) => {
-            let mmap = unsafe { memmap2::Mmap::map(&file) };
-            match mmap {
-                Ok(mmap) => {
-                    lex_and_ast(path, &mmap);
-                }
-                Err(e) => {
-                    eprintln!("unable to memmap: {e:?}");
-                    std::process::exit(2);
-                }
-            }
-        }
+    match std::fs::read(path) {
+        Ok(data) => lex_and_ast(path, &data),
         Err(e) => {
             eprintln!("unable to open file: {e:?}");
             std::process::exit(1);
@@ -246,29 +244,24 @@ pub fn ast_check(path: &PathBuf) {
 
 fn lex_and_ast(file: &Path, text: &[u8]) {
     // eprintln!("Here: {:?}", file);
-    match ast::lexer::lex(text) {
-        Ok(tokens) => {
-            let ast = ast::parse_file(&tokens);
-            if ast.is_err() {
-                use std::str::from_utf8;
-
-                eprintln!("Here: {}", file.display());
-                match from_utf8(text) {
-                    Ok(text) => {
-                        ast.print_err(text, &tokens);
-                    }
-                    Err(e) => {
-                        eprintln!("invalid utf8: {e:?}");
-                        std::process::exit(3);
-                    }
+    match std::str::from_utf8(text) {
+        Ok(text) => match ast::lexer::lex(text) {
+            Ok(tokens) => {
+                let ast = ast::parse_file(&tokens);
+                if ast.is_err() {
+                    eprintln!("Here: {}", file.display());
+                    ast.print_err(text, &tokens);
                 }
-                std::process::exit(3);
             }
-        }
+            Err(e) => {
+                eprintln!("Here: {}", file.display());
+                eprintln!("Lexer error: {e:?}");
+                std::process::exit(2);
+            }
+        },
         Err(e) => {
-            eprintln!("Here: {}", file.display());
-            eprintln!("Lexer error: {e:?}");
-            std::process::exit(2);
+            eprintln!("invalid utf8: {e:?}");
+            std::process::exit(3);
         }
     }
 }
@@ -277,9 +270,8 @@ fn visit_java_fies(
     dir: &PathBuf,
     dirs: &mut std::collections::VecDeque<PathBuf>,
     cb: impl Fn(&PathBuf),
-) -> Result<(), CheckError> {
-    let read_dir = std::fs::read_dir(dir)
-        .map_err(CheckError::IO)?
+) -> Result<(), std::io::Error> {
+    let read_dir = std::fs::read_dir(dir)?
         .map(|res| res.map(|e| e.path()))
         .filter_map(Result::ok);
     for entry in read_dir {
@@ -293,9 +285,9 @@ fn visit_java_fies(
     }
     Ok(())
 }
-pub fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
+pub fn ast_check_dir(folder: PathBuf) -> Result<(), std::io::Error> {
     let time = Instant::now();
-    let dir = canonicalize(folder).map_err(CheckError::IO)?;
+    let dir = canonicalize(folder)?;
     let mut dirs = std::collections::VecDeque::new();
     dirs.push_back(dir);
     while let Some(dir) = dirs.pop_front() {
@@ -304,9 +296,12 @@ pub fn ast_check_dir(folder: PathBuf) -> Result<(), CheckError> {
     println!("Checked all files. in: {:.2?}", time.elapsed());
     Ok(())
 }
-pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: &[String]) -> Result<(), CheckError> {
+pub async fn ast_check_dir_ignore(
+    folder: PathBuf,
+    ignore: &[String],
+) -> Result<(), std::io::Error> {
     let time = Instant::now();
-    let dir = canonicalize(folder).map_err(CheckError::IO)?;
+    let dir = canonicalize(folder)?;
     let mut dirs = std::collections::VecDeque::new();
     dirs.push_back(dir);
     while let Some(dir) = dirs.pop_front() {
@@ -328,14 +323,14 @@ pub async fn ast_check_dir_ignore(folder: PathBuf, ignore: &[String]) -> Result<
 /// # Panics
 /// When lexer fails or file issue
 pub fn lex(file: &PathBuf) {
-    let bytes = std::fs::read(file).expect("File should exist");
+    let bytes = std::fs::read_to_string(file).expect("File should exist");
     let tokens = ast::lexer::lex(&bytes).expect("Ok to cratch if fail");
     eprintln!("{tokens:?}");
 }
 /// # Panics
 /// When lexer fails or file issue
 pub fn lex_pos(file: &PathBuf, pos: usize) {
-    let bytes = std::fs::read(file).expect("File should exist");
+    let bytes = std::fs::read_to_string(file).expect("File should exist");
     let tokens = ast::lexer::lex(&bytes).expect("Ok to cratch if fail");
     eprintln!("{:?}", tokens[pos]);
 }
@@ -346,4 +341,68 @@ pub async fn index_jdk(variant: IndexJdkOptions) {
         IndexJdkOptions::JimageExecutable => test_load_jdk_modules_executable().await,
         IndexJdkOptions::Jmod => test_load_jdk_jmod().await,
     }
+}
+
+pub fn format_file(p: &PathBuf, exit: bool) {
+    match std::fs::read_to_string(p) {
+        Ok(data) => match ast::lexer::lex(&data) {
+            Ok(tokens) => match ast::parse_file(&tokens) {
+                Ok(ast) => {
+                    match formatter::format(&config::FormatterConfig::Internal, &ast, &data, "\t") {
+                        Ok(o) => {
+                            if let Err(e) = std::fs::write(p, o) {
+                                eprintln!("Here: {}", p.display());
+                                eprintln!("write error: {e:?}");
+                                if exit {
+                                    std::process::exit(4);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Here: {}", p.display());
+                            eprintln!("Format error: {e:?}");
+                            if exit {
+                                std::process::exit(3);
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Here: {}", p.display());
+                    eprintln!("Ast error: {e:?}");
+                    if exit {
+                        std::process::exit(3);
+                    }
+                }
+            },
+            Err(e) => {
+                eprintln!("Here: {}", p.display());
+                eprintln!("Lexer error: {e:?}");
+                if exit {
+                    std::process::exit(2);
+                }
+            }
+        },
+        Err(e) => {
+            eprintln!("unable to open file: {e:?}");
+            if exit {
+                std::process::exit(1);
+            }
+        }
+    }
+}
+
+pub fn format_dir(p: &PathBuf) {
+    let time = Instant::now();
+    let Ok(dir) = canonicalize(p) else {
+        return;
+    };
+    let mut dirs = std::collections::VecDeque::new();
+    dirs.push_back(dir);
+    while let Some(dir) = dirs.pop_front() {
+        if let Err(e) = visit_java_fies(&dir, &mut dirs, |i| format_file(i, false)) {
+            eprintln!("Error walking files: {e:?}");
+        }
+    }
+    println!("Formatted files. in: {:.2?}", time.elapsed());
 }

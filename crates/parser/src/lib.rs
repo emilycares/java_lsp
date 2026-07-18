@@ -6,14 +6,11 @@
 
 pub mod java;
 
-use std::path::Path;
-
 use ast::types::AstFile;
 use dto::{Class, SourceDestination};
+use my_string::MyString;
 
-pub fn update_project_java_file<T: AsRef<Path>>(file: T, ast: &AstFile) -> Class {
-    java::load_java_tree(
-        ast,
-        SourceDestination::Here(file.as_ref().to_str().unwrap_or_default().into()),
-    )
+#[must_use]
+pub fn update_project_java_file(file: MyString, ast: &AstFile) -> Class {
+    java::load_java_tree(ast, SourceDestination::Here(file))
 }

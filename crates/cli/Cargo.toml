@@ -10,8 +10,9 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
-memmap2.workspace = true
+config.workspace = true
 ast.workspace = true
+formatter.workspace = true
 jdk.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }
 

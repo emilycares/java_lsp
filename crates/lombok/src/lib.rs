@@ -426,7 +426,7 @@ mod tests {
 
     #[test]
     fn data() {
-        let content = br"package com.mycompany.app.dto;
+        let content = r"package com.mycompany.app.dto;
 import lombok.Data;
 @Data
 public class MyData {
@@ -902,7 +902,7 @@ public class MyData {
 
     #[test]
     fn constructor() {
-        let content = br"package com.mycompany.app.dto;
+        let content = r"package com.mycompany.app.dto;
 import lombok.AllArgsConstructor;
 
 

@@ -675,6 +675,9 @@ pub enum AstJTypeKind {
     Short,
     Boolean,
     Wildcard,
+    WildcardImplements(Box<AstJType>),
+    WildcardExtends(Box<AstJType>),
+    WildcardSuper(Box<AstJType>),
     Class(AstIdentifier),
     ClassOrPackage(AstIdentifier),
     Array(Box<AstJType>),
@@ -736,6 +739,9 @@ impl fmt::Display for AstJTypeKind {
                 write!(f, ".")?;
                 fmt::Display::fmt(&inner.value, f)
             }
+            Self::WildcardImplements(ast_jtype)
+            | Self::WildcardExtends(ast_jtype)
+            | Self::WildcardSuper(ast_jtype) => fmt::Display::fmt(&ast_jtype.value, f),
         }
     }
 }
@@ -964,13 +970,11 @@ pub struct AstInterfaceConstant {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AstInterfaceMethod {
     pub range: AstRange,
-    pub annotated: Vec<AstAnnotated>,
     pub header: AstMethodHeader,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AstInterfaceMethodDefault {
     pub range: AstRange,
-    pub annotated: Vec<AstAnnotated>,
     pub header: AstMethodHeader,
     pub block: AstBlock,
 }

@@ -39,8 +39,7 @@
           "type": "string",
           "enum": [
             "none",
-            "google",
-            "idea"
+            "internal"
           ],
           "default": "none",
           "description": "The formatter to use. (Formatter must be in PATH)"

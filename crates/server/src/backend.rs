@@ -13,7 +13,6 @@ use compile::CompileErrorMessage;
 use config::{Configuration, FormatterConfig};
 use document::{Document, DocumentError, get_class_path, open_document};
 use dto::Class;
-use formatter::{FormatError, FormatLineError};
 use gradle::project::get_gradle_cache_path;
 use lsp_extra::{SERVER_NAME, source_to_uri, to_ast_point};
 use lsp_server::{Connection, Message};
@@ -22,12 +21,12 @@ use lsp_types::{
     CodeLensParams, Command, CompletionItem, CompletionItemKind, CompletionList, CompletionParams,
     CompletionResponse, Diagnostic, DiagnosticSeverity, DidChangeTextDocumentParams,
     DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
-    DocumentFormattingParams, DocumentLink, DocumentLinkParams, DocumentSymbolParams,
-    DocumentSymbolResponse, ExecuteCommandParams, FoldingRange, GotoDefinitionParams,
-    GotoDefinitionResponse, Hover, HoverParams, InlayHint, InlayHintParams, InsertTextFormat,
-    Location, Position, ProgressParams, ProgressParamsValue, ProgressToken,
-    PublishDiagnosticsParams, Range, ReferenceParams, ShowDocumentParams, SignatureHelp,
-    SignatureHelpParams, TextEdit, Uri, WorkDoneProgress, WorkDoneProgressBegin,
+    DocumentFormattingParams, DocumentLink, DocumentLinkParams, DocumentOnTypeFormattingParams,
+    DocumentSymbolParams, DocumentSymbolResponse, ExecuteCommandParams, FoldingRange,
+    FormattingOptions, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams, InlayHint,
+    InlayHintParams, InsertTextFormat, Location, Position, ProgressParams, ProgressParamsValue,
+    ProgressToken, PublishDiagnosticsParams, Range, ReferenceParams, ShowDocumentParams,
+    SignatureHelp, SignatureHelpParams, TextEdit, Uri, WorkDoneProgress, WorkDoneProgressBegin,
     WorkDoneProgressEnd, WorkDoneProgressReport, WorkspaceFolder,
     notification::{Notification, Progress, PublishDiagnostics},
     request::{Request, ShowDocument},
@@ -427,31 +426,18 @@ impl Backend {
     }
 
     pub fn did_open(&self, params: &DidOpenTextDocumentParams) {
-        if !params
-            .text_document
-            .uri
-            .path()
-            .as_str()
-            .to_lowercase()
-            .ends_with(".java")
-        {
+        let dk = get_document_map_key(&params.text_document.uri);
+        if !dk.to_lowercase().ends_with(".java") {
             return;
         }
-        let path = params.text_document.uri.path();
-        let path_str = path.as_str();
 
         let mut current_file_diagnostics = Vec::new();
         self.compile_project_file(
             &params.text_document.uri,
-            path_str,
+            &dk,
             &mut current_file_diagnostics,
         );
-        let document_map_key = get_document_map_key(&params.text_document.uri);
-        match open_document(
-            &document_map_key,
-            &params.text_document.text,
-            &self.document_map,
-        ) {
+        match open_document(&dk, &params.text_document.text, &self.document_map) {
             Ok(()) => {}
             Err(DocumentError::Diagnostic(diag)) => {
                 current_file_diagnostics.push(*diag);
@@ -478,14 +464,8 @@ impl Backend {
     }
 
     pub fn did_change(&self, params: &DidChangeTextDocumentParams) {
-        if !params
-            .text_document
-            .uri
-            .path()
-            .as_str()
-            .to_lowercase()
-            .ends_with(".java")
-        {
+        let dk = get_document_map_key(&params.text_document.uri);
+        if !dk.to_lowercase().ends_with(".java") {
             return;
         }
 
@@ -493,9 +473,7 @@ impl Backend {
             eprintln!("document_map mutex poisoned");
             return;
         };
-        let Some(document) =
-            dm.get_mut(&get_document_map_key(&params.text_document.uri).to_smolstr())
-        else {
+        let Some(document) = dm.get_mut(&dk) else {
             eprintln!("on_change document not found");
             return;
         };
@@ -513,15 +491,14 @@ impl Backend {
     }
 
     pub fn did_save(&self, params: &DidSaveTextDocumentParams) {
-        let path = params.text_document.uri.path();
-        let path_str = path.as_str();
-        if !path_str.to_lowercase().ends_with(".java") {
+        let dk = get_document_map_key(&params.text_document.uri);
+        if !dk.to_lowercase().ends_with(".java") {
             return;
         }
         let mut current_file_diagnostics = Vec::new();
         self.compile_project_file(
             &params.text_document.uri,
-            path_str,
+            &dk,
             &mut current_file_diagnostics,
         );
 
@@ -529,14 +506,14 @@ impl Backend {
             eprintln!("document_map mutex poisoned");
             return;
         };
-        let Some(document) = dm.get(&get_document_map_key(&params.text_document.uri)) else {
+        let Some(document) = dm.get(&dk) else {
             eprintln!("on_change document not found");
             return;
         };
         if let Err(DocumentError::Diagnostic(diag)) = document.reparse_no_change() {
             current_file_diagnostics.push(*diag);
         }
-        let class = parser::update_project_java_file(PathBuf::from(path.as_str()), &document.ast);
+        let class = parser::update_project_java_file(dk, &document.ast);
         let class_path = class.class_path.clone();
         match references::reference_update_class(&class, &self.class_map, &self.reference_map) {
             Ok(()) => {}
@@ -570,24 +547,16 @@ impl Backend {
         }
     }
 
-    pub fn hover(&self, params: HoverParams) -> Option<Hover> {
-        if !params
-            .text_document_position_params
-            .text_document
-            .uri
-            .path()
-            .as_str()
-            .to_lowercase()
-            .ends_with(".java")
-        {
+    pub fn hover(&self, params: &HoverParams) -> Option<Hover> {
+        let dk = get_document_map_key(&params.text_document_position_params.text_document.uri);
+        if !dk.to_lowercase().ends_with(".java") {
             return None;
         }
-        let uri = params.text_document_position_params.text_document.uri;
         let Ok(dm) = self.document_map.read() else {
             eprintln!("document_map mutex poisoned");
             return None;
         };
-        let document = dm.get(&get_document_map_key(&uri).to_smolstr())?;
+        let document = dm.get(&dk)?;
         let point = to_ast_point(params.text_document_position_params.position);
         let imports = imports::imports(&document.ast);
 
@@ -619,63 +588,49 @@ impl Backend {
     }
 
     pub fn formatting(&self, params: DocumentFormattingParams) -> Option<Vec<TextEdit>> {
-        if !params
-            .text_document
-            .uri
-            .path()
-            .as_str()
-            .to_lowercase()
-            .ends_with(".java")
-        {
+        let uri = params.text_document.uri;
+        self.base_formatting(&params.options, &uri)
+    }
+
+    pub fn on_type_formatting(
+        &self,
+        params: DocumentOnTypeFormattingParams,
+    ) -> Option<Vec<TextEdit>> {
+        let uri = params.text_document_position.text_document.uri;
+        self.base_formatting(&params.options, &uri)
+    }
+
+    fn base_formatting(&self, options: &FormattingOptions, uri: &Uri) -> Option<Vec<TextEdit>> {
+        if !uri.path().as_str().to_lowercase().ends_with(".java") {
             return None;
         }
         if matches!(&self.config.formatter, config::FormatterConfig::None) {
             Configuration::missing("formatter");
             return None;
         }
-        let uri = params.text_document.uri;
         let Ok(mut dm) = self.document_map.write() else {
             eprintln!("document_map mutex poisoned");
             return None;
         };
-        let Some(document) = dm.get_mut(&get_document_map_key(&uri).to_smolstr()) else {
+        let Some(document) = dm.get_mut(&get_document_map_key(uri).to_smolstr()) else {
             eprintln!("Document is not opened.");
             return None;
         };
-        let lines = document.rope.lines().len();
-        let space = if params.options.insert_spaces {
-            " ".repeat(params.options.tab_size as usize)
+        let space = if options.insert_spaces {
+            " ".repeat(options.tab_size as usize)
         } else {
             "\t".to_string()
         };
-        let name = formatter::get_formatter_name(&self.config.formatter);
-        let project = self.get_project(&uri)?;
-        match formatter::format(
-            &self.config.formatter,
-            document.rope.to_string().as_bytes(),
-            &document.path,
-            PathBuf::from(project.dir).as_path(),
-            &space,
-        ) {
-            Ok(Some(o)) => {
+        let in_string = document.rope.to_string();
+        match formatter::format(&self.config.formatter, &document.ast, &in_string, &space) {
+            Ok(o) => {
                 let out = String::from_utf8_lossy(&o);
+                let lines = document.rope.lines().len();
                 let lines = u32::try_from(lines).unwrap_or_default();
                 Some(vec![TextEdit::new(
-                    Range::new(Position::new(0, 0), Position::new(lines - 1, 0)),
+                    Range::new(Position::new(0, 0), Position::new(lines, 0)),
                     out.to_string(),
                 )])
-            }
-            Ok(None) => None,
-            Err(FormatError::Diagnostic(errors)) => {
-                Self::send_diagnostic(
-                    &self.connection.clone(),
-                    uri,
-                    errors
-                        .into_iter()
-                        .map(|i| format_lines_to_diagnostic(i, name.clone()))
-                        .collect(),
-                );
-                None
             }
             Err(e) => {
                 eprintln!("Got formatter error {e:?}");
@@ -1154,14 +1109,8 @@ impl Backend {
                 "internal" => {
                     self.config.formatter = FormatterConfig::Internal;
                 }
-                "google" => {
-                    self.config.formatter = FormatterConfig::Google;
-                }
-                "idea" => {
-                    self.config.formatter = FormatterConfig::Idea;
-                }
                 _ => {
-                    eprintln!("Only formatters none and google and idea are supported");
+                    eprintln!("Only formatters none and internal are supported");
                 }
             }
         }
@@ -1192,9 +1141,8 @@ impl Backend {
             && let Some(wf) = workspace_folders
         {
             for w in wf {
-                let dir = w.uri.path().as_str().to_string();
-                #[cfg(target_os = "windows")]
-                let dir = dir.trim_start_matches('/').replacen("%3A", ":", 1);
+                let dir = get_document_map_key(&w.uri);
+
                 if projects.iter().any(|i| i.dir == dir) {
                     continue;
                 }
@@ -1425,28 +1373,5 @@ pub fn report_maven_gradle_diagnostic(
         && let Ok(uri) = source_to_uri(source)
     {
         Backend::send_diagnostic(con, uri, diagnostics);
-    }
-}
-
-fn format_lines_to_diagnostic(e: FormatLineError, formatter: String) -> Diagnostic {
-    Diagnostic {
-        range: Range {
-            start: Position {
-                line: e.line,
-                character: e.col,
-            },
-            end: Position {
-                line: e.line,
-                character: e.col,
-            },
-        },
-        severity: Some(DiagnosticSeverity::ERROR),
-        code: None,
-        code_description: None,
-        source: Some(formatter),
-        message: e.message,
-        related_information: None,
-        tags: None,
-        data: None,
     }
 }

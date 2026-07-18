@@ -226,13 +226,9 @@ fn cc_thing(thing: &AstThing, point: &AstPoint, out: &mut Vec<CallItem>) {
             ast_interface
                 .default_methods
                 .iter()
-                .filter(|i| i.range.is_in_range(point))
+                .filter(|i| i.block.range.is_in_range(point))
                 .for_each(|i| {
-                    if i.block.range.is_in_range(point) {
-                        cc_block(&i.block, point, out);
-                    } else {
-                        cc_annotated(&i.annotated, point, out);
-                    }
+                    cc_block(&i.block, point, out);
                 });
 
             ast_interface
@@ -315,7 +311,6 @@ fn cc_interface_method(method: &AstInterfaceMethod, point: &AstPoint, out: &mut 
     if !method.range.is_in_range(point) {
         return;
     }
-    cc_annotated(&method.annotated, point, out);
     cc_method_header(&method.header, point, out);
 }
 fn cc_method_header(method_header: &AstMethodHeader, point: &AstPoint, out: &mut Vec<CallItem>) {
@@ -1081,7 +1076,10 @@ fn cc_jtype(jtype: &AstJType, out: &mut Vec<CallItem>) {
                 name: ast_identifier.value.clone(),
                 range: jtype.range,
             }),
-        AstJTypeKind::Array(ast_jtype) => cc_jtype(ast_jtype, out),
+        AstJTypeKind::Array(ast_jtype)
+        | AstJTypeKind::WildcardImplements(ast_jtype)
+        | AstJTypeKind::WildcardExtends(ast_jtype)
+        | AstJTypeKind::WildcardSuper(ast_jtype) => cc_jtype(ast_jtype, out),
         AstJTypeKind::Generic(ast_identifier, _ast_jtypes) => out.push(CallItem::Class {
             name: ast_identifier.value.clone(),
             range: jtype.range,
@@ -1123,6 +1121,9 @@ fn cc_jtype_not_sure_class(jtype: &AstJType, out: &mut Vec<CallItem>) {
             cc_jtype_not_sure_class(base, out);
             cc_jtype_not_sure_class(inner, out);
         }
+        AstJTypeKind::WildcardImplements(ast_jtype)
+        | AstJTypeKind::WildcardExtends(ast_jtype)
+        | AstJTypeKind::WildcardSuper(ast_jtype) => cc_jtype_not_sure_class(ast_jtype, out),
     }
 }
 

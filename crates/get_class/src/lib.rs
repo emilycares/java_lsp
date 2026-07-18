@@ -1018,7 +1018,10 @@ fn get_class_jtype(jtype: &AstJType, point: &AstPoint) -> Option<FoundClass> {
                 range: ast_identifier.range,
             })
         }
-        AstJTypeKind::Array(ast_jtype) => get_class_jtype(ast_jtype, point),
+        AstJTypeKind::Array(ast_jtype)
+        | AstJTypeKind::WildcardImplements(ast_jtype)
+        | AstJTypeKind::WildcardExtends(ast_jtype)
+        | AstJTypeKind::WildcardSuper(ast_jtype) => get_class_jtype(ast_jtype, point),
         AstJTypeKind::Generic(ast_identifier, ast_jtypes) => {
             if let Some(value) = get_class_identifier(ast_identifier, point) {
                 return Some(value);

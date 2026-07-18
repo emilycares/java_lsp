@@ -614,7 +614,7 @@ pub fn parse_value_nuget(
                         }
                         _ => {
                             return Ok((
-                                AstValue::Nuget(AstValueNuget::Float(AstDouble {
+                                AstValue::Nuget(AstValueNuget::Double(AstDouble {
                                     range: AstRange::from_position_token(start, start),
                                     value,
                                 })),
@@ -1725,9 +1725,8 @@ fn parse_block_assign(
 fn parse_method_header(
     tokens: &[PositionToken],
     pos: usize,
-    default_availability: AstAvailability,
 ) -> Result<(AstMethodHeader, usize), AstError> {
-    let mut availability = default_availability;
+    let mut availability = AstAvailability::empty();
     let mut type_parameters = None;
     let start = tokens.start(pos)?;
     let mut annotated = Vec::new();
@@ -1749,6 +1748,7 @@ fn parse_method_header(
                 pos = npos;
                 continue;
             }
+            Token::Default => (),
             _ => break,
         }
         pos += 1;
@@ -1810,9 +1810,8 @@ fn parse_array_type_on_name(tokens: &[PositionToken], pos: usize, jtype: &mut As
 fn parse_constructor_header(
     tokens: &[PositionToken],
     pos: usize,
-    default_availability: AstAvailability,
 ) -> Result<(AstConstructorHeader, usize), AstError> {
-    let mut availability = default_availability;
+    let mut availability = AstAvailability::empty();
     let mut type_parameters = None;
     let start = tokens.start(pos)?;
     let mut annotated = Vec::new();
@@ -3405,8 +3404,7 @@ fn parse_supper_class_inner(
     let (jtype, pos) = parse_jtype(tokens, pos)?;
     let sp = match jtype.value {
         AstJTypeKind::Class(c) => AstSuperClass::Name(c),
-        AstJTypeKind::Generic(_, _) | AstJTypeKind::Access { .. } => AstSuperClass::JType(jtype),
-        _ => AstSuperClass::None,
+        _ => AstSuperClass::JType(jtype),
     };
     Ok((sp, pos))
 }
@@ -3600,19 +3598,26 @@ fn parse_jtype_generics(
         if let Ok(npos) = assert_token(tokens, pos, Token::QuestionMark) {
             let start = tokens.get(pos).ok_or_else(AstError::eof)?;
             pos = npos;
+            let mut value = AstJTypeKind::Wildcard;
 
             if let Ok(npos) = assert_token(tokens, npos, Token::Implements) {
+                let (jtype, npos) = parse_jtype(tokens, npos)?;
                 pos = npos;
+                value = AstJTypeKind::WildcardImplements(Box::new(jtype));
             } else if let Ok(npos) = assert_token(tokens, npos, Token::Extends) {
+                let (jtype, npos) = parse_jtype(tokens, npos)?;
                 pos = npos;
+                value = AstJTypeKind::WildcardExtends(Box::new(jtype));
             } else if let Ok(npos) = assert_token(tokens, npos, Token::Super) {
+                let (jtype, npos) = parse_jtype(tokens, npos)?;
                 pos = npos;
+                value = AstJTypeKind::WildcardSuper(Box::new(jtype));
             }
             let end = tokens.get(pos).ok_or_else(AstError::eof)?;
             generic_arguments.push(AstJType {
                 annotated: Vec::new(),
                 range: AstRange::from_position_token(start, end),
-                value: AstJTypeKind::Wildcard,
+                value,
             });
             continue;
         }
@@ -3649,7 +3654,21 @@ fn parse_primitive_type(
         Token::Float => Ok((AstJTypeKind::Float, pos + 1)),
         Token::Boolean => Ok((AstJTypeKind::Boolean, pos + 1)),
         Token::Void => Ok((AstJTypeKind::Void, pos + 1)),
-        Token::QuestionMark => Ok((AstJTypeKind::Wildcard, pos + 1)),
+        Token::QuestionMark => {
+            let npos = pos + 1;
+            if let Ok(npos) = assert_token(tokens, npos, Token::Implements) {
+                let (jtype, npos) = parse_jtype(tokens, npos)?;
+                Ok((AstJTypeKind::WildcardImplements(Box::new(jtype)), npos))
+            } else if let Ok(npos) = assert_token(tokens, npos, Token::Extends) {
+                let (jtype, npos) = parse_jtype(tokens, npos)?;
+                Ok((AstJTypeKind::WildcardExtends(Box::new(jtype)), npos))
+            } else if let Ok(npos) = assert_token(tokens, npos, Token::Super) {
+                let (jtype, npos) = parse_jtype(tokens, npos)?;
+                Ok((AstJTypeKind::WildcardSuper(Box::new(jtype)), npos))
+            } else {
+                Ok((AstJTypeKind::Wildcard, npos))
+            }
+        }
         Token::Var => Ok((AstJTypeKind::Var, pos + 1)),
         _ => Err(AstError::InvalidJtype(InvalidToken(pos))),
     }

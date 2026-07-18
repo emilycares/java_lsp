@@ -211,7 +211,7 @@ pub mod tests {
 
     #[test]
     fn base() {
-        let tokens = ast::lexer::lex(include_bytes!("../../parser/test/Everything.java")).unwrap();
+        let tokens = ast::lexer::lex(include_str!("../../parser/test/Everything.java")).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         let mut out = Vec::new();
         super::fold(&ast, &mut out).unwrap();
