@@ -13,8 +13,7 @@ use enumeration::parse_enumeration;
 use error::{AstError, ExpectedToken, InvalidToken, assert_semicolon, assert_token};
 use interface::parse_interface;
 use lexer::{PositionToken, Token};
-use my_string::smol_str::ToSmolStr;
-use my_string::smol_str::{SmolStr, SmolStrBuilder, format_smolstr};
+use my_string::{NuVec, NuVecBuilder};
 use types::{
     AstAnnotated, AstAvailability, AstBaseExpression, AstBlock, AstBlockAssign, AstBlockBreak,
     AstBlockContinue, AstBlockEntry, AstBlockExpression, AstBlockReturn, AstBlockVariable,
@@ -70,7 +69,7 @@ pub fn parse_file(tokens: &[PositionToken]) -> Result<AstFile, AstError> {
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("semicolon"), e));
+                errors.push((NuVec::new_static(b"semicolon"), e));
             }
         }
         match parse_package(tokens, pos) {
@@ -80,7 +79,7 @@ pub fn parse_file(tokens: &[PositionToken]) -> Result<AstFile, AstError> {
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("package"), e));
+                errors.push((NuVec::new_static(b"package"), e));
             }
         }
         match parse_import(tokens, pos) {
@@ -90,7 +89,7 @@ pub fn parse_file(tokens: &[PositionToken]) -> Result<AstFile, AstError> {
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("import"), e));
+                errors.push((NuVec::new_static(b"import"), e));
             }
         }
         match parse_thing(tokens, pos) {
@@ -100,7 +99,7 @@ pub fn parse_file(tokens: &[PositionToken]) -> Result<AstFile, AstError> {
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("thing"), e));
+                errors.push((NuVec::new_static(b"thing"), e));
             }
         }
         match parse_class_method(tokens, pos) {
@@ -110,7 +109,7 @@ pub fn parse_file(tokens: &[PositionToken]) -> Result<AstFile, AstError> {
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("method"), e));
+                errors.push((NuVec::new_static(b"method"), e));
             }
         }
         match parse_module(tokens, pos) {
@@ -120,11 +119,11 @@ pub fn parse_file(tokens: &[PositionToken]) -> Result<AstFile, AstError> {
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("module"), e));
+                errors.push((NuVec::new_static(b"module"), e));
             }
         }
         return Err(AstError::AllChildrenFailed {
-            parent: SmolStr::new_inline("file"),
+            parent: NuVec::new_static(b"file"),
             errors,
         });
     }
@@ -187,9 +186,16 @@ fn parse_import(tokens: &[PositionToken], pos: usize) -> Result<(AstImport, usiz
             range: AstRange::from_position_token(start, end),
             unit: match (is_static, prefix) {
                 (true, true) => AstImportUnit::StaticPrefix(ident),
-                (true, false) => match ident.value.rsplit_once('.') {
+                (true, false) => match ident.value.rsplit_once_byte(b'.') {
                     Some((class, method)) => {
-                        if method.chars().next().unwrap_or_default().is_lowercase() {
+                        if method
+                            .to_str()
+                            .chars()
+                            .next()
+                            .unwrap_or_default()
+                            .is_lowercase()
+                        {
+                            let class_len = class.len();
                             AstImportUnit::StaticClassMethod(
                                 AstIdentifier {
                                     range: AstRange {
@@ -199,17 +205,17 @@ fn parse_import(tokens: &[PositionToken], pos: usize) -> Result<(AstImport, usiz
                                             col: ident.range.end.col - method.len(),
                                         },
                                     },
-                                    value: class.into(),
+                                    value: class,
                                 },
                                 AstIdentifier {
                                     range: AstRange {
                                         start: AstPoint {
                                             line: ident.range.start.line,
-                                            col: ident.range.start.col + class.len(),
+                                            col: ident.range.start.col + class_len,
                                         },
                                         end: ident.range.end,
                                     },
-                                    value: method.into(),
+                                    value: method,
                                 },
                             )
                         } else {
@@ -318,7 +324,7 @@ pub fn parse_annotated(
                     pos = npos;
                     break 'parameters;
                 }
-                Err(e) => errors.push((SmolStr::new_inline("parameters"), e)),
+                Err(e) => errors.push((NuVec::new_static(b"parameters"), e)),
             }
             match parse_annotated_array(tokens, pos, &expression_options) {
                 Ok((array, npos)) => {
@@ -326,11 +332,11 @@ pub fn parse_annotated(
                     pos = npos;
                     break 'parameters;
                 }
-                Err(e) => errors.push((SmolStr::new_inline("array"), e)),
+                Err(e) => errors.push((NuVec::new_static(b"array"), e)),
             }
             if errors.len() == 2 {
                 return Err(AstError::AllChildrenFailed {
-                    parent: SmolStr::new_inline("annotated"),
+                    parent: NuVec::new_static(b"annotated"),
                     errors,
                 });
             }
@@ -366,7 +372,7 @@ pub fn parse_lambda(
                 break 'params;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("lambda parameter"), e));
+                errors.push((NuVec::new_static(b"lambda parameter"), e));
             }
         }
         match parse_name(tokens, pos) {
@@ -383,11 +389,11 @@ pub fn parse_lambda(
                 break 'params;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("lambda name"), e));
+                errors.push((NuVec::new_static(b"lambda name"), e));
             }
         }
         return Err(AstError::AllChildrenFailed {
-            parent: SmolStr::new_inline("lambda parameters"),
+            parent: NuVec::new_static(b"lambda parameters"),
             errors,
         });
     }
@@ -520,7 +526,7 @@ fn parse_array_with_annotated(
                 values.push(AstExpressionOrAnnotated::Annotated(an));
                 continue;
             }
-            Err(e) => errors.push((SmolStr::new_inline("annotated"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"annotated"), e)),
         }
         match parse_expression(tokens, pos, expression_options) {
             Ok((value, npos)) => {
@@ -528,10 +534,10 @@ fn parse_array_with_annotated(
                 values.push(AstExpressionOrAnnotated::Expression(value));
                 continue;
             }
-            Err(e) => errors.push((SmolStr::new_inline("expression"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"expression"), e)),
         }
         return Err(AstError::AllChildrenFailed {
-            parent: SmolStr::new_inline("array with annotated"),
+            parent: NuVec::new_static(b"array with annotated"),
             errors,
         });
     }
@@ -581,11 +587,16 @@ pub fn parse_value_nuget(
             if let Ok(pos) = assert_token(tokens, pos + 1, Token::Dot) {
                 let current = tokens.get(pos).ok_or_else(AstError::eof)?;
                 if let Token::Number(n) = &current.token {
-                    let value = format_smolstr!("{num}.{n}");
+                    let mut value = NuVecBuilder::new();
+                    value.extend(num);
+                    value.pusha(b".");
+                    value.extend(n);
+                    let value = value.finish();
+
                     let pos = pos + 1;
                     let current = tokens.get(pos).ok_or_else(AstError::eof)?;
                     match &current.token {
-                        Token::Identifier(val) if val.to_lowercase() == "d" => {
+                        Token::Identifier(val) if val == "d" || val == "D" => {
                             return Ok((
                                 AstValue::Nuget(AstValueNuget::Double(AstDouble {
                                     range: AstRange::from_position_token(start, start),
@@ -594,7 +605,7 @@ pub fn parse_value_nuget(
                                 pos + 1,
                             ));
                         }
-                        Token::Identifier(val) if val.to_lowercase() == "f" => {
+                        Token::Identifier(val) if val == "f" || val == "F" => {
                             return Ok((
                                 AstValue::Nuget(AstValueNuget::Float(AstDouble {
                                     range: AstRange::from_position_token(start, start),
@@ -603,7 +614,7 @@ pub fn parse_value_nuget(
                                 pos + 1,
                             ));
                         }
-                        Token::Identifier(val) if val.to_lowercase() == "l" => {
+                        Token::Identifier(val) if val == "l" || val == "L" => {
                             return Ok((
                                 AstValue::Nuget(AstValueNuget::Long(AstInt {
                                     range: AstRange::from_position_token(start, start),
@@ -625,7 +636,7 @@ pub fn parse_value_nuget(
                 }
             }
             if let Ok(npos) =
-                assert_token(tokens, pos + 1, Token::Identifier(SmolStr::new_inline("l")))
+                assert_token(tokens, pos + 1, Token::Identifier(NuVec::new_static(b"l")))
             {
                 return Ok((
                     AstValue::Nuget(AstValueNuget::Long(AstInt {
@@ -636,7 +647,7 @@ pub fn parse_value_nuget(
                 ));
             }
             if let Ok(npos) =
-                assert_token(tokens, pos + 1, Token::Identifier(SmolStr::new_inline("L")))
+                assert_token(tokens, pos + 1, Token::Identifier(NuVec::new_static(b"L")))
             {
                 return Ok((
                     AstValue::Nuget(AstValueNuget::Long(AstInt {
@@ -692,10 +703,8 @@ pub fn parse_string_literal(
             let end = tokens.end(pos)?;
             Ok((
                 AstValueNuget::StringLiteral {
-                    value: AstIdentifier {
-                        range: AstRange::from_position_token(start, end),
-                        value: str.clone(),
-                    },
+                    range: AstRange::from_position_token(start, end),
+                    value: str.clone(),
                     multi_line: false,
                 },
                 pos + 1,
@@ -705,10 +714,8 @@ pub fn parse_string_literal(
             let end = tokens.end(pos)?;
             Ok((
                 AstValueNuget::StringLiteral {
-                    value: AstIdentifier {
-                        range: AstRange::from_position_token(start, end),
-                        value: str.clone(),
-                    },
+                    range: AstRange::from_position_token(start, end),
+                    value: str.clone(),
                     multi_line: true,
                 },
                 pos + 1,
@@ -727,10 +734,10 @@ pub fn parse_char_literal(
         Token::CharLiteral(str) => {
             let end = tokens.end(pos)?;
             Ok((
-                AstValueNuget::CharLiteral(AstIdentifier {
+                AstValueNuget::CharLiteral {
                     range: AstRange::from_position_token(start, end),
                     value: str.clone(),
-                }),
+                },
                 pos + 1,
             ))
         }
@@ -949,7 +956,7 @@ fn parse_annotated_parameters(
                     });
                     continue;
                 }
-                Err(e) => errors.push((SmolStr::new_inline("annotated"), e)),
+                Err(e) => errors.push((NuVec::new_static(b"annotated"), e)),
             }
             match parse_expression(tokens, npos, expression_options) {
                 Ok((expression, npos)) => {
@@ -963,7 +970,7 @@ fn parse_annotated_parameters(
                     continue;
                 }
                 Err(e) => {
-                    errors.push((SmolStr::new_inline("named expression"), e));
+                    errors.push((NuVec::new_static(b"named expression"), e));
                 }
             }
             match parse_annotated(tokens, npos) {
@@ -978,11 +985,11 @@ fn parse_annotated_parameters(
                     continue;
                 }
                 Err(e) => {
-                    errors.push((SmolStr::new_inline("named annotated"), e));
+                    errors.push((NuVec::new_static(b"named annotated"), e));
                 }
             }
             return Err(AstError::AllChildrenFailed {
-                parent: SmolStr::new_inline("named annotation"),
+                parent: NuVec::new_static(b"named annotation"),
                 errors,
             });
         }
@@ -993,7 +1000,7 @@ fn parse_annotated_parameters(
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("expression"), e));
+                errors.push((NuVec::new_static(b"expression"), e));
             }
         }
         match parse_annotated(tokens, pos) {
@@ -1003,11 +1010,11 @@ fn parse_annotated_parameters(
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("annotated"), e));
+                errors.push((NuVec::new_static(b"annotated"), e));
             }
         }
         return Err(AstError::AllChildrenFailed {
-            parent: SmolStr::new_inline("annotated parameters"),
+            parent: NuVec::new_static(b"annotated parameters"),
             errors,
         });
     }
@@ -1084,7 +1091,7 @@ pub fn parse_new_class(
                 rhs = AstNewRhs::ArrayParameters(array_parameters);
             }
         }
-        Err(e) => errors.push((SmolStr::new_inline("array_parameters"), e)),
+        Err(e) => errors.push((NuVec::new_static(b"array_parameters"), e)),
     }
     let pstart = tokens.end(pos)?;
     match parse_expression_parameters(tokens, pos) {
@@ -1093,7 +1100,7 @@ pub fn parse_new_class(
             let pend = tokens.end(pos)?;
             rhs = AstNewRhs::Parameters(AstRange::from_position_token(pstart, pend), nrhs);
         }
-        Err(e) => errors.push((SmolStr::new_inline("expression_parameters"), e)),
+        Err(e) => errors.push((NuVec::new_static(b"expression_parameters"), e)),
     }
     if jtype.value.is_array() {
         match parse_array(tokens, pos, expression_options) {
@@ -1101,7 +1108,7 @@ pub fn parse_new_class(
                 pos = npos;
                 rhs = AstNewRhs::Array(nrhs);
             }
-            Err(e) => errors.push((SmolStr::new_inline("array"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"array"), e)),
         }
     } else {
         match parse_class_block(tokens, pos) {
@@ -1113,12 +1120,12 @@ pub fn parse_new_class(
                     rhs = AstNewRhs::Block(b);
                 }
             }
-            Err(e) => errors.push((SmolStr::new_inline("array"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"array"), e)),
         }
     }
     if matches!(rhs, AstNewRhs::None) {
         return Err(AstError::AllChildrenFailed {
-            parent: SmolStr::new_inline("new_class"),
+            parent: NuVec::new_static(b"new_class"),
             errors,
         });
     }
@@ -1192,25 +1199,25 @@ fn parse_expression_inner(
     match &current.token {
         Token::LeftParenCurly => match parse_array(tokens, pos, expression_options) {
             Ok((v, pos)) => return Ok((AstExpressionKind::Array(v), pos)),
-            Err(e) => errors.push((SmolStr::new_inline("array"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"array"), e)),
         },
         Token::Switch => match parse_switch(tokens, pos, expression_options) {
             Ok((casted, pos)) => {
                 return Ok((AstExpressionKind::InlineSwitch(casted), pos));
             }
-            Err(e) => errors.push((SmolStr::new_inline("inline switch"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"inline switch"), e)),
         },
         Token::New => match parse_new_class(tokens, pos, expression_options) {
             Ok((new, pos)) => return Ok((AstExpressionKind::NewClass(new), pos)),
-            Err(e) => errors.push((SmolStr::new_inline("new class"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"new class"), e)),
         },
         Token::Lt => match parse_jtype_generics(tokens, pos) {
             Ok((a, pos)) => return Ok((AstExpressionKind::Generics(a), pos)),
-            Err(e) => errors.push((SmolStr::new_inline("type generics"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"type generics"), e)),
         },
         Token::InstanceOf => match parse_instnceof(tokens, pos) {
             Ok((a, pos)) => return Ok((AstExpressionKind::InstanceOf(a), pos)),
-            Err(e) => errors.push((SmolStr::new_inline("instanceof"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"instanceof"), e)),
         },
         _ => (),
     }
@@ -1219,7 +1226,7 @@ fn parse_expression_inner(
             Ok((lambda, pos)) => {
                 return Ok((AstExpressionKind::Lambda(lambda), pos));
             }
-            Err(e) => errors.push((SmolStr::new_inline("lambda"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"lambda"), e)),
         }
     }
 
@@ -1227,10 +1234,10 @@ fn parse_expression_inner(
         Ok((exp, pos)) => {
             return Ok((AstExpressionKind::Base(exp), pos));
         }
-        Err(e) => errors.push((SmolStr::new_inline("base"), e)),
+        Err(e) => errors.push((NuVec::new_static(b"base"), e)),
     }
     Err(AstError::AllChildrenFailed {
-        parent: SmolStr::new_inline("expression"),
+        parent: NuVec::new_static(b"expression"),
         errors,
     })
 }
@@ -1356,7 +1363,7 @@ pub fn parse_base_expression(
                         out.operator = op;
                         break 'others;
                     }
-                    Err(e) => errors.push((SmolStr::new_inline("operator"), e)),
+                    Err(e) => errors.push((NuVec::new_static(b"operator"), e)),
                 }
                 match parse_value_nuget(tokens, pos) {
                     Ok((value, npos)) => {
@@ -1364,10 +1371,10 @@ pub fn parse_base_expression(
                         out.ident = Some(AstExpressionIdentifier::Value(value));
                         break 'others;
                     }
-                    Err(e) => errors.push((SmolStr::new_inline("value"), e)),
+                    Err(e) => errors.push((NuVec::new_static(b"value"), e)),
                 }
                 return Err(AstError::AllChildrenFailed {
-                    parent: SmolStr::new_inline("expression"),
+                    parent: NuVec::new_static(b"expression"),
                     errors,
                 });
             }
@@ -1390,7 +1397,7 @@ fn parse_expression_lhs(
                 Ok((
                     AstIdentifier {
                         range: AstRange::from_position_token(start, start),
-                        value: SmolStr::new_inline("class"),
+                        value: NuVec::new_static(b"class"),
                     },
                     pos + 1,
                 ))
@@ -1400,7 +1407,7 @@ fn parse_expression_lhs(
                 Ok((
                     AstIdentifier {
                         range: AstRange::from_position_token(start, start),
-                        value: SmolStr::new_inline("this"),
+                        value: NuVec::new_static(b"this"),
                     },
                     pos + 1,
                 ))
@@ -1410,7 +1417,7 @@ fn parse_expression_lhs(
                 Ok((
                     AstIdentifier {
                         range: AstRange::from_position_token(start, start),
-                        value: SmolStr::new_inline("new"),
+                        value: NuVec::new_static(b"new"),
                     },
                     pos + 1,
                 ))
@@ -2040,7 +2047,7 @@ fn parse_block_entry_options(
                 return Ok((AstBlockEntry::Return(nret), pos));
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("block return"), e));
+                errors.push((NuVec::new_static(b"block return"), e));
             }
         },
         Token::Yield => match parse_block_yield(tokens, pos) {
@@ -2048,7 +2055,7 @@ fn parse_block_entry_options(
                 return Ok((AstBlockEntry::Yield(nret), pos));
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("block yield"), e));
+                errors.push((NuVec::new_static(b"block yield"), e));
             }
         },
         Token::Break => match parse_block_break(tokens, pos) {
@@ -2056,7 +2063,7 @@ fn parse_block_entry_options(
                 return Ok((AstBlockEntry::Break(nret), pos));
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("block break"), e));
+                errors.push((NuVec::new_static(b"block break"), e));
             }
         },
         Token::Assert => match parse_block_assert(tokens, pos) {
@@ -2064,7 +2071,7 @@ fn parse_block_entry_options(
                 return Ok((AstBlockEntry::Assert(nret), pos));
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("block assert"), e));
+                errors.push((NuVec::new_static(b"block assert"), e));
             }
         },
         Token::Continue => match parse_block_continue(tokens, pos) {
@@ -2072,7 +2079,7 @@ fn parse_block_entry_options(
                 return Ok((AstBlockEntry::Continue(nret), pos));
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("block continue"), e));
+                errors.push((NuVec::new_static(b"block continue"), e));
             }
         },
         Token::If => match parse_if(tokens, pos) {
@@ -2080,7 +2087,7 @@ fn parse_block_entry_options(
                 return Ok((AstBlockEntry::If(nret), pos));
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("block if"), e));
+                errors.push((NuVec::new_static(b"block if"), e));
             }
         },
         Token::Switch => match parse_switch(tokens, pos, &ExpressionOptions::empty()) {
@@ -2088,7 +2095,7 @@ fn parse_block_entry_options(
                 return Ok((AstBlockEntry::Switch(nret), pos));
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("block switch"), e));
+                errors.push((NuVec::new_static(b"block switch"), e));
             }
         },
         Token::Try => match parse_try_catch(tokens, pos) {
@@ -2096,7 +2103,7 @@ fn parse_block_entry_options(
                 return Ok((AstBlockEntry::TryCatch(nret), pos));
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("block try catch"), e));
+                errors.push((NuVec::new_static(b"block try catch"), e));
             }
         },
         Token::Throw => match parse_throw(tokens, pos) {
@@ -2104,7 +2111,7 @@ fn parse_block_entry_options(
                 return Ok((AstBlockEntry::Throw(nret), pos));
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("block throw"), e));
+                errors.push((NuVec::new_static(b"block throw"), e));
             }
         },
         Token::Synchronized => match parse_synchronised_block(tokens, pos) {
@@ -2112,7 +2119,7 @@ fn parse_block_entry_options(
                 return Ok((AstBlockEntry::SynchronizedBlock(synchronized_block), pos));
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("static block"), e));
+                errors.push((NuVec::new_static(b"static block"), e));
             }
         },
         Token::Else => {
@@ -2121,7 +2128,7 @@ fn parse_block_entry_options(
                     return Ok((AstBlockEntry::If(nret), pos));
                 }
                 Err(e) => {
-                    errors.push((SmolStr::new_inline("block if"), e));
+                    errors.push((NuVec::new_static(b"block if"), e));
                 }
             }
             match parse_else(tokens, pos) {
@@ -2129,7 +2136,7 @@ fn parse_block_entry_options(
                     return Ok((AstBlockEntry::If(nret), pos));
                 }
                 Err(e) => {
-                    errors.push((SmolStr::new_inline("block if"), e));
+                    errors.push((NuVec::new_static(b"block if"), e));
                 }
             }
         }
@@ -2140,7 +2147,7 @@ fn parse_block_entry_options(
             return Ok((AstBlockEntry::InlineBlock(block), pos));
         }
         Err(e) => {
-            errors.push((SmolStr::new_inline("block block"), e));
+            errors.push((NuVec::new_static(b"block block"), e));
         }
     }
     match parse_block_variable_options(tokens, pos, block_entry_options) {
@@ -2148,7 +2155,7 @@ fn parse_block_entry_options(
             return Ok((AstBlockEntry::Variable(vars), pos));
         }
         Err(e) => {
-            errors.push((SmolStr::new_inline("block variable"), e));
+            errors.push((NuVec::new_static(b"block variable"), e));
         }
     }
     match parse_while(tokens, pos) {
@@ -2156,7 +2163,7 @@ fn parse_block_entry_options(
             return Ok((AstBlockEntry::While(nret), pos));
         }
         Err(e) => {
-            errors.push((SmolStr::new_inline("block while"), e));
+            errors.push((NuVec::new_static(b"block while"), e));
         }
     }
     match parse_do_while(tokens, pos) {
@@ -2164,7 +2171,7 @@ fn parse_block_entry_options(
             return Ok((AstBlockEntry::While(nret), pos));
         }
         Err(e) => {
-            errors.push((SmolStr::new_inline("block do while"), e));
+            errors.push((NuVec::new_static(b"block do while"), e));
         }
     }
     match parse_for(tokens, pos) {
@@ -2172,7 +2179,7 @@ fn parse_block_entry_options(
             return Ok((AstBlockEntry::For(Box::new(nret)), pos));
         }
         Err(e) => {
-            errors.push((SmolStr::new_inline("block for"), e));
+            errors.push((NuVec::new_static(b"block for"), e));
         }
     }
     match parse_for_enhanced(tokens, pos) {
@@ -2180,7 +2187,7 @@ fn parse_block_entry_options(
             return Ok((AstBlockEntry::ForEnhanced(Box::new(nret)), pos));
         }
         Err(e) => {
-            errors.push((SmolStr::new_inline("block for enhanced"), e));
+            errors.push((NuVec::new_static(b"block for enhanced"), e));
         }
     }
     match parse_switch_case(tokens, pos) {
@@ -2188,7 +2195,7 @@ fn parse_block_entry_options(
             return Ok((AstBlockEntry::SwitchCase(nret), pos));
         }
         Err(e) => {
-            errors.push((SmolStr::new_inline("block switch case"), e));
+            errors.push((NuVec::new_static(b"block switch case"), e));
         }
     }
     match parse_switch_default(tokens, pos) {
@@ -2196,7 +2203,7 @@ fn parse_block_entry_options(
             return Ok((AstBlockEntry::SwitchDefault(nret), pos));
         }
         Err(e) => {
-            errors.push((SmolStr::new_inline("block switch default"), e));
+            errors.push((NuVec::new_static(b"block switch default"), e));
         }
     }
     match parse_switch_case_arrow_type(tokens, pos) {
@@ -2204,7 +2211,7 @@ fn parse_block_entry_options(
             return Ok((AstBlockEntry::SwitchCaseArrowType(nret), pos));
         }
         Err(e) => {
-            errors.push((SmolStr::new_inline("bl sw case ar ty"), e));
+            errors.push((NuVec::new_static(b"bl sw case ar ty"), e));
         }
     }
     match parse_switch_case_arrow_value(tokens, pos) {
@@ -2212,7 +2219,7 @@ fn parse_block_entry_options(
             return Ok((AstBlockEntry::SwitchCaseArrowValues(nret), pos));
         }
         Err(e) => {
-            errors.push((SmolStr::new_inline("block switch case arrow"), e));
+            errors.push((NuVec::new_static(b"block switch case arrow"), e));
         }
     }
     match parse_switch_case_arrow_default(tokens, pos) {
@@ -2220,7 +2227,7 @@ fn parse_block_entry_options(
             return Ok((AstBlockEntry::SwitchCaseArrowDefault(nret), pos));
         }
         Err(e) => {
-            errors.push((SmolStr::new_inline("block switch case arrow"), e));
+            errors.push((NuVec::new_static(b"block switch case arrow"), e));
         }
     }
     match parse_block_assign(tokens, pos, block_entry_options) {
@@ -2228,7 +2235,7 @@ fn parse_block_entry_options(
             return Ok((AstBlockEntry::Assign(Box::new(nret)), pos));
         }
         Err(e) => {
-            errors.push((SmolStr::new_inline("block assign"), e));
+            errors.push((NuVec::new_static(b"block assign"), e));
         }
     }
     match parse_thing(tokens, pos) {
@@ -2236,7 +2243,7 @@ fn parse_block_entry_options(
             return Ok((AstBlockEntry::Thing(Box::new(thing)), pos));
         }
         Err(e) => {
-            errors.push((SmolStr::new_inline("class thing"), e));
+            errors.push((NuVec::new_static(b"class thing"), e));
         }
     }
     match parse_block_expression_options(tokens, pos, block_entry_options) {
@@ -2244,11 +2251,11 @@ fn parse_block_entry_options(
             return Ok((AstBlockEntry::Expression(nret), pos));
         }
         Err(e) => {
-            errors.push((SmolStr::new_inline("block expression"), e));
+            errors.push((NuVec::new_static(b"block expression"), e));
         }
     }
     Err(AstError::AllChildrenFailed {
-        parent: SmolStr::new_inline("block"),
+        parent: NuVec::new_static(b"block"),
         errors,
     })
 }
@@ -2288,7 +2295,7 @@ fn parse_block_entry_minimal_options(
             return Ok((AstBlockEntry::Variable(variable), pos));
         }
         Err(e) => {
-            errors.push((SmolStr::new_inline("block variable"), e));
+            errors.push((NuVec::new_static(b"block variable"), e));
         }
     }
     match parse_block_assign(tokens, pos, block_entry_options) {
@@ -2296,7 +2303,7 @@ fn parse_block_entry_minimal_options(
             return Ok((AstBlockEntry::Assign(Box::new(nret)), pos));
         }
         Err(e) => {
-            errors.push((SmolStr::new_inline("block assign"), e));
+            errors.push((NuVec::new_static(b"block assign"), e));
         }
     }
     match parse_block_expression_options(tokens, pos, block_entry_options) {
@@ -2304,11 +2311,11 @@ fn parse_block_entry_minimal_options(
             return Ok((AstBlockEntry::Expression(nret), pos));
         }
         Err(e) => {
-            errors.push((SmolStr::new_inline("block expression"), e));
+            errors.push((NuVec::new_static(b"block expression"), e));
         }
     }
     Err(AstError::AllChildrenFailed {
-        parent: SmolStr::new_inline("block"),
+        parent: NuVec::new_static(b"block"),
         errors,
     })
 }
@@ -2335,7 +2342,7 @@ fn parse_while(tokens: &[PositionToken], pos: usize) -> Result<(AstWhile, usize)
                 pos = npos;
                 break 'while_content;
             }
-            Err(e) => errors.push((SmolStr::new_inline("semicolon"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"semicolon"), e)),
         }
         match parse_block(tokens, pos) {
             Ok((block, npos)) => {
@@ -2343,7 +2350,7 @@ fn parse_while(tokens: &[PositionToken], pos: usize) -> Result<(AstWhile, usize)
                 pos = npos;
                 break 'while_content;
             }
-            Err(e) => errors.push((SmolStr::new_inline("block"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"block"), e)),
         }
         match parse_block_entry(tokens, pos) {
             Ok((entry, npos)) => {
@@ -2351,10 +2358,10 @@ fn parse_while(tokens: &[PositionToken], pos: usize) -> Result<(AstWhile, usize)
                 pos = npos;
                 break 'while_content;
             }
-            Err(e) => errors.push((SmolStr::new_inline("block entry"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"block entry"), e)),
         }
         return Err(AstError::AllChildrenFailed {
-            parent: SmolStr::new_inline("while"),
+            parent: NuVec::new_static(b"while"),
             errors,
         });
     }
@@ -2389,7 +2396,7 @@ fn parse_do_while(tokens: &[PositionToken], pos: usize) -> Result<(AstWhile, usi
                 pos = npos;
                 break 'do_while_content;
             }
-            Err(e) => errors.push((SmolStr::new_inline("block"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"block"), e)),
         }
         match parse_block_entry(tokens, pos) {
             Ok((entry, npos)) => {
@@ -2397,10 +2404,10 @@ fn parse_do_while(tokens: &[PositionToken], pos: usize) -> Result<(AstWhile, usi
                 pos = npos;
                 break 'do_while_content;
             }
-            Err(e) => errors.push((SmolStr::new_inline("block entry"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"block entry"), e)),
         }
         return Err(AstError::AllChildrenFailed {
-            parent: SmolStr::new_inline("do while"),
+            parent: NuVec::new_static(b"do while"),
             errors,
         });
     }
@@ -2470,7 +2477,7 @@ pub fn parse_for(tokens: &[PositionToken], pos: usize) -> Result<(AstFor, usize)
                 pos = npos;
                 break 'for_content;
             }
-            Err(e) => errors.push((SmolStr::new_inline("semicolon"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"semicolon"), e)),
         }
         match parse_block(tokens, pos) {
             Ok((block, npos)) => {
@@ -2478,7 +2485,7 @@ pub fn parse_for(tokens: &[PositionToken], pos: usize) -> Result<(AstFor, usize)
                 pos = npos;
                 break 'for_content;
             }
-            Err(e) => errors.push((SmolStr::new_inline("block"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"block"), e)),
         }
         match parse_block_entry(tokens, pos) {
             Ok((entry, npos)) => {
@@ -2486,10 +2493,10 @@ pub fn parse_for(tokens: &[PositionToken], pos: usize) -> Result<(AstFor, usize)
                 pos = npos;
                 break 'for_content;
             }
-            Err(e) => errors.push((SmolStr::new_inline("block entry"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"block entry"), e)),
         }
         return Err(AstError::AllChildrenFailed {
-            parent: SmolStr::new_inline("for"),
+            parent: NuVec::new_static(b"for"),
             errors,
         });
     }
@@ -2734,7 +2741,7 @@ fn parse_for_enhanced(
                 pos = npos;
                 break 'for_content;
             }
-            Err(e) => errors.push((SmolStr::new_inline("block"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"block"), e)),
         }
         match parse_block_entry(tokens, pos) {
             Ok((entry, npos)) => {
@@ -2742,10 +2749,10 @@ fn parse_for_enhanced(
                 pos = npos;
                 break 'for_content;
             }
-            Err(e) => errors.push((SmolStr::new_inline("block entry"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"block entry"), e)),
         }
         return Err(AstError::AllChildrenFailed {
-            parent: SmolStr::new_inline("for"),
+            parent: NuVec::new_static(b"for"),
             errors,
         });
     }
@@ -2780,7 +2787,7 @@ fn parse_if(tokens: &[PositionToken], pos: usize) -> Result<(AstIf, usize), AstE
                 pos = npos;
                 break 'if_content;
             }
-            Err(e) => errors.push((SmolStr::new_inline("block"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"block"), e)),
         }
         match parse_block_entry(tokens, pos) {
             Ok((entry, npos)) => {
@@ -2788,10 +2795,10 @@ fn parse_if(tokens: &[PositionToken], pos: usize) -> Result<(AstIf, usize), AstE
                 pos = npos;
                 break 'if_content;
             }
-            Err(e) => errors.push((SmolStr::new_inline("block expression"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"block expression"), e)),
         }
         return Err(AstError::AllChildrenFailed {
-            parent: SmolStr::new_inline("if"),
+            parent: NuVec::new_static(b"if"),
             errors,
         });
     }
@@ -2825,7 +2832,7 @@ fn parse_else_if(tokens: &[PositionToken], pos: usize) -> Result<(AstIf, usize),
                 pos = npos;
                 break 'if_content;
             }
-            Err(e) => errors.push((SmolStr::new_inline("block"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"block"), e)),
         }
         match parse_block_entry(tokens, pos) {
             Ok((entry, npos)) => {
@@ -2833,10 +2840,10 @@ fn parse_else_if(tokens: &[PositionToken], pos: usize) -> Result<(AstIf, usize),
                 pos = npos;
                 break 'if_content;
             }
-            Err(e) => errors.push((SmolStr::new_inline("block entry"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"block entry"), e)),
         }
         return Err(AstError::AllChildrenFailed {
-            parent: SmolStr::new_inline("if"),
+            parent: NuVec::new_static(b"if"),
             errors,
         });
     }
@@ -2864,7 +2871,7 @@ fn parse_else(tokens: &[PositionToken], pos: usize) -> Result<(AstIf, usize), As
                 pos = npos;
                 break 'if_content;
             }
-            Err(e) => errors.push((SmolStr::new_inline("block"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"block"), e)),
         }
         match parse_block_entry(tokens, pos) {
             Ok((entry, npos)) => {
@@ -2872,10 +2879,10 @@ fn parse_else(tokens: &[PositionToken], pos: usize) -> Result<(AstIf, usize), As
                 pos = npos;
                 break 'if_content;
             }
-            Err(e) => errors.push((SmolStr::new_inline("block entry"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"block entry"), e)),
         }
         return Err(AstError::AllChildrenFailed {
-            parent: SmolStr::new_inline("if"),
+            parent: NuVec::new_static(b"if"),
             errors,
         });
     }
@@ -3168,7 +3175,7 @@ pub fn parse_name(
             pos += 1;
         }
         _ if can_be_ident(&start.token) => {
-            value = start.token.to_smolstr();
+            value = start.token.as_nuvec();
             pos += 1;
         }
         _ => {
@@ -3193,19 +3200,19 @@ pub fn parse_name_dot(
     let start = tokens.start(pos)?;
     let init_pos = pos;
     let mut pos = pos;
-    let mut ident = SmolStrBuilder::new();
+    let mut ident = NuVecBuilder::new();
     while let Ok(t) = tokens.get(pos).ok_or_else(AstError::eof) {
         match &t.token {
             Token::Identifier(id) => {
-                ident.push_str(id);
+                ident.extend(id);
                 pos += 1;
             }
             Token::Dot => {
-                ident.push('.');
+                ident.push(b'.');
                 pos += 1;
             }
             _ if can_be_ident(&start.token) => {
-                ident.push_str(&start.token.to_string());
+                ident.extend(&start.token.as_nuvec());
                 pos += 1;
             }
             _ => {
@@ -3236,14 +3243,14 @@ pub fn parse_name_dot_logical(
 ) -> Result<(AstIdentifier, usize), AstError> {
     let start = tokens.start(pos)?;
     let mut pos = pos;
-    let mut ident = SmolStrBuilder::new();
+    let mut ident = NuVecBuilder::new();
     let mut first = true;
     while let Ok(t) = tokens.get(pos).ok_or_else(AstError::eof) {
         match &t.token {
             Token::Identifier(id) => {
                 if first {
                     first = false;
-                    ident.push_str(id);
+                    ident.extend(id);
                     pos += 1;
                 } else if tokens
                     .get(pos - 1)
@@ -3251,7 +3258,7 @@ pub fn parse_name_dot_logical(
                     .map(|i| &i.token)
                     == Ok(&Token::Dot)
                 {
-                    ident.push_str(id);
+                    ident.extend(id);
                     pos += 1;
                 } else {
                     break;
@@ -3260,7 +3267,7 @@ pub fn parse_name_dot_logical(
             _ if can_be_ident(&t.token) => {
                 if first {
                     first = false;
-                    ident.push_str(&t.token.to_string());
+                    ident.extend(&t.token.as_nuvec());
                     pos += 1;
                 } else if tokens
                     .get(pos - 1)
@@ -3268,7 +3275,7 @@ pub fn parse_name_dot_logical(
                     .map(|i| &i.token)
                     == Ok(&Token::Dot)
                 {
-                    ident.push_str(&t.token.to_string());
+                    ident.extend(&t.token.as_nuvec());
                     pos += 1;
                 } else {
                     break;
@@ -3280,11 +3287,11 @@ pub fn parse_name_dot_logical(
                 };
                 match last.token {
                     Token::Identifier(_) => {
-                        ident.push('.');
+                        ident.push(b'.');
                         pos += 1;
                     }
                     _ if can_be_ident(&last.token) => {
-                        ident.push('.');
+                        ident.push(b'.');
                         pos += 1;
                     }
                     _ => break,
@@ -3323,7 +3330,7 @@ pub fn parse_name_single(
             pos += 1;
         }
         _ if can_be_name(&t.token) => {
-            value = t.token.to_smolstr();
+            value = t.token.as_nuvec();
             pos += 1;
         }
         _ => {
@@ -3347,19 +3354,19 @@ fn parse_identifier(
 ) -> Result<(AstIdentifier, usize), AstError> {
     let start = tokens.start(pos)?;
     let mut pos = pos;
-    let mut ident = SmolStrBuilder::new();
+    let mut ident = NuVecBuilder::new();
     let mut modded = false;
     loop {
         let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match &t.token {
             Token::Identifier(id) => {
                 modded = true;
-                ident.push_str(id);
+                ident.extend(id);
                 pos += 1;
             }
             Token::Dot => {
                 modded = true;
-                ident.push('.');
+                ident.push(b'.');
                 pos += 1;
             }
             _ => break,

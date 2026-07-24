@@ -17,7 +17,7 @@ use lsp_extra::SERVER_NAME;
 use lsp_server::Connection;
 use lsp_types::{Diagnostic, DiagnosticSeverity, NumberOrString, ProgressToken, Range};
 use maven::{tree::MavenTreeError, update};
-use my_string::MyString;
+use my_string::NuVec;
 use serde_json::Value;
 use tokio::task::JoinSet;
 
@@ -42,7 +42,7 @@ pub const COMMAND_RELOAD_DEPENDENCIES: &str = "ReloadDependencies";
 pub fn reload_dependencies(
     con: Arc<Connection>,
     progress: Option<ProgressToken>,
-    class_map: Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: Arc<RwLock<HashMap<NuVec, Class>>>,
     projects: &Arc<RwLock<Vec<Project>>>,
 ) -> Option<serde_json::Value> {
     let project_artifacts = projects.read().map_or_else(
@@ -89,7 +89,7 @@ pub fn reload_dependencies(
 pub fn reload_maven_project(
     con: &Arc<Connection>,
     progress: Arc<Option<ProgressToken>>,
-    class_map: &Arc<RwLock<HashMap<my_string::smol_str::SmolStr, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
     handles: &mut JoinSet<()>,
     project_artifacts: &Arc<Vec<String>>,
     p: &Project,
@@ -126,7 +126,7 @@ pub fn reload_maven_project(
 /// Does not use a cache
 pub fn reload_gradle_project(
     con: &Arc<Connection>,
-    class_map: &Arc<RwLock<HashMap<my_string::smol_str::SmolStr, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
     project_dir: &Path,
     executable: String,
     handles: &mut JoinSet<()>,
@@ -217,7 +217,7 @@ pub const COMMAND_UPDATE_DEPENDENCIES: &str = "UpdateDependencies";
 pub fn update_dependencies(
     con: Arc<Connection>,
     progress: Option<ProgressToken>,
-    class_map: Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: Arc<RwLock<HashMap<NuVec, Class>>>,
     projects: &Arc<RwLock<Vec<Project>>>,
 ) {
     let Ok(projs) = projects.read() else {
@@ -261,7 +261,7 @@ pub fn update_dependencies_maven(
     con: &Arc<Connection>,
     progress: Arc<Option<ProgressToken>>,
     project_kind: &ProjectKind,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
     project_dir: &Path,
     project_artifacts: &Arc<Vec<String>>,
     handles: &mut JoinSet<()>,
@@ -432,7 +432,7 @@ pub fn cmd(
         let mut path = temp.join(format!("{}_{cmd_str}", now.as_secs()));
         path.set_extension("log");
         if let Some(p) = path.to_str() {
-            Backend::open_log(con, p);
+            Backend::open_log(con, &NuVec::new(p.as_bytes()));
         }
         File::create(&path).map_err(CommandError::FileCreate)?;
         std::fs::write(&path, out.stderr).map_err(CommandError::WriteFile)?;

@@ -8,14 +8,11 @@ use ast::{
         AstTypeParameter, AstTypeParameters,
     },
 };
-use my_string::{
-    MyString,
-    smol_str::{SmolStr, SmolStrBuilder},
-};
 
 use dto::{
     Access, Class, Field, ImportUnit, JType, Method, Parameter, SourceDestination, SuperClass,
 };
+use my_string::{NuVec, NuVecBuilder};
 
 #[derive(Debug)]
 pub enum ParseJavaError {
@@ -37,8 +34,8 @@ fn preprocessor(ast: AstFile) -> AstFile {
 pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
     let mut methods: Vec<Method> = vec![];
     let mut fields: Vec<Field> = vec![];
-    let mut class_path_base: MyString = MyString::new("");
-    let mut name = SmolStr::new("");
+    let mut class_path_base: NuVec = NuVec::new_static(b"");
+    let mut name = NuVec::new_static(b"");
     let mut super_class = SuperClass::None;
     let mut super_interfaces = vec![];
     let mut imports: Vec<ImportUnit> = Vec::new();
@@ -154,10 +151,10 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
             AstTopLevel::Module(_) => (),
         }
     }
-    let mut class_path = SmolStrBuilder::new();
-    class_path.push_str(&class_path_base);
-    class_path.push('.');
-    class_path.push_str(&name);
+    let mut class_path = NuVecBuilder::new();
+    class_path.extend(&class_path_base);
+    class_path.push(b'.');
+    class_path.extend(&name);
     let class_path = class_path.finish();
 
     Class {

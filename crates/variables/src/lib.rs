@@ -22,14 +22,14 @@ use ast::{
 };
 use dto::{Class, ImportUnit, JType};
 use local_variable::{LocalVariable, VarFlags};
-use my_string::MyString;
+use my_string::NuVec;
 use tyres::{ResolveState, TyresError};
 
 pub struct VariableContext<'a> {
     pub point: Option<AstPoint>,
     pub imports: &'a [ImportUnit],
     pub class: &'a Class,
-    pub class_map: Arc<RwLock<HashMap<MyString, Class>>>,
+    pub class_map: Arc<RwLock<HashMap<NuVec, Class>>>,
 }
 
 #[derive(Debug)]
@@ -717,27 +717,27 @@ pub mod tests {
     use ast::{error::PrintErr, types::AstPoint};
     use dto::{Access, Class};
     use expect_test::expect;
-    use my_string::{MyString, smol_str::SmolStr};
+    use my_string::NuVec;
 
     use crate::{VariableContext, get_vars};
 
-    fn get_class_map() -> Arc<RwLock<HashMap<MyString, Class>>> {
-        let mut class_map: HashMap<MyString, Class> = HashMap::new();
+    fn get_class_map() -> Arc<RwLock<HashMap<NuVec, Class>>> {
+        let mut class_map: HashMap<NuVec, Class> = HashMap::new();
         class_map.insert(
-            SmolStr::new_inline("java.lang.Integer"),
+            NuVec::new_static(b"java.lang.Integer"),
             Class {
                 access: Access::Public,
-                name: SmolStr::new_inline("Integer"),
+                name: NuVec::new_static(b"Integer"),
                 ..Default::default()
             },
         );
         // class_map.insert(
-        //     SmolStr::new_inline("java.lang.Thing"),
+        //     NuVec::new_static(b"java.lang.Thing"),
         //     Class {
         //         access: Access::Public,
-        //         name: SmolStr::new_inline("Thing"),
+        //         name: NuVec::new_static(b"Thing"),
         //         methods: vec![Method {
-        //             name: Some(SmolStr::new_inline("dothing")),
+        //             name: Some(NuVec::new_static(b"dothing")),
         //             parameters: vec![Parameter {
         //                 name: None,
         //                 jtype: todo!(),

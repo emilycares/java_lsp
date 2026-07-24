@@ -5,16 +5,11 @@
 //! A minimal class file parser.
 //! Skips parsing data not used by `java_lsp`
 
-use std::str::from_utf8;
-
 use dto::{
     Access, Class, ClassParserError, ClassSignature, ImportUnit, JType, Parameter,
     SourceDestination, SuperClass,
 };
-use my_string::{
-    MyString,
-    smol_str::{SmolStr, SmolStrBuilder, StrExt, ToSmolStr},
-};
+use my_string::{NuVec, NuVecBuilder};
 
 const U8_LEN: usize = 1;
 const U16_LEN: usize = 2;
@@ -23,7 +18,7 @@ const U64_LEN: usize = 8;
 
 pub fn load_class(
     data: &[u8],
-    class_path: MyString,
+    class_path: NuVec,
     source: SourceDestination,
     filter: bool,
 ) -> Result<Class, ClassParserError> {
@@ -52,7 +47,7 @@ pub fn load_class(
             let info = a.lookup(data)?;
             let (sig, _) = get_u16(info, 0)?;
             let sig = lookup_string(&c, sig)?;
-            let (sig, _) = parse_class_signature_info(sig)?;
+            let (sig, _) = parse_class_signature_info(&sig)?;
             class_signature = Some(sig);
         } else if attribute_name == "Code" {
             let info = a.lookup(data)?;
@@ -67,11 +62,11 @@ pub fn load_class(
             let info = a.lookup(data)?;
             let (name, _) = get_u16(info, 0)?;
             let name = lookup_string(&c, name)?;
-            if !name.to_lowercase().ends_with(".java")
-                && let Some((_, l)) = name.split_once('.')
+            if !name.to_lowercase().ends_with(b".java")
+                && let Some((_, l)) = name.split_once_byte(b'.')
                 && let SourceDestination::RelativeInFolder(r) = source
             {
-                source = SourceDestination::RelativeInFolderLang(r, l.to_smolstr());
+                source = SourceDestination::RelativeInFolderLang(r, l);
             }
         }
     }
@@ -107,9 +102,9 @@ pub fn load_class(
     }
 
     let package = class_path
-        .trim_end_matches(name.as_str())
-        .trim_end_matches('.');
-    let mut imports = vec![ImportUnit::Package(package.into())];
+        .trim_end_matches(name.as_bytes())
+        .trim_end_matches_byte(b'.');
+    let mut imports = vec![ImportUnit::Package(package)];
     imports.extend(
         used_classes
             .into_iter()
@@ -123,7 +118,7 @@ pub fn load_class(
         .filter(|i| i != &&0)
         .map(|index| {
             lookup_string(&c, *index).map_or(SuperClass::None, |i| {
-                SuperClass::ClassPath(i.replace_smolstr("/", "."))
+                SuperClass::ClassPath(i.replace_byte(b'/', b'.'))
             })
         })
         .collect();
@@ -132,7 +127,7 @@ pub fn load_class(
     if c.super_class != 0 {
         let a = lookup_string(&c, c.super_class)?;
         if a != "java/lang/Object" {
-            super_class = SuperClass::ClassPath(a.replace_smolstr("/", "."));
+            super_class = SuperClass::ClassPath(a.replace_byte(b'/', b'.'));
         }
     }
 
@@ -152,9 +147,10 @@ pub fn load_class(
     })
 }
 
-fn lookup_class_name(c: &Base, index: usize) -> Result<MyString, ClassParserError> {
+fn lookup_class_name(c: &Base, index: usize) -> Result<NuVec, ClassParserError> {
     match c.const_pool.pool.get(index.saturating_sub(1)) {
         Some(ConstEntry::Class { name }) => Ok(lookup_string(c, *name)?
+            .to_str()
             .split('/')
             .next_back()
             .map(Into::into)
@@ -173,7 +169,7 @@ fn parse_field(c: &Base, field: &Field, filter: bool) -> Result<dto::Field, Clas
     }
     Ok(dto::Field {
         access: field.access_flags.clone(),
-        name: lookup_string(c, field.name)?.to_smolstr(),
+        name: lookup_string(c, field.name)?,
         jtype: parse_field_type(lookup_string(c, field.descriptor)?.as_bytes(), 0)?.0,
         source: None,
     })
@@ -194,7 +190,7 @@ fn parse_method(
     }
     let lname = lookup_string(c, method.name)?;
 
-    if lname.starts_with("lambda$") {
+    if lname.starts_with(b"lambda$") {
         return Err(ClassParserError::Ignoring);
     }
 
@@ -231,8 +227,8 @@ fn parse_method(
     let no_parameter_names_and_signature =
         method_parameter_index.is_none() && signature_index.is_none();
     if no_parameter_names_and_signature {
-        let smol_str = lookup_string(c, method.descriptor)?;
-        let (_, md) = parse_method_descriptor(smol_str)?;
+        let desc = lookup_string(c, method.descriptor)?;
+        let (_, md) = parse_method_descriptor(&desc)?;
         ret = md.return_type;
         for p in md.param_types {
             parameters.push(Parameter {
@@ -258,7 +254,7 @@ fn parse_method(
                 parameter_names.push(name);
             }
         } else {
-            let (_, md) = parse_method_descriptor(lookup_string(c, method.descriptor)?)?;
+            let (_, md) = parse_method_descriptor(&lookup_string(c, method.descriptor)?)?;
             ret = md.return_type;
             let mut params = md.param_types.into_iter();
             for p in info {
@@ -268,8 +264,7 @@ fn parse_method(
                 } else {
                     let name = lookup_string(c, p.name_index)
                         .ok()
-                        .filter(|i| !i.is_empty())
-                        .map(SmolStr::new);
+                        .filter(|i| !i.is_empty());
                     parameters.push(Parameter { name, jtype });
                 }
             }
@@ -285,10 +280,10 @@ fn parse_method(
         let info = attribute.lookup(data)?;
         let (sig, _) = get_u16(info, 0)?;
         let sig = lookup_string(c, sig)?;
-        let (sig, _) = parse_method_signature_info(sig)?;
+        let (sig, _) = parse_method_signature_info(&sig)?;
         let mut name_iter = parameter_names.into_iter();
         parameters.extend(sig.params.into_iter().map(|jtype| Parameter {
-            name: name_iter.next().flatten().map(SmolStr::new),
+            name: name_iter.next().flatten(),
             jtype,
         }));
 
@@ -305,15 +300,11 @@ fn parse_method(
 
         for exception in info {
             let class_name = lookup_string(c, exception)?;
-            throws.push(JType::Class(class_name.replace_smolstr("/", ".")));
+            throws.push(JType::Class(class_name.replace_byte(b'/', b'.')));
         }
     }
 
-    let name = if lname == "<init>" {
-        None
-    } else {
-        Some(SmolStr::new(lname))
-    };
+    let name = if lname == "<init>" { None } else { Some(lname) };
     Ok((
         dto::Method {
             access: parse_method_access(method, deprecated),
@@ -372,11 +363,11 @@ fn parse_method_parameters_attribute_inner(
 #[derive(Debug)]
 #[allow(dead_code)]
 struct MethodSignature {
-    pub args: Vec<MyString>,
+    pub args: Vec<NuVec>,
     pub params: Vec<JType>,
     pub ret: JType,
 }
-fn parse_method_signature_info(sig: &str) -> Result<(MethodSignature, usize), ClassParserError> {
+fn parse_method_signature_info(sig: &NuVec) -> Result<(MethodSignature, usize), ClassParserError> {
     let content = sig.as_bytes();
     let mut pos = 0;
     let mut args = Vec::new();
@@ -391,15 +382,13 @@ fn parse_method_signature_info(sig: &str) -> Result<(MethodSignature, usize), Cl
                 pos = npos;
                 break;
             }
-            let mut arg = SmolStrBuilder::new();
+            let mut arg = NuVecBuilder::new();
             loop {
                 let v = content.get(pos).ok_or(ClassParserError::EOF)?;
                 if *v == b':' {
                     break;
                 }
-                let i = u32::from(*v);
-                let c = char::from_u32(i).ok_or(ClassParserError::GenericParameterName)?;
-                arg.push(c);
+                arg.push(*v);
                 pos += 1;
             }
             args.push(arg.finish());
@@ -432,7 +421,7 @@ fn parse_method_signature_info(sig: &str) -> Result<(MethodSignature, usize), Cl
     let (ret, pos) = parse_field_type(content, pos)?;
     Ok((MethodSignature { args, params, ret }, pos))
 }
-fn parse_class_signature_info(sig: &str) -> Result<(ClassSignature, usize), ClassParserError> {
+fn parse_class_signature_info(sig: &NuVec) -> Result<(ClassSignature, usize), ClassParserError> {
     let content = sig.as_bytes();
     let mut pos = 0;
     let mut args = Vec::new();
@@ -446,15 +435,13 @@ fn parse_class_signature_info(sig: &str) -> Result<(ClassSignature, usize), Clas
                 pos = npos;
                 break;
             }
-            let mut arg = SmolStrBuilder::new();
+            let mut arg = NuVecBuilder::new();
             loop {
                 let v = content.get(pos).ok_or(ClassParserError::EOF)?;
                 if *v == b':' {
                     break;
                 }
-                let c =
-                    char::from_u32(u32::from(*v)).ok_or(ClassParserError::GenericParameterName)?;
-                arg.push(c);
+                arg.push(*v);
                 pos += 1;
             }
             args.push(arg.finish());
@@ -568,7 +555,7 @@ fn parse_used_classes(
     c: &Base,
     data: &[u8],
     code_attribute: &CodeAttribute,
-    used_classes: &mut Vec<SmolStr>,
+    used_classes: &mut Vec<NuVec>,
 ) -> Result<(), ClassParserError> {
     let info = code_attribute.lookup(data)?;
 
@@ -587,7 +574,7 @@ fn parse_used_classes(
     Ok(())
 }
 
-fn jtype_class_names(i: JType, used_classes: &mut Vec<SmolStr>) {
+fn jtype_class_names(i: JType, used_classes: &mut Vec<NuVec>) {
     match i {
         JType::Class(class) => {
             used_classes.push(class);
@@ -610,7 +597,7 @@ struct MethodDescriptor {
 }
 
 fn parse_method_descriptor(
-    descriptor: &str,
+    descriptor: &NuVec,
 ) -> Result<(usize, MethodDescriptor), ClassParserError> {
     let content = descriptor.as_bytes();
     let pos = 0;
@@ -664,15 +651,13 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(JType, usize), ClassP
         b'V' => Ok((JType::Void, pos + 1)),
         b'T' => {
             let mut pos = pos + 1;
-            let mut param = SmolStrBuilder::new();
+            let mut param = NuVecBuilder::new();
             loop {
                 let v = content.get(pos).ok_or(ClassParserError::EOF)?;
                 if *v == b';' {
                     break;
                 }
-                let c =
-                    char::from_u32(u32::from(*v)).ok_or(ClassParserError::GenericParameterName)?;
-                param.push(c);
+                param.push(*v);
                 pos += 1;
             }
             Ok((JType::Parameter(param.finish()), pos))
@@ -707,7 +692,7 @@ fn parse_jtype_class_name(
     content: &[u8],
     mut pos: usize,
 ) -> Result<(usize, JType), ClassParserError> {
-    let mut class_name = SmolStrBuilder::new();
+    let mut class_name = NuVecBuilder::new();
     let mut args = Vec::new();
     while let Some(c) = content.get(pos) {
         if c == &b'<' {
@@ -766,10 +751,10 @@ fn parse_jtype_class_name(
             pos += 1;
             break;
         }
-        class_name.push(*c as char);
+        class_name.push(*c);
         pos += 1;
     }
-    let class_name = class_name.finish().replace_smolstr("/", ".");
+    let class_name = class_name.finish().replace_byte(b'/', b'.');
     if !args.is_empty() {
         return Ok((pos, JType::Generic(class_name, args)));
     }
@@ -778,7 +763,7 @@ fn parse_jtype_class_name(
 
 #[derive(Debug)]
 pub struct ModuleInfo {
-    pub exports: Vec<MyString>,
+    pub exports: Vec<NuVec>,
 }
 
 pub fn load_module(data: &[u8]) -> Result<ModuleInfo, ClassParserError> {
@@ -789,13 +774,13 @@ pub fn load_module(data: &[u8]) -> Result<ModuleInfo, ClassParserError> {
             let info = a.lookup(data)?;
             let (module, _) = parse_module_attribute(info, 0)?;
             let module_name = lookup_string(&c, module.name_index)?;
-            let mut exports = vec![module_name.replace('.', "/").to_smolstr()];
+            let mut exports = vec![module_name.replace_byte(b'.', b'/')];
             for e in module.exports {
                 if !e.exports_to_index.is_empty() {
                     continue;
                 }
                 let name = lookup_string(&c, e.exports_index)?;
-                exports.push(name.replace('.', "/").to_smolstr());
+                exports.push(name.replace_byte(b'.', b'/'));
             }
             return Ok(ModuleInfo { exports });
         }
@@ -880,11 +865,11 @@ fn parse_method_access(method: &Method, deprecated: bool) -> Access {
     access
 }
 
-fn lookup_string(c: &Base, index: u16) -> Result<&str, ClassParserError> {
+fn lookup_string(c: &Base, index: u16) -> Result<NuVec, ClassParserError> {
     lookup_string_inner(c, index, 0)
 }
 
-fn lookup_string_inner(c: &Base, index: u16, depth: u8) -> Result<&str, ClassParserError> {
+fn lookup_string_inner(c: &Base, index: u16, depth: u8) -> Result<NuVec, ClassParserError> {
     if depth == 5 {
         return Err(ClassParserError::NameRecursion);
     }
@@ -893,7 +878,7 @@ fn lookup_string_inner(c: &Base, index: u16, depth: u8) -> Result<&str, ClassPar
     }
     let con = &c.const_pool.pool.get((index - 1) as usize);
     match con {
-        Some(ConstEntry::Utf8(utf8)) => Ok(utf8),
+        Some(ConstEntry::Utf8(utf8)) => Ok(utf8.clone()),
         Some(
             ConstEntry::Module { name } | ConstEntry::Package { name } | ConstEntry::Class { name },
         ) => lookup_string_inner(c, *name, depth + 1),
@@ -1178,7 +1163,7 @@ fn parse_const_pool(data: &[u8], pos: usize) -> Result<(ConstPool, usize), Class
 #[derive(Debug)]
 pub enum ConstEntry {
     Empty,
-    Utf8(SmolStr),
+    Utf8(NuVec),
     String { name: u16 },
     Module { name: u16 },
     Package { name: u16 },
@@ -1195,7 +1180,6 @@ pub enum ConstEntry {
     Long,
     MehthodHandle,
     MethodType,
-    RuntimeString,
 }
 
 /// Returns the constant, next pos, how meany slots the constant takes
@@ -1233,10 +1217,7 @@ fn parse_utf8_const(
     let end = pos + len;
     let inner = data.get(pos..end).ok_or(ClassParserError::EOF)?;
     let mu = mutf8::mutf8_to_utf8(inner).map_err(|_| ClassParserError::Mutf8)?;
-    if let Ok(mu) = from_utf8(&mu) {
-        return Ok((ConstEntry::Utf8(SmolStr::new(mu)), end, 1));
-    }
-    Ok((ConstEntry::RuntimeString, end, 1))
+    Ok((ConstEntry::Utf8(NuVec::new(&mu)), end, 1))
 }
 
 fn parse_class_const(
@@ -1361,7 +1342,7 @@ mod tests {
     use crate::{load_class, load_module, parse_class_signature_info, parse_field_type};
     use dto::SourceDestination;
     use expect_test::expect;
-    use my_string::smol_str::SmolStr;
+    use my_string::NuVec;
     // #[test]
     // fn a() {
     //     use expect_test::expect;
@@ -1383,11 +1364,11 @@ mod tests {
     #[test]
     fn relative_source() {
         use expect_test::expect;
-        use my_string::smol_str::SmolStr;
+        use my_string::NuVec;
 
         let result = load_class(
             include_bytes!("../../parser/test/Everything.class"),
-            SmolStr::new("ch.emilycares.Everything"),
+            NuVec::new(b"ch.emilycares.Everything"),
             SourceDestination::None,
             false,
         );
@@ -1552,7 +1533,7 @@ mod tests {
     fn everything() {
         let result = load_class(
             include_bytes!("../../parser/test/Everything.class"),
-            SmolStr::new("ch.emilycares.Everything"),
+            NuVec::new_static(b"ch.emilycares.Everything"),
             SourceDestination::None,
             false,
         );
@@ -1717,7 +1698,7 @@ mod tests {
     fn super_base() {
         let result = load_class(
             include_bytes!("../../parser/test/Super.class"),
-            SmolStr::new_inline("ch.emilycares.Super"),
+            NuVec::new_static(b"ch.emilycares.Super"),
             SourceDestination::None,
             false,
         );
@@ -1761,7 +1742,7 @@ mod tests {
     fn thrower() {
         let result = load_class(
             include_bytes!("../../parser/test/Thrower.class"),
-            SmolStr::new_inline("ch.emilycares.Thrower"),
+            NuVec::new_static(b"ch.emilycares.Thrower"),
             SourceDestination::None,
             false,
         );
@@ -1844,7 +1825,7 @@ mod tests {
     fn super_interfaces() {
         let result = load_class(
             include_bytes!("../../parser/test/SuperInterface.class"),
-            SmolStr::new("ch.emilycares.SuperInterface"),
+            NuVec::new_static(b"ch.emilycares.SuperInterface"),
             SourceDestination::None,
             false,
         );
@@ -1924,7 +1905,7 @@ mod tests {
     fn variables() {
         let result = load_class(
             include_bytes!("../../parser/test/LocalVariableTable.class"),
-            SmolStr::new("ch.emilycares.LocalVariableTable"),
+            NuVec::new_static(b"ch.emilycares.LocalVariableTable"),
             SourceDestination::None,
             false,
         );
@@ -2020,7 +2001,7 @@ mod tests {
     fn variants() {
         let result = load_class(
             include_bytes!("../../parser/test/Variants.class"),
-            SmolStr::new("ch.emilycares.Variants"),
+            NuVec::new_static(b"ch.emilycares.Variants"),
             SourceDestination::None,
             false,
         );
@@ -2329,9 +2310,10 @@ mod tests {
 
     #[test]
     fn class_signature() {
-        let content =
-            "<E:Ljava/lang/Object;>Ljava/lang/Object;Ljava/util/SequencedCollection<TE;>;";
-        let result = parse_class_signature_info(content).unwrap();
+        let content = NuVec::new_static(
+            b"<E:Ljava/lang/Object;>Ljava/lang/Object;Ljava/util/SequencedCollection<TE;>;",
+        );
+        let result = parse_class_signature_info(&content).unwrap();
         let expected = expect![[r#"
             ClassSignature {
                 args: [

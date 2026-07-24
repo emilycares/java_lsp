@@ -4,9 +4,8 @@ use core::fmt;
 use memchr::memchr;
 use memchr::memchr_iter;
 use memchr::memmem;
-use my_string::MyString;
-use my_string::smol_str::SmolStr;
-use my_string::smol_str::SmolStrBuilder;
+use my_string::NuVec;
+use my_string::NuVecBuilder;
 
 use crate::types::AstPoint;
 
@@ -162,30 +161,198 @@ impl Token {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
+    #[must_use]
+    /// Make `NuVec`
+    pub fn as_nuvec(&self) -> NuVec {
+        match self {
+            Self::Identifier(s) | Self::Number(s) => s.clone(),
+            Self::StringLiteral(s) => {
+                let mut b = NuVecBuilder::new();
+                b.push(b'\"');
+                b.extend(s);
+                b.push(b'\"');
+                b.finish()
+            }
+            Self::StringLiteralMulti(s) => {
+                let mut b = NuVecBuilder::new();
+                b.pusha(b"\"\"\"\"");
+                b.extend(s);
+                b.pusha(b"\"\"\"\"");
+                b.finish()
+            }
+            Self::CharLiteral(s) => {
+                let mut b = NuVecBuilder::new();
+                b.push(b'\'');
+                b.extend(s);
+                b.push(b'\'');
+                b.finish()
+            }
+            Self::LineComment(c) => {
+                let mut b = NuVecBuilder::new();
+                b.pusha(b"// ");
+                b.extend(c);
+                b.finish()
+            }
+            Self::BlockComment(c, _) => {
+                let mut b = NuVecBuilder::new();
+                b.pusha(b"/*");
+                b.extend(c);
+                b.pusha(b"*/");
+                b.finish()
+            }
+            Self::HexLiteral(num) => {
+                let mut b = NuVecBuilder::new();
+                b.pusha(b"0x");
+                b.extend(num);
+                b.finish()
+            }
+            Self::BinaryLiteral(num) => {
+                let mut b = NuVecBuilder::new();
+                b.pusha(b"0b");
+                b.extend(num);
+                b.finish()
+            }
+            Self::LeftParen => NuVec::new_static(b"("),
+            Self::RightParen => NuVec::new_static(b")"),
+            Self::Plus => NuVec::new_static(b"+"),
+            Self::PlusEqual => NuVec::new_static(b"+="),
+            Self::PlusPlus => NuVec::new_static(b"++"),
+            Self::Dash => NuVec::new_static(b"-"),
+            Self::DashDash => NuVec::new_static(b"--"),
+            Self::DashEqual => NuVec::new_static(b"-="),
+            Self::Star => NuVec::new_static(b"*"),
+            Self::StarEqual => NuVec::new_static(b"*="),
+            Self::Dot => NuVec::new_static(b"."),
+            Self::Semicolon => NuVec::new_static(b";"),
+            Self::Colon => NuVec::new_static(b":"),
+            Self::Percent => NuVec::new_static(b"%"),
+            Self::PercentEqual => NuVec::new_static(b"%="),
+            Self::Ampersand => NuVec::new_static(b"&"),
+            Self::AmpersandAmpersand => NuVec::new_static(b"&&"),
+            Self::VerticalBar => NuVec::new_static(b"|"),
+            Self::VerticalBarEqual => NuVec::new_static(b"|="),
+            Self::VerticalBarVerticalBar => NuVec::new_static(b"||"),
+            Self::LeftParenCurly => NuVec::new_static(b"{{"),
+            Self::RightParenCurly => NuVec::new_static(b"}}"),
+            Self::LeftParenSquare => NuVec::new_static(b"["),
+            Self::RightParenSquare => NuVec::new_static(b"]"),
+            Self::Comma => NuVec::new_static(b"),"),
+            Self::If => NuVec::new_static(b"if"),
+            Self::While => NuVec::new_static(b"while"),
+            Self::Package => NuVec::new_static(b"package"),
+            Self::Import => NuVec::new_static(b"import"),
+            Self::Public => NuVec::new_static(b"public"),
+            Self::Private => NuVec::new_static(b"private"),
+            Self::Protected => NuVec::new_static(b"protedted"),
+            Self::Class => NuVec::new_static(b"class"),
+            Self::Interface => NuVec::new_static(b"interface"),
+            Self::Enum => NuVec::new_static(b"enum"),
+            Self::Void => NuVec::new_static(b"void"),
+            Self::Throws => NuVec::new_static(b"throws"),
+            Self::Int => NuVec::new_static(b"int"),
+            Self::Double => NuVec::new_static(b"double"),
+            Self::Float => NuVec::new_static(b"float"),
+            Self::Slash => NuVec::new_static(b"/"),
+            Self::SlashEqual => NuVec::new_static(b"/="),
+            Self::BackSlash => NuVec::new_static(b"\\"),
+            Self::At => NuVec::new_static(b"@"),
+            Self::Le => NuVec::new_static(b"<="),
+            Self::Lt => NuVec::new_static(b"<"),
+            Self::LtLt => NuVec::new_static(b"<<"),
+            Self::Ge => NuVec::new_static(b">="),
+            Self::Gt => NuVec::new_static(b">"),
+            Self::Extends => NuVec::new_static(b"extends"),
+            Self::Implements => NuVec::new_static(b"implements"),
+            Self::True => NuVec::new_static(b"true"),
+            Self::False => NuVec::new_static(b"false"),
+            Self::EqualDouble => NuVec::new_static(b"=="),
+            Self::Equal => NuVec::new_static(b"="),
+            Self::Ne => NuVec::new_static(b"!="),
+            Self::ExclamationMark => NuVec::new_static(b"!"),
+            Self::SingleQuote => NuVec::new_static(b"'"),
+            Self::New => NuVec::new_static(b"new"),
+            Self::Return => NuVec::new_static(b"return"),
+            Self::QuestionMark => NuVec::new_static(b"?"),
+            Self::Char => NuVec::new_static(b"char"),
+            Self::Boolean => NuVec::new_static(b"boolean"),
+            Self::Byte => NuVec::new_static(b"byte"),
+            Self::Short => NuVec::new_static(b"short"),
+            Self::Long => NuVec::new_static(b"long"),
+            Self::Static => NuVec::new_static(b"static"),
+            Self::Final => NuVec::new_static(b"final"),
+            Self::Default => NuVec::new_static(b"default"),
+            Self::Else => NuVec::new_static(b"else"),
+            Self::For => NuVec::new_static(b"for"),
+            Self::Break => NuVec::new_static(b"break"),
+            Self::Continue => NuVec::new_static(b"continue"),
+            Self::Switch => NuVec::new_static(b"switch"),
+            Self::Case => NuVec::new_static(b"case"),
+            Self::Do => NuVec::new_static(b"do"),
+            Self::Try => NuVec::new_static(b"try"),
+            Self::Catch => NuVec::new_static(b"catch"),
+            Self::Finally => NuVec::new_static(b"finally"),
+            Self::Throw => NuVec::new_static(b"throw"),
+            Self::Yield => NuVec::new_static(b"yield"),
+            Self::Var => NuVec::new_static(b"var"),
+            Self::This => NuVec::new_static(b"this"),
+            Self::Underscore => NuVec::new_static(b"_"),
+            Self::Abstract => NuVec::new_static(b"abstract"),
+            Self::Record => NuVec::new_static(b"record"),
+            Self::Synchronized => NuVec::new_static(b"synchronized"),
+            Self::InstanceOf => NuVec::new_static(b"instanceof"),
+            Self::Volatile => NuVec::new_static(b"volatile"),
+            Self::Transient => NuVec::new_static(b"transient"),
+            Self::Native => NuVec::new_static(b"native"),
+            Self::Caret => NuVec::new_static(b"^"),
+            Self::Tilde => NuVec::new_static(b"~"),
+            Self::Sealed => NuVec::new_static(b"sealed"),
+            Self::Non => NuVec::new_static(b"non"),
+            Self::Permits => NuVec::new_static(b"permits"),
+            Self::Arrow => NuVec::new_static(b"->"),
+            Self::Super => NuVec::new_static(b"super"),
+            Self::StrictFp => NuVec::new_static(b"staticfp"),
+            Self::AtInterface => NuVec::new_static(b"@interface"),
+            Self::Module => NuVec::new_static(b"module"),
+            Self::Exports => NuVec::new_static(b"exports"),
+            Self::To => NuVec::new_static(b"to"),
+            Self::Open => NuVec::new_static(b"open"),
+            Self::Uses => NuVec::new_static(b"uses"),
+            Self::Assert => NuVec::new_static(b"assert"),
+            Self::Provides => NuVec::new_static(b"provides"),
+            Self::With => NuVec::new_static(b"with"),
+            Self::Requires => NuVec::new_static(b"requires"),
+            Self::Transitive => NuVec::new_static(b"transitive"),
+            Self::Opens => NuVec::new_static(b"opens"),
+        }
+    }
 }
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Identifier(s) | Self::Number(s) => {
+            Self::Identifier(s) => {
                 write!(f, "{s}")
             }
+            Self::Number(s) => {
+                write!(f, "{}", s.to_str())
+            }
             Self::StringLiteral(s) => {
-                write!(f, "\"{s}\"")
+                write!(f, "\"{}\"", s.to_str())
             }
             Self::StringLiteralMulti(s) => {
-                write!(f, "\"\"\"{s}\"\"\"")
+                write!(f, "\"\"\"{}\"\"\"", s.to_str())
             }
             Self::CharLiteral(s) => {
-                write!(f, "'{s}'")
+                write!(f, "'{}'", s.to_str())
             }
             Self::LineComment(c) => {
-                write!(f, "// {}", String::from_utf8_lossy(c))
+                write!(f, "// {}", c.to_str())
             }
             Self::BlockComment(c, _) => {
-                write!(f, "/*{}*/", String::from_utf8_lossy(c))
+                write!(f, "/*{}*/", c.to_str())
             }
-            Self::HexLiteral(num) => write!(f, "0x{num}"),
-            Self::BinaryLiteral(num) => write!(f, "0b{num}"),
+            Self::HexLiteral(num) => write!(f, "0x{}", num.to_str()),
+            Self::BinaryLiteral(num) => write!(f, "0b{}", num.to_str()),
             Self::LeftParen => write!(f, "("),
             Self::RightParen => write!(f, ")"),
             Self::Plus => write!(f, "+"),
@@ -308,25 +475,25 @@ impl fmt::Debug for Token {
                 write!(f, "Identifier(\"{s}\")")
             }
             Self::Number(s) => {
-                write!(f, "Number({s})")
+                write!(f, "Number({})", s.to_str())
             }
             Self::StringLiteral(s) => {
-                write!(f, "String(\"{s}\")")
+                write!(f, "String(\"{}\")", s.to_str())
             }
             Self::StringLiteralMulti(s) => {
-                write!(f, "\"\"\"{s}\"\"\"")
+                write!(f, "\"\"\"{}\"\"\"", s.to_str())
             }
             Self::CharLiteral(s) => {
-                write!(f, "Char('{s}')")
+                write!(f, "Char('{}')", s.to_str())
             }
             Self::LineComment(c) => {
-                write!(f, "// {}", String::from_utf8_lossy(c))
+                write!(f, "// {}", c.to_str())
             }
             Self::BlockComment(c, _) => {
-                write!(f, "/*{}*/", String::from_utf8_lossy(c))
+                write!(f, "/*{}*/", c.to_str())
             }
-            Self::HexLiteral(num) => write!(f, "Hex(0x{num})"),
-            Self::BinaryLiteral(num) => write!(f, "Binary(0b{num})"),
+            Self::HexLiteral(num) => write!(f, "Hex(0x{})", num.to_str()),
+            Self::BinaryLiteral(num) => write!(f, "Binary(0b{})", num.to_str()),
             Self::LeftParen => write!(f, ""),
             Self::RightParen => write!(f, ")"),
             Self::Plus => write!(f, "+"),
@@ -446,23 +613,23 @@ impl fmt::Debug for Token {
 #[derive(PartialEq, Eq, Clone)]
 pub enum Token {
     /// Line comment
-    LineComment(Vec<u8>),
+    LineComment(NuVec),
     /// Block comment
-    BlockComment(Vec<u8>, usize),
+    BlockComment(NuVec, usize),
     /// Data
-    Identifier(MyString),
+    Identifier(NuVec),
     /// "Data"
-    StringLiteral(MyString),
+    StringLiteral(NuVec),
     /// """Data"""
-    StringLiteralMulti(MyString),
+    StringLiteralMulti(NuVec),
     /// \r
-    CharLiteral(MyString),
+    CharLiteral(NuVec),
     /// 123
-    Number(MyString),
+    Number(NuVec),
     /// `0xFFFFFF`
-    HexLiteral(MyString),
+    HexLiteral(NuVec),
     /// `0b101`
-    BinaryLiteral(MyString),
+    BinaryLiteral(NuVec),
     /// (
     LeftParen,
     /// )
@@ -692,8 +859,6 @@ pub enum Token {
 pub enum LexerError {
     /// Tried to read after file
     EOF(usize, usize),
-    /// Not implemented char
-    UnknownChar(char, usize, usize),
 }
 
 fn keyword_to_token(key: &[u8]) -> Option<Token> {
@@ -1113,7 +1278,7 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                             .get(s..input.len().min(s + length))
                             .ok_or(LexerError::EOF(line, col))?;
                         tokens.push(PositionToken {
-                            token: Token::LineComment(content.to_vec()),
+                            token: Token::LineComment(NuVec::new(content)),
                             line,
                             col,
                         });
@@ -1136,13 +1301,10 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     let mut ln = memchr_iter(b'\n', for_ln_count);
                     if let Some(last) = ln.next_back() {
                         // After last newline
-                        // let char_count = &slice[last + 1..length];
-                        // col += char_count.len();
-                        // debug_assert_eq!(char_count.len(), length - (last + 1));
                         let ln_count = ln.count() + 1;
                         if INCLUDE_COMMENTS {
                             tokens.push(PositionToken {
-                                token: Token::BlockComment(for_ln_count.to_vec(), ln_count),
+                                token: Token::BlockComment(NuVec::new(for_ln_count), ln_count),
                                 line,
                                 col,
                             });
@@ -1151,11 +1313,9 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                         line += ln_count;
                     } else {
                         // Full comment contains no newline
-                        // let char_count = &input[index..index + length + 2];
-                        // debug_assert_eq!(char_count.len(), length + 2);
                         if INCLUDE_COMMENTS {
                             tokens.push(PositionToken {
-                                token: Token::BlockComment(for_ln_count.to_vec(), 0),
+                                token: Token::BlockComment(NuVec::new(for_ln_count), 0),
                                 line,
                                 col,
                             });
@@ -1184,7 +1344,7 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
             }
             b'"' => {
                 index += 1;
-                let mut str = SmolStrBuilder::new();
+                let mut str = NuVecBuilder::new();
                 let mut multi_line = false;
                 if matches!(input.get(index), Some(b'"'))
                     && matches!(input.get(index + 1), Some(b'"'))
@@ -1198,14 +1358,14 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                             break;
                         };
                         if *peek == b'\\' {
-                            str.push('\\');
-                            str.push('\\');
+                            str.push(b'\\');
+                            str.push(b'\\');
                             col += 2;
                             index += 2;
                             continue;
                         } else if *peek == b'"' {
-                            str.push('\\');
-                            str.push('\"');
+                            str.push(b'\\');
+                            str.push(b'\"');
                             col += 2;
                             index += 2;
                             continue;
@@ -1223,7 +1383,7 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                             break 'string_literal;
                         }
                     }
-                    str.push(*ch as char);
+                    str.push(*ch);
                     index += 1;
                     col += 1;
                 }
@@ -1244,21 +1404,21 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
             }
             b'\'' => {
                 index += 1;
-                let mut char = SmolStrBuilder::new();
+                let mut char = NuVecBuilder::new();
                 'char_literal: while let Some(ch) = input.get(index) {
                     if *ch == b'\\' {
                         let Some(peek) = input.get(index + 1) else {
                             break;
                         };
                         if *peek == b'\\' {
-                            char.push('\\');
-                            char.push('\\');
+                            char.push(b'\\');
+                            char.push(b'\\');
                             col += 2;
                             index += 2;
                             continue;
                         } else if *peek == b'\'' {
-                            char.push('\\');
-                            char.push('\'');
+                            char.push(b'\\');
+                            char.push(b'\'');
                             col += 2;
                             index += 2;
                             continue;
@@ -1267,7 +1427,7 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     if *ch == b'\'' {
                         break 'char_literal;
                     }
-                    char.push(*ch as char);
+                    char.push(*ch);
                     index += 1;
                     col += 1;
                 }
@@ -1365,7 +1525,7 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     match input.get(index + 1) {
                         Some(b'x' | b'X') => {
                             index += 2;
-                            let mut string = SmolStrBuilder::new();
+                            let mut string = NuVecBuilder::new();
                             while let Some(ch) = input.get(index) {
                                 if ch.is_ascii_hexdigit()
                                     || ch == &b'_'
@@ -1373,7 +1533,7 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                                     || ch == &b'p'
                                     || ch == &b'-'
                                 {
-                                    string.push(*ch as char);
+                                    string.push(*ch);
                                     index += 1;
                                 } else {
                                     break;
@@ -1390,10 +1550,10 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                         }
                         Some(b'b' | b'B') => {
                             index += 2;
-                            let mut string = SmolStrBuilder::new();
+                            let mut string = NuVecBuilder::new();
                             while let Some(ch) = input.get(index) {
                                 if ch == &b'_' || ch == &b'0' || ch == &b'1' {
-                                    string.push(*ch as char);
+                                    string.push(*ch);
                                     index += 1;
                                 } else {
                                     break;
@@ -1411,10 +1571,10 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                         _ => (),
                     }
                 }
-                let mut string = SmolStrBuilder::new();
+                let mut string = NuVecBuilder::new();
                 while let Some(ch) = input.get(index) {
                     if ch.is_ascii_digit() || ch == &b'_' {
-                        string.push(*ch as char);
+                        string.push(*ch);
                     } else {
                         break;
                     }
@@ -1430,42 +1590,62 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                 });
                 continue;
             }
-            b'A'..=b'Z' | b'a'..=b'z' | b'_' | b'$' => {
+            _ => {
                 let start = index;
                 while let Some(ch) = input.get(index) {
-                    if !ch.is_ascii_alphanumeric() && ch != &b'_' && ch != &b'$' {
+                    if matches!(
+                        ch,
+                        b' ' | b'\t'
+                            | b'\n'
+                            | b'\r'
+                            | b'\"'
+                            | b'\''
+                            | b'.'
+                            | b'!'
+                            | b'|'
+                            | b'@'
+                            | b':'
+                            | b','
+                            | b';'
+                            | b'('
+                            | b')'
+                            | b'['
+                            | b']'
+                            | b'{'
+                            | b'}'
+                            | b'+'
+                            | b'-'
+                            | b'*'
+                            | b'/'
+                            | b'='
+                            | b'<'
+                            | b'>'
+                    ) | (b'\x09'..b'\x0d').contains(ch)
+                    {
                         break;
                     }
                     index += 1;
                 }
                 let end = index;
                 let content = &input[start..end];
-                match keyword_to_token(content) {
-                    Some(t) => {
-                        let len = content.len();
-                        tokens.push(PositionToken {
-                            token: t,
-                            line,
-                            col,
-                        });
-                        col += len;
-                    }
-                    None => {
-                        if let Ok(ident) = str::from_utf8(content) {
-                            let len = ident.len();
-                            let ident = SmolStr::from(ident);
-                            tokens.push(PositionToken {
-                                token: Token::Identifier(ident),
-                                line,
-                                col,
-                            });
-                            col += len;
-                        }
-                    }
+                let len = content.len();
+                if let Some(t) = keyword_to_token(content) {
+                    tokens.push(PositionToken {
+                        token: t,
+                        line,
+                        col,
+                    });
+                } else {
+                    let ident = NuVec::new(content);
+                    tokens.push(PositionToken {
+                        token: Token::Identifier(ident),
+                        line,
+                        col,
+                    });
                 }
+                col += len;
                 continue;
             }
-            _ => return Err(LexerError::UnknownChar(*ch as char, line, col)),
         }
         index += 1;
     }

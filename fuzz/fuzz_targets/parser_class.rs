@@ -2,12 +2,12 @@
 
 use dto::SourceDestination;
 use libfuzzer_sys::fuzz_target;
-use my_string::smol_str::SmolStr;
+use my_string::NuVec;
 
 fuzz_target!(|data: &[u8]| {
     let _ = class::load_class(
         data,
-        SmolStr::new_inline("c.e.E"),
+        NuVec::new_static(b"c.e.E"),
         SourceDestination::None,
         false,
     );

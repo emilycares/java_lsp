@@ -6,11 +6,11 @@ use std::{
 use ast::types::{AstFile, AstPoint};
 use call_chain::{self, CallItem};
 use document::get_class_path;
-use dto::{Access, Class, Field, ImportUnit, JType, Method};
+use dto::{Access, Class, Field, ImportUnit, Method};
 use local_variable::{LocalVariable, VarFlags};
 use lsp_extra::{ToLspRangeError, to_lsp_range};
 use lsp_types::{Hover, HoverContents, LanguageString, MarkupContent, MarkupKind, Range};
-use my_string::MyString;
+use my_string::{NuVec, NuVecBuilder};
 use tyres::TyresError;
 
 #[allow(dead_code)]
@@ -18,9 +18,9 @@ use tyres::TyresError;
 pub enum HoverError {
     Tyres(TyresError),
     ValidatedItemDoesNotExists,
-    LocalVariableNotFound { name: MyString },
+    LocalVariableNotFound { name: NuVec },
     Unimlemented,
-    NoClass(MyString),
+    NoClass(NuVec),
     ArgumentNotFound,
     ToLspRange(ToLspRangeError),
     CouldNotFindClassPath,
@@ -31,7 +31,7 @@ pub fn base(
     point: &AstPoint,
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> Result<Hover, HoverError> {
     match class_action(ast, point, lo_va, imports, class_map) {
         Ok((class, range)) => {
@@ -73,7 +73,7 @@ pub fn class_action(
     point: &AstPoint,
     _lo_va: &[LocalVariable],
     imports: &[ImportUnit],
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> Result<(Class, Range), ClassActionError> {
     if let Some(class) = get_class::get_class(ast, point) {
         let range = to_lsp_range(&class.range).map_err(ClassActionError::ToLspRange)?;
@@ -91,7 +91,7 @@ pub fn call_chain_hover(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> Result<Hover, HoverError> {
     let (item, relevant) = call_chain::validate(call_chain, point);
     let Some(el) = call_chain.get(item) else {
@@ -172,92 +172,56 @@ pub fn call_chain_hover(
     }
 }
 
-fn format_field(f: &Field) -> String {
-    format!("{} {};", jtype_hover_display(&f.jtype), f.name)
+fn format_field(f: &Field) -> NuVec {
+    let mut o = NuVecBuilder::new();
+    o.extend(&f.jtype.to_nuvec());
+    o.push(b' ');
+    o.extend(&f.name);
+    o.push(b';');
+    o.finish()
 }
 
-fn format_method(m: &Method, class_name: &str) -> String {
-    let mut out = String::new();
+fn format_method(m: &Method, class_name: &NuVec) -> NuVec {
+    let mut out = NuVecBuilder::new();
     if m.access.intersects(Access::Static) {
-        out.push_str("static ");
+        out.pusha(b"static ");
     }
 
     if let Some(name) = &m.name {
-        out.push_str(jtype_hover_display(&m.ret).as_str());
-        out.push(' ');
-        out.push_str(name.as_str());
+        out.extend(&m.ret.to_nuvec());
+        out.push(b' ');
+        out.extend(name);
     } else {
-        out.push_str(class_name);
+        out.extend(class_name);
     }
 
-    out.push('(');
+    out.push(b'(');
     let mut params = m.parameters.iter().peekable();
     while let Some(param) = params.next() {
-        out.push_str(jtype_hover_display(&param.jtype).as_str());
+        out.extend(&param.jtype.to_nuvec());
         if let Some(name) = &param.name {
-            out.push(' ');
-            out.push_str(name.as_str());
+            out.push(b' ');
+            out.extend(name);
         }
         if params.peek().is_some() {
-            out.push_str(", ");
+            out.pusha(b", ");
         }
     }
-    out.push(')');
+    out.push(b')');
 
     if !m.throws.is_empty() {
-        out.push_str(" throws ");
+        out.pusha(b" throws ");
         let mut throw = m.throws.iter().peekable();
         while let Some(j) = throw.next() {
-            out.push_str(j.to_string().as_str());
+            out.extend(&j.to_nuvec());
             if throw.peek().is_some() {
-                out.push_str(", ");
+                out.pusha(b", ");
             }
         }
     }
 
-    out.push(';');
-    out
-}
-
-pub fn jtype_hover_display(jtype: &JType) -> String {
-    match jtype {
-        JType::Void => "void".to_owned(),
-        JType::Byte => "byte".to_owned(),
-        JType::Char => "char".to_owned(),
-        JType::Double => "double".to_owned(),
-        JType::Float => "float".to_owned(),
-        JType::Int => "int".to_owned(),
-        JType::Long => "long".to_owned(),
-        JType::Short => "short".to_owned(),
-        JType::Boolean => "boolean".to_owned(),
-        JType::Wildcard => "?".to_owned(),
-        JType::Var => "var".to_owned(),
-        JType::Class(s) | JType::ClassOrPackage(s) => class_name_hover(s),
-        JType::Array(jtype) => format!("{}[]", jtype_hover_display(jtype)),
-        JType::Generic(jtype, jtypes) => format!(
-            "{}<{}>",
-            class_name_hover(jtype),
-            jtypes
-                .iter()
-                .map(jtype_hover_display)
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
-        JType::Parameter(p) => p.to_string(),
-        JType::Access { base, inner } => format!(
-            "{}.{}",
-            jtype_hover_display(base),
-            jtype_hover_display(inner)
-        ),
-        JType::Extends { base, .. } => jtype_hover_display(base),
-    }
-}
-
-fn class_name_hover(s: &str) -> String {
-    if let Some((_, s)) = s.rsplit_once('.') {
-        return s.replace('$', ".");
-    }
-    s.to_owned()
+    out.push(b';');
+    out.finish()
 }
 
 fn variables_to_hover(vars: &[&LocalVariable], range: Range) -> Hover {
@@ -276,9 +240,9 @@ fn variables_to_hover(vars: &[&LocalVariable], range: Range) -> Hover {
 
 fn format_variable_hover(var: &LocalVariable) -> String {
     if var.flags.intersects(VarFlags::Function) {
-        return format!("{} {}()", jtype_hover_display(&var.jtype), var.name);
+        return format!("{} {}()", var.jtype.to_nuvec(), var.name);
     }
-    format!("{} {}", jtype_hover_display(&var.jtype), var.name)
+    format!("{} {}", var.jtype.to_nuvec(), var.name)
 }
 
 fn field_to_hover(f: &Field, range: Range) -> Hover {
@@ -291,17 +255,23 @@ fn field_to_hover(f: &Field, range: Range) -> Hover {
     }
 }
 
-fn methods_to_hover(methods: &[Method], range: Range, class_name: &str) -> Hover {
-    let value = methods
-        .iter()
-        .filter(|i| !i.access.intersects(Access::Private | Access::Deprecated))
-        .map(|i| format_method(i, class_name))
-        .collect::<Vec<_>>()
-        .join("\n");
+fn methods_to_hover(methods: &[Method], range: Range, class_name: &NuVec) -> Hover {
+    let mut o = NuVecBuilder::new();
+    let mut it = methods.iter().peekable();
+    while let Some(i) = it.next() {
+        if i.access.intersects(Access::Private | Access::Deprecated) {
+            continue;
+        }
+        o.extend(&format_method(i, class_name));
+        if it.peek().is_some() {
+            o.push(b'\n');
+        }
+    }
+    let value = o.finish();
     Hover {
         contents: HoverContents::Scalar(lsp_types::MarkedString::LanguageString(LanguageString {
             language: String::from("java"),
-            value,
+            value: value.to_string(),
         })),
         range: Some(range),
     }
@@ -318,38 +288,34 @@ fn class_to_hover(class: &Class, range: Range) -> Hover {
     }
 }
 
+#[must_use]
 pub fn class_to_markdown(class: &Class) -> String {
-    let methods: Vec<_> = class
-        .methods
-        .iter()
-        .filter(|i| {
-            !i.access
-                .intersects(Access::Private | Access::Protected | Access::Deprecated)
-        })
-        .map(|i| format_method(i, &class.name))
-        .collect();
-    let fields: Vec<_> = class
-        .fields
-        .iter()
-        .filter(|i| {
-            !i.access
-                .intersects(Access::Private | Access::Protected | Access::Deprecated)
-        })
-        .map(format_field)
-        .collect();
-    let mut value = String::new();
-    let has_fields = !fields.is_empty();
-    if !methods.is_empty() {
-        value.push_str(methods.join("\n").as_str());
+    let mut o = NuVecBuilder::new();
+    let has_fields = !class.fields.is_empty();
+    if !class.methods.is_empty() {
+        for i in &class.methods {
+            if i.access.intersects(Access::Private | Access::Deprecated) {
+                continue;
+            }
+            o.extend(&format_method(i, &class.name));
+            o.push(b'\n');
+        }
         if has_fields {
-            value.push('\n');
+            o.push(b'\n');
         }
     }
     if has_fields {
-        value.push_str("// Fields\n");
-        value.push_str(fields.join("\n").as_str());
+        o.pusha(b"// Fields\n");
+        for i in &class.fields {
+            if i.access.intersects(Access::Private | Access::Deprecated) {
+                continue;
+            }
+            o.extend(&format_field(i));
+            o.push(b'\n');
+        }
     }
-    value
+    let value = o.finish();
+    value.to_string()
 }
 
 #[cfg(test)]
@@ -364,7 +330,7 @@ mod tests {
     use document::Document;
     use dto::{Access, Class, JType, Method};
     use expect_test::expect;
-    use my_string::{MyString, smol_str::SmolStr};
+    use my_string::NuVec;
     use variables::VariableContext;
 
     use crate::hover::{call_chain_hover, class_action};
@@ -490,7 +456,7 @@ public class Test {
     fn method_hover() {
         let class = Class {
             access: Access::Public,
-            name: SmolStr::new_inline("Test"),
+            name: NuVec::new_static(b"Test"),
             ..Default::default()
         };
         let content = "
@@ -545,16 +511,16 @@ public class Test {
         expected.assert_debug_eq(&out);
     }
 
-    fn string_class_map() -> Arc<RwLock<HashMap<MyString, Class>>> {
-        let mut class_map: HashMap<MyString, Class> = HashMap::new();
+    fn string_class_map() -> Arc<RwLock<HashMap<NuVec, Class>>> {
+        let mut class_map: HashMap<NuVec, Class> = HashMap::new();
         class_map.insert(
-            SmolStr::new_inline("java.lang.String"),
+            NuVec::new_static(b"java.lang.String"),
             Class {
                 access: Access::Public,
-                name: SmolStr::new_inline("String"),
+                name: NuVec::new_static(b"String"),
                 methods: vec![Method {
                     access: Access::Public,
-                    name: Some(SmolStr::new_inline("length")),
+                    name: Some(NuVec::new_static(b"length")),
                     ret: JType::Int,
                     ..Default::default()
                 }],

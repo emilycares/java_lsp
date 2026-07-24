@@ -37,7 +37,7 @@ use maven::{
     repository::Repository,
     update::{self, MavenUpdateError},
 };
-use my_string::{MyString, smol_str::ToSmolStr};
+use my_string::NuVec;
 use serde_json::Value;
 use tokio::task::JoinSet;
 use variables::VariableContext;
@@ -69,9 +69,9 @@ pub struct Project {
 pub struct Backend {
     pub error_files: Arc<Mutex<HashSet<String>>>,
     pub projects: Arc<RwLock<Vec<Project>>>,
-    pub document_map: Arc<RwLock<HashMap<MyString, Document>>>,
-    pub class_map: Arc<RwLock<HashMap<MyString, Class>>>,
-    pub reference_map: Arc<Mutex<HashMap<MyString, Vec<ReferenceUnit>>>>,
+    pub document_map: Arc<RwLock<HashMap<NuVec, Document>>>,
+    pub class_map: Arc<RwLock<HashMap<NuVec, Class>>>,
+    pub reference_map: Arc<Mutex<HashMap<NuVec, Vec<ReferenceUnit>>>>,
     pub client_capabilities: Arc<Option<ClientCapabilities>>,
     pub connection: Arc<Connection>,
     pub config: Configuration,
@@ -277,7 +277,7 @@ impl Backend {
             let Some(path) = path.get(..) else {
                 continue;
             };
-            if let Ok(uri) = source_to_uri(path) {
+            if let Ok(uri) = source_to_uri(&NuVec::new(path.as_bytes())) {
                 if let Some(errs) = emap.get(path) {
                     if &uri == current_file {
                         out.extend(errs.iter().map(compile_error_to_diagnostic));
@@ -297,8 +297,8 @@ impl Backend {
     pub async fn initialized(
         progress: Option<ProgressToken>,
         con: Arc<Connection>,
-        class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
-        reference_map: Arc<Mutex<HashMap<MyString, Vec<ReferenceUnit>>>>,
+        class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
+        reference_map: Arc<Mutex<HashMap<NuVec, Vec<ReferenceUnit>>>>,
         path: &OsString,
         projects: Arc<RwLock<Vec<Project>>>,
     ) {
@@ -427,14 +427,14 @@ impl Backend {
 
     pub fn did_open(&self, params: &DidOpenTextDocumentParams) {
         let dk = get_document_map_key(&params.text_document.uri);
-        if !dk.to_lowercase().ends_with(".java") {
+        if !dk.to_lowercase().ends_with(b".java") {
             return;
         }
 
         let mut current_file_diagnostics = Vec::new();
         self.compile_project_file(
             &params.text_document.uri,
-            &dk,
+            dk.to_str(),
             &mut current_file_diagnostics,
         );
         match open_document(&dk, &params.text_document.text, &self.document_map) {
@@ -460,12 +460,12 @@ impl Backend {
             eprintln!("document_map mutex poisoned");
             return;
         };
-        dm.remove(&key.to_smolstr());
+        dm.remove(&key);
     }
 
     pub fn did_change(&self, params: &DidChangeTextDocumentParams) {
         let dk = get_document_map_key(&params.text_document.uri);
-        if !dk.to_lowercase().ends_with(".java") {
+        if !dk.to_lowercase().ends_with(b".java") {
             return;
         }
 
@@ -492,13 +492,13 @@ impl Backend {
 
     pub fn did_save(&self, params: &DidSaveTextDocumentParams) {
         let dk = get_document_map_key(&params.text_document.uri);
-        if !dk.to_lowercase().ends_with(".java") {
+        if !dk.to_lowercase().ends_with(b".java") {
             return;
         }
         let mut current_file_diagnostics = Vec::new();
         self.compile_project_file(
             &params.text_document.uri,
-            &dk,
+            dk.to_str(),
             &mut current_file_diagnostics,
         );
 
@@ -549,7 +549,7 @@ impl Backend {
 
     pub fn hover(&self, params: &HoverParams) -> Option<Hover> {
         let dk = get_document_map_key(&params.text_document_position_params.text_document.uri);
-        if !dk.to_lowercase().ends_with(".java") {
+        if !dk.to_lowercase().ends_with(b".java") {
             return None;
         }
         let Ok(dm) = self.document_map.read() else {
@@ -612,7 +612,7 @@ impl Backend {
             eprintln!("document_map mutex poisoned");
             return None;
         };
-        let Some(document) = dm.get_mut(&get_document_map_key(uri).to_smolstr()) else {
+        let Some(document) = dm.get_mut(&get_document_map_key(uri)) else {
             eprintln!("Document is not opened.");
             return None;
         };
@@ -1116,7 +1116,7 @@ impl Backend {
         }
     }
 
-    pub fn open_log(con: &Connection, path: &str) {
+    pub fn open_log(con: &Connection, path: &NuVec) {
         if let Ok(uri) = source_to_uri(path)
             && let Ok(params) = serde_json::to_value(ShowDocumentParams {
                 uri,
@@ -1143,12 +1143,12 @@ impl Backend {
             for w in wf {
                 let dir = get_document_map_key(&w.uri);
 
-                if projects.iter().any(|i| i.dir == dir) {
+                if projects.iter().any(|i| dir == i.dir) {
                     continue;
                 }
                 if let Ok(kind) =
-                    common::project_kind::get_project_kind(&PathBuf::from(&dir), &path)
-                    && let Some(p) = project_kind_to_project(&dir, kind)
+                    common::project_kind::get_project_kind(&PathBuf::from(&dir.to_str()), &path)
+                    && let Some(p) = project_kind_to_project(dir.to_str(), kind)
                 {
                     projects.push(p);
                 }
@@ -1162,7 +1162,7 @@ impl Backend {
             return None;
         };
         for p in projects.iter() {
-            if path.starts_with(&p.dir) {
+            if path.starts_with(p.dir.as_bytes()) {
                 return Some(p.clone());
             }
         }
@@ -1228,18 +1228,16 @@ fn compile_error_to_diagnostic(e: &CompileErrorMessage) -> Diagnostic {
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn get_document_map_key(uri: &Uri) -> MyString {
-    uri.path().as_str().to_smolstr()
+pub fn get_document_map_key(uri: &Uri) -> NuVec {
+    NuVec::new(uri.path().as_str().as_bytes())
 }
 #[cfg(target_os = "windows")]
-pub fn get_document_map_key(uri: &Uri) -> MyString {
-    uri.path()
-        .as_str()
+pub fn get_document_map_key(uri: &Uri) -> NuVec {
+    NuVec::new(uri.path().as_str().as_bytes())
         // remove leading slash
-        .trim_start_matches('/')
+        .trim_start_matches_byte(b'/')
         // url encoded colon
-        .replacen("%3A", ":", 1)
-        .to_smolstr()
+        .replacen(b"%3A", b":", 1)
 }
 
 pub async fn read_forward(
@@ -1267,7 +1265,7 @@ pub async fn read_forward(
 pub async fn project_deps(
     sender: tokio::sync::watch::Sender<TaskProgress>,
     project_kind: ProjectKind,
-    class_map: Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: Arc<RwLock<HashMap<NuVec, Class>>>,
     use_cache: bool,
     project_dir: &Path,
     project_cache_dir: &Path,
@@ -1370,7 +1368,7 @@ pub fn report_maven_gradle_diagnostic(
     if let Some(source) = source
         && let Ok(source) = fs::canonicalize(source)
         && let Some(source) = source.to_str()
-        && let Ok(uri) = source_to_uri(source)
+        && let Ok(uri) = source_to_uri(&NuVec::new(source.as_bytes()))
     {
         Backend::send_diagnostic(con, uri, diagnostics);
     }

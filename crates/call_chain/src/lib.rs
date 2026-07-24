@@ -19,38 +19,37 @@ use ast::types::{
     AstValuesWithAnnotated, AstWhileContent,
 };
 use dto::JType;
-use my_string::MyString;
-use my_string::smol_str::{SmolStr, ToSmolStr};
+use my_string::NuVec;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum CallItem {
     MethodCall {
-        name: MyString,
+        name: NuVec,
         range: AstRange,
         args: Vec<Vec<Self>>,
     },
     FieldAccess {
-        name: MyString,
+        name: NuVec,
         range: AstRange,
     },
     Variable {
-        name: MyString,
+        name: NuVec,
         range: AstRange,
     },
     This {
         range: AstRange,
     },
     Class {
-        name: MyString,
+        name: NuVec,
         range: AstRange,
     },
     ClassGeneric {
-        name: MyString,
+        name: NuVec,
         range: AstRange,
         args: Vec<JType>,
     },
     ClassOrVariable {
-        name: MyString,
+        name: NuVec,
         range: AstRange,
     },
     ArgumentList {
@@ -111,20 +110,21 @@ pub fn get_call_chain(ast: &AstFile, point: &AstPoint) -> Vec<CallItem> {
                     match &ast_import.unit {
                         AstImportUnit::Class(ast_identifier)
                         | AstImportUnit::StaticClass(ast_identifier) => {
-                            let Some((_, name)) = ast_identifier.value.rsplit_once('.') else {
+                            let Some((_, name)) = ast_identifier.value.rsplit_once_byte(b'.')
+                            else {
                                 continue;
                             };
                             out.push(CallItem::Class {
-                                name: name.to_smolstr(),
+                                name,
                                 range: ast_identifier.range,
                             });
                         }
                         AstImportUnit::StaticClassMethod(class, method) => {
-                            let Some((_, name)) = class.value.rsplit_once('.') else {
+                            let Some((_, name)) = class.value.rsplit_once_byte(b'.') else {
                                 continue;
                             };
                             out.push(CallItem::Class {
-                                name: name.to_smolstr(),
+                                name,
                                 range: class.range,
                             });
                             out.push(CallItem::MethodCall {
@@ -896,39 +896,39 @@ fn cc_array_with_annotated(
 fn cc_value_nuget(ast_nuget: &AstValueNuget, out: &mut Vec<CallItem>) {
     match ast_nuget {
         AstValueNuget::Int(ast_number) => out.push(CallItem::Class {
-            name: SmolStr::new_inline("Integer"),
+            name: NuVec::new_static(b"Integer"),
             range: ast_number.range,
         }),
         AstValueNuget::Long(ast_number) => out.push(CallItem::Class {
-            name: SmolStr::new_inline("Long"),
+            name: NuVec::new_static(b"Long"),
             range: ast_number.range,
         }),
         AstValueNuget::HexLiteral(hex) => out.push(CallItem::Class {
-            name: SmolStr::new_inline("Integer"),
+            name: NuVec::new_static(b"Integer"),
             range: hex.range,
         }),
         AstValueNuget::BinaryLiteral(hex) => out.push(CallItem::Class {
-            name: SmolStr::new_inline("Integer"),
+            name: NuVec::new_static(b"Integer"),
             range: hex.range,
         }),
         AstValueNuget::Double(ast_double) => out.push(CallItem::Class {
-            name: SmolStr::new_inline("Double"),
+            name: NuVec::new_static(b"Double"),
             range: ast_double.range,
         }),
         AstValueNuget::Float(float) => out.push(CallItem::Class {
-            name: SmolStr::new_inline("Float"),
+            name: NuVec::new_static(b"Float"),
             range: float.range,
         }),
-        AstValueNuget::StringLiteral { value, .. } => out.push(CallItem::Class {
-            name: SmolStr::new_inline("String"),
-            range: value.range,
+        AstValueNuget::StringLiteral { range, .. } => out.push(CallItem::Class {
+            name: NuVec::new_static(b"String"),
+            range: *range,
         }),
-        AstValueNuget::CharLiteral(char) => out.push(CallItem::Class {
-            name: SmolStr::new_inline("Char"),
-            range: char.range,
+        AstValueNuget::CharLiteral { range, .. } => out.push(CallItem::Class {
+            name: NuVec::new_static(b"Char"),
+            range: *range,
         }),
         AstValueNuget::BooleanLiteral(ast_boolean) => out.push(CallItem::Class {
-            name: SmolStr::new_inline("Boolean"),
+            name: NuVec::new_static(b"Boolean"),
             range: ast_boolean.range,
         }),
     }
@@ -1068,7 +1068,7 @@ fn cc_jtype(jtype: &AstJType, out: &mut Vec<CallItem>) {
         | AstJTypeKind::Var
         | AstJTypeKind::Wildcard
         | AstJTypeKind::Void => out.push(CallItem::Class {
-            name: jtype.value.to_smolstr(),
+            name: jtype.value.to_nuvec(),
             range: jtype.range,
         }),
         AstJTypeKind::Class(ast_identifier) | AstJTypeKind::ClassOrPackage(ast_identifier) => out
@@ -1104,7 +1104,7 @@ fn cc_jtype_not_sure_class(jtype: &AstJType, out: &mut Vec<CallItem>) {
         | AstJTypeKind::Var
         | AstJTypeKind::Wildcard
         | AstJTypeKind::Void => out.push(CallItem::Class {
-            name: jtype.value.to_smolstr(),
+            name: jtype.value.to_nuvec(),
             range: jtype.range,
         }),
         AstJTypeKind::Class(ast_identifier) | AstJTypeKind::ClassOrPackage(ast_identifier) => out
@@ -1398,7 +1398,7 @@ fn cc_expr_ident(
                     range: ast_identifier.range,
                 });
             } else {
-                let val = match ast_identifier.value.as_str() {
+                let val = match ast_identifier.value.to_str() {
                     "this" => CallItem::This {
                         range: ast_identifier.range,
                     },

@@ -8,9 +8,9 @@ pub mod java;
 
 use ast::types::AstFile;
 use dto::{Class, SourceDestination};
-use my_string::MyString;
+use my_string::NuVec;
 
 #[must_use]
-pub fn update_project_java_file(file: MyString, ast: &AstFile) -> Class {
+pub fn update_project_java_file(file: NuVec, ast: &AstFile) -> Class {
     java::load_java_tree(ast, SourceDestination::Here(file))
 }

@@ -10,16 +10,16 @@ use ast::types::{
 };
 use lsp_extra::to_lsp_range;
 use lsp_types::{Location, SymbolInformation, SymbolKind, Uri};
-use my_string::MyString;
+use my_string::NuVec;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct PositionSymbol {
     pub range: AstRange,
-    pub name: MyString,
+    pub name: NuVec,
     pub kind: SymbolKind,
 }
 
-pub fn get_class_position(ast: &AstFile, name: Option<&str>, out: &mut Vec<PositionSymbol>) {
+pub fn get_class_position(ast: &AstFile, name: Option<&NuVec>, out: &mut Vec<PositionSymbol>) {
     for thing in ast.top.iter().filter_map(|i| match i {
         AstTopLevel::Thing(ast_thing) => Some(ast_thing),
         AstTopLevel::Package(_)
@@ -31,7 +31,7 @@ pub fn get_class_position(ast: &AstFile, name: Option<&str>, out: &mut Vec<Posit
     }
 }
 
-fn get_class_position_thing(thing: &AstThing, name: Option<&str>, out: &mut Vec<PositionSymbol>) {
+fn get_class_position_thing(thing: &AstThing, name: Option<&NuVec>, out: &mut Vec<PositionSymbol>) {
     let kind = SymbolKind::CLASS;
     match &thing {
         AstThing::Class(ast_class) => {
@@ -42,7 +42,7 @@ fn get_class_position_thing(thing: &AstThing, name: Option<&str>, out: &mut Vec<
                     kind,
                 });
             } else if let Some(name) = name
-                && ast_class.name.value == name
+                && ast_class.name.value == *name
             {
                 out.push(PositionSymbol {
                     range: ast_class.name.range,
@@ -62,7 +62,7 @@ fn get_class_position_thing(thing: &AstThing, name: Option<&str>, out: &mut Vec<
                     kind,
                 });
             } else if let Some(name) = name
-                && ast_record.name.value == name
+                && ast_record.name.value == *name
             {
                 out.push(PositionSymbol {
                     range: ast_record.name.range,
@@ -82,7 +82,7 @@ fn get_class_position_thing(thing: &AstThing, name: Option<&str>, out: &mut Vec<
                     kind,
                 });
             } else if let Some(name) = name
-                && ast_interface.name.value == name
+                && ast_interface.name.value == *name
             {
                 out.push(PositionSymbol {
                     range: ast_interface.name.range,
@@ -102,7 +102,7 @@ fn get_class_position_thing(thing: &AstThing, name: Option<&str>, out: &mut Vec<
                     kind,
                 });
             } else if let Some(name) = name
-                && ast_enumeration.name.value != name
+                && ast_enumeration.name.value != *name
             {
                 return;
             }
@@ -123,7 +123,7 @@ fn get_class_position_thing(thing: &AstThing, name: Option<&str>, out: &mut Vec<
                     kind,
                 });
             } else if let Some(name) = name
-                && ast_annotation.name.value == name
+                && ast_annotation.name.value == *name
             {
                 out.push(PositionSymbol {
                     range: ast_annotation.name.range,
@@ -137,7 +137,7 @@ fn get_class_position_thing(thing: &AstThing, name: Option<&str>, out: &mut Vec<
 
 pub fn get_method_position(
     file: &AstFile,
-    name: Option<&str>,
+    name: Option<&NuVec>,
     nargs: Option<usize>,
     out: &mut Vec<PositionSymbol>,
 ) {
@@ -164,7 +164,7 @@ pub fn get_method_position(
 
 pub fn get_method_position_thing(
     thing: &AstThing,
-    name: Option<&str>,
+    name: Option<&NuVec>,
     nargs: Option<usize>,
     out: &mut Vec<PositionSymbol>,
 ) {
@@ -262,14 +262,14 @@ const fn is_valid_args(len: usize, nargs: Option<usize>) -> bool {
     len == nargs
 }
 
-fn is_valid_name(name: Option<&str>, i: &AstIdentifier) -> bool {
+fn is_valid_name(name: Option<&NuVec>, i: &AstIdentifier) -> bool {
     let Some(name) = name else {
         return true;
     };
-    name == i.value
+    *name == i.value
 }
 
-pub fn get_field_position(file: &AstFile, name: Option<&str>, out: &mut Vec<PositionSymbol>) {
+pub fn get_field_position(file: &AstFile, name: Option<&NuVec>, out: &mut Vec<PositionSymbol>) {
     for thing in file.top.iter().filter_map(|i| match i {
         AstTopLevel::Thing(ast_thing) => Some(ast_thing),
         AstTopLevel::Package(_)
@@ -282,7 +282,7 @@ pub fn get_field_position(file: &AstFile, name: Option<&str>, out: &mut Vec<Posi
 }
 pub fn get_field_position_thing(
     thing: &AstThing,
-    name: Option<&str>,
+    name: Option<&NuVec>,
     out: &mut Vec<PositionSymbol>,
 ) {
     match thing {
@@ -353,7 +353,7 @@ pub fn get_field_position_thing(
 
 fn get_field_position_class_block(
     cblock: &AstClassBlock,
-    name: Option<&str>,
+    name: Option<&NuVec>,
     out: &mut Vec<PositionSymbol>,
 ) {
     out.extend(
@@ -376,7 +376,7 @@ fn get_field_position_class_block(
         });
 }
 
-fn get_field_position_block(block: &AstBlock, name: Option<&str>, out: &mut Vec<PositionSymbol>) {
+fn get_field_position_block(block: &AstBlock, name: Option<&NuVec>, out: &mut Vec<PositionSymbol>) {
     for e in &block.entries {
         get_field_position_block_entry(e, name, out);
     }
@@ -384,7 +384,7 @@ fn get_field_position_block(block: &AstBlock, name: Option<&str>, out: &mut Vec<
 
 fn get_field_position_block_entry(
     entry: &AstBlockEntry,
-    name: Option<&str>,
+    name: Option<&NuVec>,
     out: &mut Vec<PositionSymbol>,
 ) {
     match entry {
@@ -434,7 +434,7 @@ fn get_field_position_block_entry(
 
 fn get_field_position_expression_or_value(
     expression: &AstExpressionOrValue,
-    name: Option<&str>,
+    name: Option<&NuVec>,
     out: &mut Vec<PositionSymbol>,
 ) {
     match expression {
@@ -449,7 +449,7 @@ fn get_field_position_expression_or_value(
 
 fn get_field_position_expression(
     i: &AstExpressionKind,
-    name: Option<&str>,
+    name: Option<&NuVec>,
     out: &mut Vec<PositionSymbol>,
 ) {
     match i {
@@ -542,7 +542,7 @@ mod tests {
     };
     use ast::types::{AstPoint, AstRange};
     use lsp_types::SymbolKind;
-    use my_string::smol_str::ToSmolStr;
+    use my_string::NuVec;
 
     #[test]
     fn method_pos_base() {
@@ -559,7 +559,7 @@ public class Test {
         let tokens = ast::lexer::lex(content).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         let mut out = vec![];
-        get_method_position(&ast, Some("hello"), None, &mut out);
+        get_method_position(&ast, Some(&NuVec::new_static(b"hello")), None, &mut out);
         assert_eq!(
             out,
             vec![PositionSymbol {
@@ -567,7 +567,7 @@ public class Test {
                     start: AstPoint { line: 3, col: 4 },
                     end: AstPoint { line: 7, col: 5 },
                 },
-                name: "hello".to_smolstr(),
+                name: NuVec::new_static(b"hello"),
                 kind: SymbolKind::METHOD,
             },]
         );
@@ -584,14 +584,14 @@ public class Test {
         let tokens = ast::lexer::lex(content).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         let mut out = vec![];
-        get_field_position(&ast, Some("a"), &mut out);
+        get_field_position(&ast, Some(&NuVec::new_static(b"a")), &mut out);
         assert_eq!(
             vec![PositionSymbol {
                 range: AstRange {
                     start: AstPoint { line: 3, col: 4 },
                     end: AstPoint { line: 3, col: 19 },
                 },
-                name: "a".to_smolstr(),
+                name: NuVec::new_static(b"a"),
                 kind: SymbolKind::FIELD,
             },],
             out
@@ -621,7 +621,7 @@ public class Test {
                         start: AstPoint { line: 3, col: 29 },
                         end: AstPoint { line: 3, col: 30 },
                     },
-                    name: "t".to_smolstr(),
+                    name: NuVec::new_static(b"t"),
                     kind: SymbolKind::FIELD,
                 },
                 PositionSymbol {
@@ -629,7 +629,7 @@ public class Test {
                         start: AstPoint { line: 4, col: 20 },
                         end: AstPoint { line: 4, col: 51 },
                     },
-                    name: "q".to_smolstr(),
+                    name: NuVec::new_static(b"q"),
                     kind: SymbolKind::FIELD,
                 },
             ],
@@ -646,7 +646,7 @@ public class Test {}
         let tokens = ast::lexer::lex(content).unwrap();
         let ast = ast::parse_file(&tokens).unwrap();
         let mut out = vec![];
-        get_class_position(&ast, Some("Test"), &mut out);
+        get_class_position(&ast, Some(&NuVec::new_static(b"Test")), &mut out);
         assert_eq!(
             out,
             vec![PositionSymbol {
@@ -654,7 +654,7 @@ public class Test {}
                     start: AstPoint { line: 2, col: 13 },
                     end: AstPoint { line: 2, col: 17 },
                 },
-                name: "Test".to_smolstr(),
+                name: NuVec::new_static(b"Test"),
                 kind: SymbolKind::CLASS,
             },]
         );

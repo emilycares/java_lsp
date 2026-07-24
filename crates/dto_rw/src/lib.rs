@@ -8,7 +8,7 @@ use dto::{
     Access, CFC_VERSION, Class, ClassFolder, ClassSignature, Field, ImportUnit, JType, Method,
     Parameter, SourceDestination, SuperClass,
 };
-use my_string::{MyString, smol_str::ToSmolStr};
+use my_string::NuVec;
 
 #[derive(Debug)]
 pub enum DtoRwError {
@@ -63,18 +63,17 @@ fn parse_header(data: &[u8], pos: usize) -> Result<usize, DtoRwError> {
     Ok(pos)
 }
 
-fn write_string(st: &MyString, out: &mut Vec<u8>) {
+fn write_string(st: &NuVec, out: &mut Vec<u8>) {
     write_usize(st.len(), out);
     out.extend(st.as_bytes());
 }
-fn parse_string(data: &[u8], pos: usize) -> Result<(MyString, usize), DtoRwError> {
+fn parse_string(data: &[u8], pos: usize) -> Result<(NuVec, usize), DtoRwError> {
     let (len, pos) = parse_usize(data, pos)?;
     let Some(get) = data.get(pos..pos.saturating_add(len)) else {
         return Err(DtoRwError::EOF);
     };
-    let st = str::from_utf8(get).map_err(|_| DtoRwError::Str)?;
 
-    Ok((st.to_smolstr(), pos + len))
+    Ok((NuVec::new(get), pos + len))
 }
 
 fn write_classes(classes: &[Class], out: &mut Vec<u8>) {
@@ -685,7 +684,6 @@ fn parse_u8(data: &[u8], pos: usize) -> Result<(u8, usize), DtoRwError> {
 #[cfg(test)]
 mod tests {
     use dto::ClassSignature;
-    use my_string::{MyString, smol_str::SmolStr};
 
     use super::*;
 
@@ -700,7 +698,7 @@ mod tests {
     #[test]
     fn string() {
         let mut data = Vec::new();
-        let input = MyString::new_inline("java_lsp");
+        let input = NuVec::new_static(b"java_lsp");
         write_string(&input, &mut data);
         let (out, pos) = parse_string(&data, 0).unwrap();
         assert_eq!(input, out);
@@ -720,7 +718,7 @@ mod tests {
     #[test]
     fn source_here() {
         let mut data = Vec::new();
-        let input = SourceDestination::Here(SmolStr::new_inline("/data/Here.java"));
+        let input = SourceDestination::Here(NuVec::new_static(b"/data/Here.java"));
         write_source_destination(&input, &mut data);
         let (out, pos) = parse_source_destination(&data, 0).unwrap();
         assert_eq!(input, out);
@@ -730,7 +728,7 @@ mod tests {
     #[test]
     fn source_relative() {
         let mut data = Vec::new();
-        let input = SourceDestination::RelativeInFolder(SmolStr::new_inline("/data"));
+        let input = SourceDestination::RelativeInFolder(NuVec::new_static(b"/data"));
         write_source_destination(&input, &mut data);
         let (out, pos) = parse_source_destination(&data, 0).unwrap();
         assert_eq!(input, out);
@@ -751,15 +749,12 @@ mod tests {
     fn imports() {
         let mut data = Vec::new();
         let input = vec![
-            ImportUnit::Package(SmolStr::new_inline("emily")),
-            ImportUnit::Class(SmolStr::new_inline("emily")),
-            ImportUnit::StaticClass(SmolStr::new_inline("emily")),
-            ImportUnit::StaticClassMethod(
-                SmolStr::new_inline("emily"),
-                SmolStr::new_inline("emily"),
-            ),
-            ImportUnit::Prefix(SmolStr::new_inline("emily")),
-            ImportUnit::StaticPrefix(SmolStr::new_inline("emily")),
+            ImportUnit::Package(NuVec::new_static(b"emily")),
+            ImportUnit::Class(NuVec::new_static(b"emily")),
+            ImportUnit::StaticClass(NuVec::new_static(b"emily")),
+            ImportUnit::StaticClassMethod(NuVec::new_static(b"emily"), NuVec::new_static(b"emily")),
+            ImportUnit::Prefix(NuVec::new_static(b"emily")),
+            ImportUnit::StaticPrefix(NuVec::new_static(b"emily")),
         ];
         write_imports(&input, &mut data);
         let (out, pos) = parse_imports(&data, 0).unwrap();
@@ -781,10 +776,10 @@ mod tests {
     fn class_signature() {
         let mut data = Vec::new();
         let input = Some(ClassSignature {
-            args: vec![SmolStr::new_inline("T")],
+            args: vec![NuVec::new_static(b"T")],
             ret: JType::Generic(
-                SmolStr::new_inline("List"),
-                vec![JType::Parameter(SmolStr::new_inline("T"))],
+                NuVec::new_static(b"List"),
+                vec![JType::Parameter(NuVec::new_static(b"T"))],
             ),
         });
         write_class_signature(input.as_ref(), &mut data);
@@ -797,19 +792,19 @@ mod tests {
     fn base() {
         let input = ClassFolder {
             classes: vec![Class {
-                class_path: SmolStr::new_inline("eu.emily.String"),
+                class_path: NuVec::new_static(b"eu.emily.String"),
                 source: SourceDestination::None,
                 access: Access::Public,
                 imports: vec![],
                 signature: None,
-                name: SmolStr::new_inline("String"),
+                name: NuVec::new_static(b"String"),
                 methods: vec![
                     Method {
                         access: Access::Public,
                         name: None,
                         parameters: vec![
                             Parameter {
-                                name: Some(SmolStr::new_inline("a")),
+                                name: Some(NuVec::new_static(b"a")),
                                 jtype: JType::Char,
                             },
                             Parameter {
@@ -817,37 +812,37 @@ mod tests {
                                 jtype: JType::Char,
                             },
                         ],
-                        throws: vec![JType::Class(SmolStr::new_inline("IOException"))],
+                        throws: vec![JType::Class(NuVec::new_static(b"IOException"))],
                         ret: JType::Void,
                         source: None,
                     },
                     Method {
                         access: Access::Public,
-                        name: Some(SmolStr::new_inline("haha")),
+                        name: Some(NuVec::new_static(b"haha")),
                         parameters: vec![],
                         throws: vec![],
                         ret: JType::Void,
-                        source: Some(SmolStr::new_inline("/data/String.java")),
+                        source: Some(NuVec::new_static(b"/data/String.java")),
                     },
                 ],
                 fields: vec![
                     Field {
                         access: Access::Public,
-                        name: SmolStr::new_inline("a"),
+                        name: NuVec::new_static(b"a"),
                         jtype: JType::Int,
                         source: None,
                     },
                     Field {
                         access: Access::Public,
-                        name: SmolStr::new_inline("a"),
+                        name: NuVec::new_static(b"a"),
                         jtype: JType::Int,
-                        source: Some(SmolStr::new_inline("/data/String.java")),
+                        source: Some(NuVec::new_static(b"/data/String.java")),
                     },
                 ],
                 super_class: SuperClass::None,
                 super_interfaces: vec![
-                    SuperClass::Name(SmolStr::new_inline("String")),
-                    SuperClass::ClassPath(SmolStr::new_inline("eu.emily.String")),
+                    SuperClass::Name(NuVec::new_static(b"String")),
+                    SuperClass::ClassPath(NuVec::new_static(b"eu.emily.String")),
                 ],
             }],
         };

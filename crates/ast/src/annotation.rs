@@ -1,5 +1,5 @@
 //! Parsing functions for defining annotation
-use my_string::smol_str::SmolStr;
+use my_string::NuVec;
 
 use crate::{
     ExpressionOptions,
@@ -40,7 +40,7 @@ pub fn parse_annotation(
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("annotation field"), e));
+                errors.push((NuVec::new_static(b"annotation field"), e));
             }
         }
         match parse_thing(tokens, pos) {
@@ -50,11 +50,11 @@ pub fn parse_annotation(
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("thing"), e));
+                errors.push((NuVec::new_static(b"thing"), e));
             }
         }
         return Err(AstError::AllChildrenFailed {
-            parent: SmolStr::new_inline("annotation"),
+            parent: NuVec::new_static(b"annotation"),
             errors,
         });
     }

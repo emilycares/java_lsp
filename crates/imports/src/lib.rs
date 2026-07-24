@@ -5,10 +5,11 @@
 #![allow(clippy::too_many_lines)]
 use ast::types::{AstFile, AstTopLevel};
 use dto::ImportUnit;
+use my_string::NuVec;
 
 #[must_use]
-pub fn is_imported(imports: &[ImportUnit], class_path: &str) -> bool {
-    if class_path.starts_with("java.lang") {
+pub fn is_imported(imports: &[ImportUnit], class_path: &NuVec) -> bool {
+    if class_path.starts_with(b"java.lang") {
         return true;
     }
     for inp in imports {
@@ -16,12 +17,12 @@ pub fn is_imported(imports: &[ImportUnit], class_path: &str) -> bool {
             ImportUnit::StaticClassMethod(c, _)
             | ImportUnit::Class(c)
             | ImportUnit::StaticClass(c) => {
-                if *c == class_path {
+                if c == class_path {
                     return true;
                 }
             }
             ImportUnit::Prefix(p) | ImportUnit::StaticPrefix(p) | ImportUnit::Package(p) => {
-                if class_path.starts_with(p.as_str()) {
+                if class_path.starts_with(p.as_bytes()) {
                     return true;
                 }
             }

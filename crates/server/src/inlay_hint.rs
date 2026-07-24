@@ -8,16 +8,14 @@ use dto::{Class, ImportUnit};
 use local_variable::VarFlags;
 use lsp_extra::to_lsp_range;
 use lsp_types::{InlayHint, InlayHintKind, InlayHintLabel};
-use my_string::MyString;
+use my_string::NuVec;
 use variables::VariableContext;
-
-use crate::hover::jtype_hover_display;
 
 pub fn get_inlay_hint(
     document: &Document,
     class: &Class,
     imports: &[ImportUnit],
-    class_map: Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> Option<Vec<InlayHint>> {
     let vars = match variables::get_vars(
         &document.ast,
@@ -39,7 +37,7 @@ pub fn get_inlay_hint(
             .filter(|i| i.flags.intersects(VarFlags::Computed))
             .filter_map(|i| {
                 let range = to_lsp_range(&i.range).ok()?;
-                let value = jtype_hover_display(&i.jtype);
+                let value = i.jtype.to_string();
                 Some(InlayHint {
                     position: range.start,
                     label: InlayHintLabel::String(value),
@@ -62,7 +60,6 @@ mod tests {
     use document::Document;
     use dto::{Access, JType, Method, SourceDestination};
     use expect_test::expect;
-    use my_string::smol_str::SmolStr;
 
     use super::*;
 
@@ -142,18 +139,18 @@ public class Test {
         "#]];
         expected.assert_debug_eq(&out);
     }
-    fn get_class_map() -> Arc<RwLock<HashMap<MyString, Class>>> {
-        let mut class_map: HashMap<MyString, Class> = HashMap::new();
+    fn get_class_map() -> Arc<RwLock<HashMap<NuVec, Class>>> {
+        let mut class_map: HashMap<NuVec, Class> = HashMap::new();
 
         class_map.insert(
-            SmolStr::new_inline("java.lang.String"),
+            NuVec::new_static(b"java.lang.String"),
             Class {
-                source: SourceDestination::Here(SmolStr::new_inline("String")),
+                source: SourceDestination::Here(NuVec::new_static(b"String")),
                 access: Access::Public,
-                name: SmolStr::new_inline("String"),
+                name: NuVec::new_static(b"String"),
                 methods: vec![Method {
                     access: Access::Public,
-                    name: Some(SmolStr::new_inline("length")),
+                    name: Some(NuVec::new_static(b"length")),
                     ret: JType::Int,
                     ..Default::default()
                 }],

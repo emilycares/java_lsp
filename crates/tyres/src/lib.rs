@@ -15,23 +15,20 @@ use ast::types::AstPoint;
 use call_chain::CallItem;
 use dto::{Access, Class, Field, ImportUnit, JType, Method};
 use local_variable::LocalVariable;
-use my_string::{
-    MyString,
-    smol_str::{SmolStr, SmolStrBuilder, format_smolstr},
-};
+use my_string::{NuVec, NuVecBuilder};
 
 use crate::parent::{populate_super_class, populate_super_interfaces};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TyresError {
     ClassNotFound {
-        class_path: MyString,
+        class_path: NuVec,
     },
     NoClassInOps,
-    MethodNotFound(MyString),
-    FieldNotFound(MyString),
-    VariableNotFound(MyString),
-    NotImported(MyString),
+    MethodNotFound(NuVec),
+    FieldNotFound(NuVec),
+    VariableNotFound(NuVec),
+    NotImported(NuVec),
     CallChainInvalid(Vec<CallItem>),
     CallChainEmpty,
     /// Value needs to be checked, type is var
@@ -47,27 +44,27 @@ pub struct ResolveState {
 
 #[must_use]
 pub fn is_imported_class_name(
-    jtype: &str,
+    jtype: &NuVec,
     imports: &[ImportUnit],
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> bool {
     is_imported(jtype, imports, class_map).is_some()
 }
 
 #[derive(Debug)]
 pub enum ImportResult {
-    Class(MyString),
-    StaticClass(MyString),
+    Class(NuVec),
+    StaticClass(NuVec),
 }
 
 #[must_use]
 pub fn is_imported<'a>(
-    jtype: &'a str,
+    jtype: &'a NuVec,
     imports: &'a [ImportUnit],
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> Option<ImportResult> {
-    if jtype.starts_with("java.lang") {
-        return Some(ImportResult::Class(jtype.into()));
+    if jtype.starts_with(b"java.lang") {
+        return Some(ImportResult::Class(jtype.clone()));
     }
 
     imports.iter().find_map(|i| match i {
@@ -90,10 +87,10 @@ pub fn is_imported<'a>(
             None
         }
         ImportUnit::StaticPrefix(p) => {
-            let mut possible_class_path = SmolStrBuilder::new();
-            possible_class_path.push_str(p);
-            possible_class_path.push('.');
-            possible_class_path.push_str(jtype);
+            let mut possible_class_path = NuVecBuilder::new();
+            possible_class_path.extend(p);
+            possible_class_path.push(b'.');
+            possible_class_path.extend(jtype);
             let possible_class_path = possible_class_path.finish();
             if let Ok(class_map) = class_map.read()
                 && class_map.contains_key(&possible_class_path)
@@ -108,12 +105,12 @@ pub fn is_imported<'a>(
 
 #[derive(Debug)]
 struct ImportedField {
-    name: SmolStr,
+    name: NuVec,
     resolve_state: ResolveState,
 }
 #[derive(Debug)]
 struct ImportedMethod {
-    name: SmolStr,
+    name: NuVec,
     resolve_state: ResolveState,
 }
 
@@ -121,7 +118,7 @@ struct ImportedMethod {
 fn get_methods_and_fields(
     class: &Class,
     imports: &[ImportUnit],
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> (Vec<ImportedMethod>, Vec<ImportedField>) {
     let mut methods = vec![];
     let mut fields = vec![];
@@ -151,7 +148,7 @@ fn get_methods_and_fields(
 
 fn parent_t(
     class: &Class,
-    class_map: &Arc<RwLock<HashMap<SmolStr, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
     methods: &mut Vec<ImportedMethod>,
     fields: &mut Vec<ImportedField>,
 ) {
@@ -192,14 +189,14 @@ fn parent_t(
 }
 
 fn star_import_subclass(
-    jtype: &str,
-    class_map: &Arc<RwLock<HashMap<my_string::smol_str::SmolStr, Class>>>,
-    p: &my_string::smol_str::SmolStr,
+    jtype: &NuVec,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
+    p: &NuVec,
 ) -> Option<ImportResult> {
-    let mut possible_class_path = SmolStrBuilder::new();
-    possible_class_path.push_str(p);
-    possible_class_path.push('.');
-    possible_class_path.push_str(jtype);
+    let mut possible_class_path = NuVecBuilder::new();
+    possible_class_path.extend(p);
+    possible_class_path.push(b'.');
+    possible_class_path.extend(jtype);
     let possible_class_path = possible_class_path.finish();
 
     if let Ok(class_map) = class_map.read()
@@ -211,18 +208,19 @@ fn star_import_subclass(
 }
 
 pub fn resolve(
-    class_name: &str,
+    class_name: &NuVec,
     imports: &[ImportUnit],
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> Result<ResolveState, TyresError> {
-    if class_name.contains('.') {
+    if class_name.contains_byte(b'.') {
         return resolve_classpath(class_name, class_map, &[]);
     }
 
-    let mut lang_class_key = SmolStrBuilder::new();
-    lang_class_key.push_str("java.lang.");
-    lang_class_key.push_str(class_name);
+    let mut lang_class_key = NuVecBuilder::new();
+    lang_class_key.pusha(b"java.lang.");
+    lang_class_key.extend(class_name);
     let lang_class_key = lang_class_key.finish();
+    dbg!(&lang_class_key);
     if let Ok(cm) = class_map.read()
         && let Some(ic) = cm.get(&lang_class_key)
     {
@@ -249,23 +247,23 @@ pub fn resolve(
             }
             Err(TyresError::ClassNotFound { class_path: c })
         }
-        None => Err(TyresError::NotImported(class_name.into())),
+        None => Err(TyresError::NotImported(class_name.clone())),
     }
 }
 
 pub fn resolve_with_generic(
-    class_name: &str,
+    class_name: &NuVec,
     args: &[JType],
     imports: &[ImportUnit],
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> Result<ResolveState, TyresError> {
-    if class_name.contains('.') {
+    if class_name.contains_byte(b'.') {
         return resolve_classpath(class_name, class_map, args);
     }
 
-    let mut lang_class_key = SmolStrBuilder::new();
-    lang_class_key.push_str("java.lang.");
-    lang_class_key.push_str(class_name);
+    let mut lang_class_key = NuVecBuilder::new();
+    lang_class_key.pusha(b"java.lang.");
+    lang_class_key.extend(class_name);
     let lang_class_key = lang_class_key.finish();
     if let Ok(cm) = class_map.read()
         && let Some(ic) = cm.get(&lang_class_key)
@@ -307,12 +305,12 @@ pub fn resolve_with_generic(
             }
             Err(TyresError::ClassNotFound { class_path: c })
         }
-        None => Err(TyresError::NotImported(class_name.into())),
+        None => Err(TyresError::NotImported(class_name.clone())),
     }
 }
 fn resolve_classpath(
-    class_path: &str,
-    class_map: &Arc<RwLock<HashMap<SmolStr, Class>>>,
+    class_path: &NuVec,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
     args: &[JType],
 ) -> Result<ResolveState, TyresError> {
     let imported_class;
@@ -322,45 +320,42 @@ fn resolve_classpath(
         imported_class = ic.to_owned();
     } else {
         return Err(TyresError::ClassNotFound {
-            class_path: class_path.into(),
+            class_path: class_path.clone(),
         });
     }
     let class = parent::include_parent(imported_class, class_map, args);
     if args.is_empty() {
         return Ok(ResolveState {
-            jtype: JType::Class(class_path.into()),
+            jtype: JType::Class(class_path.clone()),
             class,
         });
     }
     Ok(ResolveState {
-        jtype: JType::Generic(class_path.into(), args.to_vec()),
+        jtype: JType::Generic(class_path.clone(), args.to_vec()),
         class,
     })
 }
 
 #[must_use]
-pub fn resolve_import(
-    jtype: &str,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
-) -> Vec<String> {
+pub fn resolve_import(jtype: &NuVec, class_map: &Arc<RwLock<HashMap<NuVec, Class>>>) -> Vec<NuVec> {
     resolve_class_key(class_map, |class_path| {
-        let Some((_, class_name)) = class_path.rsplit_once('.') else {
+        let Some((_, class_name)) = class_path.rsplit_once_byte(b'.') else {
             return false;
         };
-        class_name == jtype
+        class_name == *jtype
     })
 }
 
 pub fn resolve_class_key(
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
-    infl: impl Fn(&&MyString) -> bool,
-) -> Vec<String> {
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
+    infl: impl Fn(&&NuVec) -> bool,
+) -> Vec<NuVec> {
     if let Ok(cm) = class_map.read() {
         return cm
             .keys()
             .filter(infl)
-            .map(ToString::to_string)
-            .collect::<Vec<String>>();
+            .map(std::clone::Clone::clone)
+            .collect();
     }
     Vec::new()
 }
@@ -368,7 +363,7 @@ pub fn resolve_class_key(
 pub fn resolve_var(
     extend: &LocalVariable,
     imports: &[ImportUnit],
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> Result<ResolveState, TyresError> {
     resolve_jtype(&extend.jtype, imports, class_map)
 }
@@ -379,7 +374,7 @@ pub fn resolve_params(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> Vec<Result<ResolveState, TyresError>> {
     params
         .iter()
@@ -392,7 +387,7 @@ pub fn resolve_call_chain(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> Result<ResolveState, TyresError> {
     if call_chain.is_empty() {
         return Err(TyresError::CallChainEmpty);
@@ -426,7 +421,7 @@ pub fn resolve_call_chain_value(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> Result<ResolveState, TyresError> {
     if call_chain.is_empty() {
         return Err(TyresError::CallChainEmpty);
@@ -452,7 +447,7 @@ pub fn resolve_call_chain_to_point(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
     point: &AstPoint,
 ) -> Result<ResolveState, TyresError> {
     if call_chain.is_empty() {
@@ -498,7 +493,7 @@ fn call_chain_op(
     methods: &[ImportedMethod],
     fields: &[ImportedField],
     class: &Class,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
     resolve_argument: bool,
     return_value: bool,
 ) -> Result<ResolveState, TyresError> {
@@ -606,7 +601,7 @@ fn call_chain_op_self(
     methods: &[ImportedMethod],
     fields: &[ImportedField],
     class: &Class,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
     resolve_argument: bool,
 ) -> Result<ResolveState, TyresError> {
     match item {
@@ -710,7 +705,7 @@ fn call_chain_op_self(
 pub fn resolve_jtype(
     jtype: &JType,
     imports: &[ImportUnit],
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> Result<ResolveState, TyresError> {
     resolve_jtype_with_generic(jtype, &[], imports, class_map)
 }
@@ -719,91 +714,91 @@ pub fn resolve_jtype_with_generic(
     jtype: &JType,
     args: &[JType],
     imports: &[ImportUnit],
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> Result<ResolveState, TyresError> {
     match jtype {
         JType::Void => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: SmolStr::new_inline("void"),
+                name: NuVec::new_static(b"void"),
                 ..Default::default()
             },
         }),
         JType::Byte => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: SmolStr::new_inline("byte"),
+                name: NuVec::new_static(b"byte"),
                 ..Default::default()
             },
         }),
         JType::Char => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: SmolStr::new_inline("char"),
+                name: NuVec::new_static(b"char"),
                 ..Default::default()
             },
         }),
         JType::Double => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: SmolStr::new_inline("double"),
+                name: NuVec::new_static(b"double"),
                 ..Default::default()
             },
         }),
         JType::Float => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: SmolStr::new_inline("float"),
+                name: NuVec::new_static(b"float"),
                 ..Default::default()
             },
         }),
         JType::Int => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: SmolStr::new_inline("int"),
+                name: NuVec::new_static(b"int"),
                 ..Default::default()
             },
         }),
         JType::Long => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: SmolStr::new_inline("long"),
+                name: NuVec::new_static(b"long"),
                 ..Default::default()
             },
         }),
         JType::Short => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: SmolStr::new_inline("short"),
+                name: NuVec::new_static(b"short"),
                 ..Default::default()
             },
         }),
         JType::Boolean => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: SmolStr::new_inline("boolean"),
+                name: NuVec::new_static(b"boolean"),
                 ..Default::default()
             },
         }),
         JType::Wildcard => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: SmolStr::new_inline("Wildcard"),
+                name: NuVec::new_static(b"Wildcard"),
                 ..Default::default()
             },
         }),
         JType::Array(i) => Ok(ResolveState {
             jtype: jtype.clone(),
             class: Class {
-                name: SmolStr::new_inline("array"),
+                name: NuVec::new_static(b"array"),
                 methods: vec![Method {
-                    name: Some(SmolStr::new_inline("clone")),
+                    name: Some(NuVec::new_static(b"clone")),
                     ret: JType::Array(i.clone()),
                     ..Default::default()
                 }],
                 fields: vec![Field {
                     access: Access::empty(),
-                    name: SmolStr::new_inline("length"),
+                    name: NuVec::new_static(b"length"),
                     jtype: JType::Int,
                     source: None,
                 }],
@@ -815,10 +810,10 @@ pub fn resolve_jtype_with_generic(
             resolve_with_generic(c, args, imports, class_map)
         }
         JType::Parameter(p) => {
-            let mut name = SmolStrBuilder::new();
-            name.push('<');
-            name.push_str(p);
-            name.push('>');
+            let mut name = NuVecBuilder::new();
+            name.push(b'<');
+            name.extend(p);
+            name.push(b'>');
             let name = name.finish();
             Ok(ResolveState {
                 jtype: jtype.clone(),
@@ -830,7 +825,12 @@ pub fn resolve_jtype_with_generic(
         }
         JType::Var => Err(TyresError::CheckValue),
         JType::Access { base, inner } => {
-            let query = format_smolstr!("{}${}", &base, &inner);
+            let mut b = NuVecBuilder::new();
+            b.extend(&base.to_nuvec());
+            b.push(b'$');
+            b.extend(&inner.to_nuvec());
+
+            let query = b.finish();
             eprintln!("Resolve JType::Access: {query}");
             if let Ok(cm) = class_map.read()
                 && let Some(out) = cm.get(&query)
@@ -860,8 +860,8 @@ mod tests {
     #[test]
     fn resolve_generic() {
         let out = resolve_with_generic(
-            "java.util.List",
-            &[JType::Class(SmolStr::new_inline("java.lang.String"))],
+            &NuVec::new_static(b"java.util.List"),
+            &[JType::Class(NuVec::new_static(b"java.lang.String"))],
             &[],
             &get_class_map(),
         );
@@ -899,31 +899,31 @@ mod tests {
         expected_method.assert_debug_eq(&out.class.methods.first());
     }
 
-    fn get_class_map() -> Arc<RwLock<HashMap<MyString, Class>>> {
-        let mut class_map: HashMap<MyString, Class> = HashMap::new();
+    fn get_class_map() -> Arc<RwLock<HashMap<NuVec, Class>>> {
+        let mut class_map: HashMap<NuVec, Class> = HashMap::new();
         class_map.insert(
-            SmolStr::new_inline("java.util.List"),
+            NuVec::new_static(b"java.util.List"),
             Class {
                 signature: Some(ClassSignature {
-                    args: vec![SmolStr::new_inline("A")],
+                    args: vec![NuVec::new_static(b"A")],
                     ret: JType::Var,
                 }),
                 methods: vec![Method {
-                    name: Some(SmolStr::new_inline("first")),
-                    ret: JType::Parameter(SmolStr::new_inline("A")),
+                    name: Some(NuVec::new_static(b"first")),
+                    ret: JType::Parameter(NuVec::new_static(b"A")),
                     ..Default::default()
                 }],
                 ..Default::default()
             },
         );
         class_map.insert(
-            SmolStr::new_inline("java.lang.String"),
+            NuVec::new_static(b"java.lang.String"),
             Class {
                 access: Access::Public,
-                name: SmolStr::new_inline("String"),
+                name: NuVec::new_static(b"String"),
                 methods: vec![Method {
                     access: Access::Public,
-                    name: Some(SmolStr::new_inline("length")),
+                    name: Some(NuVec::new_static(b"length")),
                     ret: JType::Int,
                     ..Default::default()
                 }],
@@ -931,19 +931,19 @@ mod tests {
             },
         );
         class_map.insert(
-            SmolStr::new_inline("java.io.FileInputStream"),
+            NuVec::new_static(b"java.io.FileInputStream"),
             Class {
                 access: Access::Public,
-                name: SmolStr::new_inline("FileInputStream"),
+                name: NuVec::new_static(b"FileInputStream"),
                 methods: vec![],
                 ..Default::default()
             },
         );
         class_map.insert(
-            SmolStr::new_inline("java.io.File"),
+            NuVec::new_static(b"java.io.File"),
             Class {
                 access: Access::Public,
-                name: SmolStr::new_inline("FileInputStream"),
+                name: NuVec::new_static(b"FileInputStream"),
                 methods: vec![],
                 ..Default::default()
             },

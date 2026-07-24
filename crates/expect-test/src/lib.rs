@@ -731,6 +731,9 @@ fn format_chunks(chunks: Vec<dissimilar::Chunk>) -> String {
             dissimilar::Chunk::Insert(text) => format!("\x1b[4m\x1b[32m{}\x1b[0m", text),
         };
         buf.push_str(&formatted);
+        if buf.chars().filter(|i| *i == '\n').count() > 50 {
+            break;
+        }
     }
     buf
 }

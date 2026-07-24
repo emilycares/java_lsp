@@ -15,18 +15,15 @@ use lsp_extra::{ToLspRangeError, to_lsp_position, to_lsp_range};
 use lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, Position, Range, TextEdit, Uri, WorkspaceEdit,
 };
-use my_string::MyString;
+use my_string::NuVec;
 use tyres::TyresError;
 
-use crate::{
-    document_link::{SRC_MAIN, SRC_TEST},
-    hover::jtype_hover_display,
-};
+use crate::document_link::{SRC_MAIN, SRC_TEST};
 
 pub struct CodeActionContext<'a> {
     pub point: &'a AstPoint,
     pub imports: &'a [ImportUnit],
-    pub class_map: Arc<RwLock<HashMap<MyString, Class>>>,
+    pub class_map: Arc<RwLock<HashMap<NuVec, Class>>>,
     pub class: &'a Class,
     pub vars: &'a [LocalVariable],
     pub current_file: &'a Uri,
@@ -138,8 +135,8 @@ pub fn replace_with_value_type(
         #[allow(clippy::mutable_key_type)]
         let mut changes = HashMap::new();
         let range = to_lsp_range(&current_type.range).map_err(CodeActionError::ToLspRange)?;
-        let new_text = jtype_hover_display(&value_resolve_state.jtype);
-        let title = format!("Replace variable type with: {}", &new_text);
+        let new_text = value_resolve_state.jtype.to_nuvec().to_string();
+        let title = format!("Replace variable type with: {new_text}");
         changes.insert(
             context.current_file.to_owned(),
             vec![TextEdit { range, new_text }],
@@ -292,17 +289,17 @@ pub fn import_jtype(
     ast: &AstFile,
     point: &AstPoint,
     imports: &[ImportUnit],
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
     current_file: &Uri,
 ) -> Option<Vec<CodeActionOrCommand>> {
     if let Some(class) = get_class::get_class(ast, point)
         && !tyres::is_imported_class_name(&class.name, imports, class_map)
     {
-        let mut resolve_import: Vec<String> = tyres::resolve_import(&class.name, class_map);
+        let mut resolve_import = tyres::resolve_import(&class.name, class_map);
         // Prefer java imports
         resolve_import.sort_by(|a, b| {
-            let a_j = a.starts_with("java");
-            let b_j = b.starts_with("java");
+            let a_j = a.starts_with(b"java");
+            let b_j = b.starts_with(b"java");
             if a_j && !b_j {
                 Ordering::Less
             } else if !a_j && b_j {
@@ -365,7 +362,7 @@ pub fn get_import_position(ast: &AstFile) -> Result<Position, CodeActionError> {
 }
 
 #[must_use]
-pub fn import_text_edit(classpath: &str, ast: &AstFile) -> Vec<TextEdit> {
+pub fn import_text_edit(classpath: &NuVec, ast: &AstFile) -> Vec<TextEdit> {
     let pos = get_import_position(ast).map_or(
         Position {
             line: 2,
@@ -475,7 +472,7 @@ public class {name} {{
 #[allow(unused)]
 pub fn import_to_code_action(
     current_file: &Uri,
-    classpath: &str,
+    classpath: &NuVec,
     ast: &AstFile,
 ) -> CodeActionOrCommand {
     // Required by lsp types
@@ -506,7 +503,7 @@ pub mod tests {
     use dto::{Access, Class, ImportUnit, JType, Method, SourceDestination};
     use expect_test::expect;
     use lsp_types::Uri;
-    use my_string::{MyString, smol_str::SmolStr};
+    use my_string::NuVec;
     use variables::VariableContext;
 
     use crate::codeaction::{generate_class, replace_with_value_type};
@@ -568,8 +565,8 @@ public class Test {
         let point = AstPoint::new(4, 10);
         let doc = Document::setup(cont, PathBuf::from_str("./").unwrap()).unwrap();
         let imports = vec![
-            ImportUnit::Class(SmolStr::new_inline("java.io.FileInputStream")),
-            ImportUnit::Class(SmolStr::new_inline("java.io.File")),
+            ImportUnit::Class(NuVec::new_static(b"java.io.FileInputStream")),
+            ImportUnit::Class(NuVec::new_static(b"java.io.File")),
         ];
         let class = parser::java::load_java_tree(&doc.ast, SourceDestination::None);
         let uri = Uri::from_str("file:///a").unwrap();
@@ -715,16 +712,16 @@ public class Test {
         "#]];
         expected.assert_debug_eq(&result);
     }
-    fn get_class_map() -> Arc<RwLock<HashMap<MyString, Class>>> {
-        let mut class_map: HashMap<MyString, Class> = HashMap::new();
+    fn get_class_map() -> Arc<RwLock<HashMap<NuVec, Class>>> {
+        let mut class_map: HashMap<NuVec, Class> = HashMap::new();
         class_map.insert(
-            SmolStr::new_inline("java.lang.String"),
+            NuVec::new_static(b"java.lang.String"),
             Class {
                 access: Access::Public,
-                name: SmolStr::new_inline("String"),
+                name: NuVec::new_static(b"String"),
                 methods: vec![Method {
                     access: Access::Public,
-                    name: Some(SmolStr::new_inline("length")),
+                    name: Some(NuVec::new_static(b"length")),
                     ret: JType::Int,
                     ..Default::default()
                 }],
@@ -732,19 +729,19 @@ public class Test {
             },
         );
         class_map.insert(
-            SmolStr::new_inline("java.io.FileInputStream"),
+            NuVec::new_static(b"java.io.FileInputStream"),
             Class {
                 access: Access::Public,
-                name: SmolStr::new_inline("FileInputStream"),
+                name: NuVec::new_static(b"FileInputStream"),
                 methods: vec![],
                 ..Default::default()
             },
         );
         class_map.insert(
-            SmolStr::new_inline("java.io.File"),
+            NuVec::new_static(b"java.io.File"),
             Class {
                 access: Access::Public,
-                name: SmolStr::new_inline("FileInputStream"),
+                name: NuVec::new_static(b"FileInputStream"),
                 methods: vec![],
                 ..Default::default()
             },

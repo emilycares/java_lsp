@@ -3,7 +3,7 @@ use std::{array::TryFromSliceError, str::Utf8Error};
 use class::ModuleInfo;
 use dto::ClassParserError;
 use mutf8::Mutf8Error;
-use my_string::smol_str::SmolStr;
+use my_string::NuVec;
 
 #[derive(Debug)]
 pub enum JimageError {
@@ -28,7 +28,7 @@ pub enum JimageError {
     Usize,
     Module(ClassParserError),
     Class {
-        re: SmolStr,
+        re: NuVec,
         e: ClassParserError,
     },
 }

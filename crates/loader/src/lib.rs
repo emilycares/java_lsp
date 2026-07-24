@@ -14,10 +14,7 @@ use std::{
 use class::{ModuleInfo, load_class, load_module};
 use dto::{Class, ClassFolder, ClassParserError, SourceDestination};
 pub use dto_rw::DtoRwError;
-use my_string::smol_str::SmolStr;
-#[cfg(windows)]
-use my_string::smol_str::StrExt;
-use my_string::{MyString, smol_str::ToSmolStr};
+use my_string::{NuVec, NuVecBuilder};
 use parser::java::{self, ParseJavaError};
 use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
 use std::fmt::Debug;
@@ -49,7 +46,7 @@ where
 pub fn load_class_fs<T>(
     path: T,
     source: SourceDestination,
-    class_path: MyString,
+    class_path: NuVec,
     filter: bool,
 ) -> Result<Class, LoaderError>
 where
@@ -96,7 +93,7 @@ pub fn load_java_files(dir: PathBuf) -> Vec<Class> {
     while let Some(dir) = dirs.pop_front() {
         if let Ok(o) = visit_java_files(&dir, &mut dirs, |p| {
             if let Some(s) = p.to_str() {
-                return load_java_fs(p, SourceDestination::Here(s.to_smolstr())).ok();
+                return load_java_fs(p, SourceDestination::Here(NuVec::new(s.as_bytes()))).ok();
             }
             None
         }) {
@@ -131,12 +128,12 @@ fn visit_java_files(
 fn visit_class_files(
     dir: &PathBuf,
     dirs: &mut VecDeque<PathBuf>,
-) -> Result<Vec<SmolStr>, LoaderError> {
+) -> Result<Vec<NuVec>, LoaderError> {
     let read_dir = std::fs::read_dir(dir)
         .map_err(LoaderError::IO)?
         .map(|res| res.map(|e| e.path()))
         .filter_map(Result::ok);
-    let mut out: Vec<SmolStr> = Vec::new();
+    let mut out: Vec<NuVec> = Vec::new();
     for entry in read_dir {
         if entry.is_dir() {
             dirs.push_back(entry);
@@ -144,10 +141,9 @@ fn visit_class_files(
             && e == "class"
             && let Some(p) = entry.to_str()
         {
+            let p = NuVec::new(p.as_bytes());
             #[cfg(windows)]
-            let p = p.replace_smolstr("\\", "/");
-            #[cfg(not(windows))]
-            let p = p.to_smolstr();
+            let p = p.replace_byte(b'\\', b'/');
             out.push(p);
         }
     }
@@ -158,20 +154,21 @@ pub fn load_class_files(
     folder: &Path,
     trim_prefix: usize,
     filter: bool,
-    source: &str,
+    source: &NuVec,
 ) -> Result<Vec<Class>, LoaderError> {
-    use my_string::smol_str::ToSmolStr;
     let mut dirs = VecDeque::new();
     dirs.push_back(folder.to_path_buf());
 
-    let Some(root_prefix) = folder.to_str() else {
+    let Some(root_prefix) = folder.to_str().map(str::as_bytes) else {
         return Ok(vec![]);
     };
 
     #[cfg(windows)]
-    let root_prefix = root_prefix.replace('\\', "/");
+    let root_prefix = NuVec::new(root_prefix);
     #[cfg(windows)]
-    let root_prefix = root_prefix.as_str();
+    let root_prefix = root_prefix.replace_byte(b'\\', b'/');
+    #[cfg(windows)]
+    let root_prefix = root_prefix.as_bytes();
 
     let mut files = Vec::new();
     while let Some(dir) = dirs.pop_front() {
@@ -181,21 +178,17 @@ pub fn load_class_files(
     }
 
     // Prefix for module info
-    let mut rules: Vec<(String, ModuleInfo)> = Vec::new();
+    let mut rules: Vec<(NuVec, ModuleInfo)> = Vec::new();
 
-    for p in files.iter().filter(|i| i.ends_with("module-info.class")) {
+    for p in files.iter().filter(|i| i.ends_with(b"module-info.class")) {
         let prefix = p
             .trim_start_matches(root_prefix)
-            .trim_start_matches('/')
-            .trim_end_matches("module-info.class");
-        if let Ok(file) = File::open(p).map_err(LoaderError::IO)
-            && let Ok(mmap) = unsafe { memmap2::Mmap::map(&file) }
-        {
-            #[cfg(unix)]
-            let _ = mmap.advise(memmap2::Advice::Sequential);
-            match load_module(&mmap) {
+            .trim_start_matches(b"/")
+            .trim_end_matches(b"module-info.class");
+        if let Ok(content) = std::fs::read(p.to_str()).map_err(LoaderError::IO) {
+            match load_module(&content) {
                 Ok(c) => {
-                    rules.push((prefix.to_string(), c));
+                    rules.push((prefix, c));
                 }
                 Err(e) => {
                     return Err(LoaderError::Module(e));
@@ -206,34 +199,32 @@ pub fn load_class_files(
 
     let mut out = Vec::new();
 
-    'outer: for p in files.iter().filter(|i| !i.ends_with("module-info.class")) {
-        use my_string::smol_str::{StrExt, format_smolstr};
-
-        let prefix = p.trim_start_matches(root_prefix).trim_start_matches('/');
+    'outer: for p in files.iter().filter(|i| !i.ends_with(b"module-info.class")) {
+        let prefix = p.trim_start_matches(root_prefix).trim_start_matches(b"/");
 
         for r in &rules {
-            if prefix.starts_with(&r.0) && !r.1.exports.iter().any(|e| p.contains(e.as_str())) {
+            if prefix.starts_with(r.0.as_bytes())
+                && !r.1.exports.iter().any(|e| p.contains(e.as_bytes()))
+            {
                 continue 'outer;
             }
         }
-        let mut class_path = prefix.trim_end_matches(".class").replace_smolstr("/", ".");
+        let mut class_path = prefix.trim_end_matches(b".class").replace_byte(b'/', b'.');
         if trim_prefix > 1 {
-            let spl = class_path.splitn(trim_prefix, '.');
+            let spl = class_path.splitn_byte(trim_prefix, b'.');
             if let Some(p) = spl.last() {
-                class_path = p.to_smolstr();
+                class_path = p.clone();
             }
         }
         let sr = p
             .trim_start_matches(root_prefix)
-            .replacen_smolstr(".class", ".java", 1);
+            .replacen(b".class", b".java", 1);
 
-        let smol_str = format_smolstr!("{source}{sr}");
-        match load_class_fs(
-            p,
-            SourceDestination::Here(smol_str.clone()),
-            class_path,
-            filter,
-        ) {
+        let mut src = NuVecBuilder::new();
+        src.extend(source);
+        src.extend(&sr);
+        let src = src.finish();
+        match load_class_fs(p, SourceDestination::Here(src), class_path, filter) {
             Ok(c) => {
                 out.push(c);
             }
@@ -264,14 +255,14 @@ pub async fn load_classes_jmod<P: AsRef<Path> + Debug>(
     let mut buf = read(path).map_err(LoaderError::IO)?;
     buf.drain(0..4);
 
-    base_load_classes_zip(src_zip, source, buf, Some("classes.")).await
+    base_load_classes_zip(src_zip, source, buf, Some(&NuVec::new_static(b"classes."))).await
 }
 
 async fn base_load_classes_zip(
     path: String,
     source: SourceDestination,
     buf: Vec<u8>,
-    trim_prefix: Option<&str>,
+    trim_prefix: Option<&NuVec>,
 ) -> Result<ClassFolder, LoaderError> {
     let zip = buf.read_zip().await.map_err(|e| LoaderError::Zip {
         e,
@@ -299,7 +290,7 @@ async fn base_load_classes_zip(
             }
         }
     }
-    let trim_prefix_path = trim_prefix.map(|i| i.replace('.', "/"));
+    let trim_prefix_path = trim_prefix.map(|i| i.replace_byte(b'.', b'/'));
     'entries: for entry in zip.entries() {
         if matches!(entry.kind(), EntryKind::Directory) {
             continue;
@@ -326,20 +317,23 @@ async fn base_load_classes_zip(
         if file_name.ends_with("module-info.class") {
             continue;
         }
+        let nfile = NuVec::new(file_name.as_bytes());
         for r in &rules {
-            let p = trim_prefix_path
-                .as_ref()
-                .map_or(file_name, |prefix| file_name.trim_start_matches(prefix));
-            if file_name.starts_with(&r.0) && !r.1.exports.iter().any(|e| p.starts_with(e.as_str()))
+            let p = trim_prefix_path.as_ref().map_or_else(
+                || nfile.clone(),
+                |prefix| nfile.trim_start_matches(prefix.as_bytes()),
+            );
+            if file_name.starts_with(&r.0)
+                && !r.1.exports.iter().any(|e| p.starts_with(e.as_bytes()))
             {
                 continue 'entries;
             }
         }
-        let class_path = file_name.trim_start_matches('/');
-        let class_path = class_path.trim_end_matches(".class");
-        let mut class_path = class_path.replace('/', ".").to_smolstr();
+        let class_path = nfile.trim_start_matches(b"/");
+        let class_path = class_path.trim_end_matches(b".class");
+        let mut class_path = class_path.replace_byte(b'/', b'.');
         if let Some(trim_prefix) = trim_prefix {
-            class_path = class_path.replace(trim_prefix, "").to_smolstr();
+            class_path = class_path.replace(trim_prefix.as_bytes(), b"");
         }
 
         let buf = entry.bytes().await.map_err(LoaderError::IO)?;

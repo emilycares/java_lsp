@@ -11,7 +11,7 @@ use local_variable::LocalVariable;
 use lsp_types::{
     Documentation, ParameterInformation, ParameterLabel, SignatureHelp, SignatureInformation,
 };
-use my_string::MyString;
+use my_string::NuVec;
 use variables::{VariableContext, VariablesError};
 
 #[derive(Debug)]
@@ -27,7 +27,7 @@ pub fn signature_driver(
     document: &Document,
     point: &AstPoint,
     class: &Class,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> Result<SignatureHelp, SignatureError> {
     let call_chain = call_chain::get_call_chain(&document.ast, point);
     let imports = imports::imports(&document.ast);
@@ -48,7 +48,7 @@ pub fn get_signature(
     imports: &[ImportUnit],
     vars: &[LocalVariable],
     class: &Class,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> Result<SignatureHelp, SignatureError> {
     let args = get_args(call_chain);
     let Some(CallItem::ArgumentList {
@@ -100,11 +100,11 @@ fn signature_help_for_method(
     imports: &[ImportUnit],
     vars: &[LocalVariable],
     class: &Class,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
     prev: &[CallItem],
     active_param: usize,
     num_params: usize,
-    method_name: &str,
+    method_name: &NuVec,
 ) -> Result<SignatureHelp, SignatureError> {
     // trim last method call
     let prev = &prev[..1];
@@ -116,7 +116,7 @@ fn signature_help_for_method(
         .class
         .methods
         .iter()
-        .filter(|i| i.name.as_ref().is_some_and(|i| *i == method_name))
+        .filter(|i| i.name.as_ref().is_some_and(|i| i == method_name))
         .collect();
 
     let Some(active_signature) = methods
@@ -142,7 +142,7 @@ fn signature_help_for_constructor(
     imports: &[ImportUnit],
     vars: &[LocalVariable],
     class: &Class,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
     prev: &[CallItem],
     active_param: usize,
     num_params: usize,
@@ -199,7 +199,7 @@ fn get_args(call_chain: &[CallItem]) -> Option<&CallItem> {
     })
 }
 
-fn method_to_signature_information(method: &Method, class_name: &str) -> SignatureInformation {
+fn method_to_signature_information(method: &Method, class_name: &NuVec) -> SignatureInformation {
     let mut label = method
         .name
         .as_ref()
@@ -250,24 +250,24 @@ pub mod tests {
 
     use dto::{Access, Class, JType, Method, Parameter};
     use expect_test::expect;
-    use my_string::{MyString, smol_str::SmolStr};
+    use my_string::NuVec;
 
     #[test]
     fn signarure_base() {
-        let mut class_map: HashMap<MyString, Class> = HashMap::new();
+        let mut class_map: HashMap<NuVec, Class> = HashMap::new();
         class_map.insert(
-            SmolStr::new_inline("java.lang.String"),
+            NuVec::new_static(b"java.lang.String"),
             Class {
                 access: Access::Public,
-                name: SmolStr::new_inline("String"),
+                name: NuVec::new_static(b"String"),
                 methods: vec![Method {
                     access: Access::Public,
-                    name: Some(SmolStr::new_inline("concat")),
+                    name: Some(NuVec::new_static(b"concat")),
                     parameters: vec![Parameter {
                         name: None,
-                        jtype: JType::Class(SmolStr::new_inline("java.lang.String")),
+                        jtype: JType::Class(NuVec::new_static(b"java.lang.String")),
                     }],
-                    ret: JType::Class(SmolStr::new_inline("java.lang.String")),
+                    ret: JType::Class(NuVec::new_static(b"java.lang.String")),
                     ..Default::default()
                 }],
                 ..Default::default()
@@ -276,7 +276,7 @@ pub mod tests {
         let class_map = Arc::new(RwLock::new(class_map));
         let class = Class {
             access: Access::Public,
-            name: SmolStr::new_inline("Test"),
+            name: NuVec::new_static(b"Test"),
             ..Default::default()
         };
         let content = "
@@ -327,38 +327,38 @@ public class Test {
 
     #[test]
     fn signature_multi_name() {
-        let mut class_map: HashMap<MyString, Class> = HashMap::new();
+        let mut class_map: HashMap<NuVec, Class> = HashMap::new();
         class_map.insert(
-            SmolStr::new_inline("java.lang.String"),
+            NuVec::new_static(b"java.lang.String"),
             Class {
                 access: Access::Public,
-                name: SmolStr::new_inline("String"),
+                name: NuVec::new_static(b"String"),
                 methods: vec![
                     Method {
                         access: Access::Public,
-                        name: Some(SmolStr::new_inline("concat")),
+                        name: Some(NuVec::new_static(b"concat")),
                         parameters: vec![Parameter {
                             name: None,
-                            jtype: JType::Class(SmolStr::new_inline("java.lang.String")),
+                            jtype: JType::Class(NuVec::new_static(b"java.lang.String")),
                         }],
-                        ret: JType::Class(SmolStr::new_inline("java.lang.String")),
+                        ret: JType::Class(NuVec::new_static(b"java.lang.String")),
                         throws: vec![],
                         source: None,
                     },
                     Method {
                         access: Access::Public,
-                        name: Some(SmolStr::new_inline("concat")),
+                        name: Some(NuVec::new_static(b"concat")),
                         parameters: vec![
                             Parameter {
                                 name: None,
-                                jtype: JType::Class(SmolStr::new_inline("java.lang.String")),
+                                jtype: JType::Class(NuVec::new_static(b"java.lang.String")),
                             },
                             Parameter {
                                 name: None,
-                                jtype: JType::Class(SmolStr::new_inline("java.lang.String")),
+                                jtype: JType::Class(NuVec::new_static(b"java.lang.String")),
                             },
                         ],
-                        ret: JType::Class(SmolStr::new_inline("java.lang.String")),
+                        ret: JType::Class(NuVec::new_static(b"java.lang.String")),
                         throws: vec![],
                         source: None,
                     },
@@ -369,7 +369,7 @@ public class Test {
         let class_map = Arc::new(RwLock::new(class_map));
         let class = Class {
             access: Access::Public,
-            name: SmolStr::new_inline("Test"),
+            name: NuVec::new_static(b"Test"),
             ..Default::default()
         };
         let content = "
@@ -445,38 +445,38 @@ public class Test {
 
     #[test]
     fn signature_multi_name_second() {
-        let mut class_map: HashMap<MyString, Class> = HashMap::new();
+        let mut class_map: HashMap<NuVec, Class> = HashMap::new();
         class_map.insert(
-            SmolStr::new_inline("java.lang.String"),
+            NuVec::new_static(b"java.lang.String"),
             Class {
                 access: Access::Public,
-                name: SmolStr::new_inline("String"),
+                name: NuVec::new_static(b"String"),
                 methods: vec![
                     Method {
                         access: Access::Public,
-                        name: Some(SmolStr::new_inline("concat")),
+                        name: Some(NuVec::new_static(b"concat")),
                         parameters: vec![Parameter {
                             name: None,
-                            jtype: JType::Class(SmolStr::new_inline("java.lang.String")),
+                            jtype: JType::Class(NuVec::new_static(b"java.lang.String")),
                         }],
-                        ret: JType::Class(SmolStr::new_inline("java.lang.String")),
+                        ret: JType::Class(NuVec::new_static(b"java.lang.String")),
                         throws: vec![],
                         source: None,
                     },
                     Method {
                         access: Access::Public,
-                        name: Some(SmolStr::new_inline("concat")),
+                        name: Some(NuVec::new_static(b"concat")),
                         parameters: vec![
                             Parameter {
                                 name: None,
-                                jtype: JType::Class(SmolStr::new_inline("java.lang.String")),
+                                jtype: JType::Class(NuVec::new_static(b"java.lang.String")),
                             },
                             Parameter {
                                 name: None,
-                                jtype: JType::Class(SmolStr::new_inline("java.lang.String")),
+                                jtype: JType::Class(NuVec::new_static(b"java.lang.String")),
                             },
                         ],
-                        ret: JType::Class(SmolStr::new_inline("java.lang.String")),
+                        ret: JType::Class(NuVec::new_static(b"java.lang.String")),
                         throws: vec![],
                         source: None,
                     },
@@ -487,7 +487,7 @@ public class Test {
         let class_map = Arc::new(RwLock::new(class_map));
         let class = Class {
             access: Access::Public,
-            name: SmolStr::new_inline("Test"),
+            name: NuVec::new_static(b"Test"),
             ..Default::default()
         };
         let content = r#"
@@ -563,20 +563,20 @@ public class Test {
 
     #[test]
     fn signature_field_constructor() {
-        let mut class_map: HashMap<MyString, Class> = HashMap::new();
+        let mut class_map: HashMap<NuVec, Class> = HashMap::new();
         class_map.insert(
-            SmolStr::new_inline("java.util.HashMap"),
+            NuVec::new_static(b"java.util.HashMap"),
             Class {
                 access: Access::Public,
-                name: SmolStr::new_inline("HashMap"),
+                name: NuVec::new_static(b"HashMap"),
                 methods: vec![Method {
                     access: Access::Public,
                     name: None,
                     parameters: vec![Parameter {
                         name: None,
-                        jtype: JType::Class(SmolStr::new_inline("java.lang.String")),
+                        jtype: JType::Class(NuVec::new_static(b"java.lang.String")),
                     }],
-                    ret: JType::Class(SmolStr::new_inline("java.lang.String")),
+                    ret: JType::Class(NuVec::new_static(b"java.lang.String")),
                     throws: vec![],
                     source: None,
                 }],
@@ -586,7 +586,7 @@ public class Test {
         let class_map = Arc::new(RwLock::new(class_map));
         let class = Class {
             access: Access::Public,
-            name: SmolStr::new_inline("Test"),
+            name: NuVec::new_static(b"Test"),
             ..Default::default()
         };
         let content = r"

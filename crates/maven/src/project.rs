@@ -16,7 +16,7 @@ use common::{
 };
 use dto::{Class, ClassFolder, SourceDestination};
 use loader::{DtoRwError, LoaderError};
-use my_string::{MyString, smol_str::ToSmolStr};
+use my_string::NuVec;
 use tokio::task::JoinSet;
 
 use crate::{
@@ -31,7 +31,7 @@ pub enum MavenProjectError {
 }
 
 pub async fn project_deps(
-    class_map: Arc<RwLock<HashMap<MyString, Class, impl std::hash::BuildHasher + Send + Sync>>>,
+    class_map: Arc<RwLock<HashMap<NuVec, Class, impl std::hash::BuildHasher + Send + Sync>>>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
     use_cache: bool,
     tree: &[Dependency],
@@ -180,7 +180,7 @@ async fn reindex(
     if let Some(source) = source.as_path().to_str() {
         match loader::load_classes_jar(
             &jar,
-            SourceDestination::RelativeInFolder(source.to_smolstr()),
+            SourceDestination::RelativeInFolder(NuVec::new(source.as_bytes())),
         )
         .await
         {

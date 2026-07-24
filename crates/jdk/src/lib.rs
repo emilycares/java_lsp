@@ -20,7 +20,7 @@ use std::{
 use common::TaskProgress;
 use dto::{Class, ClassFolder, SourceDestination};
 use loader::{LoaderError, load_class_files};
-use my_string::{MyString, smol_str::ToSmolStr};
+use my_string::NuVec;
 use tokio::task::JoinSet;
 
 #[cfg(not(target_os = "windows"))]
@@ -51,7 +51,7 @@ pub enum JdkError {
 }
 
 pub async fn load_classes(
-    class_map: Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: Arc<RwLock<HashMap<NuVec, Class>>>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
     path: &OsString,
 ) -> Result<(), JdkError> {
@@ -130,19 +130,24 @@ pub async fn load_jdk(
     if matches!(force_loader, ForceLoader::ModulesOwn) {
         let source_dir = op_dir.join("src");
         let source_dir = source_dir.to_str().ok_or(JdkError::Str)?;
-        return load_jimage(&modules_file, source_dir);
+        return load_jimage(&modules_file, &NuVec::new(source_dir.as_bytes()));
     }
     if matches!(force_loader, ForceLoader::ModulesExecutable) {
         let source_dir = op_dir.join("src");
         let source_dir = source_dir.to_str().ok_or(JdkError::Str)?;
         let jimage_executable = get_jimage_executable(java_path);
-        return load_modules_with_command(jimage_executable, modules_file, op_dir, source_dir);
+        return load_modules_with_command(
+            jimage_executable,
+            modules_file,
+            op_dir,
+            &NuVec::new(source_dir.as_bytes()),
+        );
     }
 
     if modules_file.exists() && force_loader.is_modules() {
         let source_dir = op_dir.join("src");
         let source_dir = source_dir.to_str().ok_or(JdkError::Str)?;
-        let out = load_jimage(&modules_file, source_dir);
+        let out = load_jimage(&modules_file, &NuVec::new(source_dir.as_bytes()));
         if out.is_ok() {
             return out;
         }
@@ -165,7 +170,12 @@ pub async fn load_jdk(
         let jimage_executable = get_jimage_executable(java_path);
         let source_dir = op_dir.join("src");
         let source_dir = source_dir.to_str().ok_or(JdkError::Str)?;
-        return load_modules_with_command(jimage_executable, modules_file, op_dir, source_dir);
+        return load_modules_with_command(
+            jimage_executable,
+            modules_file,
+            op_dir,
+            &NuVec::new(source_dir.as_bytes()),
+        );
     }
     eprintln!("There is no jmod in your jdk: {}", java_path.display());
     load_old(java_path, op_dir).await
@@ -184,7 +194,7 @@ fn load_modules_with_command(
     jimage_executable: PathBuf,
     modules_file: PathBuf,
     op_dir: &Path,
-    source_dir: &str,
+    source_dir: &NuVec,
 ) -> Result<ClassFolder, JdkError> {
     if !jimage_executable.exists() {
         return Err(JdkError::NoJimageExecutable);
@@ -211,11 +221,11 @@ fn load_modules_with_command(
     Ok(ClassFolder { classes })
 }
 
-fn load_jimage(modules_file: &Path, source_dir: &str) -> Result<ClassFolder, JdkError> {
+fn load_jimage(modules_file: &Path, source_dir: &NuVec) -> Result<ClassFolder, JdkError> {
     let file = File::open(modules_file).map_err(JdkError::IO)?;
     let mmap = unsafe { memmap2::Mmap::map(&file) };
     mmap.map_or(Err(JdkError::Mmemmap), |mm| {
-        jimage::parser(&mm, 0, &source_dir.to_smolstr(), true).map_err(JdkError::Jimage)
+        jimage::parser(&mm, 0, source_dir, true).map_err(JdkError::Jimage)
     })
 }
 
@@ -286,7 +296,7 @@ async fn load_jmods(
     let sender = Arc::new(sender);
 
     match fs::read_dir(&jmods) {
-        Err(e) => eprintln!("error reading dir: {:?} {e:?}", &jmods.to_str()),
+        Err(e) => eprintln!("error reading dir: {:?} {e:?}", jmods.to_str()),
         Ok(jmods) => {
             let mut tasks_number: u32 = 1;
             for jmod in jmods {
@@ -444,7 +454,7 @@ fn get_java_version_from_exec(java_path: &PathBuf) -> Result<String, JdkError> {
 
 fn opdir(jdk_name: &str) -> PathBuf {
     let mut op_dir = dirs::cache_dir().expect("There should be a cache dir");
-    op_dir = op_dir.join("java_lsp").join("java");
+    op_dir = op_dir.join("java");
     op_dir = op_dir.join(jdk_name);
     let _ = fs::create_dir_all(&op_dir);
     op_dir
@@ -468,7 +478,7 @@ pub async fn test_load_jdk_modules_executable() {
     assert!(string.is_some());
     assert_eq!(string.unwrap().class_path, "java.lang.String");
     let source = &string.unwrap().get_source().unwrap();
-    assert!(source.ends_with("src/java.base/java/lang/String.java"));
+    assert!(source.ends_with(b"src/java.base/java/lang/String.java"));
     assert!(fs::exists(source).unwrap());
 }
 
@@ -492,8 +502,8 @@ pub async fn test_load_jdk_modules_own() {
     let source = &string.unwrap().get_source().unwrap();
     assert!(
         source
-            .replace('\\', "/")
-            .ends_with("src/java.base/java/lang/String.java")
+            .replace_byte(b'\\', b'/')
+            .ends_with(b"src/java.base/java/lang/String.java")
     );
     assert!(fs::exists(source).unwrap());
 }
@@ -518,8 +528,8 @@ pub async fn test_load_jdk_jmod() {
     let source = &string.unwrap().get_source().unwrap();
     assert!(
         source
-            .replace('\\', "/")
-            .ends_with("src/java.base/java/lang/String.java")
+            .replace_byte(b'\\', b'/')
+            .ends_with(b"src/java.base/java/lang/String.java")
     );
     assert!(fs::exists(source).unwrap());
 }

@@ -4,7 +4,7 @@ use ast::{
 };
 use call_chain::{CallItem, get_call_chain};
 use expect_test::expect;
-use my_string::smol_str::SmolStr;
+use my_string::NuVec;
 
 #[test]
 fn call_chain_base() {
@@ -1323,14 +1323,14 @@ public class Test {
         vec![CallItem::ArgumentList {
             prev: vec![
                 CallItem::ClassOrVariable {
-                    name: SmolStr::new_inline("a"),
+                    name: NuVec::new_static(b"a"),
                     range: AstRange {
                         start: AstPoint { line: 4, col: 8 },
                         end: AstPoint { line: 4, col: 9 },
                     },
                 },
                 CallItem::MethodCall {
-                    name: SmolStr::new_inline("concat"),
+                    name: NuVec::new_static(b"concat"),
                     range: AstRange {
                         start: AstPoint { line: 4, col: 10 },
                         end: AstPoint { line: 4, col: 16 },
@@ -1370,14 +1370,14 @@ public class Test {
             CallItem::ArgumentList {
                 prev: vec![
                     CallItem::ClassOrVariable {
-                        name: SmolStr::new_inline("a"),
+                        name: NuVec::new_static(b"a"),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 8 },
                             end: AstPoint { line: 5, col: 9 },
                         },
                     },
                     CallItem::MethodCall {
-                        name: SmolStr::new_inline("concat"),
+                        name: NuVec::new_static(b"concat"),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 10 },
                             end: AstPoint { line: 5, col: 16 },
@@ -1385,14 +1385,14 @@ public class Test {
 
                         args: vec![vec![
                             CallItem::ClassOrVariable {
-                                name: SmolStr::new_inline("b"),
+                                name: NuVec::new_static(b"b"),
                                 range: AstRange {
                                     start: AstPoint { line: 5, col: 17 },
                                     end: AstPoint { line: 5, col: 18 },
                                 },
                             },
                             CallItem::MethodCall {
-                                name: SmolStr::new_inline("a"),
+                                name: NuVec::new_static(b"a"),
                                 range: AstRange {
                                     start: AstPoint { line: 5, col: 19 },
                                     end: AstPoint { line: 5, col: 20 },
@@ -1408,14 +1408,14 @@ public class Test {
                 },
                 filled_params: vec![vec![
                     CallItem::ClassOrVariable {
-                        name: SmolStr::new_inline("b"),
+                        name: NuVec::new_static(b"b"),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 17 },
                             end: AstPoint { line: 5, col: 18 }
                         }
                     },
                     CallItem::MethodCall {
-                        name: SmolStr::new_inline("a"),
+                        name: NuVec::new_static(b"a"),
                         range: AstRange {
                             start: AstPoint { line: 5, col: 19 },
                             end: AstPoint { line: 5, col: 20 },
@@ -1426,14 +1426,14 @@ public class Test {
                 active_param: Some(0)
             },
             CallItem::ClassOrVariable {
-                name: SmolStr::new_inline("b"),
+                name: NuVec::new_static(b"b"),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 17 },
                     end: AstPoint { line: 5, col: 18 }
                 }
             },
             CallItem::MethodCall {
-                name: SmolStr::new_inline("a"),
+                name: NuVec::new_static(b"a"),
                 range: AstRange {
                     start: AstPoint { line: 5, col: 19 },
                     end: AstPoint { line: 5, col: 20 },
@@ -1465,7 +1465,7 @@ public class Test {
     let out = get_call_chain(&ast, &AstPoint::new(4, 14));
     assert_eq!(
         vec![CallItem::ClassOrVariable {
-            name: SmolStr::new_inline("a"),
+            name: NuVec::new_static(b"a"),
             range: AstRange {
                 start: AstPoint { line: 4, col: 12 },
                 end: AstPoint { line: 4, col: 13 },
@@ -1523,7 +1523,7 @@ public class Test {
     let out = get_call_chain(&ast, &AstPoint::new(4, 18));
     assert_eq!(
         vec![CallItem::ClassOrVariable {
-            name: SmolStr::new_inline("a"),
+            name: NuVec::new_static(b"a"),
             range: AstRange {
                 start: AstPoint { line: 4, col: 15 },
                 end: AstPoint { line: 4, col: 16 }
@@ -1550,14 +1550,14 @@ public class Test {
     assert_eq!(
         vec![
             CallItem::ClassOrVariable {
-                name: SmolStr::new_inline("a"),
+                name: NuVec::new_static(b"a"),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 15 },
                     end: AstPoint { line: 4, col: 16 },
                 }
             },
             CallItem::MethodCall {
-                name: SmolStr::new_inline("b"),
+                name: NuVec::new_static(b"b"),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 17 },
                     end: AstPoint { line: 4, col: 18 },
@@ -1658,14 +1658,14 @@ public class Test {
     assert_eq!(
         vec![
             CallItem::Class {
-                name: SmolStr::new_inline("String"),
+                name: NuVec::new_static(b"String"),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 8 },
                     end: AstPoint { line: 4, col: 20 },
                 }
             },
             CallItem::MethodCall {
-                name: SmolStr::new_inline("a"),
+                name: NuVec::new_static(b"a"),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 21 },
                     end: AstPoint { line: 4, col: 22 },
@@ -1692,28 +1692,28 @@ public class Test {
     assert_eq!(
         vec![
             CallItem::ClassOrVariable {
-                name: SmolStr::new_inline("Logger"),
+                name: NuVec::new_static(b"Logger"),
                 range: AstRange {
                     start: AstPoint { line: 3, col: 32 },
                     end: AstPoint { line: 3, col: 38 },
                 }
             },
             CallItem::MethodCall {
-                name: SmolStr::new_inline("getLogger"),
+                name: NuVec::new_static(b"getLogger"),
                 range: AstRange {
                     start: AstPoint { line: 3, col: 39 },
                     end: AstPoint { line: 3, col: 48 },
                 },
                 args: vec![vec![
                     CallItem::ClassOrVariable {
-                        name: SmolStr::new_inline("Test"),
+                        name: NuVec::new_static(b"Test"),
                         range: AstRange {
                             start: AstPoint { line: 3, col: 49 },
                             end: AstPoint { line: 3, col: 53 },
                         },
                     },
                     CallItem::FieldAccess {
-                        name: SmolStr::new_inline("class"),
+                        name: NuVec::new_static(b"class"),
                         range: AstRange {
                             start: AstPoint { line: 3, col: 54 },
                             end: AstPoint { line: 3, col: 59 },
@@ -1747,14 +1747,14 @@ public class Test {
     assert_eq!(
         vec![
             CallItem::ClassOrVariable {
-                name: SmolStr::new_inline("MediaType"),
+                name: NuVec::new_static(b"MediaType"),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 14 },
                     end: AstPoint { line: 4, col: 23 },
                 }
             },
             CallItem::FieldAccess {
-                name: SmolStr::new_inline("TEXT_PLAIN"),
+                name: NuVec::new_static(b"TEXT_PLAIN"),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 24 },
                     end: AstPoint { line: 4, col: 34 },
@@ -1790,14 +1790,14 @@ public class Test {
                 }
             },
             CallItem::FieldAccess {
-                name: SmolStr::new_inline("a"),
+                name: NuVec::new_static(b"a"),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 18 },
                     end: AstPoint { line: 4, col: 19 }
                 }
             },
             CallItem::MethodCall {
-                name: SmolStr::new_inline("toString"),
+                name: NuVec::new_static(b"toString"),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 20 },
                     end: AstPoint { line: 4, col: 28 }
@@ -1833,7 +1833,7 @@ public class Test {
                 }
             },
             CallItem::FieldAccess {
-                name: SmolStr::new_inline("asd"),
+                name: NuVec::new_static(b"asd"),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 11 },
                     end: AstPoint { line: 4, col: 14 }
@@ -1861,7 +1861,7 @@ public class Test {
     let out = get_call_chain(&ast, &AstPoint::new(4, 48));
     assert_eq!(
         vec![CallItem::Class {
-            name: SmolStr::new_inline("FileInputStream"),
+            name: NuVec::new_static(b"FileInputStream"),
             range: AstRange {
                 start: AstPoint { line: 4, col: 14 },
                 end: AstPoint { line: 4, col: 47 },
@@ -1888,7 +1888,7 @@ public class Test {
     let out = get_call_chain(&ast, &AstPoint::new(5, 23));
     assert_eq!(
         vec![CallItem::ClassOrVariable {
-            name: SmolStr::new_inline("q"),
+            name: NuVec::new_static(b"q"),
             range: AstRange {
                 start: AstPoint { line: 5, col: 20 },
                 end: AstPoint { line: 5, col: 21 },
@@ -1913,7 +1913,7 @@ public static Map<Long, String> m = new HashMap<>( );
     assert_eq!(
         vec![CallItem::ArgumentList {
             prev: vec![CallItem::ClassGeneric {
-                name: SmolStr::new_inline("HashMap"),
+                name: NuVec::new_static(b"HashMap"),
                 range: AstRange {
                     start: AstPoint { line: 3, col: 36 },
                     end: AstPoint { line: 3, col: 52 },
@@ -2040,14 +2040,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
     assert_eq!(
         vec![
             CallItem::Class {
-                name: SmolStr::new_inline("Assertions"),
+                name: NuVec::new_static(b"Assertions"),
                 range: AstRange {
                     start: AstPoint { line: 2, col: 14 },
                     end: AstPoint { line: 2, col: 47 },
                 },
             },
             CallItem::MethodCall {
-                name: SmolStr::new_inline("assertTrue"),
+                name: NuVec::new_static(b"assertTrue"),
                 range: AstRange {
                     start: AstPoint { line: 2, col: 46 },
                     end: AstPoint { line: 2, col: 57 },
@@ -2076,7 +2076,7 @@ return a[0]. ;
     assert_eq!(
         vec![
             CallItem::ClassOrVariable {
-                name: SmolStr::new_inline("a"),
+                name: NuVec::new_static(b"a"),
                 range: AstRange {
                     start: AstPoint { line: 4, col: 7 },
                     end: AstPoint { line: 4, col: 8 },

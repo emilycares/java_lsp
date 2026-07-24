@@ -15,12 +15,9 @@ use lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionItemTag,
     InsertTextFormat,
 };
-use my_string::{MyString, smol_str::SmolStr};
+use my_string::NuVec;
 
-use crate::{
-    codeaction,
-    hover::{class_to_markdown, jtype_hover_display},
-};
+use crate::{codeaction, hover::class_to_markdown};
 
 #[derive(Debug)]
 pub enum CompletionError {
@@ -122,7 +119,7 @@ fn complete_method(
     m: &Method,
     imports: &[ImportUnit],
     ast: &AstFile,
-    class_name: Option<&SmolStr>,
+    class_name: Option<&NuVec>,
 ) -> Option<CompletionItem> {
     let params_detail: Vec<String> = m
         .parameters
@@ -196,7 +193,7 @@ enum Snippet {
     Import { snippet: String, import: ImportUnit },
 }
 
-fn method_snippet(m: &Method, class_name: Option<&SmolStr>) -> Option<Snippet> {
+fn method_snippet(m: &Method, class_name: Option<&NuVec>) -> Option<Snippet> {
     let mut import = None;
     let mut params_snippet = String::new();
     let p_len = m.parameters.len();
@@ -230,17 +227,17 @@ fn method_snippet(m: &Method, class_name: Option<&SmolStr>) -> Option<Snippet> {
 
 fn type_to_snippet(import: &mut Option<ImportUnit>, p: &Parameter) -> String {
     match &p.jtype {
-        JType::Class(c) => match c.as_str() {
-            "java.util.stream.Collector" => {
-                *import = Some(ImportUnit::Class(SmolStr::new_inline(
-                    "java.util.stream.Collectors",
+        JType::Class(c) => match c.as_bytes() {
+            b"java.util.stream.Collector" => {
+                *import = Some(ImportUnit::Class(NuVec::new_static(
+                    b"java.util.stream.Collectors",
                 )));
                 "Collectors.toList()".to_string()
             }
-            "java.util.function.Function" | "java.util.function.Consumer" => "i -> i".to_string(),
-            "java.util.function.Predicate" => "i -> true".to_string(),
-            "java.util.function.BiFunction" => "(a, b) -> i".to_string(),
-            "java.util.function.BiConsumer" => "(i, consumer) -> i".to_string(),
+            b"java.util.function.Function" | b"java.util.function.Consumer" => "i -> i".to_string(),
+            b"java.util.function.Predicate" => "i -> true".to_string(),
+            b"java.util.function.BiFunction" => "(a, b) -> i".to_string(),
+            b"java.util.function.BiConsumer" => "(i, consumer) -> i".to_string(),
             _ => {
                 format!("{}", p.jtype)
             }
@@ -256,7 +253,7 @@ pub fn complete_call_chain(
     vars: &[LocalVariable],
     imports: &[ImportUnit],
     class: &Class,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> Result<Vec<CompletionItem>, CompletionError> {
     let call_chain = get_call_chain(&document.ast, point);
     let mut point = *point;
@@ -273,7 +270,7 @@ pub fn classes(
     document: &Document,
     point: &AstPoint,
     imports: &[ImportUnit],
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> Vec<CompletionItem> {
     if point.col < 3 {
         return vec![];
@@ -295,11 +292,11 @@ pub fn classes(
                     | ImportUnit::Package(_) => None,
                 })
                 .filter(|c| {
-                    let Some((_, cname)) = c.rsplit_once('.') else {
+                    let Some((_, cname)) = c.rsplit_once_byte(b'.') else {
                         return false;
                     };
                     if let Some(t) = &text {
-                        return cname.starts_with(t);
+                        return cname.starts_with(t.as_bytes());
                     }
                     true
                 })
@@ -311,11 +308,11 @@ pub fn classes(
                 .iter()
                 .filter(|(_, c)| {
                     if let Some(t) = &text {
-                        return c.name.starts_with(t);
+                        return c.name.starts_with(t.as_bytes());
                     }
                     true
                 })
-                .filter(|(_, i)| !i.name.contains('&'))
+                .filter(|(_, i)| !i.name.contains_byte(b'&'))
                 .map(|(_, v)| {
                     class_describe(
                         v,
@@ -334,7 +331,7 @@ pub fn classes(
 pub fn static_methods(
     ast: &AstFile,
     imports: &[ImportUnit],
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> Vec<CompletionItem> {
     imports
         .iter()
@@ -372,7 +369,7 @@ pub fn static_methods(
 pub fn imports(
     document: &Document,
     point: &AstPoint,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> Option<Vec<CompletionItem>> {
     const LIMIT: usize = 20;
     let Ok(cm) = class_map.read() else {
@@ -405,13 +402,13 @@ pub fn imports(
         }
         let mut out = Vec::with_capacity(LIMIT);
         if let AstImportUnit::Class(i) = &im.unit {
-            let search = i.value.as_str();
+            let search = i.value.clone();
             for k in cm.keys() {
-                if k.starts_with(search) {
+                if k.starts_with(search.as_bytes()) {
                     out.push(CompletionItem {
                         label: k
-                            .trim_start_matches(search)
-                            .trim_start_matches('.')
+                            .trim_start_matches(search.as_bytes())
+                            .trim_start_matches_byte(b'.')
                             .to_string(),
                         kind: Some(CompletionItemKind::CLASS),
                         ..Default::default()
@@ -515,11 +512,11 @@ fn parameter_helper(
         *in_parameter = true;
     }
     for param in &parameters.parameters {
-        let ty = jtype_hover_display(&param.jtype.clone().into());
+        let ty = &std::convert::Into::<JType>::into(param.jtype.clone()).to_nuvec();
         let label = format!("{} {}", ty, param.name.value);
         out.push(CompletionItem {
             label: param.name.value.to_string(),
-            detail: Some(ty),
+            detail: Some(ty.to_string()),
             insert_text: Some(label),
             insert_text_format: Some(InsertTextFormat::SNIPPET),
             ..Default::default()
@@ -540,7 +537,7 @@ mod tests {
         CompletionItem, CompletionItemKind, CompletionItemLabelDetails, InsertTextFormat, Position,
         Range, TextEdit,
     };
-    use my_string::{MyString, smol_str::SmolStr};
+    use my_string::NuVec;
     use std::{
         collections::HashMap,
         path::PathBuf,
@@ -582,34 +579,34 @@ public class GreetingResource {
         let doc = Document::setup(content, PathBuf::new()).unwrap();
         let class = Class {
             access: Access::Public,
-            name: SmolStr::new_inline("Test"),
+            name: NuVec::new_static(b"Test"),
             ..Default::default()
         };
         let lo_va = vec![LocalVariable {
-            jtype: JType::Class(SmolStr::new_inline("String")),
-            name: SmolStr::new_inline("other"),
+            jtype: JType::Class(NuVec::new_static(b"String")),
+            name: NuVec::new_static(b"other"),
             range: AstRange::default(),
             flags: VarFlags::empty(),
         }];
         let imports = vec![
-            ImportUnit::Class(SmolStr::new_inline("jakarta.inject.Inject")),
-            ImportUnit::Class(SmolStr::new_inline("jakarta.ws.rs.GET")),
-            ImportUnit::Class(SmolStr::new_inline("jakarta.ws.rs.Path")),
-            ImportUnit::Class(SmolStr::new_inline("jakarta.ws.rs.Produces")),
-            ImportUnit::Class(SmolStr::new("jakarta.ws.rs.core.MediaType")),
-            ImportUnit::Class(SmolStr::new("io.quarkus.qute.TemplateInstance")),
-            ImportUnit::Class(SmolStr::new("io.quarkus.qute.Template")),
+            ImportUnit::Class(NuVec::new_static(b"jakarta.inject.Inject")),
+            ImportUnit::Class(NuVec::new_static(b"jakarta.ws.rs.GET")),
+            ImportUnit::Class(NuVec::new_static(b"jakarta.ws.rs.Path")),
+            ImportUnit::Class(NuVec::new_static(b"jakarta.ws.rs.Produces")),
+            ImportUnit::Class(NuVec::new_static(b"jakarta.ws.rs.core.MediaType")),
+            ImportUnit::Class(NuVec::new_static(b"io.quarkus.qute.TemplateInstance")),
+            ImportUnit::Class(NuVec::new_static(b"io.quarkus.qute.Template")),
         ];
-        let mut class_map: HashMap<MyString, Class> = HashMap::new();
+        let mut class_map: HashMap<NuVec, Class> = HashMap::new();
         class_map.insert(
-            SmolStr::new_inline("java.lang.String"),
+            NuVec::new_static(b"java.lang.String"),
             Class {
                 access: Access::Public,
                 imports: imports.clone(),
-                name: SmolStr::new_inline("String"),
+                name: NuVec::new_static(b"String"),
                 methods: vec![Method {
                     access: Access::Public,
-                    name: Some(SmolStr::new_inline("length")),
+                    name: Some(NuVec::new_static(b"length")),
                     ret: JType::Int,
                     ..Default::default()
                 }],
@@ -659,27 +656,27 @@ public class Test {
     fn extend_completion_method() {
         let doc = Document::setup(SYMBOL_METHOD, PathBuf::new()).unwrap();
         let lo_va = vec![LocalVariable {
-            jtype: JType::Class(SmolStr::new_inline("String")),
-            name: SmolStr::new_inline("local"),
+            jtype: JType::Class(NuVec::new_static(b"String")),
+            name: NuVec::new_static(b"local"),
             range: AstRange::default(),
             flags: VarFlags::empty(),
         }];
         let imports = vec![];
         let class = Class {
             access: Access::Public,
-            name: SmolStr::new_inline("Test"),
+            name: NuVec::new_static(b"Test"),
             ..Default::default()
         };
-        let mut class_map: HashMap<MyString, Class> = HashMap::new();
+        let mut class_map: HashMap<NuVec, Class> = HashMap::new();
         class_map.insert(
-            SmolStr::new_inline("java.lang.String"),
+            NuVec::new_static(b"java.lang.String"),
             Class {
                 access: Access::Public,
-                name: SmolStr::new_inline("String"),
+                name: NuVec::new_static(b"String"),
                 methods: vec![Method {
                     access: Access::Public,
-                    name: Some(SmolStr::new_inline("concat")),
-                    ret: JType::Class(SmolStr::new_inline("java.lang.String")),
+                    name: Some(NuVec::new_static(b"concat")),
+                    ret: JType::Class(NuVec::new_static(b"java.lang.String")),
                     ..Default::default()
                 }],
                 ..Default::default()
@@ -715,7 +712,7 @@ public class Test {
     fn method_snippet_no_param() {
         let method = Method {
             access: Access::Public,
-            name: Some(SmolStr::new_inline("length")),
+            name: Some(NuVec::new_static(b"length")),
             parameters: vec![],
             ret: JType::Int,
             throws: vec![],
@@ -729,7 +726,7 @@ public class Test {
     fn method_snippet_base() {
         let method = Method {
             access: Access::Public,
-            name: Some(SmolStr::new_inline("compute")),
+            name: Some(NuVec::new_static(b"compute")),
             parameters: vec![Parameter {
                 name: None,
                 jtype: JType::Int,
@@ -755,7 +752,7 @@ public class Test {
             throws: vec![],
             source: None,
         };
-        let out = method_snippet(&method, Some(&SmolStr::new_inline("Computer")));
+        let out = method_snippet(&method, Some(&NuVec::new_static(b"Computer")));
         assert_eq!(out, Some(Snippet::Simple("Computer(${1:int})".to_string())));
     }
 
@@ -763,11 +760,11 @@ public class Test {
     fn method_snippet_args() {
         let method = Method {
             access: Access::Public,
-            name: Some(SmolStr::new_inline("split")),
+            name: Some(NuVec::new_static(b"split")),
             parameters: vec![
                 Parameter {
                     name: None,
-                    jtype: JType::Class(SmolStr::new_inline("java.lang.String")),
+                    jtype: JType::Class(NuVec::new_static(b"java.lang.String")),
                 },
                 Parameter {
                     name: None,
@@ -787,13 +784,13 @@ public class Test {
 
     #[test]
     fn class_completion_base_java_lang() {
-        let mut class_map: HashMap<MyString, Class> = HashMap::new();
+        let mut class_map: HashMap<NuVec, Class> = HashMap::new();
         class_map.insert(
-            SmolStr::new_inline("java.lang.StringBuilder"),
+            NuVec::new_static(b"java.lang.StringBuilder"),
             Class {
-                class_path: SmolStr::new_inline("java.lang.StringBuilder"),
+                class_path: NuVec::new_static(b"java.lang.StringBuilder"),
                 access: Access::Public,
-                name: SmolStr::new_inline("StringBuilder"),
+                name: NuVec::new_static(b"StringBuilder"),
                 ..Default::default()
             },
         );
@@ -825,13 +822,13 @@ public class Test {
     }
     #[test]
     fn class_completion_base_optional() {
-        let mut class_map: HashMap<MyString, Class> = HashMap::new();
+        let mut class_map: HashMap<NuVec, Class> = HashMap::new();
         class_map.insert(
-            SmolStr::new_inline("java.util.Optional"),
+            NuVec::new_static(b"java.util.Optional"),
             Class {
-                class_path: SmolStr::new_inline("java.util.Optional"),
+                class_path: NuVec::new_static(b"java.util.Optional"),
                 access: Access::Public,
-                name: SmolStr::new_inline("Optional"),
+                name: NuVec::new_static(b"Optional"),
                 ..Default::default()
             },
         );
@@ -876,13 +873,13 @@ public class Test {
 
     #[test]
     fn class_completion_imported() {
-        let mut class_map: HashMap<MyString, Class> = HashMap::new();
+        let mut class_map: HashMap<NuVec, Class> = HashMap::new();
         class_map.insert(
-            SmolStr::new_inline("java.lang.StringBuilder"),
+            NuVec::new_static(b"java.lang.StringBuilder"),
             Class {
-                class_path: SmolStr::new_inline("java.lang.StringBuilder"),
+                class_path: NuVec::new_static(b"java.lang.StringBuilder"),
                 access: Access::Public,
-                name: SmolStr::new_inline("StringBuilder"),
+                name: NuVec::new_static(b"StringBuilder"),
                 ..Default::default()
             },
         );
@@ -904,8 +901,8 @@ public class Test {
         let out = classes(
             &doc,
             &AstPoint::new(6, 16),
-            &[ImportUnit::Class(SmolStr::new_inline(
-                "java.lang.StringBuilder",
+            &[ImportUnit::Class(NuVec::new_static(
+                b"java.lang.StringBuilder",
             ))],
             &class_map,
         );

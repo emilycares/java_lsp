@@ -1,10 +1,7 @@
-use std::{
-    fmt::Display,
-    path::{MAIN_SEPARATOR, MAIN_SEPARATOR_STR},
-};
+use std::{fmt::Display, path::MAIN_SEPARATOR};
 
 use bitflags::bitflags;
-use my_string::{MyString, smol_str::format_smolstr};
+use my_string::{NuVec, NuVecBuilder};
 
 pub const CFC_VERSION: usize = 19;
 
@@ -44,18 +41,18 @@ impl ClassFolder {
 #[derive(Debug, PartialEq, Clone, Default)]
 pub struct ClassSignature {
     // Generics defined on class level
-    pub args: Vec<MyString>,
+    pub args: Vec<NuVec>,
     pub ret: JType,
 }
 
 #[derive(Debug, PartialEq, Clone, Default)]
 pub struct Class {
-    pub class_path: MyString,
+    pub class_path: NuVec,
     pub source: SourceDestination,
     pub access: Access,
     pub imports: Vec<ImportUnit>,
     pub signature: Option<ClassSignature>,
-    pub name: MyString,
+    pub name: NuVec,
     pub methods: Vec<Method>,
     pub fields: Vec<Field>,
     pub super_class: SuperClass,
@@ -69,21 +66,27 @@ impl Class {
     }
 
     #[must_use]
-    pub fn get_source(&self) -> Option<MyString> {
+    pub fn get_source(&self) -> Option<NuVec> {
         match &self.source {
-            SourceDestination::RelativeInFolder(e) => Some(format_smolstr!(
-                "{}{}{}.java",
-                e,
-                MAIN_SEPARATOR,
-                &self.class_path.replace('.', MAIN_SEPARATOR_STR)
-            )),
-            SourceDestination::RelativeInFolderLang(e, lang) => Some(format_smolstr!(
-                "{}{}{}.{}",
-                e,
-                MAIN_SEPARATOR,
-                &self.class_path.replace('.', MAIN_SEPARATOR_STR),
-                lang
-            )),
+            SourceDestination::RelativeInFolder(e) => {
+                let s = MAIN_SEPARATOR as u8;
+                let mut b = NuVecBuilder::new();
+                b.extend(e);
+                b.push(s);
+                b.extend(&self.class_path.replace_byte(b'.', s));
+                b.pusha(b".java");
+                Some(b.finish())
+            }
+            SourceDestination::RelativeInFolderLang(e, lang) => {
+                let separator = MAIN_SEPARATOR as u8;
+                let mut b = NuVecBuilder::new();
+                b.extend(e);
+                b.push(separator);
+                b.extend(&self.class_path.replace_byte(b'.', separator));
+                b.push(b'.');
+                b.extend(lang);
+                Some(b.finish())
+            }
             SourceDestination::Here(e) => Some(e.clone()),
             SourceDestination::None => None,
         }
@@ -94,44 +97,44 @@ impl Class {
 pub enum SourceDestination {
     #[default]
     None,
-    Here(MyString),
-    RelativeInFolder(MyString),
-    RelativeInFolderLang(MyString, MyString),
+    Here(NuVec),
+    RelativeInFolder(NuVec),
+    RelativeInFolderLang(NuVec, NuVec),
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
 pub enum SuperClass {
     #[default]
     None,
-    Name(MyString),
-    ClassPath(MyString),
+    Name(NuVec),
+    ClassPath(NuVec),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ImportUnit {
-    Package(MyString),
-    Class(MyString),
-    StaticClass(MyString),
-    StaticClassMethod(MyString, MyString),
-    Prefix(MyString),
-    StaticPrefix(MyString),
+    Package(NuVec),
+    Class(NuVec),
+    StaticClass(NuVec),
+    StaticClassMethod(NuVec, NuVec),
+    Prefix(NuVec),
+    StaticPrefix(NuVec),
 }
 impl ImportUnit {
     #[must_use]
-    pub fn class_path_get_class_name(class_path: &str) -> Option<&str> {
-        if let Some((_, c)) = class_path.rsplit_once('.') {
+    pub fn class_path_get_class_name(class_path: &NuVec) -> Option<NuVec> {
+        if let Some((_, c)) = class_path.rsplit_once_byte(b'.') {
             return Some(c);
         }
         None
     }
     #[must_use]
-    pub fn class_path_match_class_name(class_path: &str, name: &str) -> bool {
+    pub fn class_path_match_class_name(class_path: &NuVec, name: &NuVec) -> bool {
         Self::class_path_get_class_name(class_path)
             .iter()
-            .any(|i| *i == name)
+            .any(|i| i == name)
     }
     #[must_use]
-    pub fn get_imported_class_package(&self, name: &str) -> Option<MyString> {
+    pub fn get_imported_class_package(&self, name: &NuVec) -> Option<NuVec> {
         match self {
             Self::Class(class_path) | Self::StaticClass(class_path) => {
                 if Self::class_path_match_class_name(class_path, name) {
@@ -168,26 +171,26 @@ bitflags! {
 #[derive(Debug, PartialEq, Clone, Default)]
 pub struct Method {
     pub access: Access,
-    pub name: Option<MyString>,
+    pub name: Option<NuVec>,
     pub parameters: Vec<Parameter>,
     pub throws: Vec<JType>,
     pub ret: JType,
     /// When None then it is in the class
-    pub source: Option<MyString>,
+    pub source: Option<NuVec>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Field {
     pub access: Access,
-    pub name: MyString,
+    pub name: NuVec,
     pub jtype: JType,
     /// When None then it is in the class
-    pub source: Option<MyString>,
+    pub source: Option<NuVec>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Parameter {
-    pub name: Option<MyString>,
+    pub name: Option<NuVec>,
     pub jtype: JType,
 }
 
@@ -204,11 +207,11 @@ pub enum JType {
     Short,
     Boolean,
     Wildcard,
-    Class(MyString),
-    ClassOrPackage(MyString),
+    Class(NuVec),
+    ClassOrPackage(NuVec),
     Array(Box<Self>),
-    Generic(MyString, Vec<Self>),
-    Parameter(MyString),
+    Generic(NuVec, Vec<Self>),
+    Parameter(NuVec),
     Extends {
         base: Box<Self>,
         extends: Box<Self>,
@@ -218,6 +221,67 @@ pub enum JType {
         base: Box<Self>,
         inner: Box<Self>,
     },
+}
+
+impl JType {
+    pub fn to_nuvec(&self) -> NuVec {
+        match self {
+            JType::Void => NuVec::new_static(b"void"),
+            JType::Byte => NuVec::new_static(b"byte"),
+            JType::Char => NuVec::new_static(b"char"),
+            JType::Double => NuVec::new_static(b"double"),
+            JType::Float => NuVec::new_static(b"float"),
+            JType::Int => NuVec::new_static(b"int"),
+            JType::Long => NuVec::new_static(b"long"),
+            JType::Short => NuVec::new_static(b"short"),
+            JType::Boolean => NuVec::new_static(b"boolean"),
+            JType::Wildcard => NuVec::new_static(b"?"),
+            JType::Var => NuVec::new_static(b"var"),
+            JType::Class(nu_vec) | JType::ClassOrPackage(nu_vec) => class_name_hover(nu_vec),
+            JType::Array(jtype) => {
+                let mut b = NuVecBuilder::new();
+                b.extend(&jtype.to_nuvec());
+                b.pusha(b"[]");
+                b.finish()
+            }
+            JType::Generic(nu_vec, jtypes) => {
+                let mut b = NuVecBuilder::new();
+                b.extend(nu_vec);
+                b.push(b'<');
+                let mut first = true;
+                for j in jtypes {
+                    if !first {
+                        b.pusha(b", ");
+                    }
+                    first = false;
+                    b.extend(&j.to_nuvec());
+                }
+                b.push(b'>');
+                b.finish()
+            }
+            JType::Parameter(nu_vec) => {
+                let mut b = NuVecBuilder::new();
+                b.push(b'<');
+                b.extend(nu_vec);
+                b.push(b'>');
+                b.finish()
+            }
+            JType::Extends { base, .. } => base.to_nuvec(),
+            JType::Access { base, inner } => {
+                let mut b = NuVecBuilder::new();
+                b.extend(&base.to_nuvec());
+                b.push(b'.');
+                b.extend(&inner.to_nuvec());
+                b.finish()
+            }
+        }
+    }
+}
+fn class_name_hover(s: &NuVec) -> NuVec {
+    if let Some((_, s)) = s.rsplit_once_byte(b'.') {
+        return s.replace_byte(b'$', b'.');
+    }
+    s.clone()
 }
 
 impl Display for JType {
@@ -234,8 +298,8 @@ impl Display for JType {
             Self::Boolean => write!(f, "boolean"),
             Self::Wildcard => write!(f, "?"),
             Self::Class(c) | Self::ClassOrPackage(c) => {
-                if c.starts_with("java.lang.") {
-                    return write!(f, "{}", c.trim_start_matches("java.lang."));
+                if c.starts_with(b"java.lang.") {
+                    return write!(f, "{}", c.trim_start_matches(b"java.lang."));
                 }
                 write!(f, "{c}")
             }

@@ -17,10 +17,7 @@ use ast::{
     types::{AstFile, AstThing, AstTopLevel},
 };
 use lsp_types::{Diagnostic, TextDocumentContentChangeEvent};
-use my_string::{
-    MyString,
-    smol_str::{ToSmolStr, format_smolstr},
-};
+use my_string::{NuVec, NuVecBuilder};
 use ropey::Rope;
 
 #[derive(Debug, Clone)]
@@ -81,8 +78,8 @@ impl Document {
     pub fn setup_insert(
         text: &str,
         path: PathBuf,
-        key: &MyString,
-        document_map: &Arc<RwLock<HashMap<MyString, Self>>>,
+        key: &NuVec,
+        document_map: &Arc<RwLock<HashMap<NuVec, Self>>>,
     ) -> Result<(), DocumentError> {
         let rope = Rope::from_str(text);
         let mut o = Self {
@@ -96,14 +93,14 @@ impl Document {
                 let Ok(mut dm) = document_map.write() else {
                     return Err(DocumentError::Locked);
                 };
-                dm.insert(key.to_smolstr(), o);
+                dm.insert(key.clone(), o);
                 Ok(())
             }
             Err(e) => {
                 let Ok(mut dm) = document_map.write() else {
                     return Err(DocumentError::Locked);
                 };
-                dm.insert(key.to_smolstr(), o);
+                dm.insert(key.clone(), o);
                 Err(e)
             }
         }
@@ -200,7 +197,7 @@ impl Document {
 }
 
 #[must_use]
-pub fn get_class_path(ast: &AstFile) -> Option<MyString> {
+pub fn get_class_path(ast: &AstFile) -> Option<NuVec> {
     let mut package = None;
     for t in &ast.top {
         match t {
@@ -214,7 +211,11 @@ pub fn get_class_path(ast: &AstFile) -> Option<MyString> {
                         AstThing::Enumeration(ast_enumeration) => &ast_enumeration.name.value,
                         AstThing::Annotation(ast_annotation) => &ast_annotation.name.value,
                     };
-                    return Some(format_smolstr!("{}.{}", package.name.value, name));
+                    let mut out = NuVecBuilder::new();
+                    out.extend(&package.name.value);
+                    out.push(b'.');
+                    out.extend(name);
+                    return Some(out.finish());
                 }
             }
             AstTopLevel::Import(_) | AstTopLevel::Module(_) | AstTopLevel::Method(_) => {}
@@ -224,17 +225,17 @@ pub fn get_class_path(ast: &AstFile) -> Option<MyString> {
 }
 
 pub fn open_document(
-    key: &str,
+    key: &NuVec,
     content: &str,
-    document_map: &Arc<RwLock<HashMap<MyString, Document>>>,
+    document_map: &Arc<RwLock<HashMap<NuVec, Document>>>,
 ) -> Result<(), DocumentError> {
     let path = path_without_subclass(key);
-    Document::setup_insert(content, path, &key.to_smolstr(), document_map)?;
+    Document::setup_insert(content, path, key, document_map)?;
     Ok(())
 }
 pub fn read_document_or_open_class(
-    source: &str,
-    document_map: &Arc<RwLock<HashMap<MyString, Document>>>,
+    source: &NuVec,
+    document_map: &Arc<RwLock<HashMap<NuVec, Document>>>,
 ) -> Result<Document, DocumentError> {
     let Ok(mut dm) = document_map.write() else {
         return Err(DocumentError::Locked);
@@ -244,18 +245,18 @@ pub fn read_document_or_open_class(
     }
     let path = path_without_subclass(source);
     Document::setup_read(path).inspect(|doc| {
-        dm.insert(source.to_smolstr(), doc.clone());
+        dm.insert(source.clone(), doc.clone());
     })
 }
 
 pub fn get_ast(
-    source: &str,
-    document_map: &Arc<RwLock<HashMap<MyString, Document>>>,
+    source: &NuVec,
+    document_map: &Arc<RwLock<HashMap<NuVec, Document>>>,
 ) -> Result<AstFile, DocumentError> {
     read_document_or_open_class(source, document_map).map(|i| i.ast)
 }
-fn path_without_subclass(source: &str) -> PathBuf {
-    let mut path = PathBuf::from(source);
+fn path_without_subclass(source: &NuVec) -> PathBuf {
+    let mut path = PathBuf::from(source.to_str());
     {
         if let Some(file_name) = path.file_name()
             && let Some(file_name) = file_name.to_str()

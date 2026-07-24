@@ -11,7 +11,7 @@ use ast::types::{
     AstThing, AstTopLevel, AstVolatileTransient,
 };
 use bitflags::bitflags;
-use my_string::smol_str::{SmolStr, format_smolstr};
+use my_string::{NuVec, NuVecBuilder};
 
 bitflags! {
    #[derive(Clone, Eq, PartialEq, Debug, Default)]
@@ -92,44 +92,44 @@ fn thing(ast_thing: &mut AstThing, features: &Features) {
     match ast_thing {
         AstThing::Class(ast_class) => {
             for an in &ast_class.annotated {
-                if an.name.value.as_str() == "AllArgsConstructor"
+                if an.name.value == "AllArgsConstructor"
                     && features.intersects(Features::AllArgsConstructor)
                 {
                     let value = all_args_constructor(ast_class);
                     ast_class.block.constructors.push(value);
                 }
 
-                if an.name.value.as_str() == "NoArgsConstructor"
+                if an.name.value == "NoArgsConstructor"
                     && features.intersects(Features::NoArgsConstructor)
                 {
                     let value = no_args_constructor(ast_class);
                     ast_class.block.constructors.push(value);
                 }
 
-                if an.name.value.as_str() == "Getter" && features.intersects(Features::Getter) {
+                if an.name.value == "Getter" && features.intersects(Features::Getter) {
                     for f in &ast_class.block.variables {
                         ast_class.block.methods.push(getter_class_variable(f));
                     }
                 }
 
-                if an.name.value.as_str() == "Setter" && features.intersects(Features::Setter) {
+                if an.name.value == "Setter" && features.intersects(Features::Setter) {
                     for f in &ast_class.block.variables {
                         ast_class.block.methods.push(getter_class_variable(f));
                     }
                 }
 
-                if an.name.value.as_str() == "ToString" && features.intersects(Features::ToString) {
+                if an.name.value == "ToString" && features.intersects(Features::ToString) {
                     ast_class.block.methods.push(to_string_class());
                 }
 
-                if an.name.value.as_str() == "EqualsAndHashCode"
+                if an.name.value == "EqualsAndHashCode"
                     && features.intersects(Features::EqualsAndHashCode)
                 {
                     ast_class.block.methods.push(equals_class());
                     ast_class.block.methods.push(hashcode_class());
                 }
 
-                if an.name.value.as_str() == "Data"
+                if an.name.value == "Data"
                     && features.contains(
                         Features::Getter
                             | Features::Setter
@@ -154,7 +154,7 @@ fn thing(ast_thing: &mut AstThing, features: &Features) {
                 if features.intersects(Features::Getter) {
                     for f in &ast_class.block.variables {
                         for an in &f.annotated {
-                            if an.name.value.as_str() == "Getter" {
+                            if an.name.value == "Getter" {
                                 ast_class.block.methods.push(getter_class_variable(f));
                             }
                         }
@@ -164,14 +164,14 @@ fn thing(ast_thing: &mut AstThing, features: &Features) {
                 if features.intersects(Features::Setter) {
                     for f in &ast_class.block.variables {
                         for an in &f.annotated {
-                            if an.name.value.as_str() == "Setter" {
+                            if an.name.value == "Setter" {
                                 ast_class.block.methods.push(setter_class_variable(f));
                             }
                         }
                     }
                 }
 
-                if an.name.value.as_str() == "Slf4j" && features.intersects(Features::Slf4j) {
+                if an.name.value == "Slf4j" && features.intersects(Features::Slf4j) {
                     ast_class.block.variables.push(slf4j());
                 }
             }
@@ -189,14 +189,14 @@ fn slf4j() -> AstClassVariable {
         availability: AstAvailability::Private | AstAvailability::Static | AstAvailability::Final,
         annotated: Vec::new(),
         name: AstIdentifier {
-            value: SmolStr::from("log"),
+            value: NuVec::new_static(b"log"),
             range: AstRange::default(),
         },
         jtype: AstJType {
             annotated: Vec::new(),
             range: AstRange::default(),
             value: AstJTypeKind::Class(AstIdentifier {
-                value: SmolStr::from("org.slf4j.Logger"),
+                value: NuVec::new_static(b"org.slf4j.Logger"),
                 range: AstRange::default(),
             }),
         },
@@ -213,7 +213,7 @@ fn hashcode_class() -> AstClassMethod {
             availability: AstAvailability::empty(),
             name: AstIdentifier {
                 range: AstRange::default(),
-                value: SmolStr::new_inline("hashCode"),
+                value: NuVec::new_static(b"hashCode"),
             },
             jtype: AstJType {
                 annotated: Vec::new(),
@@ -240,7 +240,7 @@ fn equals_class() -> AstClassMethod {
             availability: AstAvailability::empty(),
             name: AstIdentifier {
                 range: AstRange::default(),
-                value: SmolStr::new_inline("equals"),
+                value: NuVec::new_static(b"equals"),
             },
             jtype: AstJType {
                 annotated: Vec::new(),
@@ -257,12 +257,12 @@ fn equals_class() -> AstClassMethod {
                         range: AstRange::default(),
                         value: AstJTypeKind::Class(AstIdentifier {
                             range: AstRange::default(),
-                            value: SmolStr::new_inline("java.lang.Object"),
+                            value: NuVec::new_static(b"java.lang.Object"),
                         }),
                     },
                     name: AstIdentifier {
                         range: AstRange::default(),
-                        value: SmolStr::new_inline("other"),
+                        value: NuVec::new_static(b"other"),
                     },
                     flags: AstMethodParameterFlags::empty(),
                 }],
@@ -283,14 +283,14 @@ fn to_string_class() -> AstClassMethod {
             availability: AstAvailability::empty(),
             name: AstIdentifier {
                 range: AstRange::default(),
-                value: SmolStr::new_inline("toString"),
+                value: NuVec::new_static(b"toString"),
             },
             jtype: AstJType {
                 annotated: Vec::new(),
                 range: AstRange::default(),
                 value: AstJTypeKind::Class(AstIdentifier {
                     range: AstRange::default(),
-                    value: SmolStr::new_inline("java.lang.String"),
+                    value: NuVec::new_static(b"java.lang.String"),
                 }),
             },
             parameters: AstMethodParameters {
@@ -307,6 +307,10 @@ fn to_string_class() -> AstClassMethod {
 
 fn getter_class_variable(f: &AstClassVariable) -> AstClassMethod {
     let name = my_string::capitalize_first(&f.name.value);
+    let mut b = NuVecBuilder::new();
+    b.pusha(b"get");
+    b.extend(&name);
+    let value = b.finish();
     AstClassMethod {
         range: AstRange::default(),
         header: AstMethodHeader {
@@ -314,7 +318,7 @@ fn getter_class_variable(f: &AstClassVariable) -> AstClassMethod {
             availability: AstAvailability::empty(),
             name: AstIdentifier {
                 range: AstRange::default(),
-                value: format_smolstr!("get{}", name),
+                value,
             },
             jtype: f.jtype.clone(),
             parameters: AstMethodParameters {
@@ -331,6 +335,10 @@ fn getter_class_variable(f: &AstClassVariable) -> AstClassMethod {
 
 fn setter_class_variable(f: &AstClassVariable) -> AstClassMethod {
     let name = my_string::capitalize_first(&f.name.value);
+    let mut b = NuVecBuilder::new();
+    b.pusha(b"set");
+    b.extend(&name);
+    let value = b.finish();
     AstClassMethod {
         range: AstRange::default(),
         header: AstMethodHeader {
@@ -338,7 +346,7 @@ fn setter_class_variable(f: &AstClassVariable) -> AstClassMethod {
             availability: AstAvailability::empty(),
             name: AstIdentifier {
                 range: AstRange::default(),
-                value: format_smolstr!("set{}", name),
+                value,
             },
             jtype: AstJType {
                 annotated: Vec::new(),

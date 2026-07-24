@@ -3,8 +3,7 @@ use common::{Dependency, TaskProgress, deps_dir};
 use dto::{Class, ClassFolder, SourceDestination};
 use maven::m2::{self, pom_m2, pom_sources_jar};
 use maven::update::{CurlClient, pom_source_jar_url};
-use my_string::MyString;
-use my_string::smol_str::ToSmolStr;
+use my_string::NuVec;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::process::Command;
@@ -104,7 +103,7 @@ pub enum GradleProjectError {
 }
 
 pub async fn index_project(
-    class_map: Arc<RwLock<HashMap<MyString, Class, impl std::hash::BuildHasher + Send + Sync>>>,
+    class_map: Arc<RwLock<HashMap<NuVec, Class, impl std::hash::BuildHasher + Send + Sync>>>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
     use_cache: bool,
     cache_path: PathBuf,
@@ -119,7 +118,7 @@ pub async fn index_project(
 }
 
 async fn index(
-    class_map: Arc<RwLock<HashMap<MyString, Class, impl std::hash::BuildHasher + Send + Sync>>>,
+    class_map: Arc<RwLock<HashMap<NuVec, Class, impl std::hash::BuildHasher + Send + Sync>>>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
     use_cache: bool,
     cache_path: PathBuf,
@@ -178,7 +177,7 @@ async fn index(
             deps_source
                 .to_str()
                 .map_or(SourceDestination::None, |source| {
-                    SourceDestination::RelativeInFolder(source.to_smolstr())
+                    SourceDestination::RelativeInFolder(NuVec::new(source.as_bytes()))
                 })
         });
 

@@ -10,10 +10,7 @@ use dto::{Class, ImportUnit, JType};
 use local_variable::LocalVariable;
 use lsp_extra::{SourceToUriError, ToLspRangeError, source_to_uri, to_lsp_range};
 use lsp_types::{GotoDefinitionResponse, Location, SymbolKind, Uri};
-use my_string::{
-    MyString,
-    smol_str::{SmolStr, ToSmolStr},
-};
+use my_string::NuVec;
 use position::PositionSymbol;
 use tyres::TyresError;
 
@@ -24,13 +21,13 @@ use crate::hover::{ClassActionError, class_action};
 pub enum DefinitionError {
     Tyres(TyresError),
     ClassActon(ClassActionError),
-    LocalVariableNotFound { name: SmolStr },
+    LocalVariableNotFound { name: NuVec },
     ValidatedItemDoesNotExists,
     ArgumentNotFound,
     Document(DocumentError),
     ToLspRange(ToLspRangeError),
     SourceToUri(SourceToUriError),
-    FieldNotFound { name: SmolStr },
+    FieldNotFound { name: NuVec },
     NotAnArray,
     NoSource,
 }
@@ -40,14 +37,14 @@ pub struct DefinitionContext<'a> {
     pub vars: &'a [LocalVariable],
     pub imports: &'a [ImportUnit],
     pub class: &'a Class,
-    pub class_map: Arc<RwLock<HashMap<MyString, Class>>>,
-    pub document_map: &'a Arc<RwLock<HashMap<MyString, Document>>>,
+    pub class_map: Arc<RwLock<HashMap<NuVec, Class>>>,
+    pub document_map: &'a Arc<RwLock<HashMap<NuVec, Document>>>,
 }
 
 pub fn class(
     ast: &AstFile,
     context: &DefinitionContext,
-    document_map: &Arc<RwLock<HashMap<MyString, Document>>>,
+    document_map: &Arc<RwLock<HashMap<NuVec, Document>>>,
 ) -> Result<GotoDefinitionResponse, DefinitionError> {
     match class_action(
         ast,
@@ -139,9 +136,7 @@ pub fn call_chain_definition(
                 .find(|n| n.name == *name)
                 .map(|v| v.range)
             else {
-                return Err(DefinitionError::LocalVariableNotFound {
-                    name: name.to_smolstr(),
-                });
+                return Err(DefinitionError::LocalVariableNotFound { name: name.clone() });
             };
             let range = to_lsp_range(&range).map_err(DefinitionError::ToLspRange)?;
             Ok(GotoDefinitionResponse::Scalar(Location {
@@ -196,7 +191,7 @@ pub fn call_chain_definition(
                     JType::Class(name) | JType::Generic(name, _) => Some(name),
                     _ => None,
                 };
-                position::get_class_position(&ast, name.as_deref(), &mut ranges);
+                position::get_class_position(&ast, name.as_ref(), &mut ranges);
                 let uri = source_to_uri(&source).map_err(DefinitionError::SourceToUri)?;
                 return go_to_definition_range(uri, &ranges);
             }
@@ -209,7 +204,7 @@ pub fn call_chain_definition(
 fn field_definition(
     context: &DefinitionContext<'_>,
     resolve_state: &tyres::ResolveState,
-    name: &SmolStr,
+    name: &NuVec,
 ) -> Result<GotoDefinitionResponse, DefinitionError> {
     if let Some(field) = resolve_state.class.fields.iter().find(|i| &i.name == name) {
         let source = if let Some(s) = field.source.clone() {
@@ -228,9 +223,7 @@ fn field_definition(
         let uri = source_to_uri(&source).map_err(DefinitionError::SourceToUri)?;
         return go_to_definition_range(uri, &ranges);
     }
-    Err(DefinitionError::FieldNotFound {
-        name: name.to_smolstr(),
-    })
+    Err(DefinitionError::FieldNotFound { name: name.clone() })
 }
 
 pub fn class_to_uri(class: &Class) -> Result<Uri, DefinitionError> {
@@ -429,28 +422,28 @@ public class Test extends ParGreet {
         "]];
         expected.assert_debug_eq(&out);
     }
-    fn get_class_map() -> Arc<RwLock<HashMap<MyString, Class>>> {
-        let mut class_map: HashMap<MyString, Class> = HashMap::new();
+    fn get_class_map() -> Arc<RwLock<HashMap<NuVec, Class>>> {
+        let mut class_map: HashMap<NuVec, Class> = HashMap::new();
         class_map.insert(
-            SmolStr::new("ch.emilycares.a.ParGreet"),
+            NuVec::new_static(b"ch.emilycares.a.ParGreet"),
             Class {
                 methods: vec![Method {
-                    name: Some(SmolStr::new_inline("greet")),
-                    source: Some(SmolStr::new_inline("greet")),
+                    name: Some(NuVec::new_static(b"greet")),
+                    source: Some(NuVec::new_static(b"greet")),
                     ..Default::default()
                 }],
                 ..Default::default()
             },
         );
         class_map.insert(
-            SmolStr::new("org.jboss.logging.Logger"),
+            NuVec::new_static(b"org.jboss.logging.Logger"),
             Class {
-                source: SourceDestination::Here(SmolStr::new_inline("Logger")),
+                source: SourceDestination::Here(NuVec::new_static(b"Logger")),
                 access: Access::Public,
-                name: SmolStr::new_inline("Logger"),
+                name: NuVec::new_static(b"Logger"),
                 methods: vec![Method {
                     access: Access::Public,
-                    name: Some(SmolStr::new_inline("info")),
+                    name: Some(NuVec::new_static(b"info")),
                     ret: JType::Void,
                     ..Default::default()
                 }],
@@ -458,44 +451,44 @@ public class Test extends ParGreet {
             },
         );
         class_map.insert(
-            SmolStr::new_inline("java.util.List"),
+            NuVec::new_static(b"java.util.List"),
             Class {
-                source: SourceDestination::Here(SmolStr::new_inline("List")),
+                source: SourceDestination::Here(NuVec::new_static(b"List")),
                 access: Access::Public,
-                name: SmolStr::new_inline("List"),
+                name: NuVec::new_static(b"List"),
                 methods: vec![Method {
                     access: Access::Public,
-                    name: Some(SmolStr::new_inline("stream")),
-                    ret: JType::Class(SmolStr::new_inline("java.util.stream.Stream")),
+                    name: Some(NuVec::new_static(b"stream")),
+                    ret: JType::Class(NuVec::new_static(b"java.util.stream.Stream")),
                     ..Default::default()
                 }],
                 ..Default::default()
             },
         );
         class_map.insert(
-            SmolStr::new_inline("java.util.stream.Stream"),
+            NuVec::new_static(b"java.util.stream.Stream"),
             Class {
-                source: SourceDestination::Here(SmolStr::new_inline("Stream")),
+                source: SourceDestination::Here(NuVec::new_static(b"Stream")),
                 access: Access::Public,
-                name: SmolStr::new_inline("Stream"),
+                name: NuVec::new_static(b"Stream"),
                 methods: vec![Method {
                     access: Access::Public,
-                    name: Some(SmolStr::new_inline("map")),
-                    ret: JType::Class(SmolStr::new_inline("java.util.stream.Stream")),
+                    name: Some(NuVec::new_static(b"map")),
+                    ret: JType::Class(NuVec::new_static(b"java.util.stream.Stream")),
                     ..Default::default()
                 }],
                 ..Default::default()
             },
         );
         class_map.insert(
-            SmolStr::new_inline("java.lang.String"),
+            NuVec::new_static(b"java.lang.String"),
             Class {
-                source: SourceDestination::Here(SmolStr::new_inline("String")),
+                source: SourceDestination::Here(NuVec::new_static(b"String")),
                 access: Access::Public,
-                name: SmolStr::new_inline("String"),
+                name: NuVec::new_static(b"String"),
                 methods: vec![Method {
                     access: Access::Public,
-                    name: Some(SmolStr::new_inline("length")),
+                    name: Some(NuVec::new_static(b"length")),
                     ret: JType::Int,
                     ..Default::default()
                 }],

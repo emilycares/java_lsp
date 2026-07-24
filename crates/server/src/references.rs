@@ -10,7 +10,7 @@ use dto::{Class, ImportUnit};
 use local_variable::LocalVariable;
 use lsp_extra::{SourceToUriError, ToLspRangeError, source_to_uri, to_lsp_range};
 use lsp_types::Location;
-use my_string::MyString;
+use my_string::NuVec;
 use position::PositionSymbol;
 
 #[derive(Debug)]
@@ -26,8 +26,8 @@ pub enum ReferencesError {
 
 #[derive(Debug)]
 pub enum ReferenceUnit {
-    Class(MyString),
-    StaticClass(MyString),
+    Class(NuVec),
+    StaticClass(NuVec),
 }
 #[derive(Debug)]
 pub struct ReferencePosition(PositionSymbol);
@@ -35,17 +35,17 @@ pub struct ReferencePosition(PositionSymbol);
 pub struct ReferencesContext<'a> {
     pub point: &'a AstPoint,
     pub imports: &'a [ImportUnit],
-    pub class_map: Arc<RwLock<HashMap<MyString, Class>>>,
+    pub class_map: Arc<RwLock<HashMap<NuVec, Class>>>,
     pub class: &'a Class,
     pub vars: &'a [LocalVariable],
 }
 
 #[must_use]
 pub fn class_path(
-    class_path: &str,
-    reference_map: &Arc<Mutex<HashMap<MyString, Vec<ReferenceUnit>>>>,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
-    document_map: &Arc<RwLock<HashMap<MyString, Document>>>,
+    class_path: &NuVec,
+    reference_map: &Arc<Mutex<HashMap<NuVec, Vec<ReferenceUnit>>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
+    document_map: &Arc<RwLock<HashMap<NuVec, Document>>>,
 ) -> Option<Vec<Location>> {
     if let Ok(class_map) = class_map.read()
         && let Ok(reference_map) = reference_map.lock()
@@ -64,15 +64,15 @@ pub fn class_path(
                 let a = refs.first().map(|i| i.0.range);
                 a.map(|a| (lookup, a))
             })
-            .filter_map(
-                |(lookup, range)| match source_to_uri(lookup.path.to_str()?) {
+            .filter_map(|(lookup, range)| {
+                match source_to_uri(&NuVec::new(lookup.path.to_str()?.as_bytes())) {
                     Ok(u) => Some((u, range)),
                     Err(e) => {
                         eprintln!("References Uri error {e:?}");
                         None
                     }
-                },
-            )
+                }
+            })
             .filter_map(|(i, range)| {
                 let range = to_lsp_range(&range).ok()?;
                 Some(Location { uri: i, range })
@@ -86,8 +86,8 @@ pub fn class_path(
 pub fn call_chain_references(
     call_chain: &[CallItem],
     context: &ReferencesContext,
-    reference_map: &Arc<Mutex<HashMap<MyString, Vec<ReferenceUnit>>>>,
-    document_map: &Arc<RwLock<HashMap<MyString, Document>>>,
+    reference_map: &Arc<Mutex<HashMap<NuVec, Vec<ReferenceUnit>>>>,
+    document_map: &Arc<RwLock<HashMap<NuVec, Document>>>,
 ) -> Result<Vec<Location>, ReferencesError> {
     let (item, relevant) = call_chain::validate(call_chain, context.point);
 
@@ -153,8 +153,8 @@ pub fn call_chain_references(
 #[allow(clippy::nursery, clippy::pedantic)]
 fn method_references(
     _class: &Class,
-    _query_method_name: &str,
-    _document_map: &Arc<RwLock<HashMap<MyString, Document>>>,
+    _query_method_name: &NuVec,
+    _document_map: &Arc<RwLock<HashMap<NuVec, Document>>>,
 ) -> Result<Vec<ReferencePosition>, ReferencesError> {
     //TODO
     Ok(Vec::new())
@@ -162,8 +162,8 @@ fn method_references(
 
 pub fn init_reference_map(
     project_classes: &[Class],
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
-    reference_map: &Arc<Mutex<HashMap<MyString, Vec<ReferenceUnit>>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
+    reference_map: &Arc<Mutex<HashMap<NuVec, Vec<ReferenceUnit>>>>,
 ) -> Result<(), ReferencesError> {
     for class in project_classes {
         reference_update_class(class, class_map, reference_map)?;
@@ -173,8 +173,8 @@ pub fn init_reference_map(
 
 pub fn reference_update_class(
     class: &Class,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
-    reference_map: &Arc<Mutex<HashMap<MyString, Vec<ReferenceUnit>>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
+    reference_map: &Arc<Mutex<HashMap<NuVec, Vec<ReferenceUnit>>>>,
 ) -> Result<(), ReferencesError> {
     let class_path = class.class_path.clone();
     let Ok(mut reference_map) = reference_map.lock() else {
@@ -220,7 +220,7 @@ pub fn reference_update_class(
     Ok(())
 }
 
-fn pos_refs_helper(ast: &AstFile, query_class_name: &str) -> Vec<ReferencePosition> {
+fn pos_refs_helper(ast: &AstFile, query_class_name: &NuVec) -> Vec<ReferencePosition> {
     let mut usages = vec![];
     position::get_class_position(ast, Some(query_class_name), &mut usages);
     usages
@@ -230,18 +230,18 @@ fn pos_refs_helper(ast: &AstFile, query_class_name: &str) -> Vec<ReferencePositi
 }
 
 fn get_implicit_imports(
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
     class: &Class,
-    package: &MyString,
-) -> Vec<MyString> {
+    package: &NuVec,
+) -> Vec<NuVec> {
     let Ok(class_map) = class_map.read() else {
         return Vec::new();
     };
     class_map
         .keys()
         .filter(|c| {
-            if let Some((c_package, _)) = c.rsplit_once('.') {
-                return c_package == package;
+            if let Some((c_package, _)) = c.rsplit_once_byte(b'.') {
+                return c_package == *package;
             }
             false
         })

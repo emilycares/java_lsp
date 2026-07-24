@@ -4,16 +4,13 @@ use std::{
 };
 
 use dto::{Access, Class, ImportUnit, JType, SuperClass};
-use my_string::{
-    MyString,
-    smol_str::{SmolStr, format_smolstr},
-};
+use my_string::{NuVec, NuVecBuilder};
 
 use crate::{ImportResult, is_imported};
 
 pub fn include_parent(
     class: Class,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
     args: &[JType],
 ) -> Class {
     let mut s: Vec<Class> = vec![];
@@ -62,7 +59,7 @@ fn class_fill_generics(class: &mut Class, args: &[JType]) {
     }
 }
 
-fn replace_generic_jtype(jtype: &mut JType, class_signature: &[(usize, &SmolStr)], args: &[JType]) {
+fn replace_generic_jtype(jtype: &mut JType, class_signature: &[(usize, &NuVec)], args: &[JType]) {
     match jtype {
         JType::Array(jtype) => replace_generic_jtype(jtype, class_signature, args),
         JType::Generic(_, jtypes) => {
@@ -85,7 +82,7 @@ fn replace_generic_jtype(jtype: &mut JType, class_signature: &[(usize, &SmolStr)
 
 pub fn populate_super_class(
     class: &Class,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
     s: &mut Vec<Class>,
 ) {
     let parent = load_parent(&class.super_class, &class.imports, class_map);
@@ -97,7 +94,7 @@ pub fn populate_super_class(
 
 pub fn populate_super_interfaces(
     class: &Class,
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
     s: &mut Vec<Class>,
 ) {
     for super_interface in &class.super_interfaces {
@@ -138,12 +135,15 @@ fn overlay_class(b: Class, c: &Class) -> Class {
 fn load_parent(
     super_class: &SuperClass,
     imports: &[ImportUnit],
-    class_map: &Arc<RwLock<HashMap<MyString, Class>>>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
 ) -> Option<Class> {
     match super_class {
         SuperClass::None => None,
         SuperClass::Name(n) => {
-            let key = format_smolstr!("java.util.{n}");
+            let mut key = NuVecBuilder::new();
+            key.pusha(b"java.util.");
+            key.extend(n);
+            let key = key.finish();
             if let Ok(class_map) = class_map.read()
                 && let Some(o) = class_map.get(&key).map(ToOwned::to_owned)
             {
@@ -153,7 +153,12 @@ fn load_parent(
                 ImportUnit::Package(smol_str) => Some(smol_str),
                 _ => None,
             }) {
-                let key = format_smolstr!("{package}.{n}");
+                let mut key = NuVecBuilder::new();
+                key.extend(package);
+                key.push(b'.');
+                key.extend(n);
+                let key = key.finish();
+
                 if let Ok(cm) = class_map.read()
                     && let Some(o) = cm.get(&key)
                 {

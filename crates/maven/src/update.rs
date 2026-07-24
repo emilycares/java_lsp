@@ -19,7 +19,7 @@ use common::{
 use curl::easy::{Easy, List};
 use curl::multi::{EasyHandle, Multi};
 use dto::SourceDestination;
-use my_string::smol_str::ToSmolStr;
+use my_string::NuVec;
 use tokio::{fs::remove_dir, task::JoinSet};
 use tokio::{
     fs::{create_dir_all, write},
@@ -440,7 +440,7 @@ pub async fn fetch_extract_source(
             return true;
         }
         Ok(UpdateStateSource::NotFound) => {
-            eprintln!("Source not found: {:?}", &f_source);
+            eprintln!("Source not found: {f_source:?}");
         }
         Err(e) => eprintln!("Get error: {e:?}"),
     }
@@ -453,7 +453,7 @@ async fn index_jar(pom: Arc<Dependency>, deps_bas: &PathBuf, jar: &PathBuf, d_so
     };
     match loader::load_classes_jar(
         jar,
-        SourceDestination::RelativeInFolder(source.to_smolstr()),
+        SourceDestination::RelativeInFolder(NuVec::new(source.as_bytes())),
     )
     .await
     {

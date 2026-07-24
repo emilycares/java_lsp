@@ -24,6 +24,7 @@ use ast::{
     },
 };
 use config::FormatterConfig;
+use my_string::NuVec;
 
 #[derive(Debug)]
 pub enum FormatError {
@@ -102,6 +103,7 @@ impl Formatter {
         })
     }
 
+    #[inline]
     fn write_indent(&mut self) {
         for _ in 0..self.indent {
             self.buf.extend_from_slice(self.space.as_bytes());
@@ -117,12 +119,12 @@ impl Formatter {
             match &t.token {
                 Token::LineComment(l) => {
                     self.buf.extend_from_slice(b"//");
-                    self.buf.extend_from_slice(l);
+                    extend_nuvec(&mut self.buf, l);
                     self.write_indent();
                 }
                 Token::BlockComment(c, _) => {
                     self.buf.extend_from_slice(b"/*");
-                    self.buf.extend_from_slice(c);
+                    extend_nuvec(&mut self.buf, c);
                     self.buf.extend_from_slice(b"*/");
                     if self.insert_line_or_space() {
                         self.write_indent();
@@ -139,6 +141,11 @@ impl Formatter {
         self.buf.extend_from_slice(content);
     }
 
+    pub fn write_with_comments_nu(&mut self, up_to: AstPoint, content: &NuVec) {
+        self.insert_comments(up_to);
+        extend_nuvec(&mut self.buf, content);
+    }
+
     pub fn write_identifier(&mut self, ident: &AstIdentifier) {
         self.write_with_comments(ident.range.start, ident.value.as_bytes());
         self.skip_to(ident.range.end);
@@ -149,13 +156,13 @@ impl Formatter {
             match &t.token {
                 Token::LineComment(l) => {
                     self.buf.extend_from_slice(b"//");
-                    self.buf.extend_from_slice(l);
+                    extend_nuvec(&mut self.buf, l);
                     self.write_indent();
                     self.index += 1;
                 }
                 Token::BlockComment(c, _) => {
                     self.buf.extend_from_slice(b"/*");
-                    self.buf.extend_from_slice(c);
+                    extend_nuvec(&mut self.buf, c);
                     self.buf.extend_from_slice(b"*/");
                     if self.insert_line_or_space() {
                         self.write_indent();
@@ -221,12 +228,12 @@ impl Formatter {
             match &t.token {
                 Token::LineComment(l) => {
                     self.buf.extend_from_slice(b" //");
-                    self.buf.extend_from_slice(l);
+                    extend_nuvec(&mut self.buf, l);
                     self.index += 1;
                 }
                 Token::BlockComment(c, _) => {
                     self.buf.extend_from_slice(b" /*");
-                    self.buf.extend_from_slice(c);
+                    extend_nuvec(&mut self.buf, c);
                     self.buf.extend_from_slice(b"*/");
                     self.index += 1;
                 }
@@ -245,13 +252,16 @@ impl Formatter {
         {
             match &t.token {
                 Token::LineComment(l) => {
+                    for _ in 0..self.indent {
+                        self.buf.extend_from_slice(self.space.as_bytes());
+                    }
                     self.buf.extend_from_slice(b"//");
-                    self.buf.extend_from_slice(l);
+                    extend_nuvec(&mut self.buf, l);
                     self.index += 1;
                 }
                 Token::BlockComment(c, _) => {
                     self.buf.extend_from_slice(b" /*");
-                    self.buf.extend_from_slice(c);
+                    extend_nuvec(&mut self.buf, c);
                     self.buf.extend_from_slice(b"*/");
                     self.index += 1;
                 }
@@ -260,6 +270,20 @@ impl Formatter {
                     break;
                 }
             }
+        }
+    }
+}
+
+fn extend_nuvec(out: &mut Vec<u8>, v: &NuVec) {
+    match v {
+        NuVec::Inline { buf, .. } => {
+            out.extend(&buf[..v.len()]);
+        }
+        NuVec::Static(items) => {
+            out.extend(*items);
+        }
+        NuVec::Heap(items) => {
+            out.extend(items);
         }
     }
 }
@@ -1793,47 +1817,49 @@ fn write_value(value: &AstValue, f: &mut Formatter) {
 fn write_value_nuget(nuget: &AstValueNuget, f: &mut Formatter) {
     match nuget {
         AstValueNuget::Int(i) => {
-            f.write_with_comments(i.range.start, i.value.as_bytes());
+            f.write_with_comments_nu(i.range.start, &i.value);
             f.skip_to(i.range.end);
         }
         AstValueNuget::Long(l) => {
-            f.write_with_comments(l.range.start, l.value.as_bytes());
+            f.write_with_comments_nu(l.range.start, &l.value);
             f.skip_to(l.range.end);
             f.write(b"L");
         }
         AstValueNuget::Double(d) => {
-            f.write_with_comments(d.range.start, d.value.as_bytes());
+            f.write_with_comments_nu(d.range.start, &d.value);
             f.skip_to(d.range.end);
             f.write(b"d");
         }
         AstValueNuget::Float(fl) => {
-            f.write_with_comments(fl.range.start, fl.value.as_bytes());
+            f.write_with_comments_nu(fl.range.start, &fl.value);
             f.skip_to(fl.range.end);
             f.write(b"f");
         }
         AstValueNuget::StringLiteral {
             value,
+            range,
             multi_line: false,
         } => {
-            f.write_with_comments(value.range.start, b"\"");
-            f.buf.extend_from_slice(value.value.as_bytes());
+            f.write_with_comments(range.start, b"\"");
+            extend_nuvec(&mut f.buf, value);
             f.buf.extend_from_slice(b"\"");
-            f.skip_to(value.range.end);
+            f.skip_to(range.end);
         }
         AstValueNuget::StringLiteral {
             value,
+            range,
             multi_line: true,
         } => {
-            f.write_with_comments(value.range.start, b"\"\"\"");
-            f.buf.extend_from_slice(value.value.as_bytes());
+            f.write_with_comments(range.start, b"\"\"\"");
+            extend_nuvec(&mut f.buf, value);
             f.buf.extend_from_slice(b"\"\"\"");
-            f.skip_to(value.range.end);
+            f.skip_to(range.end);
         }
-        AstValueNuget::CharLiteral(c) => {
-            f.write_with_comments(c.range.start, b"'");
-            f.buf.extend_from_slice(c.value.as_bytes());
+        AstValueNuget::CharLiteral { value, range } => {
+            f.write_with_comments(range.start, b"'");
+            extend_nuvec(&mut f.buf, value);
             f.buf.extend_from_slice(b"'");
-            f.skip_to(c.range.end);
+            f.skip_to(range.end);
         }
         AstValueNuget::BooleanLiteral(b) => {
             f.write_with_comments(b.range.start, if b.value { b"true" } else { b"false" });
@@ -1841,12 +1867,12 @@ fn write_value_nuget(nuget: &AstValueNuget, f: &mut Formatter) {
         }
         AstValueNuget::HexLiteral(h) => {
             f.write_with_comments(h.range.start, b"0x");
-            f.buf.extend_from_slice(h.value.as_bytes());
+            extend_nuvec(&mut f.buf, &h.value);
             f.skip_to(h.range.end);
         }
         AstValueNuget::BinaryLiteral(b) => {
             f.write_with_comments(b.range.start, b"0b");
-            f.buf.extend_from_slice(b.value.as_bytes());
+            extend_nuvec(&mut f.buf, &b.value);
             f.skip_to(b.range.end);
         }
     }

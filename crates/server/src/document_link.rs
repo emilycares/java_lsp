@@ -1,6 +1,7 @@
 use document::Document;
 use lsp_extra::{source_to_uri, to_lsp_range};
 use lsp_types::{DocumentLink, Uri};
+use my_string::NuVec;
 use position::PositionSymbol;
 pub const TEST_JAVA: &str = "Test.java";
 pub const JAVA: &str = ".java";
@@ -19,18 +20,18 @@ pub fn get_document_link(uri: &Uri, document: &Document) -> Option<Vec<DocumentL
 
     let is_test = path.ends_with(TEST_JAVA);
     let target = if is_test {
-        source_to_uri(
-            &path
-                .replacen(SRC_TEST, SRC_MAIN, 1)
-                .replacen(TEST_JAVA, JAVA, 1),
-        )
+        source_to_uri(&NuVec::new(
+            path.replacen(SRC_TEST, SRC_MAIN, 1)
+                .replacen(TEST_JAVA, JAVA, 1)
+                .as_bytes(),
+        ))
         .ok()
     } else {
-        source_to_uri(
-            &path
-                .replacen(SRC_MAIN, SRC_TEST, 1)
-                .replacen(JAVA, TEST_JAVA, 1),
-        )
+        source_to_uri(&NuVec::new(
+            path.replacen(SRC_MAIN, SRC_TEST, 1)
+                .replacen(JAVA, TEST_JAVA, 1)
+                .as_bytes(),
+        ))
         .ok()
     }?;
 

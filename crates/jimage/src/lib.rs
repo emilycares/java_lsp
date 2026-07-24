@@ -13,17 +13,11 @@ pub mod types;
 mod util;
 use class::{ModuleInfo, load_class, load_module};
 use mutf8::mutf8_to_utf8;
+use my_string::{NuVec, NuVecBuilder};
 
-use std::{
-    path::{MAIN_SEPARATOR, Path, PathBuf},
-    str::from_utf8,
-};
+use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 
 use dto::{ClassFolder, ClassParserError, SourceDestination};
-use my_string::{
-    MyString,
-    smol_str::{StrExt, ToSmolStr, format_smolstr},
-};
 
 use crate::{
     types::{JimageError, JimageHeader, JimageLocation, ModuleList},
@@ -52,7 +46,7 @@ pub fn get_modules_path(java_path: &Path) -> PathBuf {
 pub fn parser(
     data: &[u8],
     pos: usize,
-    source_dir: &MyString,
+    source_dir: &NuVec,
     filter: bool,
 ) -> Result<ClassFolder, JimageError> {
     let (_pos, header) = parse_header(data, pos)?;
@@ -92,14 +86,22 @@ pub fn parser(
         }
 
         let (_, module_name) = parse_string(strings_data, location.module)?;
-        let source = SourceDestination::RelativeInFolder(format_smolstr!(
-            "{source_dir}{}{module_name}",
-            MAIN_SEPARATOR
-        ));
+
+        let mut source = NuVecBuilder::new();
+        source.extend(source_dir);
+        source.push(MAIN_SEPARATOR as u8);
+        source.extend(&module_name);
+        let source = SourceDestination::RelativeInFolder(source.finish());
 
         let bytes = get_content_bytes(data, index_size, &location)?;
         let (_, class_name) = parse_string(strings_data, location.base)?;
-        let class_path = format_smolstr!("{}.{}", class_path.replace_smolstr("/", "."), class_name);
+
+        let mut c = NuVecBuilder::new();
+        c.extend(&class_path.replace_byte(b'/', b'.'));
+        c.push(b'.');
+        c.extend(&class_name);
+        let class_path = c.finish();
+
         match load_class(bytes, class_path.clone(), source, filter) {
             Ok(c) => classes.push(c),
             Err(ClassParserError::NotAClass | ClassParserError::Ignoring) => (),
@@ -164,14 +166,14 @@ fn get_content_bytes<'a>(
         return Err(JimageError::Todo);
     }
 
-    debug_assert!(location.compressed == 0);
+    assert_eq!(location.compressed, 0);
     let start = location.offset.saturating_add(index_size);
     data.get(start..start.saturating_add(location.uncompressed))
         .ok_or(JimageError::DataNotFound)
 }
 
 fn parse_header(data: &[u8], pos: usize) -> JResult<JimageHeader> {
-    debug_assert!(pos == 0);
+    assert_eq!(pos, 0);
     let pos = expect_data(data, pos, &[0xDA, 0xDA, 0xFE, 0xCA])?;
 
     let (pos, major_version) = get_u16(data, pos)?;
@@ -185,7 +187,7 @@ fn parse_header(data: &[u8], pos: usize) -> JResult<JimageHeader> {
     let (pos, locations_size) = get_u32(data, pos)?;
     let (pos, strings_size) = get_u32(data, pos)?;
 
-    debug_assert!(pos == 28);
+    assert_eq!(pos, 28);
 
     Ok((
         pos,
@@ -283,11 +285,11 @@ pub fn parse_location_value(data: &[u8], pos: usize, len: u8) -> JResult<usize> 
     Ok((pos, out))
 }
 
-pub fn parse_string(data: &[u8], pos: usize) -> JResult<MyString> {
+pub fn parse_string(data: &[u8], pos: usize) -> JResult<NuVec> {
     let start = pos;
     let (pos, end) = get_string_len(data, pos)?;
     let slice = data.get(start..end).ok_or(JimageError::EOF)?;
     let cow = mutf8_to_utf8(slice).map_err(JimageError::Mutf8)?;
-    let out = from_utf8(&cow).map_err(JimageError::Utf8)?;
-    Ok((pos, out.to_smolstr()))
+    let out = NuVec::new(&cow);
+    Ok((pos, out))
 }

@@ -1,5 +1,5 @@
 //! Parsing functions for enum
-use my_string::smol_str::SmolStr;
+use my_string::NuVec;
 
 use crate::{
     class::{
@@ -45,7 +45,7 @@ pub fn parse_enumeration(
                 pos = npos;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("enum_variant"), e));
+                errors.push((NuVec::new_static(b"enum_variant"), e));
             }
         }
         if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
@@ -80,10 +80,10 @@ pub fn parse_enumeration(
                 pos = npos;
                 continue;
             }
-            Err(e) => errors.push((SmolStr::new_inline("enum_members"), e)),
+            Err(e) => errors.push((NuVec::new_static(b"enum_members"), e)),
         }
         return Err(AstError::AllChildrenFailed {
-            parent: SmolStr::new_inline("enum_variant"),
+            parent: NuVec::new_static(b"enum_variant"),
             errors,
         });
     }
@@ -166,7 +166,7 @@ fn parse_enum_members(
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("enum_method"), e));
+                errors.push((NuVec::new_static(b"enum_method"), e));
             }
         }
         match parse_class_constructor(tokens, pos) {
@@ -176,7 +176,7 @@ fn parse_enum_members(
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("enum_constructor"), e));
+                errors.push((NuVec::new_static(b"enum_constructor"), e));
             }
         }
         match parse_class_variable(tokens, pos) {
@@ -186,7 +186,7 @@ fn parse_enum_members(
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("enum_variable"), e));
+                errors.push((NuVec::new_static(b"enum_variable"), e));
             }
         }
         match parse_static_block(tokens, pos) {
@@ -196,7 +196,7 @@ fn parse_enum_members(
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("static block"), e));
+                errors.push((NuVec::new_static(b"static block"), e));
             }
         }
         match parse_thing(tokens, pos) {
@@ -206,11 +206,11 @@ fn parse_enum_members(
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("thing"), e));
+                errors.push((NuVec::new_static(b"thing"), e));
             }
         }
         return Err(AstError::AllChildrenFailed {
-            parent: SmolStr::new_inline("enum"),
+            parent: NuVec::new_static(b"enum"),
             errors,
         });
     }

@@ -3,7 +3,7 @@ use common::project_kind::ProjectKind;
 use config::Configuration;
 use lsp_extra::{ToLspRangeError, to_lsp_range};
 use lsp_types::{CodeLens, Command};
-use my_string::smol_str::SmolStr;
+use my_string::NuVec;
 use serde_json::Value;
 
 use crate::{
@@ -91,11 +91,11 @@ fn tests_thing(
 }
 
 fn command_test_class(
-    class_name: &SmolStr,
+    class_name: &NuVec,
     project_kind: &ProjectKind,
     config: &Configuration,
 ) -> Option<Command> {
-    let name = format!("Run Test: {}", &class_name);
+    let name = format!("Run Test: {class_name}");
     let cmd = if config.editor_runs_commands {
         COMMAND_CMD_EDITOR
     } else {

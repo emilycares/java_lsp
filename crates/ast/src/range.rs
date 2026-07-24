@@ -149,8 +149,8 @@ impl GetRange for &AstValueNuget {
             AstValueNuget::Double(ast_double) | AstValueNuget::Float(ast_double) => {
                 ast_double.range
             }
-            AstValueNuget::StringLiteral { value, .. } => value.range,
-            AstValueNuget::CharLiteral(ast_identifier) => ast_identifier.range,
+            AstValueNuget::StringLiteral { range, .. }
+            | AstValueNuget::CharLiteral { range, .. } => *range,
             AstValueNuget::BooleanLiteral(ast_boolean) => ast_boolean.range,
         }
     }
@@ -166,10 +166,8 @@ impl AstAfterRange for &AstValueNuget {
             AstValueNuget::Double(ast_double) | AstValueNuget::Float(ast_double) => {
                 ast_double.range.is_after_range(point)
             }
-            AstValueNuget::StringLiteral { value, .. } => value.range.is_after_range(point),
-            AstValueNuget::CharLiteral(ast_identifier) => {
-                ast_identifier.range.is_after_range(point)
-            }
+            AstValueNuget::StringLiteral { range, .. }
+            | AstValueNuget::CharLiteral { range, .. } => range.is_after_range(point),
             AstValueNuget::BooleanLiteral(ast_boolean) => ast_boolean.range.is_after_range(point),
         }
     }
@@ -254,8 +252,8 @@ impl GetRange for AstValue {
                 AstValueNuget::Double(ast_double) | AstValueNuget::Float(ast_double) => {
                     ast_double.range
                 }
-                AstValueNuget::StringLiteral { value, .. } => value.range,
-                AstValueNuget::CharLiteral(ast_identifier) => ast_identifier.range,
+                AstValueNuget::StringLiteral { range, .. }
+                | AstValueNuget::CharLiteral { range, .. } => *range,
                 AstValueNuget::BooleanLiteral(ast_boolean) => ast_boolean.range,
             },
         }

@@ -4,7 +4,7 @@ use core::fmt;
 use std::fmt::Debug;
 
 use bitflags::bitflags;
-use my_string::MyString;
+use my_string::{NuVec, NuVecBuilder};
 
 use crate::lexer::PositionToken;
 
@@ -543,16 +543,16 @@ pub struct AstBlockContinue {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AstIdentifier {
     pub range: AstRange,
-    pub value: MyString,
+    pub value: NuVec,
 }
 
-impl From<AstIdentifier> for MyString {
+impl From<AstIdentifier> for NuVec {
     fn from(value: AstIdentifier) -> Self {
         value.value
     }
 }
 
-impl From<&AstIdentifier> for MyString {
+impl From<&AstIdentifier> for NuVec {
     fn from(value: &AstIdentifier) -> Self {
         value.value.clone()
     }
@@ -572,22 +572,22 @@ impl From<&AstIdentifier> for MyString {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AstInt {
     pub range: AstRange,
-    pub value: MyString,
+    pub value: NuVec,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AstHexLiteral {
     pub range: AstRange,
-    pub value: MyString,
+    pub value: NuVec,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AstBinaryLiteral {
     pub range: AstRange,
-    pub value: MyString,
+    pub value: NuVec,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AstDouble {
     pub range: AstRange,
-    pub value: MyString,
+    pub value: NuVec,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -702,6 +702,54 @@ impl AstJTypeKind {
         }
         false
     }
+
+    #[must_use]
+    pub fn to_nuvec(&self) -> NuVec {
+        match self {
+            Self::Void => NuVec::new_static(b"void"),
+            Self::Byte => NuVec::new_static(b"byte"),
+            Self::Char => NuVec::new_static(b"char"),
+            Self::Double => NuVec::new_static(b"double"),
+            Self::Float => NuVec::new_static(b"float"),
+            Self::Int => NuVec::new_static(b"int"),
+            Self::Long => NuVec::new_static(b"long"),
+            Self::Short => NuVec::new_static(b"short"),
+            Self::Boolean => NuVec::new_static(b"boolean"),
+            Self::Wildcard => NuVec::new_static(b"?"),
+            Self::Var => NuVec::new_static(b"var"),
+            Self::Class(ast_identifier) | Self::ClassOrPackage(ast_identifier) => {
+                ast_identifier.value.clone()
+            }
+            Self::Array(ast_jtype) => {
+                let mut b = NuVecBuilder::new();
+                b.extend(&ast_jtype.value.to_nuvec());
+                b.pusha(b"[]");
+                b.finish()
+            }
+            Self::Generic(ast_identifier, ast_jtypes) => {
+                let mut b = NuVecBuilder::new();
+                b.extend(&ast_identifier.value);
+                b.push(b'<');
+                for t in ast_jtypes {
+                    b.extend(&t.value.to_nuvec());
+                    b.pusha(b", ");
+                }
+
+                b.push(b'>');
+                b.finish()
+            }
+            Self::Access { base, inner } => {
+                let mut b = NuVecBuilder::new();
+                b.extend(&base.value.to_nuvec());
+                b.push(b'.');
+                b.extend(&inner.value.to_nuvec());
+                b.finish()
+            }
+            Self::WildcardImplements(ast_jtype)
+            | Self::WildcardExtends(ast_jtype)
+            | Self::WildcardSuper(ast_jtype) => ast_jtype.value.to_nuvec(),
+        }
+    }
 }
 impl fmt::Display for AstJTypeKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -758,10 +806,14 @@ pub enum AstValueNuget {
     Double(AstDouble),
     Float(AstDouble),
     StringLiteral {
-        value: AstIdentifier,
+        range: AstRange,
+        value: NuVec,
         multi_line: bool,
     },
-    CharLiteral(AstIdentifier),
+    CharLiteral {
+        value: NuVec,
+        range: AstRange,
+    },
     BooleanLiteral(AstBoolean),
     HexLiteral(AstHexLiteral),
     BinaryLiteral(AstBinaryLiteral),

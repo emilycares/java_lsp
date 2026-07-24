@@ -1,5 +1,5 @@
 //! Error type and helper
-use my_string::MyString;
+use my_string::NuVec;
 
 use super::lexer::{PositionToken, Token};
 use crate::BlockEntryOptions;
@@ -42,9 +42,9 @@ pub enum AstError {
     /// All children errored
     AllChildrenFailed {
         /// Description
-        parent: MyString,
+        parent: NuVec,
         /// Related errors
-        errors: Vec<(MyString, Self)>,
+        errors: Vec<(NuVec, Self)>,
     },
     /// Invalid string literal
     InvalidString(InvalidToken),
@@ -162,7 +162,7 @@ impl PrintErr for AstError {
 }
 
 #[allow(unused)]
-const fn sort_helper_error(a: &(MyString, AstError)) -> usize {
+const fn sort_helper_error(a: &(NuVec, AstError)) -> usize {
     match &a.1 {
         AstError::ExpectedToken(expected_token) => expected_token.pos,
         AstError::InvalidJtype(invalid_token)

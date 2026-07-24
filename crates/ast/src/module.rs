@@ -1,5 +1,5 @@
 //! Parse functions for module-info.java
-use my_string::smol_str::SmolStr;
+use my_string::NuVec;
 
 use crate::{
     error::{AstError, GetStartEnd, assert_semicolon, assert_token},
@@ -46,7 +46,7 @@ pub fn parse_module(tokens: &[PositionToken], pos: usize) -> Result<(AstModule, 
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("exports"), e));
+                errors.push((NuVec::new_static(b"exports"), e));
             }
         }
         match parse_opens(tokens, pos) {
@@ -56,7 +56,7 @@ pub fn parse_module(tokens: &[PositionToken], pos: usize) -> Result<(AstModule, 
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("opens"), e));
+                errors.push((NuVec::new_static(b"opens"), e));
             }
         }
         match parse_uses(tokens, pos) {
@@ -66,7 +66,7 @@ pub fn parse_module(tokens: &[PositionToken], pos: usize) -> Result<(AstModule, 
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("uses"), e));
+                errors.push((NuVec::new_static(b"uses"), e));
             }
         }
         match parse_provides(tokens, pos) {
@@ -76,7 +76,7 @@ pub fn parse_module(tokens: &[PositionToken], pos: usize) -> Result<(AstModule, 
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("provides"), e));
+                errors.push((NuVec::new_static(b"provides"), e));
             }
         }
         match parse_requires(tokens, pos) {
@@ -86,11 +86,11 @@ pub fn parse_module(tokens: &[PositionToken], pos: usize) -> Result<(AstModule, 
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("requires"), e));
+                errors.push((NuVec::new_static(b"requires"), e));
             }
         }
         return Err(AstError::AllChildrenFailed {
-            parent: SmolStr::new_inline("module"),
+            parent: NuVec::new_static(b"module"),
             errors,
         });
     }

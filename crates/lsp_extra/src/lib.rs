@@ -11,6 +11,7 @@ use ast::{
     types::{AstPoint, AstRange},
 };
 use lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range, Uri};
+use my_string::{NuVec, NuVecBuilder};
 
 pub const SERVER_NAME: &str = "java_lsp";
 
@@ -59,10 +60,6 @@ pub fn lexer_error_to_diagnostic(error: &LexerError) -> Diagnostic {
         LexerError::EOF(line, col) => {
             Diagnostic::new_simple(line_col_to_range(*line, *col), String::from("EOF"))
         }
-        LexerError::UnknownChar(char, line, col) => Diagnostic::new_simple(
-            line_col_to_range(*line, *col),
-            format!("Unexpected char: '{char}'"),
-        ),
     }
 }
 
@@ -85,7 +82,7 @@ pub enum SourceToUriError {
 }
 
 #[cfg(not(windows))]
-pub fn source_to_uri(source: &str) -> Result<Uri, SourceToUriError> {
+pub fn source_to_uri(source: &NuVec) -> Result<Uri, SourceToUriError> {
     let source = path_without_subclass(source);
     let str_uri = format!("file://{source}");
     let uri = Uri::from_str(&str_uri);
@@ -98,9 +95,11 @@ pub fn source_to_uri(source: &str) -> Result<Uri, SourceToUriError> {
     }
 }
 #[cfg(windows)]
-pub fn source_to_uri(source: &str) -> Result<Uri, SourceToUriError> {
+pub fn source_to_uri(source: &NuVec) -> Result<Uri, SourceToUriError> {
     #[cfg(windows)]
-    let source = &source.trim_start_matches("\\\\?\\").replace('\\', "/");
+    let source = &source
+        .trim_start_matches(b"\\\\?\\")
+        .replace_byte(b'\\', b'/');
     let source = path_without_subclass(source);
     let str_uri = format!("file:///{source}");
     let uri = Uri::from_str(&str_uri);
@@ -112,15 +111,21 @@ pub fn source_to_uri(source: &str) -> Result<Uri, SourceToUriError> {
         }),
     }
 }
-fn path_without_subclass(source: &str) -> String {
-    if let Some((path, file_name)) = source.rsplit_once('/')
-        && file_name.contains('$')
-        && let Some((name, extension)) = file_name.split_once('.')
-        && let Some((name, _)) = name.split_once('$')
+fn path_without_subclass(source: &NuVec) -> NuVec {
+    if let Some((path, file_name)) = source.rsplit_once_byte(b'/')
+        && file_name.contains_byte(b'$')
+        && let Some((name, extension)) = file_name.split_once_byte(b'.')
+        && let Some((name, _)) = name.split_once_byte(b'$')
     {
-        return format!("{path}/{name}.{extension}");
+        let mut out = NuVecBuilder::new();
+        out.extend(&path);
+        out.push(b'/');
+        out.extend(&name);
+        out.push(b'.');
+        out.extend(&extension);
+        return out.finish();
     }
-    source.to_owned()
+    source.clone()
 }
 
 pub enum AstDiagnosticError {

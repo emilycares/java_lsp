@@ -1,5 +1,5 @@
 //! Parsing functions for class
-use my_string::smol_str::SmolStr;
+use my_string::NuVec;
 
 use crate::{
     ExpressionOptions,
@@ -123,7 +123,7 @@ pub fn parse_class_block(
                     continue;
                 }
                 Err(e) => {
-                    errors.push((SmolStr::new_inline("static block"), e));
+                    errors.push((NuVec::new_static(b"static block"), e));
                 }
             },
             Token::LeftParenCurly => match parse_block(tokens, pos) {
@@ -133,7 +133,7 @@ pub fn parse_class_block(
                     continue;
                 }
                 Err(e) => {
-                    errors.push((SmolStr::new_inline("block"), e));
+                    errors.push((NuVec::new_static(b"block"), e));
                 }
             },
             _ => (),
@@ -146,7 +146,7 @@ pub fn parse_class_block(
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("class thing"), e));
+                errors.push((NuVec::new_static(b"class thing"), e));
             }
         }
         match parse_class_variable(tokens, pos) {
@@ -156,7 +156,7 @@ pub fn parse_class_block(
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("class variable"), e));
+                errors.push((NuVec::new_static(b"class variable"), e));
             }
         }
         match parse_class_method(tokens, pos) {
@@ -166,7 +166,7 @@ pub fn parse_class_block(
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("class method"), e));
+                errors.push((NuVec::new_static(b"class method"), e));
             }
         }
         match parse_class_constructor(tokens, pos) {
@@ -176,11 +176,11 @@ pub fn parse_class_block(
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("class constructor"), e));
+                errors.push((NuVec::new_static(b"class constructor"), e));
             }
         }
         return Err(AstError::AllChildrenFailed {
-            parent: SmolStr::new_inline("class"),
+            parent: NuVec::new_static(b"class"),
             errors,
         });
     }

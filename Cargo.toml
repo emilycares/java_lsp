@@ -16,6 +16,7 @@ ignored = ["workspace_hack"]
 
 [workspace]
 members = [
+    "crates/my_string",
     "crates/parser",
     "crates/maven",
     "crates/server",
@@ -38,7 +39,6 @@ members = [
     "crates/ast",
     "crates/get_class",
     "crates/loader",
-    "crates/my_string",
     "crates/lsp_extra",
     "crates/jimage",
     "crates/dto",
@@ -119,5 +119,4 @@ rc-zip-tokio = "4.3.1"
 memmap2 = "0.9.10"
 memchr = "2.8.2"
 sha1_smol = "1.0.1"
-curl = "0.4.50"
-smol_str = "0.3.6"
+curl ="0.4.50"

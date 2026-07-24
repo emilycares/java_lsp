@@ -152,7 +152,7 @@ impl PartialEq<AstJType> for JType {
 mod tests {
 
     use dto::JType;
-    use my_string::smol_str::SmolStr;
+    use my_string::NuVec;
 
     use crate::types::{AstIdentifier, AstJType, AstJTypeKind, AstPoint, AstRange};
 
@@ -167,7 +167,7 @@ mod tests {
                         start: AstPoint { line: 6, col: 27 },
                         end: AstPoint { line: 6, col: 38 },
                     },
-                    value: SmolStr::new_inline("IntFunction"),
+                    value: NuVec::new_static(b"IntFunction"),
                 },
                 vec![
                     AstJType {
@@ -189,7 +189,7 @@ mod tests {
                                 start: AstPoint { line: 6, col: 49 },
                                 end: AstPoint { line: 6, col: 50 },
                             },
-                            value: SmolStr::new_inline("U"),
+                            value: NuVec::new_static(b"U"),
                         }),
                     },
                 ],
@@ -198,8 +198,8 @@ mod tests {
         let out: JType = (&inp).into();
         assert_eq!(
             JType::Generic(
-                SmolStr::new_inline("IntFunction"),
-                vec![JType::Wildcard, JType::Class(SmolStr::new_inline("U"))]
+                NuVec::new_static(b"IntFunction"),
+                vec![JType::Wildcard, JType::Class(NuVec::new_static(b"U"))]
             ),
             out
         );

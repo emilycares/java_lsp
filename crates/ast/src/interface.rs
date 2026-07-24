@@ -1,5 +1,5 @@
 //! Parsing functions for interface
-use my_string::smol_str::SmolStr;
+use my_string::NuVec;
 
 use crate::{
     ExpressionOptions,
@@ -70,7 +70,7 @@ pub fn parse_interface(
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("interface semicolon"), e));
+                errors.push((NuVec::new_static(b"interface semicolon"), e));
             }
         }
         match parse_interface_constant(tokens, pos) {
@@ -80,7 +80,7 @@ pub fn parse_interface(
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("interface_constant"), e));
+                errors.push((NuVec::new_static(b"interface_constant"), e));
             }
         }
         match parse_interface_method(tokens, pos) {
@@ -90,7 +90,7 @@ pub fn parse_interface(
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("interface_method"), e));
+                errors.push((NuVec::new_static(b"interface_method"), e));
             }
         }
         match parse_interface_method_impl(tokens, pos) {
@@ -100,7 +100,7 @@ pub fn parse_interface(
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("interface_method_impl"), e));
+                errors.push((NuVec::new_static(b"interface_method_impl"), e));
             }
         }
         match parse_thing(tokens, pos) {
@@ -110,11 +110,11 @@ pub fn parse_interface(
                 continue;
             }
             Err(e) => {
-                errors.push((SmolStr::new_inline("interface thing"), e));
+                errors.push((NuVec::new_static(b"interface thing"), e));
             }
         }
         return Err(AstError::AllChildrenFailed {
-            parent: SmolStr::new_inline("interface"),
+            parent: NuVec::new_static(b"interface"),
             errors,
         });
     }

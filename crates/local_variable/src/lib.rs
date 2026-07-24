@@ -1,13 +1,13 @@
 use ast::types::{AstClassMethod, AstMethodParameter, AstRange};
 use bitflags::bitflags;
 use dto::JType;
-use my_string::MyString;
+use my_string::NuVec;
 
 /// variable or function in a ast
 #[derive(Debug, PartialEq, Clone)]
 pub struct LocalVariable {
     pub jtype: JType,
-    pub name: MyString,
+    pub name: NuVec,
     pub range: AstRange,
     pub flags: VarFlags,
 }

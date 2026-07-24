@@ -15,9 +15,10 @@ use ast::{
         AstTypeParameters, AstValuesWithAnnotated, AstWhileContent,
     },
 };
-use my_string::MyString;
+use my_string::NuVec;
+
 pub struct FoundClass {
-    pub name: MyString,
+    pub name: NuVec,
     pub range: AstRange,
 }
 
