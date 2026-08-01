@@ -383,7 +383,9 @@ impl Backend {
                             ProjectKind::Gradle { .. } => {
                                 gradle::project::load_project_folders(project_dir)
                             }
-                            ProjectKind::Unknown => loader::load_java_files(PathBuf::from("./")),
+                            ProjectKind::Unknown => {
+                                loader::load_java_files(project_dir.to_path_buf())
+                            }
                         };
                         Self::progress_update_percentage_option_token(
                             &con.clone(),
@@ -668,6 +670,7 @@ impl Backend {
             return Some(CompletionResponse::Array(out));
         }
 
+        out.push(snippet_completion("main", snipptes::MAIN));
         out.push(snippet_completion("function", snipptes::FUNCTION));
         out.push(snippet_completion("if", snipptes::IF));
         out.push(snippet_completion("switch", snipptes::SWITCH));

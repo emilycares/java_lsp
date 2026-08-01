@@ -409,6 +409,8 @@ pub fn generate_class(
         } else {
             if let Some((_, p)) = path.split_once(SRC_MAIN) {
                 package = p.trim_start_matches('/').replace('/', ".");
+            } else if let Some((_, parent_dir)) = path.rsplit_once('/') {
+                package = parent_dir.to_string();
             } else {
                 return Ok(None);
             }

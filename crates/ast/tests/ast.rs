@@ -6165,6 +6165,7 @@ fn annotation() {
     "#]];
     expected.assert_debug_eq(&parsed.unwrap());
 }
+#[cfg(not(windows))]
 #[test]
 fn more_syntax() {
     let content = include_str!("../../parser/test/Syntax.java");

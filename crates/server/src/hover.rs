@@ -278,7 +278,7 @@ fn methods_to_hover(methods: &[Method], range: Range, class_name: &NuVec) -> Hov
 }
 
 fn class_to_hover(class: &Class, range: Range) -> Hover {
-    let value = format!("// {}\n{}", class.name, class_to_markdown(class));
+    let value = format!("// {}\n{}", class.class_path, class_to_markdown(class));
     Hover {
         contents: HoverContents::Scalar(lsp_types::MarkedString::LanguageString(LanguageString {
             language: String::from("java"),

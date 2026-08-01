@@ -127,7 +127,8 @@ fn main_loop(
     let class_map = backend.class_map.clone();
     let reference_map = backend.reference_map.clone();
     let projects = backend.projects.clone();
-    tokio::spawn(async move {
+    let handle = tokio::runtime::Handle::current();
+    handle.spawn(async move {
         Backend::initialized(
             progress,
             connection,
