@@ -3,7 +3,7 @@ use std::{fmt::Display, path::MAIN_SEPARATOR};
 use bitflags::bitflags;
 use my_string::{NuVec, NuVecBuilder};
 
-pub const CFC_VERSION: usize = 19;
+pub const CFC_VERSION: usize = 20;
 
 #[derive(Debug)]
 pub enum ClassParserError {

@@ -108,8 +108,18 @@ pub async fn index_project(
     use_cache: bool,
     cache_path: PathBuf,
     executable_gradle: String,
+    online: bool,
 ) {
-    match index(class_map, sender, use_cache, cache_path, executable_gradle).await {
+    match index(
+        class_map,
+        sender,
+        use_cache,
+        cache_path,
+        executable_gradle,
+        online,
+    )
+    .await
+    {
         Ok(()) => (),
         Err(e) => {
             eprintln!("Got error while loading gradle project: {e:?}");
@@ -123,6 +133,7 @@ async fn index(
     use_cache: bool,
     cache_path: PathBuf,
     executable_gradle: String,
+    online: bool,
 ) -> Result<(), GradleProjectError> {
     if use_cache
         && cache_path.exists()
@@ -156,7 +167,7 @@ async fn index(
             let source_file = Arc::new(pom_sources_jar(&dep, &pom_mtwo));
             let source_url = pom_source_jar_url(&dep, &repo.url);
 
-            {
+            if online {
                 let deps_source = deps_source.clone();
                 let client = client.clone();
                 let repo = repo.clone();

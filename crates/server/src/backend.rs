@@ -344,6 +344,7 @@ impl Backend {
                             &mut handles,
                             &project_artifacts,
                             &p,
+                            false,
                         );
                     }
                     ProjectKind::Gradle {
@@ -355,6 +356,7 @@ impl Backend {
                         PathBuf::from(p.dir.clone()).as_path(),
                         executable,
                         &mut handles,
+                        false,
                     ),
                     ProjectKind::Unknown => (),
                 }
@@ -1275,6 +1277,7 @@ pub async fn project_deps(
     tree: &[Dependency],
     repos: Arc<Vec<Repository>>,
     project_artifacts: Arc<Vec<String>>,
+    online: bool,
 ) {
     let cache_path = match project_kind {
         ProjectKind::Maven { .. } => Some(get_maven_cache_path(project_dir, project_cache_dir)),
@@ -1290,6 +1293,7 @@ pub async fn project_deps(
             cache_path,
             repos,
             project_artifacts,
+            online,
         )
         .await
         {

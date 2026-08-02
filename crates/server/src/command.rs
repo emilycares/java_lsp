@@ -67,6 +67,7 @@ pub fn reload_dependencies(
                         &mut handles,
                         &project_artifacts,
                         &p,
+                        true,
                     );
                 }
                 ProjectKind::Gradle { executable, .. } => {
@@ -76,6 +77,7 @@ pub fn reload_dependencies(
                         PathBuf::from(p.dir.clone()).as_path(),
                         executable,
                         &mut handles,
+                        true,
                     );
                 }
                 ProjectKind::Unknown => (),
@@ -93,6 +95,7 @@ pub fn reload_maven_project(
     handles: &mut JoinSet<()>,
     project_artifacts: &Arc<Vec<String>>,
     p: &Project,
+    online: bool,
 ) {
     let con = con.clone();
     let task = format!("Load maven dependencies {}", p.artifact_id);
@@ -115,7 +118,7 @@ pub fn reload_maven_project(
         if let Some(tree) = tree {
             tokio::select! {
                 () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-                () = project_deps(sender, project_kind.clone(), class_map.clone(), true, project_dir, &cache, &tree, repos, project_artifacts) => {}
+                () = project_deps(sender, project_kind.clone(), class_map.clone(), true, project_dir, &cache, &tree, repos, project_artifacts, online) => {}
             }
         }
         Backend::progress_end_option_token(&con, &progress, &task);
@@ -130,6 +133,7 @@ pub fn reload_gradle_project(
     project_dir: &Path,
     executable: String,
     handles: &mut JoinSet<()>,
+    online: bool,
 ) {
     let project_dir = project_dir.to_owned();
     let con = con.clone();
@@ -148,7 +152,7 @@ pub fn reload_gradle_project(
         });
         tokio::select! {
             () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-            () = gradle::project::index_project(class_map.clone(), sender, false, cache_path, executable.clone()) => {}
+            () = gradle::project::index_project(class_map.clone(), sender, false, cache_path, executable.clone(), online) => {}
         }
         Backend::progress_end_option_token(&con, &progress, &task);
     });
@@ -207,7 +211,7 @@ async fn reload_dependencies_maven_cli(
         let cache = cache_dir();
         tokio::select! {
             () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-            () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree, repos, Arc::new(Vec::new())) => {}
+            () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree, repos, Arc::new(Vec::new()), true) => {}
         }
     }
     Backend::progress_end_option_token(&con.clone(), &progress, &task);
@@ -249,6 +253,7 @@ pub fn update_dependencies(
                         PathBuf::from(p.dir.clone()).as_path(),
                         executable,
                         &mut handles,
+                        true,
                     );
                 }
                 ProjectKind::Unknown => (),
@@ -300,7 +305,7 @@ pub fn update_dependencies_maven(
             Backend::progress_start_option_token(&con.clone(), &progress, &task);
             tokio::select! {
                 () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-                () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree, repos, project_artifacts) => {}
+                () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree, repos, project_artifacts, true) => {}
             }
             Backend::progress_end_option_token(&con.clone(), &progress, &task);
         }
@@ -348,7 +353,7 @@ async fn reload_gradle_project_cli(con: Arc<Connection>, project_dir: PathBuf, e
     });
     tokio::select! {
         () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-        () = gradle::project::index_project(class_map.clone(), sender, false, cache_path, executable.clone()) => {}
+        () = gradle::project::index_project(class_map.clone(), sender, false, cache_path, executable.clone(), true) => {}
     }
     Backend::progress_end_option_token(&con, &progress, &task);
 }
@@ -386,6 +391,7 @@ async fn update_dependencies_maven_cli(
             &tree,
             repos,
             Arc::new(Vec::new()),
+            true,
         )
         .await;
         Backend::progress_end_option_token(&con.clone(), &progress, &task);

@@ -30,6 +30,7 @@ pub enum MavenProjectError {
     MTwo(MTwoError),
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn project_deps(
     class_map: Arc<RwLock<HashMap<NuVec, Class, impl std::hash::BuildHasher + Send + Sync>>>,
     sender: tokio::sync::watch::Sender<TaskProgress>,
@@ -38,6 +39,7 @@ pub async fn project_deps(
     cache_path: PathBuf,
     repos: Arc<Vec<Repository>>,
     project_artifacts: Arc<Vec<String>>,
+    online: bool,
 ) -> Result<(), MavenProjectError> {
     if use_cache
         && cache_path.exists()
@@ -84,7 +86,7 @@ pub async fn project_deps(
         let jar = m2::pom_classes_jar(dep, &pom_mtwo);
         let source = deps_get_source(&deps_bas);
 
-        if !jar.exists() || !source.exists() {
+        if online && (!jar.exists() || !source.exists()) {
             update_tree.push(dep.to_owned());
             continue;
         }
@@ -122,31 +124,33 @@ pub async fn project_deps(
         });
     }
 
-    let u = update::update(repos, &update_tree, sender.clone()).await;
-    let sender = Arc::new(sender);
+    if online {
+        let u = update::update(repos, &update_tree, sender.clone()).await;
+        let sender = Arc::new(sender);
 
-    if u.is_ok() {
-        for dep in update_tree {
-            let completed_number = completed_number.clone();
-            let sender = sender.clone();
-            let pom_mtwo = m2::pom_m2(&dep, &m2);
-            let jar = m2::pom_classes_jar(&dep, &pom_mtwo);
-            let deps_bas = deps_base(&dep, &deps_path);
-            let cfc = deps_get_cfc(&deps_bas, &dep);
-            let dep = Arc::new(dep.clone());
+        if u.is_ok() {
+            for dep in update_tree {
+                let completed_number = completed_number.clone();
+                let sender = sender.clone();
+                let pom_mtwo = m2::pom_m2(&dep, &m2);
+                let jar = m2::pom_classes_jar(&dep, &pom_mtwo);
+                let deps_bas = deps_base(&dep, &deps_path);
+                let cfc = deps_get_cfc(&deps_bas, &dep);
+                let dep = Arc::new(dep.clone());
 
-            handles.spawn(async move {
-                reindex(
-                    tasks_number,
-                    completed_number,
-                    &dep,
-                    deps_bas,
-                    cfc,
-                    jar,
-                    sender,
-                )
-                .await
-            });
+                handles.spawn(async move {
+                    reindex(
+                        tasks_number,
+                        completed_number,
+                        &dep,
+                        deps_bas,
+                        cfc,
+                        jar,
+                        sender,
+                    )
+                    .await
+                });
+            }
         }
     }
 
