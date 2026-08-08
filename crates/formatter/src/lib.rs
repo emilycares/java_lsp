@@ -49,7 +49,7 @@ pub fn get_formatter_name(formatter: &FormatterConfig) -> String {
 pub fn format(
     formatter: &FormatterConfig,
     ast: &AstFile,
-    content: &str,
+    content: &[u8],
     space: &str,
 ) -> Result<Vec<u8>, FormatError> {
     match formatter {
@@ -58,7 +58,7 @@ pub fn format(
     }
 }
 
-fn internal(ast: &AstFile, content: &str, space: &str) -> Result<Vec<u8>, FormatError> {
+fn internal(ast: &AstFile, content: &[u8], space: &str) -> Result<Vec<u8>, FormatError> {
     let mut f = Formatter::new(content, space)?;
 
     let mut top = ast.top.iter().peekable();
@@ -92,7 +92,7 @@ struct Formatter {
 }
 
 impl Formatter {
-    pub fn new(content: &str, space: &str) -> Result<Self, FormatError> {
+    pub fn new(content: &[u8], space: &str) -> Result<Self, FormatError> {
         let with_comments = ast::lexer::lex_v::<true>(content).map_err(FormatError::Lexer)?;
         Ok(Self {
             with_comments,
@@ -118,17 +118,29 @@ impl Formatter {
             }
             match &t.token {
                 Token::LineComment(l) => {
+                    if let Some(prev) = self.with_comments.get(self.index.saturating_sub(1))
+                        && t.line != prev.line
+                    {
+                        for _ in 0..self.indent {
+                            self.buf.extend_from_slice(self.space.as_bytes());
+                        }
+                    }
                     self.buf.extend_from_slice(b"//");
                     extend_nuvec(&mut self.buf, l);
-                    self.write_indent();
+                    self.new_line();
                 }
                 Token::BlockComment(c, _) => {
+                    if let Some(prev) = self.with_comments.get(self.index.saturating_sub(1))
+                        && t.line != prev.line
+                    {
+                        for _ in 0..self.indent {
+                            self.buf.extend_from_slice(self.space.as_bytes());
+                        }
+                    }
                     self.buf.extend_from_slice(b"/*");
                     extend_nuvec(&mut self.buf, c);
                     self.buf.extend_from_slice(b"*/");
-                    if self.insert_line_or_space() {
-                        self.write_indent();
-                    }
+                    self.insert_line_or_space();
                 }
                 _ => {}
             }
@@ -148,7 +160,6 @@ impl Formatter {
 
     pub fn write_identifier(&mut self, ident: &AstIdentifier) {
         self.write_with_comments(ident.range.start, ident.value.as_bytes());
-        self.skip_to(ident.range.end);
     }
 
     pub fn write(&mut self, content: &[u8]) {
@@ -157,6 +168,7 @@ impl Formatter {
                 Token::LineComment(l) => {
                     self.buf.extend_from_slice(b"//");
                     extend_nuvec(&mut self.buf, l);
+                    self.new_line();
                     self.write_indent();
                     self.index += 1;
                 }
@@ -179,13 +191,9 @@ impl Formatter {
     }
 
     pub fn insert_line_or_space(&mut self) -> bool {
-        let last_line = self
-            .index
-            .checked_sub(1)
-            .and_then(|i| self.with_comments.get(i))
-            .map(|t| t.line);
+        let last_line = self.with_comments.get(self.index).map(|t| t.line);
         let next_line = self.with_comments.get(self.index + 1).map(|t| t.line);
-        if matches!((last_line, next_line), (Some(a), Some(b)) if a == b) {
+        if last_line == next_line {
             self.buf.push(b' ');
             false
         } else {
@@ -194,22 +202,8 @@ impl Formatter {
         }
     }
 
-    pub fn skip_to(&mut self, up_to: AstPoint) {
-        loop {
-            let pos = self
-                .with_comments
-                .get(self.index)
-                .map(PositionToken::start_point);
-            let Some(pos) = pos else { break };
-            if pos >= up_to {
-                break;
-            }
-            self.index += 1;
-        }
-    }
-
     pub fn insert_new_lines(&mut self, end_line: usize, next_line: usize) {
-        let lns = next_line.saturating_sub(end_line) > 1;
+        let lns = next_line.saturating_sub(end_line) > 2;
         if lns {
             self.new_line();
         }
@@ -223,7 +217,7 @@ impl Formatter {
     pub fn end_line_comments(&mut self, range: &AstRange) {
         let line = range.end.line;
         while let Some(t) = self.with_comments.get(self.index)
-            && t.start_point().line == line
+            && t.end_point().line == line
         {
             match &t.token {
                 Token::LineComment(l) => {
@@ -239,7 +233,6 @@ impl Formatter {
                 }
                 _ => {
                     self.index += 1;
-                    break;
                 }
             }
         }
@@ -289,13 +282,37 @@ fn extend_nuvec(out: &mut Vec<u8>, v: &NuVec) {
 }
 
 fn write_package(p: &AstPackage, f: &mut Formatter) {
-    for ann in &p.annotated {
-        write_annotation(ann, f);
-    }
+    write_annotated_list(&p.annotated, f);
     f.write(b"package ");
     f.write_identifier(&p.name);
     f.write(b";");
     f.new_line();
+}
+
+fn write_annotated_list(p: &[AstAnnotated], f: &mut Formatter) {
+    let mut iter = p.iter().peekable();
+    while let Some(ann) = iter.next() {
+        f.write_indent();
+        write_annotation(ann, f);
+        if iter.peek().is_some() {
+            f.buf.push(b'\n');
+        }
+    }
+    if !p.is_empty() {
+        f.buf.push(b'\n');
+    }
+}
+fn write_annotated_list_inline(p: &[AstAnnotated], f: &mut Formatter) {
+    let mut iter = p.iter().peekable();
+    while let Some(ann) = iter.next() {
+        write_annotation(ann, f);
+        if iter.peek().is_some() {
+            f.buf.push(b' ');
+        }
+    }
+    if !p.is_empty() {
+        f.buf.push(b' ');
+    }
 }
 
 fn write_annotation(ann: &AstAnnotated, f: &mut Formatter) {
@@ -319,7 +336,6 @@ fn write_annotation(ann: &AstAnnotated, f: &mut Formatter) {
             f.write(b")");
         }
     }
-    f.insert_line_or_space();
 }
 
 fn write_annotation_parameter(param: &AstAnnotatedParameter, f: &mut Formatter) {
@@ -416,8 +432,13 @@ fn write_expression(expr: &[AstExpressionKind], f: &mut Formatter) {
 
     let mut minus_with_space = false;
 
-    for (nth, k) in expr.iter().enumerate() {
+    let mut iter = expr.iter().enumerate().peekable();
+    while let Some((nth, k)) = iter.next() {
+        let could_be_cast = could_be_cast(&mut iter, k);
         write_expression_kind(k, f, is_large, dot, nth, minus_with_space);
+        if could_be_cast {
+            f.write(b" ");
+        }
 
         if let AstExpressionKind::Base(AstBaseExpression { operator, .. }) = k {
             minus_with_space = !matches!(
@@ -433,6 +454,40 @@ fn write_expression(expr: &[AstExpressionKind], f: &mut Formatter) {
     }
     if is_large {
         f.indent -= 1;
+    }
+}
+
+fn could_be_cast(
+    iter: &mut std::iter::Peekable<std::iter::Enumerate<std::slice::Iter<'_, AstExpressionKind>>>,
+    k: &AstExpressionKind,
+) -> bool {
+    if let AstExpressionKind::Base(AstBaseExpression {
+        values: Some(values),
+        ..
+    }) = k
+        && values.values.len() == 1
+    {
+        iter.peek().map_or_else(
+            || false,
+            |peek| -> bool {
+                if let AstExpressionKind::Base(AstBaseExpression { operator, .. }) = peek.1
+                    && !matches!(operator, AstExpressionOperator::None)
+                {
+                    return false;
+                }
+
+                let e = k.get_range().end;
+                let n = peek.1.get_range().start;
+                if e.line == n.line {
+                    let space = n.col.saturating_sub(e.col);
+                    space > 0
+                } else {
+                    false
+                }
+            },
+        )
+    } else {
+        false
     }
 }
 
@@ -464,9 +519,11 @@ fn write_expression_kind(
                     }
                     if nl {
                         f.new_line();
+                        f.insert_comments(expr.get_range().start);
                         f.write_indent();
                     } else if i > 0 {
                         f.write(b" ");
+                        f.insert_comments(expr.get_range().start);
                     }
                     write_expression(expr, f);
                 }
@@ -506,9 +563,7 @@ fn write_expression_kind(
             if instanceof.availability.contains(AstAvailability::Final) {
                 f.write(b"final ");
             }
-            for ann in &instanceof.annotated {
-                write_annotation(ann, f);
-            }
+            write_annotated_list(&instanceof.annotated, f);
             write_jtype(&instanceof.jtype, f);
             if let Some(var) = &instanceof.variable {
                 f.buf.push(b' ');
@@ -607,68 +662,52 @@ fn write_expression_kind(
 }
 
 fn write_jtype(jtype: &AstJType, f: &mut Formatter) {
-    for ann in &jtype.annotated {
-        write_annotation(ann, f);
-    }
+    write_annotated_list(&jtype.annotated, f);
     match &jtype.value {
         AstJTypeKind::Void => {
             f.write_with_comments(jtype.range.start, b"void");
-            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Byte => {
             f.write_with_comments(jtype.range.start, b"byte");
-            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Char => {
             f.write_with_comments(jtype.range.start, b"char");
-            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Double => {
             f.write_with_comments(jtype.range.start, b"double");
-            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Float => {
             f.write_with_comments(jtype.range.start, b"float");
-            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Int => {
             f.write_with_comments(jtype.range.start, b"int");
-            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Long => {
             f.write_with_comments(jtype.range.start, b"long");
-            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Short => {
             f.write_with_comments(jtype.range.start, b"short");
-            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Boolean => {
             f.write_with_comments(jtype.range.start, b"boolean");
-            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Wildcard => {
             f.write_with_comments(jtype.range.start, b"?");
-            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::WildcardImplements(j) => {
             f.write_with_comments(jtype.range.start, b"? implements ");
             write_jtype(j, f);
-            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::WildcardExtends(j) => {
             f.write_with_comments(jtype.range.start, b"? extends ");
             write_jtype(j, f);
-            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::WildcardSuper(j) => {
             f.write_with_comments(jtype.range.start, b"? super ");
             write_jtype(j, f);
-            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Var => {
             f.write_with_comments(jtype.range.start, b"var");
-            f.skip_to(jtype.range.end);
         }
         AstJTypeKind::Class(ident) | AstJTypeKind::ClassOrPackage(ident) => {
             f.write_identifier(ident);
@@ -699,28 +738,28 @@ fn write_jtype(jtype: &AstJType, f: &mut Formatter) {
 
 fn write_availability(availability: &AstAvailability, f: &mut Formatter) {
     if availability.contains(AstAvailability::Public) {
-        f.write(b"public ");
+        f.buf.extend(b"public ");
     }
     if availability.contains(AstAvailability::Protected) {
-        f.write(b"protected ");
+        f.buf.extend(b"protected ");
     }
     if availability.contains(AstAvailability::Private) {
-        f.write(b"private ");
+        f.buf.extend(b"private ");
     }
     if availability.contains(AstAvailability::Abstract) {
-        f.write(b"abstract ");
+        f.buf.extend(b"abstract ");
     }
     if availability.contains(AstAvailability::Static) {
-        f.write(b"static ");
+        f.buf.extend(b"static ");
     }
     if availability.contains(AstAvailability::Final) {
-        f.write(b"final ");
+        f.buf.extend(b"final ");
     }
     if availability.contains(AstAvailability::Synchronized) {
-        f.write(b"synchronized ");
+        f.buf.extend(b"synchronized ");
     }
     if availability.contains(AstAvailability::Native) {
-        f.write(b"native ");
+        f.buf.extend(b"native ");
     }
 }
 
@@ -736,38 +775,44 @@ fn write_block(block: &AstBlock, f: &mut Formatter) {
     f.write(b"{");
     f.new_line();
     f.indent += 1;
-    let base_indent = f.indent;
-    let mut entries = block.entries.iter().peekable();
-    let contains_case = block.entries.iter().any(|i| {
-        matches!(
-            i,
-            AstBlockEntry::SwitchCase(_)
-                | AstBlockEntry::SwitchCaseArrowType(_)
-                | AstBlockEntry::SwitchCaseArrowValues(_)
-                | AstBlockEntry::SwitchCaseArrowDefault(_)
-        )
-    });
-    while let Some(entry) = entries.next() {
-        let next_if = matches!(
-            entries.peek(),
-            Some(AstBlockEntry::If(AstIf::Else { .. } | AstIf::ElseIf { .. }))
-        );
-        if contains_case {
-            if matches!(
-                entry,
+    if block.entries.is_empty() {
+        f.insert_comments(block.range.end);
+    } else {
+        let base_indent = f.indent;
+        let mut entries = block.entries.iter().peekable();
+        let contains_case = block.entries.iter().any(|i| {
+            matches!(
+                i,
                 AstBlockEntry::SwitchCase(_)
+                    | AstBlockEntry::SwitchDefault(_)
                     | AstBlockEntry::SwitchCaseArrowType(_)
                     | AstBlockEntry::SwitchCaseArrowValues(_)
                     | AstBlockEntry::SwitchCaseArrowDefault(_)
-            ) {
-                f.indent = base_indent;
-            } else {
-                f.indent = base_indent + 1;
+            )
+        });
+        while let Some(entry) = entries.next() {
+            let next_if = matches!(
+                entries.peek(),
+                Some(AstBlockEntry::If(AstIf::Else { .. } | AstIf::ElseIf { .. }))
+            );
+            if contains_case {
+                if matches!(
+                    entry,
+                    AstBlockEntry::SwitchCase(_)
+                        | AstBlockEntry::SwitchDefault(_)
+                        | AstBlockEntry::SwitchCaseArrowType(_)
+                        | AstBlockEntry::SwitchCaseArrowValues(_)
+                        | AstBlockEntry::SwitchCaseArrowDefault(_)
+                ) {
+                    f.indent = base_indent;
+                } else {
+                    f.indent = base_indent + 1;
+                }
             }
-        }
-        write_block_entry(entry, f, true, true, next_if);
-        if let Some(next) = entries.peek() {
-            f.insert_new_lines(entry.get_range().end.line, next.get_range().start.line);
+            write_block_entry(entry, f, true, true, next_if);
+            if let Some(next) = entries.peek() {
+                f.insert_new_lines(entry.get_range().end.line, next.get_range().start.line);
+            }
         }
     }
     f.indent -= 1;
@@ -782,6 +827,7 @@ fn write_block_entry(
     indent: bool,
     next_if: bool,
 ) {
+    f.insert_comments(entry.get_range().start);
     match entry {
         AstBlockEntry::Semicolon(_) => {
             if indent {
@@ -804,23 +850,25 @@ fn write_block_entry(
                 f.indent -= 1;
             }
             if around {
-                f.write(b";");
+                f.buf.push(b';');
+                f.end_line_comments(&ret.range);
                 f.new_line();
             }
         }
-        AstBlockEntry::Yield(yield_) => {
+        AstBlockEntry::Yield(yl) => {
             if indent {
                 f.write_indent();
             }
             f.write(b"yield");
-            if !matches!(yield_.expression, AstExpressionOrValue::None) {
+            if !matches!(yl.expression, AstExpressionOrValue::None) {
                 f.buf.push(b' ');
                 f.indent += 1;
-                write_expr_or_value(&yield_.expression, f);
+                write_expr_or_value(&yl.expression, f);
                 f.indent -= 1;
             }
             if around {
-                f.write(b";");
+                f.buf.push(b';');
+                f.end_line_comments(&yl.range);
                 f.new_line();
             }
         }
@@ -833,7 +881,8 @@ fn write_block_entry(
             write_expression(&throw.expression, f);
             f.indent -= 1;
             if around {
-                f.write(b";");
+                f.buf.push(b';');
+                f.end_line_comments(&throw.range);
                 f.new_line();
             }
         }
@@ -849,7 +898,8 @@ fn write_block_entry(
                 f.indent -= 1;
             }
             if around {
-                f.write(b";");
+                f.buf.push(b';');
+                f.end_line_comments(&br.range);
                 f.new_line();
             }
         }
@@ -865,7 +915,8 @@ fn write_block_entry(
                 f.indent -= 1;
             }
             if around {
-                f.write(b";");
+                f.buf.push(b';');
+                f.end_line_comments(&cont.range);
                 f.new_line();
             }
         }
@@ -879,6 +930,7 @@ fn write_block_entry(
             f.indent -= 1;
             if around {
                 f.write(b";");
+                f.end_line_comments(&assert.range);
                 f.new_line();
             }
         }
@@ -888,10 +940,12 @@ fn write_block_entry(
             }
             f.indent += 1;
             write_expression(&expr.value, f);
+            if around {
+                f.buf.push(b';');
+            }
             f.end_line_comments(&expr.range);
             f.indent -= 1;
             if around {
-                f.write(b";");
                 f.new_line();
             }
         }
@@ -903,9 +957,10 @@ fn write_block_entry(
             f.write(b" = ");
             f.indent += 1;
             write_expression(&assign.expression, f);
+            f.buf.push(b';');
+            f.end_line_comments(&assign.range);
             f.indent -= 1;
             if around {
-                f.write(b";");
                 f.new_line();
             }
         }
@@ -913,10 +968,7 @@ fn write_block_entry(
             if indent {
                 f.write_indent();
             }
-            for ann in &vars[0].annotated {
-                write_annotation(ann, f);
-                f.write_indent();
-            }
+            write_annotated_list(&vars[0].annotated, f);
             if vars[0].fin {
                 f.write(b"final ");
             }
@@ -940,7 +992,8 @@ fn write_block_entry(
                 }
             }
             if around {
-                f.write(b";");
+                f.buf.push(b';');
+                f.end_line_comments(&(vars.as_slice()).get_range());
                 f.new_line();
             }
         }
@@ -998,9 +1051,7 @@ fn write_block_entry(
             f.write(b"for ");
             f.write(b"(");
             for var in &for_.var {
-                for ann in &var.annotated {
-                    write_annotation(ann, f);
-                }
+                write_annotated_list(&var.annotated, f);
                 if var.fin {
                     f.write(b"final ");
                 }
@@ -1032,11 +1083,13 @@ fn write_block_entry(
                 write_expression_or_default(expr, f);
             }
             f.write(b":");
+            f.end_line_comments(&case.range);
             f.new_line();
         }
-        AstBlockEntry::SwitchDefault(_) => {
+        AstBlockEntry::SwitchDefault(d) => {
             f.write_indent();
-            f.write(b"default:");
+            f.buf.extend(b"default:");
+            f.end_line_comments(&d.range);
             f.new_line();
         }
         AstBlockEntry::SwitchCaseArrowValues(arrow) => {
@@ -1247,10 +1300,8 @@ fn write_thing(thing: &AstThing, formatter: &mut Formatter) {
 }
 
 fn write_class(class: &AstClass, f: &mut Formatter) {
-    for ann in &class.annotated {
-        f.write_indent();
-        write_annotation(ann, f);
-    }
+    f.insert_comments(class.name.range.start);
+    write_annotated_list(&class.annotated, f);
     f.write_indent();
     write_availability(&class.availability, f);
     if class.attributes.contains(AstThingAttributes::Sealed) {
@@ -1300,7 +1351,7 @@ fn write_class(class: &AstClass, f: &mut Formatter) {
 }
 
 fn write_class_block_braced(block: &AstClassBlock, f: &mut Formatter) {
-    f.write(b"{");
+    f.buf.push(b'{');
     f.new_line();
     f.indent += 1;
     write_class_block(block, f);
@@ -1366,10 +1417,7 @@ fn write_class_block(block: &AstClassBlock, f: &mut Formatter) {
 
 fn write_class_variable(v: &AstClassVariable, f: &mut Formatter) {
     f.before_line_comments(&v.range);
-    for ann in &v.annotated {
-        f.write_indent();
-        write_annotation(ann, f);
-    }
+    write_annotated_list(&v.annotated, f);
     f.write_indent();
     write_availability(&v.availability, f);
     if v.volatile_transient
@@ -1408,10 +1456,7 @@ fn write_class_method(method: &AstClassMethod, f: &mut Formatter) {
 }
 
 fn write_class_constructor(c: &AstClassConstructor, f: &mut Formatter) {
-    for ann in &c.header.annotated {
-        f.write_indent();
-        write_annotation(ann, f);
-    }
+    write_annotated_list(&c.header.annotated, f);
     f.write_indent();
     write_availability(&c.header.availability, f);
     if let Some(tp) = &c.header.type_parameters {
@@ -1429,10 +1474,8 @@ fn write_class_constructor(c: &AstClassConstructor, f: &mut Formatter) {
 }
 
 fn write_method_header(header: &AstMethodHeader, f: &mut Formatter) {
-    for ann in &header.annotated {
-        f.write_indent();
-        write_annotation(ann, f);
-    }
+    f.insert_comments(header.name.range.start);
+    write_annotated_list(&header.annotated, f);
     f.write_indent();
     write_availability(&header.availability, f);
     if let Some(tp) = &header.type_parameters {
@@ -1464,17 +1507,13 @@ fn write_method_parameters(params: &AstMethodParameters, f: &mut Formatter) {
         } else if i > 0 {
             f.write(b" ");
         }
-        for ann in &param.annotated {
-            write_annotation(ann, f);
-        }
+        write_annotated_list_inline(&param.annotated, f);
         if param.flags.contains(AstMethodParameterFlags::Fin) {
             f.write(b"final ");
         }
         write_jtype(&param.jtype, f);
         if param.flags.contains(AstMethodParameterFlags::Variatic) {
-            f.write(b".");
-            f.write(b".");
-            f.write(b".");
+            f.write(b"...");
         }
         f.buf.push(b' ');
         f.write_identifier(&param.name);
@@ -1503,9 +1542,7 @@ fn write_type_parameters(tp: &AstTypeParameters, f: &mut Formatter) {
         if i > 0 {
             f.write(b", ");
         }
-        for ann in &param.annotated {
-            write_annotation(ann, f);
-        }
+        write_annotated_list_inline(&param.annotated, f);
         f.write_identifier(&param.name);
         if let Some(superclasses) = &param.supperclass
             && !superclasses.is_empty()
@@ -1524,16 +1561,12 @@ fn write_type_parameters(tp: &AstTypeParameters, f: &mut Formatter) {
                 }
             }
         }
-        f.skip_to(param.range.end);
     }
     f.write(b">");
 }
 
 fn write_record(record: &AstRecord, f: &mut Formatter) {
-    for ann in &record.annotated {
-        f.write_indent();
-        write_annotation(ann, f);
-    }
+    write_annotated_list(&record.annotated, f);
     f.write_indent();
     write_availability(&record.availability, f);
     f.write(b"record ");
@@ -1562,9 +1595,7 @@ fn write_record_entries(entries: &AstRecordEntries, f: &mut Formatter) {
         if i > 0 {
             f.write(b", ");
         }
-        for ann in &entry.annotated {
-            write_annotation(ann, f);
-        }
+        write_annotated_list_inline(&entry.annotated, f);
         write_jtype(&entry.jtype, f);
         if entry.variadic {
             f.write(b".");
@@ -1578,10 +1609,7 @@ fn write_record_entries(entries: &AstRecordEntries, f: &mut Formatter) {
 }
 
 fn write_interface(iface: &AstInterface, f: &mut Formatter) {
-    for ann in &iface.annotated {
-        f.write_indent();
-        write_annotation(ann, f);
-    }
+    write_annotated_list(&iface.annotated, f);
     f.write_indent();
     write_availability(&iface.availability, f);
     if iface.attributes.contains(AstThingAttributes::Sealed) {
@@ -1614,27 +1642,39 @@ fn write_interface(iface: &AstInterface, f: &mut Formatter) {
     f.write(b"{");
     f.new_line();
     f.indent += 1;
-    let mut members: Vec<(AstPoint, u8, usize)> = Vec::new();
+    let mut members: Vec<(AstRange, u8, usize)> = Vec::new();
     for (i, c) in iface.constants.iter().enumerate() {
-        members.push((c.range.start, 0, i));
+        members.push((c.range, 0, i));
     }
     for (i, m) in iface.methods.iter().enumerate() {
-        members.push((m.range.start, 1, i));
+        members.push((m.range, 1, i));
     }
     for (i, d) in iface.default_methods.iter().enumerate() {
-        members.push((d.range.start, 2, i));
+        members.push((d.range, 2, i));
     }
     for (i, t) in iface.inner.iter().enumerate() {
-        members.push((t.get_range().start, 3, i));
+        members.push((t.get_range(), 3, i));
     }
-    members.sort_by(|(a, _, _), (b, _, _)| a.line.cmp(&b.line).then(a.col.cmp(&b.col)));
-    for (_, type_id, idx) in &members {
+    members.sort_by(|(a, _, _), (b, _, _)| {
+        a.start
+            .line
+            .cmp(&b.start.line)
+            .then(a.start.col.cmp(&b.start.col))
+    });
+    if let Some(first) = members.first() {
+        f.insert_new_lines(iface.range.start.line, first.0.start.line);
+    }
+    let mut it = members.iter().peekable();
+    while let Some((range, type_id, idx)) = it.next() {
         match type_id {
             0 => write_interface_constant(&iface.constants[*idx], f),
             1 => write_interface_method(&iface.methods[*idx], f),
             2 => write_interface_default_method(&iface.default_methods[*idx], f),
             3 => write_thing(&iface.inner[*idx], f),
             _ => unreachable!(),
+        }
+        if let Some(next) = it.peek() {
+            f.insert_new_lines(range.end.line, next.0.start.line);
         }
     }
     f.indent -= 1;
@@ -1644,10 +1684,7 @@ fn write_interface(iface: &AstInterface, f: &mut Formatter) {
 }
 
 fn write_interface_constant(c: &AstInterfaceConstant, f: &mut Formatter) {
-    for ann in &c.annotated {
-        f.write_indent();
-        write_annotation(ann, f);
-    }
+    write_annotated_list(&c.annotated, f);
     f.write_indent();
     write_availability(&c.availability, f);
     write_jtype(&c.jtype, f);
@@ -1675,10 +1712,7 @@ fn write_interface_default_method(m: &AstInterfaceMethodDefault, f: &mut Formatt
 }
 
 fn write_enumeration(e: &AstEnumeration, f: &mut Formatter) {
-    for ann in &e.annotated {
-        f.write_indent();
-        write_annotation(ann, f);
-    }
+    write_annotated_list(&e.annotated, f);
     f.write_indent();
     write_availability(&e.availability, f);
     f.write(b"enum ");
@@ -1702,9 +1736,7 @@ fn write_enumeration(e: &AstEnumeration, f: &mut Formatter) {
             f.new_line();
         }
         f.write_indent();
-        for ann in &variant.annotated {
-            write_annotation(ann, f);
-        }
+        write_annotated_list_inline(&variant.annotated, f);
         f.write_identifier(&variant.name);
         if !variant.parameters.is_empty() {
             f.write(b"(");
@@ -1745,10 +1777,7 @@ fn write_enumeration(e: &AstEnumeration, f: &mut Formatter) {
 }
 
 fn write_annotation_type(ann_type: &AstAnnotation, f: &mut Formatter) {
-    for ann in &ann_type.annotated {
-        f.write_indent();
-        write_annotation(ann, f);
-    }
+    write_annotated_list(&ann_type.annotated, f);
     f.write_indent();
     write_availability(&ann_type.availability, f);
     f.write(b"@");
@@ -1771,10 +1800,7 @@ fn write_annotation_type(ann_type: &AstAnnotation, f: &mut Formatter) {
 }
 
 fn write_annotation_field(field: &AstAnnotationField, f: &mut Formatter) {
-    for ann in &field.annotated {
-        f.write_indent();
-        write_annotation(ann, f);
-    }
+    write_annotated_list(&field.annotated, f);
     f.write_indent();
     write_availability(&field.availability, f);
     write_jtype(&field.jtype, f);
@@ -1818,21 +1844,17 @@ fn write_value_nuget(nuget: &AstValueNuget, f: &mut Formatter) {
     match nuget {
         AstValueNuget::Int(i) => {
             f.write_with_comments_nu(i.range.start, &i.value);
-            f.skip_to(i.range.end);
         }
         AstValueNuget::Long(l) => {
             f.write_with_comments_nu(l.range.start, &l.value);
-            f.skip_to(l.range.end);
             f.write(b"L");
         }
         AstValueNuget::Double(d) => {
             f.write_with_comments_nu(d.range.start, &d.value);
-            f.skip_to(d.range.end);
             f.write(b"d");
         }
         AstValueNuget::Float(fl) => {
             f.write_with_comments_nu(fl.range.start, &fl.value);
-            f.skip_to(fl.range.end);
             f.write(b"f");
         }
         AstValueNuget::StringLiteral {
@@ -1843,7 +1865,6 @@ fn write_value_nuget(nuget: &AstValueNuget, f: &mut Formatter) {
             f.write_with_comments(range.start, b"\"");
             extend_nuvec(&mut f.buf, value);
             f.buf.extend_from_slice(b"\"");
-            f.skip_to(range.end);
         }
         AstValueNuget::StringLiteral {
             value,
@@ -1853,27 +1874,22 @@ fn write_value_nuget(nuget: &AstValueNuget, f: &mut Formatter) {
             f.write_with_comments(range.start, b"\"\"\"");
             extend_nuvec(&mut f.buf, value);
             f.buf.extend_from_slice(b"\"\"\"");
-            f.skip_to(range.end);
         }
         AstValueNuget::CharLiteral { value, range } => {
             f.write_with_comments(range.start, b"'");
             extend_nuvec(&mut f.buf, value);
             f.buf.extend_from_slice(b"'");
-            f.skip_to(range.end);
         }
         AstValueNuget::BooleanLiteral(b) => {
             f.write_with_comments(b.range.start, if b.value { b"true" } else { b"false" });
-            f.skip_to(b.range.end);
         }
         AstValueNuget::HexLiteral(h) => {
             f.write_with_comments(h.range.start, b"0x");
             extend_nuvec(&mut f.buf, &h.value);
-            f.skip_to(h.range.end);
         }
         AstValueNuget::BinaryLiteral(b) => {
             f.write_with_comments(b.range.start, b"0b");
             extend_nuvec(&mut f.buf, &b.value);
-            f.skip_to(b.range.end);
         }
     }
 }
@@ -1943,7 +1959,6 @@ fn write_expression_operator(
         f.write_indent();
     }
     f.write_with_comments(r.start, bytes);
-    f.skip_to(r.end);
 }
 
 fn write_import(import: &AstImport, f: &mut Formatter) {
@@ -1979,9 +1994,7 @@ fn write_import(import: &AstImport, f: &mut Formatter) {
 }
 
 fn write_module(module: &AstModule, f: &mut Formatter) {
-    for ann in &module.annotated {
-        write_annotation(ann, f);
-    }
+    write_annotated_list(&module.annotated, f);
     if module.open {
         f.write(b"open ");
     }
@@ -2091,21 +2104,27 @@ fn write_module(module: &AstModule, f: &mut Formatter) {
 
 #[cfg(test)]
 mod tests {
+    use ast::error::PrintErr;
     use expect_test::expect;
 
     use super::*;
 
     const SPACE: &str = "    ";
 
-    fn fmt(content: &str, space: &str) -> Result<Vec<u8>, FormatError> {
+    fn fmt(content: &[u8], space: &str) -> Result<Vec<u8>, FormatError> {
         let tokens = ast::lexer::lex_v::<false>(content).expect("In unit test lexer must not fail");
-        let ast = ast::parse_file(&tokens).expect("In unit test ast must be valid");
-        internal(&ast, content, space)
+        match ast::parse_file(&tokens) {
+            Ok(ast) => internal(&ast, content, space),
+            Err(e) => {
+                e.print_err(content, &tokens);
+                panic!("Ast error");
+            }
+        }
     }
 
     #[test]
     fn package() {
-        let content = "// This is a cool file
+        let content = b"// This is a cool file
 
         @Thing(Type.IMPORTANT)
         @Retention(RetentionPolicy.RUNTIME)
@@ -2126,7 +2145,7 @@ mod tests {
 
     #[test]
     fn method() {
-        let content = r#"package ch.emilycares;
+        let content = br#"package ch.emilycares;
         /**
          * hostile getter
          */
@@ -2140,7 +2159,7 @@ mod tests {
         }
         public class Test {
             /**
-             * hostile getter
+             * hostile getter in class
              */
             public static int isHostile() {
                 return true;
@@ -2160,13 +2179,12 @@ mod tests {
                 if (g.name().equals("thorben")) {
                     return false;
                 }
-
                 return true;
             }
             public class Test {
 
                 /**
-                         * hostile getter
+                         * hostile getter in class
                          */
                 public static int isHostile() {
                     return true;
@@ -2178,7 +2196,7 @@ mod tests {
 
     #[test]
     fn method_parameters() {
-        let content = r"
+        let content = br"
         package ch.emilycares;
         public class Application {
 
@@ -2201,12 +2219,10 @@ mod tests {
         let expected = expect![[r"
             package ch.emilycares;
             public class Application {
-
                 private final Database db;
                 private final Messages msgs;
                 private final Telemetry tel;
                 private final Obeservability obs;
-
                 public Application(
                     Database db,
                     Messages msgs,
@@ -2224,7 +2240,7 @@ mod tests {
     }
     #[test]
     fn enum_base() {
-        let content = r"
+        let content = br"
         package ch.emilycares;
         public enum EType {
             A, B,
@@ -2258,10 +2274,8 @@ mod tests {
                     switch (this) {
                         case A:
                             return 1;
-
                         case B:
                             return 2;
-
                         case C:
                             {
                                 return 2;
@@ -2275,7 +2289,7 @@ mod tests {
 
     #[test]
     fn long_plus() {
-        let content = r"
+        let content = br"
         package ch.emilycares;
         public class Test {
             public int aaa() {
@@ -2304,7 +2318,7 @@ mod tests {
 
     #[test]
     fn for_base() {
-        let content = r#"
+        let content = br#"
         package ch.emilycares;
         public class Test {
             public int aaa() {
@@ -2333,7 +2347,7 @@ mod tests {
 
     #[test]
     fn multi_line_string() {
-        let content = r#"
+        let content = br#"
         package ch.emilycares;
         public class Test {
             public int aaa() {
@@ -2363,7 +2377,7 @@ mod tests {
 
     #[test]
     fn stream() {
-        let content = r"
+        let content = br"
         package ch.emilycares;
 
         public class Test {
@@ -2378,7 +2392,6 @@ mod tests {
         let o = fmt(content, SPACE).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
-
             public class Test {
                 public int aaa() {
                     return intem.stream()
@@ -2393,7 +2406,7 @@ mod tests {
 
     #[test]
     fn annotated() {
-        let content = r#"
+        let content = br#"
 @Path("/api/v1/thing")
 @Consumes(MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON)
 @Table(uniqueConstraints = @UniqueConstraint(columnNames = {"otherUuid", "thing_id"}))
@@ -2422,12 +2435,10 @@ public class ThingResource {
         let expected = expect![[r#"
             @Path("/api/v1/thing")
             @Consumes(MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON)
-            @Table(uniqueConstraints = @UniqueConstraint(columnNames = {"otherUuid", "thing_id"}) )
+            @Table(uniqueConstraints = @UniqueConstraint(columnNames = {"otherUuid", "thing_id"}))
             public class ThingResource {
-
                 @Inject
                 ObjectMapper mapper;
-
                 @POST
                 @Path("/thing")
                 @WithTransaction
@@ -2447,7 +2458,7 @@ public class ThingResource {
 
     #[test]
     fn if_else() {
-        let content = r"
+        let content = br"
         package ch.emilycares;
 
         public class Test {
@@ -2468,7 +2479,6 @@ public class ThingResource {
         let o = fmt(content, SPACE).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
-
             public class Test {
                 public int aaa() {
                     if (true) {
@@ -2486,7 +2496,7 @@ public class ThingResource {
 
     #[test]
     fn lambda_newline() {
-        let content = r"
+        let content = br"
         package ch.emilycares;
 
         public class Test {
@@ -2506,17 +2516,15 @@ public class ThingResource {
         let o = fmt(content, SPACE).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
-
             public class Test {
                 public int aaa() {
                     Suppliers.momoize(() -> {
                                 // some processing
                                 return true;
                             });
-
                     Thread.ofVirtual()
                             .start(() -> {
-                                // do something
+                                    // do something
                                 });
                 }
             }
@@ -2526,7 +2534,7 @@ public class ThingResource {
 
     #[test]
     fn dyn_space_after_name() {
-        let content = r#"
+        let content = br#"
 package ch.emilycares;
 
 public class Test {
@@ -2536,13 +2544,24 @@ public class Test {
     private String aaaa   = "aaaa";
     private String aaaaa  = "aaaaa";
     private String aaaaaa = "aaaaaa";
+
+    private int b = 1;
+
+    public void playBeeMovie() {
+        this.a     = "b";
+        this.aa    = "b";
+        this.aaa   = "b";
+        this.aaaa  = "b";
+        this.aaaaa = "b";
+
+        this.b = 2;
+    }
 }
-        "#;
+"#;
 
         let o = fmt(content, SPACE).unwrap();
         let expected = expect![[r#"
             package ch.emilycares;
-
             public class Test {
                 private String a = "a";
                 private String aa = "aa";
@@ -2550,6 +2569,15 @@ public class Test {
                 private String aaaa = "aaaa";
                 private String aaaaa = "aaaaa";
                 private String aaaaaa = "aaaaaa";
+                private int b = 1;
+                public void playBeeMovie() {
+                    this.a = "b";
+                    this.aa = "b";
+                    this.aaa = "b";
+                    this.aaaa = "b";
+                    this.aaaaa = "b";
+                    this.b = 2;
+                }
             }
         "#]];
         expected.assert_eq(str::from_utf8(&o).unwrap());
@@ -2557,7 +2585,7 @@ public class Test {
 
     #[test]
     fn operators() {
-        let content = r"
+        let content = br"
         package ch.emilycares;
 
         public class Test {
@@ -2590,7 +2618,6 @@ public class Test {
         let o = fmt(content, SPACE).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
-
             public class Test {
                 public int aaa() {
                     t |= avc();
@@ -2624,7 +2651,7 @@ public class Test {
 
     #[test]
     fn nl_arguments() {
-        let content = r"
+        let content = br"
         package ch.emilycares;
 
         public class Test {
@@ -2640,7 +2667,6 @@ public class Test {
         let o = fmt(content, SPACE).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
-
             public class Test {
                 public int aaa() {
                     other(
@@ -2655,8 +2681,9 @@ public class Test {
 
     #[test]
     fn interface_indent() {
-        let content = r"
+        let content = br"
 public interface Test {
+
     void a();
 
     /**
@@ -2672,11 +2699,253 @@ public interface Test {
         let expected = expect![[r"
             public interface Test {
                 void a();
+
                 /**
                  * heheh
                  * hehehe
                  */
                 public void b() {
+                }
+            }
+        "]];
+        expected.assert_eq(str::from_utf8(&o).unwrap());
+    }
+
+    #[test]
+    fn comment_order() {
+        let content = br"
+public class Test {
+
+    public void a() {
+        // asdfa
+        return;
+    };
+
+    /**
+     * heheh
+     * hehehe
+     */
+    public void b() {
+    }
+}
+";
+
+        let o = fmt(content, SPACE).unwrap();
+        let expected = expect![[r"
+            public class Test {
+                public void a() {
+                    // asdfa
+                    return;
+                }
+
+                /**
+                 * heheh
+                 * hehehe
+                 */
+                public void b() {
+                }
+            }
+        "]];
+        expected.assert_eq(str::from_utf8(&o).unwrap());
+    }
+
+    #[test]
+    fn switch_case() {
+        let content = br"
+        public class Test {
+
+            public void a() {
+                switch (0) {
+                    case 0:
+                          doA();
+                          return;
+                    default:
+                    case 1:
+                    case 2:
+                          doB();
+                          return;
+                }
+            };
+
+            /**
+             * Hehehe
+             */
+            public void doA() {
+            }
+
+            /**
+             * Hehehe
+             */
+            public void doB() {
+            }
+        }
+        ";
+
+        let o = fmt(content, SPACE).unwrap();
+        let expected = expect![[r"
+            public class Test {
+                public void a() {
+                    switch (0) {
+                        case 0:
+                            doA();
+                            return;
+                        default:
+                        case 1:
+                        case 2:
+                            doB();
+                            return;
+                        }
+                    }
+
+                    /**
+                         * Hehehe
+                         */
+                    public void doA() {
+                    /**
+                         * Hehehe
+                         */
+                    }
+
+                    public void doB() {
+                    }
+                }
+        "]];
+        expected.assert_eq(str::from_utf8(&o).unwrap());
+    }
+
+    #[test]
+    fn comment_before_argument() {
+        let content = br"
+public class Test {
+
+    public void a() {
+        var mapped = Collectors.map(
+            Thing::getName,
+            Thing::getEvent,
+            // take first
+            (a, b) -> a
+            );
+    }
+
+}
+";
+
+        let o = fmt(content, SPACE).unwrap();
+        let expected = expect![[r"
+            public class Test {
+                public void a() {
+                    var mapped = Collectors.map(
+                        Thing::getName,
+                        Thing::getEvent,
+                        // take first
+                        (a, b) -> a
+                        );
+                }
+            }
+        "]];
+        expected.assert_eq(str::from_utf8(&o).unwrap());
+    }
+
+    #[test]
+    fn imported_class_is_cast() {
+        let content = br"
+import java.lang.String;
+public class Test {
+    public void a() {
+        var mapped = (String) 0;
+    }
+}
+";
+
+        let o = fmt(content, SPACE).unwrap();
+        let expected = expect![[r"
+import java.lang.String;
+public class Test {
+    public void a() {
+        var mapped = (String) 0;
+    }
+}
+"]];
+        expected.assert_eq(str::from_utf8(&o).unwrap());
+    }
+
+    #[test]
+    fn comment_after_class_before_first_function() {
+        let content = br"
+/**
+ * Do not mess up the comments
+ */
+@Thing
+public class Test {
+    /** 
+     * Hihihi
+     * hahaha
+     * hihihi
+     * hahaha
+     */
+    @Lukiluki
+    public Thingigthing thinithing() {
+    }
+}
+";
+
+        let o = fmt(content, SPACE).unwrap();
+        let expected = expect![[r"
+            /**
+             * Do not mess up the comments
+             */
+            @Thing
+            public class Test {
+
+                /** 
+                 * Hihihi
+                 * hahaha
+                 * hihihi
+                 * hahaha
+                 */
+                @Lukiluki
+                public Thingigthing thinithing() {
+                }
+            }
+        "]];
+        expected.assert_eq(str::from_utf8(&o).unwrap());
+    }
+
+    #[test]
+    fn endline_comment() {
+        let content = br"
+public class Test {
+    private int a = 1;
+    private int b = 2;
+    public void test() {
+        this.a = 2; // Better be 2
+        this.b = 3; // Better be 3
+        yield 2; // Better be 2
+        return 2; // Better be 2
+        throw 2; // Better be 2
+        break lab; // Better be 2
+        continue lab; // Better be 2
+        assert true; // Better be 2
+        int c = 2; // Better be 2 
+    }
+}
+";
+
+        let o = fmt(content, SPACE).unwrap();
+        let expected = expect![[r"
+            public class Test {
+                private int a = 1;
+                private int b = 2;
+                public void test() {
+                    this.a = 2; // Better be 2
+                    this.b = 3; // Better be 3
+                    yield 2; // Better be 2
+                    return 2; // Better be 2
+                    throw 2; // Better be 2
+                    break lab; // Better be 2
+                    continue lab; // Better be 2
+                    assert true; // Better be 2
+                    int c = 2; // Better be 2 
                 }
             }
         "]];

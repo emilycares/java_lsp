@@ -220,7 +220,6 @@ pub fn resolve(
     lang_class_key.pusha(b"java.lang.");
     lang_class_key.extend(class_name);
     let lang_class_key = lang_class_key.finish();
-    dbg!(&lang_class_key);
     if let Ok(cm) = class_map.read()
         && let Some(ic) = cm.get(&lang_class_key)
     {

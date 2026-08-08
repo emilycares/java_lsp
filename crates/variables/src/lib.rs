@@ -752,7 +752,7 @@ pub mod tests {
 
     #[test]
     fn this_context_base() {
-        let content = "
+        let content = b"
 package ch.emilycares;
 
 public class Test {
@@ -883,7 +883,7 @@ public class Test {
 
     #[test]
     fn class_static_variables() {
-        let content = "
+        let content = b"
 package ch.emilycares;
 public class Test {
     private static Logger logger = LoggerFactory.getLogger(App.class);
@@ -926,7 +926,7 @@ public class Test {
 
     #[test]
     fn this_context_array() {
-        let content = "
+        let content = b"
 package ch.emilycares;
 
 public class Test {
@@ -1066,7 +1066,7 @@ public class Test {
 
     #[test]
     fn get_loop_vars_base() {
-        let content = "
+        let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -1192,7 +1192,7 @@ public class Test {
 
     #[test]
     fn get_try_vars_base() {
-        let content = r#"
+        let content = br#"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -1272,7 +1272,7 @@ public class Test {
     }
     #[test]
     fn get_catch_val_with_throws_method() {
-        let content = "
+        let content = b"
 package ch.emilycares;
 public class Test {
     protected void ioStuff() throws IOException {
@@ -1330,7 +1330,7 @@ public class Test {
 
     #[test]
     fn final_argument() {
-        let content = r#"
+        let content = br#"
 package ch.emilycares;
 public class Test {
     @Override
@@ -1402,7 +1402,7 @@ public class Test {
 
     #[test]
     fn in_lambda() {
-        let content = "
+        let content = b"
 public class Test {
     public Uni<Response> test() {
         return Thing.dothing(t -> {
@@ -1476,7 +1476,7 @@ public class Test {
 
     #[test]
     fn instanceof_base() {
-        let content = "
+        let content = b"
 public class Test {
     public void test() {
        if (shape instanceof Circle c) {

@@ -10,7 +10,7 @@ use expect_test::expect;
 
 #[test]
 fn everything() {
-    let content = include_str!("../../parser/test/Everything.java");
+    let content = include_bytes!("../../parser/test/Everything.java");
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
@@ -786,7 +786,7 @@ fn everything() {
 
 #[test]
 fn skip_comments() {
-    let content = include_str!("../test/FullOffComments.java");
+    let content = include_bytes!("../test/FullOffComments.java");
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
@@ -995,7 +995,7 @@ fn skip_comments() {
 
 #[test]
 fn locale_variable_table() {
-    let content = include_str!("../../parser/test/LocalVariableTable.java");
+    let content = include_bytes!("../../parser/test/LocalVariableTable.java");
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
@@ -1735,7 +1735,7 @@ fn locale_variable_table() {
 
 #[test]
 fn superee() {
-    let content = include_str!("../../parser/test/Super.java");
+    let content = include_bytes!("../../parser/test/Super.java");
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
@@ -1833,7 +1833,7 @@ fn superee() {
 
 #[test]
 fn constants() {
-    let content = include_str!("../../parser/test/Constants.java");
+    let content = include_bytes!("../../parser/test/Constants.java");
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
@@ -2303,7 +2303,7 @@ fn constants() {
 
 #[test]
 fn super_interface() {
-    let content = include_str!("../../parser/test/SuperInterface.java");
+    let content = include_bytes!("../../parser/test/SuperInterface.java");
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
@@ -2734,7 +2734,7 @@ fn super_interface() {
 
 #[test]
 fn interface_base() {
-    let content = include_str!("../../parser/test/InterfaceBase.java");
+    let content = include_bytes!("../../parser/test/InterfaceBase.java");
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
@@ -3134,7 +3134,7 @@ fn interface_base() {
 
 #[test]
 fn variants() {
-    let content = include_str!("../../parser/test/Variants.java");
+    let content = include_bytes!("../../parser/test/Variants.java");
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
@@ -3635,7 +3635,7 @@ fn variants() {
 
 #[test]
 fn types() {
-    let content = include_str!("../../parser/test/Types.java");
+    let content = include_bytes!("../../parser/test/Types.java");
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
@@ -4754,7 +4754,7 @@ fn types() {
 }
 #[test]
 fn annotated() {
-    let content = include_str!("../../parser/test/Annotated.java");
+    let content = include_bytes!("../../parser/test/Annotated.java");
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
@@ -5453,7 +5453,7 @@ fn annotated() {
 }
 #[test]
 fn expression_base() {
-    let content = "Logger.getLogger(Test.class)";
+    let content = b"Logger.getLogger(Test.class)";
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
@@ -5606,7 +5606,7 @@ fn expression_base() {
 }
 #[test]
 fn expression_array_access() {
-    let content = "numbers[0]";
+    let content = b"numbers[0]";
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
@@ -5689,7 +5689,7 @@ fn expression_array_access() {
 }
 #[test]
 fn expression_multi_array_access() {
-    let content = "numbers[0][0][0]";
+    let content = b"numbers[0][0][0]";
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
@@ -5863,7 +5863,7 @@ fn expression_multi_array_access() {
 
 #[test]
 fn equasion_method_call() {
-    let content = r#""z" + a.getThing()"#;
+    let content = br#""z" + a.getThing()"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
@@ -5995,7 +5995,7 @@ fn equasion_method_call() {
 }
 #[test]
 fn annotation() {
-    let content = include_str!("../../parser/test/Annotation.java");
+    let content = include_bytes!("../../parser/test/Annotation.java");
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
@@ -6168,7 +6168,7 @@ fn annotation() {
 #[cfg(not(windows))]
 #[test]
 fn more_syntax() {
-    let content = include_str!("../../parser/test/Syntax.java");
+    let content = include_bytes!("../../parser/test/Syntax.java");
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_file(&tokens);
     parsed.print_err(content, &tokens);
@@ -14008,7 +14008,7 @@ fn more_syntax() {
 
 #[test]
 fn variable_array() {
-    let content = r#"String[] cars = {"Volvo", "BMW", "Ford", "Mazda"};"#;
+    let content = br#"String[] cars = {"Volvo", "BMW", "Ford", "Mazda"};"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_block_variable(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -14181,7 +14181,7 @@ fn variable_array() {
 }
 #[test]
 fn variable_var_no_value() {
-    let content = r#"{var a = }"#;
+    let content = br#"{var a = }"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_block(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -14231,7 +14231,7 @@ fn variable_var_no_value() {
 
 #[test]
 fn multi_line_string() {
-    let content = r#"
+    let content = br#"
         """
         Here is a muilti
         line
@@ -14262,7 +14262,7 @@ fn multi_line_string() {
 
 #[test]
 fn name() {
-    let content = "Logger3m3m3m3";
+    let content = b"Logger3m3m3m3";
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_name(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -14282,7 +14282,7 @@ fn name() {
 }
 #[test]
 fn lambda() {
-    let content = "(n) -> { System.out.println(n); }";
+    let content = b"(n) -> { System.out.println(n); }";
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
@@ -14481,7 +14481,7 @@ fn lambda() {
 }
 #[test]
 fn lambda_1() {
-    let content = "n -> { }";
+    let content = b"n -> { }";
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
@@ -14531,7 +14531,7 @@ fn lambda_1() {
 }
 #[test]
 fn lambda_2() {
-    let content = "(a, b, c) -> { }";
+    let content = b"(a, b, c) -> { }";
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
@@ -14609,7 +14609,7 @@ fn lambda_2() {
 }
 #[test]
 fn lambda_value() {
-    let content = "n -> true";
+    let content = b"n -> true";
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
@@ -14679,7 +14679,7 @@ fn lambda_value() {
 }
 #[test]
 fn lambda_expr() {
-    let content = "n -> v.toString()";
+    let content = b"n -> v.toString()";
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
@@ -14801,7 +14801,7 @@ fn lambda_expr() {
 }
 #[test]
 fn lambda_in_expression() {
-    let content = "numbers.forEach( (n) -> { System.out.println(n); } )";
+    let content = b"numbers.forEach( (n) -> { System.out.println(n); } )";
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
@@ -15085,7 +15085,7 @@ fn lambda_in_expression() {
 
 #[test]
 fn equal_expr() {
-    let content = "a == b ";
+    let content = b"a == b ";
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
@@ -15160,7 +15160,7 @@ fn equal_expr() {
 // new String()
 #[test]
 fn new_string() {
-    let content = r#"
+    let content = br#"
      return new String();   
     "#;
     let tokens = lexer::lex(content).unwrap();
@@ -15217,7 +15217,7 @@ fn new_string() {
 
 #[test]
 fn new_array() {
-    let content = r#"
+    let content = br#"
      return new Object[][] {
             { "NumberPatterns",
                 new String[] {
@@ -15436,7 +15436,7 @@ fn new_array() {
 }
 #[test]
 fn long_expr() {
-    let content = r#"IAFactory.getInstance().getIA("localhost", 1344, SERVICE).support(true)"#;
+    let content = br#"IAFactory.getInstance().getIA("localhost", 1344, SERVICE).support(true)"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
@@ -15745,7 +15745,7 @@ fn long_expr() {
 }
 #[test]
 fn cast() {
-    let content = r#"new byte[] {(byte)'a'}"#;
+    let content = br#"new byte[] {(byte)'a'}"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_new_class(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
@@ -15859,7 +15859,7 @@ fn cast() {
 }
 #[test]
 fn double_plus() {
-    let content = r#"values[i++]"#;
+    let content = br#"values[i++]"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
@@ -15952,7 +15952,7 @@ fn double_plus() {
 }
 #[test]
 fn method_no_body() {
-    let content = r#"protected abstract T create(Object key);"#;
+    let content = br#"protected abstract T create(Object key);"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_class_method(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -16050,7 +16050,7 @@ fn method_no_body() {
 }
 #[test]
 fn return_casted_newclass() {
-    let content = r#"return (Entry<T>[]) new Entry<?>[length];"#;
+    let content = br#"return (Entry<T>[]) new Entry<?>[length];"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_block_return(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -16226,7 +16226,7 @@ fn return_casted_newclass() {
 
 #[test]
 fn jtype_generic_array() {
-    let content = r#"Entry<T>[]"#;
+    let content = br#"Entry<T>[]"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -16284,7 +16284,8 @@ fn jtype_generic_array() {
 }
 #[test]
 fn class_var_hashmap_genirics() {
-    let content = r#"private HashMap<String, List<PropertyDescriptor>> pdStore = new HashMap<>();"#;
+    let content =
+        br#"private HashMap<String, List<PropertyDescriptor>> pdStore = new HashMap<>();"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_class_variable(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -16425,7 +16426,7 @@ fn class_var_hashmap_genirics() {
 }
 #[test]
 fn name_dot() {
-    let content = r#"Thing1.other."#;
+    let content = br#"Thing1.other."#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_name_dot_logical(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -16447,7 +16448,7 @@ fn name_dot() {
 }
 #[test]
 fn labeled_empty_for() {
-    let content = r#" l: for (;;) {} "#;
+    let content = br#" l: for (;;) {} "#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_for(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -16489,7 +16490,7 @@ fn labeled_empty_for() {
 }
 #[test]
 fn new_casted_parameter() {
-    let content = r#" new HandleTable(10, (float) 3.00) "#;
+    let content = br#" new HandleTable(10, (float) 3.00) "#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_new_class(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
@@ -16630,7 +16631,7 @@ fn new_casted_parameter() {
 }
 #[test]
 fn class_colon_colon_new() {
-    let content = r#"Class<?>[]::new"#;
+    let content = br#"Class<?>[]::new"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
@@ -16740,7 +16741,7 @@ fn class_colon_colon_new() {
 }
 #[test]
 fn parameter_class_function_pass() {
-    let content = r#"toArray(Class<?>[]::new)"#;
+    let content = br#"toArray(Class<?>[]::new)"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
@@ -16893,7 +16894,7 @@ fn parameter_class_function_pass() {
 }
 #[test]
 fn multiline_string_arg() {
-    let content = r#"{
+    let content = br#"{
                         System.err.println("""
                                           The VFORK launch mechanism has been deprecated for being dangerous.
                                           It will be removed in a future java version. Either remove the
@@ -17079,7 +17080,7 @@ fn multiline_string_arg() {
 }
 #[test]
 fn class_block_annotation() {
-    let content = r#"{
+    let content = br#"{
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     @interface Compiled {
@@ -17295,7 +17296,7 @@ fn class_block_annotation() {
 }
 #[test]
 fn lambda_with_types() {
-    let content = r#"(T t, U u) -> after.apply(apply(t, u))"#;
+    let content = br#"(T t, U u) -> after.apply(apply(t, u))"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
@@ -17556,7 +17557,7 @@ fn lambda_with_types() {
 }
 #[test]
 fn lambda_with_no_parameters() {
-    let content = r#"() -> a"#;
+    let content = br#"() -> a"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_lambda(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
@@ -17608,7 +17609,7 @@ fn lambda_with_no_parameters() {
 }
 #[test]
 fn jtype_access() {
-    let content = r#"Something.Inner"#;
+    let content = br#"Something.Inner"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -17664,7 +17665,7 @@ fn jtype_access() {
 
 #[test]
 fn jtype_nested_generics() {
-    let content = r#"Supplier<Map<ClassDesc, ClassHierarchyInfo>>"#;
+    let content = br#"Supplier<Map<ClassDesc, ClassHierarchyInfo>>"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -17747,7 +17748,7 @@ fn jtype_nested_generics() {
 
 #[test]
 fn jtype_package() {
-    let content = r#"javax.crypto.interfaces.DHPrivateKey"#;
+    let content = br#"javax.crypto.interfaces.DHPrivateKey"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -17852,7 +17853,7 @@ fn jtype_package() {
 }
 #[test]
 fn jtype_int() {
-    let content = r#"int"#;
+    let content = br#"int"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -17875,7 +17876,7 @@ fn jtype_int() {
 }
 #[test]
 fn jtype_int_array() {
-    let content = r#"int[]"#;
+    let content = br#"int[]"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -17907,7 +17908,7 @@ fn jtype_int_array() {
 }
 #[test]
 fn jtype_class_generic() {
-    let content = r#"HashMap<String, Integer>"#;
+    let content = br#"HashMap<String, Integer>"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -17972,7 +17973,7 @@ fn jtype_class_generic() {
 }
 #[test]
 fn jtype_class_generic_generic() {
-    let content = r#"Predicate<Class<?>>"#;
+    let content = br#"Predicate<Class<?>>"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -18031,7 +18032,7 @@ fn jtype_class_generic_generic() {
 }
 #[test]
 fn casted_calculation() {
-    let content = r#"case MILLI_OF_DAY -> (int) (toNanoOfDay() / 1000_000);"#;
+    let content = br#"case MILLI_OF_DAY -> (int) (toNanoOfDay() / 1000_000);"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_switch_case_arrow_value(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -18237,7 +18238,7 @@ fn casted_calculation() {
 }
 #[test]
 fn name_dot_logical() {
-    let content = r#"@Overwrite Other."#;
+    let content = br#"@Overwrite Other."#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_annotated(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -18267,7 +18268,7 @@ fn name_dot_logical() {
 #[test]
 fn annotated_named() {
     let content =
-        r#"@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"otherUuid", "thing_id"}))"#;
+        br#"@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"otherUuid", "thing_id"}))"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_annotated(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -18406,7 +18407,7 @@ fn annotated_named() {
 }
 #[test]
 fn annotated_array() {
-    let content = r#"@SuppressWarnings({"unchecked", "rawtypes"})"#;
+    let content = br#"@SuppressWarnings({"unchecked", "rawtypes"})"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_annotated(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -18504,7 +18505,7 @@ fn annotated_array() {
 }
 #[test]
 fn colon_colon_new() {
-    let content = r#"byte[]"#;
+    let content = br#"byte[]"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_expression(&tokens, 0, &ExpressionOptions::empty());
     parsed.print_err(content, &tokens);
@@ -18560,7 +18561,7 @@ fn colon_colon_new() {
 }
 #[test]
 fn complicated_type() {
-    let content = r#"CustomPacketPayload.@NotNull Type<? extends @NotNull CustomPacketPayload>"#;
+    let content = br#"CustomPacketPayload.@NotNull Type<? extends @NotNull CustomPacketPayload>"#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_jtype(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -18673,7 +18674,7 @@ fn complicated_type() {
 }
 #[test]
 fn nuget_long_underscore() {
-    let content = "10_000_000_000L";
+    let content = b"10_000_000_000L";
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_value_nuget(&tokens, 0);
     parsed.print_err(content, &tokens);
@@ -18699,7 +18700,7 @@ fn nuget_long_underscore() {
 }
 #[test]
 fn inline_switch() {
-    let content = r#"{
+    let content = br#"{
     m(switch (a) {
         case true  -> user.id();
         case false -> { log(1); yield -1; }
@@ -19128,7 +19129,7 @@ fn inline_switch() {
 
 #[test]
 fn import_with_module_in_name() {
-    let content = r#"
+    let content = br#"
     import info.asdf.module.a.base;
     public class Test extends info.asdf.module.a.base {}
     "#;
@@ -19323,7 +19324,7 @@ fn import_with_module_in_name() {
 
 #[test]
 fn top_level_function() {
-    let content = r#"void main() {
+    let content = br#"void main() {
         System.out.println("Hey");
     }"#;
     let tokens = lexer::lex(content).unwrap();
@@ -19544,7 +19545,7 @@ fn top_level_function() {
 
 #[test]
 fn method_inner_class() {
-    let content = r#"
+    let content = br#"
     public static Logger getLogger() {
 
         class Holder {

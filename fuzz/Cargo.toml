@@ -9,6 +9,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
+arbitrary = { version = "1.4.2", features = ["derive"] }
 
 [dependencies.class]
 path = "../crates/class"
@@ -24,9 +25,11 @@ path = "../crates/dto_rw"
 
 [dependencies.ast]
 path = "../crates/ast"
+features = ["arbitrary"]
 
 [dependencies.my_string]
 path = "../crates/my_string"
+features = ["arbitrary"]
 
 [[bin]]
 name = "parser_class"
@@ -52,6 +55,13 @@ bench = false
 [[bin]]
 name = "parser_java"
 path = "fuzz_targets/parser_java.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "parser_java_a"
+path = "fuzz_targets/parser_java_a.rs"
 test = false
 doc = false
 bench = false

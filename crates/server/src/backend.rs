@@ -626,7 +626,12 @@ impl Backend {
             "\t".to_string()
         };
         let in_string = document.rope.to_string();
-        match formatter::format(&self.config.formatter, &document.ast, &in_string, &space) {
+        match formatter::format(
+            &self.config.formatter,
+            &document.ast,
+            in_string.as_bytes(),
+            &space,
+        ) {
             Ok(o) => {
                 let out = String::from_utf8_lossy(&o);
                 let lines = document.rope.lines().len();

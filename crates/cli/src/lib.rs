@@ -243,25 +243,20 @@ pub fn ast_check(path: &PathBuf) {
 }
 
 fn lex_and_ast(file: &Path, text: &[u8]) {
+    let mut tokens = Vec::new();
     // eprintln!("Here: {:?}", file);
-    match std::str::from_utf8(text) {
-        Ok(text) => match ast::lexer::lex(text) {
-            Ok(tokens) => {
-                let ast = ast::parse_file(&tokens);
-                if ast.is_err() {
-                    eprintln!("Here: {}", file.display());
-                    ast.print_err(text, &tokens);
-                }
-            }
-            Err(e) => {
+    match ast::lexer::lex_mut::<false>(text, &mut tokens) {
+        Ok(()) => {
+            let ast = ast::parse_file(&tokens);
+            if ast.is_err() {
                 eprintln!("Here: {}", file.display());
-                eprintln!("Lexer error: {e:?}");
-                std::process::exit(2);
+                ast.print_err(text, &tokens);
             }
-        },
+        }
         Err(e) => {
-            eprintln!("invalid utf8: {e:?}");
-            std::process::exit(3);
+            eprintln!("Here: {}", file.display());
+            eprintln!("Lexer error: {e:?}");
+            std::process::exit(2);
         }
     }
 }
@@ -323,14 +318,14 @@ pub async fn ast_check_dir_ignore(
 /// # Panics
 /// When lexer fails or file issue
 pub fn lex(file: &PathBuf) {
-    let bytes = std::fs::read_to_string(file).expect("File should exist");
+    let bytes = std::fs::read(file).expect("File should exist");
     let tokens = ast::lexer::lex(&bytes).expect("Ok to cratch if fail");
     eprintln!("{tokens:?}");
 }
 /// # Panics
 /// When lexer fails or file issue
 pub fn lex_pos(file: &PathBuf, pos: usize) {
-    let bytes = std::fs::read_to_string(file).expect("File should exist");
+    let bytes = std::fs::read(file).expect("File should exist");
     let tokens = ast::lexer::lex(&bytes).expect("Ok to cratch if fail");
     eprintln!("{:?}", tokens[pos]);
 }
@@ -344,7 +339,7 @@ pub async fn index_jdk(variant: IndexJdkOptions) {
 }
 
 pub fn format_file(p: &PathBuf, exit: bool) {
-    match std::fs::read_to_string(p) {
+    match std::fs::read(p) {
         Ok(data) => match ast::lexer::lex(&data) {
             Ok(tokens) => match ast::parse_file(&tokens) {
                 Ok(ast) => {

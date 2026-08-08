@@ -546,7 +546,7 @@ mod tests {
 
     #[test]
     fn method_pos_base() {
-        let content = "
+        let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -575,7 +575,7 @@ public class Test {
 
     #[test]
     fn field_pos_base() {
-        let content = "
+        let content = b"
 package ch.emilycares;
 public class Test {
     public String a;
@@ -600,7 +600,7 @@ public class Test {
 
     #[test]
     fn field_pos_in_lambda() {
-        let content = "
+        let content = b"
 public class Test {
     public Uni<Response> test() {
         return Thing.dothing(t -> {
@@ -639,7 +639,7 @@ public class Test {
 
     #[test]
     fn class_pos_base() {
-        let content = "
+        let content = b"
 package ch.emilycares;
 public class Test {}
 ";
@@ -662,7 +662,7 @@ public class Test {}
     #[ignore = "todo"]
     #[test]
     fn type_usage_base() {
-        let content = "
+        let content = b"
 package ch.emilycares;
 public class Test {
 private StringBuilder sb = new StringBuilder();

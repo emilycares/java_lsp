@@ -40,7 +40,7 @@ impl Document {
         eprintln!("Reload file from disk: {:?}", self.path.display());
         let text = fs::read_to_string(&self.path).map_err(DocumentError::Io)?;
         self.rope = Rope::from_str(&text);
-        self.reparse(&text)?;
+        self.reparse(text.as_bytes())?;
         Ok(())
     }
     pub fn setup_read(path: PathBuf) -> Result<Self, DocumentError> {
@@ -58,7 +58,7 @@ impl Document {
             path,
         };
 
-        o.reparse(&text)?;
+        o.reparse(text.as_bytes())?;
         Ok(o)
     }
     pub fn setup(text: &str, path: PathBuf) -> Result<Self, DocumentError> {
@@ -69,7 +69,7 @@ impl Document {
             path,
         };
 
-        o.reparse(text)?;
+        o.reparse(text.as_bytes())?;
         Ok(o)
     }
 
@@ -88,7 +88,7 @@ impl Document {
             path,
         };
 
-        match o.reparse(text) {
+        match o.reparse(text.as_bytes()) {
             Ok(()) => {
                 let Ok(mut dm) = document_map.write() else {
                     return Err(DocumentError::Locked);
@@ -146,15 +146,17 @@ impl Document {
                 self.rope = Rope::from_str(&change.text);
             }
         }
-        self.reparse(&self.rope.to_string())
+        let st = self.rope.to_string();
+        self.reparse(st.as_bytes())
     }
     pub fn reparse_no_change(&self) -> Result<(), DocumentError> {
         let string = self.rope.to_string();
-        match ast::lexer::lex(&string) {
+        let bytes = string.as_bytes();
+        match ast::lexer::lex(bytes) {
             Ok(tokens) => {
                 let ast = ast::parse_file(&tokens);
                 if let Err(e) = ast {
-                    e.print_err(&string, &tokens);
+                    e.print_err(bytes, &tokens);
                     if let Ok(diag) = lsp_extra::ast_error_to_diagnostic(&e, &tokens) {
                         return Err(DocumentError::Diagnostic(Box::new(diag)));
                     }
@@ -169,7 +171,7 @@ impl Document {
 
         Ok(())
     }
-    fn reparse(&mut self, text: &str) -> Result<(), DocumentError> {
+    fn reparse(&mut self, text: &[u8]) -> Result<(), DocumentError> {
         match ast::lexer::lex(text) {
             Ok(tokens) => {
                 let ast = ast::parse_file(&tokens);

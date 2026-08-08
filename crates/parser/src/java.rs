@@ -19,7 +19,7 @@ pub enum ParseJavaError {
     Ast(ast::error::AstError),
     Lexer(ast::lexer::LexerError),
 }
-pub fn load_java(text: &str, source: SourceDestination) -> Result<Class, ParseJavaError> {
+pub fn load_java(text: &[u8], source: SourceDestination) -> Result<Class, ParseJavaError> {
     let tokens = lexer::lex(text).map_err(ParseJavaError::Lexer)?;
     let parsed = ast::parse_file(&tokens).map_err(ParseJavaError::Ast)?;
     let preprocessed = preprocessor(parsed);
@@ -414,7 +414,10 @@ pub mod tests {
 
     #[test]
     fn jtype_recognition() {
-        let result = load_java(include_str!("../test/Types.java"), SourceDestination::None);
+        let result = load_java(
+            include_bytes!("../test/Types.java"),
+            SourceDestination::None,
+        );
         let expected = expect![[r#"
             Class {
                 class_path: "a.test.Types",
@@ -580,7 +583,7 @@ pub mod tests {
 
     #[test]
     fn super_class() {
-        let content = "
+        let content = b"
 package a.test;
 public class Test extends AThing { }
         ";
@@ -612,7 +615,7 @@ public class Test extends AThing { }
 
     #[test]
     fn generic_type_declare() {
-        let content = "
+        let content = b"
 package a.test;
 public class Test {
   public static <T> int add(Collection<T> list, T item){}
@@ -679,7 +682,7 @@ public class Test {
 
     #[test]
     fn thrower() {
-        let content = include_str!("../test/Thrower.java");
+        let content = include_bytes!("../test/Thrower.java");
         let result = load_java(content, SourceDestination::None);
         let expected = expect![[r#"
             Class {
@@ -753,7 +756,7 @@ public class Test {
     #[test]
     fn interface_constants() {
         let result = load_java(
-            include_str!("../test/Constants.java"),
+            include_bytes!("../test/Constants.java"),
             SourceDestination::None,
         );
 
@@ -869,7 +872,7 @@ public class Test {
     #[test]
     fn interface_base() {
         let result = load_java(
-            include_str!("../test/InterfaceBase.java"),
+            include_bytes!("../test/InterfaceBase.java"),
             SourceDestination::None,
         );
 
@@ -962,7 +965,7 @@ public class Test {
     #[test]
     fn jenum() {
         let result = load_java(
-            include_str!("../test/Variants.java"),
+            include_bytes!("../test/Variants.java"),
             SourceDestination::None,
         );
         let expected = expect![[r#"
@@ -1047,7 +1050,7 @@ public class Test {
     #[test]
     fn jannotation() {
         let result = load_java(
-            include_str!("../test/Annotation.java"),
+            include_bytes!("../test/Annotation.java"),
             SourceDestination::None,
         );
         let expected = expect![[r#"
@@ -1095,7 +1098,7 @@ public class Test {
     #[test]
     fn everything() {
         let result = load_java(
-            include_str!("../test/Everything.java"),
+            include_bytes!("../test/Everything.java"),
             SourceDestination::None,
         );
         let expected = expect![[r#"
@@ -1257,7 +1260,7 @@ public class Test {
 
     #[test]
     fn int() {
-        let src = "
+        let content = b"
 package a.test;
 
 import jakarta.inject.Inject;
@@ -1268,7 +1271,7 @@ import jakarta.ws.rs.Path;
 public class Test {
 }
  ";
-        let result = load_java(src, SourceDestination::None);
+        let result = load_java(content, SourceDestination::None);
 
         let expected = expect![[r#"
             Class {
@@ -1304,7 +1307,7 @@ public class Test {
     #[test]
     fn super_interfaces() {
         let result = load_java(
-            include_str!("../test/SuperInterface.java"),
+            include_bytes!("../test/SuperInterface.java"),
             SourceDestination::None,
         );
         let expected = expect![[r#"
@@ -1371,7 +1374,7 @@ public class Test {
     #[test]
     fn annotation() {
         let result = load_java(
-            include_str!("../test/Annotation.java"),
+            include_bytes!("../test/Annotation.java"),
             SourceDestination::None,
         );
         let expected = expect![[r#"

@@ -120,3 +120,6 @@ memmap2 = "0.9.10"
 memchr = "2.8.2"
 sha1_smol = "1.0.1"
 curl ="0.4.50"
+
+# For fuzzing
+arbitrary = { version = "1.4.2", features = ["derive"] }

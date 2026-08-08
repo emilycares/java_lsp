@@ -16,6 +16,7 @@ pub fn capitalize_first(s: &NuVec) -> NuVec {
 }
 /// A [`u8`] with a bunch of niches.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[repr(u8)]
 pub enum InlineSize {
     _V0 = 0,
@@ -560,6 +561,16 @@ impl NuVec {
 
         out.pusha(rest);
         out.finish()
+    }
+}
+
+#[cfg(feature = "arbitrary")]
+impl<'a> arbitrary::Arbitrary<'a> for NuVec {
+    fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
+        let string = <&str>::arbitrary(u)?;
+        Ok(NuVec::new(string.as_bytes()))
+        // let string = <&[u8]>::arbitrary(u)?;
+        // Ok(NuVec::new(string))
     }
 }
 

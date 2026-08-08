@@ -8,7 +8,7 @@ use my_string::NuVec;
 
 #[test]
 fn call_chain_base() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 
 public class Test {
@@ -43,7 +43,7 @@ public class Test {
 
 #[test]
 fn call_chain_variable() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello(String a) {
@@ -72,7 +72,7 @@ public class Test {
     expected.assert_debug_eq(&out);
 }
 
-pub const SYMBOL_METHOD: &str = r#"
+pub const SYMBOL_METHOD: &[u8] = br#"
 package ch.emilycares;
 
 public class Test {
@@ -128,7 +128,7 @@ fn call_chain_method_a() {
 
 #[test]
 fn call_chain_string() {
-    let content = r#"
+    let content = br#"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -159,7 +159,7 @@ public class Test {
 
 #[test]
 fn call_chain_field_base() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -196,7 +196,7 @@ public class Test {
 
 #[test]
 fn call_chain_method_base() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class GreetingResource {
     String a;
@@ -244,7 +244,7 @@ public class GreetingResource {
 
 #[test]
 fn call_chain_method_info() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class GreetingResource {
     public String hello() {
@@ -300,7 +300,7 @@ public class GreetingResource {
 
 #[test]
 fn call_chain_field_method() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -345,7 +345,7 @@ public class Test {
 
 #[test]
 fn call_chain_method_field() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -390,7 +390,7 @@ public class Test {
 
 #[test]
 fn call_chain_semicolon_simple() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -420,7 +420,7 @@ public class Test {
 
 #[test]
 fn call_chain_semicolon_field() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -465,7 +465,7 @@ public class Test {
 
 #[test]
 fn call_chain_semicolon_method() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -510,7 +510,7 @@ public class Test {
 
 #[test]
 fn call_chain_statement() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -555,7 +555,7 @@ public class Test {
 
 #[test]
 fn call_chain_class() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -585,7 +585,7 @@ public class Test {
 
 #[test]
 fn call_chain_variable_class() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -615,7 +615,7 @@ public class Test {
 
 #[test]
 fn call_chain_argument_base() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -667,7 +667,7 @@ public class Test {
 
 #[test]
 fn call_chain_argument_var_base() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -744,7 +744,7 @@ public class Test {
 
 #[test]
 fn call_chain_argument_var_no_dot() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -821,7 +821,7 @@ public class Test {
 
 #[test]
 fn call_chain_argument_second_var_base() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -925,7 +925,7 @@ public class Test {
 
 #[test]
 fn call_chain_argument_active_param_not_last() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -1020,7 +1020,7 @@ public class Test {
 
 #[test]
 fn call_chain_argument_second_var_no_dot() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -1115,7 +1115,7 @@ public class Test {
 
 #[test]
 fn call_chain_argument_field() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -1213,7 +1213,7 @@ public class Test {
 
 #[test]
 fn call_chain_argument_calc() {
-    let content = r#"
+    let content = br#"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -1306,7 +1306,7 @@ public class Test {
 
 #[test]
 fn call_chain_arguments() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -1351,7 +1351,7 @@ public class Test {
 
 #[test]
 fn call_chain_argument_method() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -1447,7 +1447,7 @@ public class Test {
 
 #[test]
 fn call_chain_if_base() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -1477,7 +1477,7 @@ public class Test {
 
 #[test]
 fn call_chain_if_condition() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -1509,7 +1509,7 @@ public class Test {
 
 #[test]
 fn call_chain_return() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -1535,7 +1535,7 @@ public class Test {
 
 #[test]
 fn call_chain_return_method_call() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -1571,7 +1571,7 @@ public class Test {
 
 #[test]
 fn call_chain_new_instance_base() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -1602,7 +1602,7 @@ public class Test {
 
 #[test]
 fn call_chain_new_instance_field() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -1640,7 +1640,7 @@ public class Test {
 
 #[test]
 fn call_chain_new_instance_method() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     public void hello() {
@@ -1679,7 +1679,7 @@ public class Test {
 
 #[test]
 fn call_chain_field_declaration() {
-    let content = "
+    let content = b"
 package ch.emilycares;
 public class Test {
     private static Logger LOG = Logger.getLogger(Test.class);
@@ -1728,7 +1728,7 @@ public class Test {
 
 #[test]
 fn call_chain_annotation_parameter() {
-    let content = r#"
+    let content = br#"
 package ch.emilycares;
 import jakarta.ws.rs.Produces;
 public class Test {
@@ -1767,7 +1767,7 @@ public class Test {
 
 #[test]
 fn call_chain_this() {
-    let content = r#"
+    let content = br#"
 package ch.emilycares;
 public class Test {
     public String hello() {
@@ -1811,7 +1811,7 @@ public class Test {
 
 #[test]
 fn call_chain_this_set() {
-    let content = r#"
+    let content = br#"
 package ch.emilycares;
 public class Test {
     public String hello() {
@@ -1846,7 +1846,7 @@ public class Test {
 
 #[test]
 fn call_chain_constructor_with_argument() {
-    let content = r#"
+    let content = br#"
 package ch.emilycares;
 public class Test {
     public String hello() {
@@ -1872,7 +1872,7 @@ public class Test {
 }
 #[test]
 fn call_chain_in_lambda() {
-    let content = r#"
+    let content = br#"
 public class Test {
     public Uni<Response> test() {
         return Thing.dothing(t -> {
@@ -1900,7 +1900,7 @@ public class Test {
 
 #[test]
 fn call_chain_var_constructor() {
-    let content = r#"
+    let content = br#"
 package ch.emilycares;
 public class Test {
 public static Map<Long, String> m = new HashMap<>( );
@@ -1933,7 +1933,7 @@ public static Map<Long, String> m = new HashMap<>( );
 
 #[test]
 fn call_chain_and_expr() {
-    let content = r#"
+    let content = br#"
 package ch.emilycares;
 public class Test {
 public boolean test(String a) {
@@ -1981,7 +1981,7 @@ return a.length > 0
 
 #[test]
 fn call_chain_and_expr_last() {
-    let content = r#"
+    let content = br#"
 package ch.emilycares;
 public class Test {
 public boolean test(String a) {
@@ -2029,7 +2029,7 @@ return a.length > 0
 
 #[test]
 fn call_chain_import_method() {
-    let content = r#"
+    let content = br#"
 package ch.emilycares;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 "#;
@@ -2061,7 +2061,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 #[test]
 fn call_chain_array_access() {
-    let content = r#"
+    let content = br#"
 package ch.emilycares;
 public class Test {
 public boolean test(String[] a) {

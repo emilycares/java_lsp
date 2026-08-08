@@ -1,8 +1,8 @@
 //! Range type and methods
 use crate::types::{
-    AstAnnotated, AstAnnotatedParameter, AstBlockEntry, AstExpression, AstExpressionIdentifier,
-    AstExpressionKind, AstForContent, AstIf, AstIfContent, AstPoint, AstRange, AstSuperClass,
-    AstThing, AstTopLevel, AstValue, AstValueNuget, AstValues,
+    AstAnnotated, AstAnnotatedParameter, AstBlockEntry, AstBlockVariable, AstExpression,
+    AstExpressionIdentifier, AstExpressionKind, AstForContent, AstIf, AstIfContent, AstPoint,
+    AstRange, AstSuperClass, AstThing, AstTopLevel, AstValue, AstValueNuget, AstValues,
 };
 
 /// Join two ranges a must be before b
@@ -392,6 +392,12 @@ impl GetRange for &AstTopLevel {
             AstTopLevel::Method(ast_class_method) => ast_class_method.range,
             AstTopLevel::Module(ast_module) => ast_module.range,
         }
+    }
+}
+
+impl GetRange for AstBlockVariable {
+    fn get_range(&self) -> AstRange {
+        self.range
     }
 }
 

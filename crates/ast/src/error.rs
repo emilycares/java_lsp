@@ -1,4 +1,6 @@
 //! Error type and helper
+use std::io::BufRead;
+
 use my_string::NuVec;
 
 use super::lexer::{PositionToken, Token};
@@ -9,11 +11,11 @@ const PRINT_ALL_ERRORS: bool = false;
 /// Fancy log ast error
 pub trait PrintErr {
     /// impl
-    fn print_err(&self, content: &str, tokens: &[PositionToken]);
+    fn print_err(&self, content: &[u8], tokens: &[PositionToken]);
 }
 
 impl<T> PrintErr for Result<T, AstError> {
-    fn print_err(&self, content: &str, tokens: &[PositionToken]) {
+    fn print_err(&self, content: &[u8], tokens: &[PositionToken]) {
         if let Err(e) = self {
             e.print_err(content, tokens);
         }
@@ -51,7 +53,7 @@ pub enum AstError {
 }
 
 impl PrintErr for AstError {
-    fn print_err(&self, content: &str, tokens: &[PositionToken]) {
+    fn print_err(&self, content: &[u8], tokens: &[PositionToken]) {
         match self {
             Self::ExpectedToken(expected_token) => {
                 if let Some(found) = tokens.get(expected_token.pos) {
@@ -214,7 +216,7 @@ pub fn get_pos(e: &AstError) -> (usize, usize) {
     }
 }
 
-fn print_helper(content: &str, line: usize, col: usize, msg: &str) {
+fn print_helper(content: &[u8], line: usize, col: usize, msg: &str) {
     let is_zero = line == 0;
     let mut lines = if is_zero {
         content.lines().enumerate().skip(line)
@@ -223,11 +225,17 @@ fn print_helper(content: &str, line: usize, col: usize, msg: &str) {
     };
     if !is_zero && let Some((number, line)) = lines.next() {
         let number = number + 1;
-        eprintln!("{number} {line}");
+        eprintln!("{number} ");
+        if let Ok(line) = line {
+            eprintln!("{line}");
+        }
     }
     if let Some((number, line)) = lines.next() {
         let number = number + 1;
-        eprintln!("{number} \x1b[93m{line}\x1b[0m");
+        eprintln!("{number} \x1b[93m");
+        if let Ok(line) = line {
+            eprintln!("{line}\x1b[0m");
+        }
     }
     let line_digit_len: usize = line.checked_ilog10().unwrap_or(0).try_into().unwrap_or(0);
     let spaces = " ".repeat(col + line_digit_len);
@@ -235,7 +243,10 @@ fn print_helper(content: &str, line: usize, col: usize, msg: &str) {
     eprintln!("  {spaces}| {msg}");
     if let Some((number, line)) = lines.next() {
         let number = number + 1;
-        eprintln!("{number} {line}");
+        eprintln!("{number}");
+        if let Ok(line) = line {
+            eprintln!(" {line}");
+        }
     }
 }
 
