@@ -120,6 +120,7 @@
               (craneLib.fileset.commonCargoSources ./crates/expect-test)
               (craneLib.fileset.commonCargoSources ./crates/dirs)
               (craneLib.fileset.commonCargoSources ./crates/lombok)
+              (craneLib.fileset.commonCargoSources ./crates/editorconfig)
               (craneLib.fileset.commonCargoSources ./crates/workspace_hack)
               (craneLib.fileset.commonCargoSources crate)
             ];

@@ -13,6 +13,7 @@ use compile::CompileErrorMessage;
 use config::{Configuration, FormatterConfig};
 use document::{Document, DocumentError, get_class_path, open_document};
 use dto::Class;
+use editorconfig::{EditorConfig, IndentStyle};
 use gradle::project::get_gradle_cache_path;
 use lsp_extra::{SERVER_NAME, source_to_uri, to_ast_point};
 use lsp_server::{Connection, Message};
@@ -620,17 +621,30 @@ impl Backend {
             eprintln!("Document is not opened.");
             return None;
         };
-        let space = if options.insert_spaces {
-            " ".repeat(options.tab_size as usize)
+        let editorconfig = if let Some(project) = self.get_project(uri) {
+            let mut editorconfig =
+                editorconfig::load_project_editor_config(&PathBuf::from(project.dir))
+                    .unwrap_or_default();
+            if options.insert_spaces {
+                if editorconfig.indent_style.is_none() {
+                    editorconfig.indent_style = Some(IndentStyle::Space);
+                }
+                if editorconfig.indent_size.is_none() {
+                    editorconfig.indent_size = Some(options.tab_size as usize);
+                }
+            } else if editorconfig.indent_style.is_none() {
+                editorconfig.indent_style = Some(IndentStyle::Tab);
+            }
+            editorconfig
         } else {
-            "\t".to_string()
+            EditorConfig::default()
         };
         let in_string = document.rope.to_string();
         match formatter::format(
             &self.config.formatter,
             &document.ast,
             in_string.as_bytes(),
-            &space,
+            &editorconfig.to_filled(),
         ) {
             Ok(o) => {
                 let out = String::from_utf8_lossy(&o);

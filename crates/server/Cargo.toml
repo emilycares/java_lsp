@@ -36,6 +36,7 @@ get_class.workspace = true
 my_string.workspace = true
 lsp_extra.workspace = true
 dirs.workspace = true
+editorconfig.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]

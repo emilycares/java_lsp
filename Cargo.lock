@@ -124,6 +124,7 @@ version = "0.1.0"
 dependencies = [
  "ast",
  "config",
+ "editorconfig",
  "formatter",
  "jdk",
  "workspace_hack",
@@ -261,6 +262,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "editorconfig"
+version = "0.1.0"
+dependencies = [
+ "expect-test",
+ "workspace_hack",
+]
+
+[[package]]
 name = "encoding_rs"
 version = "0.8.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -309,6 +318,7 @@ version = "0.1.0"
 dependencies = [
  "ast",
  "config",
+ "editorconfig",
  "expect-test",
  "my_string",
  "workspace_hack",
@@ -397,6 +407,7 @@ version = "0.1.0"
 dependencies = [
  "cli",
  "common",
+ "editorconfig",
  "jdk",
  "server",
  "tokio",
@@ -953,6 +964,7 @@ dependencies = [
  "dirs",
  "document",
  "dto",
+ "editorconfig",
  "expect-test",
  "formatter",
  "get_class",

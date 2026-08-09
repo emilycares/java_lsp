@@ -21,6 +21,11 @@ pub enum DtoRwError {
     Import,
     JType,
     SuperClass,
+    ToMeanyMethodParameters,
+    ToMeanyMethods,
+    ToMeanyFields,
+    ToMeanySuperInterfaces,
+    ToLargeString,
 }
 const HEADER: &[u8; 4] = &[0xAA, 0xCC, 0xFF, 0xCC];
 
@@ -69,6 +74,10 @@ fn write_string(st: &NuVec, out: &mut Vec<u8>) {
 }
 fn parse_string(data: &[u8], pos: usize) -> Result<(NuVec, usize), DtoRwError> {
     let (len, pos) = parse_usize(data, pos)?;
+    // https://docs.oracle.com/javase/specs/jvms/se25/html/jvms-4.html#jvms-4.11
+    if len > 65535 {
+        return Err(DtoRwError::ToLargeString);
+    }
     let Some(get) = data.get(pos..pos.saturating_add(len)) else {
         return Err(DtoRwError::EOF);
     };
@@ -86,7 +95,12 @@ fn parse_classes(data: &[u8], pos: usize) -> Result<(Vec<Class>, usize), DtoRwEr
     let (len, pos) = parse_usize(data, pos)?;
     let mut i = 0;
     let mut pos = pos;
-    let mut out = Vec::new();
+    // Larger first allocation if data is not small
+    let mut out = if len > 1024 {
+        Vec::with_capacity(1024)
+    } else {
+        Vec::new()
+    };
     while i != len {
         let (class, npos) = parse_class(data, pos)?;
         pos = npos;
@@ -431,9 +445,14 @@ fn write_methods(ms: &[Method], out: &mut Vec<u8>) {
 }
 fn parse_methods(data: &[u8], pos: usize) -> Result<(Vec<Method>, usize), DtoRwError> {
     let (len, pos) = parse_usize(data, pos)?;
+    // https://docs.oracle.com/javase/specs/jvms/se25/html/jvms-4.html#jvms-4.11
+    if len > 65535 {
+        return Err(DtoRwError::ToMeanyMethods);
+    }
+
     let mut i = 0;
     let mut pos = pos;
-    let mut out = Vec::new();
+    let mut out = Vec::with_capacity(len);
     while i < len {
         let (im, npos) = parse_method(data, pos)?;
         pos = npos;
@@ -479,8 +498,12 @@ fn parse_method(data: &[u8], pos: usize) -> Result<(Method, usize), DtoRwError> 
     };
 
     let (len, pos) = parse_usize(data, pos)?;
+    // https://docs.oracle.com/javase/specs/jvms/se25/html/jvms-4.html#jvms-4.3.3
+    if len > 255 {
+        return Err(DtoRwError::ToMeanyMethodParameters);
+    }
     let mut pos = pos;
-    let mut parameters = Vec::new();
+    let mut parameters = Vec::with_capacity(len);
     let mut i = 0;
     while i < len {
         let (im, npos) = parse_parameter(data, pos)?;
@@ -551,9 +574,13 @@ fn write_fields(ms: &[Field], out: &mut Vec<u8>) {
 }
 fn parse_fields(data: &[u8], pos: usize) -> Result<(Vec<Field>, usize), DtoRwError> {
     let (len, pos) = parse_usize(data, pos)?;
+    // https://docs.oracle.com/javase/specs/jvms/se25/html/jvms-4.html#jvms-4.11
+    if len > 65535 {
+        return Err(DtoRwError::ToMeanyFields);
+    }
     let mut i = 0;
     let mut pos = pos;
-    let mut out = Vec::new();
+    let mut out = Vec::with_capacity(len);
     while i < len {
         let (im, npos) = parse_field(data, pos)?;
         pos = npos;
@@ -634,9 +661,14 @@ fn write_super_classes(ms: &[SuperClass], out: &mut Vec<u8>) {
 }
 fn parse_super_classes(data: &[u8], pos: usize) -> Result<(Vec<SuperClass>, usize), DtoRwError> {
     let (len, pos) = parse_usize(data, pos)?;
+    // https://docs.oracle.com/javase/specs/jvms/se25/html/jvms-4.html#jvms-4.11
+    if len > 65535 {
+        return Err(DtoRwError::ToMeanySuperInterfaces);
+    }
+
     let mut i = 0;
     let mut pos = pos;
-    let mut out = Vec::new();
+    let mut out = Vec::with_capacity(len);
     while i < len {
         let (im, npos) = parse_super_class(data, pos)?;
         pos = npos;

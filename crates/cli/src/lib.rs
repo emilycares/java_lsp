@@ -8,6 +8,7 @@ use std::time::Instant;
 use std::{fs::canonicalize, path::PathBuf};
 
 use ast::error::PrintErr;
+use editorconfig::EditorConfigFilled;
 use jdk::{test_load_jdk_jmod, test_load_jdk_modules_executable, test_load_jdk_modules_own};
 
 pub fn print_help() {
@@ -338,12 +339,17 @@ pub async fn index_jdk(variant: IndexJdkOptions) {
     }
 }
 
-pub fn format_file(p: &PathBuf, exit: bool) {
+pub fn format_file(p: &PathBuf, exit: bool, editorconfig: &EditorConfigFilled) {
     match std::fs::read(p) {
         Ok(data) => match ast::lexer::lex(&data) {
             Ok(tokens) => match ast::parse_file(&tokens) {
                 Ok(ast) => {
-                    match formatter::format(&config::FormatterConfig::Internal, &ast, &data, "\t") {
+                    match formatter::format(
+                        &config::FormatterConfig::Internal,
+                        &ast,
+                        &data,
+                        editorconfig,
+                    ) {
                         Ok(o) => {
                             if let Err(e) = std::fs::write(p, o) {
                                 eprintln!("Here: {}", p.display());
@@ -388,6 +394,9 @@ pub fn format_file(p: &PathBuf, exit: bool) {
 }
 
 pub fn format_dir(p: &PathBuf) {
+    let editorconfig = editorconfig::load_editor_config_or_default();
+    let editorconfig = editorconfig.to_filled();
+
     let time = Instant::now();
     let Ok(dir) = canonicalize(p) else {
         return;
@@ -395,7 +404,7 @@ pub fn format_dir(p: &PathBuf) {
     let mut dirs = std::collections::VecDeque::new();
     dirs.push_back(dir);
     while let Some(dir) = dirs.pop_front() {
-        if let Err(e) = visit_java_fies(&dir, &mut dirs, |i| format_file(i, false)) {
+        if let Err(e) = visit_java_fies(&dir, &mut dirs, |i| format_file(i, false, &editorconfig)) {
             eprintln!("Error walking files: {e:?}");
         }
     }

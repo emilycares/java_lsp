@@ -1,6 +1,6 @@
 [package]
-name = "cli"
-version = "0.1.0"
+name = "editorconfig"
+version.workspace = true
 edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
@@ -9,11 +9,8 @@ documentation.workspace = true
 readme.workspace = true
 license.workspace = true
 
-[dependencies]
-config.workspace = true
-ast.workspace = true
-formatter.workspace = true
-jdk.workspace = true
-editorconfig.workspace = true
-workspace_hack = { version = "0.1", path = "../workspace_hack" }
+[dev-dependencies]
+expect-test.workspace = true
 
+[dependencies]
+workspace_hack = { version = "0.1", path = "../workspace_hack" }

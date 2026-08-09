@@ -289,6 +289,7 @@ pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, us
     }
 }
 
+// TODO: try no backtracking for annotations https://www.youtube.com/watch?v=fIPO4G42wYE
 fn parse_annotated_list(
     tokens: &[PositionToken],
     pos: usize,

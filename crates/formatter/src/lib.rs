@@ -24,6 +24,7 @@ use ast::{
     },
 };
 use config::FormatterConfig;
+use editorconfig::{EditorConfigFilled, EndOfLine};
 use my_string::NuVec;
 
 #[derive(Debug)]
@@ -50,16 +51,20 @@ pub fn format(
     formatter: &FormatterConfig,
     ast: &AstFile,
     content: &[u8],
-    space: &str,
+    editorconfig: &EditorConfigFilled,
 ) -> Result<Vec<u8>, FormatError> {
     match formatter {
         FormatterConfig::None => Err(FormatError::NoFormatterSpecified),
-        FormatterConfig::Internal => internal(ast, content, space),
+        FormatterConfig::Internal => internal(ast, content, editorconfig),
     }
 }
 
-fn internal(ast: &AstFile, content: &[u8], space: &str) -> Result<Vec<u8>, FormatError> {
-    let mut f = Formatter::new(content, space)?;
+fn internal(
+    ast: &AstFile,
+    content: &[u8],
+    editorconfig: &EditorConfigFilled,
+) -> Result<Vec<u8>, FormatError> {
+    let mut f = Formatter::new(content, editorconfig)?;
 
     let mut top = ast.top.iter().peekable();
 
@@ -83,30 +88,41 @@ fn internal(ast: &AstFile, content: &[u8], space: &str) -> Result<Vec<u8>, Forma
     Ok(f.buf)
 }
 
-struct Formatter {
+struct Formatter<'a> {
     pub with_comments: Vec<PositionToken>,
     pub index: usize,
     pub buf: Vec<u8>,
     pub indent: usize,
-    pub space: String,
+    pub space: Vec<u8>,
+    pub ln: &'a [u8],
 }
 
-impl Formatter {
-    pub fn new(content: &[u8], space: &str) -> Result<Self, FormatError> {
+impl Formatter<'_> {
+    pub fn new(content: &[u8], editorconfig: &EditorConfigFilled) -> Result<Self, FormatError> {
         let with_comments = ast::lexer::lex_v::<true>(content).map_err(FormatError::Lexer)?;
+        let space = if matches!(editorconfig.indent_style, editorconfig::IndentStyle::Space) {
+            b" ".repeat(editorconfig.indent_size)
+        } else {
+            b"\t".to_vec()
+        };
         Ok(Self {
             with_comments,
             index: 0,
             buf: Vec::new(),
             indent: 0,
-            space: space.to_string(),
+            space,
+            ln: match editorconfig.end_of_line {
+                EndOfLine::LF => b"\n",
+                EndOfLine::CRLF => b"\r\n",
+                EndOfLine::CR => b"\r",
+            },
         })
     }
 
     #[inline]
     fn write_indent(&mut self) {
         for _ in 0..self.indent {
-            self.buf.extend_from_slice(self.space.as_bytes());
+            self.buf.extend(&self.space);
         }
     }
 
@@ -122,7 +138,7 @@ impl Formatter {
                         && t.line != prev.line
                     {
                         for _ in 0..self.indent {
-                            self.buf.extend_from_slice(self.space.as_bytes());
+                            self.buf.extend(&self.space);
                         }
                     }
                     self.buf.extend_from_slice(b"//");
@@ -134,7 +150,7 @@ impl Formatter {
                         && t.line != prev.line
                     {
                         for _ in 0..self.indent {
-                            self.buf.extend_from_slice(self.space.as_bytes());
+                            self.buf.extend(&self.space);
                         }
                     }
                     self.buf.extend_from_slice(b"/*");
@@ -163,30 +179,6 @@ impl Formatter {
     }
 
     pub fn write(&mut self, content: &[u8]) {
-        while let Some(t) = self.with_comments.get(self.index) {
-            match &t.token {
-                Token::LineComment(l) => {
-                    self.buf.extend_from_slice(b"//");
-                    extend_nuvec(&mut self.buf, l);
-                    self.new_line();
-                    self.write_indent();
-                    self.index += 1;
-                }
-                Token::BlockComment(c, _) => {
-                    self.buf.extend_from_slice(b"/*");
-                    extend_nuvec(&mut self.buf, c);
-                    self.buf.extend_from_slice(b"*/");
-                    if self.insert_line_or_space() {
-                        self.write_indent();
-                    }
-                    self.index += 1;
-                }
-                _ => {
-                    self.index += 1;
-                    break;
-                }
-            }
-        }
         self.buf.extend_from_slice(content);
     }
 
@@ -203,7 +195,7 @@ impl Formatter {
     }
 
     pub fn insert_new_lines(&mut self, end_line: usize, next_line: usize) {
-        let lns = next_line.saturating_sub(end_line) > 2;
+        let lns = next_line.saturating_sub(end_line) > 1;
         if lns {
             self.new_line();
         }
@@ -211,7 +203,7 @@ impl Formatter {
 
     #[inline]
     fn new_line(&mut self) {
-        self.buf.push(b'\n');
+        self.buf.extend(self.ln);
     }
 
     pub fn end_line_comments(&mut self, range: &AstRange) {
@@ -246,7 +238,7 @@ impl Formatter {
             match &t.token {
                 Token::LineComment(l) => {
                     for _ in 0..self.indent {
-                        self.buf.extend_from_slice(self.space.as_bytes());
+                        self.buf.extend(&self.space);
                     }
                     self.buf.extend_from_slice(b"//");
                     extend_nuvec(&mut self.buf, l);
@@ -282,6 +274,7 @@ fn extend_nuvec(out: &mut Vec<u8>, v: &NuVec) {
 }
 
 fn write_package(p: &AstPackage, f: &mut Formatter) {
+    f.insert_comments(p.range.end);
     write_annotated_list(&p.annotated, f);
     f.write(b"package ");
     f.write_identifier(&p.name);
@@ -718,7 +711,8 @@ fn write_jtype(jtype: &AstJType, f: &mut Formatter) {
             f.write(b"]");
         }
         AstJTypeKind::Generic(ident, types) => {
-            f.write_identifier(ident);
+            f.buf.extend(ident.value.as_bytes());
+            // f.write_identifier(ident);
             f.write(b"<");
             for (i, t) in types.iter().enumerate() {
                 if i > 0 {
@@ -1416,6 +1410,7 @@ fn write_class_block(block: &AstClassBlock, f: &mut Formatter) {
 }
 
 fn write_class_variable(v: &AstClassVariable, f: &mut Formatter) {
+    f.insert_comments(v.name.range.start);
     f.before_line_comments(&v.range);
     write_annotated_list(&v.annotated, f);
     f.write_indent();
@@ -1456,6 +1451,7 @@ fn write_class_method(method: &AstClassMethod, f: &mut Formatter) {
 }
 
 fn write_class_constructor(c: &AstClassConstructor, f: &mut Formatter) {
+    f.insert_comments(c.header.name.range.start);
     write_annotated_list(&c.header.annotated, f);
     f.write_indent();
     write_availability(&c.header.availability, f);
@@ -1566,6 +1562,7 @@ fn write_type_parameters(tp: &AstTypeParameters, f: &mut Formatter) {
 }
 
 fn write_record(record: &AstRecord, f: &mut Formatter) {
+    f.insert_comments(record.name.range.start);
     write_annotated_list(&record.annotated, f);
     f.write_indent();
     write_availability(&record.availability, f);
@@ -1609,6 +1606,7 @@ fn write_record_entries(entries: &AstRecordEntries, f: &mut Formatter) {
 }
 
 fn write_interface(iface: &AstInterface, f: &mut Formatter) {
+    f.insert_comments(iface.name.range.start);
     write_annotated_list(&iface.annotated, f);
     f.write_indent();
     write_availability(&iface.availability, f);
@@ -1684,6 +1682,7 @@ fn write_interface(iface: &AstInterface, f: &mut Formatter) {
 }
 
 fn write_interface_constant(c: &AstInterfaceConstant, f: &mut Formatter) {
+    f.insert_comments(c.name.range.start);
     write_annotated_list(&c.annotated, f);
     f.write_indent();
     write_availability(&c.availability, f);
@@ -1695,6 +1694,7 @@ fn write_interface_constant(c: &AstInterfaceConstant, f: &mut Formatter) {
         write_expression(expr, f);
     }
     f.write(b";");
+    f.end_line_comments(&c.range);
     f.new_line();
 }
 
@@ -1712,6 +1712,7 @@ fn write_interface_default_method(m: &AstInterfaceMethodDefault, f: &mut Formatt
 }
 
 fn write_enumeration(e: &AstEnumeration, f: &mut Formatter) {
+    f.insert_comments(e.name.range.start);
     write_annotated_list(&e.annotated, f);
     f.write_indent();
     write_availability(&e.availability, f);
@@ -2109,12 +2110,10 @@ mod tests {
 
     use super::*;
 
-    const SPACE: &str = "    ";
-
-    fn fmt(content: &[u8], space: &str) -> Result<Vec<u8>, FormatError> {
+    fn fmt(content: &[u8]) -> Result<Vec<u8>, FormatError> {
         let tokens = ast::lexer::lex_v::<false>(content).expect("In unit test lexer must not fail");
         match ast::parse_file(&tokens) {
-            Ok(ast) => internal(&ast, content, space),
+            Ok(ast) => internal(&ast, content, &EditorConfigFilled::default()),
             Err(e) => {
                 e.print_err(content, &tokens);
                 panic!("Ast error");
@@ -2130,15 +2129,18 @@ mod tests {
         @Retention(RetentionPolicy.RUNTIME)
         package ch.emilycares;
 
+        import java.lang.String;
         // Now the imports
         ";
 
-        let o = fmt(content, SPACE).unwrap();
+        let o = fmt(content).unwrap();
         let expected = expect![[r"
             // This is a cool file
             @Thing(Type.IMPORTANT)
             @Retention(RetentionPolicy.RUNTIME)
             package ch.emilycares;
+
+            import java.lang.String;
         "]];
         expected.assert_eq(str::from_utf8(&o).unwrap());
     }
@@ -2167,7 +2169,7 @@ mod tests {
         }
         "#;
 
-        let o = fmt(content, SPACE).unwrap();
+        let o = fmt(content).unwrap();
         let expected = expect![[r#"
             package ch.emilycares;
 
@@ -2179,6 +2181,7 @@ mod tests {
                 if (g.name().equals("thorben")) {
                     return false;
                 }
+
                 return true;
             }
             public class Test {
@@ -2215,14 +2218,16 @@ mod tests {
         }
         ";
 
-        let o = fmt(content, SPACE).unwrap();
+        let o = fmt(content).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
             public class Application {
+
                 private final Database db;
                 private final Messages msgs;
                 private final Telemetry tel;
                 private final Obeservability obs;
+
                 public Application(
                     Database db,
                     Messages msgs,
@@ -2262,7 +2267,7 @@ mod tests {
         }
         ";
 
-        let o = fmt(content, SPACE).unwrap();
+        let o = fmt(content).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
             public enum EType {
@@ -2274,8 +2279,10 @@ mod tests {
                     switch (this) {
                         case A:
                             return 1;
+
                         case B:
                             return 2;
+
                         case C:
                             {
                                 return 2;
@@ -2300,7 +2307,7 @@ mod tests {
         }
         ";
 
-        let o = fmt(content, SPACE).unwrap();
+        let o = fmt(content).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
             public class Test {
@@ -2331,7 +2338,7 @@ mod tests {
         }
         "#;
 
-        let o = fmt(content, SPACE).unwrap();
+        let o = fmt(content).unwrap();
         let expected = expect![[r#"
             package ch.emilycares;
             public class Test {
@@ -2360,7 +2367,7 @@ mod tests {
         }
         "#;
 
-        let o = fmt(content, SPACE).unwrap();
+        let o = fmt(content).unwrap();
         let expected = expect![[r#"
             package ch.emilycares;
             public class Test {
@@ -2389,9 +2396,10 @@ mod tests {
         }
         ";
 
-        let o = fmt(content, SPACE).unwrap();
+        let o = fmt(content).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
+
             public class Test {
                 public int aaa() {
                     return intem.stream()
@@ -2431,14 +2439,16 @@ public class ThingResource {
   }
         "#;
 
-        let o = fmt(content, SPACE).unwrap();
+        let o = fmt(content).unwrap();
         let expected = expect![[r#"
             @Path("/api/v1/thing")
             @Consumes(MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON)
             @Table(uniqueConstraints = @UniqueConstraint(columnNames = {"otherUuid", "thing_id"}))
             public class ThingResource {
+
                 @Inject
                 ObjectMapper mapper;
+
                 @POST
                 @Path("/thing")
                 @WithTransaction
@@ -2476,9 +2486,10 @@ public class ThingResource {
         }
         ";
 
-        let o = fmt(content, SPACE).unwrap();
+        let o = fmt(content).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
+
             public class Test {
                 public int aaa() {
                     if (true) {
@@ -2513,15 +2524,17 @@ public class ThingResource {
         }
         ";
 
-        let o = fmt(content, SPACE).unwrap();
+        let o = fmt(content).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
+
             public class Test {
                 public int aaa() {
                     Suppliers.momoize(() -> {
                                 // some processing
                                 return true;
                             });
+
                     Thread.ofVirtual()
                             .start(() -> {
                                     // do something
@@ -2559,9 +2572,10 @@ public class Test {
 }
 "#;
 
-        let o = fmt(content, SPACE).unwrap();
+        let o = fmt(content).unwrap();
         let expected = expect![[r#"
             package ch.emilycares;
+
             public class Test {
                 private String a = "a";
                 private String aa = "aa";
@@ -2569,13 +2583,16 @@ public class Test {
                 private String aaaa = "aaaa";
                 private String aaaaa = "aaaaa";
                 private String aaaaaa = "aaaaaa";
+
                 private int b = 1;
+
                 public void playBeeMovie() {
                     this.a = "b";
                     this.aa = "b";
                     this.aaa = "b";
                     this.aaaa = "b";
                     this.aaaaa = "b";
+
                     this.b = 2;
                 }
             }
@@ -2615,9 +2632,10 @@ public class Test {
         }
         ";
 
-        let o = fmt(content, SPACE).unwrap();
+        let o = fmt(content).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
+
             public class Test {
                 public int aaa() {
                     t |= avc();
@@ -2664,9 +2682,10 @@ public class Test {
         }
         ";
 
-        let o = fmt(content, SPACE).unwrap();
+        let o = fmt(content).unwrap();
         let expected = expect![[r"
             package ch.emilycares;
+
             public class Test {
                 public int aaa() {
                     other(
@@ -2695,9 +2714,10 @@ public interface Test {
 }
         ";
 
-        let o = fmt(content, SPACE).unwrap();
+        let o = fmt(content).unwrap();
         let expected = expect![[r"
             public interface Test {
+
                 void a();
 
                 /**
@@ -2727,12 +2747,31 @@ public class Test {
      */
     public void b() {
     }
+
+    private Map<String, List<String>> trailers;
+
+    /**
+     * Constructor for Test
+     */
+    public Test() {
+        // NOP
+    }
+
+    /**
+     * Get the instance
+     *
+     * @return the instance
+     */
+    public static Test getInstance() {
+        return Test.INSTANCE;
+    }
 }
 ";
 
-        let o = fmt(content, SPACE).unwrap();
+        let o = fmt(content).unwrap();
         let expected = expect![[r"
             public class Test {
+
                 public void a() {
                     // asdfa
                     return;
@@ -2743,6 +2782,24 @@ public class Test {
                  * hehehe
                  */
                 public void b() {
+                }
+
+                private Map<String, List<String>> trailers;
+
+                /**
+                 * Constructor for Test
+                 */
+                public Test() {
+                    // NOP
+                }
+
+                /**
+                 * Get the instance
+                 *
+                 * @return the instance
+                 */
+                public static Test getInstance() {
+                    return Test.INSTANCE;
                 }
             }
         "]];
@@ -2781,9 +2838,10 @@ public class Test {
         }
         ";
 
-        let o = fmt(content, SPACE).unwrap();
-        let expected = expect![[r"
+        let o = fmt(content).unwrap();
+        let expected = expect![[r#"
             public class Test {
+
                 public void a() {
                     switch (0) {
                         case 0:
@@ -2801,15 +2859,15 @@ public class Test {
                          * Hehehe
                          */
                     public void doA() {
+                    }
+
                     /**
                          * Hehehe
                          */
-                    }
-
                     public void doB() {
                     }
                 }
-        "]];
+        "#]];
         expected.assert_eq(str::from_utf8(&o).unwrap());
     }
 
@@ -2830,9 +2888,10 @@ public class Test {
 }
 ";
 
-        let o = fmt(content, SPACE).unwrap();
+        let o = fmt(content).unwrap();
         let expected = expect![[r"
             public class Test {
+
                 public void a() {
                     var mapped = Collectors.map(
                         Thing::getName,
@@ -2857,7 +2916,7 @@ public class Test {
 }
 ";
 
-        let o = fmt(content, SPACE).unwrap();
+        let o = fmt(content).unwrap();
         let expected = expect![[r"
 import java.lang.String;
 public class Test {
@@ -2889,7 +2948,7 @@ public class Test {
 }
 ";
 
-        let o = fmt(content, SPACE).unwrap();
+        let o = fmt(content).unwrap();
         let expected = expect![[r"
             /**
              * Do not mess up the comments
@@ -2931,7 +2990,7 @@ public class Test {
 }
 ";
 
-        let o = fmt(content, SPACE).unwrap();
+        let o = fmt(content).unwrap();
         let expected = expect![[r"
             public class Test {
                 private int a = 1;
