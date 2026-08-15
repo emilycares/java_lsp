@@ -74,8 +74,7 @@ pub fn load_editor_config_or_default() -> EditorConfig {
 }
 
 pub fn load_project_editor_config(project_dir: &Path) -> Result<EditorConfig, EditorConfigError> {
-    let mut file = project_dir.join("");
-    file.set_extension("editorconfig");
+    let file = project_dir.join(".editorconfig");
 
     let content = read_to_string(file).map_err(EditorConfigError::IO)?;
     Ok(parser(&content))
@@ -104,7 +103,6 @@ pub fn parser(content: &str) -> EditorConfig {
         }
 
         if capture {
-            dbg!(&l);
             if l.starts_with("indent_style") {
                 if l.ends_with("space") {
                     out.indent_style = Some(IndentStyle::Space);
@@ -135,9 +133,29 @@ pub fn parser(content: &str) -> EditorConfig {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use expect_test::expect;
 
-    use crate::parser;
+    use crate::{load_project_editor_config, parser};
+
+    #[test]
+    fn load() {
+        let content = PathBuf::from("../../");
+        let out = load_project_editor_config(&content);
+        let expected = expect![[r#"
+            Ok(
+                EditorConfig {
+                    indent_size: None,
+                    indent_style: None,
+                    end_of_line: Some(
+                        LF,
+                    ),
+                },
+            )
+        "#]];
+        expected.assert_debug_eq(&out);
+    }
 
     #[test]
     fn basic() {

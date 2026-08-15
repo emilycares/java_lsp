@@ -4,7 +4,7 @@ use dto::{Class, ClassFolder, SourceDestination};
 use maven::m2::{self, pom_m2, pom_sources_jar};
 use maven::update::{CurlClient, pom_source_jar_url};
 use my_string::NuVec;
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::path::PathBuf;
 use std::process::Command;
 use std::str::{Utf8Error, from_utf8};
@@ -18,13 +18,12 @@ use std::{
 use tokio::task::JoinSet;
 
 #[must_use]
-pub fn load_project_folders(project_dir: &Path) -> Vec<Class> {
-    let mut out = vec![];
+pub async fn load_project_folders(project_dir: &Path) -> Vec<Class> {
+    let mut dirs = VecDeque::new();
+    dirs.push_back(project_dir.join("src/main/java"));
+    dirs.push_back(project_dir.join("src/test/java"));
 
-    out.extend(loader::load_java_files(project_dir.join("src/main/java")));
-    out.extend(loader::load_java_files(project_dir.join("src/test/java")));
-
-    out
+    loader::load_java_files(dirs).await
 }
 
 #[must_use]

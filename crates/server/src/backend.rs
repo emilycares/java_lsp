@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     ffi::OsString,
     fs,
     path::{Path, PathBuf},
@@ -368,7 +368,7 @@ impl Backend {
                     let class_map = class_map.clone();
                     let reference_map = reference_map.clone();
                     handles.spawn(async move {
-                        let task = format!("Load project files {}", p.artifact_id);
+                        let task = format!("Project {}", p.artifact_id);
                         let project_dir = project_dir.as_path();
                         let progress = Arc::new(Option::Some(ProgressToken::String(task.clone())));
                         Self::progress_start_option_token(&con, &progress, &task);
@@ -376,48 +376,41 @@ impl Backend {
                             &con.clone(),
                             &progress,
                             &task,
-                            "Load project paths".to_string(),
+                            "project paths".to_string(),
                             1,
                         );
                         let project_classes = match p.kind {
                             ProjectKind::Maven { .. } => {
-                                maven::project::load_project_folders(project_dir)
+                                maven::project::load_project_folders(project_dir).await
                             }
                             ProjectKind::Gradle { .. } => {
-                                gradle::project::load_project_folders(project_dir)
+                                gradle::project::load_project_folders(project_dir).await
                             }
                             ProjectKind::Unknown => {
-                                loader::load_java_files(project_dir.to_path_buf())
+                                let mut dirs = VecDeque::new();
+                                dirs.push_back(project_dir.to_path_buf());
+                                loader::load_java_files(dirs).await
                             }
                         };
-                        Self::progress_update_percentage_option_token(
-                            &con.clone(),
-                            &progress,
-                            &task,
-                            "Initializing reference map".to_string(),
-                            50,
-                        );
-                        match references::init_reference_map(
-                            &project_classes,
-                            &class_map,
-                            &reference_map,
-                        ) {
-                            Ok(()) => (),
-                            Err(e) => eprintln!("Got reference error: {e:?}"),
-                        }
-                        Self::progress_update_percentage_option_token(
-                            &con.clone(),
-                            &progress,
-                            &task,
-                            format!("Populating class map number: {}", project_classes.len()),
-                            90,
-                        );
+                        let for_refs = project_classes.clone();
                         if let Ok(mut cm) = class_map.write() {
                             for class in project_classes {
                                 cm.insert(class.class_path.clone(), class);
                             }
                         } else {
                             eprintln!("class_map mutex poisoned");
+                        }
+                        Self::progress_update_percentage_option_token(
+                            &con.clone(),
+                            &progress,
+                            &task,
+                            "Reference map".to_string(),
+                            50,
+                        );
+                        match references::init_reference_map(&for_refs, &class_map, &reference_map)
+                        {
+                            Ok(()) => (),
+                            Err(e) => eprintln!("Got reference error: {e:?}"),
                         }
                         Self::progress_end_option_token(&con.clone(), &progress, &task);
                     });

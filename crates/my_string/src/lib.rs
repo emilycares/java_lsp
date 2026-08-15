@@ -146,6 +146,7 @@ impl Default for NuVecBuilder {
 impl NuVecBuilder {
     /// Creates a new empty [`NuVecBuilder`].
     #[must_use]
+    #[inline]
     pub const fn new() -> Self {
         NuVecBuilder::Inline {
             buf: [0; INLINE_CAP],
@@ -185,6 +186,7 @@ impl NuVecBuilder {
     }
 
     /// Appends the given [`char`] to the end of `self`'s buffer.
+    #[inline]
     pub fn push(&mut self, c: u8) {
         match &mut *self {
             NuVecBuilder::Inline { len, buf } => {
@@ -204,38 +206,66 @@ impl NuVecBuilder {
         }
     }
 
+    #[inline]
     pub fn pusha(&mut self, arg: &[u8]) {
-        for a in arg {
-            self.push(*a);
+        match &mut *self {
+            NuVecBuilder::Inline { len, buf } => {
+                let alen = arg.len();
+                let new_len = *len + alen;
+                if new_len <= INLINE_CAP {
+                    buf[*len..new_len].copy_from_slice(&arg[..alen]);
+                    *len = new_len;
+                } else {
+                    let mut heap = Vec::with_capacity(new_len);
+                    heap.extend_from_slice(&buf[..*len]);
+                    heap.extend(arg);
+                    *self = NuVecBuilder::Heap(heap);
+                }
+            }
+            NuVecBuilder::Heap(items) => items.extend(arg),
         }
     }
 
+    #[inline]
     pub fn extend(&mut self, arg: &NuVec) {
         let slen = self.len();
 
         match (&mut *self, arg) {
-            (NuVecBuilder::Inline { buf, .. }, NuVec::Inline { buf: ibuf, .. }) => {
+            (NuVecBuilder::Inline { buf, len }, NuVec::Inline { buf: ibuf, .. }) => {
                 let alen = arg.len();
-                let mut d = Vec::new();
-                d.extend(&buf[..slen]);
-                d.extend(&ibuf[..alen]);
-                *self = NuVecBuilder::Heap(d)
+                let new_len = *len + alen;
+                if new_len <= INLINE_CAP {
+                    buf[*len..new_len].copy_from_slice(&ibuf[..alen]);
+                    *len = new_len;
+                } else {
+                    let mut d = Vec::with_capacity(new_len);
+                    d.extend_from_slice(&buf[..slen]);
+                    d.extend_from_slice(&ibuf[..alen]);
+                    *self = NuVecBuilder::Heap(d)
+                }
             }
-            (NuVecBuilder::Inline { buf, .. }, NuVec::Static(ibuf)) => {
-                let mut d = Vec::new();
-                d.extend(&buf[..slen]);
-                d.extend(*ibuf);
-                *self = NuVecBuilder::Heap(d)
+            (NuVecBuilder::Inline { buf, len }, NuVec::Static(ibuf)) => {
+                let alen = arg.len();
+                let new_len = *len + arg.len();
+                if new_len <= INLINE_CAP {
+                    buf[*len..new_len].copy_from_slice(&ibuf[..alen]);
+                    *len = new_len;
+                } else {
+                    let mut d = Vec::with_capacity(new_len);
+                    d.extend_from_slice(&buf[..slen]);
+                    d.extend_from_slice(&ibuf[..alen]);
+                    *self = NuVecBuilder::Heap(d)
+                }
             }
             (NuVecBuilder::Inline { buf, .. }, NuVec::Heap(iitems)) => {
                 let mut d = Vec::new();
-                d.extend(&buf[..slen]);
+                d.extend_from_slice(&buf[..slen]);
                 d.extend(iitems);
                 *self = NuVecBuilder::Heap(d)
             }
             (NuVecBuilder::Heap(items), NuVec::Inline { buf, .. }) => {
                 let alen = arg.len();
-                items.extend(&buf[0..alen])
+                items.extend_from_slice(&buf[0..alen])
             }
             (NuVecBuilder::Heap(items), NuVec::Static(iitems)) => items.extend(*iitems),
             (NuVecBuilder::Heap(items), NuVec::Heap(iitems)) => items.extend(iitems),
@@ -293,6 +323,7 @@ impl NuVec {
 
     /// This function tries to create a new Repr::Inline or Repr::Static
     /// If it isn't possible, this function returns None
+    #[inline]
     fn new_on_stack<T>(text: T) -> Option<Self>
     where
         T: AsRef<[u8]>,
@@ -327,10 +358,12 @@ impl NuVec {
         None
     }
 
+    #[inline]
     pub fn new(text: &[u8]) -> Self {
         Self::new_on_stack(text).unwrap_or_else(|| NuVec::Heap(text.to_vec()))
     }
 
+    #[inline]
     pub fn new_static(text: &'static [u8]) -> Self {
         Self::Static(text)
     }

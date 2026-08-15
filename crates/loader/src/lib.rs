@@ -18,6 +18,7 @@ use my_string::{NuVec, NuVecBuilder};
 use parser::java::{self, ParseJavaError};
 use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
 use std::fmt::Debug;
+use tokio::task::JoinSet;
 
 pub const DEBUGGING: bool = false;
 
@@ -40,6 +41,14 @@ where
     T: AsRef<Path> + Debug,
 {
     let buf = read(path).map_err(LoaderError::IO)?;
+    java::load_java(&buf, source).map_err(LoaderError::ParseJava)
+}
+
+pub async fn load_java_fs_async<T>(path: T, source: SourceDestination) -> Result<Class, LoaderError>
+where
+    T: AsRef<Path> + Debug,
+{
+    let buf = tokio::fs::read(path).await.map_err(LoaderError::IO)?;
     java::load_java(&buf, source).map_err(LoaderError::ParseJava)
 }
 
@@ -86,40 +95,80 @@ pub fn load_class_folder<P: AsRef<Path> + Debug>(path: P) -> Result<ClassFolder,
 }
 
 #[must_use]
-pub fn load_java_files(dir: PathBuf) -> Vec<Class> {
-    let mut dirs = VecDeque::new();
-    dirs.push_back(dir);
+pub async fn load_java_files(dirs: VecDeque<PathBuf>) -> Vec<Class> {
+    let mut dirs = dirs;
     let mut out = Vec::new();
+    let mut handles = JoinSet::new();
+    let mut count = 0;
     while let Some(dir) = dirs.pop_front() {
-        if let Ok(o) = visit_java_files(&dir, &mut dirs, |p| {
+        let dir = dir.clone();
+        if count < 16 {
+            count += 1;
+            handles.spawn(async move {
+                let mut dirs = VecDeque::new();
+                dirs.push_back(dir.clone());
+                let mut out = Vec::new();
+                while let Some(dir) = dirs.pop_front() {
+                    if let Ok(o) = visit_java_files(&dir, &mut dirs, async |p| {
+                        if let Some(s) = p.to_str() {
+                            return load_java_fs_async(
+                                p,
+                                SourceDestination::Here(NuVec::new(s.as_bytes())),
+                            )
+                            .await
+                            .ok();
+                        }
+                        None
+                    })
+                    .await
+                    {
+                        out.extend(o);
+                    }
+                }
+                out
+            });
+        } else if let Ok(o) = visit_java_files(&dir, &mut dirs, async |p| {
             if let Some(s) = p.to_str() {
-                return load_java_fs(p, SourceDestination::Here(NuVec::new(s.as_bytes()))).ok();
+                return load_java_fs_async(p, SourceDestination::Here(NuVec::new(s.as_bytes())))
+                    .await
+                    .ok();
             }
             None
-        }) {
+        })
+        .await
+        {
             out.extend(o);
         }
     }
+    while let Some(o) = handles.join_next().await {
+        if let Ok(o) = o {
+            out.extend(o);
+        }
+    }
+
     out
 }
-fn visit_java_files(
+async fn visit_java_files(
     dir: &PathBuf,
     dirs: &mut VecDeque<PathBuf>,
-    cb: impl Fn(&PathBuf) -> Option<Class>,
+    cb: impl AsyncFn(&PathBuf) -> Option<Class>,
 ) -> Result<Vec<Class>, LoaderError> {
-    let read_dir = std::fs::read_dir(dir)
-        .map_err(LoaderError::IO)?
-        .map(|res| res.map(|e| e.path()))
-        .filter_map(Result::ok);
+    let mut read_dir = tokio::fs::read_dir(dir).await.map_err(LoaderError::IO)?;
     let mut out: Vec<Class> = Vec::new();
-    for entry in read_dir {
-        if entry.is_dir() {
-            dirs.push_back(entry);
-        } else if let Some(e) = entry.extension()
-            && e == "java"
-            && let Some(o) = cb(&entry)
-        {
-            out.push(o);
+    while let Ok(Some(entry)) = read_dir.next_entry().await {
+        let ft = entry.file_type().await.map_err(LoaderError::IO)?;
+        if ft.is_dir() {
+            dirs.push_back(entry.path());
+        } else {
+            let entry = entry.path();
+            if let Some(e) = entry.extension()
+                && e == "java"
+                && let Some(o) = cb(&entry).await
+            {
+                {
+                    out.push(o);
+                }
+            }
         }
     }
     Ok(out)

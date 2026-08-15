@@ -16,7 +16,6 @@ publish = false
 ### BEGIN HAKARI SECTION
 [dependencies]
 memchr = { version = "2" }
-tokio = { version = "1", features = ["full"] }
 
 [build-dependencies]
 proc-macro2 = { version = "1" }

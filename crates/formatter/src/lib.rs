@@ -2839,7 +2839,7 @@ public class Test {
         ";
 
         let o = fmt(content).unwrap();
-        let expected = expect![[r#"
+        let expected = expect![[r"
             public class Test {
 
                 public void a() {
@@ -2867,7 +2867,7 @@ public class Test {
                     public void doB() {
                     }
                 }
-        "#]];
+        "]];
         expected.assert_eq(str::from_utf8(&o).unwrap());
     }
 

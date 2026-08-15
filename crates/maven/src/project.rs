@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     fs,
     hash::{DefaultHasher, Hash, Hasher},
     path::{Path, PathBuf},
@@ -218,13 +218,12 @@ pub fn get_maven_cache_path(project_dir: &Path, project_cache_dir: &Path) -> Pat
 }
 
 #[must_use]
-pub fn load_project_folders(project_dir: &Path) -> Vec<Class> {
-    let mut out = vec![];
+pub async fn load_project_folders(project_dir: &Path) -> Vec<Class> {
+    let mut dirs = VecDeque::new();
+    dirs.push_back(project_dir.join("src/main/java"));
+    dirs.push_back(project_dir.join("src/test/java"));
 
-    out.extend(loader::load_java_files(project_dir.join("src/main/java")));
-    out.extend(loader::load_java_files(project_dir.join("src/test/java")));
-
+    loader::load_java_files(dirs).await
     // list modules
     // mvn help:evaluate -Dexpression=project.modules
-    out
 }

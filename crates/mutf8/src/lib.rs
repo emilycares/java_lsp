@@ -21,7 +21,7 @@ pub fn mutf8_to_utf8(input: &'_ [u8]) -> Result<Cow<'_, [u8]>, Mutf8Error> {
 
     let mut mode = MODE_BORROW;
 
-    let mut data = vec![];
+    let mut data = Vec::with_capacity(input.len());
     let mut i = 0;
     while i < len {
         let mark = i;

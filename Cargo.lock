@@ -470,6 +470,7 @@ dependencies = [
  "my_string",
  "parser",
  "rc-zip-tokio",
+ "tokio",
  "workspace_hack",
 ]
 
@@ -1370,7 +1371,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
- "tokio",
  "windows-sys 0.60.2",
 ]
 
