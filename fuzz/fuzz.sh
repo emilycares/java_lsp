@@ -12,6 +12,6 @@ targets=(
     cfc
 )
 for i in "${targets[@]}"; do
-    cargo fuzz build "$i"
-    cargo fuzz run "$i" -- -max_total_time="$FUZZ_TIME"
+    cargo-fuzz build "$i"
+    cargo-fuzz run "$i" -- -max_total_time="$FUZZ_TIME"
 done

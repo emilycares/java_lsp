@@ -396,7 +396,7 @@ impl NuVec {
                     let c = &buf[1..self.len()];
                     NuVec::new(c)
                 }
-                NuVec::Static(items) => NuVec::new(&items[1..]),
+                NuVec::Static(items) => NuVec::Static(&items[1..]),
                 NuVec::Heap(items) => NuVec::new(&items[1..]),
             };
         }

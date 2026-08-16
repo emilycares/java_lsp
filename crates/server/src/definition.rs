@@ -438,11 +438,15 @@ public class Test {
 }
         ";
         let point = AstPoint::new(4, 19);
-        let document = Document::setup(cont, PathBuf::from_str("/Test.java").unwrap()).unwrap();
-        let document_uri = Uri::from_str("file:////Test.java").unwrap();
+        #[cfg(not(windows))]
+        let file = "/Test.java";
+        #[cfg(windows)]
+        let file = "Test.java";
+        let document = Document::setup(cont, PathBuf::from_str(file).unwrap()).unwrap();
+        let document_uri = Uri::from_str("file:///Test.java").unwrap();
         let class = parser::java::load_java_tree(
             &document.ast,
-            SourceDestination::Here(NuVec::new_static(b"/Test.java")),
+            SourceDestination::Here(NuVec::new_static(file.as_bytes())),
         );
         let imports = imports::imports(&document.ast);
         let vars = variables::get_vars(
@@ -466,7 +470,8 @@ public class Test {
             document_map: &Arc::new(RwLock::new(HashMap::new())),
         };
         if let Ok(mut dm) = context.document_map.write() {
-            dm.insert(get_document_map_key(&document_uri), document);
+            let key = get_document_map_key(&document_uri);
+            dm.insert(key, document);
         }
         let out = call_chain_definition(&call_chain, &context);
         let expected = expect![[r#"
@@ -490,7 +495,7 @@ public class Test {
                                         port: None,
                                     },
                                 ),
-                                path: "//Test.java",
+                                path: "/Test.java",
                                 query: None,
                                 fragment: None,
                             },
