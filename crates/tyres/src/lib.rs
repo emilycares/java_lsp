@@ -613,16 +613,16 @@ fn call_chain_op_self(
                 return Err(TyresError::NoClassInOps);
             };
             let args_len = args.len();
-            if let Some(method) = class
+            if class
                 .methods
                 .iter()
                 .filter(|m| m.name == Some(name.clone()))
-                .find(|i| i.parameters.len() == args_len)
+                .any(|i| i.parameters.len() == args_len)
             {
-                if let JType::Generic(gname, args) = &method.ret {
-                    return resolve_with_generic(gname, args, imports, class_map);
-                }
-                return resolve_jtype(&method.ret, imports, class_map);
+                return Ok(ResolveState {
+                    class: class.clone(),
+                    jtype: JType::Class(class.class_path.clone()),
+                });
             }
             if last
                 .class

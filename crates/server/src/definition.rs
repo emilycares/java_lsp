@@ -269,6 +269,8 @@ mod tests {
     use expect_test::expect;
     use variables::VariableContext;
 
+    use crate::backend::get_document_map_key;
+
     use super::*;
 
     #[test]
@@ -420,6 +422,93 @@ public class Test extends ParGreet {
                 NoSource,
             )
         "]];
+        expected.assert_debug_eq(&out);
+    }
+    #[test]
+    fn definition_same_class_method() {
+        let cont = "
+package ch.emilycares;
+public class Test {
+    public String hello() {
+        return greet();
+    }
+    private int greet() {
+        return 1;
+    }
+}
+        ";
+        let point = AstPoint::new(4, 19);
+        let document = Document::setup(cont, PathBuf::from_str("/Test.java").unwrap()).unwrap();
+        let document_uri = Uri::from_str("file:////Test.java").unwrap();
+        let class = parser::java::load_java_tree(
+            &document.ast,
+            SourceDestination::Here(NuVec::new_static(b"/Test.java")),
+        );
+        let imports = imports::imports(&document.ast);
+        let vars = variables::get_vars(
+            &document.ast,
+            &VariableContext {
+                point: Some(point),
+                imports: &imports,
+                class: &class,
+                class_map: get_class_map(),
+            },
+        )
+        .unwrap();
+        let call_chain = call_chain::get_call_chain(&document.ast, &point);
+        let context = DefinitionContext {
+            document_uri: document_uri.clone(),
+            point: &point,
+            vars: &vars,
+            imports: &imports,
+            class: &class,
+            class_map: get_class_map(),
+            document_map: &Arc::new(RwLock::new(HashMap::new())),
+        };
+        if let Ok(mut dm) = context.document_map.write() {
+            dm.insert(get_document_map_key(&document_uri), document);
+        }
+        let out = call_chain_definition(&call_chain, &context);
+        let expected = expect![[r#"
+            Ok(
+                Scalar(
+                    Location {
+                        uri: Uri(
+                            Uri {
+                                scheme: Some(
+                                    "file",
+                                ),
+                                authority: Some(
+                                    Authority {
+                                        userinfo: None,
+                                        host: Host {
+                                            text: "",
+                                            data: RegName(
+                                                "",
+                                            ),
+                                        },
+                                        port: None,
+                                    },
+                                ),
+                                path: "//Test.java",
+                                query: None,
+                                fragment: None,
+                            },
+                        ),
+                        range: Range {
+                            start: Position {
+                                line: 6,
+                                character: 4,
+                            },
+                            end: Position {
+                                line: 8,
+                                character: 5,
+                            },
+                        },
+                    },
+                ),
+            )
+        "#]];
         expected.assert_debug_eq(&out);
     }
     fn get_class_map() -> Arc<RwLock<HashMap<NuVec, Class>>> {
