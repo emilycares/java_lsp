@@ -68,6 +68,7 @@ pub fn reload_dependencies(
                         &project_artifacts,
                         &p,
                         true,
+                        false,
                     );
                 }
                 ProjectKind::Gradle { executable, .. } => {
@@ -78,6 +79,7 @@ pub fn reload_dependencies(
                         executable,
                         &mut handles,
                         true,
+                        false,
                     );
                 }
                 ProjectKind::Unknown => (),
@@ -88,6 +90,7 @@ pub fn reload_dependencies(
     None
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn reload_maven_project(
     con: &Arc<Connection>,
     progress: Arc<Option<ProgressToken>>,
@@ -96,9 +99,14 @@ pub fn reload_maven_project(
     project_artifacts: &Arc<Vec<String>>,
     p: &Project,
     online: bool,
+    use_cache: bool,
 ) {
     let con = con.clone();
-    let task = format!("Load maven dependencies {}", p.artifact_id);
+    let task = if use_cache {
+        "Load gradle project".to_string()
+    } else {
+        "Reload gradle project".to_string()
+    };
     let class_map = class_map.clone();
     let project_dir = PathBuf::from(p.dir.clone());
     let repos = Arc::new(maven::get_repositories(&project_dir));
@@ -118,7 +126,7 @@ pub fn reload_maven_project(
         if let Some(tree) = tree {
             tokio::select! {
                 () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-                () = project_deps(sender, project_kind.clone(), class_map.clone(), true, project_dir, &cache, &tree, repos, project_artifacts, online) => {}
+                () = project_deps(sender, project_kind.clone(), class_map.clone(), use_cache, project_dir, &cache, &tree, repos, project_artifacts, online) => {}
             }
         }
         Backend::progress_end_option_token(&con, &progress, &task);
@@ -134,12 +142,16 @@ pub fn reload_gradle_project(
     executable: String,
     handles: &mut JoinSet<()>,
     online: bool,
+    use_cache: bool,
 ) {
     let project_dir = project_dir.to_owned();
     let con = con.clone();
     let class_map = class_map.clone();
     handles.spawn(async move {
-        let task = "Load gradle project".to_string();
+        let task = if use_cache {
+            "Load gradle project".to_string()
+        } else {"Reload gradle project".to_string() };
+
         let progress = Arc::new(Option::Some(ProgressToken::String(task.clone())));
         Backend::progress_start_option_token(&con.clone(), &progress, &task);
         let project_cache_dir = project_cache_dir();
@@ -152,7 +164,7 @@ pub fn reload_gradle_project(
         });
         tokio::select! {
             () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
-            () = gradle::project::index_project(class_map.clone(), sender, false, cache_path, executable.clone(), online) => {}
+            () = gradle::project::index_project(class_map.clone(), sender, use_cache, cache_path, executable.clone(), online) => {}
         }
         Backend::progress_end_option_token(&con, &progress, &task);
     });
@@ -254,6 +266,7 @@ pub fn update_dependencies(
                         executable,
                         &mut handles,
                         true,
+                        false,
                     );
                 }
                 ProjectKind::Unknown => (),

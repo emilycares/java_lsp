@@ -90,7 +90,6 @@ pub fn get_signature(
                 num_params,
             )
         }
-
         Some(_) | None => Err(SignatureError::CouldNotGetMethod),
     }
 }

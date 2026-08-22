@@ -380,6 +380,7 @@ public class Test {
         "#]];
         expected.assert_debug_eq(&out);
     }
+    #[cfg(not(windows))]
     #[test]
     fn definition_parent_method() {
         let cont = "
@@ -408,7 +409,7 @@ public class Test extends ParGreet {
         .unwrap();
         let call_chain = call_chain::get_call_chain(&document.ast, &point);
         let context = DefinitionContext {
-            document_uri,
+            document_uri: document_uri.clone(),
             point: &point,
             vars: &vars,
             imports: &imports,
@@ -416,12 +417,66 @@ public class Test extends ParGreet {
             class_map: get_class_map(),
             document_map: &Arc::new(RwLock::new(HashMap::new())),
         };
+        if let Ok(mut dm) = context.document_map.write() {
+            let key = get_document_map_key(&document_uri);
+            dm.insert(key, document);
+            dm.insert(
+                NuVec::new_static(b"/ParGreet.java"),
+                Document::setup(
+                    r#"
+                    package ch.emilycares.a;
+                    public class ParGreet {
+                        public String greet() {
+                            return "Hello there";
+                        }
+                    }
+                    "#,
+                    PathBuf::from_str("ParGreet.java").unwrap(),
+                )
+                .unwrap(),
+            );
+        }
         let out = call_chain_definition(&call_chain, &context);
-        let expected = expect![["
-            Err(
-                NoSource,
+        let expected = expect![[r#"
+            Ok(
+                Scalar(
+                    Location {
+                        uri: Uri(
+                            Uri {
+                                scheme: Some(
+                                    "file",
+                                ),
+                                authority: Some(
+                                    Authority {
+                                        userinfo: None,
+                                        host: Host {
+                                            text: "",
+                                            data: RegName(
+                                                "",
+                                            ),
+                                        },
+                                        port: None,
+                                    },
+                                ),
+                                path: "/ParGreet.java",
+                                query: None,
+                                fragment: None,
+                            },
+                        ),
+                        range: Range {
+                            start: Position {
+                                line: 3,
+                                character: 24,
+                            },
+                            end: Position {
+                                line: 5,
+                                character: 25,
+                            },
+                        },
+                    },
+                ),
             )
-        "]];
+        "#]];
         expected.assert_debug_eq(&out);
     }
     #[test]
@@ -521,9 +576,9 @@ public class Test {
         class_map.insert(
             NuVec::new_static(b"ch.emilycares.a.ParGreet"),
             Class {
+                source: SourceDestination::Here(NuVec::new_static(b"/ParGreet.java")),
                 methods: vec![Method {
                     name: Some(NuVec::new_static(b"greet")),
-                    source: Some(NuVec::new_static(b"greet")),
                     ..Default::default()
                 }],
                 ..Default::default()

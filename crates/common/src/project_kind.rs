@@ -1,5 +1,4 @@
 use std::fs::canonicalize;
-#[cfg(unix)]
 use std::path::Path;
 use std::{ffi::OsString, fmt::Display, path::PathBuf};
 
@@ -42,25 +41,28 @@ pub fn get_project_kind(
 ) -> Result<ProjectKind, ProjectKindError> {
     eprintln!("Current dir {:?}", project_dir);
     if project_dir.join("pom.xml").exists() {
-        return get_maven_executable(path);
+        return get_maven_executable(project_dir, path);
     }
 
     let build_gradle = project_dir.join("build.gradle");
     if build_gradle.exists() {
-        return get_gradle_executable(build_gradle, path);
+        return get_gradle_executable(project_dir, build_gradle, path);
     }
 
     let build_gradle = project_dir.join("build.gradle.kts");
     if build_gradle.exists() {
-        return get_gradle_executable(build_gradle, path);
+        return get_gradle_executable(project_dir, build_gradle, path);
     }
 
     Ok(ProjectKind::Unknown)
 }
 
 #[cfg(target_os = "windows")]
-fn get_maven_executable(path: &OsString) -> Result<ProjectKind, ProjectKindError> {
-    let cmd = PathBuf::from("./mvnw.cmd");
+fn get_maven_executable(
+    project_dir: &Path,
+    path: &OsString,
+) -> Result<ProjectKind, ProjectKindError> {
+    let cmd = project_dir.join("mvnw.cmd");
     if cmd.exists() {
         let cmd = canonicalize(cmd).map_err(ProjectKindError::Canonicalize)?;
         let st = cmd.to_str().unwrap_or_default();
@@ -73,8 +75,11 @@ fn get_maven_executable(path: &OsString) -> Result<ProjectKind, ProjectKindError
 }
 
 #[cfg(not(target_os = "windows"))]
-fn get_maven_executable(path: &OsString) -> Result<ProjectKind, ProjectKindError> {
-    let executable = PathBuf::from("./mvnw");
+fn get_maven_executable(
+    project_dir: &Path,
+    path: &OsString,
+) -> Result<ProjectKind, ProjectKindError> {
+    let executable = project_dir.join("mvnw");
     if executable.exists() {
         let executable = canonicalize(executable).map_err(ProjectKindError::Canonicalize)?;
         #[cfg(unix)]
@@ -89,10 +94,11 @@ fn get_maven_executable(path: &OsString) -> Result<ProjectKind, ProjectKindError
 }
 #[cfg(target_os = "windows")]
 fn get_gradle_executable(
+    project_dir: &Path,
     path_build_gradle: PathBuf,
     path: &OsString,
 ) -> Result<ProjectKind, ProjectKindError> {
-    let bat = PathBuf::from("./gradlew.bat");
+    let bat = project_dir.join("gradlew.bat");
     if bat.exists() {
         let bat = canonicalize(bat).map_err(ProjectKindError::Canonicalize)?;
         let st = bat.to_str().unwrap_or_default();
@@ -111,10 +117,11 @@ fn get_gradle_executable(
 
 #[cfg(not(target_os = "windows"))]
 fn get_gradle_executable(
+    project_dir: &Path,
     path_build_gradle: PathBuf,
     path: &OsString,
 ) -> Result<ProjectKind, ProjectKindError> {
-    let executable = PathBuf::from("./gradlew");
+    let executable = project_dir.join("gradlew");
     if executable.exists() {
         let executable = canonicalize(executable).map_err(ProjectKindError::Canonicalize)?;
         #[cfg(unix)]

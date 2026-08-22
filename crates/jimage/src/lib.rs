@@ -212,7 +212,7 @@ const LOCATION_ATTRIBUTE_COMPRESSED: u8 = 6;
 const LOCATION_ATTRIBUTE_UNCOMPRESSED: u8 = 7;
 const LOCATION_ATTRIBUTE_COUNT: u8 = 8;
 
-pub fn parse_location(data: &[u8], pos: usize) -> JResult<JimageLocation> {
+fn parse_location(data: &[u8], pos: usize) -> JResult<JimageLocation> {
     let mut pos = pos;
 
     let mut out = JimageLocation::default();
@@ -267,7 +267,7 @@ pub fn parse_location(data: &[u8], pos: usize) -> JResult<JimageLocation> {
     }
     Ok((pos, out))
 }
-pub fn parse_location_value(data: &[u8], pos: usize, len: u8) -> JResult<usize> {
+fn parse_location_value(data: &[u8], pos: usize, len: u8) -> JResult<usize> {
     let mut pos = pos;
     let mut out: u64 = 0;
 
@@ -285,7 +285,7 @@ pub fn parse_location_value(data: &[u8], pos: usize, len: u8) -> JResult<usize> 
     Ok((pos, out))
 }
 
-pub fn parse_string(data: &[u8], pos: usize) -> JResult<NuVec> {
+fn parse_string(data: &[u8], pos: usize) -> JResult<NuVec> {
     let start = pos;
     let (pos, end) = get_string_len(data, pos)?;
     let slice = data.get(start..end).ok_or(JimageError::EOF)?;

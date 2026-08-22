@@ -13,7 +13,7 @@ use std::{
 
 use ast::types::AstPoint;
 use call_chain::CallItem;
-use dto::{Access, Class, Field, ImportUnit, JType, Method};
+use dto::{Access, Class, Field, ImportUnit, JType, Method, SourceDestination};
 use local_variable::LocalVariable;
 use my_string::{NuVec, NuVecBuilder};
 
@@ -323,7 +323,14 @@ fn resolve_classpath(
         });
     }
     let class = parent::include_parent(imported_class, class_map, args);
-    if args.is_empty() {
+    if let Some(sig) = &class.signature
+        && sig.args.is_empty()
+    {
+        return Ok(ResolveState {
+            jtype: JType::Class(class_path.clone()),
+            class,
+        });
+    } else if class.signature.is_none() {
         return Ok(ResolveState {
             jtype: JType::Class(class_path.clone()),
             class,
@@ -502,11 +509,15 @@ fn call_chain_op(
             args,
             range: _,
         } => {
-            let Some(ResolveState { class, jtype: _ }) = ops.last() else {
+            let Some(ResolveState {
+                class: last,
+                jtype: _,
+            }) = ops.last()
+            else {
                 return Err(TyresError::NoClassInOps);
             };
             let args_len = args.len();
-            if let Some(method) = class
+            if let Some(method) = last
                 .methods
                 .iter()
                 .filter(|m| m.name == Some(name.clone()))
@@ -524,17 +535,39 @@ fn call_chain_op(
             if let Some(m) = methods.iter().find(|i| i.name == *name) {
                 return Ok(m.resolve_state.clone());
             }
+            if let Some(method) = class
+                .methods
+                .iter()
+                .filter(|m| m.name == Some(name.clone()))
+                .find(|i| i.parameters.len() == args_len)
+            {
+                let mut oargs = Vec::with_capacity(args.len());
+
+                for c in args {
+                    let n = resolve_call_chain_value(c, lo_va, imports, class, class_map)?;
+                    oargs.push(n.jtype);
+                }
+
+                return resolve_jtype_with_generic(&method.ret, &oargs, imports, class_map);
+            }
             Err(TyresError::MethodNotFound(name.clone()))
         }
         CallItem::FieldAccess { name, range: _ } => {
-            let Some(ResolveState { class, jtype: _ }) = ops.last() else {
+            let Some(ResolveState {
+                class: last,
+                jtype: _,
+            }) = ops.last()
+            else {
                 return Err(TyresError::NoClassInOps);
             };
-            if let Some(field) = class.fields.iter().find(|m| m.name == *name) {
+            if let Some(field) = last.fields.iter().find(|m| m.name == *name) {
                 return resolve_jtype(&field.jtype, imports, class_map);
             }
             if let Some(m) = fields.iter().find(|m| &m.name == name) {
                 return Ok(m.resolve_state.clone());
+            }
+            if let Some(field) = class.fields.iter().find(|m| m.name == *name) {
+                return resolve_jtype(&field.jtype, imports, class_map);
             }
             Err(TyresError::FieldNotFound(name.clone()))
         }
@@ -613,27 +646,36 @@ fn call_chain_op_self(
                 return Err(TyresError::NoClassInOps);
             };
             let args_len = args.len();
-            if class
-                .methods
-                .iter()
-                .filter(|m| m.name == Some(name.clone()))
-                .any(|i| i.parameters.len() == args_len)
-            {
-                return Ok(ResolveState {
-                    class: class.clone(),
-                    jtype: JType::Class(class.class_path.clone()),
-                });
-            }
-            if last
+            if let Some(method) = last
                 .class
                 .methods
                 .iter()
-                .any(|m| m.name == Some(name.clone()))
+                .find(|m| m.name == Some(name.clone()))
             {
-                return Ok(last.clone());
+                let mut out = last.clone();
+                if let Some(s) = &method.source {
+                    out.class.source = SourceDestination::Here(s.clone());
+                }
+
+                return Ok(out);
             }
             if let Some(m) = methods.iter().find(|m| &m.name == name) {
                 return Ok(m.resolve_state.clone());
+            }
+            if let Some(method) = class
+                .methods
+                .iter()
+                .filter(|m| m.name == Some(name.clone()))
+                .find(|i| i.parameters.len() == args_len)
+            {
+                let mut out = class.clone();
+                if let Some(s) = &method.source {
+                    out.source = SourceDestination::Here(s.clone());
+                }
+                return Ok(ResolveState {
+                    class: out,
+                    jtype: JType::Class(class.class_path.clone()),
+                });
             }
             Err(TyresError::MethodNotFound(name.clone()))
         }
@@ -641,8 +683,12 @@ fn call_chain_op_self(
             let Some(last) = ops.last() else {
                 return Err(TyresError::NoClassInOps);
             };
-            if last.class.fields.iter().any(|m| &m.name == name) {
-                return Ok(last.clone());
+            if let Some(field) = last.class.fields.iter().find(|m| &m.name == name) {
+                let mut out = last.clone();
+                if let Some(s) = &field.source {
+                    out.class.source = SourceDestination::Here(s.clone());
+                }
+                return Ok(out);
             }
             if let Some(m) = fields.iter().find(|m| &m.name == name) {
                 return Ok(m.resolve_state.clone());

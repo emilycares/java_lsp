@@ -336,31 +336,14 @@ impl Backend {
             let project_artifacts = get_project_artifacts(&projs);
 
             for p in projs.clone() {
-                match p.kind.clone() {
-                    ProjectKind::Maven { .. } => {
-                        reload_maven_project(
-                            &con,
-                            progress.clone(),
-                            class_map,
-                            &mut handles,
-                            &project_artifacts,
-                            &p,
-                            false,
-                        );
-                    }
-                    ProjectKind::Gradle {
-                        executable,
-                        path_build_gradle: _,
-                    } => reload_gradle_project(
-                        &con,
-                        class_map,
-                        PathBuf::from(p.dir.clone()).as_path(),
-                        executable,
-                        &mut handles,
-                        false,
-                    ),
-                    ProjectKind::Unknown => (),
-                }
+                load_project_deps_main(
+                    &progress,
+                    &mut handles,
+                    &project_artifacts,
+                    &p,
+                    &con,
+                    class_map,
+                );
 
                 {
                     let con = con.clone();
@@ -368,51 +351,7 @@ impl Backend {
                     let class_map = class_map.clone();
                     let reference_map = reference_map.clone();
                     handles.spawn(async move {
-                        let task = format!("Project {}", p.artifact_id);
-                        let project_dir = project_dir.as_path();
-                        let progress = Arc::new(Option::Some(ProgressToken::String(task.clone())));
-                        Self::progress_start_option_token(&con, &progress, &task);
-                        Self::progress_update_percentage_option_token(
-                            &con.clone(),
-                            &progress,
-                            &task,
-                            "project paths".to_string(),
-                            1,
-                        );
-                        let project_classes = match p.kind {
-                            ProjectKind::Maven { .. } => {
-                                maven::project::load_project_folders(project_dir).await
-                            }
-                            ProjectKind::Gradle { .. } => {
-                                gradle::project::load_project_folders(project_dir).await
-                            }
-                            ProjectKind::Unknown => {
-                                let mut dirs = VecDeque::new();
-                                dirs.push_back(project_dir.to_path_buf());
-                                loader::load_java_files(dirs).await
-                            }
-                        };
-                        let for_refs = project_classes.clone();
-                        if let Ok(mut cm) = class_map.write() {
-                            for class in project_classes {
-                                cm.insert(class.class_path.clone(), class);
-                            }
-                        } else {
-                            eprintln!("class_map mutex poisoned");
-                        }
-                        Self::progress_update_percentage_option_token(
-                            &con.clone(),
-                            &progress,
-                            &task,
-                            "Reference map".to_string(),
-                            50,
-                        );
-                        match references::init_reference_map(&for_refs, &class_map, &reference_map)
-                        {
-                            Ok(()) => (),
-                            Err(e) => eprintln!("Got reference error: {e:?}"),
-                        }
-                        Self::progress_end_option_token(&con.clone(), &progress, &task);
+                        load_project_files(p, con, project_dir, class_map, reference_map).await;
                     });
                 }
             }
@@ -1154,6 +1093,7 @@ impl Backend {
         let Some(path) = std::env::var_os("PATH") else {
             return;
         };
+        let mut added = Vec::new();
         if let Ok(mut projects) = self.projects.write()
             && let Some(wf) = workspace_folders
         {
@@ -1165,12 +1105,50 @@ impl Backend {
                 }
                 if let Ok(kind) =
                     common::project_kind::get_project_kind(&PathBuf::from(&dir.to_str()), &path)
-                    && let Some(p) = project_kind_to_project(dir.to_str(), kind)
                 {
+                    let p = project_kind_to_project(dir.to_str(), kind);
+                    added.push(p.clone());
                     projects.push(p);
                 }
             }
         }
+        let con = self.connection.clone();
+        let class_map = self.class_map.clone();
+        let reference_map = self.reference_map.clone();
+        let projects = self.projects.clone();
+        let t = tokio::runtime::Handle::current();
+        let task = "Load Added proejects";
+        let progress = Arc::new(Some(ProgressToken::String(String::from(task))));
+        Self::progress_start_option_token(&con, &progress, task);
+        t.spawn(async move {
+            let mut handles = JoinSet::new();
+            if let Ok(projs) = projects.read() {
+                let project_artifacts = get_project_artifacts(&projs);
+                for p in added {
+                    load_project_deps_main(
+                        &progress,
+                        &mut handles,
+                        &project_artifacts,
+                        &p,
+                        &con,
+                        &class_map,
+                    );
+
+                    {
+                        let con = con.clone();
+                        let project_dir = PathBuf::from(p.dir.clone());
+                        let class_map = class_map.clone();
+                        let reference_map = reference_map.clone();
+                        let p = p.clone();
+                        handles.spawn(async move {
+                            load_project_files(p, con, project_dir, class_map, reference_map).await;
+                        });
+                    }
+                }
+            }
+            let _ = handles.join_all().await;
+            Self::progress_end_option_token(&con, &progress, task);
+        });
     }
 
     fn get_project(&self, uri: &Uri) -> Option<Project> {
@@ -1187,6 +1165,94 @@ impl Backend {
     }
 }
 
+fn load_project_deps_main(
+    progress: &Arc<Option<lsp_types::NumberOrString>>,
+    handles: &mut JoinSet<()>,
+    project_artifacts: &Arc<Vec<String>>,
+    p: &Project,
+    con: &Arc<Connection>,
+    class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
+) {
+    let use_cache = true;
+    let online = false;
+    match p.kind.clone() {
+        ProjectKind::Maven { .. } => {
+            reload_maven_project(
+                con,
+                progress.clone(),
+                class_map,
+                handles,
+                project_artifacts,
+                p,
+                online,
+                use_cache,
+            );
+        }
+        ProjectKind::Gradle {
+            executable,
+            path_build_gradle: _,
+        } => reload_gradle_project(
+            con,
+            class_map,
+            PathBuf::from(p.dir.clone()).as_path(),
+            executable,
+            handles,
+            online,
+            use_cache,
+        ),
+        ProjectKind::Unknown => (),
+    }
+}
+
+async fn load_project_files(
+    p: Project,
+    con: Arc<Connection>,
+    project_dir: PathBuf,
+    class_map: Arc<RwLock<HashMap<NuVec, Class>>>,
+    reference_map: Arc<Mutex<HashMap<NuVec, Vec<ReferenceUnit>>>>,
+) {
+    let task = format!("Project {}", p.artifact_id);
+    let project_dir = project_dir.as_path();
+    let progress = Arc::new(Option::Some(ProgressToken::String(task.clone())));
+    Backend::progress_start_option_token(&con, &progress, &task);
+    Backend::progress_update_percentage_option_token(
+        &con.clone(),
+        &progress,
+        &task,
+        "project paths".to_string(),
+        1,
+    );
+    let project_classes = match p.kind {
+        ProjectKind::Maven { .. } => maven::project::load_project_folders(project_dir).await,
+        ProjectKind::Gradle { .. } => gradle::project::load_project_folders(project_dir).await,
+        ProjectKind::Unknown => {
+            let mut dirs = VecDeque::new();
+            dirs.push_back(project_dir.to_path_buf());
+            loader::load_java_files(dirs).await
+        }
+    };
+    let for_refs = project_classes.clone();
+    if let Ok(mut cm) = class_map.write() {
+        for class in project_classes {
+            cm.insert(class.class_path.clone(), class);
+        }
+    } else {
+        eprintln!("class_map mutex poisoned");
+    }
+    Backend::progress_update_percentage_option_token(
+        &con.clone(),
+        &progress,
+        &task,
+        "Reference map".to_string(),
+        50,
+    );
+    match references::init_reference_map(&for_refs, &class_map, &reference_map) {
+        Ok(()) => (),
+        Err(e) => eprintln!("Got reference error: {e:?}"),
+    }
+    Backend::progress_end_option_token(&con.clone(), &progress, &task);
+}
+
 #[must_use]
 pub fn get_project_artifacts(projs: &[Project]) -> Arc<Vec<String>> {
     Arc::new(
@@ -1198,24 +1264,28 @@ pub fn get_project_artifacts(projs: &[Project]) -> Arc<Vec<String>> {
 }
 
 #[must_use]
-pub fn project_kind_to_project(dir: &str, kind: ProjectKind) -> Option<Project> {
-    match kind {
-        ProjectKind::Maven { .. } => {
-            if let Ok(pom) = load_pom_xml(PathBuf::from(dir).as_path()) {
-                Some(Project {
-                    artifact_id: pom.artifact_id,
-                    dir: dir.to_string(),
-                    kind,
-                })
-            } else {
-                None
-            }
-        }
-        ProjectKind::Gradle { .. } | ProjectKind::Unknown => Some(Project {
-            artifact_id: String::from("default"),
+pub fn project_kind_to_project(dir: &str, kind: ProjectKind) -> Project {
+    if let ProjectKind::Maven { .. } = kind
+        && let Ok(pom) = load_pom_xml(PathBuf::from(dir).as_path())
+    {
+        return Project {
+            artifact_id: pom.artifact_id,
             dir: dir.to_string(),
             kind,
-        }),
+        };
+    }
+    let p = Path::new(dir);
+    let artifact_id: String = if let Some(name) = p.file_name()
+        && let Some(name) = name.to_str()
+    {
+        name.to_string()
+    } else {
+        String::from("default")
+    };
+    Project {
+        artifact_id,
+        dir: dir.to_string(),
+        kind,
     }
 }
 

@@ -3103,6 +3103,7 @@ fn parse_method_parameter(
 
 /// If token can be identifier
 #[must_use]
+#[inline]
 pub const fn can_be_ident(token: &Token) -> bool {
     matches!(
         token,
@@ -3140,6 +3141,7 @@ pub const fn can_be_ident(token: &Token) -> bool {
 
 /// If token can be name
 #[must_use]
+#[inline]
 pub const fn can_be_name(token: &Token) -> bool {
     matches!(
         token,
@@ -3253,12 +3255,13 @@ pub fn parse_name_dot_logical(
                     first = false;
                     ident.extend(id);
                     pos += 1;
-                } else if tokens
-                    .get(pos - 1)
-                    .ok_or_else(AstError::eof)
-                    .map(|i| &i.token)
-                    == Ok(&Token::Dot)
-                {
+                } else if matches!(
+                    tokens
+                        .get(pos - 1)
+                        .ok_or_else(AstError::eof)
+                        .map(|i| &i.token),
+                    Ok(&Token::Dot)
+                ) {
                     ident.extend(id);
                     pos += 1;
                 } else {
@@ -3270,12 +3273,13 @@ pub fn parse_name_dot_logical(
                     first = false;
                     ident.extend(&t.token.as_nuvec());
                     pos += 1;
-                } else if tokens
-                    .get(pos - 1)
-                    .ok_or_else(AstError::eof)
-                    .map(|i| &i.token)
-                    == Ok(&Token::Dot)
-                {
+                } else if matches!(
+                    tokens
+                        .get(pos - 1)
+                        .ok_or_else(AstError::eof)
+                        .map(|i| &i.token),
+                    Ok(&Token::Dot)
+                ) {
                     ident.extend(&t.token.as_nuvec());
                     pos += 1;
                 } else {

@@ -8,6 +8,7 @@ use std::time::Instant;
 use std::{fs::canonicalize, path::PathBuf};
 
 use ast::error::PrintErr;
+use ast::lexer::PositionToken;
 use editorconfig::EditorConfigFilled;
 use jdk::{test_load_jdk_jmod, test_load_jdk_modules_executable, test_load_jdk_modules_own};
 
@@ -233,9 +234,9 @@ pub enum IndexJdkOptions {
     Jmod,
 }
 
-pub fn ast_check(path: &PathBuf) {
+pub fn ast_check(path: &PathBuf, tokens: &mut Vec<PositionToken>) {
     match std::fs::read(path) {
-        Ok(data) => lex_and_ast(path, &data),
+        Ok(data) => lex_and_ast(path, &data, tokens),
         Err(e) => {
             eprintln!("unable to open file: {e:?}");
             std::process::exit(1);
@@ -243,15 +244,14 @@ pub fn ast_check(path: &PathBuf) {
     }
 }
 
-fn lex_and_ast(file: &Path, text: &[u8]) {
-    let mut tokens = Vec::new();
+fn lex_and_ast(file: &Path, text: &[u8], tokens: &mut Vec<PositionToken>) {
     // eprintln!("Here: {:?}", file);
-    match ast::lexer::lex_mut::<false>(text, &mut tokens) {
+    match ast::lexer::lex_mut::<false>(text, tokens) {
         Ok(()) => {
-            let ast = ast::parse_file(&tokens);
+            let ast = ast::parse_file(tokens);
             if ast.is_err() {
                 eprintln!("Here: {}", file.display());
-                ast.print_err(text, &tokens);
+                ast.print_err(text, tokens);
             }
         }
         Err(e) => {
@@ -264,8 +264,9 @@ fn lex_and_ast(file: &Path, text: &[u8]) {
 
 fn visit_java_fies(
     dir: &PathBuf,
+    tokens: &mut Vec<PositionToken>,
     dirs: &mut std::collections::VecDeque<PathBuf>,
-    cb: impl Fn(&PathBuf),
+    cb: impl Fn(&PathBuf, &mut Vec<PositionToken>),
 ) -> Result<(), std::io::Error> {
     let read_dir = std::fs::read_dir(dir)?
         .map(|res| res.map(|e| e.path()))
@@ -276,7 +277,7 @@ fn visit_java_fies(
         } else if let Some(e) = entry.extension()
             && e == "java"
         {
-            cb(&entry);
+            cb(&entry, tokens);
         }
     }
     Ok(())
@@ -285,23 +286,22 @@ pub fn ast_check_dir(folder: PathBuf) -> Result<(), std::io::Error> {
     let time = Instant::now();
     let dir = canonicalize(folder)?;
     let mut dirs = std::collections::VecDeque::new();
+    let mut tokens = Vec::new();
     dirs.push_back(dir);
     while let Some(dir) = dirs.pop_front() {
-        visit_java_fies(&dir, &mut dirs, ast_check)?;
+        visit_java_fies(&dir, &mut tokens, &mut dirs, ast_check)?;
     }
     println!("Checked all files. in: {:.2?}", time.elapsed());
     Ok(())
 }
-pub async fn ast_check_dir_ignore(
-    folder: PathBuf,
-    ignore: &[String],
-) -> Result<(), std::io::Error> {
+pub fn ast_check_dir_ignore(folder: PathBuf, ignore: &[String]) -> Result<(), std::io::Error> {
     let time = Instant::now();
     let dir = canonicalize(folder)?;
+    let mut tokens = Vec::new();
     let mut dirs = std::collections::VecDeque::new();
     dirs.push_back(dir);
     while let Some(dir) = dirs.pop_front() {
-        visit_java_fies(&dir, &mut dirs, |i| {
+        visit_java_fies(&dir, &mut tokens, &mut dirs, |i, tokens| {
             if let Some(s) = i.to_str() {
                 for ig in ignore {
                     if s.contains(ig) {
@@ -309,7 +309,7 @@ pub async fn ast_check_dir_ignore(
                     }
                 }
             }
-            ast_check(i);
+            ast_check(i, tokens);
         })?;
     }
     println!("Checked all files. in: {:.2?}", time.elapsed());
@@ -339,10 +339,15 @@ pub async fn index_jdk(variant: IndexJdkOptions) {
     }
 }
 
-pub fn format_file(p: &PathBuf, exit: bool, editorconfig: &EditorConfigFilled) {
+pub fn format_file(
+    p: &PathBuf,
+    tokens: &mut Vec<PositionToken>,
+    exit: bool,
+    editorconfig: &EditorConfigFilled,
+) {
     match std::fs::read(p) {
-        Ok(data) => match ast::lexer::lex(&data) {
-            Ok(tokens) => match ast::parse_file(&tokens) {
+        Ok(data) => match ast::lexer::lex_mut::<false>(&data, tokens) {
+            Ok(()) => match ast::parse_file(tokens) {
                 Ok(ast) => {
                     match formatter::format(
                         &config::FormatterConfig::Internal,
@@ -402,9 +407,12 @@ pub fn format_dir(p: &PathBuf) {
         return;
     };
     let mut dirs = std::collections::VecDeque::new();
+    let mut tokens = Vec::new();
     dirs.push_back(dir);
     while let Some(dir) = dirs.pop_front() {
-        if let Err(e) = visit_java_fies(&dir, &mut dirs, |i| format_file(i, false, &editorconfig)) {
+        if let Err(e) = visit_java_fies(&dir, &mut tokens, &mut dirs, |i, tokens| {
+            format_file(i, tokens, false, &editorconfig);
+        }) {
             eprintln!("Error walking files: {e:?}");
         }
     }

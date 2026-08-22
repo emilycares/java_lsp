@@ -6,7 +6,7 @@
 use std::collections::VecDeque;
 use std::fs::read;
 use std::{
-    fs::{File, OpenOptions},
+    fs::OpenOptions,
     io::Write,
     path::{Path, PathBuf},
 };
@@ -89,9 +89,8 @@ pub fn load_class_folder<P: AsRef<Path> + Debug>(path: P) -> Result<ClassFolder,
     if DEBUGGING {
         return Err(LoaderError::DtoRw(DtoRwError::InvalidCfcCache));
     }
-    let file = File::open(&path).map_err(LoaderError::IO)?;
-    let mmap = unsafe { memmap2::Mmap::map(&file) }.map_err(LoaderError::IO)?;
-    dto_rw::parse(&mmap[..]).map_err(LoaderError::DtoRw)
+    let buf = read(path).map_err(LoaderError::IO)?;
+    dto_rw::parse(&buf).map_err(LoaderError::DtoRw)
 }
 
 #[must_use]

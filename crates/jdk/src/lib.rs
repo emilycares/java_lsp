@@ -7,7 +7,7 @@ use std::{
     collections::HashMap,
     env,
     ffi::OsString,
-    fs::{self, File},
+    fs::{self, read},
     path::{Path, PathBuf},
     process::Command,
     str::{Utf8Error, from_utf8},
@@ -222,11 +222,8 @@ fn load_modules_with_command(
 }
 
 fn load_jimage(modules_file: &Path, source_dir: &NuVec) -> Result<ClassFolder, JdkError> {
-    let file = File::open(modules_file).map_err(JdkError::IO)?;
-    let mmap = unsafe { memmap2::Mmap::map(&file) };
-    mmap.map_or(Err(JdkError::Mmemmap), |mm| {
-        jimage::parser(&mm, 0, source_dir, true).map_err(JdkError::Jimage)
-    })
+    let buf = read(modules_file).map_err(JdkError::IO)?;
+    jimage::parser(&buf, 0, source_dir, true).map_err(JdkError::Jimage)
 }
 
 async fn load_old(java_path: &Path, op_dir: &Path) -> Result<ClassFolder, JdkError> {
@@ -368,7 +365,7 @@ fn get_jmods_dir(path: &Path) -> PathBuf {
     jmods
 }
 
-async fn extract_source_zip(path: &Path, op_dir: &Path) -> Result<(), JdkError> {
+pub async fn extract_source_zip(path: &Path, op_dir: &Path) -> Result<(), JdkError> {
     let mut base = path.to_path_buf();
     base.pop();
     let mut src_zip = base.join("lib").join("src");
