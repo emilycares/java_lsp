@@ -1739,6 +1739,7 @@ fn parse_method_header(
     let start = tokens.start(pos)?;
     let mut annotated = Vec::new();
     let mut pos = pos;
+    let mut default = false;
     loop {
         let t = tokens.get(pos).ok_or_else(AstError::eof)?;
         match t.token {
@@ -1756,7 +1757,7 @@ fn parse_method_header(
                 pos = npos;
                 continue;
             }
-            Token::Default => (),
+            Token::Default => default = true,
             _ => break,
         }
         pos += 1;
@@ -1787,6 +1788,7 @@ fn parse_method_header(
             jtype,
             parameters,
             throws,
+            default,
         },
         pos,
     ))

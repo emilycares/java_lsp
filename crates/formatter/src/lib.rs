@@ -379,26 +379,34 @@ fn write_expression(expr: &[AstExpressionKind], f: &mut Formatter) {
     let mut is_large = false;
     let range = expr.get_range();
     if range.start.line != range.end.line {
-        let ops = expr
-            .iter()
-            .filter_map(|i| {
-                if let AstExpressionKind::Base(b) = i {
-                    return Some(b);
-                }
-                None
-            })
-            .filter(|i| {
-                matches!(
-                    i.operator,
-                    AstExpressionOperator::VerticalBarVerticalBar(_)
-                        | AstExpressionOperator::AmpersandAmpersand(_)
-                        | AstExpressionOperator::Plus(_)
-                        | AstExpressionOperator::Minus(_)
-                        | AstExpressionOperator::Dot(_)
-                )
-            })
-            .count();
-        is_large = ops != 1;
+        let mut contains_lambda = false;
+        for e in expr {
+            if matches!(e, AstExpressionKind::Lambda(_)) {
+                contains_lambda = true;
+            }
+        }
+        if !contains_lambda {
+            let ops = expr
+                .iter()
+                .filter_map(|i| {
+                    if let AstExpressionKind::Base(b) = i {
+                        return Some(b);
+                    }
+                    None
+                })
+                .filter(|i| {
+                    matches!(
+                        i.operator,
+                        AstExpressionOperator::VerticalBarVerticalBar(_)
+                            | AstExpressionOperator::AmpersandAmpersand(_)
+                            | AstExpressionOperator::Plus(_)
+                            | AstExpressionOperator::Minus(_)
+                            | AstExpressionOperator::Dot(_)
+                    )
+                })
+                .count();
+            is_large = ops != 1;
+        }
     }
 
     let dot = !expr
@@ -595,46 +603,26 @@ fn write_expression_kind(
                 AstNewRhs::None => {}
                 AstNewRhs::Parameters(_range, exprs) => {
                     f.write(b"(");
-                    for (i, expr) in exprs.iter().enumerate() {
-                        if i > 0 {
-                            f.write(b", ");
-                        }
-                        write_expression(expr, f);
-                    }
+                    write_new_class_parameters(f, exprs);
                     f.write(b")");
                 }
                 AstNewRhs::ParametersAndBlock(_range, exprs, block) => {
                     f.write(b"(");
-                    for (i, expr) in exprs.iter().enumerate() {
-                        if i > 0 {
-                            f.write(b", ");
-                        }
-                        write_expression(expr, f);
-                    }
+                    write_new_class_parameters(f, exprs);
                     f.write(b")");
-                    f.buf.push(b' ');
+                    f.write(b" ");
                     write_class_block_braced(block, f);
                 }
                 AstNewRhs::ArrayParameters(param_groups) => {
                     for group in param_groups {
                         f.write(b"[");
-                        for (i, expr) in group.iter().enumerate() {
-                            if i > 0 {
-                                f.write(b", ");
-                            }
-                            write_expression(expr, f);
-                        }
+                        write_new_class_parameters(f, group);
                         f.write(b"]");
                     }
                 }
                 AstNewRhs::Array(values) => {
                     f.write(b"{");
-                    for (i, expr) in values.values.iter().enumerate() {
-                        if i > 0 {
-                            f.write(b", ");
-                        }
-                        write_expression(expr, f);
-                    }
+                    write_new_class_parameters(f, &values.values);
                     f.write(b"}");
                 }
                 AstNewRhs::Block(block) => {
@@ -651,6 +639,46 @@ fn write_expression_kind(
             f.buf.push(b' ');
             write_block(&switch.block, f);
         }
+    }
+}
+
+fn write_new_class_parameters(f: &mut Formatter<'_>, exprs: &[Vec<AstExpressionKind>]) {
+    let first = exprs.first();
+    let last = exprs.last();
+    let param_range = if let Some(first) = first
+        && let Some(last) = last
+    {
+        AstRange {
+            start: first.get_range().start,
+            end: last.get_range().end,
+        }
+    } else {
+        AstRange::default()
+    };
+    let mut nl = param_range.start.line != param_range.end.line;
+    if nl && exprs.len() == 1 {
+        let f = exprs.iter().flatten().next();
+        if matches!(f, Some(AstExpressionKind::Lambda(_))) {
+            nl = false;
+        }
+    }
+    for (i, expr) in exprs.iter().enumerate() {
+        if i > 0 {
+            f.write(b",");
+        }
+        if nl {
+            f.new_line();
+            f.insert_comments(expr.get_range().start);
+            f.write_indent();
+        } else if i > 0 {
+            f.write(b" ");
+            f.insert_comments(expr.get_range().start);
+        }
+        write_expression(expr, f);
+    }
+    if nl {
+        f.new_line();
+        f.write_indent();
     }
 }
 
@@ -1473,6 +1501,9 @@ fn write_method_header(header: &AstMethodHeader, f: &mut Formatter) {
     f.insert_comments(header.name.range.start);
     write_annotated_list(&header.annotated, f);
     f.write_indent();
+    if header.default {
+        f.write(b"default ");
+    }
     write_availability(&header.availability, f);
     if let Some(tp) = &header.type_parameters {
         write_type_parameters(tp, f);
@@ -2531,14 +2562,14 @@ public class ThingResource {
             public class Test {
                 public int aaa() {
                     Suppliers.momoize(() -> {
-                                // some processing
-                                return true;
-                            });
+                            // some processing
+                            return true;
+                        });
 
                     Thread.ofVirtual()
                             .start(() -> {
-                                    // do something
-                                });
+                                // do something
+                            });
                 }
             }
         "]];
@@ -2711,6 +2742,9 @@ public interface Test {
      */
     public void b() {
     }
+
+    default public void a() {
+    }
 }
         ";
 
@@ -2725,6 +2759,9 @@ public interface Test {
                  * hehehe
                  */
                 public void b() {
+                }
+
+                default public void a() {
                 }
             }
         "]];
@@ -3008,6 +3045,74 @@ public class Test {
                 }
             }
         "]];
+        expected.assert_eq(str::from_utf8(&o).unwrap());
+    }
+
+    #[test]
+    fn new_class_newline() {
+        let content = br#"
+public class Test {
+    private int a = 1;
+    private int b = 2;
+    public void test() {
+        Test test = new Test(
+            "loooooooooooooooooooooooooooooooooooooong",
+            true,
+            false
+            );
+        Test test1 = new Test("loooooooooooooooooooooooooooooooooooooong", true, false);
+        Test test2 = new Test(
+            "loooooooooooooooooooooooooooooooooooooong",
+            true,
+            false
+            ) {
+                void a() {
+                }
+            };
+        Test test3 = new Test( "loooooooooooooooooooooooooooooooooooooong", true, false) {
+                void a() {
+                }
+            };
+        Test test4 = new Test[1, 
+        2, 3];
+        Test test5 = new Test[1, 2, 3];
+    }
+}
+"#;
+
+        let o = fmt(content).unwrap();
+        let expected = expect![[r#"
+            public class Test {
+                private int a = 1;
+                private int b = 2;
+                public void test() {
+                    Test test = new Test(
+                            "loooooooooooooooooooooooooooooooooooooong",
+                            true,
+                            false
+                            );
+                    Test test1 = new Test("loooooooooooooooooooooooooooooooooooooong", true, false);
+                    Test test2 = new Test(
+                            "loooooooooooooooooooooooooooooooooooooong",
+                            true,
+                            false
+                            ) {
+                                void a() {
+                                }
+                            };
+                    Test test3 = new Test("loooooooooooooooooooooooooooooooooooooong", true, false) {
+                                void a() {
+                                }
+                            };
+                    Test test4 = new Test[
+                            1,
+                            2,
+                            3
+                            ];
+                    Test test5 = new Test[1, 2, 3];
+                }
+            }
+        "#]];
         expected.assert_eq(str::from_utf8(&o).unwrap());
     }
 }

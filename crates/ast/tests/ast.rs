@@ -191,6 +191,7 @@ fn everything() {
                                             throws: None,
                                             type_parameters: None,
                                             annotated: [],
+                                            default: false,
                                         },
                                         block: Some(
                                             AstBlock {
@@ -240,6 +241,7 @@ fn everything() {
                                             throws: None,
                                             type_parameters: None,
                                             annotated: [],
+                                            default: false,
                                         },
                                         block: Some(
                                             AstBlock {
@@ -289,6 +291,7 @@ fn everything() {
                                             throws: None,
                                             type_parameters: None,
                                             annotated: [],
+                                            default: false,
                                         },
                                         block: Some(
                                             AstBlock {
@@ -338,6 +341,7 @@ fn everything() {
                                             throws: None,
                                             type_parameters: None,
                                             annotated: [],
+                                            default: false,
                                         },
                                         block: Some(
                                             AstBlock {
@@ -476,6 +480,7 @@ fn everything() {
                                             throws: None,
                                             type_parameters: None,
                                             annotated: [],
+                                            default: false,
                                         },
                                         block: Some(
                                             AstBlock {
@@ -647,6 +652,7 @@ fn everything() {
                                             throws: None,
                                             type_parameters: None,
                                             annotated: [],
+                                            default: false,
                                         },
                                         block: Some(
                                             AstBlock {
@@ -967,6 +973,7 @@ fn skip_comments() {
                                             throws: None,
                                             type_parameters: None,
                                             annotated: [],
+                                            default: false,
                                         },
                                         block: Some(
                                             AstBlock {
@@ -1196,6 +1203,7 @@ fn locale_variable_table() {
                                             throws: None,
                                             type_parameters: None,
                                             annotated: [],
+                                            default: false,
                                         },
                                         block: Some(
                                             AstBlock {
@@ -1543,6 +1551,7 @@ fn locale_variable_table() {
                                             throws: None,
                                             type_parameters: None,
                                             annotated: [],
+                                            default: false,
                                         },
                                         block: Some(
                                             AstBlock {
@@ -2154,6 +2163,7 @@ fn constants() {
                                         throws: None,
                                         type_parameters: None,
                                         annotated: [],
+                                        default: false,
                                     },
                                 },
                                 AstInterfaceMethod {
@@ -2286,6 +2296,7 @@ fn constants() {
                                         ),
                                         type_parameters: None,
                                         annotated: [],
+                                        default: false,
                                     },
                                 },
                             ],
@@ -2551,6 +2562,7 @@ fn super_interface() {
                                         throws: None,
                                         type_parameters: None,
                                         annotated: [],
+                                        default: true,
                                     },
                                     block: AstBlock {
                                         range: AstRange {
@@ -2967,6 +2979,7 @@ fn interface_base() {
                                             },
                                         ),
                                         annotated: [],
+                                        default: false,
                                     },
                                 },
                             ],
@@ -3077,6 +3090,7 @@ fn interface_base() {
                                             },
                                         ),
                                         annotated: [],
+                                        default: false,
                                     },
                                     block: AstBlock {
                                         range: AstRange {
@@ -3356,6 +3370,7 @@ fn variants() {
                                         throws: None,
                                         type_parameters: None,
                                         annotated: [],
+                                        default: false,
                                     },
                                     block: Some(
                                         AstBlock {
@@ -4727,6 +4742,7 @@ fn types() {
                                             throws: None,
                                             type_parameters: None,
                                             annotated: [],
+                                            default: false,
                                         },
                                         block: Some(
                                             AstBlock {
@@ -5197,6 +5213,7 @@ fn annotated() {
                                                     ),
                                                 },
                                             ],
+                                            default: false,
                                         },
                                         block: Some(
                                             AstBlock {
@@ -5426,6 +5443,7 @@ fn annotated() {
                                             throws: None,
                                             type_parameters: None,
                                             annotated: [],
+                                            default: false,
                                         },
                                         block: Some(
                                             AstBlock {
@@ -6304,6 +6322,7 @@ fn more_syntax() {
                                             throws: None,
                                             type_parameters: None,
                                             annotated: [],
+                                            default: false,
                                         },
                                         block: Some(
                                             AstBlock {
@@ -13022,6 +13041,7 @@ fn more_syntax() {
                                                                                                             parameters: None,
                                                                                                         },
                                                                                                     ],
+                                                                                                    default: false,
                                                                                                 },
                                                                                                 block: Some(
                                                                                                     AstBlock {
@@ -13787,6 +13807,7 @@ fn more_syntax() {
                                             throws: None,
                                             type_parameters: None,
                                             annotated: [],
+                                            default: false,
                                         },
                                         block: None,
                                     },
@@ -13828,6 +13849,7 @@ fn more_syntax() {
                                             throws: None,
                                             type_parameters: None,
                                             annotated: [],
+                                            default: false,
                                         },
                                         block: Some(
                                             AstBlock {
@@ -16040,6 +16062,7 @@ fn method_no_body() {
                     throws: None,
                     type_parameters: None,
                     annotated: [],
+                    default: false,
                 },
                 block: None,
             },
@@ -19373,6 +19396,7 @@ fn top_level_function() {
                             throws: None,
                             type_parameters: None,
                             annotated: [],
+                            default: false,
                         },
                         block: Some(
                             AstBlock {
@@ -19609,6 +19633,7 @@ fn method_inner_class() {
                             throws: None,
                             type_parameters: None,
                             annotated: [],
+                            default: false,
                         },
                         block: Some(
                             AstBlock {

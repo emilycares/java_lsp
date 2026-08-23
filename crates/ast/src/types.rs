@@ -262,6 +262,7 @@ pub struct AstMethodHeader {
     pub throws: Option<AstThrowsDeclaration>,
     pub type_parameters: Option<AstTypeParameters>,
     pub annotated: Vec<AstAnnotated>,
+    pub default: bool,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AstThrowsDeclaration {
