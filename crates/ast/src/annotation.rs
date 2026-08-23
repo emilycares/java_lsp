@@ -24,11 +24,11 @@ pub fn parse_annotation(
     let (name, pos) = parse_name_single(tokens, pos)?;
     let pos = assert_token(tokens, pos, Token::LeftParenCurly)?;
     let mut pos = pos;
-    let mut errors = vec![];
+    let mut errors = [const { None }; 2];
     let mut fields = vec![];
     let mut inner = vec![];
     loop {
-        errors.clear();
+        errors.fill(None);
         if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
             pos = npos;
             break;
@@ -40,7 +40,7 @@ pub fn parse_annotation(
                 continue;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"annotation field"), e));
+                errors[0] = Some((NuVec::new_static(b"annotation field"), e));
             }
         }
         match parse_thing(tokens, pos) {
@@ -50,12 +50,12 @@ pub fn parse_annotation(
                 continue;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"thing"), e));
+                errors[1] = Some((NuVec::new_static(b"thing"), e));
             }
         }
-        return Err(AstError::AllChildrenFailed {
+        return Err(AstError::AllChildrenFailed2 {
             parent: NuVec::new_static(b"annotation"),
-            errors,
+            errors: Box::new(errors),
         });
     }
     let end = tokens.end(pos)?;

@@ -286,7 +286,7 @@ pub fn ast_check_dir(folder: PathBuf) -> Result<(), std::io::Error> {
     let time = Instant::now();
     let dir = canonicalize(folder)?;
     let mut dirs = std::collections::VecDeque::new();
-    let mut tokens = Vec::new();
+    let mut tokens = Vec::with_capacity(8192);
     dirs.push_back(dir);
     while let Some(dir) = dirs.pop_front() {
         visit_java_fies(&dir, &mut tokens, &mut dirs, ast_check)?;
@@ -407,7 +407,7 @@ pub fn format_dir(p: &PathBuf) {
         return;
     };
     let mut dirs = std::collections::VecDeque::new();
-    let mut tokens = Vec::new();
+    let mut tokens = Vec::with_capacity(8192);
     dirs.push_back(dir);
     while let Some(dir) = dirs.pop_front() {
         if let Err(e) = visit_java_fies(&dir, &mut tokens, &mut dirs, |i, tokens| {

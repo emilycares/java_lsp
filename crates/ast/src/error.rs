@@ -42,11 +42,53 @@ pub enum AstError {
     /// Invalid token in Nuget
     InvalidNuget(InvalidToken),
     /// All children errored
-    AllChildrenFailed {
+    AllChildrenFailed2 {
         /// Description
         parent: NuVec,
         /// Related errors
-        errors: Vec<(NuVec, Self)>,
+        errors: Box<[Option<(NuVec, Self)>; 2]>,
+    },
+    /// All children errored
+    AllChildrenFailed3 {
+        /// Description
+        parent: NuVec,
+        /// Related errors
+        errors: Box<[Option<(NuVec, Self)>; 3]>,
+    },
+    /// All children errored
+    AllChildrenFailed4 {
+        /// Description
+        parent: NuVec,
+        /// Related errors
+        errors: Box<[Option<(NuVec, Self)>; 4]>,
+    },
+    /// All children errored
+    AllChildrenFailed5 {
+        /// Description
+        parent: NuVec,
+        /// Related errors
+        errors: Box<[Option<(NuVec, Self)>; 5]>,
+    },
+    /// All children errored
+    AllChildrenFailed6 {
+        /// Description
+        parent: NuVec,
+        /// Related errors
+        errors: Box<[Option<(NuVec, Self)>; 6]>,
+    },
+    /// All children errored
+    AllChildrenFailed7 {
+        /// Description
+        parent: NuVec,
+        /// Related errors
+        errors: Box<[Option<(NuVec, Self)>; 7]>,
+    },
+    /// All children errored
+    AllChildrenFailed26 {
+        /// Description
+        parent: NuVec,
+        /// Related errors
+        errors: Box<[Option<(NuVec, Self)>; 26]>,
     },
     /// Invalid string literal
     InvalidString(InvalidToken),
@@ -124,15 +166,133 @@ impl PrintErr for AstError {
                     );
                 }
             }
-            Self::AllChildrenFailed { parent, errors } => {
+            Self::AllChildrenFailed2 { parent, errors } => {
                 if PRINT_ALL_ERRORS {
                     eprintln!("{parent}");
-                    for e in errors {
+                    for e in (*errors).iter() {
+                        let Some(e) = e else {
+                            break;
+                        };
                         eprintln!("{}", e.0);
                         e.1.print_err(content, tokens);
                     }
                 } else if let Some(e) = errors
                     .iter()
+                    .flatten()
+                    .map(|i| (get_pos(&i.1), i))
+                    .max_by(|a, b| a.0.0.cmp(&b.0.0))
+                {
+                    e.1.1.print_err(content, tokens);
+                }
+            }
+            Self::AllChildrenFailed3 { parent, errors } => {
+                if PRINT_ALL_ERRORS {
+                    eprintln!("{parent}");
+                    for e in (*errors).iter() {
+                        let Some(e) = e else {
+                            break;
+                        };
+                        eprintln!("{}", e.0);
+                        e.1.print_err(content, tokens);
+                    }
+                } else if let Some(e) = errors
+                    .iter()
+                    .flatten()
+                    .map(|i| (get_pos(&i.1), i))
+                    .max_by(|a, b| a.0.0.cmp(&b.0.0))
+                {
+                    e.1.1.print_err(content, tokens);
+                }
+            }
+            Self::AllChildrenFailed4 { parent, errors } => {
+                if PRINT_ALL_ERRORS {
+                    eprintln!("{parent}");
+                    for e in (*errors).iter() {
+                        let Some(e) = e else {
+                            break;
+                        };
+                        eprintln!("{}", e.0);
+                        e.1.print_err(content, tokens);
+                    }
+                } else if let Some(e) = errors
+                    .iter()
+                    .flatten()
+                    .map(|i| (get_pos(&i.1), i))
+                    .max_by(|a, b| a.0.0.cmp(&b.0.0))
+                {
+                    e.1.1.print_err(content, tokens);
+                }
+            }
+            Self::AllChildrenFailed5 { parent, errors } => {
+                if PRINT_ALL_ERRORS {
+                    eprintln!("{parent}");
+                    for e in (*errors).iter() {
+                        let Some(e) = e else {
+                            break;
+                        };
+                        eprintln!("{}", e.0);
+                        e.1.print_err(content, tokens);
+                    }
+                } else if let Some(e) = errors
+                    .iter()
+                    .flatten()
+                    .map(|i| (get_pos(&i.1), i))
+                    .max_by(|a, b| a.0.0.cmp(&b.0.0))
+                {
+                    e.1.1.print_err(content, tokens);
+                }
+            }
+            Self::AllChildrenFailed6 { parent, errors } => {
+                if PRINT_ALL_ERRORS {
+                    eprintln!("{parent}");
+                    for e in (*errors).iter() {
+                        let Some(e) = e else {
+                            break;
+                        };
+                        eprintln!("{}", e.0);
+                        e.1.print_err(content, tokens);
+                    }
+                } else if let Some(e) = errors
+                    .iter()
+                    .flatten()
+                    .map(|i| (get_pos(&i.1), i))
+                    .max_by(|a, b| a.0.0.cmp(&b.0.0))
+                {
+                    e.1.1.print_err(content, tokens);
+                }
+            }
+            Self::AllChildrenFailed7 { parent, errors } => {
+                if PRINT_ALL_ERRORS {
+                    eprintln!("{parent}");
+                    for e in (*errors).iter() {
+                        let Some(e) = e else {
+                            break;
+                        };
+                        eprintln!("{}", e.0);
+                        e.1.print_err(content, tokens);
+                    }
+                } else if let Some(e) = errors
+                    .iter()
+                    .flatten()
+                    .map(|i| (get_pos(&i.1), i))
+                    .max_by(|a, b| a.0.0.cmp(&b.0.0))
+                {
+                    e.1.1.print_err(content, tokens);
+                }
+            }
+            Self::AllChildrenFailed26 { parent, errors } => {
+                if PRINT_ALL_ERRORS {
+                    eprintln!("{parent}");
+                    for e in (*errors).iter() {
+                        let Some(e) = e else {
+                            break;
+                        };
+                        eprintln!("{}", e.0);
+                        e.1.print_err(content, tokens);
+                    }
+                } else if let Some(e) = errors
+                    .iter()
+                    .flatten()
                     .map(|i| (get_pos(&i.1), i))
                     .max_by(|a, b| a.0.0.cmp(&b.0.0))
                 {
@@ -175,7 +335,31 @@ const fn sort_helper_error(a: &(NuVec, AstError)) -> usize {
         | AstError::InvalidNuget(invalid_token)
         | AstError::InvalidString(invalid_token) => invalid_token.0,
         AstError::UnexpectedEOF
-        | AstError::AllChildrenFailed {
+        | AstError::AllChildrenFailed2 {
+            parent: _,
+            errors: _,
+        }
+        | AstError::AllChildrenFailed3 {
+            parent: _,
+            errors: _,
+        }
+        | AstError::AllChildrenFailed4 {
+            parent: _,
+            errors: _,
+        }
+        | AstError::AllChildrenFailed5 {
+            parent: _,
+            errors: _,
+        }
+        | AstError::AllChildrenFailed6 {
+            parent: _,
+            errors: _,
+        }
+        | AstError::AllChildrenFailed7 {
+            parent: _,
+            errors: _,
+        }
+        | AstError::AllChildrenFailed26 {
             parent: _,
             errors: _,
         } => 1000,
@@ -197,8 +381,62 @@ pub fn get_pos(e: &AstError) -> (usize, usize) {
     match e {
         AstError::ExpectedToken(expected_token) => (expected_token.pos, expected_token.pos),
         AstError::UnexpectedEOF => (10_000_000, 10_000_000),
-        AstError::AllChildrenFailed { parent: _, errors } => {
-            let poses = errors.iter().map(|i| &i.1).map(get_pos);
+        AstError::AllChildrenFailed2 { parent: _, errors } => {
+            let poses = errors.iter().flatten().map(|i| &i.1).map(get_pos);
+            if let Some(min) = poses.clone().min()
+                && let Some(max) = poses.max()
+            {
+                return (min.0, max.1);
+            }
+            (0, 0)
+        }
+        AstError::AllChildrenFailed3 { parent: _, errors } => {
+            let poses = errors.iter().flatten().map(|i| &i.1).map(get_pos);
+            if let Some(min) = poses.clone().min()
+                && let Some(max) = poses.max()
+            {
+                return (min.0, max.1);
+            }
+            (0, 0)
+        }
+        AstError::AllChildrenFailed4 { parent: _, errors } => {
+            let poses = errors.iter().flatten().map(|i| &i.1).map(get_pos);
+            if let Some(min) = poses.clone().min()
+                && let Some(max) = poses.max()
+            {
+                return (min.0, max.1);
+            }
+            (0, 0)
+        }
+        AstError::AllChildrenFailed5 { parent: _, errors } => {
+            let poses = errors.iter().flatten().map(|i| &i.1).map(get_pos);
+            if let Some(min) = poses.clone().min()
+                && let Some(max) = poses.max()
+            {
+                return (min.0, max.1);
+            }
+            (0, 0)
+        }
+        AstError::AllChildrenFailed6 { parent: _, errors } => {
+            let poses = errors.iter().flatten().map(|i| &i.1).map(get_pos);
+            if let Some(min) = poses.clone().min()
+                && let Some(max) = poses.max()
+            {
+                return (min.0, max.1);
+            }
+            (0, 0)
+        }
+        AstError::AllChildrenFailed7 { parent: _, errors } => {
+            let poses = errors.iter().flatten().map(|i| &i.1).map(get_pos);
+            if let Some(min) = poses.clone().min()
+                && let Some(max) = poses.max()
+            {
+                return (min.0, max.1);
+            }
+            (0, 0)
+        }
+        AstError::AllChildrenFailed26 { parent: _, errors } => {
+            let poses = errors.iter().flatten().map(|i| &i.1).map(get_pos);
             if let Some(min) = poses.clone().min()
                 && let Some(max) = poses.max()
             {

@@ -205,9 +205,82 @@ pub fn ast_error_to_diagnostic(
                 found,
             ))
         }
-        AstError::AllChildrenFailed { parent: _, errors } => {
+        AstError::AllChildrenFailed2 { parent: _, errors } => {
             if let Some(e) = errors
                 .iter()
+                .flatten()
+                .map(|i| (get_pos(&i.1), i))
+                .max_by(|a, b| a.0.0.cmp(&b.0.0))
+            {
+                // e.1.1.print_err(content, tokens);
+                return ast_error_to_diagnostic(&e.1.1, tokens);
+            }
+            Err(AstDiagnosticError::ChildrenNotFound)
+        }
+        AstError::AllChildrenFailed3 { parent: _, errors } => {
+            if let Some(e) = errors
+                .iter()
+                .flatten()
+                .map(|i| (get_pos(&i.1), i))
+                .max_by(|a, b| a.0.0.cmp(&b.0.0))
+            {
+                // e.1.1.print_err(content, tokens);
+                return ast_error_to_diagnostic(&e.1.1, tokens);
+            }
+            Err(AstDiagnosticError::ChildrenNotFound)
+        }
+        AstError::AllChildrenFailed4 { parent: _, errors } => {
+            if let Some(e) = errors
+                .iter()
+                .flatten()
+                .map(|i| (get_pos(&i.1), i))
+                .max_by(|a, b| a.0.0.cmp(&b.0.0))
+            {
+                // e.1.1.print_err(content, tokens);
+                return ast_error_to_diagnostic(&e.1.1, tokens);
+            }
+            Err(AstDiagnosticError::ChildrenNotFound)
+        }
+        AstError::AllChildrenFailed5 { parent: _, errors } => {
+            if let Some(e) = errors
+                .iter()
+                .flatten()
+                .map(|i| (get_pos(&i.1), i))
+                .max_by(|a, b| a.0.0.cmp(&b.0.0))
+            {
+                // e.1.1.print_err(content, tokens);
+                return ast_error_to_diagnostic(&e.1.1, tokens);
+            }
+            Err(AstDiagnosticError::ChildrenNotFound)
+        }
+        AstError::AllChildrenFailed6 { parent: _, errors } => {
+            if let Some(e) = errors
+                .iter()
+                .flatten()
+                .map(|i| (get_pos(&i.1), i))
+                .max_by(|a, b| a.0.0.cmp(&b.0.0))
+            {
+                // e.1.1.print_err(content, tokens);
+                return ast_error_to_diagnostic(&e.1.1, tokens);
+            }
+            Err(AstDiagnosticError::ChildrenNotFound)
+        }
+        AstError::AllChildrenFailed7 { parent: _, errors } => {
+            if let Some(e) = errors
+                .iter()
+                .flatten()
+                .map(|i| (get_pos(&i.1), i))
+                .max_by(|a, b| a.0.0.cmp(&b.0.0))
+            {
+                // e.1.1.print_err(content, tokens);
+                return ast_error_to_diagnostic(&e.1.1, tokens);
+            }
+            Err(AstDiagnosticError::ChildrenNotFound)
+        }
+        AstError::AllChildrenFailed26 { parent: _, errors } => {
+            if let Some(e) = errors
+                .iter()
+                .flatten()
                 .map(|i| (get_pos(&i.1), i))
                 .max_by(|a, b| a.0.0.cmp(&b.0.0))
             {

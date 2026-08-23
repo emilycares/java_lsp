@@ -49,14 +49,14 @@ pub fn parse_interface(
         }
     }
     let pos = assert_token(tokens, pos, Token::LeftParenCurly)?;
-    let mut errors = vec![];
+    let mut errors = [const { None }; 5];
     let mut constants = vec![];
     let mut methods = vec![];
     let mut default_methods = vec![];
     let mut inner = vec![];
     let mut pos = pos;
     loop {
-        errors.clear();
+        errors.fill(None);
         if tokens.get(pos).is_none() {
             break;
         }
@@ -70,7 +70,7 @@ pub fn parse_interface(
                 continue;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"interface semicolon"), e));
+                errors[0] = Some((NuVec::new_static(b"interface semicolon"), e));
             }
         }
         match parse_interface_constant(tokens, pos) {
@@ -80,7 +80,7 @@ pub fn parse_interface(
                 continue;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"interface_constant"), e));
+                errors[1] = Some((NuVec::new_static(b"interface_constant"), e));
             }
         }
         match parse_interface_method(tokens, pos) {
@@ -90,7 +90,7 @@ pub fn parse_interface(
                 continue;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"interface_method"), e));
+                errors[2] = Some((NuVec::new_static(b"interface_method"), e));
             }
         }
         match parse_interface_method_impl(tokens, pos) {
@@ -100,7 +100,7 @@ pub fn parse_interface(
                 continue;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"interface_method_impl"), e));
+                errors[3] = Some((NuVec::new_static(b"interface_method_impl"), e));
             }
         }
         match parse_thing(tokens, pos) {
@@ -110,12 +110,12 @@ pub fn parse_interface(
                 continue;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"interface thing"), e));
+                errors[4] = Some((NuVec::new_static(b"interface thing"), e));
             }
         }
-        return Err(AstError::AllChildrenFailed {
+        return Err(AstError::AllChildrenFailed5 {
             parent: NuVec::new_static(b"interface"),
-            errors,
+            errors: Box::new(errors),
         });
     }
     let end = tokens.end(pos)?;

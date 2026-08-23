@@ -102,14 +102,14 @@ pub fn parse_class_block(
     let mut constructors = vec![];
     let mut inner = vec![];
     let mut pos = pos;
-    let mut errors = vec![];
+    let mut errors = [const { None }; 6];
 
     loop {
         if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
             pos = npos;
             break;
         }
-        errors.clear();
+        errors.fill(None);
         let current = tokens.start(pos)?;
         match &current.token {
             Token::Semicolon => {
@@ -123,7 +123,7 @@ pub fn parse_class_block(
                     continue;
                 }
                 Err(e) => {
-                    errors.push((NuVec::new_static(b"static block"), e));
+                    errors[0] = Some((NuVec::new_static(b"static block"), e));
                 }
             },
             Token::LeftParenCurly => match parse_block(tokens, pos) {
@@ -133,7 +133,7 @@ pub fn parse_class_block(
                     continue;
                 }
                 Err(e) => {
-                    errors.push((NuVec::new_static(b"block"), e));
+                    errors[1] = Some((NuVec::new_static(b"block"), e));
                 }
             },
             _ => (),
@@ -146,7 +146,7 @@ pub fn parse_class_block(
                 continue;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"class thing"), e));
+                errors[2] = Some((NuVec::new_static(b"class thing"), e));
             }
         }
         match parse_class_variable(tokens, pos) {
@@ -156,7 +156,7 @@ pub fn parse_class_block(
                 continue;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"class variable"), e));
+                errors[3] = Some((NuVec::new_static(b"class variable"), e));
             }
         }
         match parse_class_method(tokens, pos) {
@@ -166,7 +166,7 @@ pub fn parse_class_block(
                 continue;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"class method"), e));
+                errors[4] = Some((NuVec::new_static(b"class method"), e));
             }
         }
         match parse_class_constructor(tokens, pos) {
@@ -176,12 +176,12 @@ pub fn parse_class_block(
                 continue;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"class constructor"), e));
+                errors[5] = Some((NuVec::new_static(b"class constructor"), e));
             }
         }
-        return Err(AstError::AllChildrenFailed {
+        return Err(AstError::AllChildrenFailed6 {
             parent: NuVec::new_static(b"class"),
-            errors,
+            errors: Box::new(errors),
         });
     }
 

@@ -25,7 +25,7 @@ pub fn parse_module(tokens: &[PositionToken], pos: usize) -> Result<(AstModule, 
     let pos = assert_token(tokens, pos, Token::Module)?;
     let (name, pos) = parse_name_dot_logical(tokens, pos)?;
     let pos = assert_token(tokens, pos, Token::LeftParenCurly)?;
-    let mut errors = vec![];
+    let mut errors = [const { None }; 5];
     let mut pos = pos;
     let mut exports = vec![];
     let mut opens = vec![];
@@ -38,7 +38,7 @@ pub fn parse_module(tokens: &[PositionToken], pos: usize) -> Result<(AstModule, 
             pos = npos;
             break;
         }
-        errors.clear();
+        errors.fill(None);
         match parse_exports(tokens, pos) {
             Ok((ex, npos)) => {
                 pos = npos;
@@ -46,7 +46,7 @@ pub fn parse_module(tokens: &[PositionToken], pos: usize) -> Result<(AstModule, 
                 continue;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"exports"), e));
+                errors[0] = Some((NuVec::new_static(b"exports"), e));
             }
         }
         match parse_opens(tokens, pos) {
@@ -56,7 +56,7 @@ pub fn parse_module(tokens: &[PositionToken], pos: usize) -> Result<(AstModule, 
                 continue;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"opens"), e));
+                errors[1] = Some((NuVec::new_static(b"opens"), e));
             }
         }
         match parse_uses(tokens, pos) {
@@ -66,7 +66,7 @@ pub fn parse_module(tokens: &[PositionToken], pos: usize) -> Result<(AstModule, 
                 continue;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"uses"), e));
+                errors[2] = Some((NuVec::new_static(b"uses"), e));
             }
         }
         match parse_provides(tokens, pos) {
@@ -76,7 +76,7 @@ pub fn parse_module(tokens: &[PositionToken], pos: usize) -> Result<(AstModule, 
                 continue;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"provides"), e));
+                errors[3] = Some((NuVec::new_static(b"provides"), e));
             }
         }
         match parse_requires(tokens, pos) {
@@ -86,12 +86,12 @@ pub fn parse_module(tokens: &[PositionToken], pos: usize) -> Result<(AstModule, 
                 continue;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"requires"), e));
+                errors[4] = Some((NuVec::new_static(b"requires"), e));
             }
         }
-        return Err(AstError::AllChildrenFailed {
+        return Err(AstError::AllChildrenFailed5 {
             parent: NuVec::new_static(b"module"),
-            errors,
+            errors: Box::new(errors),
         });
     }
 

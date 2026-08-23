@@ -108,7 +108,7 @@ impl Formatter<'_> {
         Ok(Self {
             with_comments,
             index: 0,
-            buf: Vec::new(),
+            buf: Vec::with_capacity(content.len()),
             indent: 0,
             space,
             ln: match editorconfig.end_of_line {

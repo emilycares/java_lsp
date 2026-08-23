@@ -27,7 +27,7 @@ pub fn parse_enumeration(
 ) -> Result<(AstThing, usize), AstError> {
     let (name, pos) = parse_identifier(tokens, pos)?;
     let (superclass, implements, permits, pos) = parse_implemnets_extends_permits(tokens, pos)?;
-    let mut errors = vec![];
+    let mut errors = [const { None }; 2];
     let pos = assert_token(tokens, pos, Token::LeftParenCurly)?;
     let mut pos = pos;
     let mut variants = vec![];
@@ -38,14 +38,14 @@ pub fn parse_enumeration(
     let mut inner = vec![];
     let mut end_reached = false;
     loop {
-        errors.clear();
+        errors.fill(None);
         match parse_enum_variant(tokens, pos) {
             Ok((variant, npos)) => {
                 variants.push(variant);
                 pos = npos;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"enum_variant"), e));
+                errors[0] = Some((NuVec::new_static(b"enum_variant"), e));
             }
         }
         if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
@@ -80,11 +80,11 @@ pub fn parse_enumeration(
                 pos = npos;
                 continue;
             }
-            Err(e) => errors.push((NuVec::new_static(b"enum_members"), e)),
+            Err(e) => errors[1] = Some((NuVec::new_static(b"enum_members"), e)),
         }
-        return Err(AstError::AllChildrenFailed {
+        return Err(AstError::AllChildrenFailed2 {
             parent: NuVec::new_static(b"enum_variant"),
-            errors,
+            errors: Box::new(errors),
         });
     }
     if !end_reached {
@@ -147,9 +147,9 @@ fn parse_enum_members(
         let npos = assert_token(tokens, pos, Token::LeftParenCurly)?;
         pos = npos;
     }
-    let mut errors = vec![];
+    let mut errors = [const { None }; 5];
     loop {
-        errors.clear();
+        errors.fill(None);
         if let Ok(npos) = assert_token(tokens, pos, Token::RightParenCurly) {
             if braces {
                 pos = npos;
@@ -166,7 +166,7 @@ fn parse_enum_members(
                 continue;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"enum_method"), e));
+                errors[0] = Some((NuVec::new_static(b"enum_method"), e));
             }
         }
         match parse_class_constructor(tokens, pos) {
@@ -176,7 +176,7 @@ fn parse_enum_members(
                 continue;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"enum_constructor"), e));
+                errors[1] = Some((NuVec::new_static(b"enum_constructor"), e));
             }
         }
         match parse_class_variable(tokens, pos) {
@@ -186,7 +186,7 @@ fn parse_enum_members(
                 continue;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"enum_variable"), e));
+                errors[2] = Some((NuVec::new_static(b"enum_variable"), e));
             }
         }
         match parse_static_block(tokens, pos) {
@@ -196,7 +196,7 @@ fn parse_enum_members(
                 continue;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"static block"), e));
+                errors[3] = Some((NuVec::new_static(b"static block"), e));
             }
         }
         match parse_thing(tokens, pos) {
@@ -206,12 +206,12 @@ fn parse_enum_members(
                 continue;
             }
             Err(e) => {
-                errors.push((NuVec::new_static(b"thing"), e));
+                errors[4] = Some((NuVec::new_static(b"thing"), e));
             }
         }
-        return Err(AstError::AllChildrenFailed {
+        return Err(AstError::AllChildrenFailed5 {
             parent: NuVec::new_static(b"enum"),
-            errors,
+            errors: Box::new(errors),
         });
     }
     Ok(pos)
