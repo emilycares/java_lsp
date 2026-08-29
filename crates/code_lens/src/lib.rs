@@ -1,15 +1,12 @@
 use ast::types::{AstFile, AstThing, AstTopLevel};
+use command::{COMMAND_CMD, COMMAND_CMD_EDITOR};
 use common::project_kind::ProjectKind;
 use config::Configuration;
+use document_link::SRC_TEST;
 use lsp_extra::{ToLspRangeError, to_lsp_range};
 use lsp_types::{CodeLens, Command};
 use my_string::NuVec;
 use serde_json::Value;
-
-use crate::{
-    command::{COMMAND_CMD, COMMAND_CMD_EDITOR},
-    document_link::SRC_TEST,
-};
 
 #[derive(Debug)]
 pub enum CodeLensError {

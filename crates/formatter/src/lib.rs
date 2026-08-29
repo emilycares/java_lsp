@@ -3076,6 +3076,9 @@ public class Test {
         Test test4 = new Test[1, 
         2, 3];
         Test test5 = new Test[1, 2, 3];
+        String[] test6 = new String[]{"a", "b", "c"};
+        String[] test7 = new String[]{"a", "b", 
+        "c"};
     }
 }
 "#;
@@ -3110,6 +3113,12 @@ public class Test {
                             3
                             ];
                     Test test5 = new Test[1, 2, 3];
+                    String[] test6 = new String[]{"a", "b", "c"};
+                    String[] test7 = new String[]{
+                            "a",
+                            "b",
+                            "c"
+                            };
                 }
             }
         "#]];

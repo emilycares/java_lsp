@@ -10,14 +10,13 @@ use ast::{
 use call_chain::get_call_chain;
 use document::Document;
 use dto::{Access, Class, ImportUnit, JType, Method, Parameter};
+use hover::class_to_markdown;
 use local_variable::{LocalVariable, VarFlags};
 use lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionItemTag,
     InsertTextFormat,
 };
 use my_string::NuVec;
-
-use crate::{codeaction, hover::class_to_markdown};
 
 #[derive(Debug)]
 pub enum CompletionError {
@@ -49,7 +48,7 @@ pub fn complete_vars(vars: &[LocalVariable]) -> Vec<CompletionItem> {
 pub fn class_describe(val: &Class, imp: bool, ast: Option<&AstFile>) -> CompletionItem {
     let addi = if imp {
         ast.as_ref()
-            .map(|ast| codeaction::import_text_edit(&val.class_path, ast))
+            .map(|ast| code_action::import_text_edit(&val.class_path, ast))
     } else {
         None
     };
@@ -153,7 +152,7 @@ fn complete_method(
             let additional_text_edits = if !imports.contains(&import)
                 && let ImportUnit::Class(class_path) = import
             {
-                Some(codeaction::import_text_edit(&class_path, ast))
+                Some(code_action::import_text_edit(&class_path, ast))
             } else {
                 None
             };
@@ -528,7 +527,7 @@ fn parameter_helper(
 mod tests {
     #![allow(clippy::literal_string_with_formatting_args)]
     use super::method_snippet;
-    use crate::completion::{Snippet, classes, complete_call_chain};
+    use crate::{Snippet, classes, complete_call_chain};
     use ast::types::{AstPoint, AstRange};
     use document::Document;
     use dto::{Access, Class, ImportUnit, JType, Method, Parameter};
@@ -646,7 +645,7 @@ public class Test {
     public void hello() {
         String local = \"\";
 
-        var lo = local.concat(\"hehe\"). 
+        var lo = local.concat(\"hehe\").
         return;
     }
 }
@@ -800,7 +799,7 @@ package ch.emilycares;
 public class Test {
     public void hello() {
         String local = other.toString();
-        StringB 
+        StringB
 
         return;
     }
@@ -838,7 +837,7 @@ package ch.emilycares;
 public class Test {
     public void hello() {
         String local = other.toString();
-        Optio 
+        Optio
 
         return;
     }
@@ -890,7 +889,7 @@ import java.lang.StringBuilder;
 public class Test {
     public void hello() {
         String local = other.toString();
-        StringB 
+        StringB
 
         return;
     }

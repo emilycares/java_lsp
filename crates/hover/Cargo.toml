@@ -1,0 +1,27 @@
+[package]
+name = "hover"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+documentation.workspace = true
+readme.workspace = true
+license.workspace = true
+
+[dependencies]
+my_string.workspace = true
+ast.workspace = true
+call_chain.workspace = true
+dto.workspace = true
+document.workspace = true
+local_variable.workspace = true
+lsp-types.workspace = true
+lsp_extra.workspace = true
+tyres.workspace = true
+get_class.workspace = true
+workspace_hack = { version = "0.1", path = "../workspace_hack" }
+
+[dev-dependencies]
+variables.workspace = true
+expect-test.workspace = true

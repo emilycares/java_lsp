@@ -1,6 +1,6 @@
 [package]
-name = "lsp_extra"
-version = "0.1.0"
+name = "references"
+version.workspace = true
 edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
@@ -11,10 +11,13 @@ license.workspace = true
 
 [dependencies]
 my_string.workspace = true
-tokio.workspace = true
-lsp-types.workspace = true
-lsp-server.workspace = true
 ast.workspace = true
-serde_json.workspace = true
-common.workspace = true
+call_chain.workspace = true
+document.workspace = true
+dto.workspace = true
+local_variable.workspace = true
+lsp_extra.workspace = true
+lsp-types.workspace = true
+position.workspace = true
+tyres.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }

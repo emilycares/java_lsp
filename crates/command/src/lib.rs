@@ -13,21 +13,18 @@ use common::{
 };
 use dto::Class;
 use gradle::project::get_gradle_cache_path;
-use lsp_extra::SERVER_NAME;
+use lsp_extra::{
+    SERVER_NAME, open_log, progress_end_option_token, progress_start_option_token, read_forward,
+};
 use lsp_server::Connection;
 use lsp_types::{Diagnostic, DiagnosticSeverity, NumberOrString, ProgressToken, Range};
 use maven::{tree::MavenTreeError, update};
 use my_string::NuVec;
+use project::{
+    Project, get_project_artifacts, project_deps, report_maven_gradle_diagnostic, update_report,
+};
 use serde_json::Value;
 use tokio::task::JoinSet;
-
-use crate::{
-    backend::{
-        Backend, Project, get_project_artifacts, project_deps, read_forward,
-        report_maven_gradle_diagnostic, update_report,
-    },
-    command,
-};
 
 #[derive(Debug)]
 pub enum CommandError {
@@ -103,9 +100,9 @@ pub fn reload_maven_project(
 ) {
     let con = con.clone();
     let task = if use_cache {
-        "Load gradle project".to_string()
+        "Load maven project".to_string()
     } else {
-        "Reload gradle project".to_string()
+        "Reload maven project".to_string()
     };
     let class_map = class_map.clone();
     let project_dir = PathBuf::from(p.dir.clone());
@@ -114,7 +111,7 @@ pub fn reload_maven_project(
     let project_artifacts = project_artifacts.clone();
     handles.spawn(async move {
         let project_dir = project_dir.as_path();
-        Backend::progress_start_option_token(&con.clone(), &progress, &task);
+        progress_start_option_token(&con.clone(), &progress, &task);
         let (sender, receiver) =
             tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
                 percentage: 0,
@@ -122,14 +119,14 @@ pub fn reload_maven_project(
                 message: "...".to_string(),
             });
         let cache = cache_dir();
-        let tree = command::get_tree(&project_kind, &con).await;
+        let tree = get_tree(&project_kind, &con).await;
         if let Some(tree) = tree {
             tokio::select! {
                 () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
                 () = project_deps(sender, project_kind.clone(), class_map.clone(), use_cache, project_dir, &cache, &tree, repos, project_artifacts, online) => {}
             }
         }
-        Backend::progress_end_option_token(&con, &progress, &task);
+        progress_end_option_token(&con, &progress, &task);
     });
 }
 
@@ -153,7 +150,7 @@ pub fn reload_gradle_project(
         } else {"Reload gradle project".to_string() };
 
         let progress = Arc::new(Option::Some(ProgressToken::String(task.clone())));
-        Backend::progress_start_option_token(&con.clone(), &progress, &task);
+        progress_start_option_token(&con.clone(), &progress, &task);
         let project_cache_dir = project_cache_dir();
 
         let cache_path = get_gradle_cache_path(project_dir.as_path(), project_cache_dir.as_path());
@@ -166,7 +163,7 @@ pub fn reload_gradle_project(
             () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
             () = gradle::project::index_project(class_map.clone(), sender, use_cache, cache_path, executable.clone(), online) => {}
         }
-        Backend::progress_end_option_token(&con, &progress, &task);
+        progress_end_option_token(&con, &progress, &task);
     });
 }
 
@@ -202,12 +199,12 @@ async fn reload_dependencies_maven_cli(
     let class_map = Arc::new(RwLock::new(HashMap::new()));
     let repos = Arc::new(maven::get_repositories(&project_dir));
     let tree_task = "Load Dependencies".to_string();
-    Backend::progress_start_option_token(&con.clone(), &progress, &tree_task);
+    progress_start_option_token(&con.clone(), &progress, &tree_task);
     let tree = get_tree(&project_kind, &con).await;
-    Backend::progress_end_option_token(&con.clone(), &progress, &tree_task);
+    progress_end_option_token(&con.clone(), &progress, &tree_task);
 
     let task = format!("Command: {COMMAND_RELOAD_DEPENDENCIES}");
-    Backend::progress_start_option_token(&con.clone(), &progress, &task);
+    progress_start_option_token(&con.clone(), &progress, &task);
     let (sender, receiver) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
         percentage: 0,
         error: false,
@@ -226,7 +223,7 @@ async fn reload_dependencies_maven_cli(
             () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree, repos, Arc::new(Vec::new()), true) => {}
         }
     }
-    Backend::progress_end_option_token(&con.clone(), &progress, &task);
+    progress_end_option_token(&con.clone(), &progress, &task);
 }
 
 pub const COMMAND_UPDATE_DEPENDENCIES: &str = "UpdateDependencies";
@@ -292,12 +289,12 @@ pub fn update_dependencies_maven(
     let project_artifacts = project_artifacts.clone();
     handles.spawn(async move {
         let task = "Load Dependency Tree".to_string();
-        Backend::progress_start_option_token(&con.clone(), &progress, &task);
+        progress_start_option_token(&con.clone(), &progress, &task);
         let tree = get_tree(&project_kind, &con).await;
-        Backend::progress_end_option_token(&con.clone(), &progress, &task);
+        progress_end_option_token(&con.clone(), &progress, &task);
 
         let task = format!("Command: {COMMAND_UPDATE_DEPENDENCIES}");
-        Backend::progress_start_option_token(&con.clone(), &progress, &task);
+        progress_start_option_token(&con.clone(), &progress, &task);
         if let Some(tree) = tree {
             let (sender, receiver) = tokio::sync::watch::channel::<TaskProgress>(TaskProgress {
                 percentage: 0,
@@ -315,14 +312,14 @@ pub fn update_dependencies_maven(
             });
             let cache = cache_dir();
             let task = format!("Command: {COMMAND_RELOAD_DEPENDENCIES}");
-            Backend::progress_start_option_token(&con.clone(), &progress, &task);
+            progress_start_option_token(&con.clone(), &progress, &task);
             tokio::select! {
                 () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
                 () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree, repos, project_artifacts, true) => {}
             }
-            Backend::progress_end_option_token(&con.clone(), &progress, &task);
+            progress_end_option_token(&con.clone(), &progress, &task);
         }
-        Backend::progress_end_option_token(&con.clone(), &progress, &task);
+        progress_end_option_token(&con.clone(), &progress, &task);
     });
 }
 pub async fn update_dependencies_cli() {
@@ -355,7 +352,7 @@ async fn reload_gradle_project_cli(con: Arc<Connection>, project_dir: PathBuf, e
 
     let task = "Load gradle project".to_string();
     let progress = Arc::new(Option::Some(ProgressToken::String(task.clone())));
-    Backend::progress_start_option_token(&con.clone(), &progress, &task);
+    progress_start_option_token(&con.clone(), &progress, &task);
     let project_cache_dir = project_cache_dir();
 
     let cache_path = get_gradle_cache_path(project_dir.as_path(), project_cache_dir.as_path());
@@ -368,7 +365,7 @@ async fn reload_gradle_project_cli(con: Arc<Connection>, project_dir: PathBuf, e
         () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
         () = gradle::project::index_project(class_map.clone(), sender, false, cache_path, executable.clone(), true) => {}
     }
-    Backend::progress_end_option_token(&con, &progress, &task);
+    progress_end_option_token(&con, &progress, &task);
 }
 
 async fn update_dependencies_maven_cli(
@@ -381,19 +378,19 @@ async fn update_dependencies_maven_cli(
     let progress = Arc::new(None);
 
     let task = "Load Dependency tree".to_string();
-    Backend::progress_start_option_token(&con.clone(), &progress, &task);
+    progress_start_option_token(&con.clone(), &progress, &task);
     let tree = get_tree(&project_kind, &con).await;
-    Backend::progress_end_option_token(&con.clone(), &progress, &task);
+    progress_end_option_token(&con.clone(), &progress, &task);
 
     let task = format!("Command: {COMMAND_UPDATE_DEPENDENCIES}");
-    Backend::progress_start_option_token(&con.clone(), &progress, &task);
+    progress_start_option_token(&con.clone(), &progress, &task);
     if let Some(tree) = tree {
         let sender = tokio::sync::watch::Sender::default();
         let _ = update::update(repos.clone(), &tree, sender).await;
         let sender = tokio::sync::watch::Sender::default();
         let cache = cache_dir();
         let task = format!("Command: {COMMAND_RELOAD_DEPENDENCIES}");
-        Backend::progress_start_option_token(&con.clone(), &progress, &task);
+        progress_start_option_token(&con.clone(), &progress, &task);
         project_deps(
             sender,
             project_kind,
@@ -407,9 +404,9 @@ async fn update_dependencies_maven_cli(
             true,
         )
         .await;
-        Backend::progress_end_option_token(&con.clone(), &progress, &task);
+        progress_end_option_token(&con.clone(), &progress, &task);
     }
-    Backend::progress_end_option_token(&con.clone(), &progress, &task);
+    progress_end_option_token(&con.clone(), &progress, &task);
 }
 
 pub const COMMAND_CMD: &str = "java_lsp.cmd";
@@ -434,7 +431,7 @@ pub fn cmd(
     let j = args.join("_");
     cmd_str.push_str(&j);
 
-    Backend::progress_start_option_token(con, &token, &cmd_str);
+    progress_start_option_token(con, &token, &cmd_str);
     let out = Command::new(e)
         .args(args)
         .stdout(Stdio::piped())
@@ -451,14 +448,14 @@ pub fn cmd(
         let mut path = temp.join(format!("{}_{cmd_str}", now.as_secs()));
         path.set_extension("log");
         if let Some(p) = path.to_str() {
-            Backend::open_log(con, &NuVec::new(p.as_bytes()));
+            open_log(con, &NuVec::new(p.as_bytes()));
         }
         File::create(&path).map_err(CommandError::FileCreate)?;
         std::fs::write(&path, out.stderr).map_err(CommandError::WriteFile)?;
         std::fs::write(path, out.stdout).map_err(CommandError::WriteFile)?;
     }
 
-    Backend::progress_end_option_token(con, &token, "Run command");
+    progress_end_option_token(con, &token, "Run command");
     Ok(())
 }
 

@@ -22,13 +22,11 @@ use lsp_types::{
     },
 };
 
+use command::{COMMAND_CMD, COMMAND_RELOAD_DEPENDENCIES, COMMAND_UPDATE_DEPENDENCIES};
 use lsp_server::{Message, RequestId, Response};
 use serde_json::{Value, from_value, to_value};
 
-use crate::{
-    backend::Backend,
-    command::{COMMAND_CMD, COMMAND_RELOAD_DEPENDENCIES, COMMAND_UPDATE_DEPENDENCIES},
-};
+use crate::backend::Backend;
 
 #[must_use]
 pub fn get_server_capabilities(config: &Configuration) -> ServerCapabilities {

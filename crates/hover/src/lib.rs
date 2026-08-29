@@ -227,7 +227,7 @@ fn format_method(m: &Method, class_name: &NuVec) -> NuVec {
 fn variables_to_hover(vars: &[&LocalVariable], range: Range) -> Hover {
     Hover {
         contents: HoverContents::Markup(MarkupContent {
-            kind: MarkupKind::Markdown,
+            kind: MarkupKind::PlainText,
             value: vars
                 .iter()
                 .map(|i| format_variable_hover(i))
@@ -291,30 +291,40 @@ fn class_to_hover(class: &Class, range: Range) -> Hover {
 #[must_use]
 pub fn class_to_markdown(class: &Class) -> String {
     let mut o = NuVecBuilder::new();
-    let has_fields = !class.fields.is_empty();
-    if !class.methods.is_empty() {
+    {
+        let mut first = true;
         for i in &class.methods {
             if i.access.intersects(Access::Private | Access::Deprecated) {
                 continue;
             }
+            if first {
+                first = false;
+            } else {
+                o.push(b'\n');
+            }
             o.extend(&format_method(i, &class.name));
-            o.push(b'\n');
-        }
-        if has_fields {
-            o.push(b'\n');
         }
     }
-    if has_fields {
-        o.pusha(b"// Fields\n");
+    {
+        let mut header = false;
+        let mut first = true;
         for i in &class.fields {
             if i.access.intersects(Access::Private | Access::Deprecated) {
                 continue;
             }
+            if !header {
+                header = true;
+                o.pusha(b"\n// Fields\n");
+            }
+            if first {
+                first = false;
+            } else {
+                o.push(b'\n');
+            }
             o.extend(&format_field(i));
-            o.push(b'\n');
         }
     }
-    let value = o.finish();
+    let value = o.finish().trim_end_matches_byte(b'\n');
     value.to_string()
 }
 
@@ -333,7 +343,7 @@ mod tests {
     use my_string::NuVec;
     use variables::VariableContext;
 
-    use crate::hover::{call_chain_hover, class_action};
+    use crate::{call_chain_hover, class_action};
 
     #[test]
     fn class_action_base() {

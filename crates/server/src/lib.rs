@@ -5,29 +5,16 @@
 #![allow(clippy::too_many_lines)]
 #![allow(clippy::implicit_hasher)]
 pub mod backend;
-pub mod code_lens;
-pub mod codeaction;
-pub mod command;
-pub mod completion;
-pub mod definition;
-pub mod document_link;
-pub mod folding_range;
-pub mod hover;
-pub mod inlay_hint;
-pub mod references;
 pub mod router;
-pub mod signature;
 pub mod snipptes;
 
 use std::{ffi::OsString, path::PathBuf, sync::Arc};
 
 use lsp_server::{Connection, IoThreads, ProtocolError};
 use lsp_types::{InitializeParams, ProgressToken};
+use project::project_kind_to_project;
 
-use crate::{
-    backend::{Backend, project_kind_to_project},
-    router::get_server_capabilities,
-};
+use crate::{backend::Backend, router::get_server_capabilities};
 
 /// Accept connection over stdio
 ///

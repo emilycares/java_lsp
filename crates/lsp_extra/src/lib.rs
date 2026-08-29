@@ -3,14 +3,22 @@
 #![deny(clippy::nursery)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
-use std::{num::TryFromIntError, str::FromStr};
+use std::{num::TryFromIntError, str::FromStr, sync::Arc};
 
 use ast::{
     error::{AstError, get_pos},
     lexer::{LexerError, PositionToken},
     types::{AstPoint, AstRange},
 };
-use lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range, Uri};
+use common::TaskProgress;
+use lsp_server::{Connection, Message};
+use lsp_types::{
+    Diagnostic, DiagnosticSeverity, Position, ProgressParams, ProgressParamsValue, ProgressToken,
+    PublishDiagnosticsParams, Range, ShowDocumentParams, Uri, WorkDoneProgress,
+    WorkDoneProgressBegin, WorkDoneProgressEnd, WorkDoneProgressReport,
+    notification::{Notification, Progress, PublishDiagnostics},
+    request::{Request, ShowDocument},
+};
 use my_string::{NuVec, NuVecBuilder};
 
 pub const SERVER_NAME: &str = "java_lsp";
@@ -325,4 +333,169 @@ fn diag(message: String, found: &PositionToken) -> Diagnostic {
         None,
         None,
     )
+}
+
+pub fn progress_start_option_token(
+    con: &Arc<Connection>,
+    token: &Arc<Option<ProgressToken>>,
+    title: &str,
+) {
+    if let Some(token) = token.as_ref() {
+        progress_start_token(con, token, title);
+        return;
+    }
+    progress_start(con, title);
+}
+fn progress_start_token(con: &Arc<Connection>, token: &ProgressToken, title: &str) {
+    eprintln!("Start progress on: {title}");
+    if let Ok(params) = serde_json::to_value(ProgressParams {
+        token: token.to_owned(),
+        value: ProgressParamsValue::WorkDone(WorkDoneProgress::Begin(WorkDoneProgressBegin {
+            title: title.to_owned(),
+            cancellable: None,
+            message: None,
+            percentage: None,
+        })),
+    }) {
+        let _ = con
+            .sender
+            .send(Message::Notification(lsp_server::Notification {
+                method: Progress::METHOD.to_string(),
+                params,
+            }));
+    }
+}
+
+pub fn progress_start(con: &Arc<Connection>, task: &str) {
+    let token = ProgressToken::String(task.to_owned());
+    progress_start_token(con, &token, task);
+}
+pub fn progress_update_percentage_option_token(
+    con: &Arc<Connection>,
+    token: &Arc<Option<ProgressToken>>,
+    task: &str,
+    message: String,
+    percentage: u32,
+) {
+    if let Some(token) = token.as_ref() {
+        progress_update_percentage_token(con, token, task, message, percentage);
+        return;
+    }
+    progress_update_percentage(con, task, message, percentage);
+}
+pub fn progress_update_percentage(
+    con: &Arc<Connection>,
+    task: &str,
+    message: String,
+    percentage: u32,
+) {
+    let token = ProgressToken::String(task.to_owned());
+    progress_update_percentage_token(con, &token, task, message, percentage);
+}
+pub fn progress_update_percentage_token(
+    con: &Arc<Connection>,
+    token: &ProgressToken,
+    task: &str,
+    message: String,
+    percentage: u32,
+) {
+    eprintln!("Report progress on: {task} {percentage:?} status: {message}");
+    if let Ok(params) = serde_json::to_value(ProgressParams {
+        token: token.to_owned(),
+        value: ProgressParamsValue::WorkDone(WorkDoneProgress::Report(WorkDoneProgressReport {
+            cancellable: Some(false),
+            message: Some(message),
+            percentage: Some(percentage),
+        })),
+    }) {
+        let _ = con
+            .sender
+            .try_send(Message::Notification(lsp_server::Notification {
+                method: Progress::METHOD.to_string(),
+                params,
+            }));
+    }
+}
+pub fn progress_end_option_token(
+    con: &Arc<Connection>,
+    token: &Arc<Option<ProgressToken>>,
+    task: &str,
+) {
+    if let Some(token) = token.as_ref() {
+        progress_end_token(con, token, task);
+        return;
+    }
+    progress_end(con, task);
+}
+pub fn progress_end_token(con: &Arc<Connection>, token: &ProgressToken, task: &str) {
+    eprintln!("End progress on: {task}");
+    if let Ok(params) = serde_json::to_value(ProgressParams {
+        token: token.to_owned(),
+        value: ProgressParamsValue::WorkDone(WorkDoneProgress::End(WorkDoneProgressEnd {
+            message: None,
+        })),
+    }) {
+        let _ = con
+            .sender
+            .send(Message::Notification(lsp_server::Notification {
+                method: Progress::METHOD.to_string(),
+                params,
+            }));
+    }
+}
+pub fn progress_end(con: &Arc<Connection>, task: &str) {
+    let token = ProgressToken::String(task.to_owned());
+    progress_end_token(con, &token, task);
+}
+pub fn open_log(con: &Connection, path: &NuVec) {
+    if let Ok(uri) = source_to_uri(path)
+        && let Ok(params) = serde_json::to_value(ShowDocumentParams {
+            uri,
+            external: None,
+            take_focus: Some(true),
+            selection: None,
+        })
+    {
+        let _ = con.sender.send(Message::Request(lsp_server::Request {
+            id: 1.into(),
+            method: ShowDocument::METHOD.to_string(),
+            params,
+        }));
+    }
+}
+
+pub fn send_diagnostic(con: &Arc<Connection>, uri: Uri, diagnostics: Vec<Diagnostic>) {
+    if let Ok(params) = serde_json::to_value(PublishDiagnosticsParams {
+        uri,
+        diagnostics,
+        version: None,
+    }) {
+        let _ = con
+            .sender
+            .send(Message::Notification(lsp_server::Notification {
+                method: PublishDiagnostics::METHOD.to_string(),
+                params,
+            }));
+    }
+}
+
+pub async fn read_forward(
+    mut rx: tokio::sync::watch::Receiver<TaskProgress>,
+    con: Arc<Connection>,
+    task: String,
+    token: Arc<Option<ProgressToken>>,
+) {
+    loop {
+        if rx.changed().await.is_err() {
+            break;
+        }
+        let i = rx.borrow();
+        progress_update_percentage_option_token(
+            &con.clone(),
+            &token,
+            &task,
+            i.message.clone(),
+            i.percentage,
+        );
+    }
 }

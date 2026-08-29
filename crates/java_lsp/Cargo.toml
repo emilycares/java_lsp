@@ -11,4 +11,5 @@ cli.workspace = true
 server.workspace = true
 jdk.workspace = true
 editorconfig.workspace = true
+command.workspace = true
 workspace_hack = { version = "0.1", path = "../workspace_hack" }

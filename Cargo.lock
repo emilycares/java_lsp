@@ -131,6 +131,62 @@ dependencies = [
 ]
 
 [[package]]
+name = "code_action"
+version = "0.1.0"
+dependencies = [
+ "ast",
+ "call_chain",
+ "document",
+ "document_link",
+ "dto",
+ "expect-test",
+ "get_class",
+ "local_variable",
+ "lsp-types",
+ "lsp_extra",
+ "my_string",
+ "parser",
+ "tyres",
+ "variables",
+ "workspace_hack",
+]
+
+[[package]]
+name = "code_lens"
+version = "0.1.0"
+dependencies = [
+ "ast",
+ "command",
+ "common",
+ "config",
+ "document_link",
+ "lsp-types",
+ "lsp_extra",
+ "my_string",
+ "serde_json",
+ "workspace_hack",
+]
+
+[[package]]
+name = "command"
+version = "0.1.0"
+dependencies = [
+ "common",
+ "dirs",
+ "dto",
+ "gradle",
+ "lsp-server",
+ "lsp-types",
+ "lsp_extra",
+ "maven",
+ "my_string",
+ "project",
+ "serde_json",
+ "tokio",
+ "workspace_hack",
+]
+
+[[package]]
 name = "common"
 version = "0.1.0"
 dependencies = [
@@ -143,6 +199,25 @@ name = "compile"
 version = "0.1.0"
 dependencies = [
  "expect-test",
+ "workspace_hack",
+]
+
+[[package]]
+name = "completion"
+version = "0.1.0"
+dependencies = [
+ "ast",
+ "call_chain",
+ "code_action",
+ "document",
+ "dto",
+ "get_class",
+ "hover",
+ "imports",
+ "local_variable",
+ "lsp-types",
+ "my_string",
+ "tyres",
  "workspace_hack",
 ]
 
@@ -208,6 +283,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "definition"
+version = "0.1.0"
+dependencies = [
+ "ast",
+ "call_chain",
+ "document",
+ "dto",
+ "expect-test",
+ "hover",
+ "imports",
+ "local_variable",
+ "lsp-types",
+ "lsp_extra",
+ "my_string",
+ "parser",
+ "position",
+ "tyres",
+ "variables",
+ "workspace_hack",
+]
+
+[[package]]
 name = "derive_arbitrary"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -240,6 +337,18 @@ dependencies = [
  "lsp_extra",
  "my_string",
  "ropey",
+ "workspace_hack",
+]
+
+[[package]]
+name = "document_link"
+version = "0.1.0"
+dependencies = [
+ "document",
+ "lsp-types",
+ "lsp_extra",
+ "my_string",
+ "position",
  "workspace_hack",
 ]
 
@@ -310,6 +419,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17c704e9dbe1ddd863da1e6ff3567795087b1eb201ce80d8fa81162e1516500d"
 dependencies = [
  "bitflags 1.3.2",
+]
+
+[[package]]
+name = "folding_range"
+version = "0.1.0"
+dependencies = [
+ "ast",
+ "expect-test",
+ "lsp-types",
+ "workspace_hack",
 ]
 
 [[package]]
@@ -386,12 +505,48 @@ dependencies = [
 ]
 
 [[package]]
+name = "hover"
+version = "0.1.0"
+dependencies = [
+ "ast",
+ "call_chain",
+ "document",
+ "dto",
+ "expect-test",
+ "get_class",
+ "local_variable",
+ "lsp-types",
+ "lsp_extra",
+ "my_string",
+ "tyres",
+ "variables",
+ "workspace_hack",
+]
+
+[[package]]
 name = "imports"
 version = "0.1.0"
 dependencies = [
  "ast",
  "dto",
  "my_string",
+ "workspace_hack",
+]
+
+[[package]]
+name = "inlay_hint"
+version = "0.1.0"
+dependencies = [
+ "document",
+ "dto",
+ "expect-test",
+ "imports",
+ "local_variable",
+ "lsp-types",
+ "lsp_extra",
+ "my_string",
+ "parser",
+ "variables",
  "workspace_hack",
 ]
 
@@ -406,6 +561,7 @@ name = "java_lsp"
 version = "0.1.0"
 dependencies = [
  "cli",
+ "command",
  "editorconfig",
  "jdk",
  "server",
@@ -540,8 +696,12 @@ name = "lsp_extra"
 version = "0.1.0"
 dependencies = [
  "ast",
+ "common",
+ "lsp-server",
  "lsp-types",
  "my_string",
+ "serde_json",
+ "tokio",
  "workspace_hack",
 ]
 
@@ -800,6 +960,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "project"
+version = "0.1.0"
+dependencies = [
+ "common",
+ "dto",
+ "gradle",
+ "lsp-server",
+ "lsp-types",
+ "lsp_extra",
+ "maven",
+ "my_string",
+ "tokio",
+ "workspace_hack",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -848,6 +1024,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed2bf2547551a7053d6fdfafda3f938979645c44812fbfcda098faae3f1a362d"
 dependencies = [
  "bitflags 2.13.0",
+]
+
+[[package]]
+name = "references"
+version = "0.1.0"
+dependencies = [
+ "ast",
+ "call_chain",
+ "document",
+ "dto",
+ "local_variable",
+ "lsp-types",
+ "lsp_extra",
+ "my_string",
+ "position",
+ "tyres",
+ "workspace_hack",
 ]
 
 [[package]]
@@ -947,21 +1140,26 @@ version = "0.1.0"
 dependencies = [
  "ast",
  "call_chain",
+ "code_action",
+ "code_lens",
+ "command",
  "common",
  "compile",
+ "completion",
  "config",
- "dirs",
+ "definition",
  "document",
+ "document_link",
  "dto",
  "editorconfig",
- "expect-test",
+ "folding_range",
  "formatter",
- "get_class",
  "gradle",
+ "hover",
  "imports",
+ "inlay_hint",
  "jdk",
  "loader",
- "local_variable",
  "lsp-server",
  "lsp-types",
  "lsp_extra",
@@ -969,9 +1167,11 @@ dependencies = [
  "my_string",
  "parser",
  "position",
+ "project",
+ "references",
  "serde_json",
+ "signature",
  "tokio",
- "tyres",
  "variables",
  "workspace_hack",
 ]
@@ -996,6 +1196,24 @@ checksum = "c4db69cba1110affc0e9f7bcd48bbf87b3f4fc7c61fc9155afd4c469eb3d6c1b"
 dependencies = [
  "errno",
  "libc",
+]
+
+[[package]]
+name = "signature"
+version = "0.1.0"
+dependencies = [
+ "ast",
+ "call_chain",
+ "document",
+ "dto",
+ "expect-test",
+ "imports",
+ "local_variable",
+ "lsp-types",
+ "my_string",
+ "tyres",
+ "variables",
+ "workspace_hack",
 ]
 
 [[package]]

@@ -14,7 +14,7 @@ use my_string::NuVec;
 use position::PositionSymbol;
 use tyres::TyresError;
 
-use crate::hover::{ClassActionError, class_action};
+use hover::{ClassActionError, class_action};
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -265,11 +265,10 @@ fn go_to_definition_range(
 mod tests {
     use std::{path::PathBuf, str::FromStr};
 
+    use document::get_document_map_key;
     use dto::{Access, JType, Method, SourceDestination};
     use expect_test::expect;
     use variables::VariableContext;
-
-    use crate::backend::get_document_map_key;
 
     use super::*;
 

@@ -18,7 +18,7 @@ use lsp_types::{
 use my_string::NuVec;
 use tyres::TyresError;
 
-use crate::document_link::{SRC_MAIN, SRC_TEST};
+use document_link::{SRC_MAIN, SRC_TEST};
 
 pub struct CodeActionContext<'a> {
     pub point: &'a AstPoint,
@@ -33,7 +33,6 @@ pub struct CodeActionContext<'a> {
 #[derive(Debug)]
 pub enum CodeActionError {
     NoCallCain,
-    ParseJava(parser::java::ParseJavaError),
     Tyres(TyresError),
     Int(TryFromIntError),
     ToLspRange(ToLspRangeError),
@@ -508,7 +507,7 @@ pub mod tests {
     use my_string::NuVec;
     use variables::VariableContext;
 
-    use crate::codeaction::{generate_class, replace_with_value_type};
+    use crate::{generate_class, replace_with_value_type};
 
     use super::CodeActionContext;
 

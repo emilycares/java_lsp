@@ -1,22 +1,33 @@
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     ffi::OsString,
-    fs,
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::{Arc, Mutex, RwLock},
 };
 
 use ast::types::AstFile;
 use call_chain::get_call_chain;
-use common::{Dependency, TaskProgress, project_kind::ProjectKind};
+use code_action::{self, CodeActionContext};
+use code_lens::{self, CodeLensError};
+use command::{
+    self, COMMAND_CMD, COMMAND_RELOAD_DEPENDENCIES, COMMAND_UPDATE_DEPENDENCIES,
+    reload_gradle_project, reload_maven_project,
+};
+use common::{TaskProgress, project_kind::ProjectKind};
 use compile::CompileErrorMessage;
 use config::{Configuration, FormatterConfig};
-use document::{Document, DocumentError, get_class_path, open_document};
+use document::{Document, DocumentError, get_class_path, get_document_map_key, open_document};
+use document_link::get_document_link;
 use dto::Class;
 use editorconfig::{EditorConfig, IndentStyle};
-use gradle::project::get_gradle_cache_path;
-use lsp_extra::{SERVER_NAME, source_to_uri, to_ast_point};
-use lsp_server::{Connection, Message};
+use hover::{self, class_action};
+use inlay_hint::get_inlay_hint;
+use lsp_extra::{
+    SERVER_NAME, progress_end_option_token, progress_start_option_token,
+    progress_update_percentage_option_token, read_forward, send_diagnostic, source_to_uri,
+    to_ast_point,
+};
+use lsp_server::Connection;
 use lsp_types::{
     ClientCapabilities, CodeActionOrCommand, CodeActionParams, CodeActionResponse, CodeLens,
     CodeLensParams, Command, CompletionItem, CompletionItemKind, CompletionList, CompletionParams,
@@ -25,47 +36,18 @@ use lsp_types::{
     DocumentFormattingParams, DocumentLink, DocumentLinkParams, DocumentOnTypeFormattingParams,
     DocumentSymbolParams, DocumentSymbolResponse, ExecuteCommandParams, FoldingRange,
     FormattingOptions, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams, InlayHint,
-    InlayHintParams, InsertTextFormat, Location, Position, ProgressParams, ProgressParamsValue,
-    ProgressToken, PublishDiagnosticsParams, Range, ReferenceParams, ShowDocumentParams,
-    SignatureHelp, SignatureHelpParams, TextEdit, Uri, WorkDoneProgress, WorkDoneProgressBegin,
-    WorkDoneProgressEnd, WorkDoneProgressReport, WorkspaceFolder,
-    notification::{Notification, Progress, PublishDiagnostics},
-    request::{Request, ShowDocument},
-};
-use maven::{
-    pom::load_pom_xml,
-    project::get_maven_cache_path,
-    repository::Repository,
-    update::{self, MavenUpdateError},
+    InlayHintParams, InsertTextFormat, Location, Position, ProgressToken, Range, ReferenceParams,
+    SignatureHelp, SignatureHelpParams, TextEdit, Uri, WorkspaceFolder,
 };
 use my_string::NuVec;
+use project::{Project, get_project_artifacts, project_kind_to_project};
+use references::{self, ReferenceUnit, ReferencesContext};
 use serde_json::Value;
 use tokio::task::JoinSet;
 use variables::VariableContext;
 
-use crate::{
-    code_lens::{self, CodeLensError},
-    codeaction::{self, CodeActionContext},
-    command::{
-        self, COMMAND_CMD, COMMAND_RELOAD_DEPENDENCIES, COMMAND_UPDATE_DEPENDENCIES,
-        reload_gradle_project, reload_maven_project,
-    },
-    completion,
-    definition::{self, DefinitionContext},
-    document_link::get_document_link,
-    folding_range,
-    hover::{self, class_action},
-    inlay_hint::get_inlay_hint,
-    references::{self, ReferenceUnit, ReferencesContext},
-    signature, snipptes,
-};
-
-#[derive(Debug, Clone)]
-pub struct Project {
-    pub artifact_id: String,
-    pub dir: String,
-    pub kind: ProjectKind,
-}
+use crate::snipptes;
+use definition::{self, DefinitionContext};
 
 pub struct Backend {
     pub error_files: Arc<Mutex<HashSet<String>>>,
@@ -91,136 +73,6 @@ impl Backend {
             config: Configuration::default(),
             projects: Arc::new(RwLock::new(Vec::new())),
         }
-    }
-
-    pub fn send_diagnostic(con: &Arc<Connection>, uri: Uri, diagnostics: Vec<Diagnostic>) {
-        if let Ok(params) = serde_json::to_value(PublishDiagnosticsParams {
-            uri,
-            diagnostics,
-            version: None,
-        }) {
-            let _ = con
-                .sender
-                .send(Message::Notification(lsp_server::Notification {
-                    method: PublishDiagnostics::METHOD.to_string(),
-                    params,
-                }));
-        }
-    }
-    pub fn progress_start_option_token(
-        con: &Arc<Connection>,
-        token: &Arc<Option<ProgressToken>>,
-        title: &str,
-    ) {
-        if let Some(token) = token.as_ref() {
-            Self::progress_start_token(con, token, title);
-            return;
-        }
-        Self::progress_start(con, title);
-    }
-    fn progress_start_token(con: &Arc<Connection>, token: &ProgressToken, title: &str) {
-        eprintln!("Start progress on: {title}");
-        if let Ok(params) = serde_json::to_value(ProgressParams {
-            token: token.to_owned(),
-            value: ProgressParamsValue::WorkDone(WorkDoneProgress::Begin(WorkDoneProgressBegin {
-                title: title.to_owned(),
-                cancellable: None,
-                message: None,
-                percentage: None,
-            })),
-        }) {
-            let _ = con
-                .sender
-                .send(Message::Notification(lsp_server::Notification {
-                    method: Progress::METHOD.to_string(),
-                    params,
-                }));
-        }
-    }
-
-    fn progress_start(con: &Arc<Connection>, task: &str) {
-        let token = ProgressToken::String(task.to_owned());
-        Self::progress_start_token(con, &token, task);
-    }
-    fn progress_update_percentage_option_token(
-        con: &Arc<Connection>,
-        token: &Arc<Option<ProgressToken>>,
-        task: &str,
-        message: String,
-        percentage: u32,
-    ) {
-        if let Some(token) = token.as_ref() {
-            Self::progress_update_percentage_token(con, token, task, message, percentage);
-            return;
-        }
-        Self::progress_update_percentage(con, task, message, percentage);
-    }
-    fn progress_update_percentage(
-        con: &Arc<Connection>,
-        task: &str,
-        message: String,
-        percentage: u32,
-    ) {
-        let token = ProgressToken::String(task.to_owned());
-        Self::progress_update_percentage_token(con, &token, task, message, percentage);
-    }
-    fn progress_update_percentage_token(
-        con: &Arc<Connection>,
-        token: &ProgressToken,
-        task: &str,
-        message: String,
-        percentage: u32,
-    ) {
-        eprintln!("Report progress on: {task} {percentage:?} status: {message}");
-        if let Ok(params) = serde_json::to_value(ProgressParams {
-            token: token.to_owned(),
-            value: ProgressParamsValue::WorkDone(WorkDoneProgress::Report(
-                WorkDoneProgressReport {
-                    cancellable: Some(false),
-                    message: Some(message),
-                    percentage: Some(percentage),
-                },
-            )),
-        }) {
-            let _ = con
-                .sender
-                .try_send(Message::Notification(lsp_server::Notification {
-                    method: Progress::METHOD.to_string(),
-                    params,
-                }));
-        }
-    }
-    pub fn progress_end_option_token(
-        con: &Arc<Connection>,
-        token: &Arc<Option<ProgressToken>>,
-        task: &str,
-    ) {
-        if let Some(token) = token.as_ref() {
-            Self::progress_end_token(con, token, task);
-            return;
-        }
-        Self::progress_end(con, task);
-    }
-    fn progress_end_token(con: &Arc<Connection>, token: &ProgressToken, task: &str) {
-        eprintln!("End progress on: {task}");
-        if let Ok(params) = serde_json::to_value(ProgressParams {
-            token: token.to_owned(),
-            value: ProgressParamsValue::WorkDone(WorkDoneProgress::End(WorkDoneProgressEnd {
-                message: None,
-            })),
-        }) {
-            let _ = con
-                .sender
-                .send(Message::Notification(lsp_server::Notification {
-                    method: Progress::METHOD.to_string(),
-                    params,
-                }));
-        }
-    }
-
-    fn progress_end(con: &Arc<Connection>, task: &str) {
-        let token = ProgressToken::String(task.to_owned());
-        Self::progress_end_token(con, &token, task);
     }
 
     fn compile(&self, path: &str, uri: &Uri) -> Option<Vec<CompileErrorMessage>> {
@@ -285,10 +137,10 @@ impl Backend {
                     } else {
                         let errs: Vec<Diagnostic> =
                             errs.iter().map(compile_error_to_diagnostic).collect();
-                        Self::send_diagnostic(&self.connection.clone(), uri, errs);
+                        send_diagnostic(&self.connection.clone(), uri, errs);
                     }
                 } else {
-                    Self::send_diagnostic(&self.connection.clone(), uri, vec![]);
+                    send_diagnostic(&self.connection.clone(), uri, vec![]);
                 }
             }
         }
@@ -304,7 +156,7 @@ impl Backend {
         projects: Arc<RwLock<Vec<Project>>>,
     ) {
         let progress = Arc::new(progress);
-        Self::progress_start_option_token(&con, &progress, "Init");
+        progress_start_option_token(&con, &progress, "Init");
         let mut handles = JoinSet::new();
         {
             let con = con.clone();
@@ -320,12 +172,12 @@ impl Backend {
                         message: "...".to_string(),
                     });
 
-                Self::progress_start_option_token(&con.clone(), &progress, task);
+                progress_start_option_token(&con.clone(), &progress, task);
                 tokio::select! {
                     () = read_forward(receiver, con.clone(), task.to_owned(), progress.clone())  => {},
                     _ = jdk::load_classes(class_map, sender, &path) => {}
                 }
-                Self::progress_end_option_token(&con.clone(), &progress, task);
+                progress_end_option_token(&con.clone(), &progress, task);
             });
         }
         {
@@ -359,7 +211,7 @@ impl Backend {
 
         let _ = handles.join_all().await;
 
-        Self::progress_end_option_token(&con, &progress, "Init");
+        progress_end_option_token(&con, &progress, "Init");
     }
 
     pub fn did_open(&self, params: &DidOpenTextDocumentParams) {
@@ -383,7 +235,7 @@ impl Backend {
                 eprintln!("Error while on_open: {e:?}");
             }
         }
-        Self::send_diagnostic(
+        send_diagnostic(
             &self.connection,
             params.text_document.uri.clone(),
             current_file_diagnostics,
@@ -420,7 +272,7 @@ impl Backend {
         {
             errors.push(*diag);
         }
-        Self::send_diagnostic(
+        send_diagnostic(
             &self.connection.clone(),
             params.text_document.uri.clone(),
             errors,
@@ -462,7 +314,7 @@ impl Backend {
             eprintln!("class_map mutex poisoned");
         }
 
-        Self::send_diagnostic(
+        send_diagnostic(
             &self.connection,
             params.text_document.uri.clone(),
             current_file_diagnostics,
@@ -823,7 +675,7 @@ impl Backend {
         }
         let document = self.get_document(&params.text_document.uri)?;
         let current_file = params.text_document.uri;
-        match codeaction::generate_class(&document.ast, &current_file) {
+        match code_action::generate_class(&document.ast, &current_file) {
             Ok(None) => (),
             Ok(Some(e)) => return Some(vec![e]),
             Err(e) => {
@@ -836,7 +688,7 @@ impl Backend {
 
         let class = self.get_class(&document.ast)?;
 
-        if let Some(imps) = codeaction::import_jtype(
+        if let Some(imps) = code_action::import_jtype(
             &document.ast,
             &point,
             &imports,
@@ -870,7 +722,7 @@ impl Backend {
             current_file: &current_file,
         };
 
-        match codeaction::replace_with_value_type(&document.ast, &context) {
+        match code_action::replace_with_value_type(&document.ast, &context) {
             Ok(None) => (),
             Ok(Some(e)) => return Some(vec![e]),
             Err(e) => {
@@ -1072,23 +924,6 @@ impl Backend {
         }
     }
 
-    pub fn open_log(con: &Connection, path: &NuVec) {
-        if let Ok(uri) = source_to_uri(path)
-            && let Ok(params) = serde_json::to_value(ShowDocumentParams {
-                uri,
-                external: None,
-                take_focus: Some(true),
-                selection: None,
-            })
-        {
-            let _ = con.sender.send(Message::Request(lsp_server::Request {
-                id: 1.into(),
-                method: ShowDocument::METHOD.to_string(),
-                params,
-            }));
-        }
-    }
-
     pub fn fill_projects(&self, workspace_folders: Option<Vec<WorkspaceFolder>>) {
         let Some(path) = std::env::var_os("PATH") else {
             return;
@@ -1119,7 +954,7 @@ impl Backend {
         let t = tokio::runtime::Handle::current();
         let task = "Load Added proejects";
         let progress = Arc::new(Some(ProgressToken::String(String::from(task))));
-        Self::progress_start_option_token(&con, &progress, task);
+        progress_start_option_token(&con, &progress, task);
         t.spawn(async move {
             let mut handles = JoinSet::new();
             if let Ok(projs) = projects.read() {
@@ -1147,7 +982,7 @@ impl Backend {
                 }
             }
             let _ = handles.join_all().await;
-            Self::progress_end_option_token(&con, &progress, task);
+            progress_end_option_token(&con, &progress, task);
         });
     }
 
@@ -1214,8 +1049,8 @@ async fn load_project_files(
     let task = format!("Project {}", p.artifact_id);
     let project_dir = project_dir.as_path();
     let progress = Arc::new(Option::Some(ProgressToken::String(task.clone())));
-    Backend::progress_start_option_token(&con, &progress, &task);
-    Backend::progress_update_percentage_option_token(
+    progress_start_option_token(&con, &progress, &task);
+    progress_update_percentage_option_token(
         &con.clone(),
         &progress,
         &task,
@@ -1239,7 +1074,7 @@ async fn load_project_files(
     } else {
         eprintln!("class_map mutex poisoned");
     }
-    Backend::progress_update_percentage_option_token(
+    progress_update_percentage_option_token(
         &con.clone(),
         &progress,
         &task,
@@ -1250,43 +1085,7 @@ async fn load_project_files(
         Ok(()) => (),
         Err(e) => eprintln!("Got reference error: {e:?}"),
     }
-    Backend::progress_end_option_token(&con.clone(), &progress, &task);
-}
-
-#[must_use]
-pub fn get_project_artifacts(projs: &[Project]) -> Arc<Vec<String>> {
-    Arc::new(
-        projs
-            .iter()
-            .map(|i| i.artifact_id.clone())
-            .collect::<Vec<_>>(),
-    )
-}
-
-#[must_use]
-pub fn project_kind_to_project(dir: &str, kind: ProjectKind) -> Project {
-    if let ProjectKind::Maven { .. } = kind
-        && let Ok(pom) = load_pom_xml(PathBuf::from(dir).as_path())
-    {
-        return Project {
-            artifact_id: pom.artifact_id,
-            dir: dir.to_string(),
-            kind,
-        };
-    }
-    let p = Path::new(dir);
-    let artifact_id: String = if let Some(name) = p.file_name()
-        && let Some(name) = name.to_str()
-    {
-        name.to_string()
-    } else {
-        String::from("default")
-    };
-    Project {
-        artifact_id,
-        dir: dir.to_string(),
-        kind,
-    }
+    progress_end_option_token(&con.clone(), &progress, &task);
 }
 
 fn snippet_completion(name: &str, content: &str) -> CompletionItem {
@@ -1312,153 +1111,4 @@ fn compile_error_to_diagnostic(e: &CompileErrorMessage) -> Diagnostic {
         None,
         None,
     )
-}
-
-#[cfg(not(target_os = "windows"))]
-pub fn get_document_map_key(uri: &Uri) -> NuVec {
-    NuVec::new(uri.path().as_str().as_bytes())
-}
-#[cfg(target_os = "windows")]
-pub fn get_document_map_key(uri: &Uri) -> NuVec {
-    NuVec::new(uri.path().as_str().as_bytes())
-        // remove leading slash
-        .trim_start_matches_byte(b'/')
-        // url encoded colon
-        .replacen(b"%3A", b":", 1)
-}
-
-pub async fn read_forward(
-    mut rx: tokio::sync::watch::Receiver<TaskProgress>,
-    con: Arc<Connection>,
-    task: String,
-    token: Arc<Option<ProgressToken>>,
-) {
-    loop {
-        if rx.changed().await.is_err() {
-            break;
-        }
-        let i = rx.borrow();
-        Backend::progress_update_percentage_option_token(
-            &con.clone(),
-            &token,
-            &task,
-            i.message.clone(),
-            i.percentage,
-        );
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-pub async fn project_deps(
-    sender: tokio::sync::watch::Sender<TaskProgress>,
-    project_kind: ProjectKind,
-    class_map: Arc<RwLock<HashMap<NuVec, Class>>>,
-    use_cache: bool,
-    project_dir: &Path,
-    project_cache_dir: &Path,
-    tree: &[Dependency],
-    repos: Arc<Vec<Repository>>,
-    project_artifacts: Arc<Vec<String>>,
-    online: bool,
-) {
-    let cache_path = match project_kind {
-        ProjectKind::Maven { .. } => Some(get_maven_cache_path(project_dir, project_cache_dir)),
-        ProjectKind::Gradle { .. } => Some(get_gradle_cache_path(project_dir, project_cache_dir)),
-        ProjectKind::Unknown => None,
-    };
-    if let Some(cache_path) = cache_path {
-        match maven::project::project_deps(
-            class_map,
-            sender,
-            use_cache,
-            tree,
-            cache_path,
-            repos,
-            project_artifacts,
-            online,
-        )
-        .await
-        {
-            Ok(()) => (),
-            Err(e) => {
-                eprintln!("Got error while loading maven project: {e:?}");
-            }
-        }
-    }
-}
-pub async fn update_report(
-    project_kind: ProjectKind,
-    con: Arc<Connection>,
-    repos: Arc<Vec<Repository>>,
-    tree: &[Dependency],
-    sender: tokio::sync::watch::Sender<TaskProgress>,
-) {
-    let res = update::update(repos, tree, sender).await;
-    let Err(res) = res else {
-        return;
-    };
-    let mut diagnostics = Vec::new();
-    let range = Range::default();
-    match res {
-        MavenUpdateError::Driver | MavenUpdateError::CurlMulti(_) | MavenUpdateError::Curl(_) => {
-            diagnostics.push(Diagnostic::new(
-                range,
-                Some(DiagnosticSeverity::ERROR),
-                None,
-                Some(String::from(SERVER_NAME)),
-                String::from("Error fetching dependencies"),
-                None,
-                None,
-            ));
-        }
-        MavenUpdateError::WriteHash(error)
-        | MavenUpdateError::WriteJar(error)
-        | MavenUpdateError::CreateDir(error)
-        | MavenUpdateError::WriteEtag(error) => {
-            let message = format!("Io error while update: {error}");
-            diagnostics.push(Diagnostic::new(
-                range,
-                Some(DiagnosticSeverity::ERROR),
-                None,
-                Some(String::from(SERVER_NAME)),
-                message,
-                None,
-                None,
-            ));
-        }
-        MavenUpdateError::MTwo(mtwo_error) => {
-            let message = format!("m2 error while update: {mtwo_error:?}");
-            diagnostics.push(Diagnostic::new(
-                range,
-                Some(DiagnosticSeverity::ERROR),
-                None,
-                Some(String::from(SERVER_NAME)),
-                message,
-                None,
-                None,
-            ));
-        }
-    }
-    report_maven_gradle_diagnostic(&project_kind, &con, diagnostics);
-}
-
-pub fn report_maven_gradle_diagnostic(
-    project_kind: &ProjectKind,
-    con: &Arc<Connection>,
-    diagnostics: Vec<Diagnostic>,
-) {
-    let source = match project_kind {
-        ProjectKind::Maven { .. } => Some(PathBuf::from("./pom.xml")),
-        ProjectKind::Gradle {
-            path_build_gradle, ..
-        } => Some(path_build_gradle.clone()),
-        ProjectKind::Unknown => None,
-    };
-    if let Some(source) = source
-        && let Ok(source) = fs::canonicalize(source)
-        && let Some(source) = source.to_str()
-        && let Ok(uri) = source_to_uri(&NuVec::new(source.as_bytes()))
-    {
-        Backend::send_diagnostic(con, uri, diagnostics);
-    }
 }

@@ -1,0 +1,29 @@
+[package]
+name = "code_action"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+documentation.workspace = true
+readme.workspace = true
+license.workspace = true
+
+[dependencies]
+ast.workspace = true
+call_chain.workspace = true
+local_variable.workspace = true
+lsp_extra.workspace = true
+lsp-types.workspace = true
+my_string.workspace = true
+tyres.workspace = true
+dto.workspace = true
+get_class.workspace = true
+document_link.workspace = true
+workspace_hack = { version = "0.1", path = "../workspace_hack" }
+
+[dev-dependencies]
+variables.workspace = true
+parser.workspace = true
+document.workspace = true
+expect-test.workspace = true

@@ -49,6 +49,18 @@ members = [
     "crates/dto_rw",
     "crates/lombok",
     "crates/editorconfig",
+    "crates/definition",
+    "crates/hover",
+    "crates/code_action",
+    "crates/document_link",
+    "crates/completion",
+    "crates/inlay_hint",
+    "crates/folding_range",
+    "crates/code_lens",
+    "crates/command",
+    "crates/project",
+    "crates/signature",
+    "crates/references",
 ]
 exclude = [
     "editor/zed",
@@ -107,6 +119,18 @@ expect-test = { path = "crates/expect-test"}
 dirs = { path = "crates/dirs"}
 lombok = { path = "crates/lombok"}
 editorconfig = { path = "crates/editorconfig"}
+definition = { path = "crates/definition"}
+hover = { path = "crates/hover"}
+code_action = { path = "crates/code_action"}
+document_link = { path = "crates/document_link"}
+completion = { path = "crates/completion"}
+inlay_hint = { path = "crates/inlay_hint"}
+folding_range = { path = "crates/folding_range"}
+code_lens = { path = "crates/code_lens"}
+command = { path = "crates/command"}
+project = { path = "crates/project"}
+signature = { path = "crates/signature"}
+references = { path = "crates/references"}
 
 # Rest
 bitflags = "2.13.0"

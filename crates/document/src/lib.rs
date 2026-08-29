@@ -16,7 +16,7 @@ use ast::{
     error::PrintErr,
     types::{AstFile, AstThing, AstTopLevel},
 };
-use lsp_types::{Diagnostic, TextDocumentContentChangeEvent};
+use lsp_types::{Diagnostic, TextDocumentContentChangeEvent, Uri};
 use my_string::{NuVec, NuVecBuilder};
 use ropey::Rope;
 
@@ -270,4 +270,17 @@ fn path_without_subclass(source: &NuVec) -> PathBuf {
         }
     }
     path
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn get_document_map_key(uri: &Uri) -> NuVec {
+    NuVec::new(uri.path().as_str().as_bytes())
+}
+#[cfg(target_os = "windows")]
+pub fn get_document_map_key(uri: &Uri) -> NuVec {
+    NuVec::new(uri.path().as_str().as_bytes())
+        // remove leading slash
+        .trim_start_matches_byte(b'/')
+        // url encoded colon
+        .replacen(b"%3A", b":", 1)
 }

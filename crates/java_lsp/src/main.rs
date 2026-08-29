@@ -1,6 +1,6 @@
 #![deny(clippy::redundant_clone)]
 use cli::Command;
-use server::command::{reload_dependencies_cli, update_dependencies_cli};
+use command::{reload_dependencies_cli, update_dependencies_cli};
 use tokio::runtime::LocalOptions;
 
 fn main() {
