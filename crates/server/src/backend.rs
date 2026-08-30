@@ -5,7 +5,6 @@ use std::{
     sync::{Arc, Mutex, RwLock},
 };
 
-use ast::types::AstFile;
 use call_chain::get_call_chain;
 use code_action::{self, CodeActionContext};
 use code_lens::{self, CodeLensError};
@@ -349,7 +348,7 @@ impl Backend {
         let point = to_ast_point(params.text_document_position_params.position);
         let imports = imports::imports(&document.ast);
 
-        let class = self.get_class(&document.ast)?;
+        let class = self.get_class(document)?;
 
         let vars = match variables::get_vars(
             &document.ast,
@@ -480,7 +479,7 @@ impl Backend {
         out.push(snippet_completion("if", snipptes::IF));
         out.push(snippet_completion("switch", snipptes::SWITCH));
 
-        let class = self.get_class(&document.ast)?;
+        let class = self.get_class(&document)?;
 
         let vars = match variables::get_vars(
             &document.ast,
@@ -540,7 +539,7 @@ impl Backend {
 
         let point = to_ast_point(params.position);
         let imports = imports::imports(&document.ast);
-        let class = self.get_class(&document.ast)?;
+        let class = self.get_class(&document)?;
 
         let vars = match variables::get_vars(
             &document.ast,
@@ -595,7 +594,7 @@ impl Backend {
 
         let point = to_ast_point(params.position);
         let imports = imports::imports(&document.ast);
-        let class = self.get_class(&document.ast)?;
+        let class = self.get_class(&document)?;
         let vars = match variables::get_vars(
             &document.ast,
             &VariableContext {
@@ -625,7 +624,7 @@ impl Backend {
             Err(e) => eprintln!("Got reference class error: {e:?}"),
         }
         let call_chain = get_call_chain(&document.ast, &point);
-        let class = self.get_class(&document.ast)?;
+        let class = self.get_class(&document)?;
         let context = ReferencesContext {
             point: &point,
             imports: &imports,
@@ -686,7 +685,7 @@ impl Backend {
 
         let imports = imports::imports(&document.ast);
 
-        let class = self.get_class(&document.ast)?;
+        let class = self.get_class(&document)?;
 
         if let Some(imps) = code_action::import_jtype(
             &document.ast,
@@ -764,7 +763,7 @@ impl Backend {
         let document = self.get_document(&uri)?;
 
         let point = to_ast_point(params.text_document_position_params.position);
-        let class = self.get_class(&document.ast)?;
+        let class = self.get_class(&document)?;
 
         match signature::signature_driver(&document, &point, &class, &self.class_map) {
             Ok(hover) => Some(hover),
@@ -868,27 +867,28 @@ impl Backend {
             return None;
         }
         let document = self.get_document(&uri)?;
-        let class = self.get_class(&document.ast)?;
+        let class = self.get_class(&document)?;
         let imports = imports::imports(&document.ast);
 
         get_inlay_hint(&document, &class, &imports, self.class_map.clone())
     }
 
-    fn get_class(&self, ast: &AstFile) -> Option<Class> {
-        let Some(class_path) = get_class_path(ast) else {
+    fn get_class(&self, doc: &Document) -> Option<Class> {
+        let Some(class_path) = get_class_path(&doc.ast) else {
             eprintln!("Could not get class_path");
             return None;
         };
-        let class;
         if let Ok(cm) = self.class_map.read()
             && let Some(cl) = cm.get(&class_path)
         {
-            class = cl.clone();
+            Some(cl.clone())
+        } else if let Some(path) = doc.path.to_str() {
+            let class = parser::update_project_java_file(NuVec::new(path.as_bytes()), &doc.ast);
+            Some(class)
         } else {
             eprintln!("Could not find class {class_path}");
-            return None;
+            None
         }
-        Some(class)
     }
 
     fn get_document(&self, uri: &Uri) -> Option<Document> {

@@ -82,6 +82,7 @@ pub fn main(
         }
     };
     main_loop(&backend, path, progress)?;
+    eprintln!("main_loop end");
     io_threads.join()?;
 
     // Shut down gracefully.

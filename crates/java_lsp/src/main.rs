@@ -1,4 +1,5 @@
 #![deny(clippy::redundant_clone)]
+
 use cli::Command;
 use command::{reload_dependencies_cli, update_dependencies_cli};
 use tokio::runtime::LocalOptions;
@@ -74,6 +75,9 @@ fn main() {
             .block_on(async {
                 cli::index_jdk(variant).await;
             }),
+        Some(Command::FormatFilePiped) => {
+            cli::format_piped();
+        }
         Some(Command::FormatFile(p)) => {
             let mut tokens = Vec::new();
             cli::format_file(

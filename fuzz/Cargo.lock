@@ -28,6 +28,9 @@ name = "bitflags"
 version = "2.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4388bee8683e3d04af747c73422af53102d2bd24d9eadb6cbc100baef4b43f8"
+dependencies = [
+ "arbitrary",
+]
 
 [[package]]
 name = "cc"
@@ -142,6 +145,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "lombok"
+version = "0.1.0"
+dependencies = [
+ "ast",
+ "bitflags",
+ "my_string",
+ "workspace_hack",
+]
+
+[[package]]
 name = "memchr"
 version = "2.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -163,6 +176,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "parser"
+version = "0.1.0"
+dependencies = [
+ "ast",
+ "dto",
+ "lombok",
+ "my_string",
+ "workspace_hack",
+]
+
+[[package]]
 name = "parser-fuzz"
 version = "0.0.0"
 dependencies = [
@@ -173,6 +197,7 @@ dependencies = [
  "jimage",
  "libfuzzer-sys",
  "my_string",
+ "parser",
 ]
 
 [[package]]
@@ -321,6 +346,8 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 name = "workspace_hack"
 version = "0.1.0"
 dependencies = [
+ "arbitrary",
+ "bitflags",
  "memchr",
  "proc-macro2",
  "quote",

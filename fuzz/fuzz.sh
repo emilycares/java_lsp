@@ -9,6 +9,7 @@ targets=(
     parser_module
     parser_java
     parser_java_a
+    ast_to_class
     cfc
 )
 for i in "${targets[@]}"; do

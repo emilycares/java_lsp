@@ -15,6 +15,8 @@ publish = false
 
 ### BEGIN HAKARI SECTION
 [dependencies]
+arbitrary = { version = "1", default-features = false, features = ["derive"] }
+bitflags = { version = "2", default-features = false, features = ["arbitrary"] }
 memchr = { version = "2" }
 
 [build-dependencies]

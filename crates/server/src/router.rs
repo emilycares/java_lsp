@@ -75,6 +75,7 @@ pub fn get_server_capabilities(config: &Configuration) -> ServerCapabilities {
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         signature_help_provider: Some(SignatureHelpOptions {
             trigger_characters: Some(vec!['('.to_string(), ','.to_string(), '<'.to_string()]),
+            retrigger_characters: Some(vec![','.to_string()]),
             ..Default::default()
         }),
         document_highlight_provider: None,

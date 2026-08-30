@@ -485,30 +485,6 @@ fn get_field_position_expression(
     }
 }
 
-pub const fn get_type_usage(_query_class_name: &str, _ast: &AstFile) {
-    // get_item_ranges(
-    //     tree,
-    //     bytes,
-    //     "
-    //     (type_identifier)@capture
-    //     (field_access object: (identifier)@capture )
-    //     (method_invocation object: (identifier)@capture )
-    //     ",
-    //     Some(query_class_name),
-    // )
-}
-
-pub const fn get_method_usage(_query_method_name: &str, _ast: &AstFile) {
-    // get_item_ranges(
-    //     tree,
-    //     bytes,
-    //     "
-    //     (method_invocation name: (identifier)@cature)
-    //     ",
-    //     Some(query_method_name),
-    // )
-}
-
 pub fn symbols_to_document_symbols(
     symbols: &[PositionSymbol],
     uri: &Uri,
@@ -537,9 +513,7 @@ pub fn symbols_to_document_symbols(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        PositionSymbol, get_class_position, get_field_position, get_method_position, get_type_usage,
-    };
+    use crate::{PositionSymbol, get_class_position, get_field_position, get_method_position};
     use ast::types::{AstPoint, AstRange};
     use lsp_types::SymbolKind;
     use my_string::NuVec;
@@ -604,9 +578,8 @@ public class Test {
 public class Test {
     public Uni<Response> test() {
         return Thing.dothing(t -> {
-                    Definition q = new Definition();
-                    
-                    });
+                Definition q = new Definition();
+            });
     }
 }
         ";
@@ -626,8 +599,8 @@ public class Test {
                 },
                 PositionSymbol {
                     range: AstRange {
-                        start: AstPoint { line: 4, col: 20 },
-                        end: AstPoint { line: 4, col: 51 },
+                        start: AstPoint { line: 4, col: 16 },
+                        end: AstPoint { line: 4, col: 47 },
                     },
                     name: NuVec::new_static(b"q"),
                     kind: SymbolKind::FIELD,
@@ -658,19 +631,5 @@ public class Test {}
                 kind: SymbolKind::CLASS,
             },]
         );
-    }
-    #[ignore = "todo"]
-    #[test]
-    fn type_usage_base() {
-        let content = b"
-package ch.emilycares;
-public class Test {
-private StringBuilder sb = new StringBuilder();
-}
-";
-        let tokens = ast::lexer::lex(content).unwrap();
-        let ast = ast::parse_file(&tokens).unwrap();
-        get_type_usage("StringBuilder", &ast);
-        // assert here
     }
 }

@@ -11,7 +11,7 @@ license.workspace = true
 publish = false
 
 [features]
-arbitrary = ["dep:arbitrary"]
+arbitrary = ["dep:arbitrary", "bitflags/arbitrary"]
 
 [dependencies]
 dto = {path="../dto"}

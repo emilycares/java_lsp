@@ -470,7 +470,10 @@ fn lambda(
             .iter()
             .filter(|i| i.name.value != "_")
             .map(|i| LocalVariable {
-                jtype: JType::Var,
+                jtype: i
+                    .jtype
+                    .as_ref()
+                    .map_or(JType::Var, std::convert::Into::into),
                 name: i.name.value.clone(),
                 range: i.range,
                 flags: VarFlags::empty(),
@@ -1464,6 +1467,66 @@ public class Test {
                     range: AstRange {
                         start: AstPoint { 4:20 },
                         end: AstPoint { 4:51 },
+                    },
+                    flags: VarFlags(
+                        0x0,
+                    ),
+                },
+            ]
+        "#]];
+        expected.assert_debug_eq(&out);
+    }
+
+    #[test]
+    fn typed_lambda_parameter() {
+        let content = b"
+public class Test {
+    public Uni<Response> test() {
+        return Thing.dothing((String t) -> { });
+    }
+}
+";
+        let tokens = ast::lexer::lex(content).unwrap();
+        let ast = ast::parse_file(&tokens).unwrap();
+        let class = Class::default();
+        let out = get_vars(
+            &ast,
+            &VariableContext {
+                point: Some(AstPoint::new(3, 45)),
+                imports: Default::default(),
+                class: &class,
+                class_map: get_class_map(),
+            },
+        )
+        .unwrap();
+        let expected = expect![[r#"
+            [
+                LocalVariable {
+                    jtype: Generic(
+                        "Uni",
+                        [
+                            Class(
+                                "Response",
+                            ),
+                        ],
+                    ),
+                    name: "test",
+                    range: AstRange {
+                        start: AstPoint { 2:4 },
+                        end: AstPoint { 4:5 },
+                    },
+                    flags: VarFlags(
+                        Function,
+                    ),
+                },
+                LocalVariable {
+                    jtype: Class(
+                        "String",
+                    ),
+                    name: "t",
+                    range: AstRange {
+                        start: AstPoint { 3:30 },
+                        end: AstPoint { 3:38 },
                     },
                     flags: VarFlags(
                         0x0,

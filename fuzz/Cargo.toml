@@ -13,6 +13,9 @@ libfuzzer-sys = "0.4"
 [dependencies.class]
 path = "../crates/class"
 
+[dependencies.parser]
+path = "../crates/parser"
+
 [dependencies.jimage]
 path = "../crates/jimage"
 
@@ -33,6 +36,13 @@ features = ["arbitrary"]
 [[bin]]
 name = "parser_class"
 path = "fuzz_targets/parser_class.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ast_to_class"
+path = "fuzz_targets/ast_to_class.rs"
 test = false
 doc = false
 bench = false

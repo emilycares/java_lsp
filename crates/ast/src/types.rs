@@ -9,6 +9,7 @@ use my_string::{NuVec, NuVecBuilder};
 use crate::lexer::PositionToken;
 
 #[derive(Debug, PartialEq, Eq, Default, Clone, Copy)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstRange {
     pub start: AstPoint,
     pub end: AstPoint,
@@ -50,6 +51,7 @@ impl AstRange {
 }
 
 #[derive(PartialEq, Eq, Default, Clone, Copy, PartialOrd)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstPoint {
     pub line: usize,
     pub col: usize,
@@ -70,10 +72,12 @@ impl AstPoint {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstFile {
     pub top: Vec<AstTopLevel>,
 }
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstTopLevel {
     Package(AstPackage),
     Import(AstImport),
@@ -83,18 +87,21 @@ pub enum AstTopLevel {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstPackage {
     pub range: AstRange,
     pub annotated: Vec<AstAnnotated>,
     pub name: AstIdentifier,
 }
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstImport {
     pub range: AstRange,
     pub unit: AstImportUnit,
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstImportUnit {
     Class(AstIdentifier),
     StaticClass(AstIdentifier),
@@ -105,6 +112,7 @@ pub enum AstImportUnit {
 
 bitflags! {
    #[derive(Debug, Clone, PartialEq, Eq)]
+   #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
    pub struct AstThingAttributes: u8 {
         const Sealed       = 0b0000_0001;
         const NonSealed    = 0b0000_0010;
@@ -113,6 +121,7 @@ bitflags! {
 
 bitflags! {
    #[derive(Debug, Clone, PartialEq, Eq)]
+   #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
    pub struct AstAvailability: u8 {
         const Public       = 0b0000_0001;
         const Synchronized = 0b0000_0010;
@@ -125,6 +134,7 @@ bitflags! {
     }
 }
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstModule {
     pub range: AstRange,
     pub annotated: Vec<AstAnnotated>,
@@ -137,23 +147,27 @@ pub struct AstModule {
     pub requires: Vec<AstModuleRequires>,
 }
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstModuleExports {
     pub range: AstRange,
     pub name: AstIdentifier,
     pub to: Vec<AstIdentifier>,
 }
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstModuleOpens {
     pub range: AstRange,
     pub name: AstIdentifier,
     pub to: Vec<AstIdentifier>,
 }
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstModuleUses {
     pub range: AstRange,
     pub name: AstIdentifier,
 }
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstModuleRequires {
     pub range: AstRange,
     pub name: AstIdentifier,
@@ -161,12 +175,14 @@ pub struct AstModuleRequires {
 }
 bitflags! {
    #[derive(Debug, Clone)]
+   #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
    pub struct AstModuleRequiresFlags: u8 {
         const Transitive   = 0b0000_0001;
         const Static       = 0b0000_0010;
     }
 }
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstModuleProvides {
     pub range: AstRange,
     pub name: AstIdentifier,
@@ -174,6 +190,7 @@ pub struct AstModuleProvides {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstClass {
     pub range: AstRange,
     pub availability: AstAvailability,
@@ -187,6 +204,7 @@ pub struct AstClass {
     pub block: AstClassBlock,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstRecord {
     pub range: AstRange,
     pub availability: AstAvailability,
@@ -200,11 +218,13 @@ pub struct AstRecord {
     pub block: AstClassBlock,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstRecordEntries {
     pub range: AstRange,
     pub entries: Vec<AstRecordEntry>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstRecordEntry {
     pub range: AstRange,
     pub annotated: Vec<AstAnnotated>,
@@ -213,6 +233,7 @@ pub struct AstRecordEntry {
     pub name: AstIdentifier,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstClassBlock {
     pub range: AstRange,
     pub variables: Vec<AstClassVariable>,
@@ -224,6 +245,7 @@ pub struct AstClassBlock {
 }
 bitflags! {
    #[derive(PartialEq, Eq, Debug, Clone)]
+   #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
    pub struct AstVolatileTransient: u8 {
      const Volatile  = 0b0000_0001;
      const Transient = 0b0000_0010;
@@ -231,6 +253,7 @@ bitflags! {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstClassVariable {
     pub range: AstRange,
     pub availability: AstAvailability,
@@ -242,17 +265,20 @@ pub struct AstClassVariable {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstClassMethod {
     pub range: AstRange,
     pub header: AstMethodHeader,
     pub block: Option<AstBlock>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstStaticBlock {
     pub range: AstRange,
     pub block: AstBlock,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstMethodHeader {
     pub range: AstRange,
     pub availability: AstAvailability,
@@ -265,17 +291,20 @@ pub struct AstMethodHeader {
     pub default: bool,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstThrowsDeclaration {
     pub range: AstRange,
     pub parameters: Vec<AstJType>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstClassConstructor {
     pub range: AstRange,
     pub header: AstConstructorHeader,
     pub block: AstBlock,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstConstructorHeader {
     pub range: AstRange,
     pub availability: AstAvailability,
@@ -286,11 +315,13 @@ pub struct AstConstructorHeader {
     pub annotated: Vec<AstAnnotated>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstMethodParameters {
     pub range: AstRange,
     pub parameters: Vec<AstMethodParameter>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstMethodParameter {
     pub range: AstRange,
     pub annotated: Vec<AstAnnotated>,
@@ -300,12 +331,14 @@ pub struct AstMethodParameter {
 }
 bitflags! {
    #[derive(Debug, Clone, PartialEq, Eq)]
+   #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
    pub struct AstMethodParameterFlags: u8 {
         const Fin       = 0b0000_0001;
         const Variatic  = 0b0000_0010;
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstBlockEntry {
     Return(AstBlockReturn),
     Variable(Vec<AstBlockVariable>),
@@ -334,6 +367,7 @@ pub enum AstBlockEntry {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstWhile {
     pub range: AstRange,
     pub control: AstExpression,
@@ -341,6 +375,7 @@ pub struct AstWhile {
     pub label: Option<AstIdentifier>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstFor {
     pub range: AstRange,
     pub vars: Vec<AstBlockEntry>,
@@ -350,54 +385,64 @@ pub struct AstFor {
     pub label: Option<AstIdentifier>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstSwitch {
     pub range: AstRange,
     pub check: AstExpression,
     pub block: AstBlock,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstSwitchCase {
     pub range: AstRange,
     pub expressions: Vec<AstExpressionOrDefault>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstExpressionOrDefault {
     Default,
     Expression(AstExpression),
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstSwitchCaseArrowValues {
     pub range: AstRange,
     pub values: Vec<AstExpressionOrDefault>,
     pub content: Box<AstSwitchCaseArrowContent>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstSwitchCaseArrowType {
     pub range: AstRange,
     pub var: AstSwitchCaseArrowVar,
     pub content: Box<AstSwitchCaseArrowContent>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstSwitchCaseArrowVar {
     pub range: AstRange,
     pub jtype: AstJType,
     pub name: AstIdentifier,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstSwitchCaseArrowDefault {
     pub range: AstRange,
     pub content: Box<AstSwitchCaseArrowContent>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstSwitchCaseArrowContent {
     Block(AstBlock),
     Entry(Box<AstBlockEntry>),
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstSwitchDefault {
     pub range: AstRange,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstForEnhanced {
     pub range: AstRange,
     pub var: Vec<AstBlockVariable>,
@@ -406,6 +451,7 @@ pub struct AstForEnhanced {
     pub label: Option<AstIdentifier>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstIf {
     If {
         range: AstRange,
@@ -425,34 +471,40 @@ pub enum AstIf {
     },
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstWhileContent {
     None,
     Block(AstBlock),
     BlockEntry(Box<AstBlockEntry>),
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstIfContent {
     Block(AstBlock),
     BlockEntry(Box<AstBlockEntry>),
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstForContent {
     None,
     Block(AstBlock),
     BlockEntry(Box<AstBlockEntry>),
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstThrow {
     pub range: AstRange,
     pub expression: AstExpression,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstSynchronizedBlock {
     pub range: AstRange,
     pub expression: AstExpression,
     pub block: AstBlock,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstTryCatch {
     pub range: AstRange,
     pub resources_block: Option<AstBlock>,
@@ -461,34 +513,40 @@ pub struct AstTryCatch {
     pub finally_block: Option<AstBlock>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstTryCatchCase {
     pub range: AstRange,
     pub variable: AstBlockVariableMultiType,
     pub block: AstBlock,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstBlockAssign {
     pub range: AstRange,
     pub key: AstExpression,
     pub expression: AstExpression,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstBlockExpression {
     pub range: AstRange,
     pub value: AstExpression,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstInlineBlock {
     pub range: AstRange,
     pub label: Option<AstIdentifier>,
     pub block: AstBlock,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstBlock {
     pub range: AstRange,
     pub entries: Vec<AstBlockEntry>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstBlockVariable {
     pub range: AstRange,
     pub fin: bool,
@@ -499,6 +557,7 @@ pub struct AstBlockVariable {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstBlockVariableMultiType {
     pub range: AstRange,
     pub fin: bool,
@@ -509,39 +568,46 @@ pub struct AstBlockVariableMultiType {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstBlockReturn {
     pub range: AstRange,
     pub expression: AstExpressionOrValue,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstExpressionOrValue {
     None,
     Expression(AstExpression),
     Value(AstValue),
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstBlockYield {
     pub range: AstRange,
     pub expression: AstExpressionOrValue,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstBlockBreak {
     pub range: AstRange,
     pub label: Option<AstIdentifier>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstBlockAssert {
     pub range: AstRange,
     pub expression: AstExpression,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstBlockContinue {
     pub range: AstRange,
     pub label: Option<AstIdentifier>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstIdentifier {
     pub range: AstRange,
     pub value: NuVec,
@@ -571,33 +637,39 @@ impl From<&AstIdentifier> for NuVec {
 // }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstInt {
     pub range: AstRange,
     pub value: NuVec,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstHexLiteral {
     pub range: AstRange,
     pub value: NuVec,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstBinaryLiteral {
     pub range: AstRange,
     pub value: NuVec,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstDouble {
     pub range: AstRange,
     pub value: NuVec,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstSuperClass {
     None,
     Name(AstIdentifier),
     JType(AstJType),
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 /// Usage of a Annotation
 pub struct AstAnnotated {
     pub range: AstRange,
@@ -605,6 +677,7 @@ pub struct AstAnnotated {
     pub parameters: AstAnnotatedParameterKind,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstAnnotatedParameterKind {
     None,
     Parameter(Vec<AstAnnotatedParameter>),
@@ -613,6 +686,7 @@ pub enum AstAnnotatedParameterKind {
 
 /// Definition of a new Annotation
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstAnnotation {
     pub range: AstRange,
     pub availability: AstAvailability,
@@ -623,6 +697,7 @@ pub struct AstAnnotation {
     pub inner: Vec<AstThing>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstAnnotationField {
     pub range: AstRange,
     pub availability: AstAvailability,
@@ -633,6 +708,7 @@ pub struct AstAnnotationField {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstInterface {
     pub range: AstRange,
     pub availability: AstAvailability,
@@ -649,6 +725,7 @@ pub struct AstInterface {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstThing {
     Class(AstClass),
     Record(AstRecord),
@@ -658,12 +735,14 @@ pub enum AstThing {
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstJType {
     pub annotated: Vec<AstAnnotated>,
     pub range: AstRange,
     pub value: AstJTypeKind,
 }
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstJTypeKind {
     #[default]
     Void,
@@ -796,11 +875,13 @@ impl fmt::Display for AstJTypeKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstValue {
     Variable(AstIdentifier),
     Nuget(AstValueNuget),
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstValueNuget {
     Int(AstInt),
     Long(AstInt),
@@ -822,6 +903,7 @@ pub enum AstValueNuget {
 pub type AstExpression = Vec<AstExpressionKind>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstExpressionKind {
     Base(AstBaseExpression),
     Lambda(AstLambda),
@@ -848,11 +930,13 @@ impl AstExpressionKind {
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstJTypeExpression {
     pub range: AstRange,
     pub jtype: AstJType,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstInstanceOf {
     pub range: AstRange,
     pub annotated: Vec<AstAnnotated>,
@@ -861,6 +945,7 @@ pub struct AstInstanceOf {
     pub variable: Option<AstIdentifier>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstBaseExpression {
     pub range: AstRange,
     pub ident: Option<AstExpressionIdentifier>,
@@ -868,6 +953,7 @@ pub struct AstBaseExpression {
     pub operator: AstExpressionOperator,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstExpressionIdentifier {
     Identifier(AstIdentifier),
     Nuget(AstValueNuget),
@@ -880,16 +966,19 @@ pub enum AstExpressionIdentifier {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstValues {
     pub range: AstRange,
     pub values: Vec<AstExpression>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstValuesWithAnnotated {
     pub range: AstRange,
     pub values: Vec<AstExpressionOrAnnotated>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstExpressionOrAnnotated {
     Expression(AstExpression),
     Annotated(AstAnnotated),
@@ -903,6 +992,7 @@ impl AstBaseExpression {
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstLambda {
     pub range: AstRange,
     pub parameters: AstLambdaParameters,
@@ -910,6 +1000,7 @@ pub struct AstLambda {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstLambdaRhs {
     None,
     Block(AstBlock),
@@ -917,11 +1008,13 @@ pub enum AstLambdaRhs {
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstLambdaParameters {
     pub range: AstRange,
     pub values: Vec<AstLambdaParameter>,
 }
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstLambdaParameter {
     pub range: AstRange,
     pub jtype: Option<AstJType>,
@@ -929,17 +1022,20 @@ pub struct AstLambdaParameter {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstNewClass {
     pub range: AstRange,
     pub jtype: AstJType,
     pub rhs: Box<AstNewRhs>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstGenerics {
     pub range: AstRange,
     pub jtypes: Vec<AstJType>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstNewRhs {
     None,
     ArrayParameters(Vec<Vec<AstExpression>>),
@@ -950,12 +1046,14 @@ pub enum AstNewRhs {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstBoolean {
     pub range: AstRange,
     pub value: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstExpressionOperator {
     None,
     Plus(AstRange),
@@ -995,11 +1093,13 @@ pub enum AstExpressionOperator {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstTypeParameters {
     pub range: AstRange,
     pub parameters: Vec<AstTypeParameter>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstTypeParameter {
     pub range: AstRange,
     pub annotated: Vec<AstAnnotated>,
@@ -1007,11 +1107,13 @@ pub struct AstTypeParameter {
     pub supperclass: Option<Vec<AstSuperClass>>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstExtends {
     pub range: AstRange,
     pub parameters: Vec<AstJType>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstInterfaceConstant {
     pub range: AstRange,
     pub annotated: Vec<AstAnnotated>,
@@ -1021,11 +1123,13 @@ pub struct AstInterfaceConstant {
     pub expression: Option<AstExpression>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstInterfaceMethod {
     pub range: AstRange,
     pub header: AstMethodHeader,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstInterfaceMethodDefault {
     pub range: AstRange,
     pub header: AstMethodHeader,
@@ -1033,6 +1137,7 @@ pub struct AstInterfaceMethodDefault {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstEnumeration {
     pub range: AstRange,
     pub availability: AstAvailability,
@@ -1050,6 +1155,7 @@ pub struct AstEnumeration {
     pub inner: Vec<AstThing>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstEnumerationVariant {
     pub range: AstRange,
     pub annotated: Vec<AstAnnotated>,
@@ -1058,6 +1164,7 @@ pub struct AstEnumerationVariant {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstAnnotatedParameter {
     Expression(AstExpression),
     NamedExpression {

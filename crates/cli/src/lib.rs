@@ -3,6 +3,7 @@
 #![deny(clippy::nursery)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::unused_async)]
+use std::io::{Read, Write};
 use std::path::Path;
 use std::time::Instant;
 use std::{fs::canonicalize, path::PathBuf};
@@ -26,6 +27,7 @@ reload-deps : Reload dependencies of current project
 update-deps : Update dependencies of current project
 
 format <path> : Format java file or all files in directory
+format -p : Format java file from stdin and print to stdout
 
 lex <file path to java file> : Print tokens from file
 lex-pos <file path to java file> <index> : Print token at position
@@ -131,10 +133,13 @@ fn parse_lex(args: &[String]) -> Option<Command> {
 fn parse_format(args: &[String]) -> Option<Command> {
     args.first().map_or_else(
         || {
-            println!("Expected file path");
+            println!("Expected file path or -p");
             None
         },
         |path| {
+            if path == "-p" {
+                return Some(Command::FormatFilePiped);
+            }
             let path = PathBuf::from(path);
             if path.is_dir() {
                 return Some(Command::FormatDir(path));
@@ -225,6 +230,7 @@ pub enum Command {
     },
     FormatDir(PathBuf),
     FormatFile(PathBuf),
+    FormatFilePiped,
 }
 
 #[derive(Clone, Debug)]
@@ -417,4 +423,45 @@ pub fn format_dir(p: &PathBuf) {
         }
     }
     println!("Formatted files. in: {:.2?}", time.elapsed());
+}
+
+pub fn format_piped() {
+    let mut data = Vec::new();
+    if std::io::stdin().read_to_end(&mut data).is_err() {
+        eprintln!("Unable to read stdin");
+        std::process::exit(2);
+    }
+
+    let editorconfig = editorconfig::load_editor_config_or_default();
+    let editorconfig = editorconfig.to_filled();
+    let mut tokens = Vec::new();
+    match ast::lexer::lex_mut::<false>(&data, &mut tokens) {
+        Ok(()) => match ast::parse_file(&tokens) {
+            Ok(ast) => {
+                match formatter::format(
+                    &config::FormatterConfig::Internal,
+                    &ast,
+                    &data,
+                    &editorconfig,
+                ) {
+                    Ok(o) => {
+                        if std::io::stdout().write_all(&o).is_err() {
+                            std::process::exit(4);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Format error: {e:?}");
+                        std::process::exit(3);
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("Ast error: {e:?}");
+            }
+        },
+        Err(e) => {
+            eprintln!("Lexer error: {e:?}");
+            std::process::exit(2);
+        }
+    }
 }

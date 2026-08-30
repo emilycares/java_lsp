@@ -29,7 +29,6 @@ compile.workspace = true
 call_chain.workspace = true
 common.workspace = true
 config.workspace = true
-ast.workspace = true
 my_string.workspace = true
 lsp_extra.workspace = true
 editorconfig.workspace = true

@@ -164,6 +164,24 @@ impl Formatter<'_> {
         }
     }
 
+    pub fn has_comments(&self, up_to: AstPoint) -> bool {
+        let mut idx = self.index;
+        while let Some(t) = self.with_comments.get(idx) {
+            let pos = t.start_point();
+            if pos >= up_to {
+                break;
+            }
+            match &t.token {
+                Token::LineComment(_) | Token::BlockComment(_, _) => {
+                    return true;
+                }
+                _ => {}
+            }
+            idx += 1;
+        }
+        false
+    }
+
     pub fn write_with_comments(&mut self, up_to: AstPoint, content: &[u8]) {
         self.insert_comments(up_to);
         self.buf.extend_from_slice(content);
@@ -794,6 +812,10 @@ fn write_expr_or_value(eov: &AstExpressionOrValue, formatter: &mut Formatter) {
 }
 
 fn write_block(block: &AstBlock, f: &mut Formatter) {
+    if block.entries.is_empty() && !f.has_comments(block.range.end) {
+        f.buf.extend_from_slice(b"{}");
+        return;
+    }
     f.write(b"{");
     f.new_line();
     f.indent += 1;
@@ -2687,8 +2709,7 @@ public class Test {
                     a >>> 1;
                     a instanceof String;
                     a instanceof final String;
-                    if (a || b) {
-                    }
+                    if (a || b) {}
                     a = b ? 1 : 2;
                     a--;
                     a++;
@@ -2758,11 +2779,9 @@ public interface Test {
                  * heheh
                  * hehehe
                  */
-                public void b() {
-                }
+                public void b() {}
 
-                default public void a() {
-                }
+                default public void a() {}
             }
         "]];
         expected.assert_eq(str::from_utf8(&o).unwrap());
@@ -2818,8 +2837,7 @@ public class Test {
                  * heheh
                  * hehehe
                  */
-                public void b() {
-                }
+                public void b() {}
 
                 private Map<String, List<String>> trailers;
 
@@ -2895,14 +2913,12 @@ public class Test {
                     /**
                          * Hehehe
                          */
-                    public void doA() {
-                    }
+                    public void doA() {}
 
                     /**
                          * Hehehe
                          */
-                    public void doB() {
-                    }
+                    public void doB() {}
                 }
         "]];
         expected.assert_eq(str::from_utf8(&o).unwrap());
@@ -3000,8 +3016,7 @@ public class Test {
                  * hahaha
                  */
                 @Lukiluki
-                public Thingigthing thinithing() {
-                }
+                public Thingigthing thinithing() {}
             }
         "]];
         expected.assert_eq(str::from_utf8(&o).unwrap());
@@ -3100,12 +3115,10 @@ public class Test {
                             true,
                             false
                             ) {
-                                void a() {
-                                }
+                                void a() {}
                             };
                     Test test3 = new Test("loooooooooooooooooooooooooooooooooooooong", true, false) {
-                                void a() {
-                                }
+                                void a() {}
                             };
                     Test test4 = new Test[
                             1,
