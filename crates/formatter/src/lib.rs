@@ -19,7 +19,7 @@ use ast::{
         AstJTypeKind, AstLambdaRhs, AstMethodHeader, AstMethodParameterFlags, AstMethodParameters,
         AstModule, AstModuleRequiresFlags, AstNewRhs, AstPackage, AstPoint, AstRange, AstRecord,
         AstRecordEntries, AstSuperClass, AstSwitchCaseArrowContent, AstThing, AstThingAttributes,
-        AstThrowsDeclaration, AstTopLevel, AstTypeParameters, AstValue, AstValueNuget,
+        AstThrowsDeclaration, AstTopLevel, AstTypeParameters, AstValue, AstValueNuget, AstValues,
         AstValuesWithAnnotated, AstVolatileTransient, AstWhileContent,
     },
 };
@@ -327,7 +327,8 @@ fn write_annotated_list_inline(p: &[AstAnnotated], f: &mut Formatter) {
 }
 
 fn write_annotation(ann: &AstAnnotated, f: &mut Formatter) {
-    f.write(b"@");
+    f.insert_comments(ann.range.end);
+    f.buf.push(b'@');
     f.write_identifier(&ann.name);
     match &ann.parameters {
         AstAnnotatedParameterKind::None => {}
@@ -425,6 +426,22 @@ fn write_expression(expr: &[AstExpressionKind], f: &mut Formatter) {
                 .count();
             is_large = ops != 1;
         }
+        if !is_large {
+            let expanded_values = expr
+                .iter()
+                .filter_map(|i| {
+                    if let AstExpressionKind::Base(b) = i {
+                        return Some(b);
+                    }
+                    None
+                })
+                .filter_map(|i| i.values.clone())
+                .filter(|i| !values_contains_single_lambda(i))
+                .any(|i| i.range.start.line != i.range.end.line);
+            if expanded_values {
+                is_large = true;
+            }
+        }
     }
 
     let dot = !expr
@@ -466,6 +483,10 @@ fn write_expression(expr: &[AstExpressionKind], f: &mut Formatter) {
                     | AstExpressionOperator::Ge(_)
                     | AstExpressionOperator::Le(_)
                     | AstExpressionOperator::Lt(_)
+                    | AstExpressionOperator::QuestionMark(_)
+                    | AstExpressionOperator::Colon(_)
+                    | AstExpressionOperator::Equal(_)
+                    | AstExpressionOperator::NotEqual(_)
             );
         } else {
             minus_with_space = true;
@@ -525,11 +546,8 @@ fn write_expression_kind(
             }
             if let Some(values) = &base.values {
                 let mut nl = values.range.start.line != values.range.end.line;
-                if nl && values.values.len() == 1 {
-                    let f = values.values.iter().flatten().next();
-                    if matches!(f, Some(AstExpressionKind::Lambda(_))) {
-                        nl = false;
-                    }
+                if nl && values_contains_single_lambda(values) {
+                    nl = false;
                 }
                 f.write(b"(");
                 for (i, expr) in values.values.iter().enumerate() {
@@ -658,6 +676,16 @@ fn write_expression_kind(
             write_block(&switch.block, f);
         }
     }
+}
+
+fn values_contains_single_lambda(values: &AstValues) -> bool {
+    if values.values.len() == 1 {
+        let f = values.values.iter().flatten().next();
+        if matches!(f, Some(AstExpressionKind::Lambda(_))) {
+            return true;
+        }
+    }
+    false
 }
 
 fn write_new_class_parameters(f: &mut Formatter<'_>, exprs: &[Vec<AstExpressionKind>]) {
@@ -816,7 +844,7 @@ fn write_block(block: &AstBlock, f: &mut Formatter) {
         f.buf.extend_from_slice(b"{}");
         return;
     }
-    f.write(b"{");
+    f.buf.push(b'{');
     f.new_line();
     f.indent += 1;
     if block.entries.is_empty() {
@@ -861,7 +889,7 @@ fn write_block(block: &AstBlock, f: &mut Formatter) {
     }
     f.indent -= 1;
     f.write_indent();
-    f.write(b"}");
+    f.buf.push(b'}');
 }
 
 fn write_block_entry(
@@ -883,21 +911,17 @@ fn write_block_entry(
             }
         }
         AstBlockEntry::Return(ret) => {
-            if around {
+            if indent {
                 f.write_indent();
             }
             f.write(b"return");
             if !matches!(ret.expression, AstExpressionOrValue::None) {
                 f.buf.push(b' ');
-                f.indent += 1;
                 write_expr_or_value(&ret.expression, f);
-                f.indent -= 1;
             }
-            if around {
-                f.buf.push(b';');
-                f.end_line_comments(&ret.range);
-                f.new_line();
-            }
+            f.buf.push(b';');
+            f.end_line_comments(&ret.range);
+            f.new_line();
         }
         AstBlockEntry::Yield(yl) => {
             if indent {
@@ -906,9 +930,7 @@ fn write_block_entry(
             f.write(b"yield");
             if !matches!(yl.expression, AstExpressionOrValue::None) {
                 f.buf.push(b' ');
-                f.indent += 1;
                 write_expr_or_value(&yl.expression, f);
-                f.indent -= 1;
             }
             if around {
                 f.buf.push(b';');
@@ -921,9 +943,7 @@ fn write_block_entry(
                 f.write_indent();
             }
             f.write(b"throw ");
-            f.indent += 1;
             write_expression(&throw.expression, f);
-            f.indent -= 1;
             if around {
                 f.buf.push(b';');
                 f.end_line_comments(&throw.range);
@@ -937,9 +957,7 @@ fn write_block_entry(
             f.write(b"break");
             if let Some(label) = &br.label {
                 f.buf.push(b' ');
-                f.indent += 1;
                 f.write_identifier(label);
-                f.indent -= 1;
             }
             if around {
                 f.buf.push(b';');
@@ -954,9 +972,7 @@ fn write_block_entry(
             f.write(b"continue");
             if let Some(label) = &cont.label {
                 f.buf.push(b' ');
-                f.indent += 1;
                 f.write_identifier(label);
-                f.indent -= 1;
             }
             if around {
                 f.buf.push(b';');
@@ -982,13 +998,11 @@ fn write_block_entry(
             if indent {
                 f.write_indent();
             }
-            f.indent += 1;
             write_expression(&expr.value, f);
             if around {
                 f.buf.push(b';');
             }
             f.end_line_comments(&expr.range);
-            f.indent -= 1;
             if around {
                 f.new_line();
             }
@@ -999,11 +1013,9 @@ fn write_block_entry(
             }
             write_expression(&assign.key, f);
             f.write(b" = ");
-            f.indent += 1;
             write_expression(&assign.expression, f);
             f.buf.push(b';');
             f.end_line_comments(&assign.range);
-            f.indent -= 1;
             if around {
                 f.new_line();
             }
@@ -1021,18 +1033,14 @@ fn write_block_entry(
             f.write_identifier(&vars[0].name);
             if let Some(val) = &vars[0].value {
                 f.write(b" = ");
-                f.indent += 1;
                 write_expression(val, f);
-                f.indent -= 1;
             }
             for var in &vars[1..] {
                 f.write(b", ");
                 f.write_identifier(&var.name);
                 if let Some(val) = &var.value {
                     f.write(b" = ");
-                    f.indent += 1;
                     write_expression(val, f);
-                    f.indent -= 1;
                 }
             }
             if around {
@@ -1220,32 +1228,41 @@ fn write_block_entry(
 fn write_if_entry(aif: &AstIf, f: &mut Formatter, next_if: bool) {
     match aif {
         AstIf::If {
-            control, content, ..
+            control,
+            content,
+            range,
+            ..
         } => {
             f.write_indent();
             f.write(b"if ");
             f.write(b"(");
             write_expression(control, f);
             f.write(b") ");
-            write_if_content(content, f, next_if);
+            let same_line = range.start.line == range.end.line;
+            write_if_content(content, f, next_if, same_line);
         }
         AstIf::ElseIf {
-            control, content, ..
+            control,
+            content,
+            range,
+            ..
         } => {
             f.buf.extend_from_slice(b" else if ");
             f.write(b"(");
             write_expression(control, f);
             f.write(b") ");
-            write_if_content(content, f, next_if);
+            let same_line = range.start.line == range.end.line;
+            write_if_content(content, f, next_if, same_line);
         }
-        AstIf::Else { content, .. } => {
+        AstIf::Else { content, range, .. } => {
             f.buf.extend_from_slice(b" else ");
-            write_if_content(content, f, next_if);
+            let same_line = range.start.line == range.end.line;
+            write_if_content(content, f, next_if, same_line);
         }
     }
 }
 
-fn write_if_content(content: &AstIfContent, f: &mut Formatter, next_if: bool) {
+fn write_if_content(content: &AstIfContent, f: &mut Formatter, next_if: bool, same_line: bool) {
     match content {
         AstIfContent::Block(block) => {
             write_block(block, f);
@@ -1254,9 +1271,12 @@ fn write_if_content(content: &AstIfContent, f: &mut Formatter, next_if: bool) {
             }
         }
         AstIfContent::BlockEntry(entry) => {
-            f.new_line();
+            if !same_line {
+                f.new_line();
+            }
+
             f.indent += 1;
-            write_block_entry(entry, f, true, true, false);
+            write_block_entry(entry, f, true, false, false);
             f.indent -= 1;
         }
     }
@@ -1784,11 +1804,13 @@ fn write_enumeration(e: &AstEnumeration, f: &mut Formatter) {
     f.write(b"{");
     f.new_line();
     f.indent += 1;
-    for (i, variant) in e.variants.iter().enumerate() {
-        if i > 0 {
-            f.write(b",");
-            f.new_line();
-        }
+    let has_members = !e.methods.is_empty()
+        || !e.variables.is_empty()
+        || !e.constructors.is_empty()
+        || !e.static_blocks.is_empty()
+        || !e.inner.is_empty();
+    let mut iter = e.variants.iter().peekable();
+    while let Some(variant) = iter.next() {
         f.write_indent();
         write_annotated_list_inline(&variant.annotated, f);
         f.write_identifier(&variant.name);
@@ -1802,14 +1824,18 @@ fn write_enumeration(e: &AstEnumeration, f: &mut Formatter) {
             }
             f.write(b")");
         }
+        if iter.peek().is_some() {
+            f.write(b",");
+            f.end_line_comments(&variant.range);
+            f.new_line();
+        } else {
+            if has_members {
+                f.write(b";");
+            }
+            f.end_line_comments(&variant.range);
+        }
     }
-    let has_members = !e.methods.is_empty()
-        || !e.variables.is_empty()
-        || !e.constructors.is_empty()
-        || !e.static_blocks.is_empty()
-        || !e.inner.is_empty();
     if has_members {
-        f.write(b";");
         f.new_line();
         let block = AstClassBlock {
             range: e.range,
@@ -1834,7 +1860,7 @@ fn write_annotation_type(ann_type: &AstAnnotation, f: &mut Formatter) {
     write_annotated_list(&ann_type.annotated, f);
     f.write_indent();
     write_availability(&ann_type.availability, f);
-    f.write(b"@");
+    f.buf.push(b'@');
     f.write(b"interface ");
     f.write_identifier(&ann_type.name);
     f.buf.push(b' ');
@@ -2016,6 +2042,7 @@ fn write_expression_operator(
 }
 
 fn write_import(import: &AstImport, f: &mut Formatter) {
+    f.insert_comments(import.range.start);
     f.write(b"import ");
     match &import.unit {
         AstImportUnit::Class(ident) => {
@@ -2307,13 +2334,13 @@ mod tests {
             public int aaa() {
                switch (this) {
                    case A:
-                      return 1
+                      return 1;
 
                    case B:
-                      return 2
+                      return 2;
 
                    case C: {
-                      return 2
+                      return 2;
                       }
                }
             }
@@ -2346,6 +2373,53 @@ mod tests {
         "]];
         expected.assert_eq(str::from_utf8(&o).unwrap());
     }
+    #[test]
+    fn enum_variant_doc_endline() {
+        let content = br"
+        package ch.emilycares;
+        public enum EType {
+            A, // The A
+            B, // The B
+            C  // The C
+            }
+        ";
+
+        let o = fmt(content).unwrap();
+        let expected = expect![[r"
+            package ch.emilycares;
+            public enum EType {
+                A, // The A
+                B, // The B
+                C // The C
+            }
+        "]];
+        expected.assert_eq(str::from_utf8(&o).unwrap());
+    }
+    #[test]
+    fn enum_variant_doc_endline_with_member() {
+        let content = br"
+        package ch.emilycares;
+        public enum EType {
+            A, // The A
+            B, // The B
+            C; // The C
+            public final EType instance;
+            }
+        ";
+
+        let o = fmt(content).unwrap();
+        let expected = expect![[r"
+            package ch.emilycares;
+            public enum EType {
+                A, // The A
+                B, // The B
+                C; // The C
+
+                public final EType instance;
+            }
+        "]];
+        expected.assert_eq(str::from_utf8(&o).unwrap());
+    }
 
     #[test]
     fn long_plus() {
@@ -2367,9 +2441,9 @@ mod tests {
                 public int aaa() {
                     int b = 1;
                     return (this.that) + this.other
-                             + this.taetsch
-                             + this.boing
-                             + b;
+                         + this.taetsch
+                         + this.boing
+                         + b;
                 }
             }
         "]];
@@ -2456,9 +2530,9 @@ mod tests {
             public class Test {
                 public int aaa() {
                     return intem.stream()
-                            .map(a -> a + 1)
-                            .filter(a > 5)
-                            .toList();
+                        .map(a -> a + 1)
+                        .filter(a > 5)
+                        .toList();
                 }
             }
         "]];
@@ -2512,7 +2586,7 @@ public class ThingResource {
                     c.style = request.style;
                     c.active = true;
                     return c.persist()
-                            .map(entity -> Response.status(201).entity(entity).build());
+                        .map(entity -> Response.status(201).entity(entity).build());
                 }
             }
         "#]];
@@ -2584,14 +2658,14 @@ public class ThingResource {
             public class Test {
                 public int aaa() {
                     Suppliers.momoize(() -> {
-                            // some processing
-                            return true;
-                        });
+                        // some processing
+                        return true;
+                    });
 
                     Thread.ofVirtual()
-                            .start(() -> {
-                                // do something
-                            });
+                        .start(() -> {
+                            // do something
+                        });
                 }
             }
         "]];
@@ -2694,8 +2768,8 @@ public class Test {
                     t |= avc();
                     t |= a().b().c();
                     t |= a()
-                            .b()
-                            .c();
+                        .b()
+                        .c();
                     t += 1;
                     t -= 1;
                     t *= 1;
@@ -2741,9 +2815,9 @@ public class Test {
             public class Test {
                 public int aaa() {
                     other(
-                            1 + 2,
-                            1
-                            );
+                        1 + 2,
+                        1
+                        );
                 }
             }
         "]];
@@ -2871,11 +2945,11 @@ public class Test {
                     case 0:
                           doA();
                           return;
-                    default:
                     case 1:
                     case 2:
                           doB();
                           return;
+                    default:
                 }
             };
 
@@ -2902,24 +2976,24 @@ public class Test {
                         case 0:
                             doA();
                             return;
-                        default:
                         case 1:
                         case 2:
                             doB();
                             return;
-                        }
+                        default:
                     }
-
-                    /**
-                         * Hehehe
-                         */
-                    public void doA() {}
-
-                    /**
-                         * Hehehe
-                         */
-                    public void doB() {}
                 }
+
+                /**
+                         * Hehehe
+                         */
+                public void doA() {}
+
+                /**
+                         * Hehehe
+                         */
+                public void doB() {}
+            }
         "]];
         expected.assert_eq(str::from_utf8(&o).unwrap());
     }
@@ -3105,36 +3179,108 @@ public class Test {
                 private int b = 2;
                 public void test() {
                     Test test = new Test(
-                            "loooooooooooooooooooooooooooooooooooooong",
-                            true,
-                            false
-                            );
+                        "loooooooooooooooooooooooooooooooooooooong",
+                        true,
+                        false
+                        );
                     Test test1 = new Test("loooooooooooooooooooooooooooooooooooooong", true, false);
                     Test test2 = new Test(
-                            "loooooooooooooooooooooooooooooooooooooong",
-                            true,
-                            false
-                            ) {
-                                void a() {}
-                            };
+                        "loooooooooooooooooooooooooooooooooooooong",
+                        true,
+                        false
+                        ) {
+                            void a() {}
+                        };
                     Test test3 = new Test("loooooooooooooooooooooooooooooooooooooong", true, false) {
-                                void a() {}
-                            };
+                            void a() {}
+                        };
                     Test test4 = new Test[
-                            1,
-                            2,
-                            3
-                            ];
+                        1,
+                        2,
+                        3
+                        ];
                     Test test5 = new Test[1, 2, 3];
                     String[] test6 = new String[]{"a", "b", "c"};
                     String[] test7 = new String[]{
-                            "a",
-                            "b",
-                            "c"
-                            };
+                        "a",
+                        "b",
+                        "c"
+                        };
                 }
             }
         "#]];
+        expected.assert_eq(str::from_utf8(&o).unwrap());
+    }
+
+    #[test]
+    fn same_line_if_and_return() {
+        let content = br"
+public class Test {
+    public void test() {
+        if (a == null) return;
+        other.flush();
+        if (p && (this == A || this == B)) return service.ab();
+        return p;
+        if (!p.contains(A)) b.set(KEY_A);
+        if (!p.contains(B)) b.set(KEY_B);
+        if (!p.contains(C)) {
+            b.set(KEY_C);
+        }
+    }
+}
+";
+
+        let o = fmt(content).unwrap();
+        let expected = expect![[r"
+            public class Test {
+                public void test() {
+                    if (a == null) return;
+                    other.flush();
+                    if (p && (this == A || this == B)) return service.ab();
+                    return p;
+                    if (!p.contains(A)) b.set(KEY_A);
+                    if (!p.contains(B)) b.set(KEY_B);
+                    if (!p.contains(C)) {
+                        b.set(KEY_C);
+                    }
+                }
+            }
+        "]];
+        expected.assert_eq(str::from_utf8(&o).unwrap());
+    }
+
+    #[test]
+    fn minus_without_space() {
+        let content = br"
+public class Test {
+    public void test() {
+        boolean a = -1;
+        boolean a = b > -1;
+        boolean a = b < -1;
+        boolean a = b >= -1;
+        boolean a = b <= -1;
+        boolean a = b == -1;
+        boolean a = b != -1;
+        boolean a = b ? -1 : -1;
+    }
+}
+";
+
+        let o = fmt(content).unwrap();
+        let expected = expect![[r"
+            public class Test {
+                public void test() {
+                    boolean a = -1;
+                    boolean a = b > -1;
+                    boolean a = b < -1;
+                    boolean a = b >= -1;
+                    boolean a = b <= -1;
+                    boolean a = b == -1;
+                    boolean a = b != -1;
+                    boolean a = b ? -1 : -1;
+                }
+            }
+        "]];
         expected.assert_eq(str::from_utf8(&o).unwrap());
     }
 }

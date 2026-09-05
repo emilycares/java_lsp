@@ -20,7 +20,6 @@ tyres.workspace = true
 dto.workspace = true
 get_class.workspace = true
 document_link.workspace = true
-workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]
 variables.workspace = true

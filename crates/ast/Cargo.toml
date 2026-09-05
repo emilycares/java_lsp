@@ -19,7 +19,6 @@ bitflags.workspace = true
 my_string.workspace = true
 memchr.workspace = true
 arbitrary = { workspace = true, features = ["derive"], optional = true }
-workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]
 expect-test.workspace = true

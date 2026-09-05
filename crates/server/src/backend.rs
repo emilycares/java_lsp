@@ -366,7 +366,14 @@ impl Backend {
             }
         }?;
 
-        match hover::base(&document.ast, &point, &vars, &imports, &self.class_map) {
+        match hover::base(
+            &document.ast,
+            &point,
+            &vars,
+            &imports,
+            &self.class_map,
+            self.config.plaintext_hover,
+        ) {
             Ok(hover) => Some(hover),
             Err(e) => {
                 eprintln!("Error while hover: {e:?}");
@@ -908,6 +915,9 @@ impl Backend {
         };
         if let Some(Value::Bool(editor_runs_commands)) = init.get("editor_runs_commands") {
             self.config.editor_runs_commands = *editor_runs_commands;
+        }
+        if let Some(Value::Bool(plaintext_hover)) = init.get("plaintext_hover") {
+            self.config.plaintext_hover = *plaintext_hover;
         }
         if let Some(Value::String(formatter)) = init.get("formatter") {
             match formatter.to_lowercase().as_str() {

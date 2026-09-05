@@ -11,9 +11,6 @@ license = "GPL-3.0"
 [workspace.metadata.crane]
 name = "java_lsp"
 
-[workspace.metadata.cargo-machete]
-ignored = ["workspace_hack"]
-
 [workspace]
 members = [
     "crates/my_string",
@@ -34,7 +31,6 @@ members = [
     "crates/position",
     "crates/imports",
     "crates/java_lsp",
-    "crates/workspace_hack",
     "crates/zip_util",
     "crates/ast",
     "crates/get_class",

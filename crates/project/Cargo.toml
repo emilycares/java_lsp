@@ -19,4 +19,3 @@ maven.workspace = true
 gradle.workspace = true
 tokio.workspace = true
 dto.workspace = true
-workspace_hack = { version = "0.1", path = "../workspace_hack" }

@@ -44,4 +44,3 @@ command.workspace = true
 project.workspace = true
 signature.workspace = true
 references.workspace = true
-workspace_hack = { version = "0.1", path = "../workspace_hack" }

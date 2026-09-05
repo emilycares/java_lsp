@@ -20,7 +20,6 @@ lsp-types.workspace = true
 lsp_extra.workspace = true
 tyres.workspace = true
 get_class.workspace = true
-workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]
 variables.workspace = true

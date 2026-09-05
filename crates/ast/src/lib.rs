@@ -1147,7 +1147,7 @@ bitflags! {
    pub struct ExpressionOptions: u8 {
      /// Don't parse 'exp ? expr : expr'
      /// `QuestionMark` and Colon will not be parsed as operators
-     const NoInlineIf= 0b0000_0001;
+     const NoInlineIf = 0b0000_0001;
      /// Don't parse labdas
      const NoLambda = 0b0000_0010;
      /// Don't values
@@ -1434,7 +1434,7 @@ pub fn parse_block_variable(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(Vec<AstBlockVariable>, usize), AstError> {
-    parse_block_variable_options(tokens, pos, &BlockEntryOptions::None)
+    parse_block_variable_options(tokens, pos, &BlockEntryOptions::empty())
 }
 fn parse_block_variable_options(
     tokens: &[PositionToken],
@@ -1586,10 +1586,10 @@ pub fn parse_block_return(
         pos = npos;
     } else {
         let (nexpression, npos) = parse_expression(tokens, pos, &ExpressionOptions::empty())?;
-        pos = npos;
         expression = AstExpressionOrValue::Expression(nexpression);
+        let npos = assert_token(tokens, npos, Token::Semicolon)?;
+        pos = npos;
     }
-    let pos = assert_semicolon(tokens, pos)?;
     let end = tokens.end(pos)?;
 
     Ok((
@@ -1693,8 +1693,10 @@ fn parse_block_expression_options(
     block_entry_options: &BlockEntryOptions,
 ) -> Result<(AstBlockExpression, usize), AstError> {
     let start = tokens.start(pos)?;
-    let (value, pos) = parse_expression(tokens, pos, &ExpressionOptions::empty())?;
+    let options = ExpressionOptions::empty();
+    let (value, pos) = parse_expression(tokens, pos, &options)?;
     let pos = assert_semicolon_options(tokens, pos, block_entry_options)?;
+
     let end = tokens.end(pos)?;
 
     Ok((
@@ -2016,19 +2018,19 @@ fn parse_block_brackets(
     ))
 }
 
-/// Options for expression parsing
-#[derive(Debug, PartialEq, Eq)]
-pub enum BlockEntryOptions {
-    /// Default expression
-    None,
-    /// Don't parse `;`
-    NoSemicolon,
+bitflags! {
+    /// Options for expression parsing
+    #[derive(Debug, PartialEq, Eq)]
+    pub struct BlockEntryOptions: u8 {
+        /// Don't parse `;`
+        const NoSemicolon = 0b0000_0001;
+    }
 }
 fn parse_block_entry(
     tokens: &[PositionToken],
     pos: usize,
 ) -> Result<(AstBlockEntry, usize), AstError> {
-    parse_block_entry_options(tokens, pos, &BlockEntryOptions::None)
+    parse_block_entry_options(tokens, pos, &BlockEntryOptions::empty())
 }
 fn parse_block_entry_options(
     tokens: &[PositionToken],
@@ -2792,7 +2794,8 @@ fn parse_if(tokens: &[PositionToken], pos: usize) -> Result<(AstIf, usize), AstE
             }
             Err(e) => errors[0] = Some((NuVec::new_static(b"block"), e)),
         }
-        match parse_block_entry(tokens, pos) {
+
+        match parse_block_entry_options(tokens, pos, &BlockEntryOptions::empty()) {
             Ok((entry, npos)) => {
                 content = AstIfContent::BlockEntry(Box::new(entry));
                 pos = npos;

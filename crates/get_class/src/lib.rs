@@ -4,7 +4,7 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
 use ast::{
-    range::AstInRange,
+    range::{AstInRange, GetRange},
     types::{
         AstAnnotated, AstAnnotatedParameter, AstAnnotatedParameterKind, AstAnnotation,
         AstBaseExpression, AstBlock, AstBlockEntry, AstBlockVariable, AstClassBlock,
@@ -986,6 +986,9 @@ fn get_class_base_expression(
         && vals.range.is_in_range(point)
     {
         for val in &vals.values {
+            if !val.get_range().is_in_range(point) {
+                continue;
+            }
             if let Some(s) = get_class_expression(val, point) {
                 return Some(s);
             }

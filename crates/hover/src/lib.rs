@@ -9,7 +9,9 @@ use document::get_class_path;
 use dto::{Access, Class, Field, ImportUnit, Method};
 use local_variable::{LocalVariable, VarFlags};
 use lsp_extra::{ToLspRangeError, to_lsp_range};
-use lsp_types::{Hover, HoverContents, LanguageString, MarkupContent, MarkupKind, Range};
+use lsp_types::{
+    Hover, HoverContents, LanguageString, MarkedString, MarkupContent, MarkupKind, Range,
+};
 use my_string::{NuVec, NuVecBuilder};
 use tyres::TyresError;
 
@@ -32,10 +34,11 @@ pub fn base(
     lo_va: &[LocalVariable],
     imports: &[ImportUnit],
     class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
+    plaintext_hover: bool,
 ) -> Result<Hover, HoverError> {
     match class_action(ast, point, lo_va, imports, class_map) {
         Ok((class, range)) => {
-            return Ok(class_to_hover(&class, range));
+            return Ok(class_to_hover(&class, range, plaintext_hover));
         }
         Err(ClassActionError::NotFound | ClassActionError::Tyres(TyresError::NotImported(_))) => {}
         Err(e) => eprintln!("class action hover error: {e:?}"),
@@ -55,7 +58,15 @@ pub fn base(
 
     let call_chain = call_chain::get_call_chain(ast, point);
 
-    call_chain_hover(&call_chain, point, lo_va, imports, &class, class_map)
+    call_chain_hover(
+        &call_chain,
+        point,
+        lo_va,
+        imports,
+        &class,
+        class_map,
+        plaintext_hover,
+    )
 }
 
 #[allow(dead_code)]
@@ -92,6 +103,7 @@ pub fn call_chain_hover(
     imports: &[ImportUnit],
     class: &Class,
     class_map: &Arc<RwLock<HashMap<NuVec, Class>>>,
+    plaintext_hover: bool,
 ) -> Result<Hover, HoverError> {
     let (item, relevant) = call_chain::validate(call_chain, point);
     let Some(el) = call_chain.get(item) else {
@@ -119,7 +131,12 @@ pub fn call_chain_hover(
                 .filter(|i| i.parameters.len() == args_len)
                 .collect();
             let range = to_lsp_range(range).map_err(HoverError::ToLspRange)?;
-            Ok(methods_to_hover(&methods, range, &resolve_state.class.name))
+            Ok(methods_to_hover(
+                &methods,
+                range,
+                &resolve_state.class.name,
+                plaintext_hover,
+            ))
         }
         CallItem::FieldAccess { name, range } => {
             let Some(method) = resolve_state.class.fields.iter().find(|m| m.name == *name) else {
@@ -137,14 +154,14 @@ pub fn call_chain_hover(
         }
         CallItem::Class { range, .. } | CallItem::ClassGeneric { range, .. } => {
             let range = to_lsp_range(range).map_err(HoverError::ToLspRange)?;
-            Ok(class_to_hover(&resolve_state.class, range))
+            Ok(class_to_hover(&resolve_state.class, range, plaintext_hover))
         }
         CallItem::ClassOrVariable { name, range } => {
             let range = to_lsp_range(range).map_err(HoverError::ToLspRange)?;
             if let Some(var) = lo_va.iter().find(|v| &v.name == name) {
                 return Ok(variables_to_hover(&[var], range));
             }
-            Ok(class_to_hover(&resolve_state.class, range))
+            Ok(class_to_hover(&resolve_state.class, range, plaintext_hover))
         }
         CallItem::ArgumentList {
             prev: _,
@@ -162,6 +179,7 @@ pub fn call_chain_hover(
                     imports,
                     &resolve_state.class,
                     class_map,
+                    plaintext_hover,
                 );
             }
             Err(HoverError::ArgumentNotFound)
@@ -255,7 +273,12 @@ fn field_to_hover(f: &Field, range: Range) -> Hover {
     }
 }
 
-fn methods_to_hover(methods: &[Method], range: Range, class_name: &NuVec) -> Hover {
+fn methods_to_hover(
+    methods: &[Method],
+    range: Range,
+    class_name: &NuVec,
+    plaintext_hover: bool,
+) -> Hover {
     let mut o = NuVecBuilder::new();
     let mut it = methods.iter().peekable();
     while let Some(i) = it.next() {
@@ -268,19 +291,23 @@ fn methods_to_hover(methods: &[Method], range: Range, class_name: &NuVec) -> Hov
         }
     }
     let value = o.finish();
-    Hover {
-        contents: HoverContents::Scalar(lsp_types::MarkedString::LanguageString(LanguageString {
-            language: String::from("java"),
-            value: value.to_string(),
-        })),
-        range: Some(range),
-    }
+    hover_java(value.to_string(), range, plaintext_hover)
 }
 
-fn class_to_hover(class: &Class, range: Range) -> Hover {
+fn class_to_hover(class: &Class, range: Range, plaintext_hover: bool) -> Hover {
     let value = format!("// {}\n{}", class.class_path, class_to_markdown(class));
+    hover_java(value, range, plaintext_hover)
+}
+
+fn hover_java(value: String, range: Range, plaintext_hover: bool) -> Hover {
+    if plaintext_hover {
+        return Hover {
+            contents: HoverContents::Scalar(MarkedString::String(value)),
+            range: Some(range),
+        };
+    }
     Hover {
-        contents: HoverContents::Scalar(lsp_types::MarkedString::LanguageString(LanguageString {
+        contents: HoverContents::Scalar(MarkedString::LanguageString(LanguageString {
             language: String::from("java"),
             value,
         })),
@@ -492,8 +519,16 @@ public class Test {
         .unwrap();
 
         let chain = call_chain::get_call_chain(&doc.ast, &point);
-        let out =
-            call_chain_hover(&chain, &point, &vars, &[], &class, &string_class_map()).unwrap();
+        let out = call_chain_hover(
+            &chain,
+            &point,
+            &vars,
+            &[],
+            &class,
+            &string_class_map(),
+            false,
+        )
+        .unwrap();
         let expected = expect![[r#"
             Hover {
                 contents: Scalar(
@@ -502,6 +537,70 @@ public class Test {
                             language: "java",
                             value: "int length();",
                         },
+                    ),
+                ),
+                range: Some(
+                    Range {
+                        start: Position {
+                            line: 5,
+                            character: 25,
+                        },
+                        end: Position {
+                            line: 5,
+                            character: 31,
+                        },
+                    },
+                ),
+            }
+        "#]];
+        expected.assert_debug_eq(&out);
+    }
+
+    #[test]
+    fn method_hover_plaintext() {
+        let class = Class {
+            access: Access::Public,
+            name: NuVec::new_static(b"Test"),
+            ..Default::default()
+        };
+        let content = "
+package ch.emilycares;
+public class Test {
+    public void hello() {
+    String other = \"asd\";
+    String local = other.length().toString();
+    }
+}
+";
+        let doc = Document::setup(content, PathBuf::new()).unwrap();
+        let point = AstPoint::new(5, 29);
+        let vars = variables::get_vars(
+            &doc.ast,
+            &VariableContext {
+                point: Some(point),
+                imports: &[],
+                class: &class,
+                class_map: string_class_map(),
+            },
+        )
+        .unwrap();
+
+        let chain = call_chain::get_call_chain(&doc.ast, &point);
+        let out = call_chain_hover(
+            &chain,
+            &point,
+            &vars,
+            &[],
+            &class,
+            &string_class_map(),
+            true,
+        )
+        .unwrap();
+        let expected = expect![[r#"
+            Hover {
+                contents: Scalar(
+                    String(
+                        "int length();",
                     ),
                 ),
                 range: Some(

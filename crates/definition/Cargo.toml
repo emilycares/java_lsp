@@ -21,7 +21,6 @@ my_string.workspace = true
 position.workspace = true
 tyres.workspace = true
 hover.workspace = true
-workspace_hack = { version = "0.1", path = "../workspace_hack" }
 
 [dev-dependencies]
 variables.workspace = true

@@ -463,14 +463,14 @@ fn print_helper(content: &[u8], line: usize, col: usize, msg: &str) {
     };
     if !is_zero && let Some((number, line)) = lines.next() {
         let number = number + 1;
-        eprintln!("{number} ");
+        eprint!("{number} ");
         if let Ok(line) = line {
             eprintln!("{line}");
         }
     }
     if let Some((number, line)) = lines.next() {
         let number = number + 1;
-        eprintln!("{number} \x1b[93m");
+        eprint!("{number} \x1b[93m");
         if let Ok(line) = line {
             eprintln!("{line}\x1b[0m");
         }
@@ -481,7 +481,7 @@ fn print_helper(content: &[u8], line: usize, col: usize, msg: &str) {
     eprintln!("  {spaces}| {msg}");
     if let Some((number, line)) = lines.next() {
         let number = number + 1;
-        eprintln!("{number}");
+        eprint!("{number}");
         if let Ok(line) = line {
             eprintln!(" {line}");
         }
@@ -516,6 +516,7 @@ pub fn assert_semicolon_options(
     if block_entry_options == &BlockEntryOptions::NoSemicolon {
         return Ok(pos);
     }
+
     assert_semicolon(tokens, pos)
 }
 /// Optional multiple semiolon

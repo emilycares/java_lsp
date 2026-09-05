@@ -133,7 +133,6 @@
               (craneLib.fileset.commonCargoSources ./crates/project)
               (craneLib.fileset.commonCargoSources ./crates/signature)
               (craneLib.fileset.commonCargoSources ./crates/references)
-              (craneLib.fileset.commonCargoSources ./crates/workspace_hack)
               (craneLib.fileset.commonCargoSources crate)
             ];
           };
@@ -204,24 +203,6 @@
               cargoNextestPartitionsExtraArgs = "-- --skip integration";
             }
           );
-
-          # Ensure that cargo-hakari is up to date
-          workspace-hakari = craneLib.mkCargoDerivation {
-            inherit src;
-            pname = "workspace-hakari";
-            cargoArtifacts = null;
-            doInstallCargoArtifacts = false;
-
-            buildPhaseCargoCommand = ''
-              cargo hakari generate --diff  # workspace-hack Cargo.toml is up-to-date
-              cargo hakari manage-deps --dry-run  # all workspace crates depend on workspace-hack
-              cargo hakari verify
-            '';
-
-            nativeBuildInputs = [
-              pkgs.cargo-hakari
-            ];
-          };
         };
         packages = {
           default = java_lsp;
@@ -246,7 +227,6 @@
             packages =
               with pkgs;
               [
-                cargo-hakari
                 cargo-nextest
                 cargo-machete
                 javaPackages.compiler.openjdk25

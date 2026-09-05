@@ -2,6 +2,7 @@
 pub struct Configuration {
     pub formatter: FormatterConfig,
     pub editor_runs_commands: bool,
+    pub plaintext_hover: bool,
 }
 
 impl Configuration {
@@ -24,6 +25,7 @@ impl Default for Configuration {
         Self {
             formatter: FormatterConfig::None,
             editor_runs_commands: false,
+            plaintext_hover: false,
         }
     }
 }

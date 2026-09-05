@@ -381,10 +381,8 @@ pub fn format_file(
                 }
                 Err(e) => {
                     eprintln!("Here: {}", p.display());
-                    eprintln!("Ast error: {e:?}");
-                    if exit {
-                        std::process::exit(3);
-                    }
+                    e.print_err(&data, tokens);
+                    std::process::exit(3);
                 }
             },
             Err(e) => {

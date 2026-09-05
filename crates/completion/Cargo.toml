@@ -22,4 +22,3 @@ tyres.workspace = true
 imports.workspace = true
 get_class.workspace = true
 code_action.workspace = true
-workspace_hack = { version = "0.1", path = "../workspace_hack" }
