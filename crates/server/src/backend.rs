@@ -1071,13 +1071,14 @@ async fn load_project_files(
         ProjectKind::Maven { .. } => maven::project::load_project_folders(project_dir).await,
         ProjectKind::Gradle { .. } => gradle::project::load_project_folders(project_dir).await,
         ProjectKind::Unknown => {
-            let mut dirs = VecDeque::new();
+            let mut dirs = VecDeque::with_capacity(255);
             dirs.push_back(project_dir.to_path_buf());
             loader::load_java_files(dirs).await
         }
     };
     let for_refs = project_classes.clone();
     if let Ok(mut cm) = class_map.write() {
+        cm.reserve(project_classes.len());
         for class in project_classes {
             cm.insert(class.class_path.clone(), class);
         }

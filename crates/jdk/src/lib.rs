@@ -62,6 +62,7 @@ pub async fn load_classes(
         && let Ok(classes) = loader::load_class_folder(&cache_path)
     {
         if let Ok(mut cm) = class_map.write() {
+            cm.reserve(classes.classes.len());
             for class in classes.classes {
                 cm.insert(class.class_path.clone(), class);
             }
@@ -73,6 +74,7 @@ pub async fn load_classes(
         eprintln!("Failed to save {JDK_CFC} because: {e:?}");
     }
     if let Ok(mut cm) = class_map.write() {
+        cm.reserve(class_folder.classes.len());
         for class in class_folder.classes {
             cm.insert(class.class_path.clone(), class);
         }

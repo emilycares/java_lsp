@@ -8,7 +8,7 @@ use std::{
 };
 
 use common::{
-    Dependency, TaskProgress, cache_dir, project_cache_dir,
+    Dependency, TaskProgress, project_cache_dir,
     project_kind::{ProjectKind, get_project_kind},
 };
 use dto::Class;
@@ -118,7 +118,7 @@ pub fn reload_maven_project(
                 error: false,
                 message: "...".to_string(),
             });
-        let cache = cache_dir();
+        let cache = project_cache_dir();
         let tree = get_tree(&project_kind, &con).await;
         if let Some(tree) = tree {
             tokio::select! {
@@ -217,7 +217,7 @@ async fn reload_dependencies_maven_cli(
         }
     }
     if let Some(tree) = tree {
-        let cache = cache_dir();
+        let cache = project_cache_dir();
         tokio::select! {
             () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
             () = project_deps(sender, project_kind, class_map.clone(), false, &project_dir, &cache, &tree, repos, Arc::new(Vec::new()), true) => {}
@@ -310,7 +310,7 @@ pub fn update_dependencies_maven(
                 error: false,
                 message: "...".to_string(),
             });
-            let cache = cache_dir();
+            let cache = project_cache_dir();
             let task = format!("Command: {COMMAND_RELOAD_DEPENDENCIES}");
             progress_start_option_token(&con.clone(), &progress, &task);
             tokio::select! {
@@ -388,7 +388,7 @@ async fn update_dependencies_maven_cli(
         let sender = tokio::sync::watch::Sender::default();
         let _ = update::update(repos.clone(), &tree, sender).await;
         let sender = tokio::sync::watch::Sender::default();
-        let cache = cache_dir();
+        let cache = project_cache_dir();
         let task = format!("Command: {COMMAND_RELOAD_DEPENDENCIES}");
         progress_start_option_token(&con.clone(), &progress, &task);
         project_deps(

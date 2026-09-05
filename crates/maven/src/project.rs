@@ -46,6 +46,7 @@ pub async fn project_deps(
         && let Ok(classes) = loader::load_class_folder(&cache_path)
     {
         if let Ok(mut cm) = class_map.write() {
+            cm.reserve(classes.classes.len());
             for class in classes.classes {
                 cm.insert(class.class_path.clone(), class);
             }
@@ -164,6 +165,7 @@ pub async fn project_deps(
         eprintln!("Failed to save {} because: {e:?}", cache_path.display());
     }
     if let Ok(mut cm) = class_map.write() {
+        cm.reserve(maven_class_folder.classes.len());
         for class in maven_class_folder.classes {
             cm.insert(class.class_path.clone(), class);
         }
@@ -219,7 +221,7 @@ pub fn get_maven_cache_path(project_dir: &Path, project_cache_dir: &Path) -> Pat
 
 #[must_use]
 pub async fn load_project_folders(project_dir: &Path) -> Vec<Class> {
-    let mut dirs = VecDeque::new();
+    let mut dirs = VecDeque::with_capacity(255);
     dirs.push_back(project_dir.join("src/main/java"));
     dirs.push_back(project_dir.join("src/test/java"));
 

@@ -96,7 +96,7 @@ pub fn load_class_folder<P: AsRef<Path> + Debug>(path: P) -> Result<ClassFolder,
 #[must_use]
 pub async fn load_java_files(dirs: VecDeque<PathBuf>) -> Vec<Class> {
     let mut dirs = dirs;
-    let mut out = Vec::new();
+    let mut out = Vec::with_capacity(255);
     let mut handles = JoinSet::new();
     let mut count = 0;
     while let Some(dir) = dirs.pop_front() {
@@ -104,9 +104,9 @@ pub async fn load_java_files(dirs: VecDeque<PathBuf>) -> Vec<Class> {
         if count < 16 {
             count += 1;
             handles.spawn(async move {
-                let mut dirs = VecDeque::new();
+                let mut dirs = VecDeque::with_capacity(255);
                 dirs.push_back(dir.clone());
-                let mut out = Vec::new();
+                let mut out = Vec::with_capacity(255);
                 while let Some(dir) = dirs.pop_front() {
                     if let Ok(o) = visit_java_files(&dir, &mut dirs, async |p| {
                         if let Some(s) = p.to_str() {
@@ -153,7 +153,7 @@ async fn visit_java_files(
     cb: impl AsyncFn(&PathBuf) -> Option<Class>,
 ) -> Result<Vec<Class>, LoaderError> {
     let mut read_dir = tokio::fs::read_dir(dir).await.map_err(LoaderError::IO)?;
-    let mut out: Vec<Class> = Vec::new();
+    let mut out: Vec<Class> = Vec::with_capacity(255);
     while let Ok(Some(entry)) = read_dir.next_entry().await {
         let ft = entry.file_type().await.map_err(LoaderError::IO)?;
         if ft.is_dir() {
@@ -181,7 +181,7 @@ fn visit_class_files(
         .map_err(LoaderError::IO)?
         .map(|res| res.map(|e| e.path()))
         .filter_map(Result::ok);
-    let mut out: Vec<NuVec> = Vec::new();
+    let mut out: Vec<NuVec> = Vec::with_capacity(255);
     for entry in read_dir {
         if entry.is_dir() {
             dirs.push_back(entry);
@@ -204,7 +204,7 @@ pub fn load_class_files(
     filter: bool,
     source: &NuVec,
 ) -> Result<Vec<Class>, LoaderError> {
-    let mut dirs = VecDeque::new();
+    let mut dirs = VecDeque::with_capacity(255);
     dirs.push_back(folder.to_path_buf());
 
     let Some(root_prefix) = folder.to_str().map(str::as_bytes) else {
@@ -218,7 +218,7 @@ pub fn load_class_files(
     #[cfg(windows)]
     let root_prefix = root_prefix.as_bytes();
 
-    let mut files = Vec::new();
+    let mut files = Vec::with_capacity(255);
     while let Some(dir) = dirs.pop_front() {
         if let Ok(o) = visit_class_files(&dir, &mut dirs) {
             files.extend(o);
@@ -245,7 +245,7 @@ pub fn load_class_files(
         }
     }
 
-    let mut out = Vec::new();
+    let mut out = Vec::with_capacity(255);
 
     'outer: for p in files.iter().filter(|i| !i.ends_with(b"module-info.class")) {
         let prefix = p.trim_start_matches(root_prefix).trim_start_matches(b"/");

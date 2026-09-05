@@ -3,6 +3,7 @@
 #![deny(clippy::nursery)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::unused_async)]
+use std::collections::VecDeque;
 use std::io::{Read, Write};
 use std::path::Path;
 use std::time::Instant;
@@ -291,7 +292,7 @@ fn visit_java_fies(
 pub fn ast_check_dir(folder: PathBuf) -> Result<(), std::io::Error> {
     let time = Instant::now();
     let dir = canonicalize(folder)?;
-    let mut dirs = std::collections::VecDeque::new();
+    let mut dirs = VecDeque::with_capacity(255);
     let mut tokens = Vec::with_capacity(8192);
     dirs.push_back(dir);
     while let Some(dir) = dirs.pop_front() {
@@ -303,8 +304,8 @@ pub fn ast_check_dir(folder: PathBuf) -> Result<(), std::io::Error> {
 pub fn ast_check_dir_ignore(folder: PathBuf, ignore: &[String]) -> Result<(), std::io::Error> {
     let time = Instant::now();
     let dir = canonicalize(folder)?;
-    let mut tokens = Vec::new();
-    let mut dirs = std::collections::VecDeque::new();
+    let mut tokens = Vec::with_capacity(8192);
+    let mut dirs = VecDeque::with_capacity(255);
     dirs.push_back(dir);
     while let Some(dir) = dirs.pop_front() {
         visit_java_fies(&dir, &mut tokens, &mut dirs, |i, tokens| {
@@ -410,7 +411,7 @@ pub fn format_dir(p: &PathBuf) {
     let Ok(dir) = canonicalize(p) else {
         return;
     };
-    let mut dirs = std::collections::VecDeque::new();
+    let mut dirs = VecDeque::with_capacity(255);
     let mut tokens = Vec::with_capacity(8192);
     dirs.push_back(dir);
     while let Some(dir) = dirs.pop_front() {
@@ -432,7 +433,7 @@ pub fn format_piped() {
 
     let editorconfig = editorconfig::load_editor_config_or_default();
     let editorconfig = editorconfig.to_filled();
-    let mut tokens = Vec::new();
+    let mut tokens = Vec::with_capacity(8192);
     match ast::lexer::lex_mut::<false>(&data, &mut tokens) {
         Ok(()) => match ast::parse_file(&tokens) {
             Ok(ast) => {
