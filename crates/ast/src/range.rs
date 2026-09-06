@@ -56,9 +56,9 @@ impl AstInRange for &AstBlockEntry {
             AstBlockEntry::Expression(ast_block_expression) => {
                 ast_block_expression.range.is_in_range(point)
             }
-            AstBlockEntry::Assign(ast_block_assign) => ast_block_assign.range.is_in_range(point),
             AstBlockEntry::If(ast_if) => ast_if.is_in_range(point),
             AstBlockEntry::While(ast_while) => ast_while.range.is_in_range(point),
+            AstBlockEntry::DoWhile(dow) => dow.range.is_in_range(point),
             AstBlockEntry::For(ast_while) => ast_while.range.is_in_range(point),
             AstBlockEntry::ForEnhanced(ast_for_enhanced) => {
                 ast_for_enhanced.range.is_in_range(point)
@@ -188,7 +188,6 @@ impl GetRange for AstBlockEntry {
                 AstRange::default()
             }
             Self::Expression(ast_block_expression) => ast_block_expression.range,
-            Self::Assign(ast_block_assign) => ast_block_assign.range,
             Self::If(ast_if) => match ast_if {
                 AstIf::If {
                     range,
@@ -205,6 +204,7 @@ impl GetRange for AstBlockEntry {
                 } => *range,
             },
             Self::While(ast_while) => ast_while.range,
+            Self::DoWhile(dow) => dow.range,
             Self::For(ast_for) => ast_for.range,
             Self::ForEnhanced(ast_for_enhanced) => ast_for_enhanced.range,
             Self::Break(ast_block_break) => ast_block_break.range,

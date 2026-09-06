@@ -8,15 +8,15 @@ use std::cmp::{self, max, min};
 use ast::range::{AstInRange, GetRange, add_ranges};
 use ast::types::{
     AstAnnotated, AstAnnotatedParameter, AstAnnotatedParameterKind, AstBaseExpression, AstBlock,
-    AstBlockEntry, AstBlockVariable, AstClassBlock, AstConstructorHeader, AstExpression,
-    AstExpressionIdentifier, AstExpressionKind, AstExpressionOperator, AstExpressionOrAnnotated,
-    AstExpressionOrDefault, AstExpressionOrValue, AstExtends, AstFile, AstForContent,
-    AstIdentifier, AstIf, AstIfContent, AstImportUnit, AstInterfaceConstant, AstInterfaceMethod,
-    AstJType, AstJTypeExpression, AstJTypeKind, AstLambdaRhs, AstMethodHeader, AstMethodParameter,
-    AstMethodParameters, AstNewClass, AstNewRhs, AstPoint, AstRange, AstRecordEntries,
-    AstRecordEntry, AstSuperClass, AstSwitchCaseArrowContent, AstThing, AstThrowsDeclaration,
-    AstTopLevel, AstTypeParameter, AstTypeParameters, AstValue, AstValueNuget, AstValues,
-    AstValuesWithAnnotated, AstWhileContent,
+    AstBlockEntry, AstBlockVariable, AstClassBlock, AstConstructorHeader, AstDoWhile,
+    AstExpression, AstExpressionIdentifier, AstExpressionKind, AstExpressionOperator,
+    AstExpressionOrAnnotated, AstExpressionOrDefault, AstExpressionOrValue, AstExtends, AstFile,
+    AstForContent, AstIdentifier, AstIf, AstIfContent, AstImportUnit, AstInterfaceConstant,
+    AstInterfaceMethod, AstJType, AstJTypeExpression, AstJTypeKind, AstLambdaRhs, AstMethodHeader,
+    AstMethodParameter, AstMethodParameters, AstNewClass, AstNewRhs, AstPoint, AstRange,
+    AstRecordEntries, AstRecordEntry, AstSuperClass, AstSwitchCaseArrowContent, AstThing,
+    AstThrowsDeclaration, AstTopLevel, AstTypeParameter, AstTypeParameters, AstValue,
+    AstValueNuget, AstValues, AstValuesWithAnnotated, AstWhile, AstWhileContent,
 };
 use dto::JType;
 use my_string::NuVec;
@@ -642,21 +642,17 @@ fn cc_block_entry(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIte
         AstBlockEntry::Expression(ast_block_expression) => {
             cc_expr(&ast_block_expression.value, point, false, out);
         }
-        AstBlockEntry::Assign(ast_block_assign) => {
-            let a = dist(*point, ast_block_assign.key.get_range());
-            let b = dist(*point, ast_block_assign.expression.get_range());
-            if a > b {
-                cc_expr(&ast_block_assign.expression, point, false, out);
-            } else {
-                cc_expr(&ast_block_assign.key, point, false, out);
-            }
-        }
         AstBlockEntry::If(ast_if) => cc_if(ast_if, point, out),
-        AstBlockEntry::While(ast_while) => {
-            if ast_while.control.get_range().is_in_range(point) {
-                return cc_expr(&ast_while.control, point, false, out);
+        AstBlockEntry::While(AstWhile {
+            control, content, ..
+        })
+        | AstBlockEntry::DoWhile(AstDoWhile {
+            control, content, ..
+        }) => {
+            if control.get_range().is_in_range(point) {
+                return cc_expr(control, point, false, out);
             }
-            cc_while_content(&ast_while.content, point, out);
+            cc_while_content(content, point, out);
         }
         AstBlockEntry::For(ast_for) => {
             for e in &ast_for.vars {
@@ -1008,9 +1004,11 @@ fn cut_expression<'a>(
                 | AstExpressionOperator::Le(_)
                 | AstExpressionOperator::Lt(_)
                 | AstExpressionOperator::LtLt(_)
+                | AstExpressionOperator::LtLtEq(_)
                 | AstExpressionOperator::Ge(_)
                 | AstExpressionOperator::Gt(_)
                 | AstExpressionOperator::GtGt(_)
+                | AstExpressionOperator::GtGtEq(_)
                 | AstExpressionOperator::GtGtGt(_)
                 | AstExpressionOperator::Dot(_)
                 | AstExpressionOperator::ExclamationMark(_)
@@ -1183,9 +1181,11 @@ fn cc_base_next_oprerator(
         | AstExpressionOperator::Le(_)
         | AstExpressionOperator::Lt(_)
         | AstExpressionOperator::LtLt(_)
+        | AstExpressionOperator::LtLtEq(_)
         | AstExpressionOperator::Ge(_)
         | AstExpressionOperator::Gt(_)
         | AstExpressionOperator::GtGt(_)
+        | AstExpressionOperator::GtGtEq(_)
         | AstExpressionOperator::GtGtGt(_)
         | AstExpressionOperator::Tilde(_)
         | AstExpressionOperator::Caret(_)

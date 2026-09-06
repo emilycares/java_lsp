@@ -7,12 +7,12 @@ use ast::{
     range::{AstInRange, GetRange},
     types::{
         AstAnnotated, AstAnnotatedParameter, AstAnnotatedParameterKind, AstAnnotation,
-        AstBaseExpression, AstBlock, AstBlockEntry, AstBlockVariable, AstClassBlock,
+        AstBaseExpression, AstBlock, AstBlockEntry, AstBlockVariable, AstClassBlock, AstDoWhile,
         AstEnumeration, AstExpressionIdentifier, AstExpressionKind, AstExpressionOrAnnotated,
         AstExpressionOrDefault, AstExpressionOrValue, AstFile, AstForContent, AstIf, AstIfContent,
         AstImportUnit, AstJType, AstJTypeKind, AstLambdaRhs, AstNewRhs, AstPoint, AstRange,
         AstSuperClass, AstSwitchCaseArrowContent, AstThing, AstTopLevel, AstTypeParameter,
-        AstTypeParameters, AstValuesWithAnnotated, AstWhileContent,
+        AstTypeParameters, AstValuesWithAnnotated, AstWhile, AstWhileContent,
     },
 };
 use my_string::NuVec;
@@ -593,11 +593,6 @@ fn get_class_block_entry(entry: &AstBlockEntry, point: &AstPoint) -> Option<Foun
                 return Some(o);
             }
         }
-        AstBlockEntry::Assign(ast_block_assign) => {
-            if let Some(o) = get_class_expression(&ast_block_assign.expression, point) {
-                return Some(o);
-            }
-        }
         AstBlockEntry::If(ast_if) => match ast_if {
             AstIf::If {
                 range: _,
@@ -624,11 +619,16 @@ fn get_class_block_entry(entry: &AstBlockEntry, point: &AstPoint) -> Option<Foun
                 }
             }
         },
-        AstBlockEntry::While(ast_while) => {
-            if let Some(o) = get_class_expression(&ast_while.control, point) {
+        AstBlockEntry::While(AstWhile {
+            control, content, ..
+        })
+        | AstBlockEntry::DoWhile(AstDoWhile {
+            control, content, ..
+        }) => {
+            if let Some(o) = get_class_expression(control, point) {
                 return Some(o);
             }
-            match &ast_while.content {
+            match &content {
                 AstWhileContent::None => (),
                 AstWhileContent::Block(ast_block) => {
                     if let Some(o) = get_class_block(ast_block, point) {

@@ -12,7 +12,7 @@ use ast::{
     range::{GetRange, is_in_range_c},
     types::{
         AstBaseExpression, AstBlock, AstBlockEntry, AstBlockExpression, AstBlockVariable,
-        AstClassConstructor, AstClassMethod, AstExpression, AstExpressionKind,
+        AstClassConstructor, AstClassMethod, AstDoWhile, AstExpression, AstExpressionKind,
         AstExpressionOrValue, AstFile, AstFor, AstForContent, AstForEnhanced, AstIf, AstIfContent,
         AstInterfaceConstant, AstInterfaceMethod, AstInterfaceMethodDefault, AstJTypeKind,
         AstLambda, AstLambdaRhs, AstNewRhs, AstPoint, AstSwitch, AstSwitchCaseArrowContent,
@@ -298,8 +298,7 @@ fn get_block_entry_vars(
         | AstBlockEntry::SwitchCase(_)
         | AstBlockEntry::SwitchDefault(_)
         | AstBlockEntry::Yield(_)
-        | AstBlockEntry::Assert(_)
-        | AstBlockEntry::Assign(_) => Ok(()),
+        | AstBlockEntry::Assert(_) => Ok(()),
         AstBlockEntry::Variable(i) => {
             for v in i {
                 from_block_variable(v, context, out)?;
@@ -311,6 +310,7 @@ fn get_block_entry_vars(
         AstBlockEntry::Expression(ast_expression) => block_expr(ast_expression, context, out),
         AstBlockEntry::If(ast_if) => if_vars(ast_if, context, out),
         AstBlockEntry::While(ast_while) => while_vars(ast_while, context, out),
+        AstBlockEntry::DoWhile(ast_do_while) => do_while_vars(ast_do_while, context, out),
         AstBlockEntry::For(ast_for) => for_vars(ast_for, context, out),
         AstBlockEntry::ForEnhanced(ast_for_enhanced) => {
             for_enanced_vars(ast_for_enhanced, context, out)
@@ -657,6 +657,19 @@ fn while_vars(
         return Ok(());
     }
     if let AstWhileContent::Block(b) = &ast_while.content {
+        get_block_vars(b, context, out)?;
+    }
+    Ok(())
+}
+fn do_while_vars(
+    dow: &AstDoWhile,
+    context: &VariableContext,
+    out: &mut Vec<LocalVariable>,
+) -> Result<(), VariablesError> {
+    if !is_in_range_c(dow.range, &context.point) {
+        return Ok(());
+    }
+    if let AstWhileContent::Block(b) = &dow.content {
         get_block_vars(b, context, out)?;
     }
     Ok(())

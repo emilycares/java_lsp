@@ -260,7 +260,7 @@ pub fn parse_interface_method_impl(
 ) -> Result<(AstInterfaceMethodDefault, usize), AstError> {
     let start = tokens.start(pos)?;
     let (header, pos) = parse_method_header(tokens, pos)?;
-    let (block, pos) = parse_block(tokens, pos)?;
+    let (block, pos) = parse_block(tokens, pos, false)?;
     let end = tokens.end(pos)?;
     Ok((
         AstInterfaceMethodDefault {

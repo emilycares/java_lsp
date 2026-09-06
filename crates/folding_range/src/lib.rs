@@ -1,8 +1,8 @@
 use std::num::TryFromIntError;
 
 use ast::types::{
-    AstBlock, AstBlockEntry, AstFile, AstFor, AstForContent, AstIf, AstIfContent, AstThing,
-    AstTopLevel, AstWhile, AstWhileContent,
+    AstBlock, AstBlockEntry, AstDoWhile, AstFile, AstFor, AstForContent, AstIf, AstIfContent,
+    AstThing, AstTopLevel, AstWhile, AstWhileContent,
 };
 use lsp_types::{FoldingRange, FoldingRangeKind};
 
@@ -131,6 +131,7 @@ fn fold_block_entry(
     match block_entry {
         AstBlockEntry::If(ast_if) => fold_if(ast_if, out)?,
         AstBlockEntry::While(ast_while) => fold_while(ast_while, out)?,
+        AstBlockEntry::DoWhile(ast_do_while) => fold_do_while(ast_do_while, out)?,
         AstBlockEntry::For(ast_for) => fold_for(ast_for, out)?,
         AstBlockEntry::ForEnhanced(ast_for_enhanced) => {
             fold_for_content(&ast_for_enhanced.content, out)?;
@@ -148,7 +149,6 @@ fn fold_block_entry(
         AstBlockEntry::Expression(_)
         | AstBlockEntry::Return(_)
         | AstBlockEntry::Variable(_)
-        | AstBlockEntry::Assign(_)
         | AstBlockEntry::Break(_)
         | AstBlockEntry::Continue(_)
         | AstBlockEntry::Throw(_)
@@ -198,6 +198,14 @@ fn fold_for_content(
 }
 
 fn fold_while(f: &AstWhile, out: &mut Vec<FoldingRange>) -> Result<(), FoldingRangeError> {
+    match &f.content {
+        AstWhileContent::Block(b) => fold_block(b, out),
+        AstWhileContent::BlockEntry(e) => fold_block_entry(e, out),
+        AstWhileContent::None => Ok(()),
+    }
+}
+
+fn fold_do_while(f: &AstDoWhile, out: &mut Vec<FoldingRange>) -> Result<(), FoldingRangeError> {
     match &f.content {
         AstWhileContent::Block(b) => fold_block(b, out),
         AstWhileContent::BlockEntry(e) => fold_block_entry(e, out),

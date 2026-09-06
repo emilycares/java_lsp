@@ -6,8 +6,8 @@ use std::{
 };
 
 use ast::types::{
-    AstBlockEntry, AstBlockVariable, AstFile, AstForContent, AstIf, AstIfContent, AstPackage,
-    AstPoint, AstRange, AstThing, AstTopLevel, AstWhileContent,
+    AstBlockEntry, AstBlockVariable, AstDoWhile, AstFile, AstForContent, AstIf, AstIfContent,
+    AstPackage, AstPoint, AstRange, AstThing, AstTopLevel, AstWhile, AstWhileContent,
 };
 use dto::{Class, ImportUnit};
 use local_variable::LocalVariable;
@@ -180,7 +180,6 @@ fn find_var_block_entry<'a>(
             None
         }
         AstBlockEntry::Expression(_ast_block_expression) => None,
-        AstBlockEntry::Assign(_ast_block_assign) => None,
         AstBlockEntry::If(ast_if) => match ast_if {
             AstIf::ElseIf {
                 range,
@@ -206,9 +205,10 @@ fn find_var_block_entry<'a>(
                 None
             }
         },
-        AstBlockEntry::While(ast_while) => {
-            if ast_while.range.is_in_range(point) {
-                return match &ast_while.content {
+        AstBlockEntry::While(AstWhile { content, range, .. })
+        | AstBlockEntry::DoWhile(AstDoWhile { content, range, .. }) => {
+            if range.is_in_range(point) {
+                return match &content {
                     AstWhileContent::Block(ast_block) => find_var_block(ast_block, point),
                     AstWhileContent::BlockEntry(ast_block_entry) => {
                         find_var_block_entry(point, ast_block_entry)

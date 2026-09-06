@@ -145,7 +145,13 @@ impl Token {
             | Self::Uses
             | Self::With
             | Self::Open => 4,
-            Self::Int | Self::New | Self::For | Self::Try | Self::Non | Self::Var => 3,
+            Self::Int
+            | Self::New
+            | Self::For
+            | Self::Try
+            | Self::Non
+            | Self::Var
+            | Self::LtLtEq => 3,
             Self::Implements | Self::InstanceOf | Self::Transitive => 10,
             Self::Continue
             | Self::Abstract
@@ -261,6 +267,7 @@ impl Token {
             Self::Le => NuVec::new_static(b"<="),
             Self::Lt => NuVec::new_static(b"<"),
             Self::LtLt => NuVec::new_static(b"<<"),
+            Self::LtLtEq => NuVec::new_static(b"<<="),
             Self::Ge => NuVec::new_static(b">="),
             Self::Gt => NuVec::new_static(b">"),
             Self::Extends => NuVec::new_static(b"extends"),
@@ -401,6 +408,7 @@ impl fmt::Display for Token {
             Self::Le => write!(f, "<="),
             Self::Lt => write!(f, "<"),
             Self::LtLt => write!(f, "<<"),
+            Self::LtLtEq => write!(f, "<<="),
             Self::Ge => write!(f, ">="),
             Self::Gt => write!(f, ">"),
             Self::Extends => write!(f, "extends"),
@@ -542,6 +550,7 @@ impl fmt::Debug for Token {
             Self::Le => write!(f, "<="),
             Self::Lt => write!(f, "<"),
             Self::LtLt => write!(f, "<<"),
+            Self::LtLtEq => write!(f, "<<="),
             Self::Ge => write!(f, ">="),
             Self::Gt => write!(f, ">"),
             Self::Extends => write!(f, "extends"),
@@ -723,6 +732,8 @@ pub enum Token {
     /// <
     Lt,
     /// <<
+    LtLtEq,
+    /// <<=
     LtLt,
     /// >=
     Ge,
@@ -1487,13 +1498,24 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     col += 2;
                     index += 1;
                 } else if matches!(peek, Some(b'<')) {
-                    tokens.push(PositionToken {
-                        token: Token::LtLt,
-                        line,
-                        col,
-                    });
-                    col += 2;
-                    index += 1;
+                    let peek2 = input.get(index + 2);
+                    if matches!(peek2, Some(b'=')) {
+                        tokens.push(PositionToken {
+                            token: Token::LtLtEq,
+                            line,
+                            col,
+                        });
+                        col += 3;
+                        index += 2;
+                    } else {
+                        tokens.push(PositionToken {
+                            token: Token::LtLt,
+                            line,
+                            col,
+                        });
+                        col += 2;
+                        index += 1;
+                    }
                 } else {
                     tokens.push(PositionToken {
                         token: Token::Lt,

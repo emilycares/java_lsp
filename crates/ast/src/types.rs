@@ -343,9 +343,9 @@ pub enum AstBlockEntry {
     Return(AstBlockReturn),
     Variable(Vec<AstBlockVariable>),
     Expression(AstBlockExpression),
-    Assign(Box<AstBlockAssign>),
     If(AstIf),
     While(AstWhile),
+    DoWhile(AstDoWhile),
     For(Box<AstFor>),
     ForEnhanced(Box<AstForEnhanced>),
     Break(AstBlockBreak),
@@ -369,6 +369,14 @@ pub enum AstBlockEntry {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstWhile {
+    pub range: AstRange,
+    pub control: AstExpression,
+    pub content: AstWhileContent,
+    pub label: Option<AstIdentifier>,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+pub struct AstDoWhile {
     pub range: AstRange,
     pub control: AstExpression,
     pub content: AstWhileContent,
@@ -518,13 +526,6 @@ pub struct AstTryCatchCase {
     pub range: AstRange,
     pub variable: AstBlockVariableMultiType,
     pub block: AstBlock,
-}
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-pub struct AstBlockAssign {
-    pub range: AstRange,
-    pub key: AstExpression,
-    pub expression: AstExpression,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
@@ -1073,9 +1074,11 @@ pub enum AstExpressionOperator {
     Le(AstRange),
     Lt(AstRange),
     LtLt(AstRange),
+    LtLtEq(AstRange),
     Ge(AstRange),
     Gt(AstRange),
     GtGt(AstRange),
+    GtGtEq(AstRange),
     GtGtGt(AstRange),
     Dot(AstRange),
     ExclamationMark(AstRange),

@@ -9904,8 +9904,8 @@ fn more_syntax() {
                                                             },
                                                         },
                                                     ),
-                                                    While(
-                                                        AstWhile {
+                                                    DoWhile(
+                                                        AstDoWhile {
                                                             range: AstRange {
                                                                 start: AstPoint { 53:8 },
                                                                 end: AstPoint { 56:26 },
@@ -11138,13 +11138,13 @@ fn more_syntax() {
                                                                     end: AstPoint { 87:9 },
                                                                 },
                                                                 entries: [
-                                                                    Assign(
-                                                                        AstBlockAssign {
+                                                                    Expression(
+                                                                        AstBlockExpression {
                                                                             range: AstRange {
                                                                                 start: AstPoint { 83:12 },
                                                                                 end: AstPoint { 83:56 },
                                                                             },
-                                                                            key: [
+                                                                            value: [
                                                                                 Base(
                                                                                     AstBaseExpression {
                                                                                         range: AstRange {
@@ -11166,8 +11166,22 @@ fn more_syntax() {
                                                                                         operator: None,
                                                                                     },
                                                                                 ),
-                                                                            ],
-                                                                            expression: [
+                                                                                Base(
+                                                                                    AstBaseExpression {
+                                                                                        range: AstRange {
+                                                                                            start: AstPoint { 83:21 },
+                                                                                            end: AstPoint { 83:22 },
+                                                                                        },
+                                                                                        ident: None,
+                                                                                        values: None,
+                                                                                        operator: Assign(
+                                                                                            AstRange {
+                                                                                                start: AstPoint { 83:21 },
+                                                                                                end: AstPoint { 83:22 },
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                ),
                                                                                 NewClass(
                                                                                     AstNewClass {
                                                                                         range: AstRange {
@@ -14205,7 +14219,7 @@ fn variable_array() {
 fn variable_var_no_value() {
     let content = br#"{var a = }"#;
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_block(&tokens, 0);
+    let parsed = parse_block(&tokens, 0, false);
     parsed.print_err(content, &tokens);
     let expected = expect![[r#"
         (
@@ -15183,7 +15197,7 @@ fn equal_expr() {
 #[test]
 fn new_string() {
     let content = br#"
-     return new String();   
+     return new String();
     "#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_block_return(&tokens, 0);
@@ -15247,7 +15261,7 @@ fn new_array() {
                    ""
                 }
             },
-        };   
+        };
     "#;
     let tokens = lexer::lex(content).unwrap();
     let parsed = parse_block_return(&tokens, 0);
@@ -16927,7 +16941,7 @@ fn multiline_string_arg() {
                                           }
     "#;
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_block(&tokens, 0);
+    let parsed = parse_block(&tokens, 0, false);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
     let expected = expect![[r#"
@@ -18730,7 +18744,7 @@ fn inline_switch() {
     });
     }"#;
     let tokens = lexer::lex(content).unwrap();
-    let parsed = parse_block(&tokens, 0);
+    let parsed = parse_block(&tokens, 0, false);
     parsed.print_err(content, &tokens);
     let parsed = parsed.unwrap();
     assert_eq!(tokens.len(), parsed.1);

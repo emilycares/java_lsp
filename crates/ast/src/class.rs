@@ -126,7 +126,7 @@ pub fn parse_class_block(
                     errors[0] = Some((NuVec::new_static(b"static block"), e));
                 }
             },
-            Token::LeftParenCurly => match parse_block(tokens, pos) {
+            Token::LeftParenCurly => match parse_block(tokens, pos, false) {
                 Ok((block, npos)) => {
                     pos = npos;
                     blocks.push(block);
@@ -207,7 +207,7 @@ pub fn parse_static_block(
 ) -> Result<(AstStaticBlock, usize), AstError> {
     let start = tokens.start(pos)?;
     let pos = assert_token(tokens, pos, Token::Static)?;
-    let (block, pos) = parse_block(tokens, pos)?;
+    let (block, pos) = parse_block(tokens, pos, false)?;
 
     let end = tokens.end(pos)?;
     Ok((
@@ -226,7 +226,7 @@ pub fn parse_class_constructor(
 ) -> Result<(AstClassConstructor, usize), AstError> {
     let start = tokens.start(pos)?;
     let (header, pos) = parse_constructor_header(tokens, pos)?;
-    let (block, pos) = parse_block(tokens, pos)?;
+    let (block, pos) = parse_block(tokens, pos, false)?;
 
     let end = tokens.end(pos)?;
     let pos = assert_semicolon(tokens, pos)?;
@@ -349,7 +349,7 @@ pub fn parse_class_method(
     if let Ok(npos) = assert_token(tokens, pos, Token::Semicolon) {
         pos = npos;
     } else {
-        let (b, npos) = parse_block(tokens, pos)?;
+        let (b, npos) = parse_block(tokens, pos, false)?;
         pos = npos;
         block = Some(b);
     }

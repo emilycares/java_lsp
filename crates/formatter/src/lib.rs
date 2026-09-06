@@ -82,9 +82,10 @@ fn internal(
         }
         if let Some(next) = top.peek() {
             f.insert_new_lines(t.get_range().end.line, next.get_range().start.line);
+        } else {
+            f.rest_comments();
         }
     }
-
     Ok(f.buf)
 }
 
@@ -132,6 +133,40 @@ impl Formatter<'_> {
             if pos >= up_to {
                 break;
             }
+            match &t.token {
+                Token::LineComment(l) => {
+                    if let Some(prev) = self.with_comments.get(self.index.saturating_sub(1))
+                        && t.line != prev.line
+                    {
+                        for _ in 0..self.indent {
+                            self.buf.extend(&self.space);
+                        }
+                    }
+                    self.buf.extend_from_slice(b"//");
+                    extend_nuvec(&mut self.buf, l);
+                    self.new_line();
+                }
+                Token::BlockComment(c, _) => {
+                    if let Some(prev) = self.with_comments.get(self.index.saturating_sub(1))
+                        && t.line != prev.line
+                    {
+                        for _ in 0..self.indent {
+                            self.buf.extend(&self.space);
+                        }
+                    }
+                    self.buf.extend_from_slice(b"/*");
+                    extend_nuvec(&mut self.buf, c);
+                    self.buf.extend_from_slice(b"*/");
+                    self.insert_line_or_space();
+                }
+                _ => {}
+            }
+            self.index += 1;
+        }
+    }
+
+    pub fn rest_comments(&mut self) {
+        while let Some(t) = self.with_comments.get(self.index) {
             match &t.token {
                 Token::LineComment(l) => {
                     if let Some(prev) = self.with_comments.get(self.index.saturating_sub(1))
@@ -228,6 +263,52 @@ impl Formatter<'_> {
         let line = range.end.line;
         while let Some(t) = self.with_comments.get(self.index)
             && t.end_point().line == line
+        {
+            match &t.token {
+                Token::LineComment(l) => {
+                    self.buf.extend_from_slice(b" //");
+                    extend_nuvec(&mut self.buf, l);
+                    self.index += 1;
+                }
+                Token::BlockComment(c, _) => {
+                    self.buf.extend_from_slice(b" /*");
+                    extend_nuvec(&mut self.buf, c);
+                    self.buf.extend_from_slice(b"*/");
+                    self.index += 1;
+                }
+                _ => {
+                    self.index += 1;
+                }
+            }
+        }
+    }
+    pub fn end_line_comments_before(&mut self, point: &AstPoint) {
+        let line = point.line;
+        while let Some(t) = self.with_comments.get(self.index)
+            && t.end_point().line < line
+        {
+            match &t.token {
+                Token::LineComment(l) => {
+                    self.buf.extend_from_slice(b" //");
+                    extend_nuvec(&mut self.buf, l);
+                    self.index += 1;
+                }
+                Token::BlockComment(c, _) => {
+                    self.buf.extend_from_slice(b" /*");
+                    extend_nuvec(&mut self.buf, c);
+                    self.buf.extend_from_slice(b"*/");
+                    self.index += 1;
+                }
+                _ => {
+                    self.index += 1;
+                }
+            }
+        }
+    }
+    pub fn end_line_comments_end(&mut self, point: &AstPoint) {
+        let line = point.line;
+        while let Some(t) = self.with_comments.get(self.index)
+            && t.end_point().line <= line
         {
             match &t.token {
                 Token::LineComment(l) => {
@@ -845,6 +926,7 @@ fn write_block(block: &AstBlock, f: &mut Formatter) {
         return;
     }
     f.buf.push(b'{');
+    f.end_line_comments_end(&block.range.start);
     f.new_line();
     f.indent += 1;
     if block.entries.is_empty() {
@@ -881,23 +963,28 @@ fn write_block(block: &AstBlock, f: &mut Formatter) {
                     f.indent = base_indent + 1;
                 }
             }
-            write_block_entry(entry, f, true, true, next_if);
+            write_block_entry(entry, f, true, true, next_if, true);
             if let Some(next) = entries.peek() {
                 f.insert_new_lines(entry.get_range().end.line, next.get_range().start.line);
             }
         }
+        if contains_case {
+            f.indent = base_indent;
+        }
     }
+    f.insert_comments(block.range.end);
     f.indent -= 1;
     f.write_indent();
     f.buf.push(b'}');
 }
-
+#[allow(clippy::fn_params_excessive_bools)]
 fn write_block_entry(
     entry: &AstBlockEntry,
     f: &mut Formatter,
     around: bool,
     indent: bool,
     next_if: bool,
+    new_line: bool,
 ) {
     f.insert_comments(entry.get_range().start);
     match entry {
@@ -906,7 +993,7 @@ fn write_block_entry(
                 f.write_indent();
             }
             f.write(b";");
-            if around {
+            if around && new_line {
                 f.new_line();
             }
         }
@@ -921,7 +1008,9 @@ fn write_block_entry(
             }
             f.buf.push(b';');
             f.end_line_comments(&ret.range);
-            f.new_line();
+            if new_line {
+                f.new_line();
+            }
         }
         AstBlockEntry::Yield(yl) => {
             if indent {
@@ -935,7 +1024,9 @@ fn write_block_entry(
             if around {
                 f.buf.push(b';');
                 f.end_line_comments(&yl.range);
-                f.new_line();
+                if new_line {
+                    f.new_line();
+                }
             }
         }
         AstBlockEntry::Throw(throw) => {
@@ -947,7 +1038,9 @@ fn write_block_entry(
             if around {
                 f.buf.push(b';');
                 f.end_line_comments(&throw.range);
-                f.new_line();
+                if new_line {
+                    f.new_line();
+                }
             }
         }
         AstBlockEntry::Break(br) => {
@@ -962,7 +1055,9 @@ fn write_block_entry(
             if around {
                 f.buf.push(b';');
                 f.end_line_comments(&br.range);
-                f.new_line();
+                if new_line {
+                    f.new_line();
+                }
             }
         }
         AstBlockEntry::Continue(cont) => {
@@ -977,7 +1072,9 @@ fn write_block_entry(
             if around {
                 f.buf.push(b';');
                 f.end_line_comments(&cont.range);
-                f.new_line();
+                if new_line {
+                    f.new_line();
+                }
             }
         }
         AstBlockEntry::Assert(assert) => {
@@ -991,7 +1088,9 @@ fn write_block_entry(
             if around {
                 f.write(b";");
                 f.end_line_comments(&assert.range);
-                f.new_line();
+                if new_line {
+                    f.new_line();
+                }
             }
         }
         AstBlockEntry::Expression(expr) => {
@@ -1003,20 +1102,7 @@ fn write_block_entry(
                 f.buf.push(b';');
             }
             f.end_line_comments(&expr.range);
-            if around {
-                f.new_line();
-            }
-        }
-        AstBlockEntry::Assign(assign) => {
-            if indent {
-                f.write_indent();
-            }
-            write_expression(&assign.key, f);
-            f.write(b" = ");
-            write_expression(&assign.expression, f);
-            f.buf.push(b';');
-            f.end_line_comments(&assign.range);
-            if around {
+            if around && new_line {
                 f.new_line();
             }
         }
@@ -1061,7 +1147,25 @@ fn write_block_entry(
             f.write(b"(");
             write_expression(&while_.control, f);
             f.write(b") ");
-            write_while_content(&while_.content, f);
+            write_while_content(&while_.content, true, f);
+        }
+        AstBlockEntry::DoWhile(dow) => {
+            f.write_indent();
+            if let Some(label) = &dow.label {
+                f.write_identifier(label);
+                f.write(b": ");
+            }
+            f.write(b"do ");
+            write_while_content(&dow.content, false, f);
+            f.write(b" while ");
+            f.write(b"(");
+            write_expression(&dow.control, f);
+            f.write(b")");
+            if around {
+                f.buf.push(b';');
+                f.end_line_comments(&dow.range);
+                f.new_line();
+            }
         }
         AstBlockEntry::For(for_) => {
             f.write_indent();
@@ -1075,21 +1179,21 @@ fn write_block_entry(
                 if i > 0 {
                     f.write(b", ");
                 }
-                write_block_entry(entry, f, false, false, false);
+                write_block_entry(entry, f, false, false, false, false);
             }
             f.write(b"; ");
             for (i, entry) in for_.check.iter().enumerate() {
                 if i > 0 {
                     f.write(b", ");
                 }
-                write_block_entry(entry, f, false, false, false);
+                write_block_entry(entry, f, false, false, false, false);
             }
             f.write(b"; ");
             for (i, entry) in for_.changes.iter().enumerate() {
                 if i > 0 {
                     f.write(b", ");
                 }
-                write_block_entry(entry, f, false, false, false);
+                write_block_entry(entry, f, false, false, false, false);
             }
             f.write(b") ");
             write_for_content(&for_.content, f);
@@ -1276,26 +1380,30 @@ fn write_if_content(content: &AstIfContent, f: &mut Formatter, next_if: bool, sa
             }
 
             f.indent += 1;
-            write_block_entry(entry, f, true, false, false);
+            write_block_entry(entry, f, true, false, false, true);
             f.indent -= 1;
         }
     }
 }
 
-fn write_while_content(content: &AstWhileContent, f: &mut Formatter) {
+fn write_while_content(content: &AstWhileContent, new_line: bool, f: &mut Formatter) {
     match content {
         AstWhileContent::None => {
             f.write(b";");
-            f.new_line();
+            if new_line {
+                f.new_line();
+            }
         }
         AstWhileContent::Block(block) => {
             write_block(block, f);
-            f.new_line();
+            if new_line {
+                f.new_line();
+            }
         }
         AstWhileContent::BlockEntry(entry) => {
             f.new_line();
             f.indent += 1;
-            write_block_entry(entry, f, true, true, false);
+            write_block_entry(entry, f, true, true, false, new_line);
             f.indent -= 1;
         }
     }
@@ -1314,7 +1422,7 @@ fn write_for_content(content: &AstForContent, f: &mut Formatter) {
         AstForContent::BlockEntry(entry) => {
             f.new_line();
             f.indent += 1;
-            write_block_entry(entry, f, true, true, false);
+            write_block_entry(entry, f, true, true, false, true);
             f.indent -= 1;
         }
     }
@@ -1336,7 +1444,7 @@ fn write_switch_arrow_content(content: &AstSwitchCaseArrowContent, f: &mut Forma
             f.new_line();
         }
         AstSwitchCaseArrowContent::Entry(entry) => {
-            write_block_entry(entry, f, true, false, false);
+            write_block_entry(entry, f, true, false, false, true);
         }
     }
 }
@@ -1346,7 +1454,7 @@ fn write_block_delimited(block: &AstBlock, open: &[u8], close: &[u8], f: &mut Fo
     f.new_line();
     f.indent += 1;
     for entry in &block.entries {
-        write_block_entry(entry, f, true, true, false);
+        write_block_entry(entry, f, true, true, false, true);
     }
     f.indent -= 1;
     f.write_indent();
@@ -1477,6 +1585,7 @@ fn write_class_block(block: &AstClassBlock, f: &mut Formatter) {
             f.insert_new_lines(range.end.line, next.0.start.line);
         }
     }
+    f.insert_comments(block.range.end);
 }
 
 fn write_class_variable(v: &AstClassVariable, f: &mut Formatter) {
@@ -1748,6 +1857,7 @@ fn write_interface(iface: &AstInterface, f: &mut Formatter) {
             f.insert_new_lines(range.end.line, next.0.start.line);
         }
     }
+    f.insert_comments(iface.range.end);
     f.indent -= 1;
     f.write_indent();
     f.write(b"}");
@@ -1850,6 +1960,7 @@ fn write_enumeration(e: &AstEnumeration, f: &mut Formatter) {
     } else if !e.variants.is_empty() {
         f.new_line();
     }
+    f.insert_comments(e.range.end);
     f.indent -= 1;
     f.write_indent();
     f.write(b"}");
@@ -1873,6 +1984,7 @@ fn write_annotation_type(ann_type: &AstAnnotation, f: &mut Formatter) {
     for inner in &ann_type.inner {
         write_thing(inner, f);
     }
+    f.insert_comments(ann_type.range.end);
     f.indent -= 1;
     f.write_indent();
     f.write(b"}");
@@ -2008,9 +2120,11 @@ fn write_expression_operator(
         AstExpressionOperator::Le(r) => (r, b" <= "),
         AstExpressionOperator::Lt(r) => (r, b" < "),
         AstExpressionOperator::LtLt(r) => (r, b" << "),
+        AstExpressionOperator::LtLtEq(r) => (r, b" <<= "),
         AstExpressionOperator::Ge(r) => (r, b" >= "),
         AstExpressionOperator::Gt(r) => (r, b" > "),
         AstExpressionOperator::GtGt(r) => (r, b" >> "),
+        AstExpressionOperator::GtGtEq(r) => (r, b" >>= "),
         AstExpressionOperator::GtGtGt(r) => (r, b" >>> "),
         AstExpressionOperator::ExclamationMark(r) => (r, b"!"),
         AstExpressionOperator::Ampersand(r) => (r, b" & "),
@@ -2035,6 +2149,7 @@ fn write_expression_operator(
                 | AstExpressionOperator::Minus(_)
         ) || (dot && matches!(op, AstExpressionOperator::Dot(_))))
     {
+        f.end_line_comments_before(&r.start);
         f.new_line();
         f.write_indent();
     }
@@ -2221,6 +2336,7 @@ mod tests {
             package ch.emilycares;
 
             import java.lang.String;
+            // Now the imports
         "]];
         expected.assert_eq(str::from_utf8(&o).unwrap());
     }
@@ -2367,9 +2483,9 @@ mod tests {
                             {
                                 return 2;
                             }
-                        }
                     }
                 }
+            }
         "]];
         expected.assert_eq(str::from_utf8(&o).unwrap());
     }
@@ -3262,6 +3378,8 @@ public class Test {
         boolean a = b == -1;
         boolean a = b != -1;
         boolean a = b ? -1 : -1;
+        b >>= 10;
+        b <<= 10;
     }
 }
 ";
@@ -3278,6 +3396,41 @@ public class Test {
                     boolean a = b == -1;
                     boolean a = b != -1;
                     boolean a = b ? -1 : -1;
+                    b >>= 10;
+                    b <<= 10;
+                }
+            }
+        "]];
+        expected.assert_eq(str::from_utf8(&o).unwrap());
+    }
+
+    #[test]
+    fn expr_endline_comment() {
+        let content = br"
+public class Test {
+    public void test() {
+        return info.contains(Constants.A)
+               || info.info(Constants.B)
+               || info.info(Constants.C)   // used by C
+               || info.info(Constants.D)   // used by D
+               || info.info(Constants.E)   // used by E
+               || info.info(Constants.F)   // used by F
+               || info.info(Constants.D);  // used by D
+    }
+}
+";
+
+        let o = fmt(content).unwrap();
+        let expected = expect![[r"
+            public class Test {
+                public void test() {
+                    return info.contains(Constants.A)
+                         || info.info(Constants.B)
+                         || info.info(Constants.C) // used by C
+                         || info.info(Constants.D) // used by D
+                         || info.info(Constants.E) // used by E
+                         || info.info(Constants.F) // used by F
+                         || info.info(Constants.D); // used by D
                 }
             }
         "]];
