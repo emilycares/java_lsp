@@ -413,22 +413,55 @@ fn write_annotation(ann: &AstAnnotated, f: &mut Formatter) {
     f.write_identifier(&ann.name);
     match &ann.parameters {
         AstAnnotatedParameterKind::None => {}
-        AstAnnotatedParameterKind::Parameter(params) => {
-            f.write(b"(");
-            for (i, param) in params.iter().enumerate() {
-                if i > 0 {
-                    f.write(b", ");
-                }
-                write_annotation_parameter(param, f);
-            }
-            f.write(b")");
-        }
+        AstAnnotatedParameterKind::Parameter(params) => write_annotation_parameters(params, f),
         AstAnnotatedParameterKind::Array(values) => {
             f.write(b"(");
             write_values_with_annotated(values, f);
             f.write(b")");
         }
     }
+}
+
+fn write_annotation_parameters(params: &[AstAnnotatedParameter], f: &mut Formatter) {
+    let nl = if params.len() > 1 {
+        let param_range = if let Some(first) = params.first()
+            && let Some(last) = params.last()
+        {
+            AstRange {
+                start: first.get_range().start,
+                end: last.get_range().end,
+            }
+        } else {
+            AstRange::default()
+        };
+        param_range.start.line != param_range.end.line
+    } else {
+        false
+    };
+    f.write(b"(");
+    if nl {
+        f.indent += 1;
+    }
+    for (i, param) in params.iter().enumerate() {
+        if i > 0 {
+            f.write(b",");
+        }
+        if nl {
+            f.new_line();
+            f.insert_comments(param.get_range().start);
+            f.write_indent();
+        } else if i > 0 {
+            f.write(b" ");
+            f.insert_comments(param.get_range().start);
+        }
+        write_annotation_parameter(param, f);
+    }
+    if nl {
+        f.new_line();
+        f.write_indent();
+        f.indent -= 1;
+    }
+    f.write(b")");
 }
 
 fn write_annotation_parameter(param: &AstAnnotatedParameter, f: &mut Formatter) {
@@ -462,15 +495,46 @@ fn write_annotation_parameter(param: &AstAnnotatedParameter, f: &mut Formatter) 
 }
 
 fn write_values_with_annotated(values: &AstValuesWithAnnotated, f: &mut Formatter) {
+    let nl = if values.values.len() > 1 {
+        let values_range = if let Some(first) = values.values.first()
+            && let Some(last) = values.values.last()
+        {
+            AstRange {
+                start: first.get_range().start,
+                end: last.get_range().end,
+            }
+        } else {
+            AstRange::default()
+        };
+        values_range.start.line != values_range.end.line
+    } else {
+        false
+    };
     f.write(b"{");
+    if nl {
+        f.indent += 1;
+    }
     for (i, v) in values.values.iter().enumerate() {
         if i > 0 {
-            f.write(b", ");
+            f.write(b",");
+        }
+        if nl {
+            f.new_line();
+            f.insert_comments(v.get_range().start);
+            f.write_indent();
+        } else if i > 0 {
+            f.write(b" ");
+            f.insert_comments(v.get_range().start);
         }
         match v {
             AstExpressionOrAnnotated::Expression(expr) => write_expression(expr, f),
             AstExpressionOrAnnotated::Annotated(ann) => write_annotation(ann, f),
         }
+    }
+    if nl {
+        f.new_line();
+        f.write_indent();
+        f.indent -= 1;
     }
     f.write(b"}");
 }
@@ -567,6 +631,7 @@ fn write_expression(expr: &[AstExpressionKind], f: &mut Formatter) {
                     | AstExpressionOperator::QuestionMark(_)
                     | AstExpressionOperator::Colon(_)
                     | AstExpressionOperator::Equal(_)
+                    | AstExpressionOperator::Assign(_)
                     | AstExpressionOperator::NotEqual(_)
             );
         } else {
@@ -657,12 +722,39 @@ fn write_expression_kind(
             write_jtype(&jtype_expr.jtype, f);
         }
         AstExpressionKind::Array(values) => {
+            let nl = if values.values.len() > 1 {
+                let range = if let Some(first) = values.values.first()
+                    && let Some(last) = values.values.last()
+                {
+                    AstRange {
+                        start: first.get_range().start,
+                        end: last.get_range().end,
+                    }
+                } else {
+                    AstRange::default()
+                };
+                range.start.line != range.end.line
+            } else {
+                false
+            };
             f.write(b"{");
             for (i, expr) in values.values.iter().enumerate() {
                 if i > 0 {
-                    f.write(b", ");
+                    f.write(b",");
+                }
+                if nl {
+                    f.new_line();
+                    f.insert_comments(expr.get_range().start);
+                    f.write_indent();
+                } else if i > 0 {
+                    f.write(b" ");
+                    f.insert_comments(expr.get_range().start);
                 }
                 write_expression(expr, f);
+            }
+            if nl {
+                f.new_line();
+                f.write_indent();
             }
             f.write(b"}");
         }
@@ -770,10 +862,8 @@ fn values_contains_single_lambda(values: &AstValues) -> bool {
 }
 
 fn write_new_class_parameters(f: &mut Formatter<'_>, exprs: &[Vec<AstExpressionKind>]) {
-    let first = exprs.first();
-    let last = exprs.last();
-    let param_range = if let Some(first) = first
-        && let Some(last) = last
+    let param_range = if let Some(first) = exprs.first()
+        && let Some(last) = exprs.last()
     {
         AstRange {
             start: first.get_range().start,
@@ -1770,9 +1860,31 @@ fn write_record(record: &AstRecord, f: &mut Formatter) {
 
 fn write_record_entries(entries: &AstRecordEntries, f: &mut Formatter) {
     f.write(b"(");
+    let entries_range = if let Some(first) = entries.entries.first()
+        && let Some(last) = entries.entries.last()
+    {
+        AstRange {
+            start: first.range.start,
+            end: last.range.end,
+        }
+    } else {
+        AstRange::default()
+    };
+    let nl = entries_range.start.line != entries_range.end.line;
+    if nl {
+        f.indent += 1;
+    }
     for (i, entry) in entries.entries.iter().enumerate() {
         if i > 0 {
-            f.write(b", ");
+            f.write(b",");
+        }
+        if nl {
+            f.new_line();
+            f.insert_comments(entry.range.start);
+            f.write_indent();
+        } else if i > 0 {
+            f.write(b" ");
+            f.insert_comments(entry.range.start);
         }
         write_annotated_list_inline(&entry.annotated, f);
         write_jtype(&entry.jtype, f);
@@ -1783,6 +1895,11 @@ fn write_record_entries(entries: &AstRecordEntries, f: &mut Formatter) {
         }
         f.buf.push(b' ');
         f.write_identifier(&entry.name);
+    }
+    if nl {
+        f.new_line();
+        f.write_indent();
+        f.indent -= 1;
     }
     f.write(b")");
 }
@@ -3370,6 +3487,7 @@ public class Test {
         let content = br"
 public class Test {
     public void test() {
+        this.a = -1;
         boolean a = -1;
         boolean a = b > -1;
         boolean a = b < -1;
@@ -3388,6 +3506,7 @@ public class Test {
         let expected = expect![[r"
             public class Test {
                 public void test() {
+                    this.a = -1;
                     boolean a = -1;
                     boolean a = b > -1;
                     boolean a = b < -1;
@@ -3434,6 +3553,69 @@ public class Test {
                 }
             }
         "]];
+        expected.assert_eq(str::from_utf8(&o).unwrap());
+    }
+
+    #[test]
+    fn multi_line_record_entries() {
+        let content = br"
+public class Test {
+    public record Person(String name, String othername) {}
+    public record Person(String name,
+        String othername) {}
+}
+";
+
+        let o = fmt(content).unwrap();
+        let expected = expect![[r"
+            public class Test {
+                public record Person(String name, String othername) {
+                }
+                public record Person(
+                    String name,
+                    String othername
+                    ) {
+                }
+            }
+        "]];
+        expected.assert_eq(str::from_utf8(&o).unwrap());
+    }
+
+    #[test]
+    fn multi_line_annotated() {
+        let content = br#"
+@Things({"a", "b"})
+@Things({"a",
+    "b"})
+@Ordered(a=1, b=2)
+@Ordered(a=1,
+    b=2)
+@Ordered(a, b)
+@Ordered(a,
+    b)
+public class Test {}
+"#;
+
+        let o = fmt(content).unwrap();
+        let expected = expect![[r#"
+            @Things({"a", "b"})
+            @Things({
+                "a",
+                "b"
+                })
+            @Ordered(a = 1, b = 2)
+            @Ordered(
+                a = 1,
+                b = 2
+                )
+            @Ordered(a, b)
+            @Ordered(
+                a,
+                b
+                )
+            public class Test {
+            }
+        "#]];
         expected.assert_eq(str::from_utf8(&o).unwrap());
     }
 }
