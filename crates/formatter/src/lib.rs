@@ -1197,10 +1197,10 @@ fn write_block_entry(
             }
         }
         AstBlockEntry::Variable(vars) if !vars.is_empty() => {
+            write_annotated_list(&vars[0].annotated, f);
             if indent {
                 f.write_indent();
             }
-            write_annotated_list(&vars[0].annotated, f);
             if vars[0].fin {
                 f.write(b"final ");
             }
@@ -1368,7 +1368,7 @@ fn write_block_entry(
             f.write_indent();
             f.write(b"try ");
             if let Some(resources) = &try_catch.resources_block {
-                write_block_delimited(resources, b"(", b")", f);
+                write_try_resources(resources, f);
                 f.buf.push(b' ');
             }
             write_block(&try_catch.block, f);
@@ -1539,16 +1539,20 @@ fn write_switch_arrow_content(content: &AstSwitchCaseArrowContent, f: &mut Forma
     }
 }
 
-fn write_block_delimited(block: &AstBlock, open: &[u8], close: &[u8], f: &mut Formatter) {
-    f.write(open);
-    f.new_line();
-    f.indent += 1;
-    for entry in &block.entries {
-        write_block_entry(entry, f, true, true, false, true);
+fn write_try_resources(block: &AstBlock, f: &mut Formatter) {
+    f.write(b"(");
+    if block.entries.len() > 1 {
+        f.new_line();
+        f.indent += 1;
+        for entry in &block.entries {
+            write_block_entry(entry, f, true, true, false, true);
+        }
+        f.indent -= 1;
+        f.write_indent();
+    } else if let Some(single) = block.entries.first() {
+        write_block_entry(single, f, false, false, false, false);
     }
-    f.indent -= 1;
-    f.write_indent();
-    f.write(close);
+    f.write(b")");
 }
 
 fn write_thing(thing: &AstThing, formatter: &mut Formatter) {
@@ -3614,6 +3618,55 @@ public class Test {}
                 b
                 )
             public class Test {
+            }
+        "#]];
+        expected.assert_eq(str::from_utf8(&o).unwrap());
+    }
+
+    #[test]
+    fn multi_line_try_resources() {
+        let content = br"
+public class Test {
+    public void test() {
+        try (FileInputStream fis = new FileInputStream(file1);) {}
+        try (FileInputStream fis = new FileInputStream(file1); FileInputStream fis2 = new FileInputStream(file2)) {}
+    }
+}
+";
+
+        let o = fmt(content).unwrap();
+        let expected = expect![[r"
+            public class Test {
+                public void test() {
+                    try (FileInputStream fis = new FileInputStream(file1)) {}
+                    try (
+                        FileInputStream fis = new FileInputStream(file1);
+                        FileInputStream fis2 = new FileInputStream(file2);
+                    ) {}
+                }
+            }
+        "]];
+        expected.assert_eq(str::from_utf8(&o).unwrap());
+    }
+
+    #[test]
+    fn annotated_expression() {
+        let content = br#"
+public class Test {
+    public void test() {
+        @SuppressWarnings("unused")
+        String msg = this.msg;
+    }
+}
+"#;
+
+        let o = fmt(content).unwrap();
+        let expected = expect![[r#"
+            public class Test {
+                public void test() {
+                    @SuppressWarnings("unused")
+                    String msg = this.msg;
+                }
             }
         "#]];
         expected.assert_eq(str::from_utf8(&o).unwrap());
