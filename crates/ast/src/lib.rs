@@ -1,6 +1,7 @@
 #![deny(missing_docs)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::nursery)]
+#![deny(clippy::perf)]
 #![deny(clippy::redundant_clone)]
 #![deny(clippy::enum_glob_use)]
 #![allow(clippy::missing_errors_doc)]
@@ -625,7 +626,7 @@ pub fn parse_value_nuget(
                         }
                         _ => {
                             return Ok((
-                                AstValue::Nuget(AstValueNuget::Double(AstDouble {
+                                AstValue::Nuget(AstValueNuget::DoubleImplicit(AstDouble {
                                     range: AstRange::from_position_token(start, start),
                                     value,
                                 })),
@@ -705,7 +706,6 @@ pub fn parse_string_literal(
                 AstValueNuget::StringLiteral {
                     range: AstRange::from_position_token(start, end),
                     value: str.clone(),
-                    multi_line: false,
                 },
                 pos + 1,
             ))
@@ -713,10 +713,9 @@ pub fn parse_string_literal(
         Token::StringLiteralMulti(str) => {
             let end = tokens.end(pos)?;
             Ok((
-                AstValueNuget::StringLiteral {
+                AstValueNuget::StringLiteralMulti {
                     range: AstRange::from_position_token(start, end),
                     value: str.clone(),
-                    multi_line: true,
                 },
                 pos + 1,
             ))
@@ -866,19 +865,25 @@ fn parse_value_operator_options(
         Token::Gt => {
             if let Ok(npos) = assert_token(tokens, pos + 1, Token::Gt) {
                 if let Ok(npos) = assert_token(tokens, pos + 2, Token::Gt) {
-                    let end = tokens.end(pos)?;
+                    let end = tokens.end(npos)?;
                     return Ok((
                         AstExpressionOperator::GtGtGt(AstRange::from_position_token(start, end)),
                         npos,
                     ));
+                } else if let Ok(npos) = assert_token(tokens, pos + 2, Token::Ge) {
+                    let end = tokens.end(npos)?;
+                    return Ok((
+                        AstExpressionOperator::GtGtGtEq(AstRange::from_position_token(start, end)),
+                        npos,
+                    ));
                 }
-                let end = tokens.end(pos)?;
+                let end = tokens.end(npos)?;
                 return Ok((
                     AstExpressionOperator::GtGt(AstRange::from_position_token(start, end)),
                     npos,
                 ));
             } else if let Ok(npos) = assert_token(tokens, pos + 1, Token::Ge) {
-                let end = tokens.end(pos)?;
+                let end = tokens.end(npos)?;
                 return Ok((
                     AstExpressionOperator::GtGtEq(AstRange::from_position_token(start, end)),
                     npos,
@@ -903,6 +908,14 @@ fn parse_value_operator_options(
         )),
         Token::LtLtEq => Ok((
             AstExpressionOperator::LtLtEq(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::LtLtLt => Ok((
+            AstExpressionOperator::LtLtLt(AstRange::from_position_token(start, start)),
+            pos + 1,
+        )),
+        Token::LtLtLtEq => Ok((
+            AstExpressionOperator::LtLtLtEq(AstRange::from_position_token(start, start)),
             pos + 1,
         )),
         Token::Le => Ok((

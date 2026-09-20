@@ -3,13 +3,21 @@
 #![deny(clippy::perf)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
+#![allow(dead_code)]
 //! A minimal class file parser.
 //! Skips parsing data not used by `java_lsp`
 
-use dto::{
-    Access, Class, ClassParserError, ClassSignature, ImportUnit, JType, Parameter,
-    SourceDestination, SuperClass,
+use std::collections::HashSet;
+
+use ast::types::{
+    AstAnnotated, AstAnnotatedParameterKind, AstAvailability, AstBlock, AstClass, AstClassBlock,
+    AstClassMethod, AstClassVariable, AstFile, AstIdentifier, AstImport, AstImportUnit, AstJType,
+    AstJTypeKind, AstMethodHeader, AstMethodParameter, AstMethodParameterFlags,
+    AstMethodParameters, AstPackage, AstRange, AstThing, AstThingAttributes, AstThrowsDeclaration,
+    AstTopLevel, AstVolatileTransient,
 };
+use bitflags::bitflags;
+use dto::{Access, ClassParserError};
 use my_string::{NuVec, NuVecBuilder};
 
 const U8_LEN: usize = 1;
@@ -17,26 +25,16 @@ const U16_LEN: usize = 2;
 const U32_LEN: usize = 4;
 const U64_LEN: usize = 8;
 
-pub fn load_class(
-    data: &[u8],
-    class_path: NuVec,
-    source: SourceDestination,
-    filter: bool,
-) -> Result<Class, ClassParserError> {
+pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, ClassParserError> {
     let (c, _) = parser_base(data, 0)?;
-
-    if filter && !c.access_flags.intersects(Access::Public) {
-        return Err(ClassParserError::Ignoring);
-    }
 
     let name = lookup_class_name(&c, c.this_class.into())?;
 
-    let mut used_classes = Vec::new();
+    let mut used_classes = HashSet::new();
     let mut methods = Vec::new();
     let mut fields = Vec::new();
     let mut deprecated = false;
     let mut class_signature = None;
-    let mut source = source;
 
     for a in &c.attributes {
         if a.name == 0 {
@@ -55,97 +53,95 @@ pub fn load_class(
             let (out, _) = parse_code_attribute(info, 0, a.start, a.end)?;
             parse_used_classes(&c, data, &out, &mut used_classes)?;
         } else if attribute_name == "Deprecated" {
-            if filter {
-                return Err(ClassParserError::Ignoring);
-            }
             deprecated = true;
-        } else if attribute_name == "SourceFile" {
-            let info = a.lookup(data)?;
-            let (name, _) = get_u16(info, 0)?;
-            let name = lookup_string(&c, name)?;
-            if !name.to_lowercase().ends_with(b".java")
-                && let Some((_, l)) = name.split_once_byte(b'.')
-                && let SourceDestination::RelativeInFolder(r) = source
-            {
-                source = SourceDestination::RelativeInFolderLang(r, l);
-            }
         }
     }
+    let _ = class_signature;
 
     for m in &c.methods {
-        let method = parse_method(&c, data, m, filter);
-        if matches!(method, Err(ClassParserError::Ignoring)) {
-            continue;
-        }
+        let method = parse_method(&c, data, m);
         let (method, code_attribute) = method?;
         if let Some(code_attribute) = code_attribute {
             parse_used_classes(&c, data, &code_attribute, &mut used_classes)?;
-            for p in &method.parameters {
-                if matches!(
-                    p.jtype,
-                    JType::Class(_) | JType::Array(_) | JType::Generic(_, _)
-                ) {
-                    jtype_class_names(p.jtype.clone(), &mut used_classes);
-                }
-            }
         }
-        jtype_class_names(method.ret.clone(), &mut used_classes);
         methods.push(method);
     }
     for f in &c.fields {
-        let field = parse_field(&c, f, filter);
-        if matches!(field, Err(ClassParserError::Ignoring)) {
-            continue;
-        }
+        let field = parse_field(&c, f);
         let field = field?;
-        jtype_class_names(field.jtype.clone(), &mut used_classes);
+        // jtype_class_names(field.jtype.clone(), &mut used_classes);
         fields.push(field);
     }
 
+    let mut file = AstFile { top: Vec::new() };
     let package = class_path
         .trim_end_matches(name.as_bytes())
         .trim_end_matches_byte(b'.');
-    let mut imports = vec![ImportUnit::Package(package)];
-    imports.extend(
+    file.top.push(AstTopLevel::Package(AstPackage {
+        range: AstRange::default(),
+        annotated: Vec::new(),
+        name: ntoident(package),
+    }));
+    file.top.extend(
         used_classes
             .into_iter()
-            .filter(|i| *i != class_path)
-            .map(ImportUnit::Class),
+            .filter(|i| i != class_path)
+            .map(|i| {
+                AstTopLevel::Import(AstImport {
+                    range: AstRange::default(),
+                    unit: AstImportUnit::Class(ntoident(i)),
+                })
+            }),
     );
 
-    let super_interfaces: Vec<_> = c
-        .interfaces
-        .iter()
-        .filter(|i| i != &&0)
-        .map(|index| {
-            lookup_string(&c, *index).map_or(SuperClass::None, |i| {
-                SuperClass::ClassPath(i.replace_byte(b'/', b'.'))
-            })
-        })
-        .collect();
-
-    let mut super_class = SuperClass::None;
-    if c.super_class != 0 {
-        let a = lookup_string(&c, c.super_class)?;
-        if a != "java/lang/Object" {
-            super_class = SuperClass::ClassPath(a.replace_byte(b'/', b'.'));
-        }
+    let mut availability = AstAvailability::empty();
+    if c.class_access_flags.intersects(ClassAccessFlags::Public) {
+        availability |= AstAvailability::Public;
+    }
+    if c.class_access_flags.intersects(ClassAccessFlags::Final) {
+        availability |= AstAvailability::Final;
+    }
+    if c.class_access_flags.intersects(ClassAccessFlags::Abstract) {
+        availability |= AstAvailability::Abstract;
     }
 
-    imports.dedup();
+    let mut class = AstClass {
+        range: AstRange::default(),
+        availability,
+        attributes: AstThingAttributes::empty(),
+        annotated: Vec::new(),
+        name: ntoident(name),
+        type_parameters: None,
+        superclass: Vec::new(),
+        implements: Vec::new(),
+        permits: Vec::new(),
+        block: AstClassBlock {
+            range: AstRange::default(),
+            variables: fields,
+            methods,
+            constructors: Vec::new(),
+            static_blocks: Vec::new(),
+            inner: Vec::new(),
+            blocks: Vec::new(),
+        },
+    };
+    if deprecated {
+        class.annotated.push(AstAnnotated {
+            range: AstRange::default(),
+            name: ntoident(NuVec::Static(b"Deprecated")),
+            parameters: AstAnnotatedParameterKind::None,
+        });
+    }
+    let class_thing = AstTopLevel::Thing(Box::new(AstThing::Class(class)));
+    file.top.push(class_thing);
+    Ok(file)
+}
 
-    Ok(Class {
-        source,
-        class_path,
-        super_interfaces,
-        super_class,
-        imports,
-        access: parse_class_access(c.access_flags, deprecated),
-        signature: class_signature,
-        name,
-        methods,
-        fields,
-    })
+fn ntoident(value: NuVec) -> AstIdentifier {
+    AstIdentifier {
+        value,
+        range: AstRange::default(),
+    }
 }
 
 fn lookup_class_name(c: &Base, index: usize) -> Result<NuVec, ClassParserError> {
@@ -160,51 +156,64 @@ fn lookup_class_name(c: &Base, index: usize) -> Result<NuVec, ClassParserError> 
     }
 }
 
-fn parse_field(c: &Base, field: &Field, filter: bool) -> Result<dto::Field, ClassParserError> {
-    if filter
-        && field
-            .access_flags
-            .intersects(Access::Private | Access::Protected)
-    {
-        return Err(ClassParserError::Ignoring);
-    }
-    Ok(dto::Field {
-        access: field.access_flags.clone(),
-        name: lookup_string(c, field.name)?,
+fn parse_field(c: &Base, field: &Field) -> Result<AstClassVariable, ClassParserError> {
+    Ok(AstClassVariable {
+        range: AstRange::default(),
+        availability: AstAvailability::empty(),
+        annotated: Vec::new(),
+        name: ntoident(lookup_string(c, field.name)?),
         jtype: parse_field_type(lookup_string(c, field.descriptor)?.as_bytes(), 0)?.0,
-        source: None,
+        expression: None,
+        volatile_transient: AstVolatileTransient::empty(),
     })
 }
+const UNKNOWN: &[u8] = b"";
 
 fn parse_method(
     c: &Base,
     data: &[u8],
     method: &Method,
-    filter: bool,
-) -> Result<(dto::Method, Option<CodeAttribute>), ClassParserError> {
-    if filter
-        && method
-            .access_flags
-            .intersects(Access::Private | Access::Protected)
-    {
-        return Err(ClassParserError::Ignoring);
-    }
+) -> Result<(AstClassMethod, Option<CodeAttribute>), ClassParserError> {
     let lname = lookup_string(c, method.name)?;
-
-    if lname.starts_with(b"lambda$") {
-        return Err(ClassParserError::Ignoring);
-    }
+    // let name = if lname == "<init>" { None } else { Some(lname) };
+    let mut out = AstClassMethod {
+        range: AstRange::default(),
+        header: AstMethodHeader {
+            range: AstRange::default(),
+            availability: AstAvailability::empty(),
+            name: ntoident(lname),
+            jtype: AstJType {
+                range: AstRange::default(),
+                annotated: Vec::new(),
+                value: AstJTypeKind::Void,
+            },
+            parameters: AstMethodParameters {
+                range: AstRange::default(),
+                parameters: Vec::new(),
+            },
+            throws: None,
+            type_parameters: None,
+            annotated: Vec::new(),
+            default: false,
+        },
+        block: Some(AstBlock {
+            range: AstRange::default(),
+            entries: Vec::new(),
+        }),
+    };
 
     let mut code_attribute = None;
 
-    let mut parameters = Vec::new();
     let mut parameter_names = Vec::new();
-    let mut throws = Vec::new();
     let mut deprecated = false;
     let mut signature_index = None;
     let mut method_parameter_index = None;
     let mut exception_index = None;
-    let mut ret = JType::Void;
+    let mut ret = AstJType {
+        range: AstRange::default(),
+        value: AstJTypeKind::Void,
+        annotated: Vec::new(),
+    };
 
     for (index, attribute) in method.attributes.iter().enumerate() {
         let name = lookup_string(c, attribute.name)?;
@@ -215,9 +224,6 @@ fn parse_method(
         } else if name == "Exceptions" {
             exception_index = Some(index);
         } else if name == "Deprecated" {
-            if filter {
-                return Err(ClassParserError::Ignoring);
-            }
             deprecated = true;
         } else if name == "Code" {
             let info = attribute.lookup(data)?;
@@ -232,9 +238,12 @@ fn parse_method(
         let (_, md) = parse_method_descriptor(&desc)?;
         ret = md.return_type;
         for p in md.param_types {
-            parameters.push(Parameter {
-                name: None,
+            out.header.parameters.parameters.push(AstMethodParameter {
+                range: AstRange::default(),
+                annotated: Vec::new(),
                 jtype: p,
+                name: ntoident(NuVec::Static(UNKNOWN)),
+                flags: AstMethodParameterFlags::empty(),
             });
         }
     }
@@ -261,12 +270,33 @@ fn parse_method(
             for p in info {
                 let jtype = params.next().ok_or(ClassParserError::NotEnogthParams)?;
                 if p.name_index == 0 {
-                    parameters.push(Parameter { name: None, jtype });
+                    out.header.parameters.parameters.push(AstMethodParameter {
+                        range: AstRange::default(),
+                        annotated: Vec::new(),
+                        jtype,
+                        name: ntoident(NuVec::Static(UNKNOWN)),
+                        flags: AstMethodParameterFlags::empty(),
+                    });
+                } else if let Some(name) = lookup_string(c, p.name_index)
+                    .ok()
+                    .filter(|i| !i.is_empty())
+                {
+                    // parameters.push(Parameter { name, jtype });
+                    out.header.parameters.parameters.push(AstMethodParameter {
+                        range: AstRange::default(),
+                        annotated: Vec::new(),
+                        jtype,
+                        name: ntoident(name),
+                        flags: AstMethodParameterFlags::empty(),
+                    });
                 } else {
-                    let name = lookup_string(c, p.name_index)
-                        .ok()
-                        .filter(|i| !i.is_empty());
-                    parameters.push(Parameter { name, jtype });
+                    out.header.parameters.parameters.push(AstMethodParameter {
+                        range: AstRange::default(),
+                        annotated: Vec::new(),
+                        jtype,
+                        name: ntoident(NuVec::Static(UNKNOWN)),
+                        flags: AstMethodParameterFlags::empty(),
+                    });
                 }
             }
         }
@@ -283,10 +313,25 @@ fn parse_method(
         let sig = lookup_string(c, sig)?;
         let (sig, _) = parse_method_signature_info(&sig)?;
         let mut name_iter = parameter_names.into_iter();
-        parameters.extend(sig.params.into_iter().map(|jtype| Parameter {
-            name: name_iter.next().flatten(),
-            jtype,
-        }));
+        sig.params.iter().for_each(|jtype| {
+            if let Some(name) = name_iter.next().flatten() {
+                out.header.parameters.parameters.push(AstMethodParameter {
+                    range: AstRange::default(),
+                    annotated: Vec::new(),
+                    jtype: jtype.clone(),
+                    name: ntoident(name),
+                    flags: AstMethodParameterFlags::empty(),
+                });
+            } else {
+                out.header.parameters.parameters.push(AstMethodParameter {
+                    range: AstRange::default(),
+                    annotated: Vec::new(),
+                    jtype: jtype.clone(),
+                    name: ntoident(NuVec::Static(UNKNOWN)),
+                    flags: AstMethodParameterFlags::empty(),
+                });
+            }
+        });
 
         ret = sig.ret;
     }
@@ -299,24 +344,32 @@ fn parse_method(
         let info = attribute.lookup(data)?;
         let (info, _) = parse_exceptions_attribute(info, 0)?;
 
-        for exception in info {
-            let class_name = lookup_string(c, exception)?;
-            throws.push(JType::Class(class_name.replace_byte(b'/', b'.')));
+        if !info.is_empty() {
+            let mut throws = Vec::new();
+            for exception in info {
+                let class_name = lookup_string(c, exception)?;
+                throws.push(AstJType {
+                    range: AstRange::default(),
+                    annotated: Vec::new(),
+                    value: AstJTypeKind::Class(ntoident(class_name.replace_byte(b'/', b'.'))),
+                });
+            }
+            out.header.throws = Some(AstThrowsDeclaration {
+                range: AstRange::default(),
+                parameters: throws,
+            });
         }
     }
+    out.header.jtype = ret;
+    if deprecated {
+        out.header.annotated.push(AstAnnotated {
+            range: AstRange::default(),
+            name: ntoident(NuVec::Static(b"Deprecated")),
+            parameters: AstAnnotatedParameterKind::None,
+        });
+    }
 
-    let name = if lname == "<init>" { None } else { Some(lname) };
-    Ok((
-        dto::Method {
-            access: parse_method_access(method, deprecated),
-            name,
-            parameters,
-            ret,
-            throws,
-            source: None,
-        },
-        code_attribute,
-    ))
+    Ok((out, code_attribute))
 }
 
 fn parse_exceptions_attribute(
@@ -336,6 +389,12 @@ fn parse_exceptions_attribute(
 
 struct MethodParametersAttribute {
     name_index: u16,
+}
+#[derive(Debug)]
+pub struct ClassSignature {
+    // Generics defined on class level
+    pub args: Vec<NuVec>,
+    pub ret: AstJType,
 }
 
 fn parse_method_parameters_attribute(
@@ -365,8 +424,8 @@ fn parse_method_parameters_attribute_inner(
 #[allow(dead_code)]
 struct MethodSignature {
     pub args: Vec<NuVec>,
-    pub params: Vec<JType>,
-    pub ret: JType,
+    pub params: Vec<AstJType>,
+    pub ret: AstJType,
 }
 fn parse_method_signature_info(sig: &NuVec) -> Result<(MethodSignature, usize), ClassParserError> {
     let content = sig.as_bytes();
@@ -456,7 +515,11 @@ fn parse_class_signature_info(sig: &NuVec) -> Result<(ClassSignature, usize), Cl
         }
     }
     let mut init = false;
-    let mut ret = JType::default();
+    let mut ret = AstJType {
+        range: AstRange::default(),
+        annotated: Vec::new(),
+        value: AstJTypeKind::Void,
+    };
     let end = sig.len();
     while pos < end
         && let Ok((nret, npos)) = parse_field_type(content, pos)
@@ -464,10 +527,6 @@ fn parse_class_signature_info(sig: &NuVec) -> Result<(ClassSignature, usize), Cl
         pos = npos;
 
         if init {
-            ret = JType::Extends {
-                extends: Box::new(ret),
-                base: Box::new(nret),
-            };
         } else {
             ret = nret;
             init = true;
@@ -556,7 +615,7 @@ fn parse_used_classes(
     c: &Base,
     data: &[u8],
     code_attribute: &CodeAttribute,
-    used_classes: &mut Vec<NuVec>,
+    used_classes: &mut HashSet<NuVec>,
 ) -> Result<(), ClassParserError> {
     let info = code_attribute.lookup(data)?;
 
@@ -575,26 +634,46 @@ fn parse_used_classes(
     Ok(())
 }
 
-fn jtype_class_names(i: JType, used_classes: &mut Vec<NuVec>) {
-    match i {
-        JType::Class(class) => {
-            used_classes.push(class);
+fn jtype_class_names(i: AstJType, used_classes: &mut HashSet<NuVec>) {
+    match i.value {
+        AstJTypeKind::Class(ast_identifier) | AstJTypeKind::ClassOrPackage(ast_identifier) => {
+            used_classes.insert(ast_identifier.value);
         }
-        JType::Array(jtype) => jtype_class_names(*jtype, used_classes),
-        JType::Generic(class, jtypes) => {
-            for j in jtypes {
+        AstJTypeKind::WildcardImplements(ast_jtype)
+        | AstJTypeKind::WildcardExtends(ast_jtype)
+        | AstJTypeKind::WildcardSuper(ast_jtype)
+        | AstJTypeKind::Array(ast_jtype) => jtype_class_names(*ast_jtype, used_classes),
+        AstJTypeKind::Generic(ast_identifier, ast_jtypes) => {
+            used_classes.insert(ast_identifier.value);
+            for j in ast_jtypes {
                 jtype_class_names(j, used_classes);
             }
-            used_classes.push(class);
+        }
+        AstJTypeKind::Access { base, inner } => {
+            jtype_class_names(*base, used_classes);
+            jtype_class_names(*inner, used_classes);
         }
         _ => (),
     }
+    // match i {
+    //     JType::Class(class) => {
+    //         used_classes.push(class);
+    //     }
+    //     JType::Array(jtype) => jtype_class_names(*jtype, used_classes),
+    //     JType::Generic(class, jtypes) => {
+    //         for j in jtypes {
+    //             jtype_class_names(j, used_classes);
+    //         }
+    //         used_classes.push(class);
+    //     }
+    //     _ => (),
+    // }
 }
 
 #[derive(Debug)]
 struct MethodDescriptor {
-    param_types: Vec<JType>,
-    return_type: JType,
+    param_types: Vec<AstJType>,
+    return_type: AstJType,
 }
 
 fn parse_method_descriptor(
@@ -622,7 +701,10 @@ fn parse_method_descriptor(
     ))
 }
 
-fn parse_param_types(content: &[u8], pos: usize) -> Result<(usize, Vec<JType>), ClassParserError> {
+fn parse_param_types(
+    content: &[u8],
+    pos: usize,
+) -> Result<(usize, Vec<AstJType>), ClassParserError> {
     let pos = assert_char(content, pos, b'(')?;
     let mut pos = pos;
     let mut out = Vec::new();
@@ -638,18 +720,82 @@ fn parse_param_types(content: &[u8], pos: usize) -> Result<(usize, Vec<JType>), 
     Ok((pos, out))
 }
 
-fn parse_field_type(content: &[u8], pos: usize) -> Result<(JType, usize), ClassParserError> {
+fn parse_field_type(content: &[u8], pos: usize) -> Result<(AstJType, usize), ClassParserError> {
     let c = content.get(pos).ok_or(ClassParserError::EOF)?;
+
     match c {
-        b'B' => Ok((JType::Byte, pos + 1)),
-        b'C' => Ok((JType::Char, pos + 1)),
-        b'D' => Ok((JType::Double, pos + 1)),
-        b'F' => Ok((JType::Float, pos + 1)),
-        b'I' => Ok((JType::Int, pos + 1)),
-        b'J' => Ok((JType::Long, pos + 1)),
-        b'S' => Ok((JType::Short, pos + 1)),
-        b'Z' => Ok((JType::Boolean, pos + 1)),
-        b'V' => Ok((JType::Void, pos + 1)),
+        b'B' => Ok((
+            AstJType {
+                range: AstRange::default(),
+                annotated: Vec::new(),
+                value: AstJTypeKind::Byte,
+            },
+            pos + 1,
+        )),
+        b'C' => Ok((
+            AstJType {
+                range: AstRange::default(),
+                annotated: Vec::new(),
+                value: AstJTypeKind::Char,
+            },
+            pos + 1,
+        )),
+        b'D' => Ok((
+            AstJType {
+                range: AstRange::default(),
+                annotated: Vec::new(),
+                value: AstJTypeKind::Double,
+            },
+            pos + 1,
+        )),
+        b'F' => Ok((
+            AstJType {
+                range: AstRange::default(),
+                annotated: Vec::new(),
+                value: AstJTypeKind::Float,
+            },
+            pos + 1,
+        )),
+        b'I' => Ok((
+            AstJType {
+                range: AstRange::default(),
+                annotated: Vec::new(),
+                value: AstJTypeKind::Int,
+            },
+            pos + 1,
+        )),
+        b'J' => Ok((
+            AstJType {
+                range: AstRange::default(),
+                annotated: Vec::new(),
+                value: AstJTypeKind::Long,
+            },
+            pos + 1,
+        )),
+        b'S' => Ok((
+            AstJType {
+                range: AstRange::default(),
+                annotated: Vec::new(),
+                value: AstJTypeKind::Short,
+            },
+            pos + 1,
+        )),
+        b'Z' => Ok((
+            AstJType {
+                range: AstRange::default(),
+                annotated: Vec::new(),
+                value: AstJTypeKind::Boolean,
+            },
+            pos + 1,
+        )),
+        b'V' => Ok((
+            AstJType {
+                range: AstRange::default(),
+                annotated: Vec::new(),
+                value: AstJTypeKind::Void,
+            },
+            pos + 1,
+        )),
         b'T' => {
             let mut pos = pos + 1;
             let mut param = NuVecBuilder::new();
@@ -661,7 +807,14 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(JType, usize), ClassP
                 param.push(*v);
                 pos += 1;
             }
-            Ok((JType::Parameter(param.finish()), pos))
+            Ok((
+                AstJType {
+                    range: AstRange::default(),
+                    annotated: Vec::new(),
+                    value: AstJTypeKind::Class(ntoident(param.finish())),
+                },
+                pos,
+            ))
         }
         b'L' => {
             let pos = pos + 1;
@@ -671,16 +824,27 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(JType, usize), ClassP
             {
                 let (npos, inner) = parse_jtype_class_name(content, pos + 1)?;
                 pos = npos;
-                out = JType::Access {
-                    base: Box::new(out),
-                    inner: Box::new(inner),
+                out = AstJType {
+                    range: AstRange::default(),
+                    annotated: Vec::new(),
+                    value: AstJTypeKind::Access {
+                        base: Box::new(out),
+                        inner: Box::new(inner),
+                    },
                 }
             }
             Ok((out, pos))
         }
         b'[' => {
             let (inner, npos) = parse_field_type(content, pos + 1)?;
-            Ok((JType::Array(Box::new(inner)), npos))
+            Ok((
+                AstJType {
+                    range: AstRange::default(),
+                    annotated: Vec::new(),
+                    value: AstJTypeKind::Array(Box::new(inner)),
+                },
+                npos,
+            ))
         }
         _ => {
             // let got = char::from_u32(u32::from(*c));
@@ -692,7 +856,7 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(JType, usize), ClassP
 fn parse_jtype_class_name(
     content: &[u8],
     mut pos: usize,
-) -> Result<(usize, JType), ClassParserError> {
+) -> Result<(usize, AstJType), ClassParserError> {
     let mut class_name = NuVecBuilder::new();
     let mut args = Vec::new();
     while let Some(c) = content.get(pos) {
@@ -757,9 +921,23 @@ fn parse_jtype_class_name(
     }
     let class_name = class_name.finish().replace_byte(b'/', b'.');
     if !args.is_empty() {
-        return Ok((pos, JType::Generic(class_name, args)));
+        return Ok((
+            pos,
+            AstJType {
+                range: AstRange::default(),
+                annotated: Vec::new(),
+                value: AstJTypeKind::Generic(ntoident(class_name), args),
+            },
+        ));
     }
-    Ok((pos, JType::Class(class_name)))
+    Ok((
+        pos,
+        AstJType {
+            range: AstRange::default(),
+            annotated: Vec::new(),
+            value: AstJTypeKind::Class(ntoident(class_name)),
+        },
+    ))
 }
 
 #[derive(Debug)]
@@ -850,22 +1028,6 @@ fn parse_module_exports(
     ))
 }
 
-fn parse_class_access(flags: Access, deprecated: bool) -> Access {
-    let mut access = flags;
-    if deprecated {
-        access.insert(Access::Deprecated);
-    }
-    access
-}
-
-fn parse_method_access(method: &Method, deprecated: bool) -> Access {
-    let mut access = method.access_flags.clone();
-    if deprecated {
-        access.insert(Access::Deprecated);
-    }
-    access
-}
-
 fn lookup_string(c: &Base, index: u16) -> Result<NuVec, ClassParserError> {
     lookup_string_inner(c, index, 0)
 }
@@ -889,7 +1051,7 @@ fn lookup_string_inner(c: &Base, index: u16, depth: u8) -> Result<NuVec, ClassPa
 
 struct Base {
     pub const_pool: ConstPool,
-    pub access_flags: Access,
+    pub class_access_flags: ClassAccessFlags,
     pub this_class: u16,
     pub super_class: u16,
 
@@ -932,7 +1094,7 @@ fn parser_base(data: &[u8], pos: usize) -> Result<(Base, usize), ClassParserErro
 
     let (const_pool, pos) = parse_const_pool(data, pos)?;
 
-    let (access_flags, pos) = parse_class_access_flags(data, pos)?;
+    let (class_access_flags, pos) = parse_class_access_flags(data, pos)?;
     let (this_class, pos) = get_u16(data, pos)?;
     let (super_class, pos) = get_u16(data, pos)?;
 
@@ -945,7 +1107,7 @@ fn parser_base(data: &[u8], pos: usize) -> Result<(Base, usize), ClassParserErro
         Base {
             const_pool,
 
-            access_flags,
+            class_access_flags,
             this_class,
             super_class,
 
@@ -958,28 +1120,26 @@ fn parser_base(data: &[u8], pos: usize) -> Result<(Base, usize), ClassParserErro
     ))
 }
 
-fn parse_class_access_flags(data: &[u8], pos: usize) -> Result<(Access, usize), ClassParserError> {
+bitflags! {
+   #[derive(Clone, Eq, PartialEq, Debug, Default)]
+   pub struct ClassAccessFlags: u16 {
+       const Public = 0x0001;
+       const Final = 0x0010;
+       const Super = 0x0020;
+       const Interface = 0x0200;
+       const Abstract = 0x0400;
+       const Synthetic = 0x1000;
+       const Annotation = 0x2000;
+       const Enum = 0x4000;
+       const Module = 0x8000;
+   }
+}
+fn parse_class_access_flags(
+    data: &[u8],
+    pos: usize,
+) -> Result<(ClassAccessFlags, usize), ClassParserError> {
     let (flags, pos) = get_u16(data, pos)?;
-    let mut out = Access::empty();
-
-    if (flags & 0x0001) != 0 {
-        out |= Access::Public;
-    }
-    if (flags & 0x0010) != 0 {
-        out |= Access::Final;
-    }
-    if (flags & 0x0020) != 0 {
-        out |= Access::Super;
-    }
-    if (flags & 0x0200) != 0 {
-        out |= Access::Interface;
-    }
-    if (flags & 0x0400) != 0 {
-        out |= Access::Abstract;
-    }
-    if (flags & 0x4000) != 0 {
-        out |= Access::Enum;
-    }
+    let out = ClassAccessFlags::from_bits_retain(flags);
 
     Ok((out, pos))
 }
@@ -1340,8 +1500,8 @@ fn expect_data(data: &[u8], pos: usize, expected: &[u8]) -> Result<usize, ClassP
 
 #[cfg(test)]
 mod tests {
-    use crate::{load_class, load_module, parse_class_signature_info, parse_field_type};
-    use dto::SourceDestination;
+    use crate::{decompile_class, load_module, parse_class_signature_info, parse_field_type};
+    use editorconfig::EditorConfigFilled;
     use expect_test::expect;
     use my_string::NuVec;
     // #[test]
@@ -1367,838 +1527,162 @@ mod tests {
         use expect_test::expect;
         use my_string::NuVec;
 
-        let result = load_class(
+        let ast = decompile_class(
             include_bytes!("../../parser/test/Everything.class"),
-            NuVec::new(b"ch.emilycares.Everything"),
-            SourceDestination::None,
-            false,
-        );
-        let expected = expect![[r#"
-            Class {
-                class_path: "ch.emilycares.Everything",
-                source: None,
-                access: Access(
-                    Public | Super,
-                ),
-                imports: [
-                    Package(
-                        "ch.emilycares",
-                    ),
-                ],
-                signature: None,
-                name: "Everything",
-                methods: [
-                    Method {
-                        access: Access(
-                            Public,
-                        ),
-                        name: None,
-                        parameters: [],
-                        throws: [],
-                        ret: Void,
-                        source: None,
-                    },
-                    Method {
-                        access: Access(
-                            0x0,
-                        ),
-                        name: Some(
-                            "method",
-                        ),
-                        parameters: [],
-                        throws: [],
-                        ret: Void,
-                        source: None,
-                    },
-                    Method {
-                        access: Access(
-                            Public,
-                        ),
-                        name: Some(
-                            "public_method",
-                        ),
-                        parameters: [],
-                        throws: [],
-                        ret: Void,
-                        source: None,
-                    },
-                    Method {
-                        access: Access(
-                            Private,
-                        ),
-                        name: Some(
-                            "private_method",
-                        ),
-                        parameters: [],
-                        throws: [],
-                        ret: Void,
-                        source: None,
-                    },
-                    Method {
-                        access: Access(
-                            0x0,
-                        ),
-                        name: Some(
-                            "out",
-                        ),
-                        parameters: [],
-                        throws: [],
-                        ret: Int,
-                        source: None,
-                    },
-                    Method {
-                        access: Access(
-                            0x0,
-                        ),
-                        name: Some(
-                            "add",
-                        ),
-                        parameters: [
-                            Parameter {
-                                name: Some(
-                                    "a",
-                                ),
-                                jtype: Int,
-                            },
-                            Parameter {
-                                name: Some(
-                                    "b",
-                                ),
-                                jtype: Int,
-                            },
-                        ],
-                        throws: [],
-                        ret: Int,
-                        source: None,
-                    },
-                    Method {
-                        access: Access(
-                            Static,
-                        ),
-                        name: Some(
-                            "sadd",
-                        ),
-                        parameters: [
-                            Parameter {
-                                name: Some(
-                                    "a",
-                                ),
-                                jtype: Int,
-                            },
-                            Parameter {
-                                name: Some(
-                                    "b",
-                                ),
-                                jtype: Int,
-                            },
-                        ],
-                        throws: [],
-                        ret: Int,
-                        source: None,
-                    },
-                ],
-                fields: [
-                    Field {
-                        access: Access(
-                            0x0,
-                        ),
-                        name: "noprop",
-                        jtype: Int,
-                        source: None,
-                    },
-                    Field {
-                        access: Access(
-                            Public,
-                        ),
-                        name: "publicproperty",
-                        jtype: Int,
-                        source: None,
-                    },
-                    Field {
-                        access: Access(
-                            Private,
-                        ),
-                        name: "privateproperty",
-                        jtype: Int,
-                        source: None,
-                    },
-                ],
-                super_class: None,
-                super_interfaces: [],
+            &NuVec::new(b"ch.emilycares.Everything"),
+        )
+        .unwrap();
+        let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
+        let out = str::from_utf8(&formatted).unwrap();
+        let expected = expect![[r"
+            package ch.emilycares;
+            public class Everything {
+                int noprop;
+                int publicproperty;
+                int privateproperty;
+                void <init>() {}
+                void method() {}
+                void public_method() {}
+                void private_method() {}
+                int out() {}
+                int add(int a, int b) {}
+                int sadd(int a, int b) {}
             }
-        "#]];
-        expected.assert_debug_eq(&result.unwrap());
+        "]];
+        expected.assert_eq(out);
     }
 
     #[test]
     fn everything() {
-        let result = load_class(
+        let ast = decompile_class(
             include_bytes!("../../parser/test/Everything.class"),
-            NuVec::new_static(b"ch.emilycares.Everything"),
-            SourceDestination::None,
-            false,
-        );
+            &NuVec::new_static(b"ch.emilycares.Everything"),
+        )
+        .unwrap();
+        let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
+        let out = str::from_utf8(&formatted).unwrap();
 
-        let expected = expect![[r#"
-            Class {
-                class_path: "ch.emilycares.Everything",
-                source: None,
-                access: Access(
-                    Public | Super,
-                ),
-                imports: [
-                    Package(
-                        "ch.emilycares",
-                    ),
-                ],
-                signature: None,
-                name: "Everything",
-                methods: [
-                    Method {
-                        access: Access(
-                            Public,
-                        ),
-                        name: None,
-                        parameters: [],
-                        throws: [],
-                        ret: Void,
-                        source: None,
-                    },
-                    Method {
-                        access: Access(
-                            0x0,
-                        ),
-                        name: Some(
-                            "method",
-                        ),
-                        parameters: [],
-                        throws: [],
-                        ret: Void,
-                        source: None,
-                    },
-                    Method {
-                        access: Access(
-                            Public,
-                        ),
-                        name: Some(
-                            "public_method",
-                        ),
-                        parameters: [],
-                        throws: [],
-                        ret: Void,
-                        source: None,
-                    },
-                    Method {
-                        access: Access(
-                            Private,
-                        ),
-                        name: Some(
-                            "private_method",
-                        ),
-                        parameters: [],
-                        throws: [],
-                        ret: Void,
-                        source: None,
-                    },
-                    Method {
-                        access: Access(
-                            0x0,
-                        ),
-                        name: Some(
-                            "out",
-                        ),
-                        parameters: [],
-                        throws: [],
-                        ret: Int,
-                        source: None,
-                    },
-                    Method {
-                        access: Access(
-                            0x0,
-                        ),
-                        name: Some(
-                            "add",
-                        ),
-                        parameters: [
-                            Parameter {
-                                name: Some(
-                                    "a",
-                                ),
-                                jtype: Int,
-                            },
-                            Parameter {
-                                name: Some(
-                                    "b",
-                                ),
-                                jtype: Int,
-                            },
-                        ],
-                        throws: [],
-                        ret: Int,
-                        source: None,
-                    },
-                    Method {
-                        access: Access(
-                            Static,
-                        ),
-                        name: Some(
-                            "sadd",
-                        ),
-                        parameters: [
-                            Parameter {
-                                name: Some(
-                                    "a",
-                                ),
-                                jtype: Int,
-                            },
-                            Parameter {
-                                name: Some(
-                                    "b",
-                                ),
-                                jtype: Int,
-                            },
-                        ],
-                        throws: [],
-                        ret: Int,
-                        source: None,
-                    },
-                ],
-                fields: [
-                    Field {
-                        access: Access(
-                            0x0,
-                        ),
-                        name: "noprop",
-                        jtype: Int,
-                        source: None,
-                    },
-                    Field {
-                        access: Access(
-                            Public,
-                        ),
-                        name: "publicproperty",
-                        jtype: Int,
-                        source: None,
-                    },
-                    Field {
-                        access: Access(
-                            Private,
-                        ),
-                        name: "privateproperty",
-                        jtype: Int,
-                        source: None,
-                    },
-                ],
-                super_class: None,
-                super_interfaces: [],
+        let expected = expect![[r"
+            package ch.emilycares;
+            public class Everything {
+                int noprop;
+                int publicproperty;
+                int privateproperty;
+                void <init>() {}
+                void method() {}
+                void public_method() {}
+                void private_method() {}
+                int out() {}
+                int add(int a, int b) {}
+                int sadd(int a, int b) {}
             }
-        "#]];
-        expected.assert_debug_eq(&result.unwrap());
+        "]];
+        expected.assert_eq(out);
     }
     #[test]
     fn super_base() {
-        let result = load_class(
+        let ast = decompile_class(
             include_bytes!("../../parser/test/Super.class"),
-            NuVec::new_static(b"ch.emilycares.Super"),
-            SourceDestination::None,
-            false,
-        );
+            &NuVec::new_static(b"ch.emilycares.Super"),
+        )
+        .unwrap();
+        let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
+        let out = str::from_utf8(&formatted).unwrap();
 
-        let expected = expect![[r#"
-            Class {
-                class_path: "ch.emilycares.Super",
-                source: None,
-                access: Access(
-                    Public | Super,
-                ),
-                imports: [
-                    Package(
-                        "ch.emilycares",
-                    ),
-                ],
-                signature: None,
-                name: "Super",
-                methods: [
-                    Method {
-                        access: Access(
-                            Public,
-                        ),
-                        name: None,
-                        parameters: [],
-                        throws: [],
-                        ret: Void,
-                        source: None,
-                    },
-                ],
-                fields: [],
-                super_class: ClassPath(
-                    "java.io.IOException",
-                ),
-                super_interfaces: [],
+        let expected = expect![[r"
+            package ch.emilycares;
+            public class Super {
+                void <init>() {}
             }
-        "#]];
-        expected.assert_debug_eq(&result.unwrap());
+        "]];
+        expected.assert_eq(out);
     }
     #[test]
     fn thrower() {
-        let result = load_class(
+        let ast = decompile_class(
             include_bytes!("../../parser/test/Thrower.class"),
-            NuVec::new_static(b"ch.emilycares.Thrower"),
-            SourceDestination::None,
-            false,
-        );
-        let expected = expect![[r#"
-            Class {
-                class_path: "ch.emilycares.Thrower",
-                source: None,
-                access: Access(
-                    Public | Super,
-                ),
-                imports: [
-                    Package(
-                        "ch.emilycares",
-                    ),
-                ],
-                signature: None,
-                name: "Thrower",
-                methods: [
-                    Method {
-                        access: Access(
-                            Public,
-                        ),
-                        name: None,
-                        parameters: [],
-                        throws: [],
-                        ret: Void,
-                        source: None,
-                    },
-                    Method {
-                        access: Access(
-                            Public,
-                        ),
-                        name: Some(
-                            "ioThrower",
-                        ),
-                        parameters: [],
-                        throws: [
-                            Class(
-                                "java.io.IOException",
-                            ),
-                        ],
-                        ret: Void,
-                        source: None,
-                    },
-                    Method {
-                        access: Access(
-                            Public,
-                        ),
-                        name: Some(
-                            "ioThrower",
-                        ),
-                        parameters: [
-                            Parameter {
-                                name: Some(
-                                    "a",
-                                ),
-                                jtype: Int,
-                            },
-                        ],
-                        throws: [
-                            Class(
-                                "java.io.IOException",
-                            ),
-                            Class(
-                                "java.io.IOException",
-                            ),
-                        ],
-                        ret: Void,
-                        source: None,
-                    },
-                ],
-                fields: [],
-                super_class: None,
-                super_interfaces: [],
+            &NuVec::new_static(b"ch.emilycares.Thrower"),
+        )
+        .unwrap();
+        let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
+        let out = str::from_utf8(&formatted).unwrap();
+        let expected = expect![[r"
+            package ch.emilycares;
+            public class Thrower {
+                void <init>() {}
+                void ioThrower() throws java.io.IOException {}
+                void ioThrower(int a) throws java.io.IOException, java.io.IOException {}
             }
-        "#]];
-        expected.assert_debug_eq(&result.unwrap());
+        "]];
+        expected.assert_eq(out);
     }
     #[test]
     fn super_interfaces() {
-        let result = load_class(
+        let ast = decompile_class(
             include_bytes!("../../parser/test/SuperInterface.class"),
-            NuVec::new_static(b"ch.emilycares.SuperInterface"),
-            SourceDestination::None,
-            false,
-        );
+            &NuVec::new_static(b"ch.emilycares.SuperInterface"),
+        )
+        .unwrap();
+        let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
+        let out = str::from_utf8(&formatted).unwrap();
 
-        let expected = expect![[r#"
-            Class {
-                class_path: "ch.emilycares.SuperInterface",
-                source: None,
-                access: Access(
-                    Public | Interface | Abstract,
-                ),
-                imports: [
-                    Package(
-                        "ch.emilycares",
-                    ),
-                    Class(
-                        "java.util.stream.Stream",
-                    ),
-                ],
-                signature: Some(
-                    ClassSignature {
-                        args: [
-                            "E",
-                        ],
-                        ret: Extends {
-                            base: Class(
-                                "java.util.List",
-                            ),
-                            extends: Extends {
-                                base: Class(
-                                    "java.util.Collection",
-                                ),
-                                extends: Class(
-                                    "java.lang.Object",
-                                ),
-                            },
-                        },
-                    },
-                ),
-                name: "SuperInterface",
-                methods: [
-                    Method {
-                        access: Access(
-                            Public,
-                        ),
-                        name: Some(
-                            "stream",
-                        ),
-                        parameters: [],
-                        throws: [],
-                        ret: Generic(
-                            "java.util.stream.Stream",
-                            [
-                                Parameter(
-                                    "E",
-                                ),
-                            ],
-                        ),
-                        source: None,
-                    },
-                ],
-                fields: [],
-                super_class: None,
-                super_interfaces: [
-                    ClassPath(
-                        "java.util.Collection",
-                    ),
-                    ClassPath(
-                        "java.util.List",
-                    ),
-                ],
+        let expected = expect![[r"
+            package ch.emilycares;
+            public abstract class SuperInterface {
+                java.util.stream.Stream<E> stream() {}
             }
-        "#]];
-        expected.assert_debug_eq(&result.unwrap());
+        "]];
+        expected.assert_eq(out);
     }
     #[test]
     fn variables() {
-        let result = load_class(
+        let ast = decompile_class(
             include_bytes!("../../parser/test/LocalVariableTable.class"),
-            NuVec::new_static(b"ch.emilycares.LocalVariableTable"),
-            SourceDestination::None,
-            false,
-        );
+            &NuVec::new_static(b"ch.emilycares.LocalVariableTable"),
+        )
+        .unwrap();
+        let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
+        let out = str::from_utf8(&formatted).unwrap();
 
-        let expected = expect![[r#"
-            Class {
-                class_path: "ch.emilycares.LocalVariableTable",
-                source: None,
-                access: Access(
-                    Public | Super,
-                ),
-                imports: [
-                    Package(
-                        "ch.emilycares",
-                    ),
-                    Class(
-                        "java.util.HashMap",
-                    ),
-                    Class(
-                        "java.util.HashSet",
-                    ),
-                ],
-                signature: None,
-                name: "LocalVariableTable",
-                methods: [
-                    Method {
-                        access: Access(
-                            Public,
-                        ),
-                        name: None,
-                        parameters: [],
-                        throws: [],
-                        ret: Void,
-                        source: None,
-                    },
-                    Method {
-                        access: Access(
-                            Public,
-                        ),
-                        name: Some(
-                            "hereIsCode",
-                        ),
-                        parameters: [],
-                        throws: [],
-                        ret: Void,
-                        source: None,
-                    },
-                    Method {
-                        access: Access(
-                            Public,
-                        ),
-                        name: Some(
-                            "hereIsCode",
-                        ),
-                        parameters: [
-                            Parameter {
-                                name: Some(
-                                    "a",
-                                ),
-                                jtype: Int,
-                            },
-                            Parameter {
-                                name: Some(
-                                    "b",
-                                ),
-                                jtype: Int,
-                            },
-                        ],
-                        throws: [],
-                        ret: Int,
-                        source: None,
-                    },
-                ],
-                fields: [
-                    Field {
-                        access: Access(
-                            Private,
-                        ),
-                        name: "a",
-                        jtype: Class(
-                            "java.util.HashSet",
-                        ),
-                        source: None,
-                    },
-                ],
-                super_class: None,
-                super_interfaces: [],
+        let expected = expect![[r"
+            package ch.emilycares;
+            import java.util.HashMap;
+            public class LocalVariableTable {
+                java.util.HashSet a;
+                void <init>() {}
+                void hereIsCode() {}
+                int hereIsCode(int a, int b) {}
             }
-        "#]];
-        expected.assert_debug_eq(&result.unwrap());
+        "]];
+        expected.assert_eq(out);
     }
     #[test]
     fn variants() {
-        let result = load_class(
+        let ast = decompile_class(
             include_bytes!("../../parser/test/Variants.class"),
-            NuVec::new_static(b"ch.emilycares.Variants"),
-            SourceDestination::None,
-            false,
-        );
+            &NuVec::new_static(b"ch.emilycares.Variants"),
+        )
+        .unwrap();
+        let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
+        let out = str::from_utf8(&formatted).unwrap();
 
-        let expected = expect![[r#"
-            Class {
-                class_path: "ch.emilycares.Variants",
-                source: None,
-                access: Access(
-                    Public | Final | Super | Enum,
-                ),
-                imports: [
-                    Package(
-                        "ch.emilycares",
-                    ),
-                    Class(
-                        "java.lang.String",
-                    ),
-                ],
-                signature: Some(
-                    ClassSignature {
-                        args: [],
-                        ret: Generic(
-                            "java.lang.Enum",
-                            [
-                                Class(
-                                    "ch.emilycares.Variants",
-                                ),
-                            ],
-                        ),
-                    },
-                ),
-                name: "Variants",
-                methods: [
-                    Method {
-                        access: Access(
-                            Public | Static,
-                        ),
-                        name: Some(
-                            "values",
-                        ),
-                        parameters: [],
-                        throws: [],
-                        ret: Array(
-                            Class(
-                                "ch.emilycares.Variants",
-                            ),
-                        ),
-                        source: None,
-                    },
-                    Method {
-                        access: Access(
-                            Public | Static,
-                        ),
-                        name: Some(
-                            "valueOf",
-                        ),
-                        parameters: [
-                            Parameter {
-                                name: Some(
-                                    "name",
-                                ),
-                                jtype: Class(
-                                    "java.lang.String",
-                                ),
-                            },
-                        ],
-                        throws: [],
-                        ret: Class(
-                            "ch.emilycares.Variants",
-                        ),
-                        source: None,
-                    },
-                    Method {
-                        access: Access(
-                            Private,
-                        ),
-                        name: None,
-                        parameters: [
-                            Parameter {
-                                name: Some(
-                                    "$enum$name",
-                                ),
-                                jtype: Class(
-                                    "java.lang.String",
-                                ),
-                            },
-                        ],
-                        throws: [],
-                        ret: Void,
-                        source: None,
-                    },
-                    Method {
-                        access: Access(
-                            Public,
-                        ),
-                        name: Some(
-                            "getTag",
-                        ),
-                        parameters: [],
-                        throws: [],
-                        ret: Class(
-                            "java.lang.String",
-                        ),
-                        source: None,
-                    },
-                    Method {
-                        access: Access(
-                            Private | Static,
-                        ),
-                        name: Some(
-                            "$values",
-                        ),
-                        parameters: [],
-                        throws: [],
-                        ret: Array(
-                            Class(
-                                "ch.emilycares.Variants",
-                            ),
-                        ),
-                        source: None,
-                    },
-                    Method {
-                        access: Access(
-                            Static,
-                        ),
-                        name: Some(
-                            "<clinit>",
-                        ),
-                        parameters: [],
-                        throws: [],
-                        ret: Void,
-                        source: None,
-                    },
-                ],
-                fields: [
-                    Field {
-                        access: Access(
-                            Public | Static | Final | Enum,
-                        ),
-                        name: "A",
-                        jtype: Class(
-                            "ch.emilycares.Variants",
-                        ),
-                        source: None,
-                    },
-                    Field {
-                        access: Access(
-                            Public | Static | Final | Enum,
-                        ),
-                        name: "B",
-                        jtype: Class(
-                            "ch.emilycares.Variants",
-                        ),
-                        source: None,
-                    },
-                    Field {
-                        access: Access(
-                            Public | Static | Final | Enum,
-                        ),
-                        name: "C",
-                        jtype: Class(
-                            "ch.emilycares.Variants",
-                        ),
-                        source: None,
-                    },
-                    Field {
-                        access: Access(
-                            Private | Final,
-                        ),
-                        name: "tag",
-                        jtype: Class(
-                            "java.lang.String",
-                        ),
-                        source: None,
-                    },
-                    Field {
-                        access: Access(
-                            Private | Static | Final | Synthetic,
-                        ),
-                        name: "$VALUES",
-                        jtype: Array(
-                            Class(
-                                "ch.emilycares.Variants",
-                            ),
-                        ),
-                        source: None,
-                    },
-                ],
-                super_class: ClassPath(
-                    "java.lang.Enum",
-                ),
-                super_interfaces: [],
+        let expected = expect![[r"
+            package ch.emilycares;
+            public final class Variants {
+                ch.emilycares.Variants A;
+                ch.emilycares.Variants B;
+                ch.emilycares.Variants C;
+                java.lang.String tag;
+                ch.emilycares.Variants[] $VALUES;
+                ch.emilycares.Variants[] values() {}
+                ch.emilycares.Variants valueOf(java.lang.String name) {}
+                void <init>(java.lang.String $enum$name) {}
+                java.lang.String getTag() {}
+                ch.emilycares.Variants[] $values() {}
+                void <clinit>() {}
             }
-        "#]];
-        expected.assert_debug_eq(&result.unwrap());
+        "]];
+        expected.assert_eq(out);
     }
 
     #[test]
@@ -2289,21 +1773,80 @@ mod tests {
         let result = parse_field_type(content, 0).unwrap();
         assert_eq!(content.len(), result.1);
         let expected = expect![[r#"
-            Access {
-                base: Generic(
-                    "java.util.HashMap",
-                    [
-                        Class(
-                            "A",
+            AstJType {
+                annotated: [],
+                range: AstRange {
+                    start: AstPoint { 0:0 },
+                    end: AstPoint { 0:0 },
+                },
+                value: Access {
+                    base: AstJType {
+                        annotated: [],
+                        range: AstRange {
+                            start: AstPoint { 0:0 },
+                            end: AstPoint { 0:0 },
+                        },
+                        value: Generic(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint { 0:0 },
+                                    end: AstPoint { 0:0 },
+                                },
+                                value: "java.util.HashMap",
+                            },
+                            [
+                                AstJType {
+                                    annotated: [],
+                                    range: AstRange {
+                                        start: AstPoint { 0:0 },
+                                        end: AstPoint { 0:0 },
+                                    },
+                                    value: Class(
+                                        AstIdentifier {
+                                            range: AstRange {
+                                                start: AstPoint { 0:0 },
+                                                end: AstPoint { 0:0 },
+                                            },
+                                            value: "A",
+                                        },
+                                    ),
+                                },
+                                AstJType {
+                                    annotated: [],
+                                    range: AstRange {
+                                        start: AstPoint { 0:0 },
+                                        end: AstPoint { 0:0 },
+                                    },
+                                    value: Class(
+                                        AstIdentifier {
+                                            range: AstRange {
+                                                start: AstPoint { 0:0 },
+                                                end: AstPoint { 0:0 },
+                                            },
+                                            value: "B",
+                                        },
+                                    ),
+                                },
+                            ],
                         ),
-                        Class(
-                            "B",
+                    },
+                    inner: AstJType {
+                        annotated: [],
+                        range: AstRange {
+                            start: AstPoint { 0:0 },
+                            end: AstPoint { 0:0 },
+                        },
+                        value: Class(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint { 0:0 },
+                                    end: AstPoint { 0:0 },
+                                },
+                                value: "Factory",
+                            },
                         ),
-                    ],
-                ),
-                inner: Class(
-                    "Factory",
-                ),
+                    },
+                },
             }
         "#]];
         expected.assert_debug_eq(&result.0);
@@ -2320,17 +1863,20 @@ mod tests {
                 args: [
                     "E",
                 ],
-                ret: Extends {
-                    base: Generic(
-                        "java.util.SequencedCollection",
-                        [
-                            Parameter(
-                                "E",
-                            ),
-                        ],
-                    ),
-                    extends: Class(
-                        "java.lang.Object",
+                ret: AstJType {
+                    annotated: [],
+                    range: AstRange {
+                        start: AstPoint { 0:0 },
+                        end: AstPoint { 0:0 },
+                    },
+                    value: Class(
+                        AstIdentifier {
+                            range: AstRange {
+                                start: AstPoint { 0:0 },
+                                end: AstPoint { 0:0 },
+                            },
+                            value: "java.lang.Object",
+                        },
                     ),
                 },
             }

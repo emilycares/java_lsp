@@ -1,3 +1,11 @@
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
+#![deny(clippy::perf)]
+#![deny(clippy::redundant_clone)]
+#![deny(clippy::enum_glob_use)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::implicit_hasher)]
+#![allow(clippy::too_many_lines)]
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},

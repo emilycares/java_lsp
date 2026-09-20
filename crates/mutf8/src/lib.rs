@@ -1,4 +1,9 @@
-#![allow(clippy::pedantic)]
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
+#![deny(clippy::perf)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_lossless)]
+#![allow(clippy::missing_errors_doc)]
 use std::borrow::Cow;
 
 #[derive(Debug)]
@@ -16,6 +21,16 @@ pub fn mutf8_to_utf8(input: &'_ [u8]) -> Result<Cow<'_, [u8]>, Mutf8Error> {
 
     let len = input.len();
     if len == 0 {
+        return Ok(Cow::Borrowed(input));
+    }
+    let mut only_ascii = true;
+    for b in input {
+        if *b == 0 || *b >= 0x80 {
+            only_ascii = false;
+            break;
+        }
+    }
+    if only_ascii {
         return Ok(Cow::Borrowed(input));
     }
 

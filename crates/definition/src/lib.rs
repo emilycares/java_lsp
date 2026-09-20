@@ -1,3 +1,10 @@
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
+#![deny(clippy::perf)]
+#![deny(clippy::redundant_clone)]
+#![deny(clippy::enum_glob_use)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::implicit_hasher)]
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
@@ -68,6 +75,7 @@ pub fn class(
     }
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn call_chain_definition(
     call_chain: &[CallItem],
     context: &DefinitionContext,

@@ -1,5 +1,6 @@
 #![deny(clippy::redundant_clone)]
 #![deny(clippy::pedantic)]
+#![deny(clippy::perf)]
 #![deny(clippy::nursery)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]

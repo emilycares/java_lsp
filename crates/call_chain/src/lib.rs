@@ -1,6 +1,7 @@
 #![deny(clippy::redundant_clone)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::nursery)]
+#![deny(clippy::perf)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
 use std::cmp::{self, max, min};
@@ -907,15 +908,18 @@ fn cc_value_nuget(ast_nuget: &AstValueNuget, out: &mut Vec<CallItem>) {
             name: NuVec::new_static(b"Integer"),
             range: hex.range,
         }),
-        AstValueNuget::Double(ast_double) => out.push(CallItem::Class {
-            name: NuVec::new_static(b"Double"),
-            range: ast_double.range,
-        }),
+        AstValueNuget::Double(ast_double) | AstValueNuget::DoubleImplicit(ast_double) => {
+            out.push(CallItem::Class {
+                name: NuVec::new_static(b"Double"),
+                range: ast_double.range,
+            });
+        }
         AstValueNuget::Float(float) => out.push(CallItem::Class {
             name: NuVec::new_static(b"Float"),
             range: float.range,
         }),
-        AstValueNuget::StringLiteral { range, .. } => out.push(CallItem::Class {
+        AstValueNuget::StringLiteral { range, .. }
+        | AstValueNuget::StringLiteralMulti { range, .. } => out.push(CallItem::Class {
             name: NuVec::new_static(b"String"),
             range: *range,
         }),
@@ -1005,11 +1009,14 @@ fn cut_expression<'a>(
                 | AstExpressionOperator::Lt(_)
                 | AstExpressionOperator::LtLt(_)
                 | AstExpressionOperator::LtLtEq(_)
+                | AstExpressionOperator::LtLtLt(_)
+                | AstExpressionOperator::LtLtLtEq(_)
                 | AstExpressionOperator::Ge(_)
                 | AstExpressionOperator::Gt(_)
                 | AstExpressionOperator::GtGt(_)
                 | AstExpressionOperator::GtGtEq(_)
                 | AstExpressionOperator::GtGtGt(_)
+                | AstExpressionOperator::GtGtGtEq(_)
                 | AstExpressionOperator::Dot(_)
                 | AstExpressionOperator::ExclamationMark(_)
                 | AstExpressionOperator::QuestionMark(_)
@@ -1182,11 +1189,14 @@ fn cc_base_next_oprerator(
         | AstExpressionOperator::Lt(_)
         | AstExpressionOperator::LtLt(_)
         | AstExpressionOperator::LtLtEq(_)
+        | AstExpressionOperator::LtLtLt(_)
+        | AstExpressionOperator::LtLtLtEq(_)
         | AstExpressionOperator::Ge(_)
         | AstExpressionOperator::Gt(_)
         | AstExpressionOperator::GtGt(_)
         | AstExpressionOperator::GtGtEq(_)
         | AstExpressionOperator::GtGtGt(_)
+        | AstExpressionOperator::GtGtGtEq(_)
         | AstExpressionOperator::Tilde(_)
         | AstExpressionOperator::Caret(_)
         | AstExpressionOperator::Ampersand(_)

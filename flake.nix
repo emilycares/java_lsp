@@ -133,6 +133,7 @@
               (craneLib.fileset.commonCargoSources ./crates/project)
               (craneLib.fileset.commonCargoSources ./crates/signature)
               (craneLib.fileset.commonCargoSources ./crates/references)
+              (craneLib.fileset.commonCargoSources ./crates/decompiler)
               (craneLib.fileset.commonCargoSources crate)
             ];
           };

@@ -1,10 +1,11 @@
 #![deny(clippy::redundant_clone)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::nursery)]
+#![deny(clippy::perf)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
 use std::collections::VecDeque;
-use std::fs::read;
+use std::fs::{File, read};
 use std::{
     fs::OpenOptions,
     io::Write,
@@ -14,6 +15,8 @@ use std::{
 use class::{ModuleInfo, load_class, load_module};
 use dto::{Class, ClassFolder, ClassParserError, SourceDestination};
 pub use dto_rw::DtoRwError;
+use editorconfig::EditorConfigFilled;
+use formatter::FormatError;
 use my_string::{NuVec, NuVecBuilder};
 use parser::java::{self, ParseJavaError};
 use rc_zip_tokio::{ReadZip, rc_zip::parse::EntryKind};
@@ -306,7 +309,7 @@ pub async fn load_classes_jmod<P: AsRef<Path> + Debug>(
     base_load_classes_zip(src_zip, source, buf, Some(&NuVec::new_static(b"classes."))).await
 }
 
-async fn base_load_classes_zip(
+pub async fn base_load_classes_zip(
     path: String,
     source: SourceDestination,
     buf: Vec<u8>,
@@ -351,6 +354,7 @@ async fn base_load_classes_zip(
             let buf = entry.bytes().await.map_err(LoaderError::IO)?;
             let o = Box::pin(base_load_classes_zip(
                 file_name.to_string(),
+                // TODO: Add source
                 SourceDestination::None,
                 buf,
                 None,
@@ -396,6 +400,115 @@ async fn base_load_classes_zip(
     }
 
     Ok(ClassFolder { classes })
+}
+
+#[derive(Debug)]
+pub enum DecompilerError {
+    IO(std::io::Error),
+    Zip {
+        e: rc_zip_tokio::rc_zip::error::Error,
+        path: String,
+    },
+    ClassParserError(ClassParserError),
+    Module(ClassParserError),
+    Formatter(FormatError),
+}
+
+pub async fn base_decompile_classes_zip(
+    source: &str,
+    extract_dir: PathBuf,
+    buf: Vec<u8>,
+    trim_prefix: Option<&NuVec>,
+) -> Result<(), DecompilerError> {
+    eprintln!("decompiling: {source}");
+    let zip = buf.read_zip().await.map_err(|e| DecompilerError::Zip {
+        e,
+        path: source.to_string(),
+    })?;
+
+    // Prefix for module info
+    let mut rules: Vec<(String, ModuleInfo)> = Vec::new();
+
+    for entry in zip.entries() {
+        if !matches!(entry.kind(), EntryKind::Directory)
+            && let Some(file_name) = entry.sanitized_name()
+            && file_name.ends_with("module-info.class")
+        {
+            let prefix = file_name.trim_end_matches("module-info.class");
+            let buf = entry.bytes().await.map_err(DecompilerError::IO)?;
+            match load_module(buf.as_slice()) {
+                Ok(c) => {
+                    rules.push((prefix.to_string(), c));
+                }
+                Err(e) => {
+                    return Err(DecompilerError::Module(e));
+                }
+            }
+        }
+    }
+    let trim_prefix_path = trim_prefix.map(|i| i.replace_byte(b'.', b'/'));
+    'entries: for entry in zip.entries() {
+        let Some(file_name) = entry.sanitized_name() else {
+            continue;
+        };
+        if matches!(entry.kind(), EntryKind::Directory) {
+            let path = extract_dir.join(file_name);
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent).map_err(DecompilerError::IO)?;
+            }
+            continue;
+        }
+        let ext = Path::new(file_name).extension();
+        if ext.is_some_and(|e| e.eq_ignore_ascii_case("jar")) {
+            let buf = entry.bytes().await.map_err(DecompilerError::IO)?;
+            let path = extract_dir.join(file_name);
+            std::fs::create_dir_all(&path).map_err(DecompilerError::IO)?;
+            Box::pin(base_decompile_classes_zip(file_name, path, buf, None)).await?;
+            continue;
+        }
+        if !ext.is_some_and(|e| e.eq_ignore_ascii_case("class")) {
+            continue;
+        }
+        if file_name.ends_with("module-info.class") {
+            continue;
+        }
+        let nfile = NuVec::new(file_name.as_bytes());
+        for r in &rules {
+            let p = trim_prefix_path.as_ref().map_or_else(
+                || nfile.clone(),
+                |prefix| nfile.trim_start_matches(prefix.as_bytes()),
+            );
+            if file_name.starts_with(&r.0)
+                && !r.1.exports.iter().any(|e| p.starts_with(e.as_bytes()))
+            {
+                continue 'entries;
+            }
+        }
+        let class_path = nfile.trim_start_matches(b"/");
+        let class_path = class_path.trim_end_matches(b".class");
+        let mut class_path = class_path.replace_byte(b'/', b'.');
+        if let Some(trim_prefix) = trim_prefix {
+            class_path = class_path.replace(trim_prefix.as_bytes(), b"");
+        }
+
+        let buf = entry.bytes().await.map_err(DecompilerError::IO)?;
+
+        let ast = decompiler::decompile_class(&buf, &class_path)
+            .map_err(DecompilerError::ClassParserError)?;
+        let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default())
+            .map_err(DecompilerError::Formatter)?;
+
+        let path = extract_dir.join(file_name);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(DecompilerError::IO)?;
+        }
+        let mut entry_writer = File::create(path).map_err(DecompilerError::IO)?;
+        entry_writer
+            .write(&formatted)
+            .map_err(DecompilerError::IO)?;
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

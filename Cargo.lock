@@ -273,6 +273,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "decompiler"
+version = "0.1.0"
+dependencies = [
+ "ast",
+ "bitflags 2.13.0",
+ "dto",
+ "editorconfig",
+ "expect-test",
+ "formatter",
+ "mutf8",
+ "my_string",
+]
+
+[[package]]
 name = "definition"
 version = "0.1.0"
 dependencies = [
@@ -588,8 +602,11 @@ name = "loader"
 version = "0.1.0"
 dependencies = [
  "class",
+ "decompiler",
  "dto",
  "dto_rw",
+ "editorconfig",
+ "formatter",
  "my_string",
  "parser",
  "rc-zip-tokio",

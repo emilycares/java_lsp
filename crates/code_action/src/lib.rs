@@ -1,3 +1,10 @@
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
+#![deny(clippy::perf)]
+#![deny(clippy::redundant_clone)]
+#![deny(clippy::enum_glob_use)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::implicit_hasher)]
 use std::{
     cmp::Ordering,
     collections::HashMap,
@@ -38,6 +45,7 @@ pub enum CodeActionError {
     ToLspRange(ToLspRangeError),
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn replace_with_value_type(
     ast: &AstFile,
     context: &CodeActionContext,
@@ -165,6 +173,7 @@ fn find_var_block<'a>(
         .find_map(|i| find_var_block_entry(point, i))
 }
 
+#[allow(clippy::too_many_lines)]
 fn find_var_block_entry<'a>(
     point: &'a AstPoint,
     i: &'a AstBlockEntry,

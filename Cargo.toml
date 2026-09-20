@@ -57,6 +57,7 @@ members = [
     "crates/project",
     "crates/signature",
     "crates/references",
+    "crates/decompiler",
 ]
 exclude = [
     "editor/zed",
@@ -127,6 +128,7 @@ command = { path = "crates/command"}
 project = { path = "crates/project"}
 signature = { path = "crates/signature"}
 references = { path = "crates/references"}
+decompiler = { path = "crates/decompiler"}
 
 # Rest
 bitflags = { version = "2.13.0", default-features = false }

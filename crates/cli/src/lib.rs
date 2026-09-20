@@ -1,6 +1,7 @@
 #![deny(clippy::redundant_clone)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::nursery)]
+#![deny(clippy::perf)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::unused_async)]
 use std::collections::VecDeque;

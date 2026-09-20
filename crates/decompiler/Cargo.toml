@@ -1,6 +1,6 @@
 [package]
-name = "loader"
-version = "0.1.0"
+name = "decompiler"
+version.workspace = true
 edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
@@ -10,13 +10,14 @@ readme.workspace = true
 license.workspace = true
 
 [dependencies]
-tokio.workspace = true
-parser.workspace = true
-class.workspace = true
-dto.workspace = true
 my_string.workspace = true
-rc-zip-tokio.workspace = true
-dto_rw.workspace = true
-decompiler.workspace = true
+ast.workspace = true
+dto.workspace = true
+mutf8.workspace = true
+bitflags.workspace = true
+
+[dev-dependencies]
+expect-test.workspace = true
 formatter.workspace = true
 editorconfig.workspace = true
+

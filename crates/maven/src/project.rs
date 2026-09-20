@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, VecDeque},
-    fs,
+    fs::{self, read},
     hash::{DefaultHasher, Hash, Hasher},
     path::{Path, PathBuf},
     sync::{
@@ -15,7 +15,7 @@ use common::{
     deps_dir,
 };
 use dto::{Class, ClassFolder, SourceDestination};
-use loader::{DtoRwError, LoaderError};
+use loader::{DecompilerError, DtoRwError, LoaderError};
 use my_string::NuVec;
 use tokio::task::JoinSet;
 
@@ -27,6 +27,7 @@ use crate::{
 
 #[derive(Debug)]
 pub enum MavenProjectError {
+    IO(std::io::Error),
     MTwo(MTwoError),
 }
 
@@ -87,13 +88,31 @@ pub async fn project_deps(
         let jar = m2::pom_classes_jar(dep, &pom_mtwo);
         let source = deps_get_source(&deps_bas);
 
-        if online && (!jar.exists() || !source.exists()) {
-            update_tree.push(dep.to_owned());
-            continue;
+        let je = jar.exists();
+        let se = source.exists();
+        let mut decompile = false;
+        if online {
+            if !je || !se {
+                update_tree.push(dep.to_owned());
+                continue;
+            }
+        } else if je && !se {
+            decompile = true;
         }
         let dep = Arc::new(dep.to_owned());
         handles.spawn(async move {
             let sender = sender.clone();
+            #[allow(clippy::collapsible_if)]
+            if false {
+                if decompile && let Some(jar_str) = jar.as_path().to_str() {
+                    let buf = read(&jar).ok()?;
+                    if let Err(e) =
+                        loader::base_decompile_classes_zip(jar_str, source.clone(), buf, None).await
+                    {
+                        eprintln!("Failed to decompile jar: {}, {e:?}", jar.display());
+                    }
+                }
+            }
 
             match loader::load_class_folder(&cfc) {
                 Ok(classes) => {
@@ -183,10 +202,31 @@ async fn reindex(
     sender: Arc<tokio::sync::watch::Sender<TaskProgress>>,
 ) -> Option<ClassFolder> {
     let source = deps_get_source(&deps_bas);
-    if let Some(source) = source.as_path().to_str() {
-        match loader::load_classes_jar(
-            &jar,
-            SourceDestination::RelativeInFolder(NuVec::new(source.as_bytes())),
+    if let Some(source_str) = source.as_path().to_str() {
+        let buf = read(&source).map_err(DecompilerError::IO).ok()?;
+        #[allow(clippy::collapsible_if)]
+        if false {
+            if !source.exists() {
+                match loader::base_decompile_classes_zip(
+                    source_str,
+                    source.clone(),
+                    buf.clone(),
+                    None,
+                )
+                .await
+                {
+                    Ok(()) => (),
+                    Err(e) => {
+                        eprintln!("Failed to decompile jar: {}, {e:?}", jar.display());
+                    }
+                }
+            }
+        }
+        match loader::base_load_classes_zip(
+            source_str.to_string(),
+            SourceDestination::RelativeInFolder(NuVec::new(source_str.as_bytes())),
+            buf,
+            None,
         )
         .await
         {

@@ -1,3 +1,9 @@
+#![deny(clippy::pedantic)]
+#![deny(clippy::nursery)]
+#![deny(clippy::perf)]
+#![deny(clippy::redundant_clone)]
+#![deny(clippy::enum_glob_use)]
+#![allow(clippy::missing_errors_doc)]
 use document::Document;
 use lsp_extra::{source_to_uri, to_lsp_range};
 use lsp_types::{DocumentLink, Uri};
