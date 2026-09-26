@@ -278,7 +278,6 @@ version = "0.1.0"
 dependencies = [
  "ast",
  "bitflags 2.13.0",
- "dto",
  "editorconfig",
  "expect-test",
  "formatter",
@@ -321,12 +320,6 @@ dependencies = [
 [[package]]
 name = "dirs"
 version = "0.1.0"
-
-[[package]]
-name = "dissimilar"
-version = "1.0.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8975ffdaa0ef3661bfe02dbdcc06c9f829dfafe6a3c474de366a8d5e44276921"
 
 [[package]]
 name = "document"
@@ -395,10 +388,6 @@ dependencies = [
 [[package]]
 name = "expect-test"
 version = "1.5.1"
-dependencies = [
- "dissimilar",
- "once_cell",
-]
 
 [[package]]
 name = "find-msvc-tools"
@@ -760,12 +749,6 @@ checksum = "8c7959d3349f484aec36462f98226983578bf7d33f9b034c32967489c7000e1f"
 dependencies = [
  "phf",
 ]
-
-[[package]]
-name = "once_cell"
-version = "1.20.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "945462a4b81e43c4e3ba96bd7b49d834c6f61198356aa858733bc4acf3cbe62e"
 
 [[package]]
 name = "openssl-probe"

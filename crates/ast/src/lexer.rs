@@ -49,9 +49,9 @@ impl Token {
             | Self::StringLiteralMulti(i)
             | Self::CharLiteral(i) => i.len(),
             Self::Number(n) => n.len(),
-            Self::HexLiteral(n) | Self::BinaryLiteral(n) => n.len() + 2,
-            Self::LineComment(c) => c.len() + 2,
-            Self::BlockComment(c, _) => c.len() + 4,
+            Self::HexLiteral(n) | Self::BinaryLiteral(n) => n.len().saturating_add(2),
+            Self::LineComment(c) => c.len().saturating_add(2),
+            Self::BlockComment(c, _) => c.len().saturating_add(4),
             Self::AtInterface | Self::Protected => 11,
             Self::LeftParen
             | Self::RightParen
@@ -978,9 +978,9 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
     tokens: &mut Vec<PositionToken>,
 ) -> Result<(), LexerError> {
     tokens.clear();
-    let mut line = 0;
-    let mut col = 0;
-    let mut index = 0;
+    let mut line: usize = 0;
+    let mut col: usize = 0;
+    let mut index: usize = 0;
 
     loop {
         let ch = input.get(index);
@@ -989,18 +989,18 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
         };
         match ch {
             b'\n' => {
-                line += 1;
+                line = line.saturating_add(1_usize);
                 col = 0;
-                index += 1;
+                index = index.saturating_add(1);
                 continue;
             }
             b'\r' => {
-                index += 1;
+                index = index.saturating_add(1);
                 continue;
             }
             ch if is_whitespace(*ch) => {
-                col += 1;
-                index += 1;
+                col = col.saturating_add(1);
+                index = index.saturating_add(1);
                 continue;
             }
             b'(' => {
@@ -1009,7 +1009,7 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     line,
                     col,
                 });
-                col += 1;
+                col = col.saturating_add(1);
             }
             b')' => {
                 tokens.push(PositionToken {
@@ -1017,7 +1017,7 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     line,
                     col,
                 });
-                col += 1;
+                col = col.saturating_add(1);
             }
             b'{' => {
                 tokens.push(PositionToken {
@@ -1025,7 +1025,7 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     line,
                     col,
                 });
-                col += 1;
+                col = col.saturating_add(1);
             }
             b'}' => {
                 tokens.push(PositionToken {
@@ -1033,7 +1033,7 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     line,
                     col,
                 });
-                col += 1;
+                col = col.saturating_add(1);
             }
             b'[' => {
                 tokens.push(PositionToken {
@@ -1041,7 +1041,7 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     line,
                     col,
                 });
-                col += 1;
+                col = col.saturating_add(1);
             }
             b']' => {
                 tokens.push(PositionToken {
@@ -1049,87 +1049,87 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     line,
                     col,
                 });
-                col += 1;
+                col = col.saturating_add(1);
             }
             b'+' => {
-                let peek = input.get(index + 1);
+                let peek = input.get(index.saturating_add(1));
                 if matches!(peek, Some(b'=')) {
                     tokens.push(PositionToken {
                         token: Token::PlusEqual,
                         line,
                         col,
                     });
-                    index += 1;
-                    col += 2;
+                    index = index.saturating_add(1);
+                    col = col.saturating_add(2);
                 } else if matches!(peek, Some(b'+')) {
                     tokens.push(PositionToken {
                         token: Token::PlusPlus,
                         line,
                         col,
                     });
-                    index += 1;
-                    col += 2;
+                    index = index.saturating_add(1);
+                    col = col.saturating_add(2);
                 } else {
                     tokens.push(PositionToken {
                         token: Token::Plus,
                         line,
                         col,
                     });
-                    col += 1;
+                    col = col.saturating_add(1);
                 }
             }
             b'-' => {
-                let peek = input.get(index + 1);
+                let peek = input.get(index.saturating_add(1));
                 if matches!(peek, Some(b'-')) {
                     tokens.push(PositionToken {
                         token: Token::DashDash,
                         line,
                         col,
                     });
-                    index += 1;
-                    col += 2;
+                    index = index.saturating_add(1);
+                    col = col.saturating_add(2);
                 } else if matches!(peek, Some(b'=')) {
                     tokens.push(PositionToken {
                         token: Token::DashEqual,
                         line,
                         col,
                     });
-                    index += 1;
-                    col += 2;
+                    index = index.saturating_add(1);
+                    col = col.saturating_add(2);
                 } else if matches!(peek, Some(b'>')) {
                     tokens.push(PositionToken {
                         token: Token::Arrow,
                         line,
                         col,
                     });
-                    index += 1;
-                    col += 2;
+                    index = index.saturating_add(1);
+                    col = col.saturating_add(2);
                 } else {
                     tokens.push(PositionToken {
                         token: Token::Dash,
                         line,
                         col,
                     });
-                    col += 1;
+                    col = col.saturating_add(1);
                 }
             }
             b'*' => {
-                let peek = input.get(index + 1);
+                let peek = input.get(index.saturating_add(1));
                 if matches!(peek, Some(b'=')) {
                     tokens.push(PositionToken {
                         token: Token::StarEqual,
                         line,
                         col,
                     });
-                    col += 1;
-                    index += 1;
+                    col = col.saturating_add(1);
+                    index = index.saturating_add(1);
                 } else {
                     tokens.push(PositionToken {
                         token: Token::Star,
                         line,
                         col,
                     });
-                    col += 1;
+                    col = col.saturating_add(1);
                 }
             }
             b'^' => {
@@ -1138,7 +1138,7 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     line,
                     col,
                 });
-                col += 1;
+                col = col.saturating_add(1);
             }
             b'~' => {
                 tokens.push(PositionToken {
@@ -1146,27 +1146,28 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     line,
                     col,
                 });
-                col += 1;
+                col = col.saturating_add(1);
             }
             b'@' => {
-                if let Some(interface) = input.get(index + 1..index + 10)
+                if let Some(interface) =
+                    input.get(index.saturating_add(1)..index.saturating_add(10))
                     && interface == b"interface"
                 {
-                    col += 1;
+                    col = col.saturating_add(1);
                     tokens.push(PositionToken {
                         token: Token::AtInterface,
                         line,
                         col,
                     });
-                    col += 10;
-                    index += 10;
+                    col = col.saturating_add(10);
+                    index = index.saturating_add(10);
                 } else {
                     tokens.push(PositionToken {
                         token: Token::At,
                         line,
                         col,
                     });
-                    col += 1;
+                    col = col.saturating_add(1);
                 }
             }
             b'.' => {
@@ -1175,7 +1176,7 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     line,
                     col,
                 });
-                col += 1;
+                col = col.saturating_add(1);
             }
             b',' => {
                 tokens.push(PositionToken {
@@ -1183,7 +1184,7 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     line,
                     col,
                 });
-                col += 1;
+                col = col.saturating_add(1);
             }
             b';' => {
                 tokens.push(PositionToken {
@@ -1191,7 +1192,7 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     line,
                     col,
                 });
-                col += 1;
+                col = col.saturating_add(1);
             }
             b':' => {
                 tokens.push(PositionToken {
@@ -1199,16 +1200,16 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     line,
                     col,
                 });
-                col += 1;
+                col = col.saturating_add(1);
             }
             b'%' => {
-                if matches!(input.get(index + 1), Some(b'=')) {
+                if matches!(input.get(index.saturating_add(1)), Some(b'=')) {
                     tokens.push(PositionToken {
                         token: Token::PercentEqual,
                         line,
                         col,
                     });
-                    index += 1;
+                    index = index.saturating_add(1);
                 } else {
                     tokens.push(PositionToken {
                         token: Token::Percent,
@@ -1216,51 +1217,51 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                         col,
                     });
                 }
-                col += 1;
+                col = col.saturating_add(1);
             }
             b'&' => {
-                if matches!(input.get(index + 1), Some(b'&')) {
+                if matches!(input.get(index.saturating_add(1)), Some(b'&')) {
                     tokens.push(PositionToken {
                         token: Token::AmpersandAmpersand,
                         line,
                         col,
                     });
-                    col += 2;
-                    index += 1;
+                    col = col.saturating_add(2);
+                    index = index.saturating_add(1);
                 } else {
                     tokens.push(PositionToken {
                         token: Token::Ampersand,
                         line,
                         col,
                     });
-                    col += 1;
+                    col = col.saturating_add(1);
                 }
             }
             b'|' => {
-                if let Some(peek) = input.get(index + 1) {
+                if let Some(peek) = input.get(index.saturating_add(1)) {
                     if peek == &b'=' {
                         tokens.push(PositionToken {
                             token: Token::VerticalBarEqual,
                             line,
                             col,
                         });
-                        col += 2;
-                        index += 1;
+                        col = col.saturating_add(2);
+                        index = index.saturating_add(1);
                     } else if peek == &b'|' {
                         tokens.push(PositionToken {
                             token: Token::VerticalBarVerticalBar,
                             line,
                             col,
                         });
-                        col += 2;
-                        index += 1;
+                        col = col.saturating_add(2);
+                        index = index.saturating_add(1);
                     } else {
                         tokens.push(PositionToken {
                             token: Token::VerticalBar,
                             line,
                             col,
                         });
-                        col += 1;
+                        col = col.saturating_add(1);
                     }
                 } else {
                     tokens.push(PositionToken {
@@ -1268,7 +1269,7 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                         line,
                         col,
                     });
-                    col += 1;
+                    col = col.saturating_add(1);
                 }
             }
             b'?' => {
@@ -1277,10 +1278,10 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     line,
                     col,
                 });
-                col += 1;
+                col = col.saturating_add(1);
             }
             b'/' => {
-                let Some(peek) = input.get(index + 1) else {
+                let Some(peek) = input.get(index.saturating_add(1)) else {
                     break;
                 };
                 if peek == &b'=' {
@@ -1289,10 +1290,10 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                         line,
                         col,
                     });
-                    col += 1;
-                    index += 1;
+                    col = col.saturating_add(1);
+                    index = index.saturating_add(1);
                 } else if peek == &b'/' {
-                    let s = index + 2;
+                    let s = index.saturating_add(2);
                     let slice = &input[s..];
                     let Some(m) = memchr(b'\n', slice) else {
                         break;
@@ -1300,7 +1301,7 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     let length = m;
                     if INCLUDE_COMMENTS {
                         let content = &input
-                            .get(s..input.len().min(s + length))
+                            .get(s..input.len().min(s.saturating_add(length)))
                             .ok_or(LexerError::EOF(line, col))?;
                         tokens.push(PositionToken {
                             token: Token::LineComment(NuVec::new(content)),
@@ -1309,24 +1310,24 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                         });
                     }
                     // slice is offset my 2
-                    index += length + 3;
-                    line += 1;
+                    index = index.saturating_add(length.saturating_add(3));
+                    line = line.saturating_add(1);
                     col = 0;
                     continue;
                 } else if peek == &b'*' {
                     // Inside multi line comment
-                    let slice = &input[index + 2..];
+                    let slice = &input[index.saturating_add(2)..];
                     let finder = memmem::Finder::new("*/");
                     let Some(m) = finder.find(slice) else {
                         break;
                     };
                     // Include the last two chars
-                    let length = m + 2;
+                    let length = m.saturating_add(2);
                     let for_ln_count = &slice[..m];
                     let mut ln = memchr_iter(b'\n', for_ln_count);
                     if let Some(last) = ln.next_back() {
                         // After last newline
-                        let ln_count = ln.count() + 1;
+                        let ln_count = ln.count().saturating_add(1);
                         if INCLUDE_COMMENTS {
                             tokens.push(PositionToken {
                                 token: Token::BlockComment(NuVec::new(for_ln_count), ln_count),
@@ -1334,8 +1335,8 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                                 col,
                             });
                         }
-                        col += length - (last + 1);
-                        line += ln_count;
+                        col = col.saturating_add(length.saturating_sub(last.saturating_add(1)));
+                        line = line.saturating_add(ln_count);
                     } else {
                         // Full comment contains no newline
                         if INCLUDE_COMMENTS {
@@ -1345,10 +1346,10 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                                 col,
                             });
                         }
-                        col += length + 2;
+                        col = col.saturating_add(length.saturating_add(2));
                     }
                     // slice is offset my 2
-                    index += length + 2;
+                    index = index.saturating_add(length.saturating_add(2));
                     continue;
                 } else {
                     tokens.push(PositionToken {
@@ -1356,7 +1357,7 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                         line,
                         col,
                     });
-                    col += 1;
+                    col = col.saturating_add(1);
                 }
             }
             b'\\' => {
@@ -1365,52 +1366,52 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     line,
                     col,
                 });
-                col += 1;
+                col = col.saturating_add(1);
             }
             b'"' => {
-                index += 1;
+                index = index.saturating_add(1);
                 let mut str = NuVecBuilder::new();
                 let mut multi_line = false;
                 if matches!(input.get(index), Some(b'"'))
-                    && matches!(input.get(index + 1), Some(b'"'))
+                    && matches!(input.get(index.saturating_add(1)), Some(b'"'))
                 {
                     multi_line = true;
-                    index += 2;
+                    index = index.saturating_add(2);
                 }
                 'string_literal: while let Some(ch) = input.get(index) {
                     if *ch == b'\\' {
-                        let Some(peek) = input.get(index + 1) else {
+                        let Some(peek) = input.get(index.saturating_add(1)) else {
                             break;
                         };
                         if *peek == b'\\' {
                             str.push(b'\\');
                             str.push(b'\\');
-                            col += 2;
-                            index += 2;
+                            col = col.saturating_add(2);
+                            index = index.saturating_add(2);
                             continue;
                         } else if *peek == b'"' {
                             str.push(b'\\');
                             str.push(b'\"');
-                            col += 2;
-                            index += 2;
+                            col = col.saturating_add(2);
+                            index = index.saturating_add(2);
                             continue;
                         }
                     }
                     if *ch == b'"' {
                         if !multi_line {
-                            col += 1;
+                            col = col.saturating_add(1);
                             break 'string_literal;
-                        } else if matches!(input.get(index + 1), Some(b'"'))
-                            && matches!(input.get(index + 2), Some(b'"'))
+                        } else if matches!(input.get(index.saturating_add(1)), Some(b'"'))
+                            && matches!(input.get(index.saturating_add(2)), Some(b'"'))
                         {
-                            index += 2;
-                            col += 2;
+                            index = index.saturating_add(2);
+                            col = col.saturating_add(2);
                             break 'string_literal;
                         }
                     }
                     str.push(*ch);
-                    index += 1;
-                    col += 1;
+                    index = index.saturating_add(1);
+                    col = col.saturating_add(1);
                 }
                 if multi_line {
                     tokens.push(PositionToken {
@@ -1425,27 +1426,27 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                         col,
                     });
                 }
-                col += 1;
+                col = col.saturating_add(1);
             }
             b'\'' => {
-                index += 1;
+                index = index.saturating_add(1);
                 let mut char = NuVecBuilder::new();
                 'char_literal: while let Some(ch) = input.get(index) {
                     if *ch == b'\\' {
-                        let Some(peek) = input.get(index + 1) else {
+                        let Some(peek) = input.get(index.saturating_add(1)) else {
                             break;
                         };
                         if *peek == b'\\' {
                             char.push(b'\\');
                             char.push(b'\\');
-                            col += 2;
-                            index += 2;
+                            col = col.saturating_add(2);
+                            index = index.saturating_add(2);
                             continue;
                         } else if *peek == b'\'' {
                             char.push(b'\\');
                             char.push(b'\'');
-                            col += 2;
-                            index += 2;
+                            col = col.saturating_add(2);
+                            index = index.saturating_add(2);
                             continue;
                         }
                     }
@@ -1453,27 +1454,27 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                         break 'char_literal;
                     }
                     char.push(*ch);
-                    index += 1;
-                    col += 1;
+                    index = index.saturating_add(1);
+                    col = col.saturating_add(1);
                 }
                 tokens.push(PositionToken {
                     token: Token::CharLiteral(char.finish()),
                     line,
                     col,
                 });
-                col += 1;
+                col = col.saturating_add(1);
             }
             b'=' => {
-                if matches!(input.get(index + 1), Some(b'=')) {
+                if matches!(input.get(index.saturating_add(1)), Some(b'=')) {
                     tokens.push(PositionToken {
                         token: Token::EqualDouble,
                         line,
                         col,
                     });
-                    col += 2;
-                    index += 1;
+                    col = col.saturating_add(2);
+                    index = index.saturating_add(1);
                 } else {
-                    col += 1;
+                    col = col.saturating_add(1);
                     tokens.push(PositionToken {
                         token: Token::Equal,
                         line,
@@ -1482,61 +1483,61 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                 }
             }
             b'!' => {
-                if matches!(input.get(index + 1), Some(b'=')) {
+                if matches!(input.get(index.saturating_add(1)), Some(b'=')) {
                     tokens.push(PositionToken {
                         token: Token::Ne,
                         line,
                         col,
                     });
-                    col += 2;
-                    index += 1;
+                    col = col.saturating_add(2);
+                    index = index.saturating_add(1);
                 } else {
                     tokens.push(PositionToken {
                         token: Token::ExclamationMark,
                         line,
                         col,
                     });
-                    col += 1;
+                    col = col.saturating_add(1);
                 }
             }
             b'<' => {
-                let peek = input.get(index + 1);
+                let peek = input.get(index.saturating_add(1));
                 if matches!(peek, Some(b'=')) {
                     tokens.push(PositionToken {
                         token: Token::Le,
                         line,
                         col,
                     });
-                    col += 2;
-                    index += 1;
+                    col = col.saturating_add(2);
+                    index = index.saturating_add(1);
                 } else if matches!(peek, Some(b'<')) {
-                    let peek2 = input.get(index + 2);
+                    let peek2 = input.get(index.saturating_add(2));
                     if matches!(peek2, Some(b'=')) {
                         tokens.push(PositionToken {
                             token: Token::LtLtEq,
                             line,
                             col,
                         });
-                        col += 3;
-                        index += 2;
+                        col = col.saturating_add(3);
+                        index = index.saturating_add(2);
                     } else if matches!(peek2, Some(b'<')) {
-                        let peek3 = input.get(index + 3);
+                        let peek3 = input.get(index.saturating_add(3));
                         if matches!(peek3, Some(b'=')) {
                             tokens.push(PositionToken {
                                 token: Token::LtLtLtEq,
                                 line,
                                 col,
                             });
-                            col += 4;
-                            index += 3;
+                            col = col.saturating_add(4);
+                            index = index.saturating_add(3);
                         } else {
                             tokens.push(PositionToken {
                                 token: Token::LtLtLt,
                                 line,
                                 col,
                             });
-                            col += 3;
-                            index += 2;
+                            col = col.saturating_add(3);
+                            index = index.saturating_add(2);
                         }
                     } else {
                         tokens.push(PositionToken {
@@ -1544,8 +1545,8 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                             line,
                             col,
                         });
-                        col += 2;
-                        index += 1;
+                        col = col.saturating_add(2);
+                        index = index.saturating_add(1);
                     }
                 } else {
                     tokens.push(PositionToken {
@@ -1553,33 +1554,33 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                         line,
                         col,
                     });
-                    col += 1;
+                    col = col.saturating_add(1);
                 }
             }
             b'>' => {
-                let peek = input.get(index + 1);
+                let peek = input.get(index.saturating_add(1));
                 if matches!(peek, Some(b'=')) {
                     tokens.push(PositionToken {
                         token: Token::Ge,
                         line,
                         col,
                     });
-                    col += 2;
-                    index += 1;
+                    col = col.saturating_add(2);
+                    index = index.saturating_add(1);
                 } else {
                     tokens.push(PositionToken {
                         token: Token::Gt,
                         line,
                         col,
                     });
-                    col += 1;
+                    col = col.saturating_add(1);
                 }
             }
             b'0'..=b'9' => {
-                if matches!(input.get(index + 1), Some(b'0')) {
-                    match input.get(index + 1) {
+                if matches!(input.get(index.saturating_add(1)), Some(b'0')) {
+                    match input.get(index.saturating_add(1)) {
                         Some(b'x' | b'X') => {
-                            index += 2;
+                            index = index.saturating_add(2);
                             let mut string = NuVecBuilder::new();
                             while let Some(ch) = input.get(index) {
                                 if ch.is_ascii_hexdigit()
@@ -1589,13 +1590,13 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                                     || ch == &b'-'
                                 {
                                     string.push(*ch);
-                                    index += 1;
+                                    index = index.saturating_add(1);
                                 } else {
                                     break;
                                 }
                             }
                             let string = string.finish();
-                            col += string.len();
+                            col = col.saturating_add(string.len());
                             tokens.push(PositionToken {
                                 token: Token::HexLiteral(string),
                                 line,
@@ -1604,18 +1605,18 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                             continue;
                         }
                         Some(b'b' | b'B') => {
-                            index += 2;
+                            index = index.saturating_add(2);
                             let mut string = NuVecBuilder::new();
                             while let Some(ch) = input.get(index) {
                                 if ch == &b'_' || ch == &b'0' || ch == &b'1' {
                                     string.push(*ch);
-                                    index += 1;
+                                    index = index.saturating_add(1);
                                 } else {
                                     break;
                                 }
                             }
                             let finish = string.finish();
-                            col += finish.len();
+                            col = col.saturating_add(finish.len());
                             tokens.push(PositionToken {
                                 token: Token::BinaryLiteral(finish),
                                 line,
@@ -1633,11 +1634,11 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     } else {
                         break;
                     }
-                    index += 1;
+                    index = index.saturating_add(1);
                 }
 
                 let string = string.finish();
-                col += string.len();
+                col = col.saturating_add(string.len());
                 tokens.push(PositionToken {
                     token: Token::Number(string),
                     line,
@@ -1679,7 +1680,7 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                     {
                         break;
                     }
-                    index += 1;
+                    index = index.saturating_add(1);
                 }
                 let end = index;
                 let content = &input[start..end];
@@ -1698,11 +1699,11 @@ pub fn lex_mut<const INCLUDE_COMMENTS: bool>(
                         col,
                     });
                 }
-                col += len;
+                col = col.saturating_add(len);
                 continue;
             }
         }
-        index += 1;
+        index = index.saturating_add(1);
     }
 
     Ok(())

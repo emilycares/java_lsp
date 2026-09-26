@@ -3666,12 +3666,80 @@ fn types() {
                         },
                     },
                 ),
+                Import(
+                    AstImport {
+                        range: AstRange {
+                            start: AstPoint { 1:0 },
+                            end: AstPoint { 1:32 },
+                        },
+                        unit: Class(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint { 1:7 },
+                                    end: AstPoint { 1:31 },
+                                },
+                                value: "java.util.logging.Logger",
+                            },
+                        ),
+                    },
+                ),
+                Import(
+                    AstImport {
+                        range: AstRange {
+                            start: AstPoint { 2:0 },
+                            end: AstPoint { 2:22 },
+                        },
+                        unit: Class(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint { 2:7 },
+                                    end: AstPoint { 2:21 },
+                                },
+                                value: "java.util.List",
+                            },
+                        ),
+                    },
+                ),
+                Import(
+                    AstImport {
+                        range: AstRange {
+                            start: AstPoint { 3:0 },
+                            end: AstPoint { 3:21 },
+                        },
+                        unit: Class(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint { 3:7 },
+                                    end: AstPoint { 3:20 },
+                                },
+                                value: "java.util.Map",
+                            },
+                        ),
+                    },
+                ),
+                Import(
+                    AstImport {
+                        range: AstRange {
+                            start: AstPoint { 4:0 },
+                            end: AstPoint { 4:25 },
+                        },
+                        unit: Class(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint { 4:7 },
+                                    end: AstPoint { 4:24 },
+                                },
+                                value: "java.util.HashMap",
+                            },
+                        ),
+                    },
+                ),
                 Thing(
                     Class(
                         AstClass {
                             range: AstRange {
-                                start: AstPoint { 1:0 },
-                                end: AstPoint { 15:1 },
+                                start: AstPoint { 5:0 },
+                                end: AstPoint { 19:1 },
                             },
                             availability: AstAvailability(
                                 Public,
@@ -3682,8 +3750,8 @@ fn types() {
                             annotated: [],
                             name: AstIdentifier {
                                 range: AstRange {
-                                    start: AstPoint { 1:13 },
-                                    end: AstPoint { 1:18 },
+                                    start: AstPoint { 5:13 },
+                                    end: AstPoint { 5:18 },
                                 },
                                 value: "Types",
                             },
@@ -3693,14 +3761,14 @@ fn types() {
                             permits: [],
                             block: AstClassBlock {
                                 range: AstRange {
-                                    start: AstPoint { 1:19 },
-                                    end: AstPoint { 15:1 },
+                                    start: AstPoint { 5:19 },
+                                    end: AstPoint { 19:1 },
                                 },
                                 variables: [
                                     AstClassVariable {
                                         range: AstRange {
-                                            start: AstPoint { 2:2 },
-                                            end: AstPoint { 2:44 },
+                                            start: AstPoint { 6:2 },
+                                            end: AstPoint { 6:40 },
                                         },
                                         availability: AstAvailability(
                                             0x0,
@@ -3708,22 +3776,22 @@ fn types() {
                                         annotated: [],
                                         name: AstIdentifier {
                                             range: AstRange {
-                                                start: AstPoint { 2:9 },
-                                                end: AstPoint { 2:12 },
+                                                start: AstPoint { 6:9 },
+                                                end: AstPoint { 6:12 },
                                             },
                                             value: "LOG",
                                         },
                                         jtype: AstJType {
                                             annotated: [],
                                             range: AstRange {
-                                                start: AstPoint { 2:2 },
-                                                end: AstPoint { 2:8 },
+                                                start: AstPoint { 6:2 },
+                                                end: AstPoint { 6:8 },
                                             },
                                             value: Class(
                                                 AstIdentifier {
                                                     range: AstRange {
-                                                        start: AstPoint { 2:2 },
-                                                        end: AstPoint { 2:8 },
+                                                        start: AstPoint { 6:2 },
+                                                        end: AstPoint { 6:8 },
                                                     },
                                                     value: "Logger",
                                                 },
@@ -3734,15 +3802,15 @@ fn types() {
                                                 Base(
                                                     AstBaseExpression {
                                                         range: AstRange {
-                                                            start: AstPoint { 2:15 },
-                                                            end: AstPoint { 2:21 },
+                                                            start: AstPoint { 6:15 },
+                                                            end: AstPoint { 6:21 },
                                                         },
                                                         ident: Some(
                                                             Identifier(
                                                                 AstIdentifier {
                                                                     range: AstRange {
-                                                                        start: AstPoint { 2:15 },
-                                                                        end: AstPoint { 2:21 },
+                                                                        start: AstPoint { 6:15 },
+                                                                        end: AstPoint { 6:21 },
                                                                     },
                                                                     value: "Logger",
                                                                 },
@@ -3755,15 +3823,15 @@ fn types() {
                                                 Base(
                                                     AstBaseExpression {
                                                         range: AstRange {
-                                                            start: AstPoint { 2:21 },
-                                                            end: AstPoint { 2:22 },
+                                                            start: AstPoint { 6:21 },
+                                                            end: AstPoint { 6:22 },
                                                         },
                                                         ident: None,
                                                         values: None,
                                                         operator: Dot(
                                                             AstRange {
-                                                                start: AstPoint { 2:21 },
-                                                                end: AstPoint { 2:22 },
+                                                                start: AstPoint { 6:21 },
+                                                                end: AstPoint { 6:22 },
                                                             },
                                                         ),
                                                     },
@@ -3771,15 +3839,15 @@ fn types() {
                                                 Base(
                                                     AstBaseExpression {
                                                         range: AstRange {
-                                                            start: AstPoint { 2:22 },
-                                                            end: AstPoint { 2:31 },
+                                                            start: AstPoint { 6:22 },
+                                                            end: AstPoint { 6:31 },
                                                         },
                                                         ident: Some(
                                                             Identifier(
                                                                 AstIdentifier {
                                                                     range: AstRange {
-                                                                        start: AstPoint { 2:22 },
-                                                                        end: AstPoint { 2:31 },
+                                                                        start: AstPoint { 6:22 },
+                                                                        end: AstPoint { 6:31 },
                                                                     },
                                                                     value: "getLogger",
                                                                 },
@@ -3792,70 +3860,35 @@ fn types() {
                                                 Base(
                                                     AstBaseExpression {
                                                         range: AstRange {
-                                                            start: AstPoint { 2:31 },
-                                                            end: AstPoint { 2:44 },
+                                                            start: AstPoint { 6:31 },
+                                                            end: AstPoint { 6:40 },
                                                         },
                                                         ident: None,
                                                         values: Some(
                                                             AstValues {
                                                                 range: AstRange {
-                                                                    start: AstPoint { 2:31 },
-                                                                    end: AstPoint { 2:44 },
+                                                                    start: AstPoint { 6:31 },
+                                                                    end: AstPoint { 6:40 },
                                                                 },
                                                                 values: [
                                                                     [
                                                                         Base(
                                                                             AstBaseExpression {
                                                                                 range: AstRange {
-                                                                                    start: AstPoint { 2:32 },
-                                                                                    end: AstPoint { 2:37 },
+                                                                                    start: AstPoint { 6:38 },
+                                                                                    end: AstPoint { 6:43 },
                                                                                 },
                                                                                 ident: Some(
-                                                                                    Identifier(
-                                                                                        AstIdentifier {
-                                                                                            range: AstRange {
-                                                                                                start: AstPoint { 2:32 },
-                                                                                                end: AstPoint { 2:37 },
+                                                                                    Value(
+                                                                                        Nuget(
+                                                                                            StringLiteral {
+                                                                                                range: AstRange {
+                                                                                                    start: AstPoint { 6:38 },
+                                                                                                    end: AstPoint { 6:32 },
+                                                                                                },
+                                                                                                value: "Types",
                                                                                             },
-                                                                                            value: "Types",
-                                                                                        },
-                                                                                    ),
-                                                                                ),
-                                                                                values: None,
-                                                                                operator: None,
-                                                                            },
-                                                                        ),
-                                                                        Base(
-                                                                            AstBaseExpression {
-                                                                                range: AstRange {
-                                                                                    start: AstPoint { 2:37 },
-                                                                                    end: AstPoint { 2:38 },
-                                                                                },
-                                                                                ident: None,
-                                                                                values: None,
-                                                                                operator: Dot(
-                                                                                    AstRange {
-                                                                                        start: AstPoint { 2:37 },
-                                                                                        end: AstPoint { 2:38 },
-                                                                                    },
-                                                                                ),
-                                                                            },
-                                                                        ),
-                                                                        Base(
-                                                                            AstBaseExpression {
-                                                                                range: AstRange {
-                                                                                    start: AstPoint { 2:38 },
-                                                                                    end: AstPoint { 2:43 },
-                                                                                },
-                                                                                ident: Some(
-                                                                                    Identifier(
-                                                                                        AstIdentifier {
-                                                                                            range: AstRange {
-                                                                                                start: AstPoint { 2:38 },
-                                                                                                end: AstPoint { 2:43 },
-                                                                                            },
-                                                                                            value: "class",
-                                                                                        },
+                                                                                        ),
                                                                                     ),
                                                                                 ),
                                                                                 values: None,
@@ -3877,8 +3910,8 @@ fn types() {
                                     },
                                     AstClassVariable {
                                         range: AstRange {
-                                            start: AstPoint { 3:2 },
-                                            end: AstPoint { 3:26 },
+                                            start: AstPoint { 7:2 },
+                                            end: AstPoint { 7:26 },
                                         },
                                         availability: AstAvailability(
                                             0x0,
@@ -3886,16 +3919,16 @@ fn types() {
                                         annotated: [],
                                         name: AstIdentifier {
                                             range: AstRange {
-                                                start: AstPoint { 3:10 },
-                                                end: AstPoint { 3:19 },
+                                                start: AstPoint { 7:10 },
+                                                end: AstPoint { 7:19 },
                                             },
                                             value: "IS_ACTIVE",
                                         },
                                         jtype: AstJType {
                                             annotated: [],
                                             range: AstRange {
-                                                start: AstPoint { 3:2 },
-                                                end: AstPoint { 3:9 },
+                                                start: AstPoint { 7:2 },
+                                                end: AstPoint { 7:9 },
                                             },
                                             value: Boolean,
                                         },
@@ -3904,8 +3937,8 @@ fn types() {
                                                 Base(
                                                     AstBaseExpression {
                                                         range: AstRange {
-                                                            start: AstPoint { 3:22 },
-                                                            end: AstPoint { 3:26 },
+                                                            start: AstPoint { 7:22 },
+                                                            end: AstPoint { 7:26 },
                                                         },
                                                         ident: Some(
                                                             Value(
@@ -3913,8 +3946,8 @@ fn types() {
                                                                     BooleanLiteral(
                                                                         AstBoolean {
                                                                             range: AstRange {
-                                                                                start: AstPoint { 3:22 },
-                                                                                end: AstPoint { 3:26 },
+                                                                                start: AstPoint { 7:22 },
+                                                                                end: AstPoint { 7:26 },
                                                                             },
                                                                             value: true,
                                                                         },
@@ -3934,8 +3967,8 @@ fn types() {
                                     },
                                     AstClassVariable {
                                         range: AstRange {
-                                            start: AstPoint { 4:2 },
-                                            end: AstPoint { 4:20 },
+                                            start: AstPoint { 8:2 },
+                                            end: AstPoint { 8:20 },
                                         },
                                         availability: AstAvailability(
                                             0x0,
@@ -3943,16 +3976,16 @@ fn types() {
                                         annotated: [],
                                         name: AstIdentifier {
                                             range: AstRange {
-                                                start: AstPoint { 4:7 },
-                                                end: AstPoint { 4:15 },
+                                                start: AstPoint { 8:7 },
+                                                end: AstPoint { 8:15 },
                                             },
                                             value: "one_byte",
                                         },
                                         jtype: AstJType {
                                             annotated: [],
                                             range: AstRange {
-                                                start: AstPoint { 4:2 },
-                                                end: AstPoint { 4:6 },
+                                                start: AstPoint { 8:2 },
+                                                end: AstPoint { 8:6 },
                                             },
                                             value: Byte,
                                         },
@@ -3961,8 +3994,8 @@ fn types() {
                                                 Base(
                                                     AstBaseExpression {
                                                         range: AstRange {
-                                                            start: AstPoint { 4:19 },
-                                                            end: AstPoint { 4:20 },
+                                                            start: AstPoint { 8:19 },
+                                                            end: AstPoint { 8:20 },
                                                         },
                                                         ident: Some(
                                                             Value(
@@ -3970,8 +4003,8 @@ fn types() {
                                                                     Int(
                                                                         AstInt {
                                                                             range: AstRange {
-                                                                                start: AstPoint { 4:19 },
-                                                                                end: AstPoint { 4:20 },
+                                                                                start: AstPoint { 8:19 },
+                                                                                end: AstPoint { 8:20 },
                                                                             },
                                                                             value: "0",
                                                                         },
@@ -3991,8 +4024,8 @@ fn types() {
                                     },
                                     AstClassVariable {
                                         range: AstRange {
-                                            start: AstPoint { 5:2 },
-                                            end: AstPoint { 5:18 },
+                                            start: AstPoint { 9:2 },
+                                            end: AstPoint { 9:18 },
                                         },
                                         availability: AstAvailability(
                                             0x0,
@@ -4000,16 +4033,16 @@ fn types() {
                                         annotated: [],
                                         name: AstIdentifier {
                                             range: AstRange {
-                                                start: AstPoint { 5:6 },
-                                                end: AstPoint { 5:13 },
+                                                start: AstPoint { 9:6 },
+                                                end: AstPoint { 9:13 },
                                             },
                                             value: "one_int",
                                         },
                                         jtype: AstJType {
                                             annotated: [],
                                             range: AstRange {
-                                                start: AstPoint { 5:2 },
-                                                end: AstPoint { 5:5 },
+                                                start: AstPoint { 9:2 },
+                                                end: AstPoint { 9:5 },
                                             },
                                             value: Int,
                                         },
@@ -4018,8 +4051,8 @@ fn types() {
                                                 Base(
                                                     AstBaseExpression {
                                                         range: AstRange {
-                                                            start: AstPoint { 5:17 },
-                                                            end: AstPoint { 5:18 },
+                                                            start: AstPoint { 9:17 },
+                                                            end: AstPoint { 9:18 },
                                                         },
                                                         ident: Some(
                                                             Value(
@@ -4027,8 +4060,8 @@ fn types() {
                                                                     Int(
                                                                         AstInt {
                                                                             range: AstRange {
-                                                                                start: AstPoint { 5:17 },
-                                                                                end: AstPoint { 5:18 },
+                                                                                start: AstPoint { 9:17 },
+                                                                                end: AstPoint { 9:18 },
                                                                             },
                                                                             value: "0",
                                                                         },
@@ -4048,8 +4081,8 @@ fn types() {
                                     },
                                     AstClassVariable {
                                         range: AstRange {
-                                            start: AstPoint { 6:2 },
-                                            end: AstPoint { 6:22 },
+                                            start: AstPoint { 10:2 },
+                                            end: AstPoint { 10:22 },
                                         },
                                         availability: AstAvailability(
                                             0x0,
@@ -4057,16 +4090,16 @@ fn types() {
                                         annotated: [],
                                         name: AstIdentifier {
                                             range: AstRange {
-                                                start: AstPoint { 6:8 },
-                                                end: AstPoint { 6:17 },
+                                                start: AstPoint { 10:8 },
+                                                end: AstPoint { 10:17 },
                                             },
                                             value: "one_short",
                                         },
                                         jtype: AstJType {
                                             annotated: [],
                                             range: AstRange {
-                                                start: AstPoint { 6:2 },
-                                                end: AstPoint { 6:7 },
+                                                start: AstPoint { 10:2 },
+                                                end: AstPoint { 10:7 },
                                             },
                                             value: Short,
                                         },
@@ -4075,8 +4108,8 @@ fn types() {
                                                 Base(
                                                     AstBaseExpression {
                                                         range: AstRange {
-                                                            start: AstPoint { 6:21 },
-                                                            end: AstPoint { 6:22 },
+                                                            start: AstPoint { 10:21 },
+                                                            end: AstPoint { 10:22 },
                                                         },
                                                         ident: Some(
                                                             Value(
@@ -4084,8 +4117,8 @@ fn types() {
                                                                     Int(
                                                                         AstInt {
                                                                             range: AstRange {
-                                                                                start: AstPoint { 6:21 },
-                                                                                end: AstPoint { 6:22 },
+                                                                                start: AstPoint { 10:21 },
+                                                                                end: AstPoint { 10:22 },
                                                                             },
                                                                             value: "0",
                                                                         },
@@ -4105,8 +4138,8 @@ fn types() {
                                     },
                                     AstClassVariable {
                                         range: AstRange {
-                                            start: AstPoint { 7:2 },
-                                            end: AstPoint { 7:22 },
+                                            start: AstPoint { 11:2 },
+                                            end: AstPoint { 11:22 },
                                         },
                                         availability: AstAvailability(
                                             0x0,
@@ -4114,16 +4147,16 @@ fn types() {
                                         annotated: [],
                                         name: AstIdentifier {
                                             range: AstRange {
-                                                start: AstPoint { 7:7 },
-                                                end: AstPoint { 7:15 },
+                                                start: AstPoint { 11:7 },
+                                                end: AstPoint { 11:15 },
                                             },
                                             value: "one_long",
                                         },
                                         jtype: AstJType {
                                             annotated: [],
                                             range: AstRange {
-                                                start: AstPoint { 7:2 },
-                                                end: AstPoint { 7:6 },
+                                                start: AstPoint { 11:2 },
+                                                end: AstPoint { 11:6 },
                                             },
                                             value: Long,
                                         },
@@ -4132,8 +4165,8 @@ fn types() {
                                                 Base(
                                                     AstBaseExpression {
                                                         range: AstRange {
-                                                            start: AstPoint { 7:21 },
-                                                            end: AstPoint { 7:22 },
+                                                            start: AstPoint { 11:21 },
+                                                            end: AstPoint { 11:22 },
                                                         },
                                                         ident: Some(
                                                             Value(
@@ -4141,8 +4174,8 @@ fn types() {
                                                                     Long(
                                                                         AstInt {
                                                                             range: AstRange {
-                                                                                start: AstPoint { 7:21 },
-                                                                                end: AstPoint { 7:24 },
+                                                                                start: AstPoint { 11:21 },
+                                                                                end: AstPoint { 11:24 },
                                                                             },
                                                                             value: "111",
                                                                         },
@@ -4162,8 +4195,8 @@ fn types() {
                                     },
                                     AstClassVariable {
                                         range: AstRange {
-                                            start: AstPoint { 8:2 },
-                                            end: AstPoint { 8:26 },
+                                            start: AstPoint { 12:2 },
+                                            end: AstPoint { 12:26 },
                                         },
                                         availability: AstAvailability(
                                             0x0,
@@ -4171,16 +4204,16 @@ fn types() {
                                         annotated: [],
                                         name: AstIdentifier {
                                             range: AstRange {
-                                                start: AstPoint { 8:9 },
-                                                end: AstPoint { 8:19 },
+                                                start: AstPoint { 12:9 },
+                                                end: AstPoint { 12:19 },
                                             },
                                             value: "one_double",
                                         },
                                         jtype: AstJType {
                                             annotated: [],
                                             range: AstRange {
-                                                start: AstPoint { 8:2 },
-                                                end: AstPoint { 8:8 },
+                                                start: AstPoint { 12:2 },
+                                                end: AstPoint { 12:8 },
                                             },
                                             value: Double,
                                         },
@@ -4189,8 +4222,8 @@ fn types() {
                                                 Base(
                                                     AstBaseExpression {
                                                         range: AstRange {
-                                                            start: AstPoint { 8:23 },
-                                                            end: AstPoint { 8:26 },
+                                                            start: AstPoint { 12:23 },
+                                                            end: AstPoint { 12:26 },
                                                         },
                                                         ident: Some(
                                                             Value(
@@ -4198,8 +4231,8 @@ fn types() {
                                                                     Double(
                                                                         AstDouble {
                                                                             range: AstRange {
-                                                                                start: AstPoint { 8:23 },
-                                                                                end: AstPoint { 8:24 },
+                                                                                start: AstPoint { 12:23 },
+                                                                                end: AstPoint { 12:24 },
                                                                             },
                                                                             value: "0.0",
                                                                         },
@@ -4219,8 +4252,8 @@ fn types() {
                                     },
                                     AstClassVariable {
                                         range: AstRange {
-                                            start: AstPoint { 9:2 },
-                                            end: AstPoint { 9:25 },
+                                            start: AstPoint { 13:2 },
+                                            end: AstPoint { 13:25 },
                                         },
                                         availability: AstAvailability(
                                             0x0,
@@ -4228,16 +4261,16 @@ fn types() {
                                         annotated: [],
                                         name: AstIdentifier {
                                             range: AstRange {
-                                                start: AstPoint { 9:8 },
-                                                end: AstPoint { 9:17 },
+                                                start: AstPoint { 13:8 },
+                                                end: AstPoint { 13:17 },
                                             },
                                             value: "one_float",
                                         },
                                         jtype: AstJType {
                                             annotated: [],
                                             range: AstRange {
-                                                start: AstPoint { 9:2 },
-                                                end: AstPoint { 9:7 },
+                                                start: AstPoint { 13:2 },
+                                                end: AstPoint { 13:7 },
                                             },
                                             value: Float,
                                         },
@@ -4246,8 +4279,8 @@ fn types() {
                                                 Base(
                                                     AstBaseExpression {
                                                         range: AstRange {
-                                                            start: AstPoint { 9:21 },
-                                                            end: AstPoint { 9:25 },
+                                                            start: AstPoint { 13:21 },
+                                                            end: AstPoint { 13:25 },
                                                         },
                                                         ident: Some(
                                                             Value(
@@ -4255,8 +4288,8 @@ fn types() {
                                                                     Float(
                                                                         AstDouble {
                                                                             range: AstRange {
-                                                                                start: AstPoint { 9:21 },
-                                                                                end: AstPoint { 9:22 },
+                                                                                start: AstPoint { 13:21 },
+                                                                                end: AstPoint { 13:22 },
                                                                             },
                                                                             value: "1.11",
                                                                         },
@@ -4276,8 +4309,8 @@ fn types() {
                                     },
                                     AstClassVariable {
                                         range: AstRange {
-                                            start: AstPoint { 10:2 },
-                                            end: AstPoint { 10:20 },
+                                            start: AstPoint { 14:2 },
+                                            end: AstPoint { 14:20 },
                                         },
                                         availability: AstAvailability(
                                             0x0,
@@ -4285,16 +4318,16 @@ fn types() {
                                         annotated: [],
                                         name: AstIdentifier {
                                             range: AstRange {
-                                                start: AstPoint { 10:7 },
-                                                end: AstPoint { 10:15 },
+                                                start: AstPoint { 14:7 },
+                                                end: AstPoint { 14:15 },
                                             },
                                             value: "one_char",
                                         },
                                         jtype: AstJType {
                                             annotated: [],
                                             range: AstRange {
-                                                start: AstPoint { 10:2 },
-                                                end: AstPoint { 10:6 },
+                                                start: AstPoint { 14:2 },
+                                                end: AstPoint { 14:6 },
                                             },
                                             value: Char,
                                         },
@@ -4303,8 +4336,8 @@ fn types() {
                                                 Base(
                                                     AstBaseExpression {
                                                         range: AstRange {
-                                                            start: AstPoint { 10:19 },
-                                                            end: AstPoint { 10:20 },
+                                                            start: AstPoint { 14:19 },
+                                                            end: AstPoint { 14:20 },
                                                         },
                                                         ident: Some(
                                                             Value(
@@ -4312,8 +4345,8 @@ fn types() {
                                                                     CharLiteral {
                                                                         value: "a",
                                                                         range: AstRange {
-                                                                            start: AstPoint { 10:19 },
-                                                                            end: AstPoint { 10:18 },
+                                                                            start: AstPoint { 14:19 },
+                                                                            end: AstPoint { 14:18 },
                                                                         },
                                                                     },
                                                                 ),
@@ -4331,8 +4364,8 @@ fn types() {
                                     },
                                     AstClassVariable {
                                         range: AstRange {
-                                            start: AstPoint { 11:2 },
-                                            end: AstPoint { 11:31 },
+                                            start: AstPoint { 15:2 },
+                                            end: AstPoint { 15:31 },
                                         },
                                         availability: AstAvailability(
                                             0x0,
@@ -4340,22 +4373,22 @@ fn types() {
                                         annotated: [],
                                         name: AstIdentifier {
                                             range: AstRange {
-                                                start: AstPoint { 11:9 },
-                                                end: AstPoint { 11:19 },
+                                                start: AstPoint { 15:9 },
+                                                end: AstPoint { 15:19 },
                                             },
                                             value: "one_string",
                                         },
                                         jtype: AstJType {
                                             annotated: [],
                                             range: AstRange {
-                                                start: AstPoint { 11:2 },
-                                                end: AstPoint { 11:8 },
+                                                start: AstPoint { 15:2 },
+                                                end: AstPoint { 15:8 },
                                             },
                                             value: Class(
                                                 AstIdentifier {
                                                     range: AstRange {
-                                                        start: AstPoint { 11:2 },
-                                                        end: AstPoint { 11:8 },
+                                                        start: AstPoint { 15:2 },
+                                                        end: AstPoint { 15:8 },
                                                     },
                                                     value: "String",
                                                 },
@@ -4366,16 +4399,16 @@ fn types() {
                                                 Base(
                                                     AstBaseExpression {
                                                         range: AstRange {
-                                                            start: AstPoint { 11:27 },
-                                                            end: AstPoint { 11:31 },
+                                                            start: AstPoint { 15:27 },
+                                                            end: AstPoint { 15:31 },
                                                         },
                                                         ident: Some(
                                                             Value(
                                                                 Nuget(
                                                                     StringLiteral {
                                                                         range: AstRange {
-                                                                            start: AstPoint { 11:27 },
-                                                                            end: AstPoint { 11:22 },
+                                                                            start: AstPoint { 15:27 },
+                                                                            end: AstPoint { 15:22 },
                                                                         },
                                                                         value: "hihi",
                                                                     },
@@ -4394,8 +4427,8 @@ fn types() {
                                     },
                                     AstClassVariable {
                                         range: AstRange {
-                                            start: AstPoint { 12:2 },
-                                            end: AstPoint { 12:41 },
+                                            start: AstPoint { 16:2 },
+                                            end: AstPoint { 16:41 },
                                         },
                                         availability: AstAvailability(
                                             0x0,
@@ -4403,22 +4436,22 @@ fn types() {
                                         annotated: [],
                                         name: AstIdentifier {
                                             range: AstRange {
-                                                start: AstPoint { 12:15 },
-                                                end: AstPoint { 12:23 },
+                                                start: AstPoint { 16:15 },
+                                                end: AstPoint { 16:23 },
                                             },
                                             value: "one_list",
                                         },
                                         jtype: AstJType {
                                             annotated: [],
                                             range: AstRange {
-                                                start: AstPoint { 12:2 },
-                                                end: AstPoint { 12:14 },
+                                                start: AstPoint { 16:2 },
+                                                end: AstPoint { 16:14 },
                                             },
                                             value: Generic(
                                                 AstIdentifier {
                                                     range: AstRange {
-                                                        start: AstPoint { 12:2 },
-                                                        end: AstPoint { 12:6 },
+                                                        start: AstPoint { 16:2 },
+                                                        end: AstPoint { 16:6 },
                                                     },
                                                     value: "List",
                                                 },
@@ -4426,14 +4459,14 @@ fn types() {
                                                     AstJType {
                                                         annotated: [],
                                                         range: AstRange {
-                                                            start: AstPoint { 12:7 },
-                                                            end: AstPoint { 12:13 },
+                                                            start: AstPoint { 16:7 },
+                                                            end: AstPoint { 16:13 },
                                                         },
                                                         value: Class(
                                                             AstIdentifier {
                                                                 range: AstRange {
-                                                                    start: AstPoint { 12:7 },
-                                                                    end: AstPoint { 12:13 },
+                                                                    start: AstPoint { 16:7 },
+                                                                    end: AstPoint { 16:13 },
                                                                 },
                                                                 value: "String",
                                                             },
@@ -4447,15 +4480,15 @@ fn types() {
                                                 Base(
                                                     AstBaseExpression {
                                                         range: AstRange {
-                                                            start: AstPoint { 12:26 },
-                                                            end: AstPoint { 12:30 },
+                                                            start: AstPoint { 16:26 },
+                                                            end: AstPoint { 16:30 },
                                                         },
                                                         ident: Some(
                                                             Identifier(
                                                                 AstIdentifier {
                                                                     range: AstRange {
-                                                                        start: AstPoint { 12:26 },
-                                                                        end: AstPoint { 12:30 },
+                                                                        start: AstPoint { 16:26 },
+                                                                        end: AstPoint { 16:30 },
                                                                     },
                                                                     value: "List",
                                                                 },
@@ -4468,15 +4501,15 @@ fn types() {
                                                 Base(
                                                     AstBaseExpression {
                                                         range: AstRange {
-                                                            start: AstPoint { 12:30 },
-                                                            end: AstPoint { 12:31 },
+                                                            start: AstPoint { 16:30 },
+                                                            end: AstPoint { 16:31 },
                                                         },
                                                         ident: None,
                                                         values: None,
                                                         operator: Dot(
                                                             AstRange {
-                                                                start: AstPoint { 12:30 },
-                                                                end: AstPoint { 12:31 },
+                                                                start: AstPoint { 16:30 },
+                                                                end: AstPoint { 16:31 },
                                                             },
                                                         ),
                                                     },
@@ -4484,15 +4517,15 @@ fn types() {
                                                 Base(
                                                     AstBaseExpression {
                                                         range: AstRange {
-                                                            start: AstPoint { 12:31 },
-                                                            end: AstPoint { 12:33 },
+                                                            start: AstPoint { 16:31 },
+                                                            end: AstPoint { 16:33 },
                                                         },
                                                         ident: Some(
                                                             Identifier(
                                                                 AstIdentifier {
                                                                     range: AstRange {
-                                                                        start: AstPoint { 12:31 },
-                                                                        end: AstPoint { 12:33 },
+                                                                        start: AstPoint { 16:31 },
+                                                                        end: AstPoint { 16:33 },
                                                                     },
                                                                     value: "of",
                                                                 },
@@ -4505,31 +4538,31 @@ fn types() {
                                                 Base(
                                                     AstBaseExpression {
                                                         range: AstRange {
-                                                            start: AstPoint { 12:33 },
-                                                            end: AstPoint { 12:41 },
+                                                            start: AstPoint { 16:33 },
+                                                            end: AstPoint { 16:41 },
                                                         },
                                                         ident: None,
                                                         values: Some(
                                                             AstValues {
                                                                 range: AstRange {
-                                                                    start: AstPoint { 12:33 },
-                                                                    end: AstPoint { 12:41 },
+                                                                    start: AstPoint { 16:33 },
+                                                                    end: AstPoint { 16:41 },
                                                                 },
                                                                 values: [
                                                                     [
                                                                         Base(
                                                                             AstBaseExpression {
                                                                                 range: AstRange {
-                                                                                    start: AstPoint { 12:39 },
-                                                                                    end: AstPoint { 12:43 },
+                                                                                    start: AstPoint { 16:39 },
+                                                                                    end: AstPoint { 16:43 },
                                                                                 },
                                                                                 ident: Some(
                                                                                     Value(
                                                                                         Nuget(
                                                                                             StringLiteral {
                                                                                                 range: AstRange {
-                                                                                                    start: AstPoint { 12:39 },
-                                                                                                    end: AstPoint { 12:34 },
+                                                                                                    start: AstPoint { 16:39 },
+                                                                                                    end: AstPoint { 16:34 },
                                                                                                 },
                                                                                                 value: "haha",
                                                                                             },
@@ -4555,8 +4588,8 @@ fn types() {
                                     },
                                     AstClassVariable {
                                         range: AstRange {
-                                            start: AstPoint { 13:2 },
-                                            end: AstPoint { 13:42 },
+                                            start: AstPoint { 17:2 },
+                                            end: AstPoint { 17:46 },
                                         },
                                         availability: AstAvailability(
                                             0x0,
@@ -4564,22 +4597,22 @@ fn types() {
                                         annotated: [],
                                         name: AstIdentifier {
                                             range: AstRange {
-                                                start: AstPoint { 13:19 },
-                                                end: AstPoint { 13:26 },
+                                                start: AstPoint { 17:23 },
+                                                end: AstPoint { 17:30 },
                                             },
                                             value: "one_map",
                                         },
                                         jtype: AstJType {
                                             annotated: [],
                                             range: AstRange {
-                                                start: AstPoint { 13:2 },
-                                                end: AstPoint { 13:18 },
+                                                start: AstPoint { 17:2 },
+                                                end: AstPoint { 17:22 },
                                             },
                                             value: Generic(
                                                 AstIdentifier {
                                                     range: AstRange {
-                                                        start: AstPoint { 13:2 },
-                                                        end: AstPoint { 13:5 },
+                                                        start: AstPoint { 17:2 },
+                                                        end: AstPoint { 17:5 },
                                                     },
                                                     value: "Map",
                                                 },
@@ -4587,22 +4620,30 @@ fn types() {
                                                     AstJType {
                                                         annotated: [],
                                                         range: AstRange {
-                                                            start: AstPoint { 13:6 },
-                                                            end: AstPoint { 13:9 },
-                                                        },
-                                                        value: Int,
-                                                    },
-                                                    AstJType {
-                                                        annotated: [],
-                                                        range: AstRange {
-                                                            start: AstPoint { 13:11 },
-                                                            end: AstPoint { 13:17 },
+                                                            start: AstPoint { 17:6 },
+                                                            end: AstPoint { 17:13 },
                                                         },
                                                         value: Class(
                                                             AstIdentifier {
                                                                 range: AstRange {
-                                                                    start: AstPoint { 13:11 },
-                                                                    end: AstPoint { 13:17 },
+                                                                    start: AstPoint { 17:6 },
+                                                                    end: AstPoint { 17:13 },
+                                                                },
+                                                                value: "Integer",
+                                                            },
+                                                        ),
+                                                    },
+                                                    AstJType {
+                                                        annotated: [],
+                                                        range: AstRange {
+                                                            start: AstPoint { 17:15 },
+                                                            end: AstPoint { 17:21 },
+                                                        },
+                                                        value: Class(
+                                                            AstIdentifier {
+                                                                range: AstRange {
+                                                                    start: AstPoint { 17:15 },
+                                                                    end: AstPoint { 17:21 },
                                                                 },
                                                                 value: "String",
                                                             },
@@ -4616,20 +4657,20 @@ fn types() {
                                                 NewClass(
                                                     AstNewClass {
                                                         range: AstRange {
-                                                            start: AstPoint { 13:29 },
-                                                            end: AstPoint { 13:42 },
+                                                            start: AstPoint { 17:33 },
+                                                            end: AstPoint { 17:46 },
                                                         },
                                                         jtype: AstJType {
                                                             annotated: [],
                                                             range: AstRange {
-                                                                start: AstPoint { 13:33 },
-                                                                end: AstPoint { 13:40 },
+                                                                start: AstPoint { 17:37 },
+                                                                end: AstPoint { 17:44 },
                                                             },
                                                             value: Class(
                                                                 AstIdentifier {
                                                                     range: AstRange {
-                                                                        start: AstPoint { 13:33 },
-                                                                        end: AstPoint { 13:40 },
+                                                                        start: AstPoint { 17:37 },
+                                                                        end: AstPoint { 17:44 },
                                                                     },
                                                                     value: "HashMap",
                                                                 },
@@ -4637,8 +4678,8 @@ fn types() {
                                                         },
                                                         rhs: Parameters(
                                                             AstRange {
-                                                                start: AstPoint { 13:33 },
-                                                                end: AstPoint { 13:42 },
+                                                                start: AstPoint { 17:37 },
+                                                                end: AstPoint { 17:46 },
                                                             },
                                                             [],
                                                         ),
@@ -4654,62 +4695,62 @@ fn types() {
                                 methods: [
                                     AstClassMethod {
                                         range: AstRange {
-                                            start: AstPoint { 14:2 },
-                                            end: AstPoint { 14:44 },
+                                            start: AstPoint { 18:2 },
+                                            end: AstPoint { 18:44 },
                                         },
                                         header: AstMethodHeader {
                                             range: AstRange {
-                                                start: AstPoint { 14:2 },
-                                                end: AstPoint { 14:40 },
+                                                start: AstPoint { 18:2 },
+                                                end: AstPoint { 18:40 },
                                             },
                                             availability: AstAvailability(
                                                 Public | Static,
                                             ),
                                             name: AstIdentifier {
                                                 range: AstRange {
-                                                    start: AstPoint { 14:21 },
-                                                    end: AstPoint { 14:25 },
+                                                    start: AstPoint { 18:21 },
+                                                    end: AstPoint { 18:25 },
                                                 },
                                                 value: "main",
                                             },
                                             jtype: AstJType {
                                                 annotated: [],
                                                 range: AstRange {
-                                                    start: AstPoint { 14:16 },
-                                                    end: AstPoint { 14:20 },
+                                                    start: AstPoint { 18:16 },
+                                                    end: AstPoint { 18:20 },
                                                 },
                                                 value: Void,
                                             },
                                             parameters: AstMethodParameters {
                                                 range: AstRange {
-                                                    start: AstPoint { 14:25 },
-                                                    end: AstPoint { 14:40 },
+                                                    start: AstPoint { 18:25 },
+                                                    end: AstPoint { 18:40 },
                                                 },
                                                 parameters: [
                                                     AstMethodParameter {
                                                         range: AstRange {
-                                                            start: AstPoint { 14:26 },
-                                                            end: AstPoint { 14:39 },
+                                                            start: AstPoint { 18:26 },
+                                                            end: AstPoint { 18:39 },
                                                         },
                                                         annotated: [],
                                                         jtype: AstJType {
                                                             annotated: [],
                                                             range: AstRange {
-                                                                start: AstPoint { 14:26 },
-                                                                end: AstPoint { 14:34 },
+                                                                start: AstPoint { 18:26 },
+                                                                end: AstPoint { 18:34 },
                                                             },
                                                             value: Array(
                                                                 AstJType {
                                                                     annotated: [],
                                                                     range: AstRange {
-                                                                        start: AstPoint { 14:26 },
-                                                                        end: AstPoint { 14:32 },
+                                                                        start: AstPoint { 18:26 },
+                                                                        end: AstPoint { 18:32 },
                                                                     },
                                                                     value: Class(
                                                                         AstIdentifier {
                                                                             range: AstRange {
-                                                                                start: AstPoint { 14:26 },
-                                                                                end: AstPoint { 14:32 },
+                                                                                start: AstPoint { 18:26 },
+                                                                                end: AstPoint { 18:32 },
                                                                             },
                                                                             value: "String",
                                                                         },
@@ -4719,8 +4760,8 @@ fn types() {
                                                         },
                                                         name: AstIdentifier {
                                                             range: AstRange {
-                                                                start: AstPoint { 14:35 },
-                                                                end: AstPoint { 14:39 },
+                                                                start: AstPoint { 18:35 },
+                                                                end: AstPoint { 18:39 },
                                                             },
                                                             value: "args",
                                                         },
@@ -4738,8 +4779,8 @@ fn types() {
                                         block: Some(
                                             AstBlock {
                                                 range: AstRange {
-                                                    start: AstPoint { 14:41 },
-                                                    end: AstPoint { 14:44 },
+                                                    start: AstPoint { 18:41 },
+                                                    end: AstPoint { 18:44 },
                                                 },
                                                 entries: [],
                                             },

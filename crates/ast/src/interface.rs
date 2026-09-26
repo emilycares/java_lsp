@@ -164,7 +164,7 @@ pub fn parse_interface_constant(
             }
             _ => break,
         }
-        pos += 1;
+        pos = pos.saturating_add(1);
     }
     let (jtype, pos) = parse_jtype(tokens, pos)?;
     let mut out = vec![];

@@ -3,6 +3,7 @@
 #![deny(clippy::perf)]
 #![deny(clippy::redundant_clone)]
 #![deny(clippy::enum_glob_use)]
+#![deny(clippy::arithmetic_side_effects)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
 use dto::{
@@ -52,7 +53,8 @@ fn write_header(out: &mut Vec<u8>) {
 fn parse_header(data: &[u8], pos: usize) -> Result<usize, DtoRwError> {
     let pos = {
         let len = HEADER.len();
-        let Some(get) = data.get(pos..pos + len) else {
+        let end = pos.saturating_add(len);
+        let Some(get) = data.get(pos..end) else {
             return Err(DtoRwError::EOF);
         };
 
@@ -60,7 +62,7 @@ fn parse_header(data: &[u8], pos: usize) -> Result<usize, DtoRwError> {
         if cond {
             return Err(DtoRwError::InvalidCfcCache);
         }
-        Ok(pos + len)
+        Ok(end)
     }?;
     let (version, pos) = parse_usize(data, pos)?;
     if version != CFC_VERSION {
@@ -79,11 +81,12 @@ fn parse_string(data: &[u8], pos: usize) -> Result<(NuVec, usize), DtoRwError> {
     if len > 65535 {
         return Err(DtoRwError::ToLargeString);
     }
-    let Some(get) = data.get(pos..pos.saturating_add(len)) else {
+    let end = pos.saturating_add(len);
+    let Some(get) = data.get(pos..end) else {
         return Err(DtoRwError::EOF);
     };
 
-    Ok((NuVec::new(get), pos + len))
+    Ok((NuVec::new(get), end))
 }
 
 fn write_classes(classes: &[Class], out: &mut Vec<u8>) {
@@ -106,7 +109,7 @@ fn parse_classes(data: &[u8], pos: usize) -> Result<(Vec<Class>, usize), DtoRwEr
         let (class, npos) = parse_class(data, pos)?;
         pos = npos;
         out.push(class);
-        i += 1;
+        i = i.saturating_add(1);
     }
 
     Ok((out, pos))
@@ -219,7 +222,7 @@ fn parse_imports(data: &[u8], pos: usize) -> Result<(Vec<ImportUnit>, usize), Dt
         let (im, npos) = parse_import(data, pos)?;
         pos = npos;
         out.push(im);
-        i += 1;
+        i = i.saturating_add(1);
     }
     Ok((out, pos))
 }
@@ -313,7 +316,7 @@ fn parse_class_signature(
         let (a, npos) = parse_string(data, pos)?;
         pos = npos;
         args.push(a);
-        i += 1;
+        i = i.saturating_add(1);
     }
     let (ret, pos) = parse_jtype(data, pos)?;
     Ok((Some(ClassSignature { args, ret }), pos))
@@ -404,7 +407,7 @@ fn parse_jtype(data: &[u8], pos: usize) -> Result<(JType, usize), DtoRwError> {
                 let (a, npos) = parse_jtype(data, pos)?;
                 pos = npos;
                 args.push(a);
-                i += 1;
+                i = i.saturating_add(1);
             }
             Ok((JType::Generic(name, args), pos))
         }
@@ -458,7 +461,7 @@ fn parse_methods(data: &[u8], pos: usize) -> Result<(Vec<Method>, usize), DtoRwE
         let (im, npos) = parse_method(data, pos)?;
         pos = npos;
         out.push(im);
-        i += 1;
+        i = i.saturating_add(1);
     }
     Ok((out, pos))
 }
@@ -510,7 +513,7 @@ fn parse_method(data: &[u8], pos: usize) -> Result<(Method, usize), DtoRwError> 
         let (im, npos) = parse_parameter(data, pos)?;
         pos = npos;
         parameters.push(im);
-        i += 1;
+        i = i.saturating_add(1);
     }
 
     let (len, pos) = parse_usize(data, pos)?;
@@ -521,7 +524,7 @@ fn parse_method(data: &[u8], pos: usize) -> Result<(Method, usize), DtoRwError> 
         let (im, npos) = parse_jtype(data, pos)?;
         pos = npos;
         throws.push(im);
-        i += 1;
+        i = i.saturating_add(1);
     }
 
     let (ret, pos) = parse_jtype(data, pos)?;
@@ -586,7 +589,7 @@ fn parse_fields(data: &[u8], pos: usize) -> Result<(Vec<Field>, usize), DtoRwErr
         let (im, npos) = parse_field(data, pos)?;
         pos = npos;
         out.push(im);
-        i += 1;
+        i = i.saturating_add(1);
     }
     Ok((out, pos))
 }
@@ -674,7 +677,7 @@ fn parse_super_classes(data: &[u8], pos: usize) -> Result<(Vec<SuperClass>, usiz
         let (im, npos) = parse_super_class(data, pos)?;
         pos = npos;
         out.push(im);
-        i += 1;
+        i = i.saturating_add(1);
     }
     Ok((out, pos))
 }
@@ -683,7 +686,7 @@ fn write_usize(n: usize, out: &mut Vec<u8>) {
     out.extend(n.to_le_bytes());
 }
 fn parse_usize(data: &[u8], pos: usize) -> Result<(usize, usize), DtoRwError> {
-    let next = pos + 8;
+    let next = pos.saturating_add(8);
     let items = data.get(pos..next).ok_or(DtoRwError::EOF)?;
     let get = <[u8; 8]>::try_from(items).map_err(|_| DtoRwError::Number)?;
     let out = usize::from_le_bytes(get);
@@ -695,7 +698,7 @@ fn write_u16(n: u16, out: &mut Vec<u8>) {
     out.extend(n.to_le_bytes());
 }
 fn parse_u16(data: &[u8], pos: usize) -> Result<(u16, usize), DtoRwError> {
-    let next = pos + 2;
+    let next = pos.saturating_add(2);
     let items = data.get(pos..next).ok_or(DtoRwError::EOF)?;
     let get = <[u8; 2]>::try_from(items).map_err(|_| DtoRwError::Number)?;
     let out = u16::from_le_bytes(get);
@@ -711,7 +714,7 @@ fn parse_u8(data: &[u8], pos: usize) -> Result<(u8, usize), DtoRwError> {
         return Err(DtoRwError::EOF);
     };
 
-    Ok((*get, pos + 1))
+    Ok((*get, pos.saturating_add(1)))
 }
 
 #[cfg(test)]

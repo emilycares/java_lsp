@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e
 
 export FUZZ_TIME=900
 # export FUZZ_TIME=300

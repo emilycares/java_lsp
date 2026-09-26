@@ -2080,7 +2080,9 @@ fn write_enumeration(e: &AstEnumeration, f: &mut Formatter) {
         }
     }
     if has_members {
-        f.new_line();
+        if !e.variants.is_empty() {
+            f.new_line();
+        }
         let block = AstClassBlock {
             range: e.range,
             variables: e.variables.clone(),

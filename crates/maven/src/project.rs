@@ -15,7 +15,7 @@ use common::{
     deps_dir,
 };
 use dto::{Class, ClassFolder, SourceDestination};
-use loader::{DecompilerError, DtoRwError, LoaderError};
+use loader::{DtoRwError, LoaderError};
 use my_string::NuVec;
 use tokio::task::JoinSet;
 
@@ -203,7 +203,7 @@ async fn reindex(
 ) -> Option<ClassFolder> {
     let source = deps_get_source(&deps_bas);
     if let Some(source_str) = source.as_path().to_str() {
-        let buf = read(&source).map_err(DecompilerError::IO).ok()?;
+        let buf = read(&source).ok()?;
         #[allow(clippy::collapsible_if)]
         if false {
             if !source.exists() {

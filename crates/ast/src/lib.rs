@@ -4,6 +4,7 @@
 #![deny(clippy::perf)]
 #![deny(clippy::redundant_clone)]
 #![deny(clippy::enum_glob_use)]
+#![deny(clippy::arithmetic_side_effects)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
 //! A java ast
@@ -202,7 +203,7 @@ fn parse_import(tokens: &[PositionToken], pos: usize) -> Result<(AstImport, usiz
                                         start: ident.range.start,
                                         end: AstPoint {
                                             line: ident.range.start.line,
-                                            col: ident.range.end.col - method.len(),
+                                            col: ident.range.end.col.saturating_sub(method.len()),
                                         },
                                     },
                                     value: class,
@@ -211,7 +212,7 @@ fn parse_import(tokens: &[PositionToken], pos: usize) -> Result<(AstImport, usiz
                                     range: AstRange {
                                         start: AstPoint {
                                             line: ident.range.start.line,
-                                            col: ident.range.start.col + class_len,
+                                            col: ident.range.start.col.saturating_add(class_len),
                                         },
                                         end: ident.range.end,
                                     },
@@ -252,7 +253,7 @@ pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, us
             Token::StrictFp => (),
             Token::Sealed => attributes |= AstThingAttributes::Sealed,
             Token::Non => {
-                if let Ok(npos) = assert_token(tokens, pos + 1, Token::Dash)
+                if let Ok(npos) = assert_token(tokens, pos.saturating_add(1), Token::Dash)
                     && let Ok(npos) = assert_token(tokens, npos, Token::Sealed)
                 {
                     attributes |= AstThingAttributes::NonSealed;
@@ -268,10 +269,10 @@ pub fn parse_thing(tokens: &[PositionToken], pos: usize) -> Result<(AstThing, us
             }
             _ => break,
         }
-        pos += 1;
+        pos = pos.saturating_add(1);
     }
     let t = tokens.get(pos).ok_or_else(AstError::eof)?;
-    let pos = pos + 1;
+    let pos = pos.saturating_add(1);
     match t.token {
         Token::Class => parse_class(tokens, pos, availability, attributes, annotated, start),
         Token::Record => parse_record(tokens, pos, availability, attributes, annotated, start),
@@ -568,24 +569,24 @@ pub fn parse_value_nuget(
                 },
                 value: name.clone(),
             }),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::HexLiteral(value) => Ok((
             AstValue::Nuget(AstValueNuget::HexLiteral(AstHexLiteral {
                 range: AstRange::from_position_token(start, start),
                 value: value.clone(),
             })),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::BinaryLiteral(value) => Ok((
             AstValue::Nuget(AstValueNuget::BinaryLiteral(AstBinaryLiteral {
                 range: AstRange::from_position_token(start, start),
                 value: value.clone(),
             })),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::Number(num) => {
-            if let Ok(pos) = assert_token(tokens, pos + 1, Token::Dot) {
+            if let Ok(pos) = assert_token(tokens, pos.saturating_add(1), Token::Dot) {
                 let current = tokens.get(pos).ok_or_else(AstError::eof)?;
                 if let Token::Number(n) = &current.token {
                     let mut value = NuVecBuilder::new();
@@ -594,7 +595,7 @@ pub fn parse_value_nuget(
                     value.extend(n);
                     let value = value.finish();
 
-                    let pos = pos + 1;
+                    let pos = pos.saturating_add(1);
                     let current = tokens.get(pos).ok_or_else(AstError::eof)?;
                     match &current.token {
                         Token::Identifier(val) if val == "d" || val == "D" => {
@@ -603,7 +604,7 @@ pub fn parse_value_nuget(
                                     range: AstRange::from_position_token(start, start),
                                     value,
                                 })),
-                                pos + 1,
+                                pos.saturating_add(1),
                             ));
                         }
                         Token::Identifier(val) if val == "f" || val == "F" => {
@@ -612,7 +613,7 @@ pub fn parse_value_nuget(
                                     range: AstRange::from_position_token(start, start),
                                     value,
                                 })),
-                                pos + 1,
+                                pos.saturating_add(1),
                             ));
                         }
                         Token::Identifier(val) if val == "l" || val == "L" => {
@@ -621,7 +622,7 @@ pub fn parse_value_nuget(
                                     range: AstRange::from_position_token(start, start),
                                     value,
                                 })),
-                                pos + 1,
+                                pos.saturating_add(1),
                             ));
                         }
                         _ => {
@@ -636,9 +637,11 @@ pub fn parse_value_nuget(
                     }
                 }
             }
-            if let Ok(npos) =
-                assert_token(tokens, pos + 1, Token::Identifier(NuVec::new_static(b"l")))
-            {
+            if let Ok(npos) = assert_token(
+                tokens,
+                pos.saturating_add(1),
+                Token::Identifier(NuVec::new_static(b"l")),
+            ) {
                 return Ok((
                     AstValue::Nuget(AstValueNuget::Long(AstInt {
                         range: AstRange::from_position_token(start, start),
@@ -647,9 +650,11 @@ pub fn parse_value_nuget(
                     npos,
                 ));
             }
-            if let Ok(npos) =
-                assert_token(tokens, pos + 1, Token::Identifier(NuVec::new_static(b"L")))
-            {
+            if let Ok(npos) = assert_token(
+                tokens,
+                pos.saturating_add(1),
+                Token::Identifier(NuVec::new_static(b"L")),
+            ) {
                 return Ok((
                     AstValue::Nuget(AstValueNuget::Long(AstInt {
                         range: AstRange::from_position_token(start, start),
@@ -663,7 +668,7 @@ pub fn parse_value_nuget(
                     range: AstRange::from_position_token(start, start),
                     value: num.clone(),
                 })),
-                pos + 1,
+                pos.saturating_add(1),
             ))
         }
         Token::StringLiteral(_) | Token::StringLiteralMulti(_) => {
@@ -689,7 +694,7 @@ fn parse_boolean_literal_input(
             range: AstRange::from_position_token(start, start),
             value,
         })),
-        pos + 1,
+        pos.saturating_add(1),
     ))
 }
 
@@ -707,7 +712,7 @@ pub fn parse_string_literal(
                     range: AstRange::from_position_token(start, end),
                     value: str.clone(),
                 },
-                pos + 1,
+                pos.saturating_add(1),
             ))
         }
         Token::StringLiteralMulti(str) => {
@@ -717,7 +722,7 @@ pub fn parse_string_literal(
                     range: AstRange::from_position_token(start, end),
                     value: str.clone(),
                 },
-                pos + 1,
+                pos.saturating_add(1),
             ))
         }
         _ => Err(AstError::InvalidString(InvalidToken(pos))),
@@ -737,7 +742,7 @@ pub fn parse_char_literal(
                     range: AstRange::from_position_token(start, end),
                     value: str.clone(),
                 },
-                pos + 1,
+                pos.saturating_add(1),
             ))
         }
         _ => Err(AstError::InvalidString(InvalidToken(pos))),
@@ -753,56 +758,56 @@ fn parse_value_operator_options(
     match &start.token {
         Token::Plus => Ok((
             AstExpressionOperator::Plus(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::PlusPlus => Ok((
             AstExpressionOperator::PlusPlus(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::PlusEqual => Ok((
             AstExpressionOperator::PlusEqual(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::Dash => Ok((
             AstExpressionOperator::Minus(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::DashDash => Ok((
             AstExpressionOperator::MinusMinus(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::DashEqual => Ok((
             AstExpressionOperator::MinusEqual(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::Ampersand => Ok((
             AstExpressionOperator::Ampersand(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::AmpersandAmpersand => Ok((
             AstExpressionOperator::AmpersandAmpersand(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::VerticalBarEqual => Ok((
             AstExpressionOperator::VerticalBarEqual(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::VerticalBarVerticalBar => Ok((
             AstExpressionOperator::VerticalBarVerticalBar(AstRange::from_position_token(
                 start, start,
             )),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::VerticalBar => Ok((
             AstExpressionOperator::VerticalBar(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::QuestionMark => Ok((
             AstExpressionOperator::QuestionMark(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::Colon => {
-            if let Ok(npos) = assert_token(tokens, pos + 1, Token::Colon) {
+            if let Ok(npos) = assert_token(tokens, pos.saturating_add(1), Token::Colon) {
                 let end = tokens.end(pos)?;
                 return Ok((
                     AstExpressionOperator::ColonColon(AstRange::from_position_token(start, end)),
@@ -811,7 +816,7 @@ fn parse_value_operator_options(
             } else if expression_options != &ExpressionOptions::NoInlineIf {
                 return Ok((
                     AstExpressionOperator::Colon(AstRange::from_position_token(start, start)),
-                    pos + 1,
+                    pos.saturating_add(1),
                 ));
             }
             Err(AstError::InvalidNuget(InvalidToken(pos)))
@@ -819,58 +824,58 @@ fn parse_value_operator_options(
         Token::ExclamationMark if !expression_options.intersects(ExpressionOptions::NoInlineIf) => {
             Ok((
                 AstExpressionOperator::ExclamationMark(AstRange::from_position_token(start, start)),
-                pos + 1,
+                pos.saturating_add(1),
             ))
         }
         Token::Dot => Ok((
             AstExpressionOperator::Dot(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::Star => Ok((
             AstExpressionOperator::Multiply(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::StarEqual => Ok((
             AstExpressionOperator::MultiplyEqual(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::Slash => Ok((
             AstExpressionOperator::Divide(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::SlashEqual => Ok((
             AstExpressionOperator::DivideEqual(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::Percent => Ok((
             AstExpressionOperator::Modulo(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::PercentEqual => Ok((
             AstExpressionOperator::ModuloEqual(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::EqualDouble => Ok((
             AstExpressionOperator::Equal(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::Equal => Ok((
             AstExpressionOperator::Assign(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::Ne => Ok((
             AstExpressionOperator::NotEqual(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::Gt => {
-            if let Ok(npos) = assert_token(tokens, pos + 1, Token::Gt) {
-                if let Ok(npos) = assert_token(tokens, pos + 2, Token::Gt) {
+            if let Ok(npos) = assert_token(tokens, pos.saturating_add(1), Token::Gt) {
+                if let Ok(npos) = assert_token(tokens, pos.saturating_add(2), Token::Gt) {
                     let end = tokens.end(npos)?;
                     return Ok((
                         AstExpressionOperator::GtGtGt(AstRange::from_position_token(start, end)),
                         npos,
                     ));
-                } else if let Ok(npos) = assert_token(tokens, pos + 2, Token::Ge) {
+                } else if let Ok(npos) = assert_token(tokens, pos.saturating_add(2), Token::Ge) {
                     let end = tokens.end(npos)?;
                     return Ok((
                         AstExpressionOperator::GtGtGtEq(AstRange::from_position_token(start, end)),
@@ -882,7 +887,7 @@ fn parse_value_operator_options(
                     AstExpressionOperator::GtGt(AstRange::from_position_token(start, end)),
                     npos,
                 ));
-            } else if let Ok(npos) = assert_token(tokens, pos + 1, Token::Ge) {
+            } else if let Ok(npos) = assert_token(tokens, pos.saturating_add(1), Token::Ge) {
                 let end = tokens.end(npos)?;
                 return Ok((
                     AstExpressionOperator::GtGtEq(AstRange::from_position_token(start, end)),
@@ -891,44 +896,44 @@ fn parse_value_operator_options(
             }
             Ok((
                 AstExpressionOperator::Gt(AstRange::from_position_token(start, start)),
-                pos + 1,
+                pos.saturating_add(1),
             ))
         }
         Token::Ge => Ok((
             AstExpressionOperator::Ge(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::Lt => Ok((
             AstExpressionOperator::Lt(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::LtLt => Ok((
             AstExpressionOperator::LtLt(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::LtLtEq => Ok((
             AstExpressionOperator::LtLtEq(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::LtLtLt => Ok((
             AstExpressionOperator::LtLtLt(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::LtLtLtEq => Ok((
             AstExpressionOperator::LtLtLtEq(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::Le => Ok((
             AstExpressionOperator::Le(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::Tilde => Ok((
             AstExpressionOperator::Tilde(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         Token::Caret => Ok((
             AstExpressionOperator::Caret(AstRange::from_position_token(start, start)),
-            pos + 1,
+            pos.saturating_add(1),
         )),
         _ => Err(AstError::InvalidNuget(InvalidToken(pos))),
     }
@@ -1290,7 +1295,7 @@ fn parse_instnceof(
             }
             _ => break,
         }
-        pos += 1;
+        pos = pos.saturating_add(1);
     }
     let (jtype, mut pos) = parse_jtype(tokens, pos)?;
     let mut variable = None;
@@ -1338,7 +1343,7 @@ pub fn parse_base_expression(
         }
         Token::LeftParenSquare => {
             let start = tokens.start(pos)?;
-            pos += 1;
+            pos = pos.saturating_add(1);
             if let Ok((array_access_expr, npos)) = parse_expression(tokens, pos, expression_options)
             {
                 let npos = assert_token(tokens, npos, Token::RightParenSquare)?;
@@ -1371,7 +1376,9 @@ pub fn parse_base_expression(
             let values_start = tokens.get(pos).ok_or_else(AstError::eof)?;
             let (vals, npos) = parse_expression_parameters(tokens, pos)?;
             pos = npos;
-            let values_end = tokens.get(pos - 1).ok_or_else(AstError::eof)?;
+            let values_end = tokens
+                .get(pos.saturating_sub(1))
+                .ok_or_else(AstError::eof)?;
             out.values = Some(types::AstValues {
                 range: AstRange::from_position_token(values_start, values_end),
                 values: vals,
@@ -1422,7 +1429,7 @@ fn parse_expression_lhs(
                         range: AstRange::from_position_token(start, start),
                         value: NuVec::new_static(b"class"),
                     },
-                    pos + 1,
+                    pos.saturating_add(1),
                 ))
             }
             Some(Token::This) => {
@@ -1432,7 +1439,7 @@ fn parse_expression_lhs(
                         range: AstRange::from_position_token(start, start),
                         value: NuVec::new_static(b"this"),
                     },
-                    pos + 1,
+                    pos.saturating_add(1),
                 ))
             }
             Some(Token::New) => {
@@ -1442,7 +1449,7 @@ fn parse_expression_lhs(
                         range: AstRange::from_position_token(start, start),
                         value: NuVec::new_static(b"new"),
                     },
-                    pos + 1,
+                    pos.saturating_add(1),
                 ))
             }
             _ => Err(AstError::InvalidName(e)),
@@ -1559,7 +1566,7 @@ fn parse_block_variable_multi_type_no_semicolon(
             }
             _ => break,
         }
-        pos += 1;
+        pos = pos.saturating_add(1);
     }
     let mut jtypes = vec![];
     loop {
@@ -1760,7 +1767,7 @@ fn parse_method_header(
             Token::Default => default = true,
             _ => break,
         }
-        pos += 1;
+        pos = pos.saturating_add(1);
     }
 
     if let Ok((type_params, npos)) = parse_type_parameters(tokens, pos) {
@@ -1844,7 +1851,7 @@ fn parse_constructor_header(
             }
             _ => break,
         }
-        pos += 1;
+        pos = pos.saturating_add(1);
     }
 
     if let Ok((type_params, npos)) = parse_type_parameters(tokens, pos) {
@@ -2056,10 +2063,10 @@ fn parse_block_entry_options(
     let mut errors = [const { None }; 26];
     match &current.token {
         Token::Semicolon => {
-            let start = tokens.start(pos - 1)?;
+            let start = tokens.start(pos.saturating_sub(1))?;
             return Ok((
                 AstBlockEntry::Semicolon(AstRange::from_position_token(start, start)),
-                pos + 1,
+                pos.saturating_add(1),
             ));
         }
         Token::Return => match parse_block_return(tokens, pos) {
@@ -2952,7 +2959,7 @@ fn parse_try_catch(tokens: &[PositionToken], pos: usize) -> Result<(AstTryCatch,
     let mut finally_block = None;
     let mut cases = vec![];
     while assert_token(tokens, pos, Token::Catch).is_ok() {
-        pos += 1;
+        pos = pos.saturating_add(1);
         let start = tokens.start(pos)?;
         let npos = assert_token(tokens, pos, Token::LeftParen)?;
         let (variable, npos) = parse_block_variable_multi_type_no_semicolon(tokens, npos)?;
@@ -3182,11 +3189,11 @@ pub fn parse_name(
     match &start.token {
         Token::Identifier(i) => {
             value = i.clone();
-            pos += 1;
+            pos = pos.saturating_add(1);
         }
         _ if can_be_ident(&start.token) => {
             value = start.token.as_nuvec();
-            pos += 1;
+            pos = pos.saturating_add(1);
         }
         _ => {
             return Err(AstError::InvalidName(InvalidToken(pos)));
@@ -3215,15 +3222,15 @@ pub fn parse_name_dot(
         match &t.token {
             Token::Identifier(id) => {
                 ident.extend(id);
-                pos += 1;
+                pos = pos.saturating_add(1);
             }
             Token::Dot => {
                 ident.push(b'.');
-                pos += 1;
+                pos = pos.saturating_add(1);
             }
             _ if can_be_ident(&start.token) => {
                 ident.extend(&start.token.as_nuvec());
-                pos += 1;
+                pos = pos.saturating_add(1);
             }
             _ => {
                 if pos == init_pos {
@@ -3261,16 +3268,16 @@ pub fn parse_name_dot_logical(
                 if first {
                     first = false;
                     ident.extend(id);
-                    pos += 1;
+                    pos = pos.saturating_add(1);
                 } else if matches!(
                     tokens
-                        .get(pos - 1)
+                        .get(pos.saturating_sub(1))
                         .ok_or_else(AstError::eof)
                         .map(|i| &i.token),
                     Ok(&Token::Dot)
                 ) {
                     ident.extend(id);
-                    pos += 1;
+                    pos = pos.saturating_add(1);
                 } else {
                     break;
                 }
@@ -3279,32 +3286,32 @@ pub fn parse_name_dot_logical(
                 if first {
                     first = false;
                     ident.extend(&t.token.as_nuvec());
-                    pos += 1;
+                    pos = pos.saturating_add(1);
                 } else if matches!(
                     tokens
-                        .get(pos - 1)
+                        .get(pos.saturating_sub(1))
                         .ok_or_else(AstError::eof)
                         .map(|i| &i.token),
                     Ok(&Token::Dot)
                 ) {
                     ident.extend(&t.token.as_nuvec());
-                    pos += 1;
+                    pos = pos.saturating_add(1);
                 } else {
                     break;
                 }
             }
             Token::Dot => {
-                let Some(last) = tokens.get(pos + 1) else {
+                let Some(last) = tokens.get(pos.saturating_add(1)) else {
                     break;
                 };
                 match last.token {
                     Token::Identifier(_) => {
                         ident.push(b'.');
-                        pos += 1;
+                        pos = pos.saturating_add(1);
                     }
                     _ if can_be_ident(&last.token) => {
                         ident.push(b'.');
-                        pos += 1;
+                        pos = pos.saturating_add(1);
                     }
                     _ => break,
                 }
@@ -3339,11 +3346,11 @@ pub fn parse_name_single(
     match &t.token {
         Token::Identifier(id) => {
             value = id.clone();
-            pos += 1;
+            pos = pos.saturating_add(1);
         }
         _ if can_be_name(&t.token) => {
             value = t.token.as_nuvec();
-            pos += 1;
+            pos = pos.saturating_add(1);
         }
         _ => {
             return Err(AstError::InvalidName(InvalidToken(pos)));
@@ -3374,12 +3381,12 @@ fn parse_identifier(
             Token::Identifier(id) => {
                 modded = true;
                 ident.extend(id);
-                pos += 1;
+                pos = pos.saturating_add(1);
             }
             Token::Dot => {
                 modded = true;
                 ident.push(b'.');
-                pos += 1;
+                pos = pos.saturating_add(1);
             }
             _ => break,
         }
@@ -3664,17 +3671,17 @@ fn parse_primitive_type(
 ) -> Result<(AstJTypeKind, usize), AstError> {
     let current = tokens.get(pos).ok_or_else(AstError::eof)?;
     match &current.token {
-        Token::Int => Ok((AstJTypeKind::Int, pos + 1)),
-        Token::Long => Ok((AstJTypeKind::Long, pos + 1)),
-        Token::Short => Ok((AstJTypeKind::Short, pos + 1)),
-        Token::Byte => Ok((AstJTypeKind::Byte, pos + 1)),
-        Token::Char => Ok((AstJTypeKind::Char, pos + 1)),
-        Token::Double => Ok((AstJTypeKind::Double, pos + 1)),
-        Token::Float => Ok((AstJTypeKind::Float, pos + 1)),
-        Token::Boolean => Ok((AstJTypeKind::Boolean, pos + 1)),
-        Token::Void => Ok((AstJTypeKind::Void, pos + 1)),
+        Token::Int => Ok((AstJTypeKind::Int, pos.saturating_add(1))),
+        Token::Long => Ok((AstJTypeKind::Long, pos.saturating_add(1))),
+        Token::Short => Ok((AstJTypeKind::Short, pos.saturating_add(1))),
+        Token::Byte => Ok((AstJTypeKind::Byte, pos.saturating_add(1))),
+        Token::Char => Ok((AstJTypeKind::Char, pos.saturating_add(1))),
+        Token::Double => Ok((AstJTypeKind::Double, pos.saturating_add(1))),
+        Token::Float => Ok((AstJTypeKind::Float, pos.saturating_add(1))),
+        Token::Boolean => Ok((AstJTypeKind::Boolean, pos.saturating_add(1))),
+        Token::Void => Ok((AstJTypeKind::Void, pos.saturating_add(1))),
         Token::QuestionMark => {
-            let npos = pos + 1;
+            let npos = pos.saturating_add(1);
             if let Ok(npos) = assert_token(tokens, npos, Token::Implements) {
                 let (jtype, npos) = parse_jtype(tokens, npos)?;
                 Ok((AstJTypeKind::WildcardImplements(Box::new(jtype)), npos))
@@ -3688,7 +3695,7 @@ fn parse_primitive_type(
                 Ok((AstJTypeKind::Wildcard, npos))
             }
         }
-        Token::Var => Ok((AstJTypeKind::Var, pos + 1)),
+        Token::Var => Ok((AstJTypeKind::Var, pos.saturating_add(1))),
         _ => Err(AstError::InvalidJtype(InvalidToken(pos))),
     }
 }

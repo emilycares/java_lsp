@@ -459,28 +459,28 @@ fn print_helper(content: &[u8], line: usize, col: usize, msg: &str) {
     let mut lines = if is_zero {
         content.lines().enumerate().skip(line)
     } else {
-        content.lines().enumerate().skip(line - 1)
+        content.lines().enumerate().skip(line.saturating_sub(1))
     };
     if !is_zero && let Some((number, line)) = lines.next() {
-        let number = number + 1;
+        let number = number.saturating_add(1);
         eprint!("{number} ");
         if let Ok(line) = line {
             eprintln!("{line}");
         }
     }
     if let Some((number, line)) = lines.next() {
-        let number = number + 1;
+        let number = number.saturating_add(1);
         eprint!("{number} \x1b[93m");
         if let Ok(line) = line {
             eprintln!("{line}\x1b[0m");
         }
     }
     let line_digit_len: usize = line.checked_ilog10().unwrap_or(0).try_into().unwrap_or(0);
-    let spaces = " ".repeat(col + line_digit_len);
+    let spaces = " ".repeat(col.saturating_add(line_digit_len));
     eprintln!("  {spaces}^");
     eprintln!("  {spaces}| {msg}");
     if let Some((number, line)) = lines.next() {
-        let number = number + 1;
+        let number = number.saturating_add(1);
         eprint!("{number}");
         if let Ok(line) = line {
             eprintln!(" {line}");
@@ -503,7 +503,7 @@ pub fn assert_token(
     if t.token != expected {
         return Err(AstError::ExpectedToken(ExpectedToken { expected, pos }));
     }
-    Ok(pos + 1)
+    Ok(pos.saturating_add(1))
 }
 
 /// Optional semiolon

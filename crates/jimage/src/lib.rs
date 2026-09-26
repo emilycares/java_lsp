@@ -4,6 +4,7 @@
 #![deny(clippy::perf)]
 #![deny(clippy::redundant_clone)]
 #![deny(clippy::enum_glob_use)]
+#![deny(clippy::arithmetic_side_effects)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
 //! Parser for jimage binary file
@@ -58,7 +59,7 @@ pub fn parser(
         .ok_or(JimageError::EOF)?;
 
     let locations = data
-        .get(header.get_locations_offset()..header.get_strings_offset() - 1)
+        .get(header.get_locations_offset()..header.get_strings_offset().saturating_sub(1))
         .ok_or(JimageError::EOF)?;
     let mut pos = 0;
 
@@ -220,7 +221,7 @@ fn parse_location(data: &[u8], pos: usize) -> JResult<JimageLocation> {
 
     loop {
         let lo = data.get(pos).ok_or(JimageError::EOF)?;
-        pos += 1;
+        pos = pos.saturating_add(1);
         let lo = *lo;
         // ATTRIBUTE_END
         if lo <= 0x7 {
@@ -232,9 +233,9 @@ fn parse_location(data: &[u8], pos: usize) -> JResult<JimageLocation> {
             return Err(JimageError::InvalidAttributeKind);
         }
 
-        let len = (lo & 0x7) + 1;
+        let len = (lo & 0x7).saturating_add(1);
         let (_, val) = parse_location_value(data, pos, len)?;
-        pos += len as usize;
+        pos = pos.saturating_add(len as usize);
         match kind {
             // LOCATION_ATTRIBUTE_END => {
             //     out.end = val;
@@ -275,7 +276,7 @@ fn parse_location_value(data: &[u8], pos: usize, len: u8) -> JResult<usize> {
     for _ in 0..len {
         out <<= 8;
         let get = data.get(pos).ok_or(JimageError::EOF)?;
-        pos += 1;
+        pos = pos.saturating_add(1);
         // let (npos, get) = get_u32(data, pos)?;
         let get = *get;
         out |= u64::from(get);

@@ -44,7 +44,7 @@ impl AstRange {
     pub fn is_after_range(&self, point: &AstPoint) -> bool {
         let after = AstPoint {
             line: self.end.line,
-            col: self.end.col + 1,
+            col: self.end.col.saturating_add(1),
         };
         point == &after
     }

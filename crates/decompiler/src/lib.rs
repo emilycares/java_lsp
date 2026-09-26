@@ -1,51 +1,65 @@
-#![deny(clippy::pedantic)]
 #![deny(clippy::nursery)]
 #![deny(clippy::perf)]
+#![deny(clippy::arithmetic_side_effects)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
-#![allow(dead_code)]
-//! A minimal class file parser.
-//! Skips parsing data not used by `java_lsp`
-
 use std::collections::HashSet;
 
 use ast::types::{
-    AstAnnotated, AstAnnotatedParameterKind, AstAvailability, AstBlock, AstClass, AstClassBlock,
-    AstClassMethod, AstClassVariable, AstFile, AstIdentifier, AstImport, AstImportUnit, AstJType,
-    AstJTypeKind, AstMethodHeader, AstMethodParameter, AstMethodParameterFlags,
-    AstMethodParameters, AstPackage, AstRange, AstThing, AstThingAttributes, AstThrowsDeclaration,
-    AstTopLevel, AstVolatileTransient,
+    AstAnnotated, AstAnnotatedParameterKind, AstAvailability, AstBaseExpression, AstBlock,
+    AstClass, AstClassBlock, AstClassMethod, AstClassVariable, AstDouble, AstEnumeration,
+    AstExpressionIdentifier, AstExpressionKind, AstExpressionOperator, AstFile, AstIdentifier,
+    AstImport, AstImportUnit, AstInt, AstJType, AstJTypeKind, AstMethodHeader, AstMethodParameter,
+    AstMethodParameterFlags, AstMethodParameters, AstPackage, AstRange, AstThing,
+    AstThingAttributes, AstThrowsDeclaration, AstTopLevel, AstValueNuget, AstVolatileTransient,
 };
 use bitflags::bitflags;
-use dto::{Access, ClassParserError};
 use my_string::{NuVec, NuVecBuilder};
 
 const U8_LEN: usize = 1;
 const U16_LEN: usize = 2;
-const U32_LEN: usize = 4;
-const U64_LEN: usize = 8;
+#[derive(Debug)]
+pub enum DecompilerError {
+    EOF,
+    ExpectedOther,
+    Ignoring,
+    StringIndexZero,
+    ExpectedString,
+    InvalidName,
+    NotEnogthParams,
+    NoModuleAttribute,
+    UnknownType,
+    GenericParameterName,
+    InvalidAttributeIndex,
+    NotAsExpected,
+    NotAClass,
+    NameRecursion,
+    Number,
+    UnknownConstant,
+    Mutf8,
+    InvalidUtf8,
+}
 
-pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, ClassParserError> {
+pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, DecompilerError> {
     let (c, _) = parser_base(data, 0)?;
 
     let name = lookup_class_name(&c, c.this_class.into())?;
 
     let mut used_classes = HashSet::new();
     let mut methods = Vec::new();
-    let mut fields = Vec::new();
-    let mut deprecated = false;
     let mut class_signature = None;
+    let mut annotated = Vec::new();
 
     for a in &c.attributes {
         if a.name == 0 {
             continue;
         }
-        let attribute_name = lookup_string(&c, a.name)?;
+        let attribute_name = lookup_string(&c.const_pool, a.name)?;
 
         if attribute_name == "Signature" {
             let info = a.lookup(data)?;
             let (sig, _) = get_u16(info, 0)?;
-            let sig = lookup_string(&c, sig)?;
+            let sig = lookup_string(&c.const_pool, sig)?;
             let (sig, _) = parse_class_signature_info(&sig)?;
             class_signature = Some(sig);
         } else if attribute_name == "Code" {
@@ -53,7 +67,11 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Class
             let (out, _) = parse_code_attribute(info, 0, a.start, a.end)?;
             parse_used_classes(&c, data, &out, &mut used_classes)?;
         } else if attribute_name == "Deprecated" {
-            deprecated = true;
+            annotated.push(AstAnnotated {
+                range: AstRange::default(),
+                name: ntoident(NuVec::Static(b"Deprecated")),
+                parameters: AstAnnotatedParameterKind::None,
+            });
         }
     }
     let _ = class_signature;
@@ -64,13 +82,11 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Class
         if let Some(code_attribute) = code_attribute {
             parse_used_classes(&c, data, &code_attribute, &mut used_classes)?;
         }
+        jtype_class_names(method.header.jtype.clone(), &mut used_classes);
         methods.push(method);
     }
     for f in &c.fields {
-        let field = parse_field(&c, f);
-        let field = field?;
-        // jtype_class_names(field.jtype.clone(), &mut used_classes);
-        fields.push(field);
+        jtype_class_names(f.jtype.clone(), &mut used_classes);
     }
 
     let mut file = AstFile { top: Vec::new() };
@@ -82,17 +98,14 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Class
         annotated: Vec::new(),
         name: ntoident(package),
     }));
-    file.top.extend(
-        used_classes
-            .into_iter()
-            .filter(|i| i != class_path)
-            .map(|i| {
-                AstTopLevel::Import(AstImport {
-                    range: AstRange::default(),
-                    unit: AstImportUnit::Class(ntoident(i)),
-                })
-            }),
-    );
+    let mut imports: Vec<&NuVec> = used_classes.iter().filter(|i| *i != class_path).collect();
+    imports.sort();
+    file.top.extend(imports.into_iter().map(|i| {
+        AstTopLevel::Import(AstImport {
+            range: AstRange::default(),
+            unit: AstImportUnit::Class(ntoident(i.clone())),
+        })
+    }));
 
     let mut availability = AstAvailability::empty();
     if c.class_access_flags.intersects(ClassAccessFlags::Public) {
@@ -105,35 +118,50 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Class
         availability |= AstAvailability::Abstract;
     }
 
-    let mut class = AstClass {
-        range: AstRange::default(),
-        availability,
-        attributes: AstThingAttributes::empty(),
-        annotated: Vec::new(),
-        name: ntoident(name),
-        type_parameters: None,
-        superclass: Vec::new(),
-        implements: Vec::new(),
-        permits: Vec::new(),
-        block: AstClassBlock {
+    if c.class_access_flags.intersects(ClassAccessFlags::Enum) {
+        let enu = AstEnumeration {
             range: AstRange::default(),
-            variables: fields,
+            availability,
+            attributes: AstThingAttributes::empty(),
+            annotated,
+            name: ntoident(name),
+            implements: Vec::new(),
+            permits: Vec::new(),
+            superclass: Vec::new(),
+            variants: Vec::new(),
             methods,
+            variables: c.fields,
             constructors: Vec::new(),
             static_blocks: Vec::new(),
             inner: Vec::new(),
-            blocks: Vec::new(),
-        },
-    };
-    if deprecated {
-        class.annotated.push(AstAnnotated {
+        };
+        let enu_thing = AstTopLevel::Thing(Box::new(AstThing::Enumeration(enu)));
+        file.top.push(enu_thing);
+    } else {
+        let class = AstClass {
             range: AstRange::default(),
-            name: ntoident(NuVec::Static(b"Deprecated")),
-            parameters: AstAnnotatedParameterKind::None,
-        });
+            availability,
+            attributes: AstThingAttributes::empty(),
+            annotated,
+            name: ntoident(name),
+            type_parameters: None,
+            superclass: Vec::new(),
+            implements: Vec::new(),
+            permits: Vec::new(),
+            block: AstClassBlock {
+                range: AstRange::default(),
+                variables: c.fields,
+                methods,
+                constructors: Vec::new(),
+                static_blocks: Vec::new(),
+                inner: Vec::new(),
+                blocks: Vec::new(),
+            },
+        };
+        let class_thing = AstTopLevel::Thing(Box::new(AstThing::Class(class)));
+        file.top.push(class_thing);
     }
-    let class_thing = AstTopLevel::Thing(Box::new(AstThing::Class(class)));
-    file.top.push(class_thing);
+
     Ok(file)
 }
 
@@ -144,43 +172,32 @@ fn ntoident(value: NuVec) -> AstIdentifier {
     }
 }
 
-fn lookup_class_name(c: &Base, index: usize) -> Result<NuVec, ClassParserError> {
+fn lookup_class_name(c: &Base, index: usize) -> Result<NuVec, DecompilerError> {
     match c.const_pool.pool.get(index.saturating_sub(1)) {
-        Some(ConstEntry::Class { name }) => Ok(lookup_string(c, *name)?
+        Some(ConstEntry::Class { name }) => Ok(lookup_string(&c.const_pool, *name)?
             .to_str()
             .split('/')
             .next_back()
             .map(Into::into)
-            .ok_or(ClassParserError::InvalidName)?),
-        _ => Err(ClassParserError::ExpectedString),
+            .ok_or(DecompilerError::InvalidName)?),
+        _ => Err(DecompilerError::ExpectedString),
     }
 }
 
-fn parse_field(c: &Base, field: &Field) -> Result<AstClassVariable, ClassParserError> {
-    Ok(AstClassVariable {
-        range: AstRange::default(),
-        availability: AstAvailability::empty(),
-        annotated: Vec::new(),
-        name: ntoident(lookup_string(c, field.name)?),
-        jtype: parse_field_type(lookup_string(c, field.descriptor)?.as_bytes(), 0)?.0,
-        expression: None,
-        volatile_transient: AstVolatileTransient::empty(),
-    })
-}
 const UNKNOWN: &[u8] = b"";
 
 fn parse_method(
     c: &Base,
     data: &[u8],
     method: &Method,
-) -> Result<(AstClassMethod, Option<CodeAttribute>), ClassParserError> {
-    let lname = lookup_string(c, method.name)?;
+) -> Result<(AstClassMethod, Option<CodeAttribute>), DecompilerError> {
+    let lname = lookup_string(&c.const_pool, method.name)?;
     // let name = if lname == "<init>" { None } else { Some(lname) };
     let mut out = AstClassMethod {
         range: AstRange::default(),
         header: AstMethodHeader {
             range: AstRange::default(),
-            availability: AstAvailability::empty(),
+            availability: method.availability.clone(),
             name: ntoident(lname),
             jtype: AstJType {
                 range: AstRange::default(),
@@ -216,7 +233,7 @@ fn parse_method(
     };
 
     for (index, attribute) in method.attributes.iter().enumerate() {
-        let name = lookup_string(c, attribute.name)?;
+        let name = lookup_string(&c.const_pool, attribute.name)?;
         if name == "Signature" {
             signature_index = Some(index);
         } else if name == "MethodParameters" {
@@ -234,7 +251,7 @@ fn parse_method(
     let no_parameter_names_and_signature =
         method_parameter_index.is_none() && signature_index.is_none();
     if no_parameter_names_and_signature {
-        let desc = lookup_string(c, method.descriptor)?;
+        let desc = lookup_string(&c.const_pool, method.descriptor)?;
         let (_, md) = parse_method_descriptor(&desc)?;
         ret = md.return_type;
         for p in md.param_types {
@@ -252,23 +269,24 @@ fn parse_method(
         let attribute = method
             .attributes
             .get(index)
-            .ok_or(ClassParserError::InvalidAttributeIndex)?;
+            .ok_or(DecompilerError::InvalidAttributeIndex)?;
 
         let info = attribute.lookup(data)?;
         let (info, _) = parse_method_parameters_attribute(info, 0)?;
         if signature_index.is_some() {
             for p in info {
-                let name = lookup_string(c, p.name_index)
+                let name = lookup_string(&c.const_pool, p.name_index)
                     .ok()
                     .filter(|i| !i.is_empty());
                 parameter_names.push(name);
             }
         } else {
-            let (_, md) = parse_method_descriptor(&lookup_string(c, method.descriptor)?)?;
+            let (_, md) =
+                parse_method_descriptor(&lookup_string(&c.const_pool, method.descriptor)?)?;
             ret = md.return_type;
             let mut params = md.param_types.into_iter();
             for p in info {
-                let jtype = params.next().ok_or(ClassParserError::NotEnogthParams)?;
+                let jtype = params.next().ok_or(DecompilerError::NotEnogthParams)?;
                 if p.name_index == 0 {
                     out.header.parameters.parameters.push(AstMethodParameter {
                         range: AstRange::default(),
@@ -277,7 +295,7 @@ fn parse_method(
                         name: ntoident(NuVec::Static(UNKNOWN)),
                         flags: AstMethodParameterFlags::empty(),
                     });
-                } else if let Some(name) = lookup_string(c, p.name_index)
+                } else if let Some(name) = lookup_string(&c.const_pool, p.name_index)
                     .ok()
                     .filter(|i| !i.is_empty())
                 {
@@ -306,11 +324,11 @@ fn parse_method(
         let attribute = method
             .attributes
             .get(index)
-            .ok_or(ClassParserError::InvalidAttributeIndex)?;
+            .ok_or(DecompilerError::InvalidAttributeIndex)?;
 
         let info = attribute.lookup(data)?;
         let (sig, _) = get_u16(info, 0)?;
-        let sig = lookup_string(c, sig)?;
+        let sig = lookup_string(&c.const_pool, sig)?;
         let (sig, _) = parse_method_signature_info(&sig)?;
         let mut name_iter = parameter_names.into_iter();
         sig.params.iter().for_each(|jtype| {
@@ -340,14 +358,14 @@ fn parse_method(
         let attribute = method
             .attributes
             .get(index)
-            .ok_or(ClassParserError::InvalidAttributeIndex)?;
+            .ok_or(DecompilerError::InvalidAttributeIndex)?;
         let info = attribute.lookup(data)?;
         let (info, _) = parse_exceptions_attribute(info, 0)?;
 
         if !info.is_empty() {
             let mut throws = Vec::new();
             for exception in info {
-                let class_name = lookup_string(c, exception)?;
+                let class_name = lookup_string(&c.const_pool, exception)?;
                 throws.push(AstJType {
                     range: AstRange::default(),
                     annotated: Vec::new(),
@@ -375,7 +393,7 @@ fn parse_method(
 fn parse_exceptions_attribute(
     data: &[u8],
     pos: usize,
-) -> Result<(Vec<u16>, usize), ClassParserError> {
+) -> Result<(Vec<u16>, usize), DecompilerError> {
     let (count, pos) = get_u16(data, pos)?;
     let mut out = Vec::with_capacity(count as usize);
     let mut pos = pos;
@@ -400,7 +418,7 @@ pub struct ClassSignature {
 fn parse_method_parameters_attribute(
     data: &[u8],
     pos: usize,
-) -> Result<(Vec<MethodParametersAttribute>, usize), ClassParserError> {
+) -> Result<(Vec<MethodParametersAttribute>, usize), DecompilerError> {
     let (count, pos) = get_u8(data, pos)?;
     let mut pos = pos;
     let mut out = Vec::with_capacity(count as usize);
@@ -414,9 +432,9 @@ fn parse_method_parameters_attribute(
 fn parse_method_parameters_attribute_inner(
     data: &[u8],
     pos: usize,
-) -> Result<(MethodParametersAttribute, usize), ClassParserError> {
+) -> Result<(MethodParametersAttribute, usize), DecompilerError> {
     let (name_index, pos) = get_u16(data, pos)?;
-    let pos = pos + 2;
+    let pos = pos.saturating_add(2);
     Ok((MethodParametersAttribute { name_index }, pos))
 }
 
@@ -427,7 +445,7 @@ struct MethodSignature {
     pub params: Vec<AstJType>,
     pub ret: AstJType,
 }
-fn parse_method_signature_info(sig: &NuVec) -> Result<(MethodSignature, usize), ClassParserError> {
+fn parse_method_signature_info(sig: &NuVec) -> Result<(MethodSignature, usize), DecompilerError> {
     let content = sig.as_bytes();
     let mut pos = 0;
     let mut args = Vec::new();
@@ -444,12 +462,12 @@ fn parse_method_signature_info(sig: &NuVec) -> Result<(MethodSignature, usize), 
             }
             let mut arg = NuVecBuilder::new();
             loop {
-                let v = content.get(pos).ok_or(ClassParserError::EOF)?;
+                let v = content.get(pos).ok_or(DecompilerError::EOF)?;
                 if *v == b':' {
                     break;
                 }
                 arg.push(*v);
-                pos += 1;
+                pos = pos.saturating_add(1);
             }
             args.push(arg.finish());
             let npos = assert_char(content, pos, b':')?;
@@ -481,7 +499,7 @@ fn parse_method_signature_info(sig: &NuVec) -> Result<(MethodSignature, usize), 
     let (ret, pos) = parse_field_type(content, pos)?;
     Ok((MethodSignature { args, params, ret }, pos))
 }
-fn parse_class_signature_info(sig: &NuVec) -> Result<(ClassSignature, usize), ClassParserError> {
+fn parse_class_signature_info(sig: &NuVec) -> Result<(ClassSignature, usize), DecompilerError> {
     let content = sig.as_bytes();
     let mut pos = 0;
     let mut args = Vec::new();
@@ -497,12 +515,12 @@ fn parse_class_signature_info(sig: &NuVec) -> Result<(ClassSignature, usize), Cl
             }
             let mut arg = NuVecBuilder::new();
             loop {
-                let v = content.get(pos).ok_or(ClassParserError::EOF)?;
+                let v = content.get(pos).ok_or(DecompilerError::EOF)?;
                 if *v == b':' {
                     break;
                 }
                 arg.push(*v);
-                pos += 1;
+                pos = pos.saturating_add(1);
             }
             args.push(arg.finish());
             let npos = assert_char(content, pos, b':')?;
@@ -536,19 +554,19 @@ fn parse_class_signature_info(sig: &NuVec) -> Result<(ClassSignature, usize), Cl
     Ok((ClassSignature { args, ret }, pos))
 }
 
-fn assert_char(content: &[u8], pos: usize, p: u8) -> Result<usize, ClassParserError> {
+fn assert_char(content: &[u8], pos: usize, p: u8) -> Result<usize, DecompilerError> {
     let Some(c) = content.get(pos) else {
-        return Err(ClassParserError::EOF);
+        return Err(DecompilerError::EOF);
     };
 
     if *c != p {
         // let expected = char::from_u32(p as u32);
         // let got = char::from_u32(*c as u32);
         // eprintln!("expected: {expected:?}, got: {got:?}");
-        return Err(ClassParserError::ExpectedOther);
+        return Err(DecompilerError::ExpectedOther);
     }
 
-    Ok(pos + 1)
+    Ok(pos.saturating_add(1))
 }
 
 struct CodeAttribute {
@@ -557,8 +575,8 @@ struct CodeAttribute {
     pub attributes: Vec<Attribute>,
 }
 impl CodeAttribute {
-    pub fn lookup<'a>(&'a self, data: &'a [u8]) -> Result<&'a [u8], ClassParserError> {
-        data.get(self.start..self.end).ok_or(ClassParserError::EOF)
+    pub fn lookup<'a>(&'a self, data: &'a [u8]) -> Result<&'a [u8], DecompilerError> {
+        data.get(self.start..self.end).ok_or(DecompilerError::EOF)
     }
 }
 
@@ -567,9 +585,9 @@ fn parse_code_attribute(
     pos: usize,
     start: usize,
     end: usize,
-) -> Result<(CodeAttribute, usize), ClassParserError> {
-    let mut pos = pos;
-    pos = pos.saturating_add(U16_LEN + U16_LEN);
+) -> Result<(CodeAttribute, usize), DecompilerError> {
+    let (_max_stack, pos) = get_u16(data, pos)?;
+    let (_max_locals, pos) = get_u16(data, pos)?;
 
     let (code_length, pos) = get_u32(data, pos)?;
     let pos = pos.saturating_add(code_length as usize);
@@ -594,18 +612,18 @@ fn parse_code_attribute(
 fn parse_local_variable_table_attribute(
     data: &[u8],
     pos: usize,
-) -> Result<(Vec<u16>, usize), ClassParserError> {
+) -> Result<(Vec<u16>, usize), DecompilerError> {
     let (table_length, pos) = get_u16(data, pos)?;
     let mut out = Vec::with_capacity(table_length as usize);
     let mut pos = pos;
 
     for _ in 0..table_length {
-        pos += 3 * U16_LEN;
+        pos = pos.saturating_add(3_usize.saturating_mul(U16_LEN));
         let (descriptor_index, npos) = get_u16(data, pos)?;
         pos = npos;
         out.push(descriptor_index);
         // skip u16
-        pos += U16_LEN;
+        pos = pos.saturating_add(U16_LEN);
     }
 
     Ok((out, pos))
@@ -616,16 +634,16 @@ fn parse_used_classes(
     data: &[u8],
     code_attribute: &CodeAttribute,
     used_classes: &mut HashSet<NuVec>,
-) -> Result<(), ClassParserError> {
+) -> Result<(), DecompilerError> {
     let info = code_attribute.lookup(data)?;
 
     for attribute in &code_attribute.attributes {
-        let attribute_name = lookup_string(c, attribute.name)?;
+        let attribute_name = lookup_string(&c.const_pool, attribute.name)?;
         if attribute_name == "LocalVariableTable" {
             let info = attribute.lookup(info)?;
             let (descriptors, _) = parse_local_variable_table_attribute(info, 0)?;
             for f in descriptors {
-                let field_desc = lookup_string(c, f)?;
+                let field_desc = lookup_string(&c.const_pool, f)?;
                 let (field_desc, _) = parse_field_type(field_desc.as_bytes(), 0)?;
                 jtype_class_names(field_desc, used_classes);
             }
@@ -636,18 +654,14 @@ fn parse_used_classes(
 
 fn jtype_class_names(i: AstJType, used_classes: &mut HashSet<NuVec>) {
     match i.value {
-        AstJTypeKind::Class(ast_identifier) | AstJTypeKind::ClassOrPackage(ast_identifier) => {
-            used_classes.insert(ast_identifier.value);
-        }
         AstJTypeKind::WildcardImplements(ast_jtype)
         | AstJTypeKind::WildcardExtends(ast_jtype)
         | AstJTypeKind::WildcardSuper(ast_jtype)
         | AstJTypeKind::Array(ast_jtype) => jtype_class_names(*ast_jtype, used_classes),
-        AstJTypeKind::Generic(ast_identifier, ast_jtypes) => {
+        AstJTypeKind::Class(ast_identifier)
+        | AstJTypeKind::ClassOrPackage(ast_identifier)
+        | AstJTypeKind::Generic(ast_identifier, _) => {
             used_classes.insert(ast_identifier.value);
-            for j in ast_jtypes {
-                jtype_class_names(j, used_classes);
-            }
         }
         AstJTypeKind::Access { base, inner } => {
             jtype_class_names(*base, used_classes);
@@ -678,7 +692,7 @@ struct MethodDescriptor {
 
 fn parse_method_descriptor(
     descriptor: &NuVec,
-) -> Result<(usize, MethodDescriptor), ClassParserError> {
+) -> Result<(usize, MethodDescriptor), DecompilerError> {
     let content = descriptor.as_bytes();
     let pos = 0;
     if let Ok((pos, param_types)) = parse_param_types(content, pos) {
@@ -704,7 +718,7 @@ fn parse_method_descriptor(
 fn parse_param_types(
     content: &[u8],
     pos: usize,
-) -> Result<(usize, Vec<AstJType>), ClassParserError> {
+) -> Result<(usize, Vec<AstJType>), DecompilerError> {
     let pos = assert_char(content, pos, b'(')?;
     let mut pos = pos;
     let mut out = Vec::new();
@@ -720,8 +734,8 @@ fn parse_param_types(
     Ok((pos, out))
 }
 
-fn parse_field_type(content: &[u8], pos: usize) -> Result<(AstJType, usize), ClassParserError> {
-    let c = content.get(pos).ok_or(ClassParserError::EOF)?;
+fn parse_field_type(content: &[u8], pos: usize) -> Result<(AstJType, usize), DecompilerError> {
+    let c = content.get(pos).ok_or(DecompilerError::EOF)?;
 
     match c {
         b'B' => Ok((
@@ -730,7 +744,7 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(AstJType, usize), Cla
                 annotated: Vec::new(),
                 value: AstJTypeKind::Byte,
             },
-            pos + 1,
+            pos.saturating_add(1),
         )),
         b'C' => Ok((
             AstJType {
@@ -738,7 +752,7 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(AstJType, usize), Cla
                 annotated: Vec::new(),
                 value: AstJTypeKind::Char,
             },
-            pos + 1,
+            pos.saturating_add(1),
         )),
         b'D' => Ok((
             AstJType {
@@ -746,7 +760,7 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(AstJType, usize), Cla
                 annotated: Vec::new(),
                 value: AstJTypeKind::Double,
             },
-            pos + 1,
+            pos.saturating_add(1),
         )),
         b'F' => Ok((
             AstJType {
@@ -754,7 +768,7 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(AstJType, usize), Cla
                 annotated: Vec::new(),
                 value: AstJTypeKind::Float,
             },
-            pos + 1,
+            pos.saturating_add(1),
         )),
         b'I' => Ok((
             AstJType {
@@ -762,7 +776,7 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(AstJType, usize), Cla
                 annotated: Vec::new(),
                 value: AstJTypeKind::Int,
             },
-            pos + 1,
+            pos.saturating_add(1),
         )),
         b'J' => Ok((
             AstJType {
@@ -770,7 +784,7 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(AstJType, usize), Cla
                 annotated: Vec::new(),
                 value: AstJTypeKind::Long,
             },
-            pos + 1,
+            pos.saturating_add(1),
         )),
         b'S' => Ok((
             AstJType {
@@ -778,7 +792,7 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(AstJType, usize), Cla
                 annotated: Vec::new(),
                 value: AstJTypeKind::Short,
             },
-            pos + 1,
+            pos.saturating_add(1),
         )),
         b'Z' => Ok((
             AstJType {
@@ -786,7 +800,7 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(AstJType, usize), Cla
                 annotated: Vec::new(),
                 value: AstJTypeKind::Boolean,
             },
-            pos + 1,
+            pos.saturating_add(1),
         )),
         b'V' => Ok((
             AstJType {
@@ -794,18 +808,18 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(AstJType, usize), Cla
                 annotated: Vec::new(),
                 value: AstJTypeKind::Void,
             },
-            pos + 1,
+            pos.saturating_add(1),
         )),
         b'T' => {
-            let mut pos = pos + 1;
+            let mut pos = pos.saturating_add(1);
             let mut param = NuVecBuilder::new();
             loop {
-                let v = content.get(pos).ok_or(ClassParserError::EOF)?;
+                let v = content.get(pos).ok_or(DecompilerError::EOF)?;
                 if *v == b';' {
                     break;
                 }
                 param.push(*v);
-                pos += 1;
+                pos = pos.saturating_add(1);
             }
             Ok((
                 AstJType {
@@ -817,12 +831,12 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(AstJType, usize), Cla
             ))
         }
         b'L' => {
-            let pos = pos + 1;
+            let pos = pos.saturating_add(1);
             let (mut pos, mut out) = parse_jtype_class_name(content, pos)?;
             while let Some(next) = content.get(pos)
                 && next == &b'.'
             {
-                let (npos, inner) = parse_jtype_class_name(content, pos + 1)?;
+                let (npos, inner) = parse_jtype_class_name(content, pos.saturating_add(1))?;
                 pos = npos;
                 out = AstJType {
                     range: AstRange::default(),
@@ -836,7 +850,7 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(AstJType, usize), Cla
             Ok((out, pos))
         }
         b'[' => {
-            let (inner, npos) = parse_field_type(content, pos + 1)?;
+            let (inner, npos) = parse_field_type(content, pos.saturating_add(1))?;
             Ok((
                 AstJType {
                     range: AstRange::default(),
@@ -848,7 +862,7 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(AstJType, usize), Cla
         }
         _ => {
             // let got = char::from_u32(u32::from(*c));
-            Err(ClassParserError::UnknownType)
+            Err(DecompilerError::UnknownType)
         }
     }
 }
@@ -856,12 +870,12 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(AstJType, usize), Cla
 fn parse_jtype_class_name(
     content: &[u8],
     mut pos: usize,
-) -> Result<(usize, AstJType), ClassParserError> {
+) -> Result<(usize, AstJType), DecompilerError> {
     let mut class_name = NuVecBuilder::new();
     let mut args = Vec::new();
     while let Some(c) = content.get(pos) {
         if c == &b'<' {
-            pos += 1;
+            pos = pos.saturating_add(1);
             if let Ok(npos) = assert_char(content, pos, b'+') {
                 pos = npos;
             }
@@ -913,11 +927,11 @@ fn parse_jtype_class_name(
             break;
         }
         if c == &b';' {
-            pos += 1;
+            pos = pos.saturating_add(1);
             break;
         }
         class_name.push(*c);
-        pos += 1;
+        pos = pos.saturating_add(1);
     }
     let class_name = class_name.finish().replace_byte(b'/', b'.');
     if !args.is_empty() {
@@ -940,112 +954,24 @@ fn parse_jtype_class_name(
     ))
 }
 
-#[derive(Debug)]
-pub struct ModuleInfo {
-    pub exports: Vec<NuVec>,
-}
-
-pub fn load_module(data: &[u8]) -> Result<ModuleInfo, ClassParserError> {
-    let (c, _) = parser_base(data, 0)?;
-    for a in &c.attributes {
-        let name = lookup_string(&c, a.name)?;
-        if name == "Module" {
-            let info = a.lookup(data)?;
-            let (module, _) = parse_module_attribute(info, 0)?;
-            let module_name = lookup_string(&c, module.name_index)?;
-            let mut exports = vec![module_name.replace_byte(b'.', b'/')];
-            for e in module.exports {
-                if !e.exports_to_index.is_empty() {
-                    continue;
-                }
-                let name = lookup_string(&c, e.exports_index)?;
-                exports.push(name.replace_byte(b'.', b'/'));
-            }
-            return Ok(ModuleInfo { exports });
-        }
-    }
-    Err(ClassParserError::NoModuleAttribute)
-}
-
-struct ModuleAttribute {
-    name_index: u16,
-    exports: Vec<ModuleExportsAttribute>,
-}
-
-fn parse_module_attribute(
-    data: &[u8],
-    pos: usize,
-) -> Result<(ModuleAttribute, usize), ClassParserError> {
-    let (name_index, pos) = get_u16(data, pos)?;
-    let pos = pos + (U16_LEN + U16_LEN);
-
-    let (requires_count, pos) = get_u16(data, pos)?;
-    let pos = pos.saturating_add((requires_count as usize).saturating_mul(6));
-
-    let (exports_count, pos) = get_u16(data, pos)?;
-    let mut exports = Vec::with_capacity(exports_count as usize);
-    let mut pos = pos;
-    for _ in 0..exports_count {
-        let (o, npos) = parse_module_exports(data, pos)?;
-        exports.push(o);
-        pos = npos;
-    }
-
-    Ok((
-        ModuleAttribute {
-            name_index,
-            exports,
-        },
-        pos,
-    ))
-}
-struct ModuleExportsAttribute {
-    exports_index: u16,
-    exports_to_index: Vec<u16>,
-}
-
-fn parse_module_exports(
-    data: &[u8],
-    pos: usize,
-) -> Result<(ModuleExportsAttribute, usize), ClassParserError> {
-    let (exports_index, pos) = get_u16(data, pos)?;
-    let pos = pos + U16_LEN;
-    let (count, pos) = get_u16(data, pos)?;
-    let mut exports_to_index = Vec::with_capacity(count as usize);
-    let mut pos = pos;
-
-    for _ in 0..count {
-        let (o, npos) = get_u16(data, pos)?;
-        exports_to_index.push(o);
-        pos = npos;
-    }
-    Ok((
-        ModuleExportsAttribute {
-            exports_index,
-            exports_to_index,
-        },
-        pos,
-    ))
-}
-
-fn lookup_string(c: &Base, index: u16) -> Result<NuVec, ClassParserError> {
+fn lookup_string(c: &ConstPool, index: u16) -> Result<NuVec, DecompilerError> {
     lookup_string_inner(c, index, 0)
 }
 
-fn lookup_string_inner(c: &Base, index: u16, depth: u8) -> Result<NuVec, ClassParserError> {
+fn lookup_string_inner(c: &ConstPool, index: u16, depth: u8) -> Result<NuVec, DecompilerError> {
     if depth == 5 {
-        return Err(ClassParserError::NameRecursion);
+        return Err(DecompilerError::NameRecursion);
     }
     if index == 0 {
-        return Err(ClassParserError::StringIndexZero);
+        return Err(DecompilerError::StringIndexZero);
     }
-    let con = &c.const_pool.pool.get((index - 1) as usize);
+    let con = &c.pool.get((index.saturating_sub(1)) as usize);
     match con {
         Some(ConstEntry::Utf8(utf8)) => Ok(utf8.clone()),
         Some(
             ConstEntry::Module { name } | ConstEntry::Package { name } | ConstEntry::Class { name },
-        ) => lookup_string_inner(c, *name, depth + 1),
-        _ => Err(ClassParserError::ExpectedString),
+        ) => lookup_string_inner(c, *name, depth.saturating_add(1)),
+        _ => Err(DecompilerError::ExpectedString),
     }
 }
 
@@ -1053,21 +979,13 @@ struct Base {
     pub const_pool: ConstPool,
     pub class_access_flags: ClassAccessFlags,
     pub this_class: u16,
-    pub super_class: u16,
-
-    pub interfaces: Vec<u16>,
-    pub fields: Vec<Field>,
+    pub fields: Vec<AstClassVariable>,
     pub methods: Vec<Method>,
     pub attributes: Vec<Attribute>,
 }
 
-struct Field {
-    pub access_flags: Access,
-    pub name: u16,
-    pub descriptor: u16,
-}
 struct Method {
-    pub access_flags: Access,
+    pub availability: AstAvailability,
     pub name: u16,
     pub descriptor: u16,
     pub attributes: Vec<Attribute>,
@@ -1081,25 +999,25 @@ struct Attribute {
 }
 
 impl Attribute {
-    pub fn lookup<'a>(&'a self, data: &'a [u8]) -> Result<&'a [u8], ClassParserError> {
-        data.get(self.start..self.end).ok_or(ClassParserError::EOF)
+    pub fn lookup<'a>(&'a self, data: &'a [u8]) -> Result<&'a [u8], DecompilerError> {
+        data.get(self.start..self.end).ok_or(DecompilerError::EOF)
     }
 }
 
-fn parser_base(data: &[u8], pos: usize) -> Result<(Base, usize), ClassParserError> {
+fn parser_base(data: &[u8], pos: usize) -> Result<(Base, usize), DecompilerError> {
     let pos = expect_data(data, pos, &[0xCA, 0xFE, 0xBA, 0xBE])
-        .map_err(|_| ClassParserError::NotAClass)?;
+        .map_err(|_| DecompilerError::NotAClass)?;
 
-    let pos = pos + (U16_LEN + U16_LEN);
+    let pos = pos.saturating_add(U16_LEN + U16_LEN);
 
     let (const_pool, pos) = parse_const_pool(data, pos)?;
 
     let (class_access_flags, pos) = parse_class_access_flags(data, pos)?;
     let (this_class, pos) = get_u16(data, pos)?;
-    let (super_class, pos) = get_u16(data, pos)?;
+    let (_, pos) = get_u16(data, pos)?;
 
-    let (interfaces, pos) = parse_interfaces(data, pos)?;
-    let (fields, pos) = parse_fields(data, pos)?;
+    let (_, pos) = parse_interfaces(data, pos)?;
+    let (fields, pos) = parse_fields(data, pos, &const_pool)?;
     let (methods, pos) = parse_methods(data, pos)?;
     let (attributes, pos) = parse_attributes(data, pos)?;
 
@@ -1109,9 +1027,7 @@ fn parser_base(data: &[u8], pos: usize) -> Result<(Base, usize), ClassParserErro
 
             class_access_flags,
             this_class,
-            super_class,
 
-            interfaces,
             fields,
             methods,
             attributes,
@@ -1137,20 +1053,24 @@ bitflags! {
 fn parse_class_access_flags(
     data: &[u8],
     pos: usize,
-) -> Result<(ClassAccessFlags, usize), ClassParserError> {
+) -> Result<(ClassAccessFlags, usize), DecompilerError> {
     let (flags, pos) = get_u16(data, pos)?;
     let out = ClassAccessFlags::from_bits_retain(flags);
 
     Ok((out, pos))
 }
 
-fn parse_fields(data: &[u8], pos: usize) -> Result<(Vec<Field>, usize), ClassParserError> {
+fn parse_fields(
+    data: &[u8],
+    pos: usize,
+    c: &ConstPool,
+) -> Result<(Vec<AstClassVariable>, usize), DecompilerError> {
     let (size, pos) = get_u16(data, pos)?;
     let mut pos = pos;
     let mut out = Vec::with_capacity(size as usize);
 
     for _ in 0..size {
-        let (field, npos) = parse_class_field(data, pos)?;
+        let (field, npos) = parse_class_field(data, pos, c)?;
         pos = npos;
         out.push(field);
     }
@@ -1158,75 +1078,160 @@ fn parse_fields(data: &[u8], pos: usize) -> Result<(Vec<Field>, usize), ClassPar
     Ok((out, pos))
 }
 
-fn parse_class_field(data: &[u8], pos: usize) -> Result<(Field, usize), ClassParserError> {
-    let (access_flags, pos) = parse_field_access_flags(data, pos)?;
+fn parse_class_field(
+    data: &[u8],
+    pos: usize,
+    c: &ConstPool,
+) -> Result<(AstClassVariable, usize), DecompilerError> {
+    let (access_flags, volatile_transient, pos) = parse_field_access_flags(data, pos)?;
     let (name, pos) = get_u16(data, pos)?;
     let (descriptor, pos) = get_u16(data, pos)?;
-    let (_, pos) = parse_attributes(data, pos)?;
+    let (attributes, pos) = parse_attributes(data, pos)?;
+    let mut expression = None;
+
+    for a in attributes {
+        if a.name == 0 {
+            continue;
+        }
+        let attribute_name = lookup_string(c, a.name)?;
+        if attribute_name == "ConstantValue" {
+            let info = a.lookup(data)?;
+            let (constant_value_index, _) = get_u16(info, 0)?;
+            match c
+                .pool
+                .get((constant_value_index.saturating_sub(1)) as usize)
+            {
+                Some(ConstEntry::Float(c)) => {
+                    let value = NuVec::new(c.to_string().as_bytes());
+                    let expr = vec![AstExpressionKind::Base(AstBaseExpression {
+                        range: AstRange::default(),
+                        ident: Some(AstExpressionIdentifier::Nuget(AstValueNuget::Float(
+                            AstDouble {
+                                range: AstRange::default(),
+                                value,
+                            },
+                        ))),
+                        values: None,
+                        operator: AstExpressionOperator::None,
+                    })];
+                    expression = Some(expr);
+                }
+                Some(ConstEntry::Long(c)) => {
+                    let value = NuVec::new(c.to_string().as_bytes());
+                    let expr = vec![AstExpressionKind::Base(AstBaseExpression {
+                        range: AstRange::default(),
+                        ident: Some(AstExpressionIdentifier::Nuget(AstValueNuget::Long(
+                            AstInt {
+                                range: AstRange::default(),
+                                value,
+                            },
+                        ))),
+                        values: None,
+                        operator: AstExpressionOperator::None,
+                    })];
+                    expression = Some(expr);
+                }
+                Some(ConstEntry::Double(c)) => {
+                    let value = NuVec::new(c.to_string().as_bytes());
+                    let expr = vec![AstExpressionKind::Base(AstBaseExpression {
+                        range: AstRange::default(),
+                        ident: Some(AstExpressionIdentifier::Nuget(AstValueNuget::Double(
+                            AstDouble {
+                                range: AstRange::default(),
+                                value,
+                            },
+                        ))),
+                        values: None,
+                        operator: AstExpressionOperator::None,
+                    })];
+                    expression = Some(expr);
+                }
+                Some(ConstEntry::String { name }) => {
+                    let value = lookup_string(c, *name)?;
+                    let expr = vec![AstExpressionKind::Base(AstBaseExpression {
+                        range: AstRange::default(),
+                        ident: Some(AstExpressionIdentifier::Nuget(
+                            AstValueNuget::StringLiteral {
+                                range: AstRange::default(),
+                                value,
+                            },
+                        )),
+                        values: None,
+                        operator: AstExpressionOperator::None,
+                    })];
+                    expression = Some(expr);
+                }
+                Some(_) | None => {}
+            }
+        }
+    }
+
     Ok((
-        Field {
-            access_flags,
-            name,
-            descriptor,
+        AstClassVariable {
+            range: AstRange::default(),
+            availability: access_flags,
+            annotated: Vec::new(),
+            name: ntoident(lookup_string(c, name)?),
+            jtype: parse_field_type(lookup_string(c, descriptor)?.as_bytes(), 0)?.0,
+            expression,
+            volatile_transient,
         },
         pos,
     ))
 }
 
-fn parse_field_access_flags(data: &[u8], pos: usize) -> Result<(Access, usize), ClassParserError> {
+fn parse_field_access_flags(
+    data: &[u8],
+    pos: usize,
+) -> Result<(AstAvailability, AstVolatileTransient, usize), DecompilerError> {
     let (flags, pos) = get_u16(data, pos)?;
-    let mut out = Access::empty();
+    let mut out = AstAvailability::empty();
+    let mut vt = AstVolatileTransient::empty();
     if (flags & 0x0001) != 0 {
-        out |= Access::Public;
+        out |= AstAvailability::Public;
     }
     if (flags & 0x0002) != 0 {
-        out |= Access::Private;
+        out |= AstAvailability::Private;
     }
     if (flags & 0x0004) != 0 {
-        out |= Access::Protected;
+        out |= AstAvailability::Protected;
     }
     if (flags & 0x0008) != 0 {
-        out |= Access::Static;
+        out |= AstAvailability::Static;
     }
     if (flags & 0x0010) != 0 {
-        out |= Access::Final;
+        out |= AstAvailability::Final;
     }
     if (flags & 0x0040) != 0 {
-        out |= Access::Volatile;
+        vt |= AstVolatileTransient::Volatile;
     }
     if (flags & 0x0080) != 0 {
-        out |= Access::Transient;
-    }
-    if (flags & 0x1000) != 0 {
-        out |= Access::Synthetic;
-    }
-    if (flags & 0x4000) != 0 {
-        out |= Access::Enum;
+        vt |= AstVolatileTransient::Transient;
     }
 
-    Ok((out, pos))
+    Ok((out, vt, pos))
 }
-fn parse_methods(data: &[u8], pos: usize) -> Result<(Vec<Method>, usize), ClassParserError> {
+fn parse_methods(data: &[u8], pos: usize) -> Result<(Vec<Method>, usize), DecompilerError> {
     let (size, pos) = get_u16(data, pos)?;
     let mut pos = pos;
     let mut out = Vec::with_capacity(size as usize);
 
     for _ in 0..size {
-        let (field, npos) = parse_class_method(data, pos)?;
+        let (method, npos) = parse_class_method(data, pos)?;
         pos = npos;
-        out.push(field);
+        out.push(method);
     }
 
     Ok((out, pos))
 }
-fn parse_class_method(data: &[u8], pos: usize) -> Result<(Method, usize), ClassParserError> {
+fn parse_class_method(data: &[u8], pos: usize) -> Result<(Method, usize), DecompilerError> {
     let (access_flags, pos) = parse_method_access_flags(data, pos)?;
     let (name, pos) = get_u16(data, pos)?;
     let (descriptor, pos) = get_u16(data, pos)?;
     let (attributes, pos) = parse_attributes(data, pos)?;
     Ok((
         Method {
-            access_flags,
+            availability: access_flags,
             name,
             descriptor,
             attributes,
@@ -1235,32 +1240,35 @@ fn parse_class_method(data: &[u8], pos: usize) -> Result<(Method, usize), ClassP
     ))
 }
 
-fn parse_method_access_flags(data: &[u8], pos: usize) -> Result<(Access, usize), ClassParserError> {
+fn parse_method_access_flags(
+    data: &[u8],
+    pos: usize,
+) -> Result<(AstAvailability, usize), DecompilerError> {
     let (flags, pos) = get_u16(data, pos)?;
-    let mut out = Access::empty();
+    let mut out = AstAvailability::empty();
     if (flags & 0x0001) != 0 {
-        out |= Access::Public;
+        out |= AstAvailability::Public;
     }
     if (flags & 0x0002) != 0 {
-        out |= Access::Private;
+        out |= AstAvailability::Private;
     }
     if (flags & 0x0004) != 0 {
-        out |= Access::Protected;
+        out |= AstAvailability::Protected;
     }
     if (flags & 0x0008) != 0 {
-        out |= Access::Static;
+        out |= AstAvailability::Static;
     }
     if (flags & 0x0010) != 0 {
-        out |= Access::Final;
+        out |= AstAvailability::Final;
     }
     if (flags & 0x0400) != 0 {
-        out |= Access::Abstract;
+        out |= AstAvailability::Abstract;
     }
 
     Ok((out, pos))
 }
 
-fn parse_attributes(data: &[u8], pos: usize) -> Result<(Vec<Attribute>, usize), ClassParserError> {
+fn parse_attributes(data: &[u8], pos: usize) -> Result<(Vec<Attribute>, usize), DecompilerError> {
     let (size, pos) = get_u16(data, pos)?;
     let mut pos = pos;
     let mut out = Vec::with_capacity(size as usize);
@@ -1273,7 +1281,7 @@ fn parse_attributes(data: &[u8], pos: usize) -> Result<(Vec<Attribute>, usize), 
 
     Ok((out, pos))
 }
-fn parse_attribute(data: &[u8], pos: usize) -> Result<(Attribute, usize), ClassParserError> {
+fn parse_attribute(data: &[u8], pos: usize) -> Result<(Attribute, usize), DecompilerError> {
     let (name, pos) = get_u16(data, pos)?;
     let (length, pos) = get_u32(data, pos)?;
     let start = pos;
@@ -1281,7 +1289,7 @@ fn parse_attribute(data: &[u8], pos: usize) -> Result<(Attribute, usize), ClassP
     Ok((Attribute { name, start, end }, end))
 }
 
-fn parse_interfaces(data: &[u8], pos: usize) -> Result<(Vec<u16>, usize), ClassParserError> {
+fn parse_interfaces(data: &[u8], pos: usize) -> Result<(Vec<u16>, usize), DecompilerError> {
     let (size, pos) = get_u16(data, pos)?;
     let mut pos = pos;
     let mut out = Vec::with_capacity(size as usize);
@@ -1299,7 +1307,7 @@ pub struct ConstPool {
     pub pool: Vec<ConstEntry>,
 }
 
-fn parse_const_pool(data: &[u8], pos: usize) -> Result<(ConstPool, usize), ClassParserError> {
+fn parse_const_pool(data: &[u8], pos: usize) -> Result<(ConstPool, usize), DecompilerError> {
     let (size, pos) = get_u16(data, pos)?;
     let size = size.saturating_sub(1) as usize;
     let mut pool = Vec::with_capacity(size);
@@ -1316,7 +1324,7 @@ fn parse_const_pool(data: &[u8], pos: usize) -> Result<(ConstPool, usize), Class
             pool.push(ConstEntry::Empty);
         }
 
-        idx += len;
+        idx = idx.saturating_add(len);
     }
     Ok((ConstPool { pool }, pos))
 }
@@ -1335,24 +1343,24 @@ pub enum ConstEntry {
     FieldRef,
     Dynamic,
     InvokeDynamic,
-    Float,
-    Double,
-    Integer,
-    Long,
+    Float(i32),
+    Double(i64),
+    Integer(i32),
+    Long(i64),
     MehthodHandle,
     MethodType,
 }
 
 /// Returns the constant, next pos, how meany slots the constant takes
-fn parse_constant(data: &[u8], pos: usize) -> Result<(ConstEntry, usize, usize), ClassParserError> {
+fn parse_constant(data: &[u8], pos: usize) -> Result<(ConstEntry, usize, usize), DecompilerError> {
     let (kind, pos) = get_u8(data, pos)?;
 
     match kind {
         1 => parse_utf8_const(data, pos),
-        3 => Ok(parse_integer_const(pos)),
-        4 => Ok(parse_float_const(pos)),
-        5 => Ok(parse_long_const(pos)),
-        6 => Ok(parse_double_const(pos)),
+        3 => parse_integer_const(data, pos),
+        4 => parse_float_const(data, pos),
+        5 => parse_long_const(data, pos),
+        6 => parse_double_const(data, pos),
         7 => parse_class_const(data, pos),
         8 => parse_string_const(data, pos),
         9 => Ok(parse_field_ref_const(pos)),
@@ -1365,161 +1373,201 @@ fn parse_constant(data: &[u8], pos: usize) -> Result<(ConstEntry, usize, usize),
         18 => Ok(parse_invoke_dynamic_const(pos)),
         19 => parse_module_const(data, pos),
         20 => parse_package_const(data, pos),
-        _ => Err(ClassParserError::UnknownConstant),
+        _ => Err(DecompilerError::UnknownConstant),
     }
 }
 
 fn parse_utf8_const(
     data: &[u8],
     pos: usize,
-) -> Result<(ConstEntry, usize, usize), ClassParserError> {
+) -> Result<(ConstEntry, usize, usize), DecompilerError> {
     let (len, pos) = get_u16(data, pos)?;
     let len = len as usize;
-    let end = pos + len;
-    let inner = data.get(pos..end).ok_or(ClassParserError::EOF)?;
-    let mu = mutf8::mutf8_to_utf8(inner).map_err(|_| ClassParserError::Mutf8)?;
+    let end = pos.saturating_add(len);
+    let inner = data.get(pos..end).ok_or(DecompilerError::EOF)?;
+    let mu = mutf8::mutf8_to_utf8(inner).map_err(|_| DecompilerError::Mutf8)?;
     Ok((ConstEntry::Utf8(NuVec::new(&mu)), end, 1))
 }
 
 fn parse_class_const(
     data: &[u8],
     pos: usize,
-) -> Result<(ConstEntry, usize, usize), ClassParserError> {
+) -> Result<(ConstEntry, usize, usize), DecompilerError> {
     let (name, pos) = get_u16(data, pos)?;
     Ok((ConstEntry::Class { name }, pos, 1))
 }
 fn parse_string_const(
     data: &[u8],
     pos: usize,
-) -> Result<(ConstEntry, usize, usize), ClassParserError> {
+) -> Result<(ConstEntry, usize, usize), DecompilerError> {
     let (name, pos) = get_u16(data, pos)?;
     Ok((ConstEntry::String { name }, pos, 1))
 }
 fn parse_module_const(
     data: &[u8],
     pos: usize,
-) -> Result<(ConstEntry, usize, usize), ClassParserError> {
+) -> Result<(ConstEntry, usize, usize), DecompilerError> {
     let (name, pos) = get_u16(data, pos)?;
     Ok((ConstEntry::Module { name }, pos, 1))
 }
 fn parse_package_const(
     data: &[u8],
     pos: usize,
-) -> Result<(ConstEntry, usize, usize), ClassParserError> {
+) -> Result<(ConstEntry, usize, usize), DecompilerError> {
     let (name, pos) = get_u16(data, pos)?;
     Ok((ConstEntry::Package { name }, pos, 1))
 }
 const fn parse_field_ref_const(pos: usize) -> (ConstEntry, usize, usize) {
     // content 2 * u16
-    (ConstEntry::FieldRef, pos + (U16_LEN + U16_LEN), 1)
+    (
+        ConstEntry::FieldRef,
+        pos.saturating_add(U16_LEN + U16_LEN),
+        1,
+    )
 }
 
 const fn parse_method_ref_const(pos: usize) -> (ConstEntry, usize, usize) {
     // content 2 * u16
-    (ConstEntry::MethodRef, pos + (U16_LEN + U16_LEN), 1)
+    (
+        ConstEntry::MethodRef,
+        pos.saturating_add(U16_LEN + U16_LEN),
+        1,
+    )
 }
-const fn parse_integer_const(pos: usize) -> (ConstEntry, usize, usize) {
-    // content u32
-    (ConstEntry::Integer, pos + U32_LEN, 1)
+fn parse_integer_const(
+    data: &[u8],
+    pos: usize,
+) -> Result<(ConstEntry, usize, usize), DecompilerError> {
+    let (content, pos) = get_i32(data, pos)?;
+    Ok((ConstEntry::Integer(content), pos, 1))
 }
-const fn parse_float_const(pos: usize) -> (ConstEntry, usize, usize) {
-    // content u32
-    (ConstEntry::Float, pos + U32_LEN, 1)
+fn parse_float_const(
+    data: &[u8],
+    pos: usize,
+) -> Result<(ConstEntry, usize, usize), DecompilerError> {
+    let (content, pos) = get_i32(data, pos)?;
+    Ok((ConstEntry::Float(content), pos, 1))
 }
-const fn parse_long_const(pos: usize) -> (ConstEntry, usize, usize) {
-    // content u64
-    (ConstEntry::Long, pos + U64_LEN, 2)
+fn parse_long_const(
+    data: &[u8],
+    pos: usize,
+) -> Result<(ConstEntry, usize, usize), DecompilerError> {
+    let (content, pos) = get_i64(data, pos)?;
+    Ok((ConstEntry::Long(content), pos, 2))
 }
-const fn parse_double_const(pos: usize) -> (ConstEntry, usize, usize) {
-    // content u64
-    (ConstEntry::Double, pos + U64_LEN, 2)
+fn parse_double_const(
+    data: &[u8],
+    pos: usize,
+) -> Result<(ConstEntry, usize, usize), DecompilerError> {
+    let (content, pos) = get_i64(data, pos)?;
+    Ok((ConstEntry::Double(content), pos, 2))
 }
 const fn parse_interface_method_ref_const(pos: usize) -> (ConstEntry, usize, usize) {
     // content 2 * u16
-    (ConstEntry::InterfaceMethodRef, pos + (U16_LEN + U16_LEN), 1)
+    (
+        ConstEntry::InterfaceMethodRef,
+        pos.saturating_add(U16_LEN + U16_LEN),
+        1,
+    )
 }
 const fn parse_name_and_type_const(pos: usize) -> (ConstEntry, usize, usize) {
     // content 2 * u16
-    (ConstEntry::NameAndType, pos + (U16_LEN + U16_LEN), 1)
+    (
+        ConstEntry::NameAndType,
+        pos.saturating_add(U16_LEN + U16_LEN),
+        1,
+    )
 }
 const fn parse_dynamic_const(pos: usize) -> (ConstEntry, usize, usize) {
     // content 2 * u16
-    (ConstEntry::Dynamic, pos + (U16_LEN + U16_LEN), 1)
+    (
+        ConstEntry::Dynamic,
+        pos.saturating_add(U16_LEN + U16_LEN),
+        1,
+    )
 }
 const fn parse_method_handle_const(pos: usize) -> (ConstEntry, usize, usize) {
     // content 2 * u16
-    (ConstEntry::MehthodHandle, pos + (U8_LEN + U16_LEN), 1)
+    (
+        ConstEntry::MehthodHandle,
+        pos.saturating_add(U8_LEN + U16_LEN),
+        1,
+    )
 }
 const fn parse_method_type_const(pos: usize) -> (ConstEntry, usize, usize) {
     // content 1 * u16
-    (ConstEntry::MethodType, pos + U16_LEN, 1)
+    (ConstEntry::MethodType, pos.saturating_add(U16_LEN), 1)
 }
 const fn parse_invoke_dynamic_const(pos: usize) -> (ConstEntry, usize, usize) {
     // content 2 * u16
-    (ConstEntry::InvokeDynamic, pos + (U16_LEN + U16_LEN), 1)
+    (
+        ConstEntry::InvokeDynamic,
+        pos.saturating_add(U16_LEN + U16_LEN),
+        1,
+    )
 }
 
-fn get_u8(data: &[u8], pos: usize) -> Result<(u8, usize), ClassParserError> {
+fn get_u8(data: &[u8], pos: usize) -> Result<(u8, usize), DecompilerError> {
     let Some(get) = data.get(pos) else {
-        return Err(ClassParserError::EOF);
+        return Err(DecompilerError::EOF);
     };
 
-    Ok((*get, pos + 1))
+    Ok((*get, pos.saturating_add(1)))
 }
-fn get_u16(data: &[u8], pos: usize) -> Result<(u16, usize), ClassParserError> {
-    let next = pos + 2;
-    let items = data.get(pos..next).ok_or(ClassParserError::EOF)?;
-    let get = <[u8; 2]>::try_from(items).map_err(|_| ClassParserError::Number)?;
+fn get_u16(data: &[u8], pos: usize) -> Result<(u16, usize), DecompilerError> {
+    let next = pos.saturating_add(2);
+    let items = data.get(pos..next).ok_or(DecompilerError::EOF)?;
+    let get = <[u8; 2]>::try_from(items).map_err(|_| DecompilerError::Number)?;
     let out = u16::from_be_bytes(get);
 
     Ok((out, next))
 }
-fn get_u32(data: &[u8], pos: usize) -> Result<(u32, usize), ClassParserError> {
-    let next = pos + 4;
-    let items = data.get(pos..next).ok_or(ClassParserError::EOF)?;
-    let get = <[u8; 4]>::try_from(items).map_err(|_| ClassParserError::Number)?;
+fn get_u32(data: &[u8], pos: usize) -> Result<(u32, usize), DecompilerError> {
+    let next = pos.saturating_add(4);
+    let items = data.get(pos..next).ok_or(DecompilerError::EOF)?;
+    let get = <[u8; 4]>::try_from(items).map_err(|_| DecompilerError::Number)?;
     let out = u32::from_be_bytes(get);
+
+    Ok((out, next))
+}
+fn get_i32(data: &[u8], pos: usize) -> Result<(i32, usize), DecompilerError> {
+    let next = pos.saturating_add(4);
+    let items = data.get(pos..next).ok_or(DecompilerError::EOF)?;
+    let get = <[u8; 4]>::try_from(items).map_err(|_| DecompilerError::Number)?;
+    let out = i32::from_be_bytes(get);
+
+    Ok((out, next))
+}
+fn get_i64(data: &[u8], pos: usize) -> Result<(i64, usize), DecompilerError> {
+    let next = pos.saturating_add(8);
+    let items = data.get(pos..next).ok_or(DecompilerError::EOF)?;
+    let get = <[u8; 8]>::try_from(items).map_err(|_| DecompilerError::Number)?;
+    let out = i64::from_be_bytes(get);
 
     Ok((out, next))
 }
 
 #[track_caller]
 #[inline]
-fn expect_data(data: &[u8], pos: usize, expected: &[u8]) -> Result<usize, ClassParserError> {
+fn expect_data(data: &[u8], pos: usize, expected: &[u8]) -> Result<usize, DecompilerError> {
     let len = expected.len();
-    let Some(get) = data.get(pos..pos + len) else {
-        return Err(ClassParserError::EOF);
+    let Some(get) = data.get(pos..pos.saturating_add(len)) else {
+        return Err(DecompilerError::EOF);
     };
 
     let cond = get != expected;
     if cond {
-        return Err(ClassParserError::NotAsExpected);
+        return Err(DecompilerError::NotAsExpected);
     }
-    Ok(pos + len)
+    Ok(pos.saturating_add(len))
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{decompile_class, load_module, parse_class_signature_info, parse_field_type};
+    use crate::{decompile_class, parse_class_signature_info, parse_field_type};
     use editorconfig::EditorConfigFilled;
     use expect_test::expect;
     use my_string::NuVec;
-    // #[test]
-    // fn a() {
-    //     use expect_test::expect;
-    //     use my_string::smol_str::SmolStr;
-    //
-    //     let result = load_class(
-    //         include_bytes!(
-    //             ""
-    //         ),
-    //         SmolStr::new("ch.emilycares.Everything"),
-    //         SourceDestination::None,
-    //         false,
-    //     );
-    //     let expected = expect![[""]];
-    //     expected.assert_debug_eq(&result.unwrap());
-    // }
 
     #[cfg(not(windows))]
     #[test]
@@ -1538,15 +1586,15 @@ mod tests {
             package ch.emilycares;
             public class Everything {
                 int noprop;
-                int publicproperty;
-                int privateproperty;
-                void <init>() {}
+                public int publicproperty;
+                private int privateproperty;
+                public void <init>() {}
                 void method() {}
-                void public_method() {}
-                void private_method() {}
+                public void public_method() {}
+                private void private_method() {}
                 int out() {}
                 int add(int a, int b) {}
-                int sadd(int a, int b) {}
+                static int sadd(int a, int b) {}
             }
         "]];
         expected.assert_eq(out);
@@ -1566,19 +1614,81 @@ mod tests {
             package ch.emilycares;
             public class Everything {
                 int noprop;
-                int publicproperty;
-                int privateproperty;
-                void <init>() {}
+                public int publicproperty;
+                private int privateproperty;
+                public void <init>() {}
                 void method() {}
-                void public_method() {}
-                void private_method() {}
+                public void public_method() {}
+                private void private_method() {}
                 int out() {}
                 int add(int a, int b) {}
-                int sadd(int a, int b) {}
+                static int sadd(int a, int b) {}
             }
         "]];
         expected.assert_eq(out);
     }
+
+    #[test]
+    fn constants() {
+        let ast = decompile_class(
+            include_bytes!("../../parser/test/Constants.class"),
+            &NuVec::new_static(b"ch.emilycares.Constants"),
+        )
+        .unwrap();
+        let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
+        let out = str::from_utf8(&formatted).unwrap();
+
+        let expected = expect![[r#"
+            package ch.emilycares;
+            import java.net.Socket;
+            import java.lang.String;
+            public abstract class Constants {
+                public static final java.lang.String CONSTANT_A = "A";
+                public static final java.lang.String CONSTANT_B = "B";
+                public static final java.lang.String CONSTANT_C = "C";
+                public abstract void display() {}
+                public abstract java.net.Socket createSocket(java.lang.String hostname, int port) throws java.io.IOException {}
+            }
+        "#]];
+        expected.assert_eq(out);
+    }
+
+    #[test]
+    fn types() {
+        let ast = decompile_class(
+            include_bytes!("../../parser/test/Types.class"),
+            &NuVec::new_static(b"ch.emilycares.Types"),
+        )
+        .unwrap();
+        let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
+        let out = str::from_utf8(&formatted).unwrap();
+
+        let expected = expect![[r"
+            package ch.emilycares;
+            import java.util.Map;
+            import java.util.List;
+            import java.lang.String;
+            import java.util.logging.Logger;
+            public class Types {
+                java.util.logging.Logger LOG;
+                boolean IS_ACTIVE;
+                byte one_byte;
+                int one_int;
+                short one_short;
+                long one_long;
+                double one_double;
+                float one_float;
+                char one_char;
+                java.lang.String one_string;
+                java.util.List one_list;
+                java.util.Map one_map;
+                public void <init>() {}
+                public static void main(java.lang.String[] ) {}
+            }
+        "]];
+        expected.assert_eq(out);
+    }
+
     #[test]
     fn super_base() {
         let ast = decompile_class(
@@ -1592,7 +1702,7 @@ mod tests {
         let expected = expect![[r"
             package ch.emilycares;
             public class Super {
-                void <init>() {}
+                public void <init>() {}
             }
         "]];
         expected.assert_eq(out);
@@ -1609,9 +1719,9 @@ mod tests {
         let expected = expect![[r"
             package ch.emilycares;
             public class Thrower {
-                void <init>() {}
-                void ioThrower() throws java.io.IOException {}
-                void ioThrower(int a) throws java.io.IOException, java.io.IOException {}
+                public void <init>() {}
+                public void ioThrower() throws java.io.IOException {}
+                public void ioThrower(int a) throws java.io.IOException, java.io.IOException {}
             }
         "]];
         expected.assert_eq(out);
@@ -1628,8 +1738,9 @@ mod tests {
 
         let expected = expect![[r"
             package ch.emilycares;
+            import java.util.stream.Stream;
             public abstract class SuperInterface {
-                java.util.stream.Stream<E> stream() {}
+                public java.util.stream.Stream<E> stream() {}
             }
         "]];
         expected.assert_eq(out);
@@ -1647,11 +1758,12 @@ mod tests {
         let expected = expect![[r"
             package ch.emilycares;
             import java.util.HashMap;
+            import java.util.HashSet;
             public class LocalVariableTable {
-                java.util.HashSet a;
-                void <init>() {}
-                void hereIsCode() {}
-                int hereIsCode(int a, int b) {}
+                private java.util.HashSet a;
+                public void <init>() {}
+                public void hereIsCode() {}
+                public int hereIsCode(int a, int b) {}
             }
         "]];
         expected.assert_eq(out);
@@ -1668,103 +1780,22 @@ mod tests {
 
         let expected = expect![[r"
             package ch.emilycares;
-            public final class Variants {
-                ch.emilycares.Variants A;
-                ch.emilycares.Variants B;
-                ch.emilycares.Variants C;
-                java.lang.String tag;
-                ch.emilycares.Variants[] $VALUES;
-                ch.emilycares.Variants[] values() {}
-                ch.emilycares.Variants valueOf(java.lang.String name) {}
-                void <init>(java.lang.String $enum$name) {}
-                java.lang.String getTag() {}
-                ch.emilycares.Variants[] $values() {}
-                void <clinit>() {}
+            import java.lang.String;
+            public final enum Variants {
+                public static final ch.emilycares.Variants A;
+                public static final ch.emilycares.Variants B;
+                public static final ch.emilycares.Variants C;
+                private final java.lang.String tag;
+                private static final ch.emilycares.Variants[] $VALUES;
+                public static ch.emilycares.Variants[] values() {}
+                public static ch.emilycares.Variants valueOf(java.lang.String name) {}
+                private void <init>(java.lang.String $enum$name) {}
+                public java.lang.String getTag() {}
+                private static ch.emilycares.Variants[] $values() {}
+                static void <clinit>() {}
             }
         "]];
         expected.assert_eq(out);
-    }
-
-    #[test]
-    fn module_java_desktop() {
-        let result = load_module(include_bytes!(
-            "../../parser/test/module-info-java-desktop.class"
-        ));
-        let expected = expect![[r#"
-            ModuleInfo {
-                exports: [
-                    "java/desktop",
-                    "java/applet",
-                    "java/awt",
-                    "java/awt/color",
-                    "java/awt/desktop",
-                    "java/awt/dnd",
-                    "java/awt/event",
-                    "java/awt/font",
-                    "java/awt/geom",
-                    "java/awt/im",
-                    "java/awt/im/spi",
-                    "java/awt/image",
-                    "java/awt/image/renderable",
-                    "java/awt/print",
-                    "java/beans",
-                    "java/beans/beancontext",
-                    "javax/accessibility",
-                    "javax/imageio",
-                    "javax/imageio/event",
-                    "javax/imageio/metadata",
-                    "javax/imageio/plugins/bmp",
-                    "javax/imageio/plugins/jpeg",
-                    "javax/imageio/plugins/tiff",
-                    "javax/imageio/spi",
-                    "javax/imageio/stream",
-                    "javax/print",
-                    "javax/print/attribute",
-                    "javax/print/attribute/standard",
-                    "javax/print/event",
-                    "javax/sound",
-                    "javax/sound/midi",
-                    "javax/sound/midi/spi",
-                    "javax/sound/sampled",
-                    "javax/sound/sampled/spi",
-                    "javax/swing",
-                    "javax/swing/border",
-                    "javax/swing/colorchooser",
-                    "javax/swing/event",
-                    "javax/swing/filechooser",
-                    "javax/swing/plaf",
-                    "javax/swing/plaf/basic",
-                    "javax/swing/plaf/metal",
-                    "javax/swing/plaf/multi",
-                    "javax/swing/plaf/nimbus",
-                    "javax/swing/plaf/synth",
-                    "javax/swing/table",
-                    "javax/swing/text",
-                    "javax/swing/text/html",
-                    "javax/swing/text/html/parser",
-                    "javax/swing/text/rtf",
-                    "javax/swing/tree",
-                    "javax/swing/undo",
-                ],
-            }
-        "#]];
-        expected.assert_debug_eq(&result.unwrap());
-    }
-
-    #[test]
-    fn module_jakarta() {
-        let result = load_module(include_bytes!(
-            "../../parser/test/module-info-jakarta.class"
-        ));
-        let expected = expect![[r#"
-            ModuleInfo {
-                exports: [
-                    "jakarta/inject",
-                    "jakarta/inject",
-                ],
-            }
-        "#]];
-        expected.assert_debug_eq(&result.unwrap());
     }
 
     #[test]

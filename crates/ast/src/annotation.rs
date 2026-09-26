@@ -99,7 +99,7 @@ pub fn parse_annotation_field(
             }
             _ => break,
         }
-        pos += 1;
+        pos = pos.saturating_add(1);
     }
     let (jtype, pos) = parse_jtype(tokens, pos)?;
     let (name, mut pos) = parse_name(tokens, pos)?;

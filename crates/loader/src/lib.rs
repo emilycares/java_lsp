@@ -403,15 +403,15 @@ pub async fn base_load_classes_zip(
 }
 
 #[derive(Debug)]
-pub enum DecompilerError {
+pub enum LoaderDecompilerError {
     IO(std::io::Error),
     Zip {
         e: rc_zip_tokio::rc_zip::error::Error,
         path: String,
     },
-    ClassParserError(ClassParserError),
     Module(ClassParserError),
     Formatter(FormatError),
+    Decompiler(decompiler::DecompilerError),
 }
 
 pub async fn base_decompile_classes_zip(
@@ -419,12 +419,15 @@ pub async fn base_decompile_classes_zip(
     extract_dir: PathBuf,
     buf: Vec<u8>,
     trim_prefix: Option<&NuVec>,
-) -> Result<(), DecompilerError> {
+) -> Result<(), LoaderDecompilerError> {
     eprintln!("decompiling: {source}");
-    let zip = buf.read_zip().await.map_err(|e| DecompilerError::Zip {
-        e,
-        path: source.to_string(),
-    })?;
+    let zip = buf
+        .read_zip()
+        .await
+        .map_err(|e| LoaderDecompilerError::Zip {
+            e,
+            path: source.to_string(),
+        })?;
 
     // Prefix for module info
     let mut rules: Vec<(String, ModuleInfo)> = Vec::new();
@@ -435,13 +438,13 @@ pub async fn base_decompile_classes_zip(
             && file_name.ends_with("module-info.class")
         {
             let prefix = file_name.trim_end_matches("module-info.class");
-            let buf = entry.bytes().await.map_err(DecompilerError::IO)?;
+            let buf = entry.bytes().await.map_err(LoaderDecompilerError::IO)?;
             match load_module(buf.as_slice()) {
                 Ok(c) => {
                     rules.push((prefix.to_string(), c));
                 }
                 Err(e) => {
-                    return Err(DecompilerError::Module(e));
+                    return Err(LoaderDecompilerError::Module(e));
                 }
             }
         }
@@ -454,15 +457,15 @@ pub async fn base_decompile_classes_zip(
         if matches!(entry.kind(), EntryKind::Directory) {
             let path = extract_dir.join(file_name);
             if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent).map_err(DecompilerError::IO)?;
+                std::fs::create_dir_all(parent).map_err(LoaderDecompilerError::IO)?;
             }
             continue;
         }
         let ext = Path::new(file_name).extension();
         if ext.is_some_and(|e| e.eq_ignore_ascii_case("jar")) {
-            let buf = entry.bytes().await.map_err(DecompilerError::IO)?;
+            let buf = entry.bytes().await.map_err(LoaderDecompilerError::IO)?;
             let path = extract_dir.join(file_name);
-            std::fs::create_dir_all(&path).map_err(DecompilerError::IO)?;
+            std::fs::create_dir_all(&path).map_err(LoaderDecompilerError::IO)?;
             Box::pin(base_decompile_classes_zip(file_name, path, buf, None)).await?;
             continue;
         }
@@ -491,21 +494,21 @@ pub async fn base_decompile_classes_zip(
             class_path = class_path.replace(trim_prefix.as_bytes(), b"");
         }
 
-        let buf = entry.bytes().await.map_err(DecompilerError::IO)?;
+        let buf = entry.bytes().await.map_err(LoaderDecompilerError::IO)?;
 
         let ast = decompiler::decompile_class(&buf, &class_path)
-            .map_err(DecompilerError::ClassParserError)?;
+            .map_err(LoaderDecompilerError::Decompiler)?;
         let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default())
-            .map_err(DecompilerError::Formatter)?;
+            .map_err(LoaderDecompilerError::Formatter)?;
 
         let path = extract_dir.join(file_name);
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(DecompilerError::IO)?;
+            std::fs::create_dir_all(parent).map_err(LoaderDecompilerError::IO)?;
         }
-        let mut entry_writer = File::create(path).map_err(DecompilerError::IO)?;
+        let mut entry_writer = File::create(path).map_err(LoaderDecompilerError::IO)?;
         entry_writer
             .write(&formatted)
-            .map_err(DecompilerError::IO)?;
+            .map_err(LoaderDecompilerError::IO)?;
     }
 
     Ok(())

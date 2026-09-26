@@ -2,6 +2,7 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::nursery)]
 #![deny(clippy::perf)]
+#![deny(clippy::arithmetic_side_effects)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
 

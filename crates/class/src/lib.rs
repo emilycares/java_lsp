@@ -1,6 +1,7 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::nursery)]
 #![deny(clippy::perf)]
+#![deny(clippy::arithmetic_side_effects)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
 //! A minimal class file parser.
@@ -357,7 +358,7 @@ fn parse_method_parameters_attribute_inner(
     pos: usize,
 ) -> Result<(MethodParametersAttribute, usize), ClassParserError> {
     let (name_index, pos) = get_u16(data, pos)?;
-    let pos = pos + 2;
+    let pos = pos.saturating_add(2);
     Ok((MethodParametersAttribute { name_index }, pos))
 }
 
@@ -390,7 +391,7 @@ fn parse_method_signature_info(sig: &NuVec) -> Result<(MethodSignature, usize), 
                     break;
                 }
                 arg.push(*v);
-                pos += 1;
+                pos = pos.saturating_add(1);
             }
             args.push(arg.finish());
             let npos = assert_char(content, pos, b':')?;
@@ -443,7 +444,7 @@ fn parse_class_signature_info(sig: &NuVec) -> Result<(ClassSignature, usize), Cl
                     break;
                 }
                 arg.push(*v);
-                pos += 1;
+                pos = pos.saturating_add(1);
             }
             args.push(arg.finish());
             let npos = assert_char(content, pos, b':')?;
@@ -489,7 +490,7 @@ fn assert_char(content: &[u8], pos: usize, p: u8) -> Result<usize, ClassParserEr
         return Err(ClassParserError::ExpectedOther);
     }
 
-    Ok(pos + 1)
+    Ok(pos.saturating_add(1))
 }
 
 struct CodeAttribute {
@@ -541,12 +542,12 @@ fn parse_local_variable_table_attribute(
     let mut pos = pos;
 
     for _ in 0..table_length {
-        pos += 3 * U16_LEN;
+        pos = pos.saturating_add(3 * U16_LEN);
         let (descriptor_index, npos) = get_u16(data, pos)?;
         pos = npos;
         out.push(descriptor_index);
         // skip u16
-        pos += U16_LEN;
+        pos = pos.saturating_add(U16_LEN);
     }
 
     Ok((out, pos))
@@ -641,17 +642,17 @@ fn parse_param_types(content: &[u8], pos: usize) -> Result<(usize, Vec<JType>), 
 fn parse_field_type(content: &[u8], pos: usize) -> Result<(JType, usize), ClassParserError> {
     let c = content.get(pos).ok_or(ClassParserError::EOF)?;
     match c {
-        b'B' => Ok((JType::Byte, pos + 1)),
-        b'C' => Ok((JType::Char, pos + 1)),
-        b'D' => Ok((JType::Double, pos + 1)),
-        b'F' => Ok((JType::Float, pos + 1)),
-        b'I' => Ok((JType::Int, pos + 1)),
-        b'J' => Ok((JType::Long, pos + 1)),
-        b'S' => Ok((JType::Short, pos + 1)),
-        b'Z' => Ok((JType::Boolean, pos + 1)),
-        b'V' => Ok((JType::Void, pos + 1)),
+        b'B' => Ok((JType::Byte, pos.saturating_add(1))),
+        b'C' => Ok((JType::Char, pos.saturating_add(1))),
+        b'D' => Ok((JType::Double, pos.saturating_add(1))),
+        b'F' => Ok((JType::Float, pos.saturating_add(1))),
+        b'I' => Ok((JType::Int, pos.saturating_add(1))),
+        b'J' => Ok((JType::Long, pos.saturating_add(1))),
+        b'S' => Ok((JType::Short, pos.saturating_add(1))),
+        b'Z' => Ok((JType::Boolean, pos.saturating_add(1))),
+        b'V' => Ok((JType::Void, pos.saturating_add(1))),
         b'T' => {
-            let mut pos = pos + 1;
+            let mut pos = pos.saturating_add(1);
             let mut param = NuVecBuilder::new();
             loop {
                 let v = content.get(pos).ok_or(ClassParserError::EOF)?;
@@ -659,17 +660,17 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(JType, usize), ClassP
                     break;
                 }
                 param.push(*v);
-                pos += 1;
+                pos = pos.saturating_add(1);
             }
             Ok((JType::Parameter(param.finish()), pos))
         }
         b'L' => {
-            let pos = pos + 1;
+            let pos = pos.saturating_add(1);
             let (mut pos, mut out) = parse_jtype_class_name(content, pos)?;
             while let Some(next) = content.get(pos)
                 && next == &b'.'
             {
-                let (npos, inner) = parse_jtype_class_name(content, pos + 1)?;
+                let (npos, inner) = parse_jtype_class_name(content, pos.saturating_add(1))?;
                 pos = npos;
                 out = JType::Access {
                     base: Box::new(out),
@@ -679,7 +680,7 @@ fn parse_field_type(content: &[u8], pos: usize) -> Result<(JType, usize), ClassP
             Ok((out, pos))
         }
         b'[' => {
-            let (inner, npos) = parse_field_type(content, pos + 1)?;
+            let (inner, npos) = parse_field_type(content, pos.saturating_add(1))?;
             Ok((JType::Array(Box::new(inner)), npos))
         }
         _ => {
@@ -697,7 +698,7 @@ fn parse_jtype_class_name(
     let mut args = Vec::new();
     while let Some(c) = content.get(pos) {
         if c == &b'<' {
-            pos += 1;
+            pos = pos.saturating_add(1);
             if let Ok(npos) = assert_char(content, pos, b'+') {
                 pos = npos;
             }
@@ -749,11 +750,11 @@ fn parse_jtype_class_name(
             break;
         }
         if c == &b';' {
-            pos += 1;
+            pos = pos.saturating_add(1);
             break;
         }
         class_name.push(*c);
-        pos += 1;
+        pos = pos.saturating_add(1);
     }
     let class_name = class_name.finish().replace_byte(b'/', b'.');
     if !args.is_empty() {
@@ -799,7 +800,7 @@ fn parse_module_attribute(
     pos: usize,
 ) -> Result<(ModuleAttribute, usize), ClassParserError> {
     let (name_index, pos) = get_u16(data, pos)?;
-    let pos = pos + (U16_LEN + U16_LEN);
+    let pos = pos.saturating_add(U16_LEN + U16_LEN);
 
     let (requires_count, pos) = get_u16(data, pos)?;
     let pos = pos.saturating_add((requires_count as usize).saturating_mul(6));
@@ -831,7 +832,7 @@ fn parse_module_exports(
     pos: usize,
 ) -> Result<(ModuleExportsAttribute, usize), ClassParserError> {
     let (exports_index, pos) = get_u16(data, pos)?;
-    let pos = pos + U16_LEN;
+    let pos = pos.saturating_add(U16_LEN);
     let (count, pos) = get_u16(data, pos)?;
     let mut exports_to_index = Vec::with_capacity(count as usize);
     let mut pos = pos;
@@ -877,12 +878,12 @@ fn lookup_string_inner(c: &Base, index: u16, depth: u8) -> Result<NuVec, ClassPa
     if index == 0 {
         return Err(ClassParserError::StringIndexZero);
     }
-    let con = &c.const_pool.pool.get((index - 1) as usize);
+    let con = &c.const_pool.pool.get((index.saturating_sub(1)) as usize);
     match con {
         Some(ConstEntry::Utf8(utf8)) => Ok(utf8.clone()),
         Some(
             ConstEntry::Module { name } | ConstEntry::Package { name } | ConstEntry::Class { name },
-        ) => lookup_string_inner(c, *name, depth + 1),
+        ) => lookup_string_inner(c, *name, depth.saturating_add(1)),
         _ => Err(ClassParserError::ExpectedString),
     }
 }
@@ -928,7 +929,7 @@ fn parser_base(data: &[u8], pos: usize) -> Result<(Base, usize), ClassParserErro
     let pos = expect_data(data, pos, &[0xCA, 0xFE, 0xBA, 0xBE])
         .map_err(|_| ClassParserError::NotAClass)?;
 
-    let pos = pos + (U16_LEN + U16_LEN);
+    let pos = pos.saturating_add(U16_LEN + U16_LEN);
 
     let (const_pool, pos) = parse_const_pool(data, pos)?;
 
@@ -1156,7 +1157,7 @@ fn parse_const_pool(data: &[u8], pos: usize) -> Result<(ConstPool, usize), Class
             pool.push(ConstEntry::Empty);
         }
 
-        idx += len;
+        idx = idx.saturating_add(len);
     }
     Ok((ConstPool { pool }, pos))
 }
@@ -1215,7 +1216,7 @@ fn parse_utf8_const(
 ) -> Result<(ConstEntry, usize, usize), ClassParserError> {
     let (len, pos) = get_u16(data, pos)?;
     let len = len as usize;
-    let end = pos + len;
+    let end = pos.saturating_add(len);
     let inner = data.get(pos..end).ok_or(ClassParserError::EOF)?;
     let mu = mutf8::mutf8_to_utf8(inner).map_err(|_| ClassParserError::Mutf8)?;
     Ok((ConstEntry::Utf8(NuVec::new(&mu)), end, 1))
@@ -1251,52 +1252,80 @@ fn parse_package_const(
 }
 const fn parse_field_ref_const(pos: usize) -> (ConstEntry, usize, usize) {
     // content 2 * u16
-    (ConstEntry::FieldRef, pos + (U16_LEN + U16_LEN), 1)
+    (
+        ConstEntry::FieldRef,
+        pos.saturating_add(U16_LEN + U16_LEN),
+        1,
+    )
 }
 
 const fn parse_method_ref_const(pos: usize) -> (ConstEntry, usize, usize) {
     // content 2 * u16
-    (ConstEntry::MethodRef, pos + (U16_LEN + U16_LEN), 1)
+    (
+        ConstEntry::MethodRef,
+        pos.saturating_add(U16_LEN + U16_LEN),
+        1,
+    )
 }
 const fn parse_integer_const(pos: usize) -> (ConstEntry, usize, usize) {
     // content u32
-    (ConstEntry::Integer, pos + U32_LEN, 1)
+    (ConstEntry::Integer, pos.saturating_add(U32_LEN), 1)
 }
 const fn parse_float_const(pos: usize) -> (ConstEntry, usize, usize) {
     // content u32
-    (ConstEntry::Float, pos + U32_LEN, 1)
+    (ConstEntry::Float, pos.saturating_add(U32_LEN), 1)
 }
 const fn parse_long_const(pos: usize) -> (ConstEntry, usize, usize) {
     // content u64
-    (ConstEntry::Long, pos + U64_LEN, 2)
+    (ConstEntry::Long, pos.saturating_add(U64_LEN), 2)
 }
 const fn parse_double_const(pos: usize) -> (ConstEntry, usize, usize) {
     // content u64
-    (ConstEntry::Double, pos + U64_LEN, 2)
+    (ConstEntry::Double, pos.saturating_add(U64_LEN), 2)
 }
 const fn parse_interface_method_ref_const(pos: usize) -> (ConstEntry, usize, usize) {
     // content 2 * u16
-    (ConstEntry::InterfaceMethodRef, pos + (U16_LEN + U16_LEN), 1)
+    (
+        ConstEntry::InterfaceMethodRef,
+        pos.saturating_add(U16_LEN + U16_LEN),
+        1,
+    )
 }
 const fn parse_name_and_type_const(pos: usize) -> (ConstEntry, usize, usize) {
     // content 2 * u16
-    (ConstEntry::NameAndType, pos + (U16_LEN + U16_LEN), 1)
+    (
+        ConstEntry::NameAndType,
+        pos.saturating_add(U16_LEN + U16_LEN),
+        1,
+    )
 }
 const fn parse_dynamic_const(pos: usize) -> (ConstEntry, usize, usize) {
     // content 2 * u16
-    (ConstEntry::Dynamic, pos + (U16_LEN + U16_LEN), 1)
+    (
+        ConstEntry::Dynamic,
+        pos.saturating_add(U16_LEN + U16_LEN),
+        1,
+    )
 }
 const fn parse_method_handle_const(pos: usize) -> (ConstEntry, usize, usize) {
     // content 2 * u16
-    (ConstEntry::MehthodHandle, pos + (U8_LEN + U16_LEN), 1)
+    (
+        ConstEntry::MehthodHandle,
+        pos.saturating_add(U8_LEN + U16_LEN),
+        1,
+    )
 }
 const fn parse_method_type_const(pos: usize) -> (ConstEntry, usize, usize) {
     // content 1 * u16
-    (ConstEntry::MethodType, pos + U16_LEN, 1)
+    (ConstEntry::MethodType, pos.saturating_add(U16_LEN), 1)
 }
 const fn parse_invoke_dynamic_const(pos: usize) -> (ConstEntry, usize, usize) {
     // content 2 * u16
-    (ConstEntry::InvokeDynamic, pos + (U16_LEN + U16_LEN), 1)
+    (
+        ConstEntry::InvokeDynamic,
+        pos.saturating_add(U16_LEN + U16_LEN),
+        1,
+    )
 }
 
 fn get_u8(data: &[u8], pos: usize) -> Result<(u8, usize), ClassParserError> {
@@ -1304,10 +1333,10 @@ fn get_u8(data: &[u8], pos: usize) -> Result<(u8, usize), ClassParserError> {
         return Err(ClassParserError::EOF);
     };
 
-    Ok((*get, pos + 1))
+    Ok((*get, pos.saturating_add(1)))
 }
 fn get_u16(data: &[u8], pos: usize) -> Result<(u16, usize), ClassParserError> {
-    let next = pos + 2;
+    let next = pos.saturating_add(2);
     let items = data.get(pos..next).ok_or(ClassParserError::EOF)?;
     let get = <[u8; 2]>::try_from(items).map_err(|_| ClassParserError::Number)?;
     let out = u16::from_be_bytes(get);
@@ -1315,7 +1344,7 @@ fn get_u16(data: &[u8], pos: usize) -> Result<(u16, usize), ClassParserError> {
     Ok((out, next))
 }
 fn get_u32(data: &[u8], pos: usize) -> Result<(u32, usize), ClassParserError> {
-    let next = pos + 4;
+    let next = pos.saturating_add(4);
     let items = data.get(pos..next).ok_or(ClassParserError::EOF)?;
     let get = <[u8; 4]>::try_from(items).map_err(|_| ClassParserError::Number)?;
     let out = u32::from_be_bytes(get);
@@ -1327,7 +1356,8 @@ fn get_u32(data: &[u8], pos: usize) -> Result<(u32, usize), ClassParserError> {
 #[inline]
 fn expect_data(data: &[u8], pos: usize, expected: &[u8]) -> Result<usize, ClassParserError> {
     let len = expected.len();
-    let Some(get) = data.get(pos..pos + len) else {
+    let end = pos.saturating_add(len);
+    let Some(get) = data.get(pos..end) else {
         return Err(ClassParserError::EOF);
     };
 
@@ -1335,7 +1365,7 @@ fn expect_data(data: &[u8], pos: usize, expected: &[u8]) -> Result<usize, ClassP
     if cond {
         return Err(ClassParserError::NotAsExpected);
     }
-    Ok(pos + len)
+    Ok(end)
 }
 
 #[cfg(test)]
@@ -1988,6 +2018,189 @@ mod tests {
                         name: "a",
                         jtype: Class(
                             "java.util.HashSet",
+                        ),
+                        source: None,
+                    },
+                ],
+                super_class: None,
+                super_interfaces: [],
+            }
+        "#]];
+        expected.assert_debug_eq(&result.unwrap());
+    }
+    #[test]
+    fn types() {
+        let result = load_class(
+            include_bytes!("../../parser/test/Types.class"),
+            NuVec::new_static(b"ch.emilycares.Types"),
+            SourceDestination::None,
+            false,
+        );
+
+        let expected = expect![[r#"
+            Class {
+                class_path: "ch.emilycares.Types",
+                source: None,
+                access: Access(
+                    Public | Super,
+                ),
+                imports: [
+                    Package(
+                        "ch.emilycares",
+                    ),
+                    Class(
+                        "java.lang.String",
+                    ),
+                    Class(
+                        "java.util.logging.Logger",
+                    ),
+                    Class(
+                        "java.lang.String",
+                    ),
+                    Class(
+                        "java.util.List",
+                    ),
+                    Class(
+                        "java.util.Map",
+                    ),
+                ],
+                signature: None,
+                name: "Types",
+                methods: [
+                    Method {
+                        access: Access(
+                            Public,
+                        ),
+                        name: None,
+                        parameters: [],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                    Method {
+                        access: Access(
+                            Public | Static,
+                        ),
+                        name: Some(
+                            "main",
+                        ),
+                        parameters: [
+                            Parameter {
+                                name: None,
+                                jtype: Array(
+                                    Class(
+                                        "java.lang.String",
+                                    ),
+                                ),
+                            },
+                        ],
+                        throws: [],
+                        ret: Void,
+                        source: None,
+                    },
+                ],
+                fields: [
+                    Field {
+                        access: Access(
+                            0x0,
+                        ),
+                        name: "LOG",
+                        jtype: Class(
+                            "java.util.logging.Logger",
+                        ),
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            0x0,
+                        ),
+                        name: "IS_ACTIVE",
+                        jtype: Boolean,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            0x0,
+                        ),
+                        name: "one_byte",
+                        jtype: Byte,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            0x0,
+                        ),
+                        name: "one_int",
+                        jtype: Int,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            0x0,
+                        ),
+                        name: "one_short",
+                        jtype: Short,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            0x0,
+                        ),
+                        name: "one_long",
+                        jtype: Long,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            0x0,
+                        ),
+                        name: "one_double",
+                        jtype: Double,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            0x0,
+                        ),
+                        name: "one_float",
+                        jtype: Float,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            0x0,
+                        ),
+                        name: "one_char",
+                        jtype: Char,
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            0x0,
+                        ),
+                        name: "one_string",
+                        jtype: Class(
+                            "java.lang.String",
+                        ),
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            0x0,
+                        ),
+                        name: "one_list",
+                        jtype: Class(
+                            "java.util.List",
+                        ),
+                        source: None,
+                    },
+                    Field {
+                        access: Access(
+                            0x0,
+                        ),
+                        name: "one_map",
+                        jtype: Class(
+                            "java.util.Map",
                         ),
                         source: None,
                     },

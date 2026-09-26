@@ -16,7 +16,6 @@ pub fn capitalize_first(s: &NuVec) -> NuVec {
 }
 /// A [`u8`] with a bunch of niches.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[repr(u8)]
 pub enum InlineSize {
     _V0 = 0,

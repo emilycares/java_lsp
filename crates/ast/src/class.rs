@@ -113,7 +113,7 @@ pub fn parse_class_block(
         let current = tokens.start(pos)?;
         match &current.token {
             Token::Semicolon => {
-                pos += 1;
+                pos = pos.saturating_add(1);
                 continue;
             }
             Token::Static => match parse_static_block(tokens, pos) {
@@ -267,7 +267,7 @@ pub fn parse_class_variable(
             }
             _ => break,
         }
-        pos += 1;
+        pos = pos.saturating_add(1);
     }
     let mut out = vec![];
     let (jtype, pos) = parse_jtype(tokens, pos)?;

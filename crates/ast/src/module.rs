@@ -191,7 +191,7 @@ fn parse_requires(
             Token::Static => flags |= AstModuleRequiresFlags::Static,
             _ => break,
         }
-        pos += 1;
+        pos = pos.saturating_add(1);
     }
     let (name, pos) = parse_name_dot_logical(tokens, pos)?;
     let pos = assert_semicolon(tokens, pos)?;

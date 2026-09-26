@@ -144,14 +144,13 @@
 use std::{
     collections::HashMap,
     convert::TryInto,
-    env, fmt, fs, mem,
+    env::{self},
+    fmt, fs, mem,
     ops::Range,
     panic,
     path::{Path, PathBuf},
-    sync::Mutex,
+    sync::{Mutex, OnceLock},
 };
-
-use once_cell::sync::{Lazy, OnceCell};
 
 const HELP: &str = "
 You can update all `expect!` tests by running:
@@ -282,7 +281,7 @@ impl Expect {
         if trimmed == actual {
             return;
         }
-        Runtime::fail_expect(self, &trimmed, actual);
+        Runtime::fail_expect(self, actual);
     }
     /// Checks if this expect is equal to `format!("{:#?}", actual)`.
     pub fn assert_debug_eq(&self, actual: &impl fmt::Debug) {
@@ -441,7 +440,7 @@ impl ExpectFile {
         if actual == expected {
             return;
         }
-        Runtime::fail_file(self, &expected, actual);
+        Runtime::fail_file(self, actual);
     }
     /// Checks if file contents is equal to `format!("{:#?}", actual)`.
     pub fn assert_debug_eq(&self, actual: &impl fmt::Debug) {
@@ -472,35 +471,39 @@ struct Runtime {
     help_printed: bool,
     per_file: HashMap<&'static str, FileRuntime>,
 }
-static RT: Lazy<Mutex<Runtime>> = Lazy::new(Default::default);
+static RT: OnceLock<Mutex<Runtime>> = OnceLock::new();
 
 impl Runtime {
-    fn fail_expect(expect: &Expect, expected: &str, actual: &str) {
-        let mut rt = RT.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    fn fail_expect(expect: &Expect, actual: &str) {
+        let rt = RT.get_or_init(Default::default);
         if update_expect() {
-            println!("\x1b[1m\x1b[92mupdating\x1b[0m: {}", expect.position);
-            rt.per_file
-                .entry(expect.position.file)
-                .or_insert_with(|| FileRuntime::new(expect))
-                .update(expect, actual);
+            if let Ok(mut rt) = rt.lock() {
+                println!("\x1b[1m\x1b[92mupdating\x1b[0m: {}", expect.position);
+                rt.per_file
+                    .entry(expect.position.file)
+                    .or_insert_with(|| FileRuntime::new(expect))
+                    .update(expect, actual);
+            }
             return;
         }
-        rt.panic(expect.position.to_string(), expected, actual);
+        if let Ok(mut rt) = rt.lock() {
+            rt.panic(expect.position.to_string(), actual);
+        }
     }
-    fn fail_file(expect: &ExpectFile, expected: &str, actual: &str) {
-        let mut rt = RT.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    fn fail_file(expect: &ExpectFile, actual: &str) {
+        let rt = RT.get_or_init(Default::default);
         if update_expect() {
             println!("\x1b[1m\x1b[92mupdating\x1b[0m: {}", expect.path.display());
             expect.write(actual);
             return;
         }
-        rt.panic(expect.path.display().to_string(), expected, actual);
+        if let Ok(mut rt) = rt.lock() {
+            rt.panic(expect.path.display().to_string(), actual);
+        }
     }
-    fn panic(&mut self, position: String, expected: &str, actual: &str) {
+    fn panic(&mut self, position: String, actual: &str) {
         let print_help = !mem::replace(&mut self.help_printed, true);
         let help = if print_help { HELP } else { "" };
-
-        let diff = dissimilar::diff(expected, actual);
 
         println!(
             "\n
@@ -512,7 +515,7 @@ impl Runtime {
 ",
             position,
             help,
-            format_chunks(diff)
+            format_output(actual)
         );
         // Use resume_unwind instead of panic!() to prevent a backtrace, which is unnecessary noise.
         panic::resume_unwind(Box::new(()));
@@ -595,7 +598,7 @@ fn lit_kind_for_patch(patch: &str) -> StrLitKind {
     if !has_dquote {
         let has_bslash_or_newline = patch.chars().any(|c| matches!(c, '\\' | '\n'));
         return if has_bslash_or_newline {
-            StrLitKind::Raw(1)
+            StrLitKind::Raw(0)
         } else {
             StrLitKind::Normal
         };
@@ -623,19 +626,18 @@ fn format_patch(desired_indent: Option<usize>, patch: &str) -> String {
     }
     let mut final_newline = false;
     for line in lines_with_ends(patch) {
-        if is_multiline && !line.trim().is_empty() {
-            if let Some(indent) = &indent {
-                buf.push_str(indent);
-                buf.push_str("    ");
-            }
+        if is_multiline
+            && !line.trim().is_empty()
+            && let Some(indent) = &indent
+        {
+            buf.push_str(indent);
+            buf.push_str("    ");
         }
         buf.push_str(line);
         final_newline = line.ends_with('\n');
     }
-    if final_newline {
-        if let Some(indent) = &indent {
-            buf.push_str(indent);
-        }
+    if final_newline && let Some(indent) = &indent {
+        buf.push_str(indent);
     }
     lit_kind.write_end(&mut buf).unwrap();
     if matches!(lit_kind, StrLitKind::Raw(_)) {
@@ -648,35 +650,22 @@ fn to_abs_ws_path(path: &Path) -> PathBuf {
     if path.is_absolute() {
         return path.to_owned();
     }
+    if let Ok(workspace_root) = env::var("CARGO_WORKSPACE_DIR") {
+        // return Ok(workspace_root.into());
+        return Into::<PathBuf>::into(workspace_root).join(path);
+    }
 
-    static WORKSPACE_ROOT: OnceCell<PathBuf> = OnceCell::new();
-    WORKSPACE_ROOT
-        .get_or_try_init(|| {
-            // Until https://github.com/rust-lang/cargo/issues/3946 is resolved, this
-            // is set with a hack like https://github.com/rust-lang/cargo/issues/3946#issuecomment-973132993
-            if let Ok(workspace_root) = env::var("CARGO_WORKSPACE_DIR") {
-                return Ok(workspace_root.into());
-            }
+    // If a hack isn't used, we use a heuristic to find the "top-level" workspace.
+    // This fails in some cases, see https://github.com/rust-analyzer/expect-test/issues/33
+    let my_manifest = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let workspace_root = Path::new(&my_manifest)
+        .ancestors()
+        .filter(|it| it.join("Cargo.toml").exists())
+        .last()
+        .unwrap()
+        .to_path_buf();
 
-            // If a hack isn't used, we use a heuristic to find the "top-level" workspace.
-            // This fails in some cases, see https://github.com/rust-analyzer/expect-test/issues/33
-            let my_manifest = env::var("CARGO_MANIFEST_DIR")?;
-            let workspace_root = Path::new(&my_manifest)
-                .ancestors()
-                .filter(|it| it.join("Cargo.toml").exists())
-                .last()
-                .unwrap()
-                .to_path_buf();
-
-            Ok(workspace_root)
-        })
-        .unwrap_or_else(|_: env::VarError| {
-            panic!(
-                "No CARGO_MANIFEST_DIR env var and the path is relative: {}",
-                path.display()
-            )
-        })
-        .join(path)
+    workspace_root.join(path)
 }
 
 fn trim_indent(mut text: &str) -> String {
@@ -722,18 +711,14 @@ impl<'a> Iterator for LinesWithEnds<'a> {
     }
 }
 
-fn format_chunks(chunks: Vec<dissimilar::Chunk>) -> String {
+fn format_output(actual: &str) -> String {
     let mut buf = String::new();
-    for chunk in chunks {
-        let formatted = match chunk {
-            dissimilar::Chunk::Equal(text) => text.into(),
-            dissimilar::Chunk::Delete(text) => format!("\x1b[4m\x1b[31m{}\x1b[0m", text),
-            dissimilar::Chunk::Insert(text) => format!("\x1b[4m\x1b[32m{}\x1b[0m", text),
-        };
-        buf.push_str(&formatted);
-        if buf.chars().filter(|i| *i == '\n').count() > 50 {
+    for (count, line) in actual.lines().enumerate() {
+        if count > 50 {
             break;
         }
+        buf.push_str(line);
+        buf.push('\n');
     }
     buf
 }
@@ -750,25 +735,25 @@ mod tests {
     #[test]
     fn test_format_patch() {
         let patch = format_patch(None, "hello\nworld\n");
-        expect![[r##"
-            [r#"
+        expect![[r#"
+            [r"
             hello
             world
-            "#]"##]]
+            "]"#]]
         .assert_eq(&patch);
 
         let patch = format_patch(None, r"hello\tworld");
-        expect![[r##"[r#"hello\tworld"#]"##]].assert_eq(&patch);
+        expect![[r#"[r"hello\tworld"]"#]].assert_eq(&patch);
 
         let patch = format_patch(None, "{\"foo\": 42}");
         expect![[r##"[r#"{"foo": 42}"#]"##]].assert_eq(&patch);
 
         let patch = format_patch(Some(0), "hello\nworld\n");
-        expect![[r##"
-            [r#"
+        expect![[r#"
+            [r"
                 hello
                 world
-            "#]"##]]
+            "]"#]]
         .assert_eq(&patch);
 
         let patch = format_patch(Some(4), "single line");

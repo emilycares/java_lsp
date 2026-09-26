@@ -429,6 +429,18 @@ pub mod tests {
                     Package(
                         "a.test",
                     ),
+                    Class(
+                        "java.util.logging.Logger",
+                    ),
+                    Class(
+                        "java.util.List",
+                    ),
+                    Class(
+                        "java.util.Map",
+                    ),
+                    Class(
+                        "java.util.HashMap",
+                    ),
                 ],
                 signature: None,
                 name: "Types",
@@ -565,7 +577,9 @@ pub mod tests {
                         jtype: Generic(
                             "Map",
                             [
-                                Int,
+                                Class(
+                                    "Integer",
+                                ),
                                 Class(
                                     "String",
                                 ),

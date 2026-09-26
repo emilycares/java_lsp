@@ -1,6 +1,10 @@
 package a.test;
+import java.util.logging.Logger;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 public class Types {
-  Logger LOG = Logger.getLogger(Types.class);
+  Logger LOG = Logger.getLogger("Types");
   boolean IS_ACTIVE = true;
   byte one_byte = 0;
   int one_int = 0;
@@ -11,7 +15,7 @@ public class Types {
   char one_char = 'a';
   String one_string = "hihi";
   List<String> one_list = List.of("haha");
-  Map<int, String> one_map = new HashMap();
+  Map<Integer, String> one_map = new HashMap();
   public static void main(String[] args) { }
 }
 
