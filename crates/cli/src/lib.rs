@@ -5,6 +5,7 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::unused_async)]
 use std::collections::VecDeque;
+use std::fs::read;
 use std::io::{Read, Write};
 use std::path::Path;
 use std::time::Instant;
@@ -37,6 +38,7 @@ ast-check <file path to java file> : Check for ast errors in java file
 ast-check-dir <directory path> <Optional ignore pattern> : Check for ast errors in directory
 ast-check-jdk : Check for ast errors in current jdk in path
 index-jdk <variant> : Index jdk in path with variant jimage-own/jimage-executable/jmod
+decompile-jar <jar path> <out dir> : Decompile jar
 "
     );
 }
@@ -55,6 +57,7 @@ pub fn parse(args: &[String]) -> Option<Command> {
         Some("ast-check-dir") => parse_ast_check_dir(&args[1..]),
         Some("ast-check-jdk") => Some(Command::AstCheckJdk),
         Some("index-jdk") => parse_index_jdk(&args[1..]),
+        Some("decompile-jar") => parse_decompile_jar(&args[1..]),
         Some("--help") => Some(Command::Help),
         // for vscode
         Some("--stdio") => None,
@@ -115,6 +118,28 @@ fn parse_ast_check_dir(args: &[String]) -> Option<Command> {
                     ignore: None,
                 })
             }
+        },
+    )
+}
+
+fn parse_decompile_jar(args: &[String]) -> Option<Command> {
+    args.first().map_or_else(
+        || {
+            println!("Expected jar path");
+            None
+        },
+        |jar| {
+            let jar = PathBuf::from(jar);
+            args.get(1).map_or_else(
+                || {
+                    println!("Expected out path");
+                    None
+                },
+                |out| {
+                    let out = PathBuf::from(out);
+                    Some(Command::DecompileJar { jar, out })
+                },
+            )
         },
     )
 }
@@ -233,6 +258,10 @@ pub enum Command {
     FormatDir(PathBuf),
     FormatFile(PathBuf),
     FormatFilePiped,
+    DecompileJar {
+        jar: PathBuf,
+        out: PathBuf,
+    },
 }
 
 #[derive(Clone, Debug)]
@@ -464,4 +493,15 @@ pub fn format_piped() {
             std::process::exit(2);
         }
     }
+}
+
+/// # Panics
+/// When decompile fails
+pub async fn decompile_jar(jar: PathBuf, out: PathBuf) {
+    let time = Instant::now();
+    let buf = read(jar).unwrap();
+    loader::base_decompile_classes_zip("", out, buf, None)
+        .await
+        .unwrap();
+    println!("Decompiled jar. in: {:.2?}", time.elapsed());
 }

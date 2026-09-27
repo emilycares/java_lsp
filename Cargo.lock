@@ -127,6 +127,7 @@ dependencies = [
  "editorconfig",
  "formatter",
  "jdk",
+ "loader",
 ]
 
 [[package]]

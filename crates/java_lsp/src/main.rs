@@ -88,5 +88,12 @@ fn main() {
             )
         }
         Some(Command::FormatDir(p)) => cli::format_dir(&p),
+        Some(Command::DecompileJar { jar, out }) => tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                cli::decompile_jar(jar, out).await;
+            }),
     }
 }

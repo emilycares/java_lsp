@@ -8,10 +8,12 @@ use std::collections::HashSet;
 use ast::types::{
     AstAnnotated, AstAnnotatedParameterKind, AstAvailability, AstBaseExpression, AstBlock,
     AstClass, AstClassBlock, AstClassMethod, AstClassVariable, AstDouble, AstEnumeration,
-    AstExpressionIdentifier, AstExpressionKind, AstExpressionOperator, AstFile, AstIdentifier,
-    AstImport, AstImportUnit, AstInt, AstJType, AstJTypeKind, AstMethodHeader, AstMethodParameter,
-    AstMethodParameterFlags, AstMethodParameters, AstPackage, AstRange, AstThing,
-    AstThingAttributes, AstThrowsDeclaration, AstTopLevel, AstValueNuget, AstVolatileTransient,
+    AstExpression, AstExpressionIdentifier, AstExpressionKind, AstExpressionOperator, AstFile,
+    AstIdentifier, AstImport, AstImportUnit, AstInt, AstJType, AstJTypeKind, AstMethodHeader,
+    AstMethodParameter, AstMethodParameterFlags, AstMethodParameters, AstPackage, AstRange,
+    AstRecord, AstRecordEntries, AstRecordEntry, AstSuperClass, AstThing, AstThingAttributes,
+    AstThrowsDeclaration, AstTopLevel, AstTypeParameter, AstTypeParameters, AstValueNuget,
+    AstVolatileTransient,
 };
 use bitflags::bitflags;
 use my_string::{NuVec, NuVecBuilder};
@@ -47,8 +49,10 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Decom
 
     let mut used_classes = HashSet::new();
     let mut methods = Vec::new();
-    let mut class_signature = None;
     let mut annotated = Vec::new();
+    let mut superclass = Vec::new();
+    let mut type_parameters = None;
+    let mut record_entries = None;
 
     for a in &c.attributes {
         if a.name == 0 {
@@ -61,7 +65,24 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Decom
             let (sig, _) = get_u16(info, 0)?;
             let sig = lookup_string(&c.const_pool, sig)?;
             let (sig, _) = parse_class_signature_info(&sig)?;
-            class_signature = Some(sig);
+            if !sig.args.is_empty() {
+                let mut parameters = Vec::with_capacity(sig.args.len());
+                for p in sig.args {
+                    parameters.push(AstTypeParameter {
+                        range: AstRange::default(),
+                        annotated: Vec::new(),
+                        name: ntoident(p),
+                        supperclass: None,
+                    });
+                }
+                type_parameters = Some(AstTypeParameters {
+                    range: AstRange::default(),
+                    parameters,
+                });
+            }
+            for e in sig.extends {
+                superclass.push(AstSuperClass::JType(e));
+            }
         } else if attribute_name == "Code" {
             let info = a.lookup(data)?;
             let (out, _) = parse_code_attribute(info, 0, a.start, a.end)?;
@@ -72,9 +93,13 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Decom
                 name: ntoident(NuVec::Static(b"Deprecated")),
                 parameters: AstAnnotatedParameterKind::None,
             });
+        } else if attribute_name == "Record" {
+            let info = a.lookup(data)?;
+            record_entries = Some(parse_record_attribute(info, 0, &c.const_pool)?.0);
+        } else if attribute_name == "SourceFile" {
+            // Not interesting
         }
     }
-    let _ = class_signature;
 
     for m in &c.methods {
         let method = parse_method(&c, data, m);
@@ -127,7 +152,7 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Decom
             name: ntoident(name),
             implements: Vec::new(),
             permits: Vec::new(),
-            superclass: Vec::new(),
+            superclass,
             variants: Vec::new(),
             methods,
             variables: c.fields,
@@ -135,8 +160,31 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Decom
             static_blocks: Vec::new(),
             inner: Vec::new(),
         };
-        let enu_thing = AstTopLevel::Thing(Box::new(AstThing::Enumeration(enu)));
-        file.top.push(enu_thing);
+        let thing = AstTopLevel::Thing(Box::new(AstThing::Enumeration(enu)));
+        file.top.push(thing);
+    } else if let Some(record_entries) = record_entries {
+        let record = AstRecord {
+            range: AstRange::default(),
+            availability,
+            attributes: AstThingAttributes::empty(),
+            annotated,
+            name: ntoident(name),
+            type_parameters,
+            superclass,
+            implements: Vec::new(),
+            block: AstClassBlock {
+                range: AstRange::default(),
+                variables: c.fields,
+                methods,
+                constructors: Vec::new(),
+                static_blocks: Vec::new(),
+                inner: Vec::new(),
+                blocks: Vec::new(),
+            },
+            record_entries,
+        };
+        let thing = AstTopLevel::Thing(Box::new(AstThing::Record(record)));
+        file.top.push(thing);
     } else {
         let class = AstClass {
             range: AstRange::default(),
@@ -144,8 +192,8 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Decom
             attributes: AstThingAttributes::empty(),
             annotated,
             name: ntoident(name),
-            type_parameters: None,
-            superclass: Vec::new(),
+            type_parameters,
+            superclass,
             implements: Vec::new(),
             permits: Vec::new(),
             block: AstClassBlock {
@@ -390,6 +438,79 @@ fn parse_method(
     Ok((out, code_attribute))
 }
 
+fn parse_record_attribute(
+    data: &[u8],
+    pos: usize,
+    c: &ConstPool,
+) -> Result<(AstRecordEntries, usize), DecompilerError> {
+    let (count, pos) = get_u16(data, pos)?;
+    let mut pos = pos;
+    let mut entries = Vec::with_capacity(count as usize);
+    for _ in 0..count {
+        let (o, npos) = parse_record_attribute_inner(data, pos, c)?;
+        entries.push(o);
+        pos = npos;
+    }
+    Ok((
+        AstRecordEntries {
+            range: AstRange::default(),
+            entries,
+        },
+        pos,
+    ))
+}
+fn parse_record_attribute_inner(
+    data: &[u8],
+    pos: usize,
+    c: &ConstPool,
+) -> Result<(AstRecordEntry, usize), DecompilerError> {
+    let (name_index, pos) = get_u16(data, pos)?;
+    let (descriptor_index, pos) = get_u16(data, pos)?;
+    let (attributes, pos) = parse_attributes(data, pos)?;
+
+    let mut jtype = AstJType {
+        annotated: Vec::new(),
+        range: AstRange::default(),
+        value: AstJTypeKind::Var,
+    };
+
+    for a in attributes {
+        if a.name == 0 {
+            continue;
+        }
+        let attribute_name = lookup_string(c, a.name)?;
+        if attribute_name == "Signature" {
+            let info = a.lookup(data)?;
+            let (sig, _) = get_u16(info, 0)?;
+            let sig = lookup_string(c, sig)?;
+            let (sig, _) = parse_class_signature_info(&sig)?;
+            if let Some(first) = sig.extends.first() {
+                jtype = first.clone();
+            }
+        }
+    }
+
+    if matches!(jtype.value, AstJTypeKind::Var) {
+        let sig = lookup_string(c, descriptor_index)?;
+        let (sig, _) = parse_class_signature_info(&sig)?;
+        if let Some(first) = sig.extends.first() {
+            jtype = first.clone();
+        }
+    }
+
+    let name = lookup_string(c, name_index)?;
+    Ok((
+        AstRecordEntry {
+            range: AstRange::default(),
+            annotated: Vec::new(),
+            jtype,
+            variadic: false,
+            name: ntoident(name),
+        },
+        pos,
+    ))
+}
+
 fn parse_exceptions_attribute(
     data: &[u8],
     pos: usize,
@@ -412,7 +533,7 @@ struct MethodParametersAttribute {
 pub struct ClassSignature {
     // Generics defined on class level
     pub args: Vec<NuVec>,
-    pub ret: AstJType,
+    pub extends: Vec<AstJType>,
 }
 
 fn parse_method_parameters_attribute(
@@ -532,26 +653,16 @@ fn parse_class_signature_info(sig: &NuVec) -> Result<(ClassSignature, usize), De
             pos = npos;
         }
     }
-    let mut init = false;
-    let mut ret = AstJType {
-        range: AstRange::default(),
-        annotated: Vec::new(),
-        value: AstJTypeKind::Void,
-    };
     let end = sig.len();
+    let mut extends = Vec::new();
     while pos < end
         && let Ok((nret, npos)) = parse_field_type(content, pos)
     {
         pos = npos;
-
-        if init {
-        } else {
-            ret = nret;
-            init = true;
-        }
+        extends.push(nret);
     }
 
-    Ok((ClassSignature { args, ret }, pos))
+    Ok((ClassSignature { args, extends }, pos))
 }
 
 fn assert_char(content: &[u8], pos: usize, p: u8) -> Result<usize, DecompilerError> {
@@ -1088,6 +1199,13 @@ fn parse_class_field(
     let (descriptor, pos) = get_u16(data, pos)?;
     let (attributes, pos) = parse_attributes(data, pos)?;
     let mut expression = None;
+    let mut jtype = AstJType {
+        annotated: Vec::new(),
+        range: AstRange::default(),
+        value: AstJTypeKind::Var,
+    };
+
+    let mut constant_value_attribute = None;
 
     for a in attributes {
         if a.name == 0 {
@@ -1095,74 +1213,27 @@ fn parse_class_field(
         }
         let attribute_name = lookup_string(c, a.name)?;
         if attribute_name == "ConstantValue" {
+            constant_value_attribute = Some(a);
+        } else if attribute_name == "Signature" {
             let info = a.lookup(data)?;
-            let (constant_value_index, _) = get_u16(info, 0)?;
-            match c
-                .pool
-                .get((constant_value_index.saturating_sub(1)) as usize)
-            {
-                Some(ConstEntry::Float(c)) => {
-                    let value = NuVec::new(c.to_string().as_bytes());
-                    let expr = vec![AstExpressionKind::Base(AstBaseExpression {
-                        range: AstRange::default(),
-                        ident: Some(AstExpressionIdentifier::Nuget(AstValueNuget::Float(
-                            AstDouble {
-                                range: AstRange::default(),
-                                value,
-                            },
-                        ))),
-                        values: None,
-                        operator: AstExpressionOperator::None,
-                    })];
-                    expression = Some(expr);
-                }
-                Some(ConstEntry::Long(c)) => {
-                    let value = NuVec::new(c.to_string().as_bytes());
-                    let expr = vec![AstExpressionKind::Base(AstBaseExpression {
-                        range: AstRange::default(),
-                        ident: Some(AstExpressionIdentifier::Nuget(AstValueNuget::Long(
-                            AstInt {
-                                range: AstRange::default(),
-                                value,
-                            },
-                        ))),
-                        values: None,
-                        operator: AstExpressionOperator::None,
-                    })];
-                    expression = Some(expr);
-                }
-                Some(ConstEntry::Double(c)) => {
-                    let value = NuVec::new(c.to_string().as_bytes());
-                    let expr = vec![AstExpressionKind::Base(AstBaseExpression {
-                        range: AstRange::default(),
-                        ident: Some(AstExpressionIdentifier::Nuget(AstValueNuget::Double(
-                            AstDouble {
-                                range: AstRange::default(),
-                                value,
-                            },
-                        ))),
-                        values: None,
-                        operator: AstExpressionOperator::None,
-                    })];
-                    expression = Some(expr);
-                }
-                Some(ConstEntry::String { name }) => {
-                    let value = lookup_string(c, *name)?;
-                    let expr = vec![AstExpressionKind::Base(AstBaseExpression {
-                        range: AstRange::default(),
-                        ident: Some(AstExpressionIdentifier::Nuget(
-                            AstValueNuget::StringLiteral {
-                                range: AstRange::default(),
-                                value,
-                            },
-                        )),
-                        values: None,
-                        operator: AstExpressionOperator::None,
-                    })];
-                    expression = Some(expr);
-                }
-                Some(_) | None => {}
+            let (sig, _) = get_u16(info, 0)?;
+            let sig = lookup_string(c, sig)?;
+            let (sig, _) = parse_class_signature_info(&sig)?;
+            if let Some(first) = sig.extends.first() {
+                jtype = first.clone();
             }
+        }
+    }
+
+    // Lookup type via descriptor, When no Signature attribute exists
+    if matches!(jtype.value, AstJTypeKind::Var) {
+        jtype = parse_field_type(lookup_string(c, descriptor)?.as_bytes(), 0)?.0;
+    }
+
+    if let Some(a) = constant_value_attribute {
+        let out = field_constant_value_attribute(data, c, a, &jtype)?;
+        if let Some(o) = out {
+            expression = Some(o);
         }
     }
 
@@ -1172,12 +1243,112 @@ fn parse_class_field(
             availability: access_flags,
             annotated: Vec::new(),
             name: ntoident(lookup_string(c, name)?),
-            jtype: parse_field_type(lookup_string(c, descriptor)?.as_bytes(), 0)?.0,
+            jtype,
             expression,
             volatile_transient,
         },
         pos,
     ))
+}
+
+fn field_constant_value_attribute(
+    data: &[u8],
+    c: &ConstPool,
+    a: Attribute,
+    jtype: &AstJType,
+) -> Result<Option<AstExpression>, DecompilerError> {
+    let info = a.lookup(data)?;
+    let (constant_value_index, _) = get_u16(info, 0)?;
+    match c
+        .pool
+        .get((constant_value_index.saturating_sub(1)) as usize)
+    {
+        Some(ConstEntry::Float(c)) => {
+            let value = NuVec::new(c.to_string().as_bytes());
+            let expr = vec![AstExpressionKind::Base(AstBaseExpression {
+                range: AstRange::default(),
+                ident: Some(AstExpressionIdentifier::Nuget(AstValueNuget::Float(
+                    AstDouble {
+                        range: AstRange::default(),
+                        value,
+                    },
+                ))),
+                values: None,
+                operator: AstExpressionOperator::None,
+            })];
+            Ok(Some(expr))
+        }
+        Some(ConstEntry::Long(c)) => {
+            let value = NuVec::new(c.to_string().as_bytes());
+            let expr = vec![AstExpressionKind::Base(AstBaseExpression {
+                range: AstRange::default(),
+                ident: Some(AstExpressionIdentifier::Nuget(AstValueNuget::Long(
+                    AstInt {
+                        range: AstRange::default(),
+                        value,
+                    },
+                ))),
+                values: None,
+                operator: AstExpressionOperator::None,
+            })];
+            Ok(Some(expr))
+        }
+        Some(ConstEntry::Double(c)) => {
+            let value = NuVec::new(c.to_string().as_bytes());
+            let expr = vec![AstExpressionKind::Base(AstBaseExpression {
+                range: AstRange::default(),
+                ident: Some(AstExpressionIdentifier::Nuget(AstValueNuget::Double(
+                    AstDouble {
+                        range: AstRange::default(),
+                        value,
+                    },
+                ))),
+                values: None,
+                operator: AstExpressionOperator::None,
+            })];
+            Ok(Some(expr))
+        }
+        Some(ConstEntry::String { name }) => {
+            let value = lookup_string(c, *name)?;
+            let expr = vec![AstExpressionKind::Base(AstBaseExpression {
+                range: AstRange::default(),
+                ident: Some(AstExpressionIdentifier::Nuget(
+                    AstValueNuget::StringLiteral {
+                        range: AstRange::default(),
+                        value,
+                    },
+                )),
+                values: None,
+                operator: AstExpressionOperator::None,
+            })];
+            Ok(Some(expr))
+        }
+        Some(ConstEntry::Integer(value)) => match jtype.value {
+            AstJTypeKind::Byte => todo!(),
+            AstJTypeKind::Char => todo!(),
+            AstJTypeKind::Int => {
+                let value = NuVec::new(value.to_string().as_bytes());
+                let expr = vec![AstExpressionKind::Base(AstBaseExpression {
+                    range: AstRange::default(),
+                    ident: Some(AstExpressionIdentifier::Nuget(AstValueNuget::Int(AstInt {
+                        range: AstRange::default(),
+                        value,
+                    }))),
+                    values: None,
+                    operator: AstExpressionOperator::None,
+                })];
+                Ok(Some(expr))
+            }
+            AstJTypeKind::Long => todo!(),
+            AstJTypeKind::Short => todo!(),
+            AstJTypeKind::Boolean => todo!(),
+            _ => Ok(None),
+        },
+        Some(o) => {
+            todo!("Const value: {:#?}", o);
+        }
+        None => Ok(None),
+    }
 }
 
 fn parse_field_access_flags(
@@ -1680,8 +1851,8 @@ mod tests {
                 float one_float;
                 char one_char;
                 java.lang.String one_string;
-                java.util.List one_list;
-                java.util.Map one_map;
+                java.util.List<java.lang.String> one_list;
+                java.util.Map<java.lang.Integer, java.lang.String> one_map;
                 public void <init>() {}
                 public static void main(java.lang.String[] ) {}
             }
@@ -1739,7 +1910,7 @@ mod tests {
         let expected = expect![[r"
             package ch.emilycares;
             import java.util.stream.Stream;
-            public abstract class SuperInterface {
+            public abstract class SuperInterface<E> extends java.lang.Object, java.util.Collection, java.util.List {
                 public java.util.stream.Stream<E> stream() {}
             }
         "]];
@@ -1760,7 +1931,7 @@ mod tests {
             import java.util.HashMap;
             import java.util.HashSet;
             public class LocalVariableTable {
-                private java.util.HashSet a;
+                private java.util.HashSet<java.lang.String> a;
                 public void <init>() {}
                 public void hereIsCode() {}
                 public int hereIsCode(int a, int b) {}
@@ -1894,22 +2065,58 @@ mod tests {
                 args: [
                     "E",
                 ],
-                ret: AstJType {
-                    annotated: [],
-                    range: AstRange {
-                        start: AstPoint { 0:0 },
-                        end: AstPoint { 0:0 },
-                    },
-                    value: Class(
-                        AstIdentifier {
-                            range: AstRange {
-                                start: AstPoint { 0:0 },
-                                end: AstPoint { 0:0 },
-                            },
-                            value: "java.lang.Object",
+                extends: [
+                    AstJType {
+                        annotated: [],
+                        range: AstRange {
+                            start: AstPoint { 0:0 },
+                            end: AstPoint { 0:0 },
                         },
-                    ),
-                },
+                        value: Class(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint { 0:0 },
+                                    end: AstPoint { 0:0 },
+                                },
+                                value: "java.lang.Object",
+                            },
+                        ),
+                    },
+                    AstJType {
+                        annotated: [],
+                        range: AstRange {
+                            start: AstPoint { 0:0 },
+                            end: AstPoint { 0:0 },
+                        },
+                        value: Generic(
+                            AstIdentifier {
+                                range: AstRange {
+                                    start: AstPoint { 0:0 },
+                                    end: AstPoint { 0:0 },
+                                },
+                                value: "java.util.SequencedCollection",
+                            },
+                            [
+                                AstJType {
+                                    annotated: [],
+                                    range: AstRange {
+                                        start: AstPoint { 0:0 },
+                                        end: AstPoint { 0:0 },
+                                    },
+                                    value: Class(
+                                        AstIdentifier {
+                                            range: AstRange {
+                                                start: AstPoint { 0:0 },
+                                                end: AstPoint { 0:0 },
+                                            },
+                                            value: "E",
+                                        },
+                                    ),
+                                },
+                            ],
+                        ),
+                    },
+                ],
             }
         "#]];
         expected.assert_debug_eq(&result.0);

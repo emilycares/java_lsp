@@ -420,7 +420,6 @@ pub async fn base_decompile_classes_zip(
     buf: Vec<u8>,
     trim_prefix: Option<&NuVec>,
 ) -> Result<(), LoaderDecompilerError> {
-    eprintln!("decompiling: {source}");
     let zip = buf
         .read_zip()
         .await
@@ -501,7 +500,9 @@ pub async fn base_decompile_classes_zip(
         let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default())
             .map_err(LoaderDecompilerError::Formatter)?;
 
-        let path = extract_dir.join(file_name);
+        let mut path = extract_dir.join(file_name);
+        path.set_extension("java");
+
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).map_err(LoaderDecompilerError::IO)?;
         }
