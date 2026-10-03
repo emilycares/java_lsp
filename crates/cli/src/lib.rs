@@ -38,7 +38,7 @@ ast-check <file path to java file> : Check for ast errors in java file
 ast-check-dir <directory path> <Optional ignore pattern> : Check for ast errors in directory
 ast-check-jdk : Check for ast errors in current jdk in path
 index-jdk <variant> : Index jdk in path with variant jimage-own/jimage-executable/jmod
-decompile-jar <jar path> <out dir> : Decompile jar
+decompile-jar <jar path> <out dir> : Decompile jar (jar can also be jmod)
 "
     );
 }
@@ -497,10 +497,15 @@ pub fn format_piped() {
 
 /// # Panics
 /// When decompile fails
-pub async fn decompile_jar(jar: PathBuf, out: PathBuf) {
+pub async fn decompile(file: PathBuf, out: PathBuf) {
     let time = Instant::now();
-    let buf = read(jar).unwrap();
-    loader::base_decompile_classes_zip("", out, buf, None)
+    let mut buf = read(&file).unwrap();
+    if let Some(ex) = file.extension()
+        && ex == "jmod"
+    {
+        buf.drain(0..4);
+    }
+    loader::base_decompile_classes_zip("", out, buf, None, false)
         .await
         .unwrap();
     println!("Decompiled jar. in: {:.2?}", time.elapsed());

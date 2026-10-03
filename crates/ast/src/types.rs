@@ -9,12 +9,25 @@ use my_string::{NuVec, NuVecBuilder};
 use crate::lexer::PositionToken;
 
 #[derive(Debug, PartialEq, Eq, Default, Clone, Copy)]
-#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstRange {
     pub start: AstPoint,
     pub end: AstPoint,
 }
-
+#[cfg(feature = "arbitrary")]
+impl<'a> arbitrary::Arbitrary<'a> for AstRange {
+    fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
+        Ok(AstRange {
+            start: AstPoint {
+                line: u.int_in_range(0..=5)?,
+                col: u.int_in_range(0..=5)?,
+            },
+            end: AstPoint {
+                line: u.int_in_range(0..=5)?,
+                col: u.int_in_range(0..=5)?,
+            },
+        })
+    }
+}
 impl AstRange {
     #[must_use]
     pub fn from_position_token(start: &PositionToken, end: &PositionToken) -> Self {

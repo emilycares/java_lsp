@@ -3,6 +3,7 @@
 #![deny(clippy::perf)]
 #![deny(clippy::redundant_clone)]
 #![deny(clippy::enum_glob_use)]
+#![deny(clippy::arithmetic_side_effects)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
 
@@ -162,7 +163,7 @@ impl Formatter<'_> {
                 }
                 _ => {}
             }
-            self.index += 1;
+            self.index = self.index.saturating_add(1);
         }
     }
 
@@ -196,7 +197,7 @@ impl Formatter<'_> {
                 }
                 _ => {}
             }
-            self.index += 1;
+            self.index = self.index.saturating_add(1);
         }
     }
 
@@ -213,7 +214,7 @@ impl Formatter<'_> {
                 }
                 _ => {}
             }
-            idx += 1;
+            idx = idx.saturating_add(1);
         }
         false
     }
@@ -238,7 +239,10 @@ impl Formatter<'_> {
 
     pub fn insert_line_or_space(&mut self) -> bool {
         let last_line = self.with_comments.get(self.index).map(|t| t.line);
-        let next_line = self.with_comments.get(self.index + 1).map(|t| t.line);
+        let next_line = self
+            .with_comments
+            .get(self.index.saturating_add(1))
+            .map(|t| t.line);
         if last_line == next_line {
             self.buf.push(b' ');
             false
@@ -269,16 +273,16 @@ impl Formatter<'_> {
                 Token::LineComment(l) => {
                     self.buf.extend_from_slice(b" //");
                     extend_nuvec(&mut self.buf, l);
-                    self.index += 1;
+                    self.index = self.index.saturating_add(1);
                 }
                 Token::BlockComment(c, _) => {
                     self.buf.extend_from_slice(b" /*");
                     extend_nuvec(&mut self.buf, c);
                     self.buf.extend_from_slice(b"*/");
-                    self.index += 1;
+                    self.index = self.index.saturating_add(1);
                 }
                 _ => {
-                    self.index += 1;
+                    self.index = self.index.saturating_add(1);
                 }
             }
         }
@@ -292,16 +296,16 @@ impl Formatter<'_> {
                 Token::LineComment(l) => {
                     self.buf.extend_from_slice(b" //");
                     extend_nuvec(&mut self.buf, l);
-                    self.index += 1;
+                    self.index = self.index.saturating_add(1);
                 }
                 Token::BlockComment(c, _) => {
                     self.buf.extend_from_slice(b" /*");
                     extend_nuvec(&mut self.buf, c);
                     self.buf.extend_from_slice(b"*/");
-                    self.index += 1;
+                    self.index = self.index.saturating_add(1);
                 }
                 _ => {
-                    self.index += 1;
+                    self.index = self.index.saturating_add(1);
                 }
             }
         }
@@ -315,16 +319,16 @@ impl Formatter<'_> {
                 Token::LineComment(l) => {
                     self.buf.extend_from_slice(b" //");
                     extend_nuvec(&mut self.buf, l);
-                    self.index += 1;
+                    self.index = self.index.saturating_add(1);
                 }
                 Token::BlockComment(c, _) => {
                     self.buf.extend_from_slice(b" /*");
                     extend_nuvec(&mut self.buf, c);
                     self.buf.extend_from_slice(b"*/");
-                    self.index += 1;
+                    self.index = self.index.saturating_add(1);
                 }
                 _ => {
-                    self.index += 1;
+                    self.index = self.index.saturating_add(1);
                 }
             }
         }
@@ -342,20 +346,27 @@ impl Formatter<'_> {
                     }
                     self.buf.extend_from_slice(b"//");
                     extend_nuvec(&mut self.buf, l);
-                    self.index += 1;
+                    self.index = self.index.saturating_add(1);
                 }
                 Token::BlockComment(c, _) => {
                     self.buf.extend_from_slice(b" /*");
                     extend_nuvec(&mut self.buf, c);
                     self.buf.extend_from_slice(b"*/");
-                    self.index += 1;
+                    self.index = self.index.saturating_add(1);
                 }
                 _ => {
-                    self.index += 1;
+                    self.index = self.index.saturating_add(1);
                     break;
                 }
             }
         }
+    }
+
+    pub const fn indent_push(&mut self) {
+        self.indent = self.indent.saturating_add(1);
+    }
+    pub const fn indent_pop(&mut self) {
+        self.indent = self.indent.saturating_sub(1);
     }
 }
 
@@ -430,7 +441,7 @@ fn write_annotation_parameters(params: &[AstAnnotatedParameter], f: &mut Formatt
     };
     f.write(b"(");
     if nl {
-        f.indent += 1;
+        f.indent_push();
     }
     for (i, param) in params.iter().enumerate() {
         if i > 0 {
@@ -449,7 +460,7 @@ fn write_annotation_parameters(params: &[AstAnnotatedParameter], f: &mut Formatt
     if nl {
         f.new_line();
         f.write_indent();
-        f.indent -= 1;
+        f.indent_pop();
     }
     f.write(b")");
 }
@@ -502,7 +513,7 @@ fn write_values_with_annotated(values: &AstValuesWithAnnotated, f: &mut Formatte
     };
     f.write(b"{");
     if nl {
-        f.indent += 1;
+        f.indent_push();
     } else {
         f.buf.push(b' ');
     }
@@ -526,7 +537,7 @@ fn write_values_with_annotated(values: &AstValuesWithAnnotated, f: &mut Formatte
     if nl {
         f.new_line();
         f.write_indent();
-        f.indent -= 1;
+        f.indent_pop();
     } else {
         f.buf.push(b' ');
     }
@@ -602,7 +613,7 @@ fn write_expression(expr: &[AstExpressionKind], f: &mut Formatter) {
         });
 
     if is_large {
-        f.indent += 1;
+        f.indent_push();
     }
 
     let mut minus_with_space = false;
@@ -637,7 +648,7 @@ fn write_expression(expr: &[AstExpressionKind], f: &mut Formatter) {
         }
     }
     if is_large {
-        f.indent -= 1;
+        f.indent_pop();
     }
 }
 
@@ -996,7 +1007,7 @@ fn write_block(block: &AstBlock, f: &mut Formatter) {
     f.buf.push(b'{');
     f.end_line_comments_end(&block.range.start);
     f.new_line();
-    f.indent += 1;
+    f.indent_push();
     if block.entries.is_empty() {
         f.insert_comments(block.range.end);
     } else {
@@ -1029,7 +1040,7 @@ fn write_block(block: &AstBlock, f: &mut Formatter) {
                 ) {
                     f.indent = base_indent;
                 } else {
-                    f.indent = base_indent + 1;
+                    f.indent = base_indent.saturating_add(1);
                 }
             }
             write_block_entry(entry, f, true, true, next_if, true, before_if_entry);
@@ -1043,7 +1054,7 @@ fn write_block(block: &AstBlock, f: &mut Formatter) {
         }
     }
     f.insert_comments(block.range.end);
-    f.indent -= 1;
+    f.indent_pop();
     f.write_indent();
     f.buf.push(b'}');
 }
@@ -1162,9 +1173,9 @@ fn write_block_entry(
                 f.write_indent();
             }
             f.write(b"assert ");
-            f.indent += 1;
+            f.indent_push();
             write_expression(&assert.expression, f);
-            f.indent -= 1;
+            f.indent_pop();
             if around {
                 f.write(b";");
                 f.end_line_comments(&assert.range);
@@ -1472,12 +1483,12 @@ fn write_if_content(content: &AstIfContent, f: &mut Formatter, next_if: bool, sa
                 f.new_line();
             }
 
-            f.indent += 1;
+            f.indent_push();
             if !same_line {
                 f.write_indent();
             }
             write_block_entry(entry, f, true, false, false, true, false);
-            f.indent -= 1;
+            f.indent_pop();
         }
     }
 }
@@ -1498,9 +1509,9 @@ fn write_while_content(content: &AstWhileContent, new_line: bool, f: &mut Format
         }
         AstWhileContent::BlockEntry(entry) => {
             f.new_line();
-            f.indent += 1;
+            f.indent_push();
             write_block_entry(entry, f, true, true, false, new_line, false);
-            f.indent -= 1;
+            f.indent_pop();
         }
     }
 }
@@ -1518,9 +1529,9 @@ fn write_for_content(content: &AstForContent, f: &mut Formatter) {
         }
         AstForContent::BlockEntry(entry) => {
             f.new_line();
-            f.indent += 1;
+            f.indent_push();
             write_block_entry(entry, f, true, true, false, true, false);
-            f.indent -= 1;
+            f.indent_pop();
         }
     }
 }
@@ -1550,11 +1561,11 @@ fn write_try_resources(block: &AstBlock, f: &mut Formatter) {
     f.write(b"(");
     if block.entries.len() > 1 {
         f.new_line();
-        f.indent += 1;
+        f.indent_push();
         for entry in &block.entries {
             write_block_entry(entry, f, true, true, false, true, false);
         }
-        f.indent -= 1;
+        f.indent_pop();
         f.write_indent();
     } else if let Some(single) = block.entries.first() {
         write_block_entry(single, f, false, false, false, false, false);
@@ -1626,9 +1637,9 @@ fn write_class(class: &AstClass, f: &mut Formatter) {
 fn write_class_block_braced(block: &AstClassBlock, f: &mut Formatter) {
     f.buf.push(b'{');
     f.new_line();
-    f.indent += 1;
+    f.indent_push();
     write_class_block(block, f);
-    f.indent -= 1;
+    f.indent_pop();
     f.write_indent();
     f.write(b"}");
 }
@@ -1710,9 +1721,9 @@ fn write_class_variable(v: &AstClassVariable, f: &mut Formatter) {
     f.write_identifier(&v.name);
     if let Some(expr) = &v.expression {
         f.write(b" = ");
-        f.indent += 1;
+        f.indent_push();
         write_expression(expr, f);
-        f.indent -= 1;
+        f.indent_pop();
     }
     f.write(b";");
     f.end_line_comments(&v.name.range);
@@ -1774,7 +1785,7 @@ fn write_method_parameters(params: &AstMethodParameters, f: &mut Formatter) {
     let nl = params.range.start.line != params.range.end.line;
     f.write(b"(");
     if nl {
-        f.indent += 1;
+        f.indent_push();
     }
     let mut last = None;
     for (i, param) in params.parameters.iter().enumerate() {
@@ -1806,7 +1817,7 @@ fn write_method_parameters(params: &AstMethodParameters, f: &mut Formatter) {
         if let Some(last) = &last {
             f.end_line_comments(last);
         }
-        f.indent -= 1;
+        f.indent_pop();
         f.new_line();
         f.write_indent();
     }
@@ -1891,7 +1902,7 @@ fn write_record_entries(entries: &AstRecordEntries, f: &mut Formatter) {
     };
     let nl = entries_range.start.line != entries_range.end.line;
     if nl {
-        f.indent += 1;
+        f.indent_push();
     }
     for (i, entry) in entries.entries.iter().enumerate() {
         if i > 0 {
@@ -1918,7 +1929,7 @@ fn write_record_entries(entries: &AstRecordEntries, f: &mut Formatter) {
     if nl {
         f.new_line();
         f.write_indent();
-        f.indent -= 1;
+        f.indent_pop();
     }
     f.write(b")");
 }
@@ -1957,7 +1968,7 @@ fn write_interface(iface: &AstInterface, f: &mut Formatter) {
     f.buf.push(b' ');
     f.write(b"{");
     f.new_line();
-    f.indent += 1;
+    f.indent_push();
     let mut members: Vec<(AstRange, u8, usize)> = Vec::new();
     for (i, c) in iface.constants.iter().enumerate() {
         members.push((c.range, 0, i));
@@ -1994,7 +2005,7 @@ fn write_interface(iface: &AstInterface, f: &mut Formatter) {
         }
     }
     f.insert_comments(iface.range.end);
-    f.indent -= 1;
+    f.indent_pop();
     f.write_indent();
     f.write(b"}");
     f.new_line();
@@ -2049,7 +2060,7 @@ fn write_enumeration(e: &AstEnumeration, f: &mut Formatter) {
     f.buf.push(b' ');
     f.write(b"{");
     f.new_line();
-    f.indent += 1;
+    f.indent_push();
     let has_members = !e.methods.is_empty()
         || !e.variables.is_empty()
         || !e.constructors.is_empty()
@@ -2097,7 +2108,7 @@ fn write_enumeration(e: &AstEnumeration, f: &mut Formatter) {
         f.new_line();
     }
     f.insert_comments(e.range.end);
-    f.indent -= 1;
+    f.indent_pop();
     f.write_indent();
     f.write(b"}");
     f.new_line();
@@ -2113,7 +2124,7 @@ fn write_annotation_type(ann_type: &AstAnnotation, f: &mut Formatter) {
     f.buf.push(b' ');
     f.write(b"{");
     f.new_line();
-    f.indent += 1;
+    f.indent_push();
     for field in &ann_type.fields {
         write_annotation_field(field, f);
     }
@@ -2121,7 +2132,7 @@ fn write_annotation_type(ann_type: &AstAnnotation, f: &mut Formatter) {
         write_thing(inner, f);
     }
     f.insert_comments(ann_type.range.end);
-    f.indent -= 1;
+    f.indent_pop();
     f.write_indent();
     f.write(b"}");
     f.new_line();
@@ -2334,7 +2345,7 @@ fn write_module(module: &AstModule, f: &mut Formatter) {
     f.buf.push(b' ');
     f.write(b"{");
     f.new_line();
-    f.indent += 1;
+    f.indent_push();
 
     let mut entries: Vec<(AstPoint, u8, usize)> = Vec::new();
     for (i, e) in module.exports.iter().enumerate() {
@@ -2427,7 +2438,7 @@ fn write_module(module: &AstModule, f: &mut Formatter) {
         }
     }
 
-    f.indent -= 1;
+    f.indent_pop();
     f.write_indent();
     f.write(b"}");
     f.new_line();

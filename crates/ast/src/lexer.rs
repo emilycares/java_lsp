@@ -886,7 +886,7 @@ pub enum LexerError {
     EOF(usize, usize),
 }
 
-fn keyword_to_token(key: &[u8]) -> Option<Token> {
+const fn keyword_to_token(key: &[u8]) -> Option<Token> {
     match key {
         b"if" => Some(Token::If),
         b"true" => Some(Token::True),

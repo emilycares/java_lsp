@@ -596,9 +596,25 @@ impl NuVec {
     }
 }
 
+// #[cfg(feature = "arbitrary")]
+// const NAMES: [&[u8; 5]; 7] = [
+//     b"ababa", b"aboba", b"booba", b"ababo", b"oobaa", b"obobo", b"boboa",
+// ];
+
 #[cfg(feature = "arbitrary")]
 impl<'a> arbitrary::Arbitrary<'a> for NuVec {
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
+        // let i = u.int_in_range(0..=NAMES.len())?;
+        // #[allow(clippy::arithmetic_side_effects)]
+        // Ok(NuVec::Static(NAMES[i % NAMES.len()]))
+        // let len = u.int_in_range(3..=10)?;
+        // let mut v = Vec::with_capacity(len);
+        // let characters = [b'a', b'b'];
+        // for _ in 0..len {
+        //     v.push(*u.choose(&characters)?);
+        // }
+        //
+        // Ok(NuVec::Heap(v))
         let string = <&str>::arbitrary(u)?;
         Ok(NuVec::new(string.as_bytes()))
         // let string = <&[u8]>::arbitrary(u)?;

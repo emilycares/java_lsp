@@ -419,6 +419,7 @@ pub async fn base_decompile_classes_zip(
     extract_dir: PathBuf,
     buf: Vec<u8>,
     trim_prefix: Option<&NuVec>,
+    skip_ignored: bool,
 ) -> Result<(), LoaderDecompilerError> {
     let zip = buf
         .read_zip()
@@ -431,19 +432,21 @@ pub async fn base_decompile_classes_zip(
     // Prefix for module info
     let mut rules: Vec<(String, ModuleInfo)> = Vec::new();
 
-    for entry in zip.entries() {
-        if !matches!(entry.kind(), EntryKind::Directory)
-            && let Some(file_name) = entry.sanitized_name()
-            && file_name.ends_with("module-info.class")
-        {
-            let prefix = file_name.trim_end_matches("module-info.class");
-            let buf = entry.bytes().await.map_err(LoaderDecompilerError::IO)?;
-            match load_module(buf.as_slice()) {
-                Ok(c) => {
-                    rules.push((prefix.to_string(), c));
-                }
-                Err(e) => {
-                    return Err(LoaderDecompilerError::Module(e));
+    if skip_ignored {
+        for entry in zip.entries() {
+            if !matches!(entry.kind(), EntryKind::Directory)
+                && let Some(file_name) = entry.sanitized_name()
+                && file_name.ends_with("module-info.class")
+            {
+                let prefix = file_name.trim_end_matches("module-info.class");
+                let buf = entry.bytes().await.map_err(LoaderDecompilerError::IO)?;
+                match load_module(buf.as_slice()) {
+                    Ok(c) => {
+                        rules.push((prefix.to_string(), c));
+                    }
+                    Err(e) => {
+                        return Err(LoaderDecompilerError::Module(e));
+                    }
                 }
             }
         }
@@ -465,7 +468,14 @@ pub async fn base_decompile_classes_zip(
             let buf = entry.bytes().await.map_err(LoaderDecompilerError::IO)?;
             let path = extract_dir.join(file_name);
             std::fs::create_dir_all(&path).map_err(LoaderDecompilerError::IO)?;
-            Box::pin(base_decompile_classes_zip(file_name, path, buf, None)).await?;
+            Box::pin(base_decompile_classes_zip(
+                file_name,
+                path,
+                buf,
+                None,
+                skip_ignored,
+            ))
+            .await?;
             continue;
         }
         if !ext.is_some_and(|e| e.eq_ignore_ascii_case("class")) {
@@ -475,15 +485,17 @@ pub async fn base_decompile_classes_zip(
             continue;
         }
         let nfile = NuVec::new(file_name.as_bytes());
-        for r in &rules {
-            let p = trim_prefix_path.as_ref().map_or_else(
-                || nfile.clone(),
-                |prefix| nfile.trim_start_matches(prefix.as_bytes()),
-            );
-            if file_name.starts_with(&r.0)
-                && !r.1.exports.iter().any(|e| p.starts_with(e.as_bytes()))
-            {
-                continue 'entries;
+        if skip_ignored {
+            for r in &rules {
+                let p = trim_prefix_path.as_ref().map_or_else(
+                    || nfile.clone(),
+                    |prefix| nfile.trim_start_matches(prefix.as_bytes()),
+                );
+                if file_name.starts_with(&r.0)
+                    && !r.1.exports.iter().any(|e| p.starts_with(e.as_bytes()))
+                {
+                    continue 'entries;
+                }
             }
         }
         let class_path = nfile.trim_start_matches(b"/");

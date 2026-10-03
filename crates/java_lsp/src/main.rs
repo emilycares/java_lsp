@@ -93,7 +93,7 @@ fn main() {
             .build()
             .unwrap()
             .block_on(async {
-                cli::decompile_jar(jar, out).await;
+                cli::decompile(jar, out).await;
             }),
     }
 }

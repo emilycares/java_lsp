@@ -59,6 +59,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "config"
+version = "0.1.0"
+
+[[package]]
+name = "decompiler"
+version = "0.1.0"
+dependencies = [
+ "ast",
+ "bitflags",
+ "mutf8",
+ "my_string",
+]
+
+[[package]]
 name = "derive_arbitrary"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -86,10 +100,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "editorconfig"
+version = "0.1.0"
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
+
+[[package]]
+name = "formatter"
+version = "0.1.0"
+dependencies = [
+ "ast",
+ "config",
+ "editorconfig",
+ "my_string",
+]
 
 [[package]]
 name = "getrandom"
@@ -181,8 +209,11 @@ version = "0.0.0"
 dependencies = [
  "ast",
  "class",
+ "decompiler",
  "dto",
  "dto_rw",
+ "editorconfig",
+ "formatter",
  "jimage",
  "libfuzzer-sys",
  "my_string",

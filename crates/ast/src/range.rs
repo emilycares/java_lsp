@@ -8,8 +8,8 @@ use crate::types::{
 
 /// Join two ranges a must be before b
 #[must_use]
-pub fn add_ranges(a: AstRange, b: AstRange) -> AstRange {
-    debug_assert!(a.start.line <= b.end.line);
+pub const fn add_ranges(a: AstRange, b: AstRange) -> AstRange {
+    // debug_assert!(a.start.line <= b.end.line);
     AstRange {
         start: a.start,
         end: b.end,

@@ -107,7 +107,8 @@ pub async fn project_deps(
                 if decompile && let Some(jar_str) = jar.as_path().to_str() {
                     let buf = read(&jar).ok()?;
                     if let Err(e) =
-                        loader::base_decompile_classes_zip(jar_str, source.clone(), buf, None).await
+                        loader::base_decompile_classes_zip(jar_str, source.clone(), buf, None, true)
+                            .await
                     {
                         eprintln!("Failed to decompile jar: {}, {e:?}", jar.display());
                     }
@@ -212,6 +213,7 @@ async fn reindex(
                     source.clone(),
                     buf.clone(),
                     None,
+                    true,
                 )
                 .await
                 {

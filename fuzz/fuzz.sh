@@ -12,6 +12,8 @@ targets=(
     parser_java_a
     ast_to_class
     cfc
+    fmt
+    dco
 )
 for i in "${targets[@]}"; do
     cargo-fuzz build "$i"

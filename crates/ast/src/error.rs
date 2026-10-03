@@ -169,7 +169,7 @@ impl PrintErr for AstError {
             Self::AllChildrenFailed2 { parent, errors } => {
                 if PRINT_ALL_ERRORS {
                     eprintln!("{parent}");
-                    for e in (*errors).iter() {
+                    for e in errors.iter() {
                         let Some(e) = e else {
                             break;
                         };
@@ -188,7 +188,7 @@ impl PrintErr for AstError {
             Self::AllChildrenFailed3 { parent, errors } => {
                 if PRINT_ALL_ERRORS {
                     eprintln!("{parent}");
-                    for e in (*errors).iter() {
+                    for e in errors.iter() {
                         let Some(e) = e else {
                             break;
                         };
@@ -207,7 +207,7 @@ impl PrintErr for AstError {
             Self::AllChildrenFailed4 { parent, errors } => {
                 if PRINT_ALL_ERRORS {
                     eprintln!("{parent}");
-                    for e in (*errors).iter() {
+                    for e in errors.iter() {
                         let Some(e) = e else {
                             break;
                         };
@@ -226,7 +226,7 @@ impl PrintErr for AstError {
             Self::AllChildrenFailed5 { parent, errors } => {
                 if PRINT_ALL_ERRORS {
                     eprintln!("{parent}");
-                    for e in (*errors).iter() {
+                    for e in errors.iter() {
                         let Some(e) = e else {
                             break;
                         };
@@ -245,7 +245,7 @@ impl PrintErr for AstError {
             Self::AllChildrenFailed6 { parent, errors } => {
                 if PRINT_ALL_ERRORS {
                     eprintln!("{parent}");
-                    for e in (*errors).iter() {
+                    for e in errors.iter() {
                         let Some(e) = e else {
                             break;
                         };
@@ -264,7 +264,7 @@ impl PrintErr for AstError {
             Self::AllChildrenFailed7 { parent, errors } => {
                 if PRINT_ALL_ERRORS {
                     eprintln!("{parent}");
-                    for e in (*errors).iter() {
+                    for e in errors.iter() {
                         let Some(e) = e else {
                             break;
                         };
@@ -283,7 +283,7 @@ impl PrintErr for AstError {
             Self::AllChildrenFailed26 { parent, errors } => {
                 if PRINT_ALL_ERRORS {
                     eprintln!("{parent}");
-                    for e in (*errors).iter() {
+                    for e in errors.iter() {
                         let Some(e) = e else {
                             break;
                         };

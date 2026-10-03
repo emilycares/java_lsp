@@ -25,6 +25,15 @@ path = "../crates/dto"
 [dependencies.dto_rw]
 path = "../crates/dto_rw"
 
+[dependencies.decompiler]
+path = "../crates/decompiler"
+
+[dependencies.formatter]
+path = "../crates/formatter"
+
+[dependencies.editorconfig]
+path = "../crates/editorconfig"
+
 [dependencies.ast]
 path = "../crates/ast"
 features = ["arbitrary"]
@@ -78,6 +87,20 @@ bench = false
 [[bin]]
 name = "cfc"
 path = "fuzz_targets/cfc.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fmt"
+path = "fuzz_targets/fmt.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "dco"
+path = "fuzz_targets/dco.rs"
 test = false
 doc = false
 bench = false
