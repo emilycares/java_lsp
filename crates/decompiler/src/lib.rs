@@ -10,12 +10,12 @@ use ast::types::{
     AstBaseExpression, AstBlock, AstBoolean, AstClass, AstClassBlock, AstClassMethod,
     AstClassVariable, AstDouble, AstEnumeration, AstEnumerationVariant, AstExpression,
     AstExpressionIdentifier, AstExpressionKind, AstExpressionOperator, AstExpressionOrAnnotated,
-    AstFile, AstIdentifier, AstImport, AstImportUnit, AstInt, AstJType, AstJTypeExpression,
-    AstJTypeKind, AstMethodHeader, AstMethodParameter, AstMethodParameterFlags,
-    AstMethodParameters, AstPackage, AstPoint, AstRange, AstRecord, AstRecordEntries,
-    AstRecordEntry, AstSuperClass, AstThing, AstThingAttributes, AstThrowsDeclaration, AstTopLevel,
-    AstTypeParameter, AstTypeParameters, AstValueNuget, AstValuesWithAnnotated,
-    AstVolatileTransient,
+    AstFile, AstIdentifier, AstImport, AstImportUnit, AstInt, AstInterface, AstInterfaceConstant,
+    AstInterfaceMethod, AstInterfaceMethodDefault, AstJType, AstJTypeExpression, AstJTypeKind,
+    AstMethodHeader, AstMethodParameter, AstMethodParameterFlags, AstMethodParameters, AstPackage,
+    AstPoint, AstRange, AstRecord, AstRecordEntries, AstRecordEntry, AstSuperClass, AstThing,
+    AstThingAttributes, AstThrowsDeclaration, AstTopLevel, AstTypeParameter, AstTypeParameters,
+    AstValueNuget, AstValuesWithAnnotated, AstVolatileTransient,
 };
 use bitflags::bitflags;
 use my_string::{NuVec, NuVecBuilder};
@@ -59,13 +59,14 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Decom
     let (const_pool, pos) = parse_const_pool(data, pos)?;
 
     let (class_access_flags, pos) = parse_class_access_flags(data, pos)?;
+    let is_interface = class_access_flags.intersects(ClassAccessFlags::Interface);
     let (this_class, pos) = get_u16(data, pos)?;
     let (super_class, pos) = get_u16(data, pos)?;
 
     let (_, pos) = parse_interfaces(data, pos)?;
     let (fields, enum_variants, pos) = parse_fields(data, pos, &const_pool)?;
     let mut used_classes = HashSet::new();
-    let (methods, pos) = parse_methods(data, pos, &const_pool, &mut used_classes)?;
+    let (methods, pos) = parse_methods(data, pos, &const_pool, is_interface, &mut used_classes)?;
     let (attributes, _) = parse_attributes(data, pos)?;
 
     let name = lookup_class_name(&const_pool, this_class.into())?;
@@ -172,7 +173,7 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Decom
     if class_access_flags.intersects(ClassAccessFlags::Final) {
         availability |= AstAvailability::Final;
     }
-    if class_access_flags.intersects(ClassAccessFlags::Abstract) {
+    if !is_interface && class_access_flags.intersects(ClassAccessFlags::Abstract) {
         availability |= AstAvailability::Abstract;
     }
 
@@ -194,6 +195,54 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Decom
             inner: Vec::new(),
         };
         let thing = AstTopLevel::Thing(Box::new(AstThing::Enumeration(enu)));
+        file.top.push(thing);
+    } else if is_interface {
+        let int = AstInterface {
+            range: RANGE,
+            availability,
+            attributes: AstThingAttributes::empty(),
+            annotated,
+            name: ntoident(name),
+            type_parameters,
+            extends: None,
+            constants: fields
+                .into_iter()
+                .map(|i| AstInterfaceConstant {
+                    range: RANGE,
+                    annotated: i.annotated,
+                    availability: i.availability,
+                    name: i.name,
+                    jtype: i.jtype,
+                    expression: i.expression,
+                })
+                .collect(),
+            methods: methods
+                .clone()
+                .into_iter()
+                .filter(|i| i.block.is_none())
+                .map(|i| AstInterfaceMethod {
+                    range: RANGE,
+                    header: i.header,
+                })
+                .collect(),
+            default_methods: methods
+                .into_iter()
+                .filter_map(|mut i| {
+                    if let Some(block) = i.block {
+                        i.header.default = true;
+                        return Some(AstInterfaceMethodDefault {
+                            range: RANGE,
+                            header: i.header,
+                            block,
+                        });
+                    }
+                    None
+                })
+                .collect(),
+            inner: Vec::new(),
+            permits,
+        };
+        let thing = AstTopLevel::Thing(Box::new(AstThing::Interface(int)));
         file.top.push(thing);
     } else if let Some(record_entries) = record_entries {
         let record = AstRecord {
@@ -309,10 +358,7 @@ fn parse_method(
             annotated: Vec::new(),
             default: false,
         },
-        block: Some(AstBlock {
-            range: RANGE,
-            entries: Vec::new(),
-        }),
+        block: None,
     };
 
     let mut code_attribute = None;
@@ -342,6 +388,10 @@ fn parse_method(
             let info = attribute.lookup(data)?;
             let (ca, _) = parse_code_attribute(info, 0, attribute.start, attribute.end)?;
             code_attribute = Some(ca);
+            out.block = Some(AstBlock {
+                range: RANGE,
+                entries: Vec::new(),
+            });
         } else if attribute_name == "RuntimeVisibleAnnotations"
             || attribute_name == "RuntimeInvisibleAnnotations"
         {
@@ -527,6 +577,16 @@ fn parse_annotation(
         element_values.push(p);
 
         pos = ipos;
+    }
+    if element_values.is_empty() {
+        return Ok((
+            AstAnnotated {
+                range: RANGE,
+                name,
+                parameters: AstAnnotatedParameterKind::None,
+            },
+            pos,
+        ));
     }
     Ok((
         AstAnnotated {
@@ -1992,6 +2052,7 @@ fn parse_methods(
     data: &[u8],
     pos: usize,
     c: &ConstPool,
+    is_interface: bool,
     used_classes: &mut HashSet<NuVec>,
 ) -> Result<(Vec<AstClassMethod>, usize), DecompilerError> {
     let (size, pos) = get_u16(data, pos)?;
@@ -1999,7 +2060,7 @@ fn parse_methods(
     let mut out = Vec::with_capacity(size as usize);
 
     for _ in 0..size {
-        let (access_flags, ipos) = parse_method_access_flags(data, pos)?;
+        let (access_flags, ipos) = parse_method_access_flags(data, pos, is_interface)?;
         let (name, ipos) = get_u16(data, ipos)?;
         let (descriptor, ipos) = get_u16(data, ipos)?;
         let (attributes, ipos) = parse_attributes(data, ipos)?;
@@ -2020,6 +2081,7 @@ fn parse_methods(
 fn parse_method_access_flags(
     data: &[u8],
     pos: usize,
+    is_interface: bool,
 ) -> Result<(AstAvailability, usize), DecompilerError> {
     let (flags, pos) = get_u16(data, pos)?;
     let mut out = AstAvailability::empty();
@@ -2038,7 +2100,7 @@ fn parse_method_access_flags(
     if (flags & 0x0010) != 0 {
         out |= AstAvailability::Final;
     }
-    if (flags & 0x0400) != 0 {
+    if !is_interface && (flags & 0x0400) != 0 {
         out |= AstAvailability::Abstract;
     }
 
@@ -2419,12 +2481,12 @@ mod tests {
             package ch.emilycares;
             import java.net.Socket;
             import java.lang.String;
-            public abstract class Constants {
+            public interface Constants {
                 public static final java.lang.String CONSTANT_A = "A";
                 public static final java.lang.String CONSTANT_B = "B";
                 public static final java.lang.String CONSTANT_C = "C";
-                public abstract void display() {}
-                public abstract java.net.Socket createSocket(java.lang.String hostname, int port) throws java.io.IOException {}
+                public void display();
+                public java.net.Socket createSocket(java.lang.String hostname, int port) throws java.io.IOException;
             }
         "#]];
         expected.assert_eq(out);
@@ -2516,8 +2578,8 @@ mod tests {
         let expected = expect![[r"
             package ch.emilycares;
             import java.util.stream.Stream;
-            public abstract class SuperInterface<E> extends java.util.Collection, java.util.List {
-                public java.util.stream.Stream<E> stream() {}
+            public interface SuperInterface<E> {
+                default public java.util.stream.Stream<E> stream() {}
             }
         "]];
         expected.assert_eq(out);
