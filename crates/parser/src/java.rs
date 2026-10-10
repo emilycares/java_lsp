@@ -172,7 +172,10 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
 }
 
 fn load_deprecated(access: &mut Access, annotated: &[AstAnnotated]) {
-    if annotated.iter().any(|i| i.name.value == "Deprecated") {
+    if annotated
+        .iter()
+        .any(|i| i.name.value == "Deprecated" || i.name.value == "java.lang.Deprecated")
+    {
         access.insert(Access::Deprecated);
     }
 }

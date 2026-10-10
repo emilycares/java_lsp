@@ -125,7 +125,7 @@ pub fn call_chain_definition(
                 .filter(|i| i.name.as_ref().is_some_and(|i| i == name))
                 .filter(|i| i.parameters.len() == args_len)
                 .find_map(|i| i.source.clone())
-                .map_or(source, |m| m);
+                .unwrap_or(source);
 
             let ast = document::get_ast(&source_file, context.document_map)
                 .map_err(DefinitionError::Document)?;

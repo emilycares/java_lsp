@@ -61,15 +61,21 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Decom
     let (class_access_flags, pos) = parse_class_access_flags(data, pos)?;
     let is_interface = class_access_flags.intersects(ClassAccessFlags::Interface);
     let (this_class, pos) = get_u16(data, pos)?;
+    let class_name = lookup_class_name(&const_pool, this_class.into())?;
     let (super_class, pos) = get_u16(data, pos)?;
 
     let (_, pos) = parse_interfaces(data, pos)?;
     let (fields, enum_variants, pos) = parse_fields(data, pos, &const_pool)?;
     let mut used_classes = HashSet::new();
-    let (methods, pos) = parse_methods(data, pos, &const_pool, is_interface, &mut used_classes)?;
+    let (methods, pos) = parse_methods(
+        data,
+        pos,
+        &const_pool,
+        is_interface,
+        &mut used_classes,
+        &class_name,
+    )?;
     let (attributes, _) = parse_attributes(data, pos)?;
-
-    let name = lookup_class_name(&const_pool, this_class.into())?;
 
     let mut annotated = Vec::new();
     let mut superclass = Vec::new();
@@ -83,6 +89,9 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Decom
             superclass.push(AstSuperClass::Name(ntoident(c)));
         }
     }
+
+    let mut deprecated = false;
+    let mut is_annotated = false;
 
     for a in &attributes {
         if a.name == 0 {
@@ -123,11 +132,7 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Decom
             let (out, _) = parse_code_attribute(info, 0, a.start, a.end)?;
             parse_used_classes(&const_pool, data, &out, &mut used_classes)?;
         } else if attribute_name == "Deprecated" {
-            annotated.push(AstAnnotated {
-                range: RANGE,
-                name: ntoident(NuVec::Static(b"Deprecated")),
-                parameters: AstAnnotatedParameterKind::None,
-            });
+            deprecated = true;
         } else if attribute_name == "Record" {
             let info = a.lookup(data)?;
             record_entries = Some(parse_record_attribute(info, 0, &const_pool)?.0);
@@ -139,9 +144,18 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Decom
         {
             let info = a.lookup(data)?;
             parse_runtime_visible_annotations(info, 0, &const_pool, &mut annotated)?;
+            is_annotated = true;
         } else if attribute_name == "SourceFile" {
             // Not interesting
         }
+    }
+
+    if !is_annotated && deprecated {
+        annotated.push(AstAnnotated {
+            range: RANGE,
+            name: ntoident(NuVec::Static(b"Deprecated")),
+            parameters: AstAnnotatedParameterKind::None,
+        });
     }
 
     for f in &fields {
@@ -150,7 +164,7 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Decom
 
     let mut file = AstFile { top: Vec::new() };
     let package = class_path
-        .trim_end_matches(name.as_bytes())
+        .trim_end_matches(class_name.as_bytes())
         .trim_end_matches_byte(b'.');
     file.top.push(AstTopLevel::Package(AstPackage {
         range: RANGE,
@@ -183,7 +197,7 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Decom
             availability,
             attributes: AstThingAttributes::empty(),
             annotated,
-            name: ntoident(name),
+            name: ntoident(class_name),
             implements: Vec::new(),
             permits,
             superclass,
@@ -202,7 +216,7 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Decom
             availability,
             attributes: AstThingAttributes::empty(),
             annotated,
-            name: ntoident(name),
+            name: ntoident(class_name),
             type_parameters,
             extends: None,
             constants: fields
@@ -250,7 +264,7 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Decom
             availability,
             attributes: AstThingAttributes::empty(),
             annotated,
-            name: ntoident(name),
+            name: ntoident(class_name),
             type_parameters,
             superclass,
             implements: Vec::new(),
@@ -273,7 +287,7 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Decom
             availability,
             attributes: AstThingAttributes::empty(),
             annotated,
-            name: ntoident(name),
+            name: ntoident(class_name),
             type_parameters,
             superclass,
             implements: Vec::new(),
@@ -323,9 +337,22 @@ const NO_NAME_CHARS: [&[u8; 1]; 26] = [
     b"a", b"b", b"c", b"d", b"e", b"f", b"g", b"h", b"i", b"j", b"k", b"l", b"m", b"n", b"o", b"p",
     b"q", b"r", b"s", b"t", b"u", b"v", b"w", b"x", b"y", b"z",
 ];
-const fn no_name(i: usize) -> &'static [u8; 1] {
+fn no_name(i: usize) -> NuVec {
     #[allow(clippy::arithmetic_side_effects)]
-    NO_NAME_CHARS[i % NO_NAME_CHARS.len()]
+    let div = i / NO_NAME_CHARS.len();
+    if div == 0 {
+        #[allow(clippy::arithmetic_side_effects)]
+        let i = i % NO_NAME_CHARS.len();
+        NuVec::Static(NO_NAME_CHARS[i])
+    } else {
+        let mut out = NuVecBuilder::new();
+        for _ in 0..div {
+            #[allow(clippy::arithmetic_side_effects)]
+            let i = i % NO_NAME_CHARS.len();
+            out.pusha(NO_NAME_CHARS[i]);
+        }
+        out.finish()
+    }
 }
 
 fn parse_method(
@@ -335,9 +362,14 @@ fn parse_method(
     name: u16,
     descriptor: u16,
     attributes: Vec<Attribute>,
+    class_name: &NuVec,
 ) -> Result<(AstClassMethod, Option<CodeAttribute>), DecompilerError> {
     let lname = lookup_string(c, name)?;
-    // let name = if lname == "<init>" { None } else { Some(lname) };
+    let lname = match lname.as_bytes() {
+        b"<init>" => class_name.clone(),
+        b"<clinit>" => NuVec::Static(b"clinit"),
+        _ => lname,
+    };
     let mut out = AstClassMethod {
         range: RANGE,
         header: AstMethodHeader {
@@ -373,6 +405,7 @@ fn parse_method(
         value: AstJTypeKind::Void,
         annotated: Vec::new(),
     };
+    let mut is_annotated = false;
 
     for (index, attribute) in attributes.iter().enumerate() {
         let attribute_name = lookup_string(c, attribute.name)?;
@@ -397,6 +430,7 @@ fn parse_method(
         {
             let info = attribute.lookup(data)?;
             parse_runtime_visible_annotations(info, 0, c, &mut out.header.annotated)?;
+            is_annotated = true;
         }
     }
     let no_parameter_names_and_signature =
@@ -410,7 +444,7 @@ fn parse_method(
                 range: RANGE,
                 annotated: Vec::new(),
                 jtype: p,
-                name: ntoident(NuVec::Static(no_name(i))),
+                name: ntoident(no_name(i)),
                 flags: AstMethodParameterFlags::empty(),
             });
         }
@@ -441,7 +475,7 @@ fn parse_method(
                         range: RANGE,
                         annotated: Vec::new(),
                         jtype,
-                        name: ntoident(NuVec::Static(no_name(i))),
+                        name: ntoident(no_name(i)),
                         flags: AstMethodParameterFlags::empty(),
                     });
                 } else if let Some(name) = lookup_string(c, p.name_index)
@@ -461,7 +495,7 @@ fn parse_method(
                         range: RANGE,
                         annotated: Vec::new(),
                         jtype,
-                        name: ntoident(NuVec::Static(no_name(i))),
+                        name: ntoident(no_name(i)),
                         flags: AstMethodParameterFlags::empty(),
                     });
                 }
@@ -493,7 +527,7 @@ fn parse_method(
                     range: RANGE,
                     annotated: Vec::new(),
                     jtype: jtype.clone(),
-                    name: ntoident(NuVec::Static(no_name(i))),
+                    name: ntoident(no_name(i)),
                     flags: AstMethodParameterFlags::empty(),
                 });
             }
@@ -526,7 +560,7 @@ fn parse_method(
         }
     }
     out.header.jtype = ret;
-    if deprecated {
+    if !is_annotated && deprecated {
         out.header.annotated.push(AstAnnotated {
             range: RANGE,
             name: ntoident(NuVec::Static(b"Deprecated")),
@@ -1820,6 +1854,8 @@ fn parse_fields(
             let mut annotated = Vec::new();
 
             let mut constant_value_attribute = None;
+            let mut deprecated = false;
+            let mut is_annotated = false;
 
             for a in attributes {
                 if a.name == 0 {
@@ -1828,6 +1864,8 @@ fn parse_fields(
                 let attribute_name = lookup_string(c, a.name)?;
                 if attribute_name == "ConstantValue" {
                     constant_value_attribute = Some(a);
+                } else if attribute_name == "Deprecated" {
+                    deprecated = true;
                 } else if attribute_name == "Signature" {
                     let info = a.lookup(data)?;
                     let (sig, _) = get_u16(info, 0)?;
@@ -1841,7 +1879,16 @@ fn parse_fields(
                 {
                     let info = a.lookup(data)?;
                     parse_runtime_visible_annotations(info, 0, c, &mut annotated)?;
+                    is_annotated = true;
                 }
+            }
+
+            if !is_annotated && deprecated {
+                annotated.push(AstAnnotated {
+                    range: RANGE,
+                    name: ntoident(NuVec::Static(b"Deprecated")),
+                    parameters: AstAnnotatedParameterKind::None,
+                });
             }
 
             // Lookup type via descriptor, When no Signature attribute exists
@@ -2054,6 +2101,7 @@ fn parse_methods(
     c: &ConstPool,
     is_interface: bool,
     used_classes: &mut HashSet<NuVec>,
+    class_name: &NuVec,
 ) -> Result<(Vec<AstClassMethod>, usize), DecompilerError> {
     let (size, pos) = get_u16(data, pos)?;
     let mut pos = pos;
@@ -2065,7 +2113,15 @@ fn parse_methods(
         let (descriptor, ipos) = get_u16(data, ipos)?;
         let (attributes, ipos) = parse_attributes(data, ipos)?;
 
-        let (m, code) = parse_method(c, data, access_flags, name, descriptor, attributes)?;
+        let (m, code) = parse_method(
+            c,
+            data,
+            access_flags,
+            name,
+            descriptor,
+            attributes,
+            class_name,
+        )?;
         if let Some(code_attribute) = code {
             parse_used_classes(c, data, &code_attribute, used_classes)?;
         }
@@ -2427,7 +2483,7 @@ mod tests {
                 int noprop;
                 public int publicproperty;
                 private int privateproperty;
-                public void <init>() {}
+                public void Everything() {}
                 void method() {}
                 public void public_method() {}
                 private void private_method() {}
@@ -2455,7 +2511,7 @@ mod tests {
                 int noprop;
                 public int publicproperty;
                 private int privateproperty;
-                public void <init>() {}
+                public void Everything() {}
                 void method() {}
                 public void public_method() {}
                 private void private_method() {}
@@ -2521,7 +2577,7 @@ mod tests {
                 java.lang.String one_string;
                 java.util.List<java.lang.String> one_list;
                 java.util.Map<java.lang.Integer, java.lang.String> one_map;
-                public void <init>() {}
+                public void Types() {}
                 public static void main(java.lang.String[] a) {}
             }
         "]];
@@ -2541,7 +2597,7 @@ mod tests {
         let expected = expect![[r"
             package ch.emilycares;
             public class Super extends IOException {
-                public void <init>() {}
+                public void Super() {}
             }
         "]];
         expected.assert_eq(out);
@@ -2558,7 +2614,7 @@ mod tests {
         let expected = expect![[r"
             package ch.emilycares;
             public class Thrower {
-                public void <init>() {}
+                public void Thrower() {}
                 public void ioThrower() throws java.io.IOException {}
                 public void ioThrower(int a) throws java.io.IOException, java.io.IOException {}
             }
@@ -2600,7 +2656,7 @@ mod tests {
             import java.util.HashSet;
             public class LocalVariableTable {
                 private java.util.HashSet<java.lang.String> a;
-                public void <init>() {}
+                public void LocalVariableTable() {}
                 public void hereIsCode() {}
                 public int hereIsCode(int a, int b) {}
             }
@@ -2628,10 +2684,10 @@ mod tests {
                 private static final ch.emilycares.Variants[] $VALUES;
                 public static ch.emilycares.Variants[] values() {}
                 public static ch.emilycares.Variants valueOf(java.lang.String name) {}
-                private void <init>(java.lang.String $enum$name) {}
+                private void Variants(java.lang.String $enum$name) {}
                 public java.lang.String getTag() {}
                 private static ch.emilycares.Variants[] $values() {}
-                static void <clinit>() {}
+                static void clinit() {}
             }
         "]];
         expected.assert_eq(out);

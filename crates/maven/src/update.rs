@@ -248,9 +248,7 @@ impl CurlClient {
             .send((easy, state, result_tx))
             .await
             .map_err(|_| MavenUpdateError::Driver)?;
-        result_rx
-            .await
-            .map_or(Err(MavenUpdateError::Driver), |result| result)
+        result_rx.await.unwrap_or(Err(MavenUpdateError::Driver))
     }
 }
 

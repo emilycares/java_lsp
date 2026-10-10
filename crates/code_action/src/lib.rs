@@ -371,13 +371,10 @@ pub fn get_import_position(ast: &AstFile) -> Result<Position, CodeActionError> {
 
 #[must_use]
 pub fn import_text_edit(classpath: &NuVec, ast: &AstFile) -> Vec<TextEdit> {
-    let pos = get_import_position(ast).map_or(
-        Position {
-            line: 2,
-            character: 0,
-        },
-        |i| i,
-    );
+    let pos = get_import_position(ast).unwrap_or(Position {
+        line: 2,
+        character: 0,
+    });
 
     vec![TextEdit {
         range: Range::new(pos, pos),
