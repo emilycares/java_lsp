@@ -11,13 +11,13 @@ use ast::types::{
     AstAnnotated, AstAnnotatedParameter, AstAnnotatedParameterKind, AstBaseExpression, AstBlock,
     AstBlockEntry, AstBlockVariable, AstClassBlock, AstConstructorHeader, AstDoWhile,
     AstExpression, AstExpressionIdentifier, AstExpressionKind, AstExpressionOperator,
-    AstExpressionOrAnnotated, AstExpressionOrDefault, AstExpressionOrValue, AstExtends, AstFile,
-    AstForContent, AstIdentifier, AstIf, AstIfContent, AstImportUnit, AstInterfaceConstant,
-    AstInterfaceMethod, AstJType, AstJTypeExpression, AstJTypeKind, AstLambdaRhs, AstMethodHeader,
-    AstMethodParameter, AstMethodParameters, AstNewClass, AstNewRhs, AstPoint, AstRange,
-    AstRecordEntries, AstRecordEntry, AstSuperClass, AstSwitchCaseArrowContent, AstThing,
-    AstThrowsDeclaration, AstTopLevel, AstTypeParameter, AstTypeParameters, AstValue,
-    AstValueNuget, AstValues, AstValuesWithAnnotated, AstWhile, AstWhileContent,
+    AstExpressionOrAnnotated, AstExpressionOrDefault, AstExtends, AstFile, AstForContent, AstIf,
+    AstIfContent, AstImportUnit, AstInterfaceConstant, AstInterfaceMethod, AstJType,
+    AstJTypeExpression, AstJTypeKind, AstLambdaRhs, AstMethodHeader, AstMethodParameter,
+    AstMethodParameters, AstNewClass, AstNewRhs, AstPoint, AstRange, AstRecordEntries,
+    AstRecordEntry, AstSuperClass, AstSwitchCaseArrowContent, AstThing, AstThrowsDeclaration,
+    AstTopLevel, AstTypeParameter, AstTypeParameters, AstValueNuget, AstValues,
+    AstValuesWithAnnotated, AstWhile, AstWhileContent,
 };
 use dto::JType;
 use my_string::NuVec;
@@ -626,12 +626,12 @@ fn dist_block_entry(point: &AstPoint, entry: &AstBlockEntry) -> usize {
 fn cc_block_entry(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallItem>) {
     match entry {
         AstBlockEntry::Return(ast_block_return) => {
-            if let AstExpressionOrValue::Expression(ref expression) = ast_block_return.expression {
+            if let Some(ref expression) = ast_block_return.expression {
                 cc_expr(expression, point, false, out);
             }
         }
         AstBlockEntry::Yield(ast_block_yield) => {
-            if let AstExpressionOrValue::Expression(ref expression) = ast_block_yield.expression {
+            if let Some(ref expression) = ast_block_yield.expression {
                 cc_expr(expression, point, false, out);
             }
         }
@@ -819,13 +819,6 @@ fn cc_while_content(content: &AstWhileContent, point: &AstPoint, out: &mut Vec<C
     }
 }
 
-fn cc_value(value: &AstValue, _point: &AstPoint, out: &mut Vec<CallItem>) {
-    match value {
-        AstValue::Variable(ast_identifier) => cc_variable(ast_identifier, out),
-        AstValue::Nuget(ast_nuget) => cc_value_nuget(ast_nuget, out),
-    }
-}
-
 fn cc_new_class(ast_new_class: &AstNewClass, point: &AstPoint, out: &mut Vec<CallItem>) {
     if let AstJTypeKind::Class(c) = &ast_new_class.jtype.value {
         out.push(CallItem::Class {
@@ -932,13 +925,6 @@ fn cc_value_nuget(ast_nuget: &AstValueNuget, out: &mut Vec<CallItem>) {
             range: ast_boolean.range,
         }),
     }
-}
-
-fn cc_variable(ast_identifier: &AstIdentifier, out: &mut Vec<CallItem>) {
-    out.push(CallItem::ClassOrVariable {
-        name: ast_identifier.into(),
-        range: ast_identifier.range,
-    });
 }
 
 pub fn cc_expr(
@@ -1210,7 +1196,7 @@ fn cc_base_next_oprerator(
                 let b = dist(*point, next.range);
 
                 if a < b {
-                    cc_expr_ident(ident, next.values.clone(), false, point, out);
+                    cc_expr_ident(ident, next.values.clone(), false, out);
                 } else {
                     cc_expr(&ast_expression[1..], point, false, out);
                 }
@@ -1222,7 +1208,7 @@ fn cc_base_next_oprerator(
         | AstExpressionOperator::Dot(_)
         | AstExpressionOperator::ExclamationMark(_) => {
             if let Some(ident) = &current.ident {
-                cc_expr_ident(ident, next.values.clone(), has_parent, point, out);
+                cc_expr_ident(ident, next.values.clone(), has_parent, out);
             }
             cc_expr(&ast_expression[1..], point, true, out);
             if let Some(values) = &current.values {
@@ -1235,7 +1221,7 @@ fn cc_base_next_oprerator(
                 let b = dist(*point, next.range);
 
                 if a <= b {
-                    cc_expr_ident(ident, next.values.clone(), true, point, out);
+                    cc_expr_ident(ident, next.values.clone(), true, out);
                 } else {
                     cc_expr(&ast_expression[1..], point, true, out);
                 }
@@ -1264,16 +1250,15 @@ fn cc_base_no_next(
                     values: Vec::new(),
                 }),
                 has_parent,
-                point,
                 out,
             );
         }
         (Some(ident), None) => {
-            cc_expr_ident(ident, None, has_parent, point, out);
+            cc_expr_ident(ident, None, has_parent, out);
         }
         (Some(ident), Some(values)) => {
             if ident.get_range().is_contained_in(&values.get_range()) {
-                cc_expr_ident(ident, Some(values.clone()), has_parent, point, out);
+                cc_expr_ident(ident, Some(values.clone()), has_parent, out);
             }
             cc_arguments(point, out, values);
         }
@@ -1390,7 +1375,6 @@ fn cc_expr_ident(
     ident: &AstExpressionIdentifier,
     args: Option<AstValues>,
     has_parent: bool,
-    point: &AstPoint,
     out: &mut Vec<CallItem>,
 ) {
     match ident {
@@ -1421,7 +1405,6 @@ fn cc_expr_ident(
             }
         }
         AstExpressionIdentifier::Nuget(ast_value_nuget) => cc_value_nuget(ast_value_nuget, out),
-        AstExpressionIdentifier::Value(ast_value) => cc_value(ast_value, point, out),
         AstExpressionIdentifier::ArrayAccess { range, .. } => {
             out.push(CallItem::ArrayAccess { range: *range });
             // cc_expr(arrayaccess, point, has_parent, out);

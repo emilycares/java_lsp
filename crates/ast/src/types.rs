@@ -585,21 +585,14 @@ pub struct AstBlockVariableMultiType {
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstBlockReturn {
     pub range: AstRange,
-    pub expression: AstExpressionOrValue,
+    pub expression: Option<AstExpression>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-pub enum AstExpressionOrValue {
-    None,
-    Expression(AstExpression),
-    Value(AstValue),
-}
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct AstBlockYield {
     pub range: AstRange,
-    pub expression: AstExpressionOrValue,
+    pub expression: Option<AstExpression>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
@@ -890,12 +883,6 @@ impl fmt::Display for AstJTypeKind {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-pub enum AstValue {
-    Variable(AstIdentifier),
-    Nuget(AstValueNuget),
-}
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum AstValueNuget {
     Int(AstInt),
     Long(AstInt),
@@ -966,7 +953,6 @@ pub struct AstBaseExpression {
 pub enum AstExpressionIdentifier {
     Identifier(AstIdentifier),
     Nuget(AstValueNuget),
-    Value(AstValue),
     ArrayAccess {
         expr: AstExpression,
         range: AstRange,

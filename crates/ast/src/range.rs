@@ -2,8 +2,8 @@
 use crate::types::{
     AstAnnotated, AstAnnotatedParameter, AstBlockEntry, AstBlockVariable, AstExpression,
     AstExpressionIdentifier, AstExpressionKind, AstExpressionOrAnnotated, AstForContent, AstIf,
-    AstIfContent, AstPoint, AstRange, AstSuperClass, AstThing, AstTopLevel, AstValue,
-    AstValueNuget, AstValues,
+    AstIfContent, AstPoint, AstRange, AstSuperClass, AstThing, AstTopLevel, AstValueNuget,
+    AstValues,
 };
 
 /// Join two ranges a must be before b
@@ -123,23 +123,6 @@ impl AstInRange for &AstForContent {
         }
     }
 }
-impl AstInRange for &AstValue {
-    fn is_in_range(&self, point: &AstPoint) -> bool {
-        match self {
-            AstValue::Variable(ast_identifier) => ast_identifier.range.is_in_range(point),
-            AstValue::Nuget(ast_value_nuget) => ast_value_nuget.is_in_range(point),
-        }
-    }
-}
-
-impl AstAfterRange for &AstValue {
-    fn is_after_range(&self, point: &AstPoint) -> bool {
-        match self {
-            AstValue::Variable(ast_identifier) => ast_identifier.range.is_after_range(point),
-            AstValue::Nuget(ast_value_nuget) => ast_value_nuget.is_after_range(point),
-        }
-    }
-}
 
 impl GetRange for &AstValueNuget {
     fn get_range(&self) -> AstRange {
@@ -244,22 +227,19 @@ impl GetRange for AstThing {
         }
     }
 }
-impl GetRange for AstValue {
+impl GetRange for AstValueNuget {
     fn get_range(&self) -> AstRange {
         match self {
-            Self::Variable(ast_identifier) => ast_identifier.range,
-            Self::Nuget(ast_value_nuget) => match ast_value_nuget {
-                AstValueNuget::Long(i) | AstValueNuget::Int(i) => i.range,
-                AstValueNuget::HexLiteral(h) => h.range,
-                AstValueNuget::BinaryLiteral(b) => b.range,
-                AstValueNuget::Double(ast_double)
-                | AstValueNuget::DoubleImplicit(ast_double)
-                | AstValueNuget::Float(ast_double) => ast_double.range,
-                AstValueNuget::StringLiteral { range, .. }
-                | AstValueNuget::StringLiteralMulti { range, .. }
-                | AstValueNuget::CharLiteral { range, .. } => *range,
-                AstValueNuget::BooleanLiteral(ast_boolean) => ast_boolean.range,
-            },
+            Self::Long(i) | Self::Int(i) => i.range,
+            Self::HexLiteral(h) => h.range,
+            Self::BinaryLiteral(b) => b.range,
+            Self::Double(ast_double)
+            | Self::DoubleImplicit(ast_double)
+            | Self::Float(ast_double) => ast_double.range,
+            Self::StringLiteral { range, .. }
+            | Self::StringLiteralMulti { range, .. }
+            | Self::CharLiteral { range, .. } => *range,
+            Self::BooleanLiteral(ast_boolean) => ast_boolean.range,
         }
     }
 }
@@ -314,7 +294,6 @@ impl GetRange for AstExpressionIdentifier {
         match &self {
             Self::Identifier(ast_identifier) => ast_identifier.range,
             Self::Nuget(ast_value_nuget) => ast_value_nuget.get_range(),
-            Self::Value(ast_value) => ast_value.get_range(),
             Self::ArrayAccess { range, .. } | Self::EmptyArrayAccess(range) => *range,
         }
     }

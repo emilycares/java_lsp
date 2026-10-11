@@ -356,7 +356,7 @@ fn everything() {
                                                                 start: AstPoint { 20:8 },
                                                                 end: AstPoint { 20:17 },
                                                             },
-                                                            expression: Expression(
+                                                            expression: Some(
                                                                 [
                                                                     Base(
                                                                         AstBaseExpression {
@@ -365,17 +365,15 @@ fn everything() {
                                                                                 end: AstPoint { 20:17 },
                                                                             },
                                                                             ident: Some(
-                                                                                Value(
-                                                                                    Nuget(
-                                                                                        Int(
-                                                                                            AstInt {
-                                                                                                range: AstRange {
-                                                                                                    start: AstPoint { 20:16 },
-                                                                                                    end: AstPoint { 20:17 },
-                                                                                                },
-                                                                                                value: "0",
+                                                                                Nuget(
+                                                                                    Int(
+                                                                                        AstInt {
+                                                                                            range: AstRange {
+                                                                                                start: AstPoint { 20:16 },
+                                                                                                end: AstPoint { 20:17 },
                                                                                             },
-                                                                                        ),
+                                                                                            value: "0",
+                                                                                        },
                                                                                     ),
                                                                                 ),
                                                                             ),
@@ -495,7 +493,7 @@ fn everything() {
                                                                 start: AstPoint { 30:8 },
                                                                 end: AstPoint { 30:21 },
                                                             },
-                                                            expression: Expression(
+                                                            expression: Some(
                                                                 [
                                                                     Base(
                                                                         AstBaseExpression {
@@ -667,7 +665,7 @@ fn everything() {
                                                                 start: AstPoint { 34:6 },
                                                                 end: AstPoint { 34:19 },
                                                             },
-                                                            expression: Expression(
+                                                            expression: Some(
                                                                 [
                                                                     Base(
                                                                         AstBaseExpression {
@@ -1404,17 +1402,15 @@ fn locale_variable_table() {
                                                                                                     end: AstPoint { 8:12 },
                                                                                                 },
                                                                                                 ident: Some(
-                                                                                                    Value(
-                                                                                                        Nuget(
-                                                                                                            Int(
-                                                                                                                AstInt {
-                                                                                                                    range: AstRange {
-                                                                                                                        start: AstPoint { 8:11 },
-                                                                                                                        end: AstPoint { 8:12 },
-                                                                                                                    },
-                                                                                                                    value: "1",
+                                                                                                    Nuget(
+                                                                                                        Int(
+                                                                                                            AstInt {
+                                                                                                                range: AstRange {
+                                                                                                                    start: AstPoint { 8:11 },
+                                                                                                                    end: AstPoint { 8:12 },
                                                                                                                 },
-                                                                                                            ),
+                                                                                                                value: "1",
+                                                                                                            },
                                                                                                         ),
                                                                                                     ),
                                                                                                 ),
@@ -1431,16 +1427,14 @@ fn locale_variable_table() {
                                                                                                     end: AstPoint { 8:14 },
                                                                                                 },
                                                                                                 ident: Some(
-                                                                                                    Value(
-                                                                                                        Nuget(
-                                                                                                            StringLiteral {
-                                                                                                                range: AstRange {
-                                                                                                                    start: AstPoint { 8:14 },
-                                                                                                                    end: AstPoint { 8:12 },
-                                                                                                                },
-                                                                                                                value: "",
+                                                                                                    Nuget(
+                                                                                                        StringLiteral {
+                                                                                                            range: AstRange {
+                                                                                                                start: AstPoint { 8:14 },
+                                                                                                                end: AstPoint { 8:12 },
                                                                                                             },
-                                                                                                        ),
+                                                                                                            value: "",
+                                                                                                        },
                                                                                                     ),
                                                                                                 ),
                                                                                                 values: None,
@@ -1654,7 +1648,7 @@ fn locale_variable_table() {
                                                                 start: AstPoint { 12:4 },
                                                                 end: AstPoint { 12:17 },
                                                             },
-                                                            expression: Expression(
+                                                            expression: Some(
                                                                 [
                                                                     Base(
                                                                         AstBaseExpression {
@@ -1700,17 +1694,15 @@ fn locale_variable_table() {
                                                                                 end: AstPoint { 12:17 },
                                                                             },
                                                                             ident: Some(
-                                                                                Value(
-                                                                                    Nuget(
-                                                                                        Int(
-                                                                                            AstInt {
-                                                                                                range: AstRange {
-                                                                                                    start: AstPoint { 12:16 },
-                                                                                                    end: AstPoint { 12:17 },
-                                                                                                },
-                                                                                                value: "1",
+                                                                                Nuget(
+                                                                                    Int(
+                                                                                        AstInt {
+                                                                                            range: AstRange {
+                                                                                                start: AstPoint { 12:16 },
+                                                                                                end: AstPoint { 12:17 },
                                                                                             },
-                                                                                        ),
+                                                                                            value: "1",
+                                                                                        },
                                                                                     ),
                                                                                 ),
                                                                             ),
@@ -1980,16 +1972,14 @@ fn constants() {
                                                         end: AstPoint { 8:34 },
                                                     },
                                                     ident: Some(
-                                                        Value(
-                                                            Nuget(
-                                                                StringLiteral {
-                                                                    range: AstRange {
-                                                                        start: AstPoint { 8:33 },
-                                                                        end: AstPoint { 8:31 },
-                                                                    },
-                                                                    value: "A",
+                                                        Nuget(
+                                                            StringLiteral {
+                                                                range: AstRange {
+                                                                    start: AstPoint { 8:33 },
+                                                                    end: AstPoint { 8:31 },
                                                                 },
-                                                            ),
+                                                                value: "A",
+                                                            },
                                                         ),
                                                     ),
                                                     values: None,
@@ -2040,16 +2030,14 @@ fn constants() {
                                                         end: AstPoint { 9:27 },
                                                     },
                                                     ident: Some(
-                                                        Value(
-                                                            Nuget(
-                                                                StringLiteral {
-                                                                    range: AstRange {
-                                                                        start: AstPoint { 9:26 },
-                                                                        end: AstPoint { 9:24 },
-                                                                    },
-                                                                    value: "B",
+                                                        Nuget(
+                                                            StringLiteral {
+                                                                range: AstRange {
+                                                                    start: AstPoint { 9:26 },
+                                                                    end: AstPoint { 9:24 },
                                                                 },
-                                                            ),
+                                                                value: "B",
+                                                            },
                                                         ),
                                                     ),
                                                     values: None,
@@ -2100,16 +2088,14 @@ fn constants() {
                                                         end: AstPoint { 11:27 },
                                                     },
                                                     ident: Some(
-                                                        Value(
-                                                            Nuget(
-                                                                StringLiteral {
-                                                                    range: AstRange {
-                                                                        start: AstPoint { 11:26 },
-                                                                        end: AstPoint { 11:24 },
-                                                                    },
-                                                                    value: "C",
+                                                        Nuget(
+                                                            StringLiteral {
+                                                                range: AstRange {
+                                                                    start: AstPoint { 11:26 },
+                                                                    end: AstPoint { 11:24 },
                                                                 },
-                                                            ),
+                                                                value: "C",
+                                                            },
                                                         ),
                                                     ),
                                                     values: None,
@@ -2572,7 +2558,7 @@ fn super_interface() {
                                                         start: AstPoint { 10:8 },
                                                         end: AstPoint { 10:58 },
                                                     },
-                                                    expression: Expression(
+                                                    expression: Some(
                                                         [
                                                             Base(
                                                                 AstBaseExpression {
@@ -2696,17 +2682,15 @@ fn super_interface() {
                                                                                                 end: AstPoint { 10:56 },
                                                                                             },
                                                                                             ident: Some(
-                                                                                                Value(
-                                                                                                    Nuget(
-                                                                                                        BooleanLiteral(
-                                                                                                            AstBoolean {
-                                                                                                                range: AstRange {
-                                                                                                                    start: AstPoint { 10:51 },
-                                                                                                                    end: AstPoint { 10:56 },
-                                                                                                                },
-                                                                                                                value: false,
+                                                                                                Nuget(
+                                                                                                    BooleanLiteral(
+                                                                                                        AstBoolean {
+                                                                                                            range: AstRange {
+                                                                                                                start: AstPoint { 10:51 },
+                                                                                                                end: AstPoint { 10:56 },
                                                                                                             },
-                                                                                                        ),
+                                                                                                            value: false,
+                                                                                                        },
                                                                                                     ),
                                                                                                 ),
                                                                                             ),
@@ -3100,7 +3084,7 @@ fn interface_base() {
                                                         start: AstPoint { 9:8 },
                                                         end: AstPoint { 9:19 },
                                                     },
-                                                    expression: Expression(
+                                                    expression: Some(
                                                         [
                                                             Base(
                                                                 AstBaseExpression {
@@ -3214,16 +3198,14 @@ fn variants() {
                                                         end: AstPoint { 2:9 },
                                                     },
                                                     ident: Some(
-                                                        Value(
-                                                            Nuget(
-                                                                StringLiteral {
-                                                                    range: AstRange {
-                                                                        start: AstPoint { 2:8 },
-                                                                        end: AstPoint { 2:6 },
-                                                                    },
-                                                                    value: "a",
+                                                        Nuget(
+                                                            StringLiteral {
+                                                                range: AstRange {
+                                                                    start: AstPoint { 2:8 },
+                                                                    end: AstPoint { 2:6 },
                                                                 },
-                                                            ),
+                                                                value: "a",
+                                                            },
                                                         ),
                                                     ),
                                                     values: None,
@@ -3255,16 +3237,14 @@ fn variants() {
                                                         end: AstPoint { 3:9 },
                                                     },
                                                     ident: Some(
-                                                        Value(
-                                                            Nuget(
-                                                                StringLiteral {
-                                                                    range: AstRange {
-                                                                        start: AstPoint { 3:8 },
-                                                                        end: AstPoint { 3:6 },
-                                                                    },
-                                                                    value: "b",
+                                                        Nuget(
+                                                            StringLiteral {
+                                                                range: AstRange {
+                                                                    start: AstPoint { 3:8 },
+                                                                    end: AstPoint { 3:6 },
                                                                 },
-                                                            ),
+                                                                value: "b",
+                                                            },
                                                         ),
                                                     ),
                                                     values: None,
@@ -3296,16 +3276,14 @@ fn variants() {
                                                         end: AstPoint { 4:9 },
                                                     },
                                                     ident: Some(
-                                                        Value(
-                                                            Nuget(
-                                                                StringLiteral {
-                                                                    range: AstRange {
-                                                                        start: AstPoint { 4:8 },
-                                                                        end: AstPoint { 4:6 },
-                                                                    },
-                                                                    value: "c",
+                                                        Nuget(
+                                                            StringLiteral {
+                                                                range: AstRange {
+                                                                    start: AstPoint { 4:8 },
+                                                                    end: AstPoint { 4:6 },
                                                                 },
-                                                            ),
+                                                                value: "c",
+                                                            },
                                                         ),
                                                     ),
                                                     values: None,
@@ -3378,7 +3356,7 @@ fn variants() {
                                                             start: AstPoint { 12:8 },
                                                             end: AstPoint { 12:19 },
                                                         },
-                                                        expression: Expression(
+                                                        expression: Some(
                                                             [
                                                                 Base(
                                                                     AstBaseExpression {
@@ -3879,16 +3857,14 @@ fn types() {
                                                                                     end: AstPoint { 6:43 },
                                                                                 },
                                                                                 ident: Some(
-                                                                                    Value(
-                                                                                        Nuget(
-                                                                                            StringLiteral {
-                                                                                                range: AstRange {
-                                                                                                    start: AstPoint { 6:38 },
-                                                                                                    end: AstPoint { 6:32 },
-                                                                                                },
-                                                                                                value: "Types",
+                                                                                    Nuget(
+                                                                                        StringLiteral {
+                                                                                            range: AstRange {
+                                                                                                start: AstPoint { 6:38 },
+                                                                                                end: AstPoint { 6:32 },
                                                                                             },
-                                                                                        ),
+                                                                                            value: "Types",
+                                                                                        },
                                                                                     ),
                                                                                 ),
                                                                                 values: None,
@@ -3941,17 +3917,15 @@ fn types() {
                                                             end: AstPoint { 7:26 },
                                                         },
                                                         ident: Some(
-                                                            Value(
-                                                                Nuget(
-                                                                    BooleanLiteral(
-                                                                        AstBoolean {
-                                                                            range: AstRange {
-                                                                                start: AstPoint { 7:22 },
-                                                                                end: AstPoint { 7:26 },
-                                                                            },
-                                                                            value: true,
+                                                            Nuget(
+                                                                BooleanLiteral(
+                                                                    AstBoolean {
+                                                                        range: AstRange {
+                                                                            start: AstPoint { 7:22 },
+                                                                            end: AstPoint { 7:26 },
                                                                         },
-                                                                    ),
+                                                                        value: true,
+                                                                    },
                                                                 ),
                                                             ),
                                                         ),
@@ -3998,17 +3972,15 @@ fn types() {
                                                             end: AstPoint { 8:20 },
                                                         },
                                                         ident: Some(
-                                                            Value(
-                                                                Nuget(
-                                                                    Int(
-                                                                        AstInt {
-                                                                            range: AstRange {
-                                                                                start: AstPoint { 8:19 },
-                                                                                end: AstPoint { 8:20 },
-                                                                            },
-                                                                            value: "0",
+                                                            Nuget(
+                                                                Int(
+                                                                    AstInt {
+                                                                        range: AstRange {
+                                                                            start: AstPoint { 8:19 },
+                                                                            end: AstPoint { 8:20 },
                                                                         },
-                                                                    ),
+                                                                        value: "0",
+                                                                    },
                                                                 ),
                                                             ),
                                                         ),
@@ -4055,17 +4027,15 @@ fn types() {
                                                             end: AstPoint { 9:18 },
                                                         },
                                                         ident: Some(
-                                                            Value(
-                                                                Nuget(
-                                                                    Int(
-                                                                        AstInt {
-                                                                            range: AstRange {
-                                                                                start: AstPoint { 9:17 },
-                                                                                end: AstPoint { 9:18 },
-                                                                            },
-                                                                            value: "0",
+                                                            Nuget(
+                                                                Int(
+                                                                    AstInt {
+                                                                        range: AstRange {
+                                                                            start: AstPoint { 9:17 },
+                                                                            end: AstPoint { 9:18 },
                                                                         },
-                                                                    ),
+                                                                        value: "0",
+                                                                    },
                                                                 ),
                                                             ),
                                                         ),
@@ -4112,17 +4082,15 @@ fn types() {
                                                             end: AstPoint { 10:22 },
                                                         },
                                                         ident: Some(
-                                                            Value(
-                                                                Nuget(
-                                                                    Int(
-                                                                        AstInt {
-                                                                            range: AstRange {
-                                                                                start: AstPoint { 10:21 },
-                                                                                end: AstPoint { 10:22 },
-                                                                            },
-                                                                            value: "0",
+                                                            Nuget(
+                                                                Int(
+                                                                    AstInt {
+                                                                        range: AstRange {
+                                                                            start: AstPoint { 10:21 },
+                                                                            end: AstPoint { 10:22 },
                                                                         },
-                                                                    ),
+                                                                        value: "0",
+                                                                    },
                                                                 ),
                                                             ),
                                                         ),
@@ -4169,17 +4137,15 @@ fn types() {
                                                             end: AstPoint { 11:22 },
                                                         },
                                                         ident: Some(
-                                                            Value(
-                                                                Nuget(
-                                                                    Long(
-                                                                        AstInt {
-                                                                            range: AstRange {
-                                                                                start: AstPoint { 11:21 },
-                                                                                end: AstPoint { 11:24 },
-                                                                            },
-                                                                            value: "111",
+                                                            Nuget(
+                                                                Long(
+                                                                    AstInt {
+                                                                        range: AstRange {
+                                                                            start: AstPoint { 11:21 },
+                                                                            end: AstPoint { 11:24 },
                                                                         },
-                                                                    ),
+                                                                        value: "111",
+                                                                    },
                                                                 ),
                                                             ),
                                                         ),
@@ -4226,17 +4192,15 @@ fn types() {
                                                             end: AstPoint { 12:26 },
                                                         },
                                                         ident: Some(
-                                                            Value(
-                                                                Nuget(
-                                                                    Double(
-                                                                        AstDouble {
-                                                                            range: AstRange {
-                                                                                start: AstPoint { 12:23 },
-                                                                                end: AstPoint { 12:24 },
-                                                                            },
-                                                                            value: "0.0",
+                                                            Nuget(
+                                                                Double(
+                                                                    AstDouble {
+                                                                        range: AstRange {
+                                                                            start: AstPoint { 12:23 },
+                                                                            end: AstPoint { 12:24 },
                                                                         },
-                                                                    ),
+                                                                        value: "0.0",
+                                                                    },
                                                                 ),
                                                             ),
                                                         ),
@@ -4283,17 +4247,15 @@ fn types() {
                                                             end: AstPoint { 13:25 },
                                                         },
                                                         ident: Some(
-                                                            Value(
-                                                                Nuget(
-                                                                    Float(
-                                                                        AstDouble {
-                                                                            range: AstRange {
-                                                                                start: AstPoint { 13:21 },
-                                                                                end: AstPoint { 13:22 },
-                                                                            },
-                                                                            value: "1.11",
+                                                            Nuget(
+                                                                Float(
+                                                                    AstDouble {
+                                                                        range: AstRange {
+                                                                            start: AstPoint { 13:21 },
+                                                                            end: AstPoint { 13:22 },
                                                                         },
-                                                                    ),
+                                                                        value: "1.11",
+                                                                    },
                                                                 ),
                                                             ),
                                                         ),
@@ -4340,16 +4302,14 @@ fn types() {
                                                             end: AstPoint { 14:20 },
                                                         },
                                                         ident: Some(
-                                                            Value(
-                                                                Nuget(
-                                                                    CharLiteral {
-                                                                        value: "a",
-                                                                        range: AstRange {
-                                                                            start: AstPoint { 14:19 },
-                                                                            end: AstPoint { 14:18 },
-                                                                        },
+                                                            Nuget(
+                                                                CharLiteral {
+                                                                    value: "a",
+                                                                    range: AstRange {
+                                                                        start: AstPoint { 14:19 },
+                                                                        end: AstPoint { 14:18 },
                                                                     },
-                                                                ),
+                                                                },
                                                             ),
                                                         ),
                                                         values: None,
@@ -4403,16 +4363,14 @@ fn types() {
                                                             end: AstPoint { 15:31 },
                                                         },
                                                         ident: Some(
-                                                            Value(
-                                                                Nuget(
-                                                                    StringLiteral {
-                                                                        range: AstRange {
-                                                                            start: AstPoint { 15:27 },
-                                                                            end: AstPoint { 15:22 },
-                                                                        },
-                                                                        value: "hihi",
+                                                            Nuget(
+                                                                StringLiteral {
+                                                                    range: AstRange {
+                                                                        start: AstPoint { 15:27 },
+                                                                        end: AstPoint { 15:22 },
                                                                     },
-                                                                ),
+                                                                    value: "hihi",
+                                                                },
                                                             ),
                                                         ),
                                                         values: None,
@@ -4557,16 +4515,14 @@ fn types() {
                                                                                     end: AstPoint { 16:43 },
                                                                                 },
                                                                                 ident: Some(
-                                                                                    Value(
-                                                                                        Nuget(
-                                                                                            StringLiteral {
-                                                                                                range: AstRange {
-                                                                                                    start: AstPoint { 16:39 },
-                                                                                                    end: AstPoint { 16:34 },
-                                                                                                },
-                                                                                                value: "haha",
+                                                                                    Nuget(
+                                                                                        StringLiteral {
+                                                                                            range: AstRange {
+                                                                                                start: AstPoint { 16:39 },
+                                                                                                end: AstPoint { 16:34 },
                                                                                             },
-                                                                                        ),
+                                                                                            value: "haha",
+                                                                                        },
                                                                                     ),
                                                                                 ),
                                                                                 values: None,
@@ -4947,16 +4903,14 @@ fn annotated() {
                                                                 end: AstPoint { 8:19 },
                                                             },
                                                             ident: Some(
-                                                                Value(
-                                                                    Nuget(
-                                                                        StringLiteral {
-                                                                            range: AstRange {
-                                                                                start: AstPoint { 8:13 },
-                                                                                end: AstPoint { 8:6 },
-                                                                            },
-                                                                            value: "/hello",
+                                                                Nuget(
+                                                                    StringLiteral {
+                                                                        range: AstRange {
+                                                                            start: AstPoint { 8:13 },
+                                                                            end: AstPoint { 8:6 },
                                                                         },
-                                                                    ),
+                                                                        value: "/hello",
+                                                                    },
                                                                 ),
                                                             ),
                                                             values: None,
@@ -5128,16 +5082,14 @@ fn annotated() {
                                                                                 end: AstPoint { 12:23 },
                                                                             },
                                                                             ident: Some(
-                                                                                Value(
-                                                                                    Nuget(
-                                                                                        StringLiteral {
-                                                                                            range: AstRange {
-                                                                                                start: AstPoint { 12:17 },
-                                                                                                end: AstPoint { 12:10 },
-                                                                                            },
-                                                                                            value: "{name}",
+                                                                                Nuget(
+                                                                                    StringLiteral {
+                                                                                        range: AstRange {
+                                                                                            start: AstPoint { 12:17 },
+                                                                                            end: AstPoint { 12:10 },
                                                                                         },
-                                                                                    ),
+                                                                                        value: "{name}",
+                                                                                    },
                                                                                 ),
                                                                             ),
                                                                             values: None,
@@ -5401,7 +5353,7 @@ fn annotated() {
                                                                 start: AstPoint { 17:8 },
                                                                 end: AstPoint { 17:41 },
                                                             },
-                                                            expression: Expression(
+                                                            expression: Some(
                                                                 [
                                                                     Base(
                                                                         AstBaseExpression {
@@ -5410,16 +5362,14 @@ fn annotated() {
                                                                                 end: AstPoint { 17:62 },
                                                                             },
                                                                             ident: Some(
-                                                                                Value(
-                                                                                    Nuget(
-                                                                                        StringLiteral {
-                                                                                            range: AstRange {
-                                                                                                start: AstPoint { 17:39 },
-                                                                                                end: AstPoint { 17:14 },
-                                                                                            },
-                                                                                            value: "Hello from Quarkus REST",
+                                                                                Nuget(
+                                                                                    StringLiteral {
+                                                                                        range: AstRange {
+                                                                                            start: AstPoint { 17:39 },
+                                                                                            end: AstPoint { 17:14 },
                                                                                         },
-                                                                                    ),
+                                                                                        value: "Hello from Quarkus REST",
+                                                                                    },
                                                                                 ),
                                                                             ),
                                                                             values: None,
@@ -5698,17 +5648,15 @@ fn expression_array_access() {
                                                 end: AstPoint { 0:10 },
                                             },
                                             ident: Some(
-                                                Value(
-                                                    Nuget(
-                                                        Int(
-                                                            AstInt {
-                                                                range: AstRange {
-                                                                    start: AstPoint { 0:9 },
-                                                                    end: AstPoint { 0:10 },
-                                                                },
-                                                                value: "0",
+                                                Nuget(
+                                                    Int(
+                                                        AstInt {
+                                                            range: AstRange {
+                                                                start: AstPoint { 0:9 },
+                                                                end: AstPoint { 0:10 },
                                                             },
-                                                        ),
+                                                            value: "0",
+                                                        },
                                                     ),
                                                 ),
                                             ),
@@ -5781,17 +5729,15 @@ fn expression_multi_array_access() {
                                                 end: AstPoint { 0:10 },
                                             },
                                             ident: Some(
-                                                Value(
-                                                    Nuget(
-                                                        Int(
-                                                            AstInt {
-                                                                range: AstRange {
-                                                                    start: AstPoint { 0:9 },
-                                                                    end: AstPoint { 0:10 },
-                                                                },
-                                                                value: "0",
+                                                Nuget(
+                                                    Int(
+                                                        AstInt {
+                                                            range: AstRange {
+                                                                start: AstPoint { 0:9 },
+                                                                end: AstPoint { 0:10 },
                                                             },
-                                                        ),
+                                                            value: "0",
+                                                        },
                                                     ),
                                                 ),
                                             ),
@@ -5826,17 +5772,15 @@ fn expression_multi_array_access() {
                                                 end: AstPoint { 0:13 },
                                             },
                                             ident: Some(
-                                                Value(
-                                                    Nuget(
-                                                        Int(
-                                                            AstInt {
-                                                                range: AstRange {
-                                                                    start: AstPoint { 0:12 },
-                                                                    end: AstPoint { 0:13 },
-                                                                },
-                                                                value: "0",
+                                                Nuget(
+                                                    Int(
+                                                        AstInt {
+                                                            range: AstRange {
+                                                                start: AstPoint { 0:12 },
+                                                                end: AstPoint { 0:13 },
                                                             },
-                                                        ),
+                                                            value: "0",
+                                                        },
                                                     ),
                                                 ),
                                             ),
@@ -5871,17 +5815,15 @@ fn expression_multi_array_access() {
                                                 end: AstPoint { 0:16 },
                                             },
                                             ident: Some(
-                                                Value(
-                                                    Nuget(
-                                                        Int(
-                                                            AstInt {
-                                                                range: AstRange {
-                                                                    start: AstPoint { 0:15 },
-                                                                    end: AstPoint { 0:16 },
-                                                                },
-                                                                value: "0",
+                                                Nuget(
+                                                    Int(
+                                                        AstInt {
+                                                            range: AstRange {
+                                                                start: AstPoint { 0:15 },
+                                                                end: AstPoint { 0:16 },
                                                             },
-                                                        ),
+                                                            value: "0",
+                                                        },
                                                     ),
                                                 ),
                                             ),
@@ -5924,16 +5866,14 @@ fn equasion_method_call() {
                             end: AstPoint { 0:3 },
                         },
                         ident: Some(
-                            Value(
-                                Nuget(
-                                    StringLiteral {
-                                        range: AstRange {
-                                            start: AstPoint { 0:2 },
-                                            end: AstPoint { 0:3 },
-                                        },
-                                        value: "z",
+                            Nuget(
+                                StringLiteral {
+                                    range: AstRange {
+                                        start: AstPoint { 0:2 },
+                                        end: AstPoint { 0:3 },
                                     },
-                                ),
+                                    value: "z",
+                                },
                             ),
                         ),
                         values: None,
@@ -6119,17 +6059,15 @@ fn annotation() {
                                                         end: AstPoint { 2:26 },
                                                     },
                                                     ident: Some(
-                                                        Value(
-                                                            Nuget(
-                                                                Int(
-                                                                    AstInt {
-                                                                        range: AstRange {
-                                                                            start: AstPoint { 2:25 },
-                                                                            end: AstPoint { 2:26 },
-                                                                        },
-                                                                        value: "0",
+                                                        Nuget(
+                                                            Int(
+                                                                AstInt {
+                                                                    range: AstRange {
+                                                                        start: AstPoint { 2:25 },
+                                                                        end: AstPoint { 2:26 },
                                                                     },
-                                                                ),
+                                                                    value: "0",
+                                                                },
                                                             ),
                                                         ),
                                                     ),
@@ -6181,16 +6119,14 @@ fn annotation() {
                                                         end: AstPoint { 3:37 },
                                                     },
                                                     ident: Some(
-                                                        Value(
-                                                            Nuget(
-                                                                StringLiteral {
-                                                                    range: AstRange {
-                                                                        start: AstPoint { 3:32 },
-                                                                        end: AstPoint { 3:25 },
-                                                                    },
-                                                                    value: "Hello",
+                                                        Nuget(
+                                                            StringLiteral {
+                                                                range: AstRange {
+                                                                    start: AstPoint { 3:32 },
+                                                                    end: AstPoint { 3:25 },
                                                                 },
-                                                            ),
+                                                                value: "Hello",
+                                                            },
                                                         ),
                                                     ),
                                                     values: None,
@@ -6416,17 +6352,15 @@ fn more_syntax() {
                                                                             end: AstPoint { 5:16 },
                                                                         },
                                                                         ident: Some(
-                                                                            Value(
-                                                                                Nuget(
-                                                                                    BooleanLiteral(
-                                                                                        AstBoolean {
-                                                                                            range: AstRange {
-                                                                                                start: AstPoint { 5:12 },
-                                                                                                end: AstPoint { 5:16 },
-                                                                                            },
-                                                                                            value: true,
+                                                                            Nuget(
+                                                                                BooleanLiteral(
+                                                                                    AstBoolean {
+                                                                                        range: AstRange {
+                                                                                            start: AstPoint { 5:12 },
+                                                                                            end: AstPoint { 5:16 },
                                                                                         },
-                                                                                    ),
+                                                                                        value: true,
+                                                                                    },
                                                                                 ),
                                                                             ),
                                                                         ),
@@ -6454,17 +6388,15 @@ fn more_syntax() {
                                                                                         end: AstPoint { 6:12 },
                                                                                     },
                                                                                     ident: Some(
-                                                                                        Value(
-                                                                                            Nuget(
-                                                                                                Int(
-                                                                                                    AstInt {
-                                                                                                        range: AstRange {
-                                                                                                            start: AstPoint { 6:11 },
-                                                                                                            end: AstPoint { 6:12 },
-                                                                                                        },
-                                                                                                        value: "1",
+                                                                                        Nuget(
+                                                                                            Int(
+                                                                                                AstInt {
+                                                                                                    range: AstRange {
+                                                                                                        start: AstPoint { 6:11 },
+                                                                                                        end: AstPoint { 6:12 },
                                                                                                     },
-                                                                                                ),
+                                                                                                    value: "1",
+                                                                                                },
                                                                                             ),
                                                                                         ),
                                                                                     ),
@@ -6553,17 +6485,15 @@ fn more_syntax() {
                                                                             end: AstPoint { 11:19 },
                                                                         },
                                                                         ident: Some(
-                                                                            Value(
-                                                                                Nuget(
-                                                                                    BooleanLiteral(
-                                                                                        AstBoolean {
-                                                                                            range: AstRange {
-                                                                                                start: AstPoint { 11:15 },
-                                                                                                end: AstPoint { 11:19 },
-                                                                                            },
-                                                                                            value: true,
+                                                                            Nuget(
+                                                                                BooleanLiteral(
+                                                                                    AstBoolean {
+                                                                                        range: AstRange {
+                                                                                            start: AstPoint { 11:15 },
+                                                                                            end: AstPoint { 11:19 },
                                                                                         },
-                                                                                    ),
+                                                                                        value: true,
+                                                                                    },
                                                                                 ),
                                                                             ),
                                                                         ),
@@ -6624,17 +6554,15 @@ fn more_syntax() {
                                                                                                 end: AstPoint { 13:20 },
                                                                                             },
                                                                                             ident: Some(
-                                                                                                Value(
-                                                                                                    Nuget(
-                                                                                                        Int(
-                                                                                                            AstInt {
-                                                                                                                range: AstRange {
-                                                                                                                    start: AstPoint { 13:19 },
-                                                                                                                    end: AstPoint { 13:20 },
-                                                                                                                },
-                                                                                                                value: "1",
+                                                                                                Nuget(
+                                                                                                    Int(
+                                                                                                        AstInt {
+                                                                                                            range: AstRange {
+                                                                                                                start: AstPoint { 13:19 },
+                                                                                                                end: AstPoint { 13:20 },
                                                                                                             },
-                                                                                                        ),
+                                                                                                            value: "1",
+                                                                                                        },
                                                                                                     ),
                                                                                                 ),
                                                                                             ),
@@ -6700,17 +6628,15 @@ fn more_syntax() {
                                                                                         end: AstPoint { 13:25 },
                                                                                     },
                                                                                     ident: Some(
-                                                                                        Value(
-                                                                                            Nuget(
-                                                                                                Int(
-                                                                                                    AstInt {
-                                                                                                        range: AstRange {
-                                                                                                            start: AstPoint { 13:24 },
-                                                                                                            end: AstPoint { 13:25 },
-                                                                                                        },
-                                                                                                        value: "5",
+                                                                                        Nuget(
+                                                                                            Int(
+                                                                                                AstInt {
+                                                                                                    range: AstRange {
+                                                                                                        start: AstPoint { 13:24 },
+                                                                                                        end: AstPoint { 13:25 },
                                                                                                     },
-                                                                                                ),
+                                                                                                    value: "5",
+                                                                                                },
                                                                                             ),
                                                                                         ),
                                                                                     ),
@@ -6823,17 +6749,15 @@ fn more_syntax() {
                                                                                                 end: AstPoint { 15:27 },
                                                                                             },
                                                                                             ident: Some(
-                                                                                                Value(
-                                                                                                    Nuget(
-                                                                                                        Int(
-                                                                                                            AstInt {
-                                                                                                                range: AstRange {
-                                                                                                                    start: AstPoint { 15:26 },
-                                                                                                                    end: AstPoint { 15:27 },
-                                                                                                                },
-                                                                                                                value: "1",
+                                                                                                Nuget(
+                                                                                                    Int(
+                                                                                                        AstInt {
+                                                                                                            range: AstRange {
+                                                                                                                start: AstPoint { 15:26 },
+                                                                                                                end: AstPoint { 15:27 },
                                                                                                             },
-                                                                                                        ),
+                                                                                                            value: "1",
+                                                                                                        },
                                                                                                     ),
                                                                                                 ),
                                                                                             ),
@@ -6899,17 +6823,15 @@ fn more_syntax() {
                                                                                         end: AstPoint { 15:32 },
                                                                                     },
                                                                                     ident: Some(
-                                                                                        Value(
-                                                                                            Nuget(
-                                                                                                Int(
-                                                                                                    AstInt {
-                                                                                                        range: AstRange {
-                                                                                                            start: AstPoint { 15:31 },
-                                                                                                            end: AstPoint { 15:32 },
-                                                                                                        },
-                                                                                                        value: "5",
+                                                                                        Nuget(
+                                                                                            Int(
+                                                                                                AstInt {
+                                                                                                    range: AstRange {
+                                                                                                        start: AstPoint { 15:31 },
+                                                                                                        end: AstPoint { 15:32 },
                                                                                                     },
-                                                                                                ),
+                                                                                                    value: "5",
+                                                                                                },
                                                                                             ),
                                                                                         ),
                                                                                     ),
@@ -7048,16 +6970,14 @@ fn more_syntax() {
                                                                                                     end: AstPoint { 17:36 },
                                                                                                 },
                                                                                                 ident: Some(
-                                                                                                    Value(
-                                                                                                        Nuget(
-                                                                                                            StringLiteral {
-                                                                                                                range: AstRange {
-                                                                                                                    start: AstPoint { 17:31 },
-                                                                                                                    end: AstPoint { 17:25 },
-                                                                                                                },
-                                                                                                                value: "Volvo",
+                                                                                                    Nuget(
+                                                                                                        StringLiteral {
+                                                                                                            range: AstRange {
+                                                                                                                start: AstPoint { 17:31 },
+                                                                                                                end: AstPoint { 17:25 },
                                                                                                             },
-                                                                                                        ),
+                                                                                                            value: "Volvo",
+                                                                                                        },
                                                                                                     ),
                                                                                                 ),
                                                                                                 values: None,
@@ -7073,16 +6993,14 @@ fn more_syntax() {
                                                                                                     end: AstPoint { 17:41 },
                                                                                                 },
                                                                                                 ident: Some(
-                                                                                                    Value(
-                                                                                                        Nuget(
-                                                                                                            StringLiteral {
-                                                                                                                range: AstRange {
-                                                                                                                    start: AstPoint { 17:38 },
-                                                                                                                    end: AstPoint { 17:33 },
-                                                                                                                },
-                                                                                                                value: "BMW",
+                                                                                                    Nuget(
+                                                                                                        StringLiteral {
+                                                                                                            range: AstRange {
+                                                                                                                start: AstPoint { 17:38 },
+                                                                                                                end: AstPoint { 17:33 },
                                                                                                             },
-                                                                                                        ),
+                                                                                                            value: "BMW",
+                                                                                                        },
                                                                                                     ),
                                                                                                 ),
                                                                                                 values: None,
@@ -7098,16 +7016,14 @@ fn more_syntax() {
                                                                                                     end: AstPoint { 17:50 },
                                                                                                 },
                                                                                                 ident: Some(
-                                                                                                    Value(
-                                                                                                        Nuget(
-                                                                                                            StringLiteral {
-                                                                                                                range: AstRange {
-                                                                                                                    start: AstPoint { 17:46 },
-                                                                                                                    end: AstPoint { 17:40 },
-                                                                                                                },
-                                                                                                                value: "Ford",
+                                                                                                    Nuget(
+                                                                                                        StringLiteral {
+                                                                                                            range: AstRange {
+                                                                                                                start: AstPoint { 17:46 },
+                                                                                                                end: AstPoint { 17:40 },
                                                                                                             },
-                                                                                                        ),
+                                                                                                            value: "Ford",
+                                                                                                        },
                                                                                                     ),
                                                                                                 ),
                                                                                                 values: None,
@@ -7123,16 +7039,14 @@ fn more_syntax() {
                                                                                                     end: AstPoint { 17:60 },
                                                                                                 },
                                                                                                 ident: Some(
-                                                                                                    Value(
-                                                                                                        Nuget(
-                                                                                                            StringLiteral {
-                                                                                                                range: AstRange {
-                                                                                                                    start: AstPoint { 17:55 },
-                                                                                                                    end: AstPoint { 17:48 },
-                                                                                                                },
-                                                                                                                value: "Mazda",
+                                                                                                    Nuget(
+                                                                                                        StringLiteral {
+                                                                                                            range: AstRange {
+                                                                                                                start: AstPoint { 17:55 },
+                                                                                                                end: AstPoint { 17:48 },
                                                                                                             },
-                                                                                                        ),
+                                                                                                            value: "Mazda",
+                                                                                                        },
                                                                                                     ),
                                                                                                 ),
                                                                                                 values: None,
@@ -7302,17 +7216,15 @@ fn more_syntax() {
                                                                                                                         end: AstPoint { 18:34 },
                                                                                                                     },
                                                                                                                     ident: Some(
-                                                                                                                        Value(
-                                                                                                                            Nuget(
-                                                                                                                                Int(
-                                                                                                                                    AstInt {
-                                                                                                                                        range: AstRange {
-                                                                                                                                            start: AstPoint { 18:33 },
-                                                                                                                                            end: AstPoint { 18:34 },
-                                                                                                                                        },
-                                                                                                                                        value: "0",
+                                                                                                                        Nuget(
+                                                                                                                            Int(
+                                                                                                                                AstInt {
+                                                                                                                                    range: AstRange {
+                                                                                                                                        start: AstPoint { 18:33 },
+                                                                                                                                        end: AstPoint { 18:34 },
                                                                                                                                     },
-                                                                                                                                ),
+                                                                                                                                    value: "0",
+                                                                                                                                },
                                                                                                                             ),
                                                                                                                         ),
                                                                                                                     ),
@@ -7408,17 +7320,15 @@ fn more_syntax() {
                                                                                                                     end: AstPoint { 19:33 },
                                                                                                                 },
                                                                                                                 ident: Some(
-                                                                                                                    Value(
-                                                                                                                        Nuget(
-                                                                                                                            Int(
-                                                                                                                                AstInt {
-                                                                                                                                    range: AstRange {
-                                                                                                                                        start: AstPoint { 19:32 },
-                                                                                                                                        end: AstPoint { 19:33 },
-                                                                                                                                    },
-                                                                                                                                    value: "1",
+                                                                                                                    Nuget(
+                                                                                                                        Int(
+                                                                                                                            AstInt {
+                                                                                                                                range: AstRange {
+                                                                                                                                    start: AstPoint { 19:32 },
+                                                                                                                                    end: AstPoint { 19:33 },
                                                                                                                                 },
-                                                                                                                            ),
+                                                                                                                                value: "1",
+                                                                                                                            },
                                                                                                                         ),
                                                                                                                     ),
                                                                                                                 ),
@@ -7435,17 +7345,15 @@ fn more_syntax() {
                                                                                                                     end: AstPoint { 19:36 },
                                                                                                                 },
                                                                                                                 ident: Some(
-                                                                                                                    Value(
-                                                                                                                        Nuget(
-                                                                                                                            Int(
-                                                                                                                                AstInt {
-                                                                                                                                    range: AstRange {
-                                                                                                                                        start: AstPoint { 19:35 },
-                                                                                                                                        end: AstPoint { 19:36 },
-                                                                                                                                    },
-                                                                                                                                    value: "2",
+                                                                                                                    Nuget(
+                                                                                                                        Int(
+                                                                                                                            AstInt {
+                                                                                                                                range: AstRange {
+                                                                                                                                    start: AstPoint { 19:35 },
+                                                                                                                                    end: AstPoint { 19:36 },
                                                                                                                                 },
-                                                                                                                            ),
+                                                                                                                                value: "2",
+                                                                                                                            },
                                                                                                                         ),
                                                                                                                     ),
                                                                                                                 ),
@@ -7462,17 +7370,15 @@ fn more_syntax() {
                                                                                                                     end: AstPoint { 19:39 },
                                                                                                                 },
                                                                                                                 ident: Some(
-                                                                                                                    Value(
-                                                                                                                        Nuget(
-                                                                                                                            Int(
-                                                                                                                                AstInt {
-                                                                                                                                    range: AstRange {
-                                                                                                                                        start: AstPoint { 19:38 },
-                                                                                                                                        end: AstPoint { 19:39 },
-                                                                                                                                    },
-                                                                                                                                    value: "3",
+                                                                                                                    Nuget(
+                                                                                                                        Int(
+                                                                                                                            AstInt {
+                                                                                                                                range: AstRange {
+                                                                                                                                    start: AstPoint { 19:38 },
+                                                                                                                                    end: AstPoint { 19:39 },
                                                                                                                                 },
-                                                                                                                            ),
+                                                                                                                                value: "3",
+                                                                                                                            },
                                                                                                                         ),
                                                                                                                     ),
                                                                                                                 ),
@@ -7489,17 +7395,15 @@ fn more_syntax() {
                                                                                                                     end: AstPoint { 19:42 },
                                                                                                                 },
                                                                                                                 ident: Some(
-                                                                                                                    Value(
-                                                                                                                        Nuget(
-                                                                                                                            Int(
-                                                                                                                                AstInt {
-                                                                                                                                    range: AstRange {
-                                                                                                                                        start: AstPoint { 19:41 },
-                                                                                                                                        end: AstPoint { 19:42 },
-                                                                                                                                    },
-                                                                                                                                    value: "4",
+                                                                                                                    Nuget(
+                                                                                                                        Int(
+                                                                                                                            AstInt {
+                                                                                                                                range: AstRange {
+                                                                                                                                    start: AstPoint { 19:41 },
+                                                                                                                                    end: AstPoint { 19:42 },
                                                                                                                                 },
-                                                                                                                            ),
+                                                                                                                                value: "4",
+                                                                                                                            },
                                                                                                                         ),
                                                                                                                     ),
                                                                                                                 ),
@@ -7528,17 +7432,15 @@ fn more_syntax() {
                                                                                                                     end: AstPoint { 19:47 },
                                                                                                                 },
                                                                                                                 ident: Some(
-                                                                                                                    Value(
-                                                                                                                        Nuget(
-                                                                                                                            Int(
-                                                                                                                                AstInt {
-                                                                                                                                    range: AstRange {
-                                                                                                                                        start: AstPoint { 19:46 },
-                                                                                                                                        end: AstPoint { 19:47 },
-                                                                                                                                    },
-                                                                                                                                    value: "5",
+                                                                                                                    Nuget(
+                                                                                                                        Int(
+                                                                                                                            AstInt {
+                                                                                                                                range: AstRange {
+                                                                                                                                    start: AstPoint { 19:46 },
+                                                                                                                                    end: AstPoint { 19:47 },
                                                                                                                                 },
-                                                                                                                            ),
+                                                                                                                                value: "5",
+                                                                                                                            },
                                                                                                                         ),
                                                                                                                     ),
                                                                                                                 ),
@@ -7555,17 +7457,15 @@ fn more_syntax() {
                                                                                                                     end: AstPoint { 19:50 },
                                                                                                                 },
                                                                                                                 ident: Some(
-                                                                                                                    Value(
-                                                                                                                        Nuget(
-                                                                                                                            Int(
-                                                                                                                                AstInt {
-                                                                                                                                    range: AstRange {
-                                                                                                                                        start: AstPoint { 19:49 },
-                                                                                                                                        end: AstPoint { 19:50 },
-                                                                                                                                    },
-                                                                                                                                    value: "6",
+                                                                                                                    Nuget(
+                                                                                                                        Int(
+                                                                                                                            AstInt {
+                                                                                                                                range: AstRange {
+                                                                                                                                    start: AstPoint { 19:49 },
+                                                                                                                                    end: AstPoint { 19:50 },
                                                                                                                                 },
-                                                                                                                            ),
+                                                                                                                                value: "6",
+                                                                                                                            },
                                                                                                                         ),
                                                                                                                     ),
                                                                                                                 ),
@@ -7582,17 +7482,15 @@ fn more_syntax() {
                                                                                                                     end: AstPoint { 19:53 },
                                                                                                                 },
                                                                                                                 ident: Some(
-                                                                                                                    Value(
-                                                                                                                        Nuget(
-                                                                                                                            Int(
-                                                                                                                                AstInt {
-                                                                                                                                    range: AstRange {
-                                                                                                                                        start: AstPoint { 19:52 },
-                                                                                                                                        end: AstPoint { 19:53 },
-                                                                                                                                    },
-                                                                                                                                    value: "7",
+                                                                                                                    Nuget(
+                                                                                                                        Int(
+                                                                                                                            AstInt {
+                                                                                                                                range: AstRange {
+                                                                                                                                    start: AstPoint { 19:52 },
+                                                                                                                                    end: AstPoint { 19:53 },
                                                                                                                                 },
-                                                                                                                            ),
+                                                                                                                                value: "7",
+                                                                                                                            },
                                                                                                                         ),
                                                                                                                     ),
                                                                                                                 ),
@@ -7657,17 +7555,15 @@ fn more_syntax() {
                                                                                                 end: AstPoint { 20:20 },
                                                                                             },
                                                                                             ident: Some(
-                                                                                                Value(
-                                                                                                    Nuget(
-                                                                                                        Int(
-                                                                                                            AstInt {
-                                                                                                                range: AstRange {
-                                                                                                                    start: AstPoint { 20:19 },
-                                                                                                                    end: AstPoint { 20:20 },
-                                                                                                                },
-                                                                                                                value: "1",
+                                                                                                Nuget(
+                                                                                                    Int(
+                                                                                                        AstInt {
+                                                                                                            range: AstRange {
+                                                                                                                start: AstPoint { 20:19 },
+                                                                                                                end: AstPoint { 20:20 },
                                                                                                             },
-                                                                                                        ),
+                                                                                                            value: "1",
+                                                                                                        },
                                                                                                     ),
                                                                                                 ),
                                                                                             ),
@@ -7702,17 +7598,15 @@ fn more_syntax() {
                                                                                                 end: AstPoint { 20:23 },
                                                                                             },
                                                                                             ident: Some(
-                                                                                                Value(
-                                                                                                    Nuget(
-                                                                                                        Int(
-                                                                                                            AstInt {
-                                                                                                                range: AstRange {
-                                                                                                                    start: AstPoint { 20:22 },
-                                                                                                                    end: AstPoint { 20:23 },
-                                                                                                                },
-                                                                                                                value: "2",
+                                                                                                Nuget(
+                                                                                                    Int(
+                                                                                                        AstInt {
+                                                                                                            range: AstRange {
+                                                                                                                start: AstPoint { 20:22 },
+                                                                                                                end: AstPoint { 20:23 },
                                                                                                             },
-                                                                                                        ),
+                                                                                                            value: "2",
+                                                                                                        },
                                                                                                     ),
                                                                                                 ),
                                                                                             ),
@@ -7754,17 +7648,15 @@ fn more_syntax() {
                                                                             end: AstPoint { 20:28 },
                                                                         },
                                                                         ident: Some(
-                                                                            Value(
-                                                                                Nuget(
-                                                                                    Int(
-                                                                                        AstInt {
-                                                                                            range: AstRange {
-                                                                                                start: AstPoint { 20:27 },
-                                                                                                end: AstPoint { 20:28 },
-                                                                                            },
-                                                                                            value: "9",
+                                                                            Nuget(
+                                                                                Int(
+                                                                                    AstInt {
+                                                                                        range: AstRange {
+                                                                                            start: AstPoint { 20:27 },
+                                                                                            end: AstPoint { 20:28 },
                                                                                         },
-                                                                                    ),
+                                                                                        value: "9",
+                                                                                    },
                                                                                 ),
                                                                             ),
                                                                         ),
@@ -8032,17 +7924,15 @@ fn more_syntax() {
                                                                                     end: AstPoint { 24:31 },
                                                                                 },
                                                                                 ident: Some(
-                                                                                    Value(
-                                                                                        Nuget(
-                                                                                            Double(
-                                                                                                AstDouble {
-                                                                                                    range: AstRange {
-                                                                                                        start: AstPoint { 24:27 },
-                                                                                                        end: AstPoint { 24:28 },
-                                                                                                    },
-                                                                                                    value: "9.78",
+                                                                                    Nuget(
+                                                                                        Double(
+                                                                                            AstDouble {
+                                                                                                range: AstRange {
+                                                                                                    start: AstPoint { 24:27 },
+                                                                                                    end: AstPoint { 24:28 },
                                                                                                 },
-                                                                                            ),
+                                                                                                value: "9.78",
+                                                                                            },
                                                                                         ),
                                                                                     ),
                                                                                 ),
@@ -8999,17 +8889,15 @@ fn more_syntax() {
                                                                             end: AstPoint { 36:12 },
                                                                         },
                                                                         ident: Some(
-                                                                            Value(
-                                                                                Nuget(
-                                                                                    BooleanLiteral(
-                                                                                        AstBoolean {
-                                                                                            range: AstRange {
-                                                                                                start: AstPoint { 36:8 },
-                                                                                                end: AstPoint { 36:12 },
-                                                                                            },
-                                                                                            value: true,
+                                                                            Nuget(
+                                                                                BooleanLiteral(
+                                                                                    AstBoolean {
+                                                                                        range: AstRange {
+                                                                                            start: AstPoint { 36:8 },
+                                                                                            end: AstPoint { 36:12 },
                                                                                         },
-                                                                                    ),
+                                                                                        value: true,
+                                                                                    },
                                                                                 ),
                                                                             ),
                                                                         ),
@@ -9040,17 +8928,15 @@ fn more_syntax() {
                                                                             end: AstPoint { 36:20 },
                                                                         },
                                                                         ident: Some(
-                                                                            Value(
-                                                                                Nuget(
-                                                                                    BooleanLiteral(
-                                                                                        AstBoolean {
-                                                                                            range: AstRange {
-                                                                                                start: AstPoint { 36:16 },
-                                                                                                end: AstPoint { 36:20 },
-                                                                                            },
-                                                                                            value: true,
+                                                                            Nuget(
+                                                                                BooleanLiteral(
+                                                                                    AstBoolean {
+                                                                                        range: AstRange {
+                                                                                            start: AstPoint { 36:16 },
+                                                                                            end: AstPoint { 36:20 },
                                                                                         },
-                                                                                    ),
+                                                                                        value: true,
+                                                                                    },
                                                                                 ),
                                                                             ),
                                                                         ),
@@ -9081,17 +8967,15 @@ fn more_syntax() {
                                                                             end: AstPoint { 36:29 },
                                                                         },
                                                                         ident: Some(
-                                                                            Value(
-                                                                                Nuget(
-                                                                                    BooleanLiteral(
-                                                                                        AstBoolean {
-                                                                                            range: AstRange {
-                                                                                                start: AstPoint { 36:24 },
-                                                                                                end: AstPoint { 36:29 },
-                                                                                            },
-                                                                                            value: false,
+                                                                            Nuget(
+                                                                                BooleanLiteral(
+                                                                                    AstBoolean {
+                                                                                        range: AstRange {
+                                                                                            start: AstPoint { 36:24 },
+                                                                                            end: AstPoint { 36:29 },
                                                                                         },
-                                                                                    ),
+                                                                                        value: false,
+                                                                                    },
                                                                                 ),
                                                                             ),
                                                                         ),
@@ -9132,17 +9016,15 @@ fn more_syntax() {
                                                                             end: AstPoint { 37:13 },
                                                                         },
                                                                         ident: Some(
-                                                                            Value(
-                                                                                Nuget(
-                                                                                    BooleanLiteral(
-                                                                                        AstBoolean {
-                                                                                            range: AstRange {
-                                                                                                start: AstPoint { 37:9 },
-                                                                                                end: AstPoint { 37:13 },
-                                                                                            },
-                                                                                            value: true,
+                                                                            Nuget(
+                                                                                BooleanLiteral(
+                                                                                    AstBoolean {
+                                                                                        range: AstRange {
+                                                                                            start: AstPoint { 37:9 },
+                                                                                            end: AstPoint { 37:13 },
                                                                                         },
-                                                                                    ),
+                                                                                        value: true,
+                                                                                    },
                                                                                 ),
                                                                             ),
                                                                         ),
@@ -9198,17 +9080,15 @@ fn more_syntax() {
                                                                                                     end: AstPoint { 38:14 },
                                                                                                 },
                                                                                                 ident: Some(
-                                                                                                    Value(
-                                                                                                        Nuget(
-                                                                                                            BooleanLiteral(
-                                                                                                                AstBoolean {
-                                                                                                                    range: AstRange {
-                                                                                                                        start: AstPoint { 38:10 },
-                                                                                                                        end: AstPoint { 38:14 },
-                                                                                                                    },
-                                                                                                                    value: true,
+                                                                                                    Nuget(
+                                                                                                        BooleanLiteral(
+                                                                                                            AstBoolean {
+                                                                                                                range: AstRange {
+                                                                                                                    start: AstPoint { 38:10 },
+                                                                                                                    end: AstPoint { 38:14 },
                                                                                                                 },
-                                                                                                            ),
+                                                                                                                value: true,
+                                                                                                            },
                                                                                                         ),
                                                                                                     ),
                                                                                                 ),
@@ -9239,17 +9119,15 @@ fn more_syntax() {
                                                                                                     end: AstPoint { 38:23 },
                                                                                                 },
                                                                                                 ident: Some(
-                                                                                                    Value(
-                                                                                                        Nuget(
-                                                                                                            BooleanLiteral(
-                                                                                                                AstBoolean {
-                                                                                                                    range: AstRange {
-                                                                                                                        start: AstPoint { 38:18 },
-                                                                                                                        end: AstPoint { 38:23 },
-                                                                                                                    },
-                                                                                                                    value: false,
+                                                                                                    Nuget(
+                                                                                                        BooleanLiteral(
+                                                                                                            AstBoolean {
+                                                                                                                range: AstRange {
+                                                                                                                    start: AstPoint { 38:18 },
+                                                                                                                    end: AstPoint { 38:23 },
                                                                                                                 },
-                                                                                                            ),
+                                                                                                                value: false,
+                                                                                                            },
                                                                                                         ),
                                                                                                     ),
                                                                                                 ),
@@ -9308,16 +9186,14 @@ fn more_syntax() {
                                                                                     end: AstPoint { 39:36 },
                                                                                 },
                                                                                 ident: Some(
-                                                                                    Value(
-                                                                                        Nuget(
-                                                                                            StringLiteral {
-                                                                                                range: AstRange {
-                                                                                                    start: AstPoint { 39:32 },
-                                                                                                    end: AstPoint { 39:27 },
-                                                                                                },
-                                                                                                value: "John",
+                                                                                    Nuget(
+                                                                                        StringLiteral {
+                                                                                            range: AstRange {
+                                                                                                start: AstPoint { 39:32 },
+                                                                                                end: AstPoint { 39:27 },
                                                                                             },
-                                                                                        ),
+                                                                                            value: "John",
+                                                                                        },
                                                                                     ),
                                                                                 ),
                                                                                 values: None,
@@ -9370,16 +9246,14 @@ fn more_syntax() {
                                                                                     end: AstPoint { 40:33 },
                                                                                 },
                                                                                 ident: Some(
-                                                                                    Value(
-                                                                                        Nuget(
-                                                                                            StringLiteral {
-                                                                                                range: AstRange {
-                                                                                                    start: AstPoint { 40:30 },
-                                                                                                    end: AstPoint { 40:26 },
-                                                                                                },
-                                                                                                value: "Doe",
+                                                                                    Nuget(
+                                                                                        StringLiteral {
+                                                                                            range: AstRange {
+                                                                                                start: AstPoint { 40:30 },
+                                                                                                end: AstPoint { 40:26 },
                                                                                             },
-                                                                                        ),
+                                                                                            value: "Doe",
+                                                                                        },
                                                                                     ),
                                                                                 ),
                                                                                 values: None,
@@ -9552,16 +9426,14 @@ fn more_syntax() {
                                                                                                     end: AstPoint { 41:42 },
                                                                                                 },
                                                                                                 ident: Some(
-                                                                                                    Value(
-                                                                                                        Nuget(
-                                                                                                            StringLiteral {
-                                                                                                                range: AstRange {
-                                                                                                                    start: AstPoint { 41:41 },
-                                                                                                                    end: AstPoint { 41:38 },
-                                                                                                                },
-                                                                                                                value: " ",
+                                                                                                    Nuget(
+                                                                                                        StringLiteral {
+                                                                                                            range: AstRange {
+                                                                                                                start: AstPoint { 41:41 },
+                                                                                                                end: AstPoint { 41:38 },
                                                                                                             },
-                                                                                                        ),
+                                                                                                            value: " ",
+                                                                                                        },
                                                                                                     ),
                                                                                                 ),
                                                                                                 values: None,
@@ -9681,17 +9553,15 @@ fn more_syntax() {
                                                                                                     end: AstPoint { 42:20 },
                                                                                                 },
                                                                                                 ident: Some(
-                                                                                                    Value(
-                                                                                                        Nuget(
-                                                                                                            Int(
-                                                                                                                AstInt {
-                                                                                                                    range: AstRange {
-                                                                                                                        start: AstPoint { 42:18 },
-                                                                                                                        end: AstPoint { 42:20 },
-                                                                                                                    },
-                                                                                                                    value: "18",
+                                                                                                    Nuget(
+                                                                                                        Int(
+                                                                                                            AstInt {
+                                                                                                                range: AstRange {
+                                                                                                                    start: AstPoint { 42:18 },
+                                                                                                                    end: AstPoint { 42:20 },
                                                                                                                 },
-                                                                                                            ),
+                                                                                                                value: "18",
+                                                                                                            },
                                                                                                         ),
                                                                                                     ),
                                                                                                 ),
@@ -9729,16 +9599,14 @@ fn more_syntax() {
                                                                             end: AstPoint { 42:41 },
                                                                         },
                                                                         ident: Some(
-                                                                            Value(
-                                                                                Nuget(
-                                                                                    StringLiteral {
-                                                                                        range: AstRange {
-                                                                                            start: AstPoint { 42:32 },
-                                                                                            end: AstPoint { 42:21 },
-                                                                                        },
-                                                                                        value: "Good day.",
+                                                                            Nuget(
+                                                                                StringLiteral {
+                                                                                    range: AstRange {
+                                                                                        start: AstPoint { 42:32 },
+                                                                                        end: AstPoint { 42:21 },
                                                                                     },
-                                                                                ),
+                                                                                    value: "Good day.",
+                                                                                },
                                                                             ),
                                                                         ),
                                                                         values: None,
@@ -9768,16 +9636,14 @@ fn more_syntax() {
                                                                             end: AstPoint { 42:63 },
                                                                         },
                                                                         ident: Some(
-                                                                            Value(
-                                                                                Nuget(
-                                                                                    StringLiteral {
-                                                                                        range: AstRange {
-                                                                                            start: AstPoint { 42:50 },
-                                                                                            end: AstPoint { 42:35 },
-                                                                                        },
-                                                                                        value: "Good evening.",
+                                                                            Nuget(
+                                                                                StringLiteral {
+                                                                                    range: AstRange {
+                                                                                        start: AstPoint { 42:50 },
+                                                                                        end: AstPoint { 42:35 },
                                                                                     },
-                                                                                ),
+                                                                                    value: "Good evening.",
+                                                                                },
                                                                             ),
                                                                         ),
                                                                         values: None,
@@ -10110,17 +9976,15 @@ fn more_syntax() {
                                                                                                                     end: AstPoint { 66:31 },
                                                                                                                 },
                                                                                                                 ident: Some(
-                                                                                                                    Value(
-                                                                                                                        Nuget(
-                                                                                                                            Int(
-                                                                                                                                AstInt {
-                                                                                                                                    range: AstRange {
-                                                                                                                                        start: AstPoint { 66:30 },
-                                                                                                                                        end: AstPoint { 66:31 },
-                                                                                                                                    },
-                                                                                                                                    value: "1",
+                                                                                                                    Nuget(
+                                                                                                                        Int(
+                                                                                                                            AstInt {
+                                                                                                                                range: AstRange {
+                                                                                                                                    start: AstPoint { 66:30 },
+                                                                                                                                    end: AstPoint { 66:31 },
                                                                                                                                 },
-                                                                                                                            ),
+                                                                                                                                value: "1",
+                                                                                                                            },
                                                                                                                         ),
                                                                                                                     ),
                                                                                                                 ),
@@ -10137,17 +10001,15 @@ fn more_syntax() {
                                                                                                                     end: AstPoint { 66:34 },
                                                                                                                 },
                                                                                                                 ident: Some(
-                                                                                                                    Value(
-                                                                                                                        Nuget(
-                                                                                                                            Int(
-                                                                                                                                AstInt {
-                                                                                                                                    range: AstRange {
-                                                                                                                                        start: AstPoint { 66:33 },
-                                                                                                                                        end: AstPoint { 66:34 },
-                                                                                                                                    },
-                                                                                                                                    value: "2",
+                                                                                                                    Nuget(
+                                                                                                                        Int(
+                                                                                                                            AstInt {
+                                                                                                                                range: AstRange {
+                                                                                                                                    start: AstPoint { 66:33 },
+                                                                                                                                    end: AstPoint { 66:34 },
                                                                                                                                 },
-                                                                                                                            ),
+                                                                                                                                value: "2",
+                                                                                                                            },
                                                                                                                         ),
                                                                                                                     ),
                                                                                                                 ),
@@ -10164,17 +10026,15 @@ fn more_syntax() {
                                                                                                                     end: AstPoint { 66:37 },
                                                                                                                 },
                                                                                                                 ident: Some(
-                                                                                                                    Value(
-                                                                                                                        Nuget(
-                                                                                                                            Int(
-                                                                                                                                AstInt {
-                                                                                                                                    range: AstRange {
-                                                                                                                                        start: AstPoint { 66:36 },
-                                                                                                                                        end: AstPoint { 66:37 },
-                                                                                                                                    },
-                                                                                                                                    value: "3",
+                                                                                                                    Nuget(
+                                                                                                                        Int(
+                                                                                                                            AstInt {
+                                                                                                                                range: AstRange {
+                                                                                                                                    start: AstPoint { 66:36 },
+                                                                                                                                    end: AstPoint { 66:37 },
                                                                                                                                 },
-                                                                                                                            ),
+                                                                                                                                value: "3",
+                                                                                                                            },
                                                                                                                         ),
                                                                                                                     ),
                                                                                                                 ),
@@ -10345,17 +10205,15 @@ fn more_syntax() {
                                                                                                                                         end: AstPoint { 67:43 },
                                                                                                                                     },
                                                                                                                                     ident: Some(
-                                                                                                                                        Value(
-                                                                                                                                            Nuget(
-                                                                                                                                                Int(
-                                                                                                                                                    AstInt {
-                                                                                                                                                        range: AstRange {
-                                                                                                                                                            start: AstPoint { 67:41 },
-                                                                                                                                                            end: AstPoint { 67:43 },
-                                                                                                                                                        },
-                                                                                                                                                        value: "10",
+                                                                                                                                        Nuget(
+                                                                                                                                            Int(
+                                                                                                                                                AstInt {
+                                                                                                                                                    range: AstRange {
+                                                                                                                                                        start: AstPoint { 67:41 },
+                                                                                                                                                        end: AstPoint { 67:43 },
                                                                                                                                                     },
-                                                                                                                                                ),
+                                                                                                                                                    value: "10",
+                                                                                                                                                },
                                                                                                                                             ),
                                                                                                                                         ),
                                                                                                                                     ),
@@ -10556,16 +10414,14 @@ fn more_syntax() {
                                                                                                                             end: AstPoint { 69:72 },
                                                                                                                         },
                                                                                                                         ident: Some(
-                                                                                                                            Value(
-                                                                                                                                Nuget(
-                                                                                                                                    StringLiteral {
-                                                                                                                                        range: AstRange {
-                                                                                                                                            start: AstPoint { 69:51 },
-                                                                                                                                            end: AstPoint { 69:29 },
-                                                                                                                                        },
-                                                                                                                                        value: "Something went wrong.",
+                                                                                                                            Nuget(
+                                                                                                                                StringLiteral {
+                                                                                                                                    range: AstRange {
+                                                                                                                                        start: AstPoint { 69:51 },
+                                                                                                                                        end: AstPoint { 69:29 },
                                                                                                                                     },
-                                                                                                                                ),
+                                                                                                                                    value: "Something went wrong.",
+                                                                                                                                },
                                                                                                                             ),
                                                                                                                         ),
                                                                                                                         values: None,
@@ -10717,16 +10573,14 @@ fn more_syntax() {
                                                                                                                         end: AstPoint { 71:86 },
                                                                                                                     },
                                                                                                                     ident: Some(
-                                                                                                                        Value(
-                                                                                                                            Nuget(
-                                                                                                                                StringLiteral {
-                                                                                                                                    range: AstRange {
-                                                                                                                                        start: AstPoint { 71:58 },
-                                                                                                                                        end: AstPoint { 71:29 },
-                                                                                                                                    },
-                                                                                                                                    value: "The 'try catch' is finished.",
+                                                                                                                        Nuget(
+                                                                                                                            StringLiteral {
+                                                                                                                                range: AstRange {
+                                                                                                                                    start: AstPoint { 71:58 },
+                                                                                                                                    end: AstPoint { 71:29 },
                                                                                                                                 },
-                                                                                                                            ),
+                                                                                                                                value: "The 'try catch' is finished.",
+                                                                                                                            },
                                                                                                                         ),
                                                                                                                     ),
                                                                                                                     values: None,
@@ -10802,16 +10656,14 @@ fn more_syntax() {
                                                                                                     end: AstPoint { 74:30 },
                                                                                                 },
                                                                                                 ident: Some(
-                                                                                                    Value(
-                                                                                                        Nuget(
-                                                                                                            StringLiteral {
-                                                                                                                range: AstRange {
-                                                                                                                    start: AstPoint { 74:29 },
-                                                                                                                    end: AstPoint { 74:27 },
-                                                                                                                },
-                                                                                                                value: "s",
+                                                                                                    Nuget(
+                                                                                                        StringLiteral {
+                                                                                                            range: AstRange {
+                                                                                                                start: AstPoint { 74:29 },
+                                                                                                                end: AstPoint { 74:27 },
                                                                                                             },
-                                                                                                        ),
+                                                                                                            value: "s",
+                                                                                                        },
                                                                                                     ),
                                                                                                 ),
                                                                                                 values: None,
@@ -10928,16 +10780,14 @@ fn more_syntax() {
                                                                                                             end: AstPoint { 76:31 },
                                                                                                         },
                                                                                                         ident: Some(
-                                                                                                            Value(
-                                                                                                                Nuget(
-                                                                                                                    StringLiteral {
-                                                                                                                        range: AstRange {
-                                                                                                                            start: AstPoint { 76:30 },
-                                                                                                                            end: AstPoint { 76:28 },
-                                                                                                                        },
-                                                                                                                        value: "o",
+                                                                                                            Nuget(
+                                                                                                                StringLiteral {
+                                                                                                                    range: AstRange {
+                                                                                                                        start: AstPoint { 76:30 },
+                                                                                                                        end: AstPoint { 76:28 },
                                                                                                                     },
-                                                                                                                ),
+                                                                                                                    value: "o",
+                                                                                                                },
                                                                                                             ),
                                                                                                         ),
                                                                                                         values: None,
@@ -11038,16 +10888,14 @@ fn more_syntax() {
                                                                                                             end: AstPoint { 78:31 },
                                                                                                         },
                                                                                                         ident: Some(
-                                                                                                            Value(
-                                                                                                                Nuget(
-                                                                                                                    StringLiteral {
-                                                                                                                        range: AstRange {
-                                                                                                                            start: AstPoint { 78:30 },
-                                                                                                                            end: AstPoint { 78:28 },
-                                                                                                                        },
-                                                                                                                        value: "o",
+                                                                                                            Nuget(
+                                                                                                                StringLiteral {
+                                                                                                                    range: AstRange {
+                                                                                                                        start: AstPoint { 78:30 },
+                                                                                                                        end: AstPoint { 78:28 },
                                                                                                                     },
-                                                                                                                ),
+                                                                                                                    value: "o",
+                                                                                                                },
                                                                                                             ),
                                                                                                         ),
                                                                                                         values: None,
@@ -11111,16 +10959,14 @@ fn more_syntax() {
                                                                                                         end: AstPoint { 80:29 },
                                                                                                     },
                                                                                                     ident: Some(
-                                                                                                        Value(
-                                                                                                            Nuget(
-                                                                                                                StringLiteral {
-                                                                                                                    range: AstRange {
-                                                                                                                        start: AstPoint { 80:28 },
-                                                                                                                        end: AstPoint { 80:26 },
-                                                                                                                    },
-                                                                                                                    value: "a",
+                                                                                                        Nuget(
+                                                                                                            StringLiteral {
+                                                                                                                range: AstRange {
+                                                                                                                    start: AstPoint { 80:28 },
+                                                                                                                    end: AstPoint { 80:26 },
                                                                                                                 },
-                                                                                                            ),
+                                                                                                                value: "a",
+                                                                                                            },
                                                                                                         ),
                                                                                                     ),
                                                                                                     values: None,
@@ -11259,16 +11105,14 @@ fn more_syntax() {
                                                                                                                                     end: AstPoint { 83:60 },
                                                                                                                                 },
                                                                                                                                 ident: Some(
-                                                                                                                                    Value(
-                                                                                                                                        Nuget(
-                                                                                                                                            StringLiteral {
-                                                                                                                                                range: AstRange {
-                                                                                                                                                    start: AstPoint { 83:52 },
-                                                                                                                                                    end: AstPoint { 83:43 },
-                                                                                                                                                },
-                                                                                                                                                value: "test.txt",
+                                                                                                                                    Nuget(
+                                                                                                                                        StringLiteral {
+                                                                                                                                            range: AstRange {
+                                                                                                                                                start: AstPoint { 83:52 },
+                                                                                                                                                end: AstPoint { 83:43 },
                                                                                                                                             },
-                                                                                                                                        ),
+                                                                                                                                            value: "test.txt",
+                                                                                                                                        },
                                                                                                                                     ),
                                                                                                                                 ),
                                                                                                                                 values: None,
@@ -12295,16 +12139,14 @@ fn more_syntax() {
                                                                                                 end: AstPoint { 100:65 },
                                                                                             },
                                                                                             ident: Some(
-                                                                                                Value(
-                                                                                                    Nuget(
-                                                                                                        StringLiteral {
-                                                                                                            range: AstRange {
-                                                                                                                start: AstPoint { 100:52 },
-                                                                                                                end: AstPoint { 100:38 },
-                                                                                                            },
-                                                                                                            value: "Access denied",
+                                                                                                Nuget(
+                                                                                                    StringLiteral {
+                                                                                                        range: AstRange {
+                                                                                                            start: AstPoint { 100:52 },
+                                                                                                            end: AstPoint { 100:38 },
                                                                                                         },
-                                                                                                    ),
+                                                                                                        value: "Access denied",
+                                                                                                    },
                                                                                                 ),
                                                                                             ),
                                                                                             values: None,
@@ -12712,7 +12554,7 @@ fn more_syntax() {
                                                                                                                         start: AstPoint { 104:16 },
                                                                                                                         end: AstPoint { 104:32 },
                                                                                                                     },
-                                                                                                                    expression: Expression(
+                                                                                                                    expression: Some(
                                                                                                                         [
                                                                                                                             Base(
                                                                                                                                 AstBaseExpression {
@@ -12721,16 +12563,14 @@ fn more_syntax() {
                                                                                                                                         end: AstPoint { 104:37 },
                                                                                                                                     },
                                                                                                                                     ident: Some(
-                                                                                                                                        Value(
-                                                                                                                                            Nuget(
-                                                                                                                                                StringLiteral {
-                                                                                                                                                    range: AstRange {
-                                                                                                                                                        start: AstPoint { 104:30 },
-                                                                                                                                                        end: AstPoint { 104:21 },
-                                                                                                                                                    },
-                                                                                                                                                    value: "Got a 1",
+                                                                                                                                        Nuget(
+                                                                                                                                            StringLiteral {
+                                                                                                                                                range: AstRange {
+                                                                                                                                                    start: AstPoint { 104:30 },
+                                                                                                                                                    end: AstPoint { 104:21 },
                                                                                                                                                 },
-                                                                                                                                            ),
+                                                                                                                                                value: "Got a 1",
+                                                                                                                                            },
                                                                                                                                         ),
                                                                                                                                     ),
                                                                                                                                     values: None,
@@ -12792,7 +12632,7 @@ fn more_syntax() {
                                                                                                                         start: AstPoint { 107:16 },
                                                                                                                         end: AstPoint { 107:32 },
                                                                                                                     },
-                                                                                                                    expression: Expression(
+                                                                                                                    expression: Some(
                                                                                                                         [
                                                                                                                             Base(
                                                                                                                                 AstBaseExpression {
@@ -12801,16 +12641,14 @@ fn more_syntax() {
                                                                                                                                         end: AstPoint { 107:37 },
                                                                                                                                     },
                                                                                                                                     ident: Some(
-                                                                                                                                        Value(
-                                                                                                                                            Nuget(
-                                                                                                                                                StringLiteral {
-                                                                                                                                                    range: AstRange {
-                                                                                                                                                        start: AstPoint { 107:30 },
-                                                                                                                                                        end: AstPoint { 107:21 },
-                                                                                                                                                    },
-                                                                                                                                                    value: "Got a 2",
+                                                                                                                                        Nuget(
+                                                                                                                                            StringLiteral {
+                                                                                                                                                range: AstRange {
+                                                                                                                                                    start: AstPoint { 107:30 },
+                                                                                                                                                    end: AstPoint { 107:21 },
                                                                                                                                                 },
-                                                                                                                                            ),
+                                                                                                                                                value: "Got a 2",
+                                                                                                                                            },
                                                                                                                                         ),
                                                                                                                                     ),
                                                                                                                                     values: None,
@@ -12897,7 +12735,7 @@ fn more_syntax() {
                                                                                                                         start: AstPoint { 110:16 },
                                                                                                                         end: AstPoint { 110:36 },
                                                                                                                     },
-                                                                                                                    expression: Expression(
+                                                                                                                    expression: Some(
                                                                                                                         [
                                                                                                                             Base(
                                                                                                                                 AstBaseExpression {
@@ -12906,16 +12744,14 @@ fn more_syntax() {
                                                                                                                                         end: AstPoint { 110:45 },
                                                                                                                                     },
                                                                                                                                     ident: Some(
-                                                                                                                                        Value(
-                                                                                                                                            Nuget(
-                                                                                                                                                StringLiteral {
-                                                                                                                                                    range: AstRange {
-                                                                                                                                                        start: AstPoint { 110:34 },
-                                                                                                                                                        end: AstPoint { 110:21 },
-                                                                                                                                                    },
-                                                                                                                                                    value: "More than 2",
+                                                                                                                                        Nuget(
+                                                                                                                                            StringLiteral {
+                                                                                                                                                range: AstRange {
+                                                                                                                                                    start: AstPoint { 110:34 },
+                                                                                                                                                    end: AstPoint { 110:21 },
                                                                                                                                                 },
-                                                                                                                                            ),
+                                                                                                                                                value: "More than 2",
+                                                                                                                                            },
                                                                                                                                         ),
                                                                                                                                     ),
                                                                                                                                     values: None,
@@ -13195,16 +13031,14 @@ fn more_syntax() {
                                                                                                                                                             end: AstPoint { 118:48 },
                                                                                                                                                         },
                                                                                                                                                         ident: Some(
-                                                                                                                                                            Value(
-                                                                                                                                                                Nuget(
-                                                                                                                                                                    StringLiteral {
-                                                                                                                                                                        range: AstRange {
-                                                                                                                                                                            start: AstPoint { 118:41 },
-                                                                                                                                                                            end: AstPoint { 118:33 },
-                                                                                                                                                                        },
-                                                                                                                                                                        value: "Age is ",
+                                                                                                                                                            Nuget(
+                                                                                                                                                                StringLiteral {
+                                                                                                                                                                    range: AstRange {
+                                                                                                                                                                        start: AstPoint { 118:41 },
+                                                                                                                                                                        end: AstPoint { 118:33 },
                                                                                                                                                                     },
-                                                                                                                                                                ),
+                                                                                                                                                                    value: "Age is ",
+                                                                                                                                                                },
                                                                                                                                                             ),
                                                                                                                                                         ),
                                                                                                                                                         values: None,
@@ -13518,18 +13352,16 @@ fn more_syntax() {
                                                                             end: AstPoint { 122:92 },
                                                                         },
                                                                         ident: Some(
-                                                                            Value(
-                                                                                Nuget(
-                                                                                    StringLiteralMulti {
-                                                                                        range: AstRange {
-                                                                                            start: AstPoint { 122:51 },
-                                                                                            end: AstPoint { 121:51 },
-                                                                                        },
-                                                                                        value: "
-                                                                                                Java is better
-                                                                                                --Thorben",
+                                                                            Nuget(
+                                                                                StringLiteralMulti {
+                                                                                    range: AstRange {
+                                                                                        start: AstPoint { 122:51 },
+                                                                                        end: AstPoint { 121:51 },
                                                                                     },
-                                                                                ),
+                                                                                    value: "
+                                                                                            Java is better
+                                                                                            --Thorben",
+                                                                                },
                                                                             ),
                                                                         ),
                                                                         values: None,
@@ -13625,17 +13457,15 @@ fn more_syntax() {
                                                             end: AstPoint { 127:14 },
                                                         },
                                                         ident: Some(
-                                                            Value(
-                                                                Nuget(
-                                                                    Int(
-                                                                        AstInt {
-                                                                            range: AstRange {
-                                                                                start: AstPoint { 127:12 },
-                                                                                end: AstPoint { 127:14 },
-                                                                            },
-                                                                            value: "10",
+                                                            Nuget(
+                                                                Int(
+                                                                    AstInt {
+                                                                        range: AstRange {
+                                                                            start: AstPoint { 127:12 },
+                                                                            end: AstPoint { 127:14 },
                                                                         },
-                                                                    ),
+                                                                        value: "10",
+                                                                    },
                                                                 ),
                                                             ),
                                                         ),
@@ -13717,17 +13547,15 @@ fn more_syntax() {
                                                                             end: AstPoint { 130:14 },
                                                                         },
                                                                         ident: Some(
-                                                                            Value(
-                                                                                Nuget(
-                                                                                    Int(
-                                                                                        AstInt {
-                                                                                            range: AstRange {
-                                                                                                start: AstPoint { 130:13 },
-                                                                                                end: AstPoint { 130:14 },
-                                                                                            },
-                                                                                            value: "5",
+                                                                            Nuget(
+                                                                                Int(
+                                                                                    AstInt {
+                                                                                        range: AstRange {
+                                                                                            start: AstPoint { 130:13 },
+                                                                                            end: AstPoint { 130:14 },
                                                                                         },
-                                                                                    ),
+                                                                                        value: "5",
+                                                                                    },
                                                                                 ),
                                                                             ),
                                                                         ),
@@ -14001,16 +13829,14 @@ fn more_syntax() {
                                                                                                     end: AstPoint { 136:30 },
                                                                                                 },
                                                                                                 ident: Some(
-                                                                                                    Value(
-                                                                                                        Nuget(
-                                                                                                            StringLiteral {
-                                                                                                                range: AstRange {
-                                                                                                                    start: AstPoint { 136:27 },
-                                                                                                                    end: AstPoint { 136:23 },
-                                                                                                                },
-                                                                                                                value: "Zzz",
+                                                                                                    Nuget(
+                                                                                                        StringLiteral {
+                                                                                                            range: AstRange {
+                                                                                                                start: AstPoint { 136:27 },
+                                                                                                                end: AstPoint { 136:23 },
                                                                                                             },
-                                                                                                        ),
+                                                                                                            value: "Zzz",
+                                                                                                        },
                                                                                                     ),
                                                                                                 ),
                                                                                                 values: None,
@@ -14111,16 +13937,14 @@ fn variable_array() {
                                                         end: AstPoint { 0:28 },
                                                     },
                                                     ident: Some(
-                                                        Value(
-                                                            Nuget(
-                                                                StringLiteral {
-                                                                    range: AstRange {
-                                                                        start: AstPoint { 0:23 },
-                                                                        end: AstPoint { 0:17 },
-                                                                    },
-                                                                    value: "Volvo",
+                                                        Nuget(
+                                                            StringLiteral {
+                                                                range: AstRange {
+                                                                    start: AstPoint { 0:23 },
+                                                                    end: AstPoint { 0:17 },
                                                                 },
-                                                            ),
+                                                                value: "Volvo",
+                                                            },
                                                         ),
                                                     ),
                                                     values: None,
@@ -14136,16 +13960,14 @@ fn variable_array() {
                                                         end: AstPoint { 0:33 },
                                                     },
                                                     ident: Some(
-                                                        Value(
-                                                            Nuget(
-                                                                StringLiteral {
-                                                                    range: AstRange {
-                                                                        start: AstPoint { 0:30 },
-                                                                        end: AstPoint { 0:25 },
-                                                                    },
-                                                                    value: "BMW",
+                                                        Nuget(
+                                                            StringLiteral {
+                                                                range: AstRange {
+                                                                    start: AstPoint { 0:30 },
+                                                                    end: AstPoint { 0:25 },
                                                                 },
-                                                            ),
+                                                                value: "BMW",
+                                                            },
                                                         ),
                                                     ),
                                                     values: None,
@@ -14161,16 +13983,14 @@ fn variable_array() {
                                                         end: AstPoint { 0:42 },
                                                     },
                                                     ident: Some(
-                                                        Value(
-                                                            Nuget(
-                                                                StringLiteral {
-                                                                    range: AstRange {
-                                                                        start: AstPoint { 0:38 },
-                                                                        end: AstPoint { 0:32 },
-                                                                    },
-                                                                    value: "Ford",
+                                                        Nuget(
+                                                            StringLiteral {
+                                                                range: AstRange {
+                                                                    start: AstPoint { 0:38 },
+                                                                    end: AstPoint { 0:32 },
                                                                 },
-                                                            ),
+                                                                value: "Ford",
+                                                            },
                                                         ),
                                                     ),
                                                     values: None,
@@ -14186,16 +14006,14 @@ fn variable_array() {
                                                         end: AstPoint { 0:52 },
                                                     },
                                                     ident: Some(
-                                                        Value(
-                                                            Nuget(
-                                                                StringLiteral {
-                                                                    range: AstRange {
-                                                                        start: AstPoint { 0:47 },
-                                                                        end: AstPoint { 0:40 },
-                                                                    },
-                                                                    value: "Mazda",
+                                                        Nuget(
+                                                            StringLiteral {
+                                                                range: AstRange {
+                                                                    start: AstPoint { 0:47 },
+                                                                    end: AstPoint { 0:40 },
                                                                 },
-                                                            ),
+                                                                value: "Mazda",
+                                                            },
                                                         ),
                                                     ),
                                                     values: None,
@@ -14686,17 +14504,15 @@ fn lambda_value() {
                                     end: AstPoint { 0:9 },
                                 },
                                 ident: Some(
-                                    Value(
-                                        Nuget(
-                                            BooleanLiteral(
-                                                AstBoolean {
-                                                    range: AstRange {
-                                                        start: AstPoint { 0:5 },
-                                                        end: AstPoint { 0:9 },
-                                                    },
-                                                    value: true,
+                                    Nuget(
+                                        BooleanLiteral(
+                                            AstBoolean {
+                                                range: AstRange {
+                                                    start: AstPoint { 0:5 },
+                                                    end: AstPoint { 0:9 },
                                                 },
-                                            ),
+                                                value: true,
+                                            },
                                         ),
                                     ),
                                 ),
@@ -15208,7 +15024,7 @@ fn new_string() {
                     start: AstPoint { 1:5 },
                     end: AstPoint { 1:25 },
                 },
-                expression: Expression(
+                expression: Some(
                     [
                         NewClass(
                             AstNewClass {
@@ -15272,7 +15088,7 @@ fn new_array() {
                     start: AstPoint { 1:5 },
                     end: AstPoint { 8:10 },
                 },
-                expression: Expression(
+                expression: Some(
                     [
                         NewClass(
                             AstNewClass {
@@ -15337,16 +15153,14 @@ fn new_array() {
                                                                             end: AstPoint { 2:43 },
                                                                         },
                                                                         ident: Some(
-                                                                            Value(
-                                                                                Nuget(
-                                                                                    StringLiteral {
-                                                                                        range: AstRange {
-                                                                                            start: AstPoint { 2:29 },
-                                                                                            end: AstPoint { 2:13 },
-                                                                                        },
-                                                                                        value: "NumberPatterns",
+                                                                            Nuget(
+                                                                                StringLiteral {
+                                                                                    range: AstRange {
+                                                                                        start: AstPoint { 2:29 },
+                                                                                        end: AstPoint { 2:13 },
                                                                                     },
-                                                                                ),
+                                                                                    value: "NumberPatterns",
+                                                                                },
                                                                             ),
                                                                         ),
                                                                         values: None,
@@ -15401,16 +15215,14 @@ fn new_array() {
                                                                                                     end: AstPoint { 4:20 },
                                                                                                 },
                                                                                                 ident: Some(
-                                                                                                    Value(
-                                                                                                        Nuget(
-                                                                                                            StringLiteral {
-                                                                                                                range: AstRange {
-                                                                                                                    start: AstPoint { 4:20 },
-                                                                                                                    end: AstPoint { 3:30 },
-                                                                                                                },
-                                                                                                                value: "",
+                                                                                                    Nuget(
+                                                                                                        StringLiteral {
+                                                                                                            range: AstRange {
+                                                                                                                start: AstPoint { 4:20 },
+                                                                                                                end: AstPoint { 3:30 },
                                                                                                             },
-                                                                                                        ),
+                                                                                                            value: "",
+                                                                                                        },
                                                                                                     ),
                                                                                                 ),
                                                                                                 values: None,
@@ -15426,16 +15238,14 @@ fn new_array() {
                                                                                                     end: AstPoint { 5:20 },
                                                                                                 },
                                                                                                 ident: Some(
-                                                                                                    Value(
-                                                                                                        Nuget(
-                                                                                                            StringLiteral {
-                                                                                                                range: AstRange {
-                                                                                                                    start: AstPoint { 5:20 },
-                                                                                                                    end: AstPoint { 4:22 },
-                                                                                                                },
-                                                                                                                value: "",
+                                                                                                    Nuget(
+                                                                                                        StringLiteral {
+                                                                                                            range: AstRange {
+                                                                                                                start: AstPoint { 5:20 },
+                                                                                                                end: AstPoint { 4:22 },
                                                                                                             },
-                                                                                                        ),
+                                                                                                            value: "",
+                                                                                                        },
                                                                                                     ),
                                                                                                 ),
                                                                                                 values: None,
@@ -15611,16 +15421,14 @@ fn long_expr() {
                                                     end: AstPoint { 0:49 },
                                                 },
                                                 ident: Some(
-                                                    Value(
-                                                        Nuget(
-                                                            StringLiteral {
-                                                                range: AstRange {
-                                                                    start: AstPoint { 0:40 },
-                                                                    end: AstPoint { 0:30 },
-                                                                },
-                                                                value: "localhost",
+                                                    Nuget(
+                                                        StringLiteral {
+                                                            range: AstRange {
+                                                                start: AstPoint { 0:40 },
+                                                                end: AstPoint { 0:30 },
                                                             },
-                                                        ),
+                                                            value: "localhost",
+                                                        },
                                                     ),
                                                 ),
                                                 values: None,
@@ -15636,17 +15444,15 @@ fn long_expr() {
                                                     end: AstPoint { 0:51 },
                                                 },
                                                 ident: Some(
-                                                    Value(
-                                                        Nuget(
-                                                            Int(
-                                                                AstInt {
-                                                                    range: AstRange {
-                                                                        start: AstPoint { 0:47 },
-                                                                        end: AstPoint { 0:51 },
-                                                                    },
-                                                                    value: "1344",
+                                                    Nuget(
+                                                        Int(
+                                                            AstInt {
+                                                                range: AstRange {
+                                                                    start: AstPoint { 0:47 },
+                                                                    end: AstPoint { 0:51 },
                                                                 },
-                                                            ),
+                                                                value: "1344",
+                                                            },
                                                         ),
                                                     ),
                                                 ),
@@ -15743,17 +15549,15 @@ fn long_expr() {
                                                     end: AstPoint { 0:70 },
                                                 },
                                                 ident: Some(
-                                                    Value(
-                                                        Nuget(
-                                                            BooleanLiteral(
-                                                                AstBoolean {
-                                                                    range: AstRange {
-                                                                        start: AstPoint { 0:66 },
-                                                                        end: AstPoint { 0:70 },
-                                                                    },
-                                                                    value: true,
+                                                    Nuget(
+                                                        BooleanLiteral(
+                                                            AstBoolean {
+                                                                range: AstRange {
+                                                                    start: AstPoint { 0:66 },
+                                                                    end: AstPoint { 0:70 },
                                                                 },
-                                                            ),
+                                                                value: true,
+                                                            },
                                                         ),
                                                     ),
                                                 ),
@@ -15862,16 +15666,14 @@ fn cast() {
                                             end: AstPoint { 0:20 },
                                         },
                                         ident: Some(
-                                            Value(
-                                                Nuget(
-                                                    CharLiteral {
-                                                        value: "a",
-                                                        range: AstRange {
-                                                            start: AstPoint { 0:19 },
-                                                            end: AstPoint { 0:18 },
-                                                        },
+                                            Nuget(
+                                                CharLiteral {
+                                                    value: "a",
+                                                    range: AstRange {
+                                                        start: AstPoint { 0:19 },
+                                                        end: AstPoint { 0:18 },
                                                     },
-                                                ),
+                                                },
                                             ),
                                         ),
                                         values: None,
@@ -16094,7 +15896,7 @@ fn return_casted_newclass() {
                     start: AstPoint { 0:0 },
                     end: AstPoint { 0:41 },
                 },
-                expression: Expression(
+                expression: Some(
                     [
                         Base(
                             AstBaseExpression {
@@ -16564,17 +16366,15 @@ fn new_casted_parameter() {
                                         end: AstPoint { 0:21 },
                                     },
                                     ident: Some(
-                                        Value(
-                                            Nuget(
-                                                Int(
-                                                    AstInt {
-                                                        range: AstRange {
-                                                            start: AstPoint { 0:19 },
-                                                            end: AstPoint { 0:21 },
-                                                        },
-                                                        value: "10",
+                                        Nuget(
+                                            Int(
+                                                AstInt {
+                                                    range: AstRange {
+                                                        start: AstPoint { 0:19 },
+                                                        end: AstPoint { 0:21 },
                                                     },
-                                                ),
+                                                    value: "10",
+                                                },
                                             ),
                                         ),
                                     ),
@@ -16634,17 +16434,15 @@ fn new_casted_parameter() {
                                         end: AstPoint { 0:35 },
                                     },
                                     ident: Some(
-                                        Value(
-                                            Nuget(
-                                                DoubleImplicit(
-                                                    AstDouble {
-                                                        range: AstRange {
-                                                            start: AstPoint { 0:30 },
-                                                            end: AstPoint { 0:31 },
-                                                        },
-                                                        value: "3.00",
+                                        Nuget(
+                                            DoubleImplicit(
+                                                AstDouble {
+                                                    range: AstRange {
+                                                        start: AstPoint { 0:30 },
+                                                        end: AstPoint { 0:31 },
                                                     },
-                                                ),
+                                                    value: "3.00",
+                                                },
                                             ),
                                         ),
                                     ),
@@ -17071,21 +16869,19 @@ fn multiline_string_arg() {
                                                                     end: AstPoint { 1:973 },
                                                                 },
                                                                 ident: Some(
-                                                                    Value(
-                                                                        Nuget(
-                                                                            StringLiteralMulti {
-                                                                                range: AstRange {
-                                                                                    start: AstPoint { 1:509 },
-                                                                                    end: AstPoint { 1:43 },
-                                                                                },
-                                                                                value: "
-                                                                                                                          The VFORK launch mechanism has been deprecated for being dangerous.
-                                                                                                                          It will be removed in a future java version. Either remove the
-                                                                                                                          jdk.lang.Process.launchMechanism property (preferred) or use FORK mode
-                                                                                                                          instead (-Djdk.lang.Process.launchMechanism=FORK).
-                                                                                                                          ",
+                                                                    Nuget(
+                                                                        StringLiteralMulti {
+                                                                            range: AstRange {
+                                                                                start: AstPoint { 1:509 },
+                                                                                end: AstPoint { 1:43 },
                                                                             },
-                                                                        ),
+                                                                            value: "
+                                                                                                                      The VFORK launch mechanism has been deprecated for being dangerous.
+                                                                                                                      It will be removed in a future java version. Either remove the
+                                                                                                                      jdk.lang.Process.launchMechanism property (preferred) or use FORK mode
+                                                                                                                      instead (-Djdk.lang.Process.launchMechanism=FORK).
+                                                                                                                      ",
+                                                                        },
                                                                     ),
                                                                 ),
                                                                 values: None,
@@ -18232,17 +18028,15 @@ fn casted_calculation() {
                                                                     end: AstPoint { 0:60 },
                                                                 },
                                                                 ident: Some(
-                                                                    Value(
-                                                                        Nuget(
-                                                                            Int(
-                                                                                AstInt {
-                                                                                    range: AstRange {
-                                                                                        start: AstPoint { 0:52 },
-                                                                                        end: AstPoint { 0:60 },
-                                                                                    },
-                                                                                    value: "1000_000",
+                                                                    Nuget(
+                                                                        Int(
+                                                                            AstInt {
+                                                                                range: AstRange {
+                                                                                    start: AstPoint { 0:52 },
+                                                                                    end: AstPoint { 0:60 },
                                                                                 },
-                                                                            ),
+                                                                                value: "1000_000",
+                                                                            },
                                                                         ),
                                                                     ),
                                                                 ),
@@ -18374,16 +18168,14 @@ fn annotated_named() {
                                                                         end: AstPoint { 0:79 },
                                                                     },
                                                                     ident: Some(
-                                                                        Value(
-                                                                            Nuget(
-                                                                                StringLiteral {
-                                                                                    range: AstRange {
-                                                                                        start: AstPoint { 0:70 },
-                                                                                        end: AstPoint { 0:60 },
-                                                                                    },
-                                                                                    value: "otherUuid",
+                                                                        Nuget(
+                                                                            StringLiteral {
+                                                                                range: AstRange {
+                                                                                    start: AstPoint { 0:70 },
+                                                                                    end: AstPoint { 0:60 },
                                                                                 },
-                                                                            ),
+                                                                                value: "otherUuid",
+                                                                            },
                                                                         ),
                                                                     ),
                                                                     values: None,
@@ -18401,16 +18193,14 @@ fn annotated_named() {
                                                                         end: AstPoint { 0:90 },
                                                                     },
                                                                     ident: Some(
-                                                                        Value(
-                                                                            Nuget(
-                                                                                StringLiteral {
-                                                                                    range: AstRange {
-                                                                                        start: AstPoint { 0:82 },
-                                                                                        end: AstPoint { 0:72 },
-                                                                                    },
-                                                                                    value: "thing_id",
+                                                                        Nuget(
+                                                                            StringLiteral {
+                                                                                range: AstRange {
+                                                                                    start: AstPoint { 0:82 },
+                                                                                    end: AstPoint { 0:72 },
                                                                                 },
-                                                                            ),
+                                                                                value: "thing_id",
+                                                                            },
                                                                         ),
                                                                     ),
                                                                     values: None,
@@ -18475,16 +18265,14 @@ fn annotated_array() {
                                                             end: AstPoint { 0:38 },
                                                         },
                                                         ident: Some(
-                                                            Value(
-                                                                Nuget(
-                                                                    StringLiteral {
-                                                                        range: AstRange {
-                                                                            start: AstPoint { 0:29 },
-                                                                            end: AstPoint { 0:19 },
-                                                                        },
-                                                                        value: "unchecked",
+                                                            Nuget(
+                                                                StringLiteral {
+                                                                    range: AstRange {
+                                                                        start: AstPoint { 0:29 },
+                                                                        end: AstPoint { 0:19 },
                                                                     },
-                                                                ),
+                                                                    value: "unchecked",
+                                                                },
                                                             ),
                                                         ),
                                                         values: None,
@@ -18500,16 +18288,14 @@ fn annotated_array() {
                                                             end: AstPoint { 0:49 },
                                                         },
                                                         ident: Some(
-                                                            Value(
-                                                                Nuget(
-                                                                    StringLiteral {
-                                                                        range: AstRange {
-                                                                            start: AstPoint { 0:41 },
-                                                                            end: AstPoint { 0:31 },
-                                                                        },
-                                                                        value: "rawtypes",
+                                                            Nuget(
+                                                                StringLiteral {
+                                                                    range: AstRange {
+                                                                        start: AstPoint { 0:41 },
+                                                                        end: AstPoint { 0:31 },
                                                                     },
-                                                                ),
+                                                                    value: "rawtypes",
+                                                                },
                                                             ),
                                                         ),
                                                         values: None,
@@ -18709,16 +18495,14 @@ fn nuget_long_underscore() {
     assert_eq!(tokens.len(), parsed.1);
     let expected = expect![[r#"
         (
-            Nuget(
-                Long(
-                    AstInt {
-                        range: AstRange {
-                            start: AstPoint { 0:14 },
-                            end: AstPoint { 0:28 },
-                        },
-                        value: "10_000_000_000",
+            Long(
+                AstInt {
+                    range: AstRange {
+                        start: AstPoint { 0:14 },
+                        end: AstPoint { 0:28 },
                     },
-                ),
+                    value: "10_000_000_000",
+                },
             ),
             2,
         )
@@ -18840,17 +18624,15 @@ fn inline_switch() {
                                                                                                         end: AstPoint { 2:17 },
                                                                                                     },
                                                                                                     ident: Some(
-                                                                                                        Value(
-                                                                                                            Nuget(
-                                                                                                                BooleanLiteral(
-                                                                                                                    AstBoolean {
-                                                                                                                        range: AstRange {
-                                                                                                                            start: AstPoint { 2:13 },
-                                                                                                                            end: AstPoint { 2:17 },
-                                                                                                                        },
-                                                                                                                        value: true,
+                                                                                                        Nuget(
+                                                                                                            BooleanLiteral(
+                                                                                                                AstBoolean {
+                                                                                                                    range: AstRange {
+                                                                                                                        start: AstPoint { 2:13 },
+                                                                                                                        end: AstPoint { 2:17 },
                                                                                                                     },
-                                                                                                                ),
+                                                                                                                    value: true,
+                                                                                                                },
                                                                                                             ),
                                                                                                         ),
                                                                                                     ),
@@ -18968,17 +18750,15 @@ fn inline_switch() {
                                                                                                         end: AstPoint { 3:18 },
                                                                                                     },
                                                                                                     ident: Some(
-                                                                                                        Value(
-                                                                                                            Nuget(
-                                                                                                                BooleanLiteral(
-                                                                                                                    AstBoolean {
-                                                                                                                        range: AstRange {
-                                                                                                                            start: AstPoint { 3:13 },
-                                                                                                                            end: AstPoint { 3:18 },
-                                                                                                                        },
-                                                                                                                        value: false,
+                                                                                                        Nuget(
+                                                                                                            BooleanLiteral(
+                                                                                                                AstBoolean {
+                                                                                                                    range: AstRange {
+                                                                                                                        start: AstPoint { 3:13 },
+                                                                                                                        end: AstPoint { 3:18 },
                                                                                                                     },
-                                                                                                                ),
+                                                                                                                    value: false,
+                                                                                                                },
                                                                                                             ),
                                                                                                         ),
                                                                                                     ),
@@ -19046,17 +18826,15 @@ fn inline_switch() {
                                                                                                                                             end: AstPoint { 3:30 },
                                                                                                                                         },
                                                                                                                                         ident: Some(
-                                                                                                                                            Value(
-                                                                                                                                                Nuget(
-                                                                                                                                                    Int(
-                                                                                                                                                        AstInt {
-                                                                                                                                                            range: AstRange {
-                                                                                                                                                                start: AstPoint { 3:29 },
-                                                                                                                                                                end: AstPoint { 3:30 },
-                                                                                                                                                            },
-                                                                                                                                                            value: "1",
+                                                                                                                                            Nuget(
+                                                                                                                                                Int(
+                                                                                                                                                    AstInt {
+                                                                                                                                                        range: AstRange {
+                                                                                                                                                            start: AstPoint { 3:29 },
+                                                                                                                                                            end: AstPoint { 3:30 },
                                                                                                                                                         },
-                                                                                                                                                    ),
+                                                                                                                                                        value: "1",
+                                                                                                                                                    },
                                                                                                                                                 ),
                                                                                                                                             ),
                                                                                                                                         ),
@@ -19080,7 +18858,7 @@ fn inline_switch() {
                                                                                                         start: AstPoint { 3:32 },
                                                                                                         end: AstPoint { 3:41 },
                                                                                                     },
-                                                                                                    expression: Expression(
+                                                                                                    expression: Some(
                                                                                                         [
                                                                                                             Base(
                                                                                                                 AstBaseExpression {
@@ -19105,17 +18883,15 @@ fn inline_switch() {
                                                                                                                         end: AstPoint { 3:41 },
                                                                                                                     },
                                                                                                                     ident: Some(
-                                                                                                                        Value(
-                                                                                                                            Nuget(
-                                                                                                                                Int(
-                                                                                                                                    AstInt {
-                                                                                                                                        range: AstRange {
-                                                                                                                                            start: AstPoint { 3:40 },
-                                                                                                                                            end: AstPoint { 3:41 },
-                                                                                                                                        },
-                                                                                                                                        value: "1",
+                                                                                                                        Nuget(
+                                                                                                                            Int(
+                                                                                                                                AstInt {
+                                                                                                                                    range: AstRange {
+                                                                                                                                        start: AstPoint { 3:40 },
+                                                                                                                                        end: AstPoint { 3:41 },
                                                                                                                                     },
-                                                                                                                                ),
+                                                                                                                                    value: "1",
+                                                                                                                                },
                                                                                                                             ),
                                                                                                                         ),
                                                                                                                     ),
@@ -19533,16 +19309,14 @@ fn top_level_function() {
                                                                                     end: AstPoint { 1:34 },
                                                                                 },
                                                                                 ident: Some(
-                                                                                    Value(
-                                                                                        Nuget(
-                                                                                            StringLiteral {
-                                                                                                range: AstRange {
-                                                                                                    start: AstPoint { 1:31 },
-                                                                                                    end: AstPoint { 1:27 },
-                                                                                                },
-                                                                                                value: "Hey",
+                                                                                    Nuget(
+                                                                                        StringLiteral {
+                                                                                            range: AstRange {
+                                                                                                start: AstPoint { 1:31 },
+                                                                                                end: AstPoint { 1:27 },
                                                                                             },
-                                                                                        ),
+                                                                                            value: "Hey",
+                                                                                        },
                                                                                     ),
                                                                                 ),
                                                                                 values: None,
@@ -19753,7 +19527,7 @@ fn method_inner_class() {
                                                 start: AstPoint { 7:8 },
                                                 end: AstPoint { 7:29 },
                                             },
-                                            expression: Expression(
+                                            expression: Some(
                                                 [
                                                     Base(
                                                         AstBaseExpression {

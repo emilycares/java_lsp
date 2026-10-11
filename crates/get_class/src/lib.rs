@@ -9,11 +9,11 @@ use ast::{
     types::{
         AstAnnotated, AstAnnotatedParameter, AstAnnotatedParameterKind, AstAnnotation,
         AstBaseExpression, AstBlock, AstBlockEntry, AstBlockVariable, AstClassBlock, AstDoWhile,
-        AstEnumeration, AstExpressionIdentifier, AstExpressionKind, AstExpressionOrAnnotated,
-        AstExpressionOrDefault, AstExpressionOrValue, AstFile, AstForContent, AstIf, AstIfContent,
-        AstImportUnit, AstJType, AstJTypeKind, AstLambdaRhs, AstNewRhs, AstPoint, AstRange,
-        AstSuperClass, AstSwitchCaseArrowContent, AstThing, AstTopLevel, AstTypeParameter,
-        AstTypeParameters, AstValuesWithAnnotated, AstWhile, AstWhileContent,
+        AstEnumeration, AstExpression, AstExpressionIdentifier, AstExpressionKind,
+        AstExpressionOrAnnotated, AstExpressionOrDefault, AstFile, AstForContent, AstIf,
+        AstIfContent, AstImportUnit, AstJType, AstJTypeKind, AstLambdaRhs, AstNewRhs, AstPoint,
+        AstRange, AstSuperClass, AstSwitchCaseArrowContent, AstThing, AstTopLevel,
+        AstTypeParameter, AstTypeParameters, AstValuesWithAnnotated, AstWhile, AstWhileContent,
     },
 };
 use my_string::NuVec;
@@ -570,7 +570,7 @@ fn get_class_block_entry(entry: &AstBlockEntry, point: &AstPoint) -> Option<Foun
     }
     match entry {
         AstBlockEntry::Yield(ast_yield) => {
-            if let Some(o) = get_class_expression_or_value(&ast_yield.expression, point) {
+            if let Some(o) = get_class_expression_or_value(ast_yield.expression.as_ref(), point) {
                 return Some(o);
             }
         }
@@ -580,7 +580,9 @@ fn get_class_block_entry(entry: &AstBlockEntry, point: &AstPoint) -> Option<Foun
             }
         }
         AstBlockEntry::Return(ast_block_return) => {
-            if let Some(o) = get_class_expression_or_value(&ast_block_return.expression, point) {
+            if let Some(o) =
+                get_class_expression_or_value(ast_block_return.expression.as_ref(), point)
+            {
                 return Some(o);
             }
         }
@@ -846,16 +848,10 @@ fn get_class_if_content(content: &AstIfContent, point: &AstPoint) -> Option<Foun
 }
 
 fn get_class_expression_or_value(
-    expression: &AstExpressionOrValue,
+    expression: Option<&AstExpression>,
     point: &AstPoint,
 ) -> Option<FoundClass> {
-    match expression {
-        AstExpressionOrValue::None => None,
-        AstExpressionOrValue::Expression(ast_expression) => {
-            get_class_expression(ast_expression, point)
-        }
-        AstExpressionOrValue::Value(_ast_value) => None,
-    }
+    expression.and_then(|ast_expression| get_class_expression(ast_expression, point))
 }
 
 fn get_class_expression(
@@ -1071,7 +1067,6 @@ fn get_class_expression_identifier(
             get_class_identifier(ast_identifier, point)
         }
         AstExpressionIdentifier::Nuget(_ast_value_nuget) => None,
-        AstExpressionIdentifier::Value(_ast_value) => None,
         AstExpressionIdentifier::ArrayAccess { expr, range } => {
             if range.is_in_range(point)
                 && let Some(o) = get_class_expression(expr, point)

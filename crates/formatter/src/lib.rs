@@ -14,14 +14,14 @@ use ast::{
         AstAnnotated, AstAnnotatedParameter, AstAnnotatedParameterKind, AstAnnotation,
         AstAnnotationField, AstAvailability, AstBaseExpression, AstBlock, AstBlockEntry, AstClass,
         AstClassBlock, AstClassConstructor, AstClassMethod, AstClassVariable, AstEnumeration,
-        AstExpressionIdentifier, AstExpressionKind, AstExpressionOperator,
-        AstExpressionOrAnnotated, AstExpressionOrDefault, AstExpressionOrValue, AstFile,
-        AstForContent, AstIdentifier, AstIf, AstIfContent, AstImport, AstImportUnit, AstInterface,
-        AstInterfaceConstant, AstInterfaceMethod, AstInterfaceMethodDefault, AstJType,
-        AstJTypeKind, AstLambdaRhs, AstMethodHeader, AstMethodParameterFlags, AstMethodParameters,
-        AstModule, AstModuleRequiresFlags, AstNewRhs, AstPackage, AstPoint, AstRange, AstRecord,
+        AstExpression, AstExpressionIdentifier, AstExpressionKind, AstExpressionOperator,
+        AstExpressionOrAnnotated, AstExpressionOrDefault, AstFile, AstForContent, AstIdentifier,
+        AstIf, AstIfContent, AstImport, AstImportUnit, AstInterface, AstInterfaceConstant,
+        AstInterfaceMethod, AstInterfaceMethodDefault, AstJType, AstJTypeKind, AstLambdaRhs,
+        AstMethodHeader, AstMethodParameterFlags, AstMethodParameters, AstModule,
+        AstModuleRequiresFlags, AstNewRhs, AstPackage, AstPoint, AstRange, AstRecord,
         AstRecordEntries, AstSuperClass, AstSwitchCaseArrowContent, AstThing, AstThingAttributes,
-        AstThrowsDeclaration, AstTopLevel, AstTypeParameters, AstValue, AstValueNuget,
+        AstThrowsDeclaration, AstTopLevel, AstTypeParameters, AstValueNuget,
         AstValuesWithAnnotated, AstVolatileTransient, AstWhileContent,
     },
 };
@@ -626,23 +626,39 @@ fn write_expression(expr: &[AstExpressionKind], f: &mut Formatter) {
             f.write(b" ");
         }
 
-        if let AstExpressionKind::Base(AstBaseExpression { operator, .. }) = k {
-            minus_with_space = !matches!(
-                operator,
-                AstExpressionOperator::Gt(_)
-                    | AstExpressionOperator::Ge(_)
-                    | AstExpressionOperator::GtGtEq(_)
-                    | AstExpressionOperator::GtGtGtEq(_)
-                    | AstExpressionOperator::Le(_)
-                    | AstExpressionOperator::Lt(_)
-                    | AstExpressionOperator::LtLtEq(_)
-                    | AstExpressionOperator::LtLtLtEq(_)
-                    | AstExpressionOperator::QuestionMark(_)
-                    | AstExpressionOperator::Colon(_)
-                    | AstExpressionOperator::Equal(_)
-                    | AstExpressionOperator::Assign(_)
-                    | AstExpressionOperator::NotEqual(_)
-            );
+        if let AstExpressionKind::Base(AstBaseExpression {
+            operator, ident, ..
+        }) = k
+        {
+            if let Some(AstExpressionIdentifier::Identifier(ident)) = ident
+                && ident.value == "e"
+                && let Some(prev) = expr.get(nth.saturating_sub(1))
+                && let AstExpressionKind::Base(AstBaseExpression { ident, .. }) = prev
+                && let Some(AstExpressionIdentifier::Nuget(nuget)) = ident
+                && matches!(
+                    nuget,
+                    AstValueNuget::Float(_) | AstValueNuget::Double(_) | AstValueNuget::Int(_)
+                )
+            {
+                minus_with_space = false;
+            } else {
+                minus_with_space = !matches!(
+                    operator,
+                    AstExpressionOperator::Gt(_)
+                        | AstExpressionOperator::Ge(_)
+                        | AstExpressionOperator::GtGtEq(_)
+                        | AstExpressionOperator::GtGtGtEq(_)
+                        | AstExpressionOperator::Le(_)
+                        | AstExpressionOperator::Lt(_)
+                        | AstExpressionOperator::LtLtEq(_)
+                        | AstExpressionOperator::LtLtLtEq(_)
+                        | AstExpressionOperator::QuestionMark(_)
+                        | AstExpressionOperator::Colon(_)
+                        | AstExpressionOperator::Equal(_)
+                        | AstExpressionOperator::Assign(_)
+                        | AstExpressionOperator::NotEqual(_)
+                );
+            }
         } else {
             minus_with_space = true;
         }
@@ -991,11 +1007,10 @@ fn write_availability(availability: &AstAvailability, f: &mut Formatter) {
     }
 }
 
-fn write_expr_or_value(eov: &AstExpressionOrValue, formatter: &mut Formatter) {
+fn write_expr_or_value(eov: Option<&AstExpression>, formatter: &mut Formatter) {
     match eov {
-        AstExpressionOrValue::None => {}
-        AstExpressionOrValue::Expression(expr) => write_expression(expr, formatter),
-        AstExpressionOrValue::Value(val) => write_value(val, formatter),
+        None => {}
+        Some(expr) => write_expression(expr, formatter),
     }
 }
 
@@ -1093,9 +1108,9 @@ fn write_block_entry(
                 f.write_indent();
             }
             f.write(b"return");
-            if !matches!(ret.expression, AstExpressionOrValue::None) {
+            if ret.expression.is_some() {
                 f.buf.push(b' ');
-                write_expr_or_value(&ret.expression, f);
+                write_expr_or_value(ret.expression.as_ref(), f);
             }
             f.buf.push(b';');
             f.end_line_comments(&ret.range);
@@ -1108,9 +1123,9 @@ fn write_block_entry(
                 f.write_indent();
             }
             f.write(b"yield");
-            if !matches!(yl.expression, AstExpressionOrValue::None) {
+            if yl.expression.is_some() {
                 f.buf.push(b' ');
-                write_expr_or_value(&yl.expression, f);
+                write_expr_or_value(yl.expression.as_ref(), f);
             }
             if around {
                 f.buf.push(b';');
@@ -2160,7 +2175,6 @@ fn write_expression_identifier(ident: &AstExpressionIdentifier, f: &mut Formatte
     match ident {
         AstExpressionIdentifier::Identifier(i) => f.write_identifier(i),
         AstExpressionIdentifier::Nuget(n) => write_value_nuget(n, f),
-        AstExpressionIdentifier::Value(v) => write_value(v, f),
         AstExpressionIdentifier::ArrayAccess { expr, .. } => {
             f.write(b"[");
             write_expression(expr, f);
@@ -2170,13 +2184,6 @@ fn write_expression_identifier(ident: &AstExpressionIdentifier, f: &mut Formatte
         AstExpressionIdentifier::EmptyArrayAccess(_) => {
             f.write(b"[]");
         }
-    }
-}
-
-fn write_value(value: &AstValue, f: &mut Formatter) {
-    match value {
-        AstValue::Variable(i) => f.write_identifier(i),
-        AstValue::Nuget(n) => write_value_nuget(n, f),
     }
 }
 
@@ -3794,6 +3801,23 @@ public class Test {
                         1.0f // pitch
                         );
                 }
+            }
+        "]];
+        expected.assert_eq(str::from_utf8(&o).unwrap());
+    }
+
+    #[test]
+    fn e_number() {
+        let content = br"
+public class Test {
+    static final float e = 1e-10;
+}
+";
+
+        let o = fmt(content).unwrap();
+        let expected = expect![[r"
+            public class Test {
+                static final float e = 1e-10;
             }
         "]];
         expected.assert_eq(str::from_utf8(&o).unwrap());

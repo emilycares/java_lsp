@@ -24,7 +24,7 @@ use types::{
     AstImportUnit, AstInt, AstJType, AstJTypeKind, AstLambda, AstLambdaParameters, AstMethodHeader,
     AstMethodParameter, AstMethodParameters, AstNewClass, AstPoint, AstRange, AstSuperClass,
     AstSwitch, AstSwitchCase, AstThing, AstThrow, AstThrowsDeclaration, AstTryCatch,
-    AstTryCatchCase, AstTypeParameters, AstValue, AstValueNuget, AstValues, AstWhile,
+    AstTryCatchCase, AstTypeParameters, AstValueNuget, AstValues, AstWhile,
 };
 
 use crate::class::parse_class_method;
@@ -37,8 +37,8 @@ use crate::{
     types::{
         AstAnnotatedParameter, AstAnnotatedParameterKind, AstBinaryLiteral, AstBlockAssert,
         AstBlockYield, AstConstructorHeader, AstExpressionKind, AstExpressionOrAnnotated,
-        AstExpressionOrDefault, AstExpressionOrValue, AstForContent, AstGenerics, AstHexLiteral,
-        AstInlineBlock, AstInstanceOf, AstLambdaParameter, AstLambdaRhs, AstNewRhs, AstPackage,
+        AstExpressionOrDefault, AstForContent, AstGenerics, AstHexLiteral, AstInlineBlock,
+        AstInstanceOf, AstLambdaParameter, AstLambdaRhs, AstNewRhs, AstPackage,
         AstSwitchCaseArrowContent, AstSwitchCaseArrowDefault, AstSwitchCaseArrowType,
         AstSwitchCaseArrowValues, AstSwitchCaseArrowVar, AstSwitchDefault, AstSynchronizedBlock,
         AstThingAttributes, AstTypeParameter, AstValuesWithAnnotated, AstWhileContent,
@@ -558,31 +558,21 @@ fn parse_array_with_annotated(
 pub fn parse_value_nuget(
     tokens: &[PositionToken],
     pos: usize,
-) -> Result<(AstValue, usize), AstError> {
+) -> Result<(AstValueNuget, usize), AstError> {
     let start = tokens.start(pos)?;
     match &start.token {
-        Token::Identifier(name) => Ok((
-            AstValue::Variable(AstIdentifier {
-                range: AstRange {
-                    start: start.start_point(),
-                    end: start.end_point(),
-                },
-                value: name.clone(),
+        Token::HexLiteral(value) => Ok((
+            AstValueNuget::HexLiteral(AstHexLiteral {
+                range: AstRange::from_position_token(start, start),
+                value: value.clone(),
             }),
             pos.saturating_add(1),
         )),
-        Token::HexLiteral(value) => Ok((
-            AstValue::Nuget(AstValueNuget::HexLiteral(AstHexLiteral {
-                range: AstRange::from_position_token(start, start),
-                value: value.clone(),
-            })),
-            pos.saturating_add(1),
-        )),
         Token::BinaryLiteral(value) => Ok((
-            AstValue::Nuget(AstValueNuget::BinaryLiteral(AstBinaryLiteral {
+            AstValueNuget::BinaryLiteral(AstBinaryLiteral {
                 range: AstRange::from_position_token(start, start),
                 value: value.clone(),
-            })),
+            }),
             pos.saturating_add(1),
         )),
         Token::Number(num) => {
@@ -600,37 +590,37 @@ pub fn parse_value_nuget(
                     match &current.token {
                         Token::Identifier(val) if val == "d" || val == "D" => {
                             return Ok((
-                                AstValue::Nuget(AstValueNuget::Double(AstDouble {
+                                AstValueNuget::Double(AstDouble {
                                     range: AstRange::from_position_token(start, start),
                                     value,
-                                })),
+                                }),
                                 pos.saturating_add(1),
                             ));
                         }
                         Token::Identifier(val) if val == "f" || val == "F" => {
                             return Ok((
-                                AstValue::Nuget(AstValueNuget::Float(AstDouble {
+                                AstValueNuget::Float(AstDouble {
                                     range: AstRange::from_position_token(start, start),
                                     value,
-                                })),
+                                }),
                                 pos.saturating_add(1),
                             ));
                         }
                         Token::Identifier(val) if val == "l" || val == "L" => {
                             return Ok((
-                                AstValue::Nuget(AstValueNuget::Long(AstInt {
+                                AstValueNuget::Long(AstInt {
                                     range: AstRange::from_position_token(start, start),
                                     value,
-                                })),
+                                }),
                                 pos.saturating_add(1),
                             ));
                         }
                         _ => {
                             return Ok((
-                                AstValue::Nuget(AstValueNuget::DoubleImplicit(AstDouble {
+                                AstValueNuget::DoubleImplicit(AstDouble {
                                     range: AstRange::from_position_token(start, start),
                                     value,
-                                })),
+                                }),
                                 pos,
                             ));
                         }
@@ -643,10 +633,10 @@ pub fn parse_value_nuget(
                 Token::Identifier(NuVec::new_static(b"l")),
             ) {
                 return Ok((
-                    AstValue::Nuget(AstValueNuget::Long(AstInt {
+                    AstValueNuget::Long(AstInt {
                         range: AstRange::from_position_token(start, start),
                         value: num.clone(),
-                    })),
+                    }),
                     npos,
                 ));
             }
@@ -656,27 +646,23 @@ pub fn parse_value_nuget(
                 Token::Identifier(NuVec::new_static(b"L")),
             ) {
                 return Ok((
-                    AstValue::Nuget(AstValueNuget::Long(AstInt {
+                    AstValueNuget::Long(AstInt {
                         range: AstRange::from_position_token(start, start),
                         value: num.clone(),
-                    })),
+                    }),
                     npos,
                 ));
             }
             Ok((
-                AstValue::Nuget(AstValueNuget::Int(AstInt {
+                AstValueNuget::Int(AstInt {
                     range: AstRange::from_position_token(start, start),
                     value: num.clone(),
-                })),
+                }),
                 pos.saturating_add(1),
             ))
         }
-        Token::StringLiteral(_) | Token::StringLiteralMulti(_) => {
-            parse_string_literal(tokens, pos).map(|i| (AstValue::Nuget(i.0), i.1))
-        }
-        Token::CharLiteral(_) => {
-            parse_char_literal(tokens, pos).map(|i| (AstValue::Nuget(i.0), i.1))
-        }
+        Token::StringLiteral(_) | Token::StringLiteralMulti(_) => parse_string_literal(tokens, pos),
+        Token::CharLiteral(_) => parse_char_literal(tokens, pos),
         Token::True => parse_boolean_literal_input(tokens, pos, true),
         Token::False => parse_boolean_literal_input(tokens, pos, false),
         _ => Err(AstError::InvalidNuget(InvalidToken(pos))),
@@ -687,13 +673,13 @@ fn parse_boolean_literal_input(
     tokens: &[PositionToken],
     pos: usize,
     value: bool,
-) -> Result<(AstValue, usize), AstError> {
+) -> Result<(AstValueNuget, usize), AstError> {
     let start = tokens.start(pos)?;
     Ok((
-        AstValue::Nuget(AstValueNuget::BooleanLiteral(AstBoolean {
+        AstValueNuget::BooleanLiteral(AstBoolean {
             range: AstRange::from_position_token(start, start),
             value,
-        })),
+        }),
         pos.saturating_add(1),
     ))
 }
@@ -1398,7 +1384,7 @@ pub fn parse_base_expression(
                 match parse_value_nuget(tokens, pos) {
                     Ok((value, npos)) => {
                         pos = npos;
-                        out.ident = Some(AstExpressionIdentifier::Value(value));
+                        out.ident = Some(AstExpressionIdentifier::Nuget(value));
                         break 'others;
                     }
                     Err(e) => errors[1] = Some((NuVec::new_static(b"value"), e)),
@@ -1610,12 +1596,12 @@ pub fn parse_block_return(
     let start = tokens.start(pos)?;
     let pos = assert_token(tokens, pos, Token::Return)?;
     let mut pos = pos;
-    let mut expression = AstExpressionOrValue::None;
+    let mut expression = None;
     if let Ok(npos) = assert_token(tokens, pos, Token::Semicolon) {
         pos = npos;
     } else {
         let (nexpression, npos) = parse_expression(tokens, pos, &ExpressionOptions::empty())?;
-        expression = AstExpressionOrValue::Expression(nexpression);
+        expression = Some(nexpression);
         let npos = assert_token(tokens, npos, Token::Semicolon)?;
         pos = npos;
     }
@@ -1640,9 +1626,9 @@ fn parse_block_yield(
         parse_expression(tokens, pos, &ExpressionOptions::empty())
     {
         pos = npos;
-        AstExpressionOrValue::Expression(nexpression)
+        Some(nexpression)
     } else {
-        AstExpressionOrValue::None
+        None
     };
     let pos = assert_token(tokens, pos, Token::Semicolon)?;
     let end = tokens.end(pos)?;

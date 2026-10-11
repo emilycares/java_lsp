@@ -6,7 +6,7 @@
 #![allow(clippy::too_many_lines)]
 
 use ast::types::{
-    AstBlock, AstBlockEntry, AstClassBlock, AstExpressionKind, AstExpressionOrValue, AstFile,
+    AstBlock, AstBlockEntry, AstClassBlock, AstExpression, AstExpressionKind, AstFile,
     AstIdentifier, AstIf, AstIfContent, AstLambdaRhs, AstRange, AstThing, AstTopLevel,
 };
 use lsp_extra::to_lsp_range;
@@ -402,7 +402,7 @@ fn get_field_position_block_entry(
             );
         }
         AstBlockEntry::Return(r) => {
-            get_field_position_expression_or_value(&r.expression, name, out);
+            get_field_position_expression_or_value(r.expression.as_ref(), name, out);
         }
         AstBlockEntry::Expression(e) => {
             for e in &e.value {
@@ -434,17 +434,14 @@ fn get_field_position_block_entry(
 }
 
 fn get_field_position_expression_or_value(
-    expression: &AstExpressionOrValue,
+    expression: Option<&AstExpression>,
     name: Option<&NuVec>,
     out: &mut Vec<PositionSymbol>,
 ) {
-    match expression {
-        AstExpressionOrValue::Expression(ast_expression_kinds) => {
-            for e in ast_expression_kinds {
-                get_field_position_expression(e, name, out);
-            }
+    if let Some(ast_expression_kinds) = expression {
+        for e in ast_expression_kinds {
+            get_field_position_expression(e, name, out);
         }
-        AstExpressionOrValue::None | AstExpressionOrValue::Value(_) => (),
     }
 }
 

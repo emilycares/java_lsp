@@ -13,12 +13,11 @@ use ast::{
     range::{GetRange, is_in_range_c},
     types::{
         AstBaseExpression, AstBlock, AstBlockEntry, AstBlockExpression, AstBlockVariable,
-        AstClassConstructor, AstClassMethod, AstDoWhile, AstExpression, AstExpressionKind,
-        AstExpressionOrValue, AstFile, AstFor, AstForContent, AstForEnhanced, AstIf, AstIfContent,
-        AstInterfaceConstant, AstInterfaceMethod, AstInterfaceMethodDefault, AstJTypeKind,
-        AstLambda, AstLambdaRhs, AstNewRhs, AstPoint, AstSwitch, AstSwitchCaseArrowContent,
-        AstSwitchCaseArrowType, AstSwitchCaseArrowVar, AstThing, AstTopLevel, AstTryCatch,
-        AstWhile, AstWhileContent,
+        AstClassConstructor, AstClassMethod, AstDoWhile, AstExpression, AstExpressionKind, AstFile,
+        AstFor, AstForContent, AstForEnhanced, AstIf, AstIfContent, AstInterfaceConstant,
+        AstInterfaceMethod, AstInterfaceMethodDefault, AstJTypeKind, AstLambda, AstLambdaRhs,
+        AstNewRhs, AstPoint, AstSwitch, AstSwitchCaseArrowContent, AstSwitchCaseArrowType,
+        AstSwitchCaseArrowVar, AstThing, AstTopLevel, AstTryCatch, AstWhile, AstWhileContent,
     },
 };
 use dto::{Class, ImportUnit, JType};
@@ -307,7 +306,7 @@ fn get_block_entry_vars(
             Ok(())
         }
         AstBlockEntry::Throw(t) => expression(&t.expression, context, out),
-        AstBlockEntry::Return(r) => expression_or_value(&r.expression, context, out),
+        AstBlockEntry::Return(r) => expression_or_value(r.expression.as_ref(), context, out),
         AstBlockEntry::Expression(ast_expression) => block_expr(ast_expression, context, out),
         AstBlockEntry::If(ast_if) => if_vars(ast_if, context, out),
         AstBlockEntry::While(ast_while) => while_vars(ast_while, context, out),
@@ -358,17 +357,14 @@ fn switch_case_arrow_content(
     }
 }
 fn expression_or_value(
-    e: &AstExpressionOrValue,
+    e: Option<&AstExpression>,
 
     context: &VariableContext,
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
-    match e {
-        AstExpressionOrValue::None | AstExpressionOrValue::Value(_) => Ok(()),
-        AstExpressionOrValue::Expression(ast_expression_kinds) => {
-            expression(ast_expression_kinds, context, out)
-        }
-    }
+    e.map_or(Ok(()), |ast_expression_kinds| {
+        expression(ast_expression_kinds, context, out)
+    })
 }
 
 fn block_expr(
