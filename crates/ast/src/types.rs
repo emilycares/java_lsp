@@ -377,6 +377,14 @@ pub enum AstBlockEntry {
     InlineBlock(AstInlineBlock),
     Semicolon(AstRange),
     Assert(AstBlockAssert),
+    LineComment(AstLineComment),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+pub struct AstLineComment {
+    pub range: AstRange,
+    pub content: NuVec,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

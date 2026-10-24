@@ -21,7 +21,7 @@ pub fn print_help() {
         "
 java-lsp
 
---help : Shows this help
+help | -h | --help : Shows this help
 
 no arg : Starts lsp over stdio
 server-tcp <port> : Open tcp lsp socket
@@ -39,6 +39,7 @@ ast-check-dir <directory path> <Optional ignore pattern> : Check for ast errors 
 ast-check-jdk : Check for ast errors in current jdk in path
 index-jdk <variant> : Index jdk in path with variant jimage-own/jimage-executable/jmod
 decompile-jar <jar path> <out dir> : Decompile jar (jar can also be jmod)
+decompile-class <class path> : Decompile class to stdout
 "
     );
 }
@@ -58,7 +59,8 @@ pub fn parse(args: &[String]) -> Option<Command> {
         Some("ast-check-jdk") => Some(Command::AstCheckJdk),
         Some("index-jdk") => parse_index_jdk(&args[1..]),
         Some("decompile-jar") => parse_decompile_jar(&args[1..]),
-        Some("--help") => Some(Command::Help),
+        Some("decompile-class") => parse_decompile_class(&args[1..]),
+        Some("--help" | "-h" | "help") => Some(Command::Help),
         // for vscode
         Some("--stdio") => None,
         Some(u) => {
@@ -140,6 +142,19 @@ fn parse_decompile_jar(args: &[String]) -> Option<Command> {
                     Some(Command::DecompileJar { jar, out })
                 },
             )
+        },
+    )
+}
+
+fn parse_decompile_class(args: &[String]) -> Option<Command> {
+    args.first().map_or_else(
+        || {
+            println!("Expected class path");
+            None
+        },
+        |class| {
+            let class = PathBuf::from(class);
+            Some(Command::DecompileClass { class })
         },
     )
 }
@@ -261,6 +276,9 @@ pub enum Command {
     DecompileJar {
         jar: PathBuf,
         out: PathBuf,
+    },
+    DecompileClass {
+        class: PathBuf,
     },
 }
 
@@ -509,4 +527,14 @@ pub async fn decompile(file: PathBuf, out: PathBuf) {
         .await
         .unwrap();
     println!("Decompiled jar. in: {:.2?}", time.elapsed());
+}
+
+/// # Panics
+/// When decompile fails
+pub async fn decompile_file(class: PathBuf) {
+    let buf = read(&class).unwrap();
+    let ast = decompiler::decompile_class(&buf, None).unwrap();
+    let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
+    let out = str::from_utf8(&formatted).unwrap();
+    println!("{out}");
 }

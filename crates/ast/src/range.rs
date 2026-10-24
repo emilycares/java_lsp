@@ -92,6 +92,7 @@ impl AstInRange for &AstBlockEntry {
             AstBlockEntry::Thing(ast_thing) => ast_thing.get_range().is_in_range(point),
             AstBlockEntry::InlineBlock(ast_block) => ast_block.range.is_in_range(point),
             AstBlockEntry::Semicolon(ast_range) => ast_range.is_in_range(point),
+            AstBlockEntry::LineComment(c) => c.range.is_in_range(point),
         }
     }
 }
@@ -213,6 +214,7 @@ impl GetRange for AstBlockEntry {
                 ast_switch_case_arrow_type.range
             }
             Self::Assert(ast_block_assert) => ast_block_assert.range,
+            Self::LineComment(c) => c.range,
         }
     }
 }

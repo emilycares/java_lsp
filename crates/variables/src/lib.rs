@@ -298,6 +298,7 @@ fn get_block_entry_vars(
         | AstBlockEntry::SwitchCase(_)
         | AstBlockEntry::SwitchDefault(_)
         | AstBlockEntry::Yield(_)
+        | AstBlockEntry::LineComment(_)
         | AstBlockEntry::Assert(_) => Ok(()),
         AstBlockEntry::Variable(i) => {
             for v in i {

@@ -769,7 +769,7 @@ fn get_class_block_entry(entry: &AstBlockEntry, point: &AstPoint) -> Option<Foun
                 return Some(o);
             }
         }
-        AstBlockEntry::Semicolon(_ast_range) => (),
+        AstBlockEntry::Semicolon(_) | AstBlockEntry::LineComment(_) => (),
         AstBlockEntry::Assert(ast_block_assert) => {
             return get_class_expression(&ast_block_assert.expression, point);
         }

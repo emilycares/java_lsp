@@ -166,6 +166,7 @@ fn fold_block_entry(
         | AstBlockEntry::SwitchCaseArrowValues(_)
         | AstBlockEntry::SwitchCaseArrowType(_)
         | AstBlockEntry::SwitchCaseArrowDefault(_)
+        | AstBlockEntry::LineComment(_)
         | AstBlockEntry::Assert(_) => (),
     }
     Ok(())

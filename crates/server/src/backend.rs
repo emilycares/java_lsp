@@ -8,10 +8,8 @@ use std::{
 use call_chain::get_call_chain;
 use code_action::{self, CodeActionContext};
 use code_lens::{self, CodeLensError};
-use command::{
-    self, COMMAND_CMD, COMMAND_RELOAD_DEPENDENCIES, COMMAND_UPDATE_DEPENDENCIES,
-    reload_gradle_project, reload_maven_project,
-};
+use command::{self, reload_gradle_project, reload_maven_project};
+use common::{COMMAND_CMD, COMMAND_RELOAD_DEPENDENCIES, COMMAND_UPDATE_DEPENDENCIES};
 use common::{TaskProgress, project_kind::ProjectKind};
 use compile::CompileErrorMessage;
 use config::{Configuration, FormatterConfig};

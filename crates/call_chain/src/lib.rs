@@ -735,7 +735,7 @@ fn cc_block_entry(entry: &AstBlockEntry, point: &AstPoint, out: &mut Vec<CallIte
         }
         AstBlockEntry::Thing(ast_thing) => cc_thing(ast_thing, point, out),
         AstBlockEntry::InlineBlock(ast_block) => cc_block(&ast_block.block, point, out),
-        AstBlockEntry::Semicolon(_ast_range) => (),
+        AstBlockEntry::Semicolon(_) | AstBlockEntry::LineComment(_) => (),
         AstBlockEntry::Assert(ast_block_assert) => {
             cc_expr(&ast_block_assert.expression, point, false, out);
         }

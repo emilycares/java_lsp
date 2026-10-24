@@ -179,7 +179,7 @@ fn find_var_block_entry<'a>(
     i: &'a AstBlockEntry,
 ) -> Option<&'a AstBlockVariable> {
     match i {
-        AstBlockEntry::Return(_) | AstBlockEntry::Assert(_) => None,
+        AstBlockEntry::Return(_) | AstBlockEntry::Assert(_) | AstBlockEntry::LineComment(_) => None,
         AstBlockEntry::Variable(ast_block_variable) => {
             for v in ast_block_variable {
                 if v.range.is_in_range(point) {

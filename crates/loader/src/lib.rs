@@ -507,7 +507,7 @@ pub async fn base_decompile_classes_zip(
 
         let buf = entry.bytes().await.map_err(LoaderDecompilerError::IO)?;
 
-        let ast = decompiler::decompile_class(&buf, &class_path)
+        let ast = decompiler::decompile_class(&buf, Some(&class_path))
             .map_err(LoaderDecompilerError::Decompiler)?;
         let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default())
             .map_err(LoaderDecompilerError::Formatter)?;

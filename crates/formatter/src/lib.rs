@@ -1432,6 +1432,12 @@ fn write_block_entry(
         AstBlockEntry::Thing(thing) => {
             write_thing(thing, f);
         }
+        AstBlockEntry::LineComment(c) => {
+            f.write_indent();
+            f.buf.extend_from_slice(b"// ");
+            extend_nuvec(&mut f.buf, &c.content);
+            f.new_line();
+        }
     }
 }
 
@@ -2505,7 +2511,7 @@ mod tests {
             if (g.name().equals("thorben")) {
                 return false;
             }
-            
+
             return true;
         }
         public class Test {
@@ -2557,7 +2563,7 @@ mod tests {
             private final Telemetry tel;
             private final Obeservability obs;
 
-            public Application(Database db, Messages msgs, Telemetry tel, 
+            public Application(Database db, Messages msgs, Telemetry tel,
             Obeservability obs) {
                 this.db = db;
                 this.msgs = msgs;
@@ -2599,7 +2605,7 @@ mod tests {
         public enum EType {
             A, B,
             C;
-            
+
             public int aaa() {
                switch (this) {
                    case A:
@@ -2697,7 +2703,7 @@ mod tests {
         public class Test {
             public int aaa() {
                  int b = 1;
-                 return (this.that) + this.other + this.taetsch 
+                 return (this.that) + this.other + this.taetsch
                  + this.boing + b;
             }
         }
@@ -3340,7 +3346,7 @@ public class Test {
  */
 @Thing
 public class Test {
-    /** 
+    /**
      * Hihihi
      * hahaha
      * hihihi
@@ -3360,7 +3366,7 @@ public class Test {
             @Thing
             public class Test {
 
-                /** 
+                /**
                  * Hihihi
                  * hahaha
                  * hihihi
@@ -3388,7 +3394,7 @@ public class Test {
         break lab; // Better be 2
         continue lab; // Better be 2
         assert true; // Better be 2
-        int c = 2; // Better be 2 
+        int c = 2; // Better be 2
     }
 }
 ";
@@ -3407,7 +3413,7 @@ public class Test {
                     break lab; // Better be 2
                     continue lab; // Better be 2
                     assert true; // Better be 2
-                    int c = 2; // Better be 2 
+                    int c = 2; // Better be 2
                 }
             }
         "]];
@@ -3439,11 +3445,11 @@ public class Test {
                 void a() {
                 }
             };
-        Test test4 = new Test[1, 
+        Test test4 = new Test[1,
         2, 3];
         Test test5 = new Test[1, 2, 3];
         String[] test6 = new String[]{"a", "b", "c"};
-        String[] test7 = new String[]{"a", "b", 
+        String[] test7 = new String[]{"a", "b",
         "c"};
     }
 }

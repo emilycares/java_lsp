@@ -66,3 +66,8 @@ pub fn java_dir_no_create() -> PathBuf {
     dir = dir.join("java");
     dir
 }
+
+pub const COMMAND_CMD: &str = "java_lsp.cmd";
+pub const COMMAND_CMD_EDITOR: &str = "java_lsp.cmd.editor";
+pub const COMMAND_RELOAD_DEPENDENCIES: &str = "ReloadDependencies";
+pub const COMMAND_UPDATE_DEPENDENCIES: &str = "UpdateDependencies";

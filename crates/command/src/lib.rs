@@ -15,6 +15,7 @@ use std::{
     time::UNIX_EPOCH,
 };
 
+use common::{COMMAND_RELOAD_DEPENDENCIES, COMMAND_UPDATE_DEPENDENCIES};
 use common::{
     Dependency, TaskProgress, project_cache_dir,
     project_kind::{ProjectKind, get_project_kind},
@@ -42,7 +43,6 @@ pub enum CommandError {
     Command(std::io::Error),
 }
 
-pub const COMMAND_RELOAD_DEPENDENCIES: &str = "ReloadDependencies";
 #[must_use]
 pub fn reload_dependencies(
     con: Arc<Connection>,
@@ -234,7 +234,6 @@ async fn reload_dependencies_maven_cli(
     progress_end_option_token(&con.clone(), &progress, &task);
 }
 
-pub const COMMAND_UPDATE_DEPENDENCIES: &str = "UpdateDependencies";
 pub fn update_dependencies(
     con: Arc<Connection>,
     progress: Option<ProgressToken>,
@@ -417,8 +416,6 @@ async fn update_dependencies_maven_cli(
     progress_end_option_token(&con.clone(), &progress, &task);
 }
 
-pub const COMMAND_CMD: &str = "java_lsp.cmd";
-pub const COMMAND_CMD_EDITOR: &str = "java_lsp.cmd.editor";
 pub fn cmd(
     con: &Arc<Connection>,
     arguments: &[Value],

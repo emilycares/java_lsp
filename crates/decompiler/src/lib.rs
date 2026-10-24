@@ -4,25 +4,27 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::too_many_lines)]
 use std::collections::HashSet;
+use std::fmt::Write;
 
 use ast::types::{
     AstAnnotated, AstAnnotatedParameter, AstAnnotatedParameterKind, AstAvailability,
-    AstBaseExpression, AstBlock, AstBoolean, AstClass, AstClassBlock, AstClassMethod,
-    AstClassVariable, AstDouble, AstEnumeration, AstEnumerationVariant, AstExpression,
-    AstExpressionIdentifier, AstExpressionKind, AstExpressionOperator, AstExpressionOrAnnotated,
-    AstFile, AstIdentifier, AstImport, AstImportUnit, AstInt, AstInterface, AstInterfaceConstant,
-    AstInterfaceMethod, AstInterfaceMethodDefault, AstJType, AstJTypeExpression, AstJTypeKind,
-    AstMethodHeader, AstMethodParameter, AstMethodParameterFlags, AstMethodParameters, AstPackage,
-    AstPoint, AstRange, AstRecord, AstRecordEntries, AstRecordEntry, AstSuperClass, AstThing,
-    AstThingAttributes, AstThrowsDeclaration, AstTopLevel, AstTypeParameter, AstTypeParameters,
-    AstValueNuget, AstValuesWithAnnotated, AstVolatileTransient,
+    AstBaseExpression, AstBlock, AstBlockEntry, AstBoolean, AstClass, AstClassBlock,
+    AstClassMethod, AstClassVariable, AstDouble, AstEnumeration, AstEnumerationVariant,
+    AstExpression, AstExpressionIdentifier, AstExpressionKind, AstExpressionOperator,
+    AstExpressionOrAnnotated, AstFile, AstIdentifier, AstImport, AstImportUnit, AstInt,
+    AstInterface, AstInterfaceConstant, AstInterfaceMethod, AstInterfaceMethodDefault, AstJType,
+    AstJTypeExpression, AstJTypeKind, AstLineComment, AstMethodHeader, AstMethodParameter,
+    AstMethodParameterFlags, AstMethodParameters, AstPackage, AstPoint, AstRange, AstRecord,
+    AstRecordEntries, AstRecordEntry, AstSuperClass, AstThing, AstThingAttributes,
+    AstThrowsDeclaration, AstTopLevel, AstTypeParameter, AstTypeParameters, AstValueNuget,
+    AstValuesWithAnnotated, AstVolatileTransient,
 };
 use bitflags::bitflags;
 use my_string::{NuVec, NuVecBuilder};
 
 const U8_LEN: usize = 1;
 const U16_LEN: usize = 2;
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum DecompilerError {
     EOF,
     ExpectedOther,
@@ -48,9 +50,16 @@ pub enum DecompilerError {
     ExpectedLong,
     ExpectedDouble,
     ExpectedFloat,
+    UnknownInstructionWide,
+    UnknownInstruction,
+    ToMeanyInstructions,
+    DebugInstruction,
 }
 
-pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, DecompilerError> {
+pub fn decompile_class(
+    data: &[u8],
+    class_path: Option<&NuVec>,
+) -> Result<AstFile, DecompilerError> {
     let pos =
         expect_data(data, 0, &[0xCA, 0xFE, 0xBA, 0xBE]).map_err(|_| DecompilerError::NotAClass)?;
 
@@ -145,8 +154,6 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Decom
             let info = a.lookup(data)?;
             parse_runtime_visible_annotations(info, 0, &const_pool, &mut annotated)?;
             is_annotated = true;
-        } else if attribute_name == "SourceFile" {
-            // Not interesting
         }
     }
 
@@ -163,15 +170,20 @@ pub fn decompile_class(data: &[u8], class_path: &NuVec) -> Result<AstFile, Decom
     }
 
     let mut file = AstFile { top: Vec::new() };
-    let package = class_path
-        .trim_end_matches(class_name.as_bytes())
-        .trim_end_matches_byte(b'.');
-    file.top.push(AstTopLevel::Package(AstPackage {
-        range: RANGE,
-        annotated: Vec::new(),
-        name: ntoident(package),
-    }));
-    let mut imports: Vec<&NuVec> = used_classes.iter().filter(|i| *i != class_path).collect();
+    if let Some(class_path) = class_path {
+        let package = class_path
+            .trim_end_matches(class_name.as_bytes())
+            .trim_end_matches_byte(b'.');
+        file.top.push(AstTopLevel::Package(AstPackage {
+            range: RANGE,
+            annotated: Vec::new(),
+            name: ntoident(package),
+        }));
+    }
+    let mut imports: Vec<&NuVec> = class_path.map_or_else(
+        || used_classes.iter().collect(),
+        |class_path| used_classes.iter().filter(|i| *i != class_path).collect(),
+    );
     imports.sort();
     file.top.extend(imports.into_iter().map(|i| {
         AstTopLevel::Import(AstImport {
@@ -420,10 +432,18 @@ fn parse_method(
         } else if attribute_name == "Code" {
             let info = attribute.lookup(data)?;
             let (ca, _) = parse_code_attribute(info, 0, attribute.start, attribute.end)?;
+            let mut entries = Vec::new();
+            for c in &ca.instructions {
+                let content = debug_instruction(c)?;
+                entries.push(AstBlockEntry::LineComment(AstLineComment {
+                    range: RANGE,
+                    content,
+                }));
+            }
             code_attribute = Some(ca);
             out.block = Some(AstBlock {
                 range: RANGE,
-                entries: Vec::new(),
+                entries,
             });
         } else if attribute_name == "RuntimeVisibleAnnotations"
             || attribute_name == "RuntimeInvisibleAnnotations"
@@ -569,6 +589,12 @@ fn parse_method(
     }
 
     Ok((out, code_attribute))
+}
+
+fn debug_instruction(c: &Instruction) -> Result<NuVec, DecompilerError> {
+    let mut b = NuVecBuilder::new();
+    write!(b, "{c:?}").map_err(|_| DecompilerError::DebugInstruction)?;
+    Ok(b.finish())
 }
 
 fn parse_runtime_visible_annotations(
@@ -1383,10 +1409,12 @@ fn assert_char(content: &[u8], pos: usize, p: u8) -> Result<usize, DecompilerErr
     Ok(pos.saturating_add(1))
 }
 
+#[derive(Debug)]
 struct CodeAttribute {
     start: usize,
     end: usize,
     pub attributes: Vec<Attribute>,
+    pub instructions: Vec<Instruction>,
 }
 impl CodeAttribute {
     pub fn lookup<'a>(&'a self, data: &'a [u8]) -> Result<&'a [u8], DecompilerError> {
@@ -1404,22 +1432,604 @@ fn parse_code_attribute(
     let (_max_locals, pos) = get_u16(data, pos)?;
 
     let (code_length, pos) = get_u32(data, pos)?;
-    let pos = pos.saturating_add(code_length as usize);
+    if code_length > 65536 {
+        return Err(DecompilerError::ToMeanyInstructions);
+    }
+    let code_length = code_length as usize;
+
+    let idata_end = pos.saturating_add(code_length);
+    let idata = &data[pos..idata_end];
+    let mut ipos = 0;
+    let mut instructions = Vec::with_capacity(6);
+    loop {
+        let (instruction, npos) = parse_instruction(idata, ipos)?;
+        instructions.push(instruction);
+        ipos = npos;
+        if ipos >= code_length {
+            break;
+        }
+    }
+    let pos = pos.saturating_add(code_length);
 
     let (exception_table_length, pos) = get_u16(data, pos)?;
     let exception_table = (exception_table_length as usize).saturating_mul(8);
     let pos = pos.saturating_add(exception_table);
 
     let (attributes, pos) = parse_attributes(data, pos)?;
+    // let mut line_number_table = Vec::new();
+    // for attribute in &attributes {
+    //     let attribute_name = lookup_string(c, attribute.name)?;
+    //     if attribute_name == "LineNumberTable" {
+    //         let info = attribute.lookup(data)?;
+    //         line_number_table = parse_line_number_table(info)?;
+    //     }
+    // }
 
     Ok((
         CodeAttribute {
             start,
             end,
             attributes,
+            instructions,
         },
         pos,
     ))
+}
+
+#[derive(Debug)]
+#[allow(unused)]
+struct LineNumber {
+    pub start_pc: u16,
+    pub line_number: u16,
+}
+
+#[allow(unused)]
+fn parse_line_number_table(info: &[u8]) -> Result<Vec<LineNumber>, DecompilerError> {
+    let pos = 0;
+    let (table_len, pos) = get_u16(info, pos)?;
+    let mut out = Vec::with_capacity(table_len as usize);
+    let mut pos = pos;
+    for _ in 0..table_len {
+        let (start_pc, ipos) = get_u16(info, pos)?;
+        let (line_number, ipos) = get_u16(info, ipos)?;
+        pos = ipos;
+        out.push(LineNumber {
+            start_pc,
+            line_number,
+        });
+    }
+    Ok(out)
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum Instruction {
+    Aaload,
+    Aastore,
+    Aconstnull,
+    Aload(u8),
+    AloadWide(u16),
+    Aload0,
+    Aload1,
+    Aload2,
+    Aload3,
+    Anewarray(u16),
+    Areturn,
+    Arraylength,
+    Astore(u8),
+    AstoreWide(u16),
+    Astore0,
+    Astore1,
+    Astore2,
+    Astore3,
+    Athrow,
+    Baload,
+    Bastore,
+    Bipush(i8),
+    Caload,
+    Castore,
+    Checkcast(u16),
+    D2f,
+    D2i,
+    D2l,
+    Dadd,
+    Daload,
+    Dastore,
+    Dcmpg,
+    Dcmpl,
+    Dconst0,
+    Dconst1,
+    Ddiv,
+    Dload(u8),
+    DloadWide(u16),
+    Dload0,
+    Dload1,
+    Dload2,
+    Dload3,
+    Dmul,
+    Dneg,
+    Drem,
+    Dreturn,
+    Dstore(u8),
+    DstoreWide(u16),
+    Dstore0,
+    Dstore1,
+    Dstore2,
+    Dstore3,
+    Dsub,
+    Dup,
+    Dupx1,
+    Dupx2,
+    Dup2,
+    Dup2x1,
+    Dup2x2,
+    F2d,
+    F2i,
+    F2l,
+    Fadd,
+    Faload,
+    Fastore,
+    Fcmpg,
+    Fcmpl,
+    Fconst0,
+    Fconst1,
+    Fconst2,
+    Fdiv,
+    Fload(u8),
+    FloadWide(u16),
+    Fload0,
+    Fload1,
+    Fload2,
+    Fload3,
+    Fmul,
+    Fneg,
+    Frem,
+    Freturn,
+    Fstore(u8),
+    FstoreWide(u16),
+    Fstore0,
+    Fstore1,
+    Fstore2,
+    Fstore3,
+    Fsub,
+    Getfield(u16),
+    Getstatic(u16),
+    Goto(i16),
+    GotoW(i32),
+    I2b,
+    I2c,
+    I2d,
+    I2f,
+    I2l,
+    I2s,
+    Iadd,
+    Iaload,
+    Iand,
+    Iastore,
+    Iconstm1,
+    Iconst0,
+    Iconst1,
+    Iconst2,
+    Iconst3,
+    Iconst4,
+    Iconst5,
+    Idiv,
+    IfAcmpeq(i16),
+    IfAcmpne(i16),
+    IfIcmpeq(i16),
+    IfIcmpne(i16),
+    IfIcmplt(i16),
+    IfIcmpge(i16),
+    IfIcmpgt(i16),
+    IfIcmple(i16),
+    Ifeq(i16),
+    Ifne(i16),
+    Iflt(i16),
+    Ifge(i16),
+    Ifgt(i16),
+    Ifle(i16),
+    Ifnonnull(i16),
+    Ifnull(i16),
+    Iinc {
+        index: u8,
+        value: i8,
+    },
+    IincWide {
+        index: u16,
+        value: i16,
+    },
+    Iload(u8),
+    IloadWide(u16),
+    Iload0,
+    Iload1,
+    Iload2,
+    Iload3,
+    Imul,
+    Ineg,
+    Instanceof(u16),
+    Invokedynamic(u16),
+    Invokeinterface {
+        index: u16,
+        count: u8,
+    },
+    Invokespecial(u16),
+    Invokestatic(u16),
+    Invokevirtual(u16),
+    Ior,
+    Irem,
+    Ireturn,
+    Ishl,
+    Ishr,
+    Istore(u8),
+    IstoreWide(u16),
+    Istore0,
+    Istore1,
+    Istore2,
+    Istore3,
+    Isub,
+    Iushr,
+    Ixor,
+    Jsr(i16),
+    JsrW(i32),
+    L2d,
+    L2f,
+    L2i,
+    Ladd,
+    Laload,
+    Land,
+    Lastore,
+    Lcmp,
+    Lconst0,
+    Lconst1,
+    Ldc(u8),
+    LdcW(u16),
+    Ldc2W(u16),
+    Ldiv,
+    Lload(u8),
+    LloadWide(u16),
+    Lload0,
+    Lload1,
+    Lload2,
+    Lload3,
+    Lmul,
+    Lneg,
+    Lookupswitch {
+        default: i32,
+        pairs: Vec<(i32, i32)>,
+    },
+    Lor,
+    Lrem,
+    Lreturn,
+    Lshl,
+    Lshr,
+    Lstore(u8),
+    LstoreWide(u16),
+    Lstore0,
+    Lstore1,
+    Lstore2,
+    Lstore3,
+    Lsub,
+    Lushr,
+    Lxor,
+    Monitorenter,
+    Monitorexit,
+    Multianewarray {
+        index: u16,
+        dimensions: u8,
+    },
+    New(u16),
+    Newarray(u8),
+    Nop,
+    Pop,
+    Pop2,
+    Putfield(u16),
+    Putstatic(u16),
+    Ret(u8),
+    RetWide(u16),
+    Return,
+    Saload,
+    Sastore,
+    Sipush(i16),
+    Swap,
+    Tableswitch {
+        default: i32,
+        low: i32,
+        high: i32,
+        offsets: Vec<i32>,
+    },
+}
+
+fn parse_instruction(data: &[u8], pos: usize) -> Result<(Instruction, usize), DecompilerError> {
+    let (kind, pos) = get_u8(data, pos)?;
+    match kind {
+        0x32 => Ok((Instruction::Aaload, pos)),
+        0x53 => Ok((Instruction::Aastore, pos)),
+        0x01 => Ok((Instruction::Aconstnull, pos)),
+        0x19 => get_u8(data, pos).map(|(i, pos)| (Instruction::Aload(i), pos)),
+        0x2a => Ok((Instruction::Aload0, pos)),
+        0x2b => Ok((Instruction::Aload1, pos)),
+        0x2c => Ok((Instruction::Aload2, pos)),
+        0x2d => Ok((Instruction::Aload3, pos)),
+        0xbd => get_u16(data, pos).map(|(i, pos)| (Instruction::Anewarray(i), pos)),
+        0xb0 => Ok((Instruction::Areturn, pos)),
+        0xbe => Ok((Instruction::Arraylength, pos)),
+        0x3a => get_u8(data, pos).map(|(i, pos)| (Instruction::Astore(i), pos)),
+        0x4b => Ok((Instruction::Astore0, pos)),
+        0x4c => Ok((Instruction::Astore1, pos)),
+        0x4d => Ok((Instruction::Astore2, pos)),
+        0x4e => Ok((Instruction::Astore3, pos)),
+        0xbf => Ok((Instruction::Athrow, pos)),
+        0x33 => Ok((Instruction::Baload, pos)),
+        0x54 => Ok((Instruction::Bastore, pos)),
+        0x10 => get_i8(data, pos).map(|(i, pos)| (Instruction::Bipush(i), pos)),
+        0x34 => Ok((Instruction::Caload, pos)),
+        0x55 => Ok((Instruction::Castore, pos)),
+        0xc0 => get_u16(data, pos).map(|(i, pos)| (Instruction::Checkcast(i), pos)),
+        0x90 => Ok((Instruction::D2f, pos)),
+        0x8e => Ok((Instruction::D2i, pos)),
+        0x8f => Ok((Instruction::D2l, pos)),
+        0x63 => Ok((Instruction::Dadd, pos)),
+        0x31 => Ok((Instruction::Daload, pos)),
+        0x52 => Ok((Instruction::Dastore, pos)),
+        0x98 => Ok((Instruction::Dcmpg, pos)),
+        0x97 => Ok((Instruction::Dcmpl, pos)),
+        0x0e => Ok((Instruction::Dconst0, pos)),
+        0x0f => Ok((Instruction::Dconst1, pos)),
+        0x6f => Ok((Instruction::Ddiv, pos)),
+        0x18 => get_u8(data, pos).map(|(i, pos)| (Instruction::Dload(i), pos)),
+        0x26 => Ok((Instruction::Dload0, pos)),
+        0x27 => Ok((Instruction::Dload1, pos)),
+        0x28 => Ok((Instruction::Dload2, pos)),
+        0x29 => Ok((Instruction::Dload3, pos)),
+        0x6b => Ok((Instruction::Dmul, pos)),
+        0x77 => Ok((Instruction::Dneg, pos)),
+        0x73 => Ok((Instruction::Drem, pos)),
+        0xaf => Ok((Instruction::Dreturn, pos)),
+        0x39 => get_u8(data, pos).map(|(i, pos)| (Instruction::Dstore(i), pos)),
+        0x47 => Ok((Instruction::Dstore0, pos)),
+        0x48 => Ok((Instruction::Dstore1, pos)),
+        0x49 => Ok((Instruction::Dstore2, pos)),
+        0x4a => Ok((Instruction::Dstore3, pos)),
+        0x67 => Ok((Instruction::Dsub, pos)),
+        0x59 => Ok((Instruction::Dup, pos)),
+        0x5a => Ok((Instruction::Dupx1, pos)),
+        0x5b => Ok((Instruction::Dupx2, pos)),
+        0x5c => Ok((Instruction::Dup2, pos)),
+        0x5d => Ok((Instruction::Dup2x1, pos)),
+        0x5e => Ok((Instruction::Dup2x2, pos)),
+        0x8d => Ok((Instruction::F2d, pos)),
+        0x8b => Ok((Instruction::F2i, pos)),
+        0x8c => Ok((Instruction::F2l, pos)),
+        0x62 => Ok((Instruction::Fadd, pos)),
+        0x30 => Ok((Instruction::Faload, pos)),
+        0x51 => Ok((Instruction::Fastore, pos)),
+        0x96 => Ok((Instruction::Fcmpg, pos)),
+        0x95 => Ok((Instruction::Fcmpl, pos)),
+        0x0b => Ok((Instruction::Fconst0, pos)),
+        0x0c => Ok((Instruction::Fconst1, pos)),
+        0x0d => Ok((Instruction::Fconst2, pos)),
+        0x6e => Ok((Instruction::Fdiv, pos)),
+        0x17 => get_u8(data, pos).map(|(i, pos)| (Instruction::Fload(i), pos)),
+        0x22 => Ok((Instruction::Fload0, pos)),
+        0x23 => Ok((Instruction::Fload1, pos)),
+        0x24 => Ok((Instruction::Fload2, pos)),
+        0x25 => Ok((Instruction::Fload3, pos)),
+        0x6a => Ok((Instruction::Fmul, pos)),
+        0x76 => Ok((Instruction::Fneg, pos)),
+        0x72 => Ok((Instruction::Frem, pos)),
+        0xae => Ok((Instruction::Freturn, pos)),
+        0x38 => get_u8(data, pos).map(|(i, pos)| (Instruction::Fstore(i), pos)),
+        0x43 => Ok((Instruction::Fstore0, pos)),
+        0x44 => Ok((Instruction::Fstore1, pos)),
+        0x45 => Ok((Instruction::Fstore2, pos)),
+        0x46 => Ok((Instruction::Fstore3, pos)),
+        0x66 => Ok((Instruction::Fsub, pos)),
+        0xb4 => get_u16(data, pos).map(|(i, pos)| (Instruction::Getfield(i), pos)),
+        0xb2 => get_u16(data, pos).map(|(i, pos)| (Instruction::Getstatic(i), pos)),
+        0xa7 => get_i16(data, pos).map(|(i, pos)| (Instruction::Goto(i), pos)),
+        0xc8 => get_i32(data, pos).map(|(i, pos)| (Instruction::GotoW(i), pos)),
+        0x91 => Ok((Instruction::I2b, pos)),
+        0x92 => Ok((Instruction::I2c, pos)),
+        0x87 => Ok((Instruction::I2d, pos)),
+        0x86 => Ok((Instruction::I2f, pos)),
+        0x85 => Ok((Instruction::I2l, pos)),
+        0x93 => Ok((Instruction::I2s, pos)),
+        0x60 => Ok((Instruction::Iadd, pos)),
+        0x2e => Ok((Instruction::Iaload, pos)),
+        0x7e => Ok((Instruction::Iand, pos)),
+        0x4f => Ok((Instruction::Iastore, pos)),
+        0x02 => Ok((Instruction::Iconstm1, pos)),
+        0x03 => Ok((Instruction::Iconst0, pos)),
+        0x04 => Ok((Instruction::Iconst1, pos)),
+        0x05 => Ok((Instruction::Iconst2, pos)),
+        0x06 => Ok((Instruction::Iconst3, pos)),
+        0x07 => Ok((Instruction::Iconst4, pos)),
+        0x08 => Ok((Instruction::Iconst5, pos)),
+        0x6c => Ok((Instruction::Idiv, pos)),
+        0xa5 => get_i16(data, pos).map(|(i, pos)| (Instruction::IfAcmpeq(i), pos)),
+        0xa6 => get_i16(data, pos).map(|(i, pos)| (Instruction::IfAcmpne(i), pos)),
+        0x9f => get_i16(data, pos).map(|(i, pos)| (Instruction::IfIcmpeq(i), pos)),
+        0xa0 => get_i16(data, pos).map(|(i, pos)| (Instruction::IfIcmpne(i), pos)),
+        0xa1 => get_i16(data, pos).map(|(i, pos)| (Instruction::IfIcmplt(i), pos)),
+        0xa2 => get_i16(data, pos).map(|(i, pos)| (Instruction::IfIcmpge(i), pos)),
+        0xa3 => get_i16(data, pos).map(|(i, pos)| (Instruction::IfIcmpgt(i), pos)),
+        0xa4 => get_i16(data, pos).map(|(i, pos)| (Instruction::IfIcmple(i), pos)),
+        0x99 => get_i16(data, pos).map(|(i, pos)| (Instruction::Ifeq(i), pos)),
+        0x9a => get_i16(data, pos).map(|(i, pos)| (Instruction::Ifne(i), pos)),
+        0x9b => get_i16(data, pos).map(|(i, pos)| (Instruction::Iflt(i), pos)),
+        0x9c => get_i16(data, pos).map(|(i, pos)| (Instruction::Ifge(i), pos)),
+        0x9d => get_i16(data, pos).map(|(i, pos)| (Instruction::Ifgt(i), pos)),
+        0x9e => get_i16(data, pos).map(|(i, pos)| (Instruction::Ifle(i), pos)),
+        0xc7 => get_i16(data, pos).map(|(i, pos)| (Instruction::Ifnonnull(i), pos)),
+        0xc6 => get_i16(data, pos).map(|(i, pos)| (Instruction::Ifnull(i), pos)),
+        0x84 => {
+            let (index, pos) = get_u8(data, pos)?;
+            let (value, pos) = get_i8(data, pos)?;
+            Ok((Instruction::Iinc { index, value }, pos))
+        }
+        0x15 => get_u8(data, pos).map(|(i, pos)| (Instruction::Iload(i), pos)),
+        0x1a => Ok((Instruction::Iload0, pos)),
+        0x1b => Ok((Instruction::Iload1, pos)),
+        0x1c => Ok((Instruction::Iload2, pos)),
+        0x1d => Ok((Instruction::Iload3, pos)),
+        0x68 => Ok((Instruction::Imul, pos)),
+        0x74 => Ok((Instruction::Ineg, pos)),
+        0xc1 => get_u16(data, pos).map(|(i, pos)| (Instruction::Instanceof(i), pos)),
+        0xba => {
+            let (index, pos) = get_u16(data, pos)?;
+            let pos = expect_data(data, pos, &[0, 0])?;
+
+            Ok((Instruction::Invokedynamic(index), pos))
+        }
+        0xb9 => {
+            let (index, pos) = get_u16(data, pos)?;
+            let (count, pos) = get_u8(data, pos)?;
+            let pos = expect_data(data, pos, &[0])?;
+
+            Ok((Instruction::Invokeinterface { index, count }, pos))
+        }
+        0xb7 => get_u16(data, pos).map(|(i, pos)| (Instruction::Invokespecial(i), pos)),
+        0xb8 => get_u16(data, pos).map(|(i, pos)| (Instruction::Invokestatic(i), pos)),
+        0xb6 => get_u16(data, pos).map(|(i, pos)| (Instruction::Invokevirtual(i), pos)),
+        0x80 => Ok((Instruction::Ior, pos)),
+        0x70 => Ok((Instruction::Irem, pos)),
+        0xac => Ok((Instruction::Ireturn, pos)),
+        0x78 => Ok((Instruction::Ishl, pos)),
+        0x7a => Ok((Instruction::Ishr, pos)),
+        0x36 => get_u8(data, pos).map(|(i, pos)| (Instruction::Istore(i), pos)),
+        0x3b => Ok((Instruction::Istore0, pos)),
+        0x3c => Ok((Instruction::Istore1, pos)),
+        0x3d => Ok((Instruction::Istore2, pos)),
+        0x3e => Ok((Instruction::Istore3, pos)),
+        0x64 => Ok((Instruction::Isub, pos)),
+        0x7c => Ok((Instruction::Iushr, pos)),
+        0x82 => Ok((Instruction::Ixor, pos)),
+        0xa8 => get_i16(data, pos).map(|(i, pos)| (Instruction::Jsr(i), pos)),
+        0xc9 => get_i32(data, pos).map(|(i, pos)| (Instruction::JsrW(i), pos)),
+        0x8a => Ok((Instruction::L2d, pos)),
+        0x89 => Ok((Instruction::L2f, pos)),
+        0x88 => Ok((Instruction::L2i, pos)),
+        0x61 => Ok((Instruction::Ladd, pos)),
+        0x2f => Ok((Instruction::Laload, pos)),
+        0x7f => Ok((Instruction::Land, pos)),
+        0x50 => Ok((Instruction::Lastore, pos)),
+        0x94 => Ok((Instruction::Lcmp, pos)),
+        0x09 => Ok((Instruction::Lconst0, pos)),
+        0x0a => Ok((Instruction::Lconst1, pos)),
+        0x12 => get_u8(data, pos).map(|(i, pos)| (Instruction::Ldc(i), pos)),
+        0x13 => get_u16(data, pos).map(|(i, pos)| (Instruction::LdcW(i), pos)),
+        0x14 => get_u16(data, pos).map(|(i, pos)| (Instruction::Ldc2W(i), pos)),
+        0x6d => Ok((Instruction::Ldiv, pos)),
+        0x16 => get_u8(data, pos).map(|(i, pos)| (Instruction::Lload(i), pos)),
+        0x1e => Ok((Instruction::Lload0, pos)),
+        0x1f => Ok((Instruction::Lload1, pos)),
+        0x20 => Ok((Instruction::Lload2, pos)),
+        0x21 => Ok((Instruction::Lload3, pos)),
+        0x69 => Ok((Instruction::Lmul, pos)),
+        0x75 => Ok((Instruction::Lneg, pos)),
+        0xab => {
+            let aligend = align_4byte(pos);
+            lookupswitch_parser(data, pos.saturating_add(aligend))
+        }
+        0x81 => Ok((Instruction::Lor, pos)),
+        0x71 => Ok((Instruction::Lrem, pos)),
+        0xad => Ok((Instruction::Lreturn, pos)),
+        0x79 => Ok((Instruction::Lshl, pos)),
+        0x7b => Ok((Instruction::Lshr, pos)),
+        0x37 => get_u8(data, pos).map(|(i, pos)| (Instruction::Lstore(i), pos)),
+        0x3f => Ok((Instruction::Lstore0, pos)),
+        0x40 => Ok((Instruction::Lstore1, pos)),
+        0x41 => Ok((Instruction::Lstore2, pos)),
+        0x42 => Ok((Instruction::Lstore3, pos)),
+        0x65 => Ok((Instruction::Lsub, pos)),
+        0x7d => Ok((Instruction::Lushr, pos)),
+        0x83 => Ok((Instruction::Lxor, pos)),
+        0xc2 => Ok((Instruction::Monitorenter, pos)),
+        0xc3 => Ok((Instruction::Monitorexit, pos)),
+        0xc5 => {
+            let (index, pos) = get_u16(data, pos)?;
+            let (dimensions, pos) = get_u8(data, pos)?;
+            Ok((Instruction::Multianewarray { index, dimensions }, pos))
+        }
+        0xbb => get_u16(data, pos).map(|(i, pos)| (Instruction::New(i), pos)),
+        0xbc => get_u8(data, pos).map(|(i, pos)| (Instruction::Newarray(i), pos)),
+        0x00 => Ok((Instruction::Nop, pos)),
+        0x57 => Ok((Instruction::Pop, pos)),
+        0x58 => Ok((Instruction::Pop2, pos)),
+        0xb5 => get_u16(data, pos).map(|(i, pos)| (Instruction::Putfield(i), pos)),
+        0xb3 => get_u16(data, pos).map(|(i, pos)| (Instruction::Putstatic(i), pos)),
+        0xa9 => get_u8(data, pos).map(|(i, pos)| (Instruction::Ret(i), pos)),
+        0xb1 => Ok((Instruction::Return, pos)),
+        0x35 => Ok((Instruction::Saload, pos)),
+        0x56 => Ok((Instruction::Sastore, pos)),
+        0x11 => get_i16(data, pos).map(|(i, pos)| (Instruction::Sipush(i), pos)),
+        0x5f => Ok((Instruction::Swap, pos)),
+        0xaa => {
+            let aligend = align_4byte(pos);
+            tableswitch_parser(data, pos.saturating_add(aligend))
+        }
+        0xc4 => {
+            let (b, pos) = get_u8(data, pos)?;
+            match b {
+                0x19 => get_u16(data, pos).map(|(i, pos)| (Instruction::AloadWide(i), pos)),
+                0x3a => get_u16(data, pos).map(|(i, pos)| (Instruction::AstoreWide(i), pos)),
+                0x18 => get_u16(data, pos).map(|(i, pos)| (Instruction::DloadWide(i), pos)),
+                0x39 => get_u16(data, pos).map(|(i, pos)| (Instruction::DstoreWide(i), pos)),
+                0x17 => get_u16(data, pos).map(|(i, pos)| (Instruction::FloadWide(i), pos)),
+                0x38 => get_u16(data, pos).map(|(i, pos)| (Instruction::FstoreWide(i), pos)),
+                0x15 => get_u16(data, pos).map(|(i, pos)| (Instruction::IloadWide(i), pos)),
+                0x36 => get_u16(data, pos).map(|(i, pos)| (Instruction::IstoreWide(i), pos)),
+                0x16 => get_u16(data, pos).map(|(i, pos)| (Instruction::LloadWide(i), pos)),
+                0x37 => get_u16(data, pos).map(|(i, pos)| (Instruction::LstoreWide(i), pos)),
+                0xa9 => get_u16(data, pos).map(|(i, pos)| (Instruction::RetWide(i), pos)),
+                0x84 => {
+                    let (index, pos) = get_u16(data, pos)?;
+                    let (value, pos) = get_i16(data, pos)?;
+                    Ok((Instruction::IincWide { index, value }, pos))
+                }
+                _ => Err(DecompilerError::UnknownInstructionWide),
+            }
+        }
+        _ => {
+            eprintln!("kind: {kind:#04x}");
+            Err(DecompilerError::UnknownInstruction)
+        }
+    }
+}
+
+fn tableswitch_parser(data: &[u8], pos: usize) -> Result<(Instruction, usize), DecompilerError> {
+    let (default, pos) = get_i32(data, pos)?;
+    let (low, pos) = get_i32(data, pos)?;
+    let (high, pos) = get_i32(data, pos)?;
+    let noffsets = ((high.saturating_sub(low)).saturating_add(1)) as usize;
+    let mut offsets = Vec::new();
+    let mut pos = pos;
+    for _ in 0..noffsets {
+        let (c, ipos) = get_i32(data, pos)?;
+        offsets.push(c);
+        pos = ipos;
+    }
+    Ok((
+        Instruction::Tableswitch {
+            default,
+            low,
+            high,
+            offsets,
+        },
+        pos,
+    ))
+}
+fn lookupswitch_parser(data: &[u8], pos: usize) -> Result<(Instruction, usize), DecompilerError> {
+    let (default, pos) = get_i32(data, pos)?;
+    let (np, pos) = get_i32(data, pos)?;
+    let mut pairs = Vec::new();
+    let mut pos = pos;
+    for _ in 0..np {
+        let (a, ipos) = get_i32(data, pos)?;
+        let (b, ipos) = get_i32(data, ipos)?;
+        pairs.push((a, b));
+        pos = ipos;
+    }
+    Ok((Instruction::Lookupswitch { default, pairs }, pos))
 }
 
 /// Returns list of descriptors
@@ -2409,11 +3019,27 @@ fn get_u8(data: &[u8], pos: usize) -> Result<(u8, usize), DecompilerError> {
 
     Ok((*get, pos.saturating_add(1)))
 }
+fn get_i8(data: &[u8], pos: usize) -> Result<(i8, usize), DecompilerError> {
+    let Some(get) = data.get(pos) else {
+        return Err(DecompilerError::EOF);
+    };
+    let out = *get as i8;
+
+    Ok((out, pos.saturating_add(1)))
+}
 fn get_u16(data: &[u8], pos: usize) -> Result<(u16, usize), DecompilerError> {
     let next = pos.saturating_add(2);
     let items = data.get(pos..next).ok_or(DecompilerError::EOF)?;
     let get = <[u8; 2]>::try_from(items).map_err(|_| DecompilerError::Number)?;
     let out = u16::from_be_bytes(get);
+
+    Ok((out, next))
+}
+fn get_i16(data: &[u8], pos: usize) -> Result<(i16, usize), DecompilerError> {
+    let next = pos.saturating_add(2);
+    let items = data.get(pos..next).ok_or(DecompilerError::EOF)?;
+    let get = <[u8; 2]>::try_from(items).map_err(|_| DecompilerError::Number)?;
+    let out = i16::from_be_bytes(get);
 
     Ok((out, next))
 }
@@ -2440,6 +3066,9 @@ fn get_i64(data: &[u8], pos: usize) -> Result<(i64, usize), DecompilerError> {
     let out = i64::from_be_bytes(get);
 
     Ok((out, next))
+}
+const fn align_4byte(pos: usize) -> usize {
+    (4_usize.saturating_sub(pos % 4)) % 4
 }
 
 #[track_caller]
@@ -2472,7 +3101,7 @@ mod tests {
 
         let ast = decompile_class(
             include_bytes!("../../parser/test/Everything.class"),
-            &NuVec::new(b"ch.emilycares.Everything"),
+            Some(&NuVec::new(b"ch.emilycares.Everything")),
         )
         .unwrap();
         let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
@@ -2483,13 +3112,36 @@ mod tests {
                 int noprop;
                 public int publicproperty;
                 private int privateproperty;
-                public void Everything() {}
-                void method() {}
-                public void public_method() {}
-                private void private_method() {}
-                int out() {}
-                int add(int a, int b) {}
-                static int sadd(int a, int b) {}
+                public void Everything() {
+                    // Aload0
+                    // Invokespecial(1)
+                    // Return
+                }
+                void method() {
+                    // Return
+                }
+                public void public_method() {
+                    // Return
+                }
+                private void private_method() {
+                    // Return
+                }
+                int out() {
+                    // Iconst0
+                    // Ireturn
+                }
+                int add(int a, int b) {
+                    // Iload1
+                    // Iload2
+                    // Iadd
+                    // Ireturn
+                }
+                static int sadd(int a, int b) {
+                    // Iload0
+                    // Iload1
+                    // Iadd
+                    // Ireturn
+                }
             }
         "]];
         expected.assert_eq(out);
@@ -2499,7 +3151,7 @@ mod tests {
     fn everything() {
         let ast = decompile_class(
             include_bytes!("../../parser/test/Everything.class"),
-            &NuVec::new_static(b"ch.emilycares.Everything"),
+            Some(&NuVec::new_static(b"ch.emilycares.Everything")),
         )
         .unwrap();
         let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
@@ -2511,13 +3163,36 @@ mod tests {
                 int noprop;
                 public int publicproperty;
                 private int privateproperty;
-                public void Everything() {}
-                void method() {}
-                public void public_method() {}
-                private void private_method() {}
-                int out() {}
-                int add(int a, int b) {}
-                static int sadd(int a, int b) {}
+                public void Everything() {
+                    // Aload0
+                    // Invokespecial(1)
+                    // Return
+                }
+                void method() {
+                    // Return
+                }
+                public void public_method() {
+                    // Return
+                }
+                private void private_method() {
+                    // Return
+                }
+                int out() {
+                    // Iconst0
+                    // Ireturn
+                }
+                int add(int a, int b) {
+                    // Iload1
+                    // Iload2
+                    // Iadd
+                    // Ireturn
+                }
+                static int sadd(int a, int b) {
+                    // Iload0
+                    // Iload1
+                    // Iadd
+                    // Ireturn
+                }
             }
         "]];
         expected.assert_eq(out);
@@ -2527,7 +3202,7 @@ mod tests {
     fn constants() {
         let ast = decompile_class(
             include_bytes!("../../parser/test/Constants.class"),
-            &NuVec::new_static(b"ch.emilycares.Constants"),
+            Some(&NuVec::new_static(b"ch.emilycares.Constants")),
         )
         .unwrap();
         let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
@@ -2552,7 +3227,7 @@ mod tests {
     fn types() {
         let ast = decompile_class(
             include_bytes!("../../parser/test/Types.class"),
-            &NuVec::new_static(b"ch.emilycares.Types"),
+            Some(&NuVec::new_static(b"ch.emilycares.Types")),
         )
         .unwrap();
         let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
@@ -2577,8 +3252,54 @@ mod tests {
                 java.lang.String one_string;
                 java.util.List<java.lang.String> one_list;
                 java.util.Map<java.lang.Integer, java.lang.String> one_map;
-                public void Types() {}
-                public static void main(java.lang.String[] a) {}
+                public void Types() {
+                    // Aload0
+                    // Invokespecial(1)
+                    // Aload0
+                    // Ldc(7)
+                    // Invokestatic(9)
+                    // Putfield(15)
+                    // Aload0
+                    // Iconst1
+                    // Putfield(21)
+                    // Aload0
+                    // Iconst0
+                    // Putfield(25)
+                    // Aload0
+                    // Iconst0
+                    // Putfield(29)
+                    // Aload0
+                    // Iconst0
+                    // Putfield(33)
+                    // Aload0
+                    // Ldc2W(37)
+                    // Putfield(39)
+                    // Aload0
+                    // Dconst0
+                    // Putfield(43)
+                    // Aload0
+                    // Ldc(47)
+                    // Putfield(48)
+                    // Aload0
+                    // Bipush(97)
+                    // Putfield(52)
+                    // Aload0
+                    // Ldc(56)
+                    // Putfield(58)
+                    // Aload0
+                    // Ldc(62)
+                    // Invokestatic(64)
+                    // Putfield(70)
+                    // Aload0
+                    // New(74)
+                    // Dup
+                    // Invokespecial(76)
+                    // Putfield(77)
+                    // Return
+                }
+                public static void main(java.lang.String[] a) {
+                    // Return
+                }
             }
         "]];
         expected.assert_eq(out);
@@ -2588,7 +3309,7 @@ mod tests {
     fn super_base() {
         let ast = decompile_class(
             include_bytes!("../../parser/test/Super.class"),
-            &NuVec::new_static(b"ch.emilycares.Super"),
+            Some(&NuVec::new_static(b"ch.emilycares.Super")),
         )
         .unwrap();
         let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
@@ -2597,7 +3318,11 @@ mod tests {
         let expected = expect![[r"
             package ch.emilycares;
             public class Super extends IOException {
-                public void Super() {}
+                public void Super() {
+                    // Aload0
+                    // Invokespecial(1)
+                    // Return
+                }
             }
         "]];
         expected.assert_eq(out);
@@ -2606,7 +3331,7 @@ mod tests {
     fn thrower() {
         let ast = decompile_class(
             include_bytes!("../../parser/test/Thrower.class"),
-            &NuVec::new_static(b"ch.emilycares.Thrower"),
+            Some(&NuVec::new_static(b"ch.emilycares.Thrower")),
         )
         .unwrap();
         let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
@@ -2614,9 +3339,17 @@ mod tests {
         let expected = expect![[r"
             package ch.emilycares;
             public class Thrower {
-                public void Thrower() {}
-                public void ioThrower() throws java.io.IOException {}
-                public void ioThrower(int a) throws java.io.IOException, java.io.IOException {}
+                public void Thrower() {
+                    // Aload0
+                    // Invokespecial(1)
+                    // Return
+                }
+                public void ioThrower() throws java.io.IOException {
+                    // Return
+                }
+                public void ioThrower(int a) throws java.io.IOException, java.io.IOException {
+                    // Return
+                }
             }
         "]];
         expected.assert_eq(out);
@@ -2625,7 +3358,7 @@ mod tests {
     fn super_interfaces() {
         let ast = decompile_class(
             include_bytes!("../../parser/test/SuperInterface.class"),
-            &NuVec::new_static(b"ch.emilycares.SuperInterface"),
+            Some(&NuVec::new_static(b"ch.emilycares.SuperInterface")),
         )
         .unwrap();
         let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
@@ -2635,7 +3368,13 @@ mod tests {
             package ch.emilycares;
             import java.util.stream.Stream;
             public interface SuperInterface<E> {
-                default public java.util.stream.Stream<E> stream() {}
+                default public java.util.stream.Stream<E> stream() {
+                    // Aload0
+                    // Invokeinterface { index: 1, count: 1 }
+                    // Iconst0
+                    // Invokestatic(7)
+                    // Areturn
+                }
             }
         "]];
         expected.assert_eq(out);
@@ -2644,7 +3383,7 @@ mod tests {
     fn variables() {
         let ast = decompile_class(
             include_bytes!("../../parser/test/LocalVariableTable.class"),
-            &NuVec::new_static(b"ch.emilycares.LocalVariableTable"),
+            Some(&NuVec::new_static(b"ch.emilycares.LocalVariableTable")),
         )
         .unwrap();
         let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
@@ -2656,9 +3395,39 @@ mod tests {
             import java.util.HashSet;
             public class LocalVariableTable {
                 private java.util.HashSet<java.lang.String> a;
-                public void LocalVariableTable() {}
-                public void hereIsCode() {}
-                public int hereIsCode(int a, int b) {}
+                public void LocalVariableTable() {
+                    // Aload0
+                    // Invokespecial(1)
+                    // Aload0
+                    // New(7)
+                    // Dup
+                    // Invokespecial(9)
+                    // Putfield(10)
+                    // Return
+                }
+                public void hereIsCode() {
+                    // New(16)
+                    // Dup
+                    // Invokespecial(18)
+                    // Astore1
+                    // Aload1
+                    // Iconst1
+                    // Invokestatic(19)
+                    // Ldc(25)
+                    // Invokevirtual(27)
+                    // Pop
+                    // Return
+                }
+                public int hereIsCode(int a, int b) {
+                    // Iload1
+                    // Iload2
+                    // Iadd
+                    // Istore3
+                    // Iload3
+                    // Iconst1
+                    // Isub
+                    // Ireturn
+                }
             }
         "]];
         expected.assert_eq(out);
@@ -2667,7 +3436,7 @@ mod tests {
     fn variants() {
         let ast = decompile_class(
             include_bytes!("../../parser/test/Variants.class"),
-            &NuVec::new_static(b"ch.emilycares.Variants"),
+            Some(&NuVec::new_static(b"ch.emilycares.Variants")),
         )
         .unwrap();
         let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
@@ -2682,12 +3451,77 @@ mod tests {
                 C;
                 private final java.lang.String tag;
                 private static final ch.emilycares.Variants[] $VALUES;
-                public static ch.emilycares.Variants[] values() {}
-                public static ch.emilycares.Variants valueOf(java.lang.String name) {}
-                private void Variants(java.lang.String $enum$name) {}
-                public java.lang.String getTag() {}
-                private static ch.emilycares.Variants[] $values() {}
-                static void clinit() {}
+                public static ch.emilycares.Variants[] values() {
+                    // Getstatic(13)
+                    // Invokevirtual(17)
+                    // Checkcast(18)
+                    // Areturn
+                }
+                public static ch.emilycares.Variants valueOf(java.lang.String name) {
+                    // Ldc(1)
+                    // Aload0
+                    // Invokestatic(22)
+                    // Checkcast(1)
+                    // Areturn
+                }
+                private void Variants(java.lang.String $enum$name) {
+                    // Aload0
+                    // Aload1
+                    // Iload2
+                    // Invokespecial(28)
+                    // Aload0
+                    // Aload3
+                    // Putfield(32)
+                    // Return
+                }
+                public java.lang.String getTag() {
+                    // Aload0
+                    // Getfield(32)
+                    // Areturn
+                }
+                private static ch.emilycares.Variants[] $values() {
+                    // Iconst3
+                    // Anewarray(1)
+                    // Dup
+                    // Iconst0
+                    // Getstatic(3)
+                    // Aastore
+                    // Dup
+                    // Iconst1
+                    // Getstatic(7)
+                    // Aastore
+                    // Dup
+                    // Iconst2
+                    // Getstatic(10)
+                    // Aastore
+                    // Areturn
+                }
+                static void clinit() {
+                    // New(1)
+                    // Dup
+                    // Ldc(36)
+                    // Iconst0
+                    // Ldc(37)
+                    // Invokespecial(39)
+                    // Putstatic(3)
+                    // New(1)
+                    // Dup
+                    // Ldc(42)
+                    // Iconst1
+                    // Ldc(43)
+                    // Invokespecial(39)
+                    // Putstatic(7)
+                    // New(1)
+                    // Dup
+                    // Ldc(45)
+                    // Iconst2
+                    // Ldc(46)
+                    // Invokespecial(39)
+                    // Putstatic(10)
+                    // Invokestatic(48)
+                    // Putstatic(13)
+                    // Return
+                }
             }
         "]];
         expected.assert_eq(out);

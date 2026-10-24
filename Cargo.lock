@@ -124,6 +124,7 @@ version = "0.1.0"
 dependencies = [
  "ast",
  "config",
+ "decompiler",
  "editorconfig",
  "formatter",
  "jdk",
@@ -155,7 +156,6 @@ name = "code_lens"
 version = "0.1.0"
 dependencies = [
  "ast",
- "command",
  "common",
  "config",
  "document_link",

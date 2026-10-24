@@ -13,7 +13,7 @@ license.workspace = true
 config.workspace = true
 ast.workspace = true
 formatter.workspace = true
+decompiler.workspace = true
 jdk.workspace = true
 loader.workspace = true
 editorconfig.workspace = true
-

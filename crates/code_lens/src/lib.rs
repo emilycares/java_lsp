@@ -5,8 +5,7 @@
 #![deny(clippy::enum_glob_use)]
 #![allow(clippy::missing_errors_doc)]
 use ast::types::{AstFile, AstThing, AstTopLevel};
-use command::{COMMAND_CMD, COMMAND_CMD_EDITOR};
-use common::project_kind::ProjectKind;
+use common::{COMMAND_CMD, COMMAND_CMD_EDITOR, project_kind::ProjectKind};
 use config::Configuration;
 use document_link::SRC_TEST;
 use lsp_extra::{ToLspRangeError, to_lsp_range};

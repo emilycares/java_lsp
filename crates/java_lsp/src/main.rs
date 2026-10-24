@@ -95,5 +95,11 @@ fn main() {
             .block_on(async {
                 cli::decompile(jar, out).await;
             }),
+        Some(Command::DecompileClass { class }) => tokio::runtime::Builder::new_current_thread()
+            .build_local(LocalOptions::default())
+            .unwrap()
+            .block_on(async {
+                cli::decompile_file(class).await;
+            }),
     }
 }

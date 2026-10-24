@@ -22,7 +22,7 @@ use lsp_types::{
     },
 };
 
-use command::{COMMAND_CMD, COMMAND_RELOAD_DEPENDENCIES, COMMAND_UPDATE_DEPENDENCIES};
+use common::{COMMAND_CMD, COMMAND_RELOAD_DEPENDENCIES, COMMAND_UPDATE_DEPENDENCIES};
 use lsp_server::{Message, RequestId, Response};
 use serde_json::{Value, from_value, to_value};
 

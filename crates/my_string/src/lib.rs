@@ -1,5 +1,5 @@
-use core::fmt::Debug;
-use std::{cmp, mem, path::Path};
+use core::fmt::{self, Debug};
+use std::{cmp, fmt::Write, mem, path::Path};
 
 pub fn capitalize_first(s: &NuVec) -> NuVec {
     let mut chars = s.to_str().chars();
@@ -123,6 +123,13 @@ impl Default for NuVec {
             len: InlineSize::_V0,
             buf: EMPTY,
         }
+    }
+}
+
+impl Write for NuVecBuilder {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.pusha(s.as_bytes());
+        Ok(())
     }
 }
 

@@ -18,4 +18,3 @@ lsp_extra.workspace = true
 lsp-types.workspace = true
 my_string.workspace = true
 serde_json.workspace = true
-command.workspace = true
