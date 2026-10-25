@@ -54,6 +54,7 @@ pub enum DecompilerError {
     UnknownInstruction,
     ToMeanyInstructions,
     DebugInstruction,
+    ConstEntryNotFound,
 }
 
 pub fn decompile_class(
@@ -368,7 +369,7 @@ fn no_name(i: usize) -> NuVec {
 }
 
 fn parse_method(
-    c: &ConstPool,
+    const_pool: &ConstPool,
     data: &[u8],
     availability: AstAvailability,
     name: u16,
@@ -376,7 +377,7 @@ fn parse_method(
     attributes: Vec<Attribute>,
     class_name: &NuVec,
 ) -> Result<(AstClassMethod, Option<CodeAttribute>), DecompilerError> {
-    let lname = lookup_string(c, name)?;
+    let lname = lookup_string(const_pool, name)?;
     let lname = match lname.as_bytes() {
         b"<init>" => class_name.clone(),
         b"<clinit>" => NuVec::Static(b"clinit"),
@@ -420,7 +421,7 @@ fn parse_method(
     let mut is_annotated = false;
 
     for (index, attribute) in attributes.iter().enumerate() {
-        let attribute_name = lookup_string(c, attribute.name)?;
+        let attribute_name = lookup_string(const_pool, attribute.name)?;
         if attribute_name == "Signature" {
             signature_index = Some(index);
         } else if attribute_name == "MethodParameters" {
@@ -434,7 +435,7 @@ fn parse_method(
             let (ca, _) = parse_code_attribute(info, 0, attribute.start, attribute.end)?;
             let mut entries = Vec::new();
             for c in &ca.instructions {
-                let content = debug_instruction(c)?;
+                let content = debug_instruction(c, const_pool)?;
                 entries.push(AstBlockEntry::LineComment(AstLineComment {
                     range: RANGE,
                     content,
@@ -449,14 +450,14 @@ fn parse_method(
             || attribute_name == "RuntimeInvisibleAnnotations"
         {
             let info = attribute.lookup(data)?;
-            parse_runtime_visible_annotations(info, 0, c, &mut out.header.annotated)?;
+            parse_runtime_visible_annotations(info, 0, const_pool, &mut out.header.annotated)?;
             is_annotated = true;
         }
     }
     let no_parameter_names_and_signature =
         method_parameter_index.is_none() && signature_index.is_none();
     if no_parameter_names_and_signature {
-        let desc = lookup_string(c, descriptor)?;
+        let desc = lookup_string(const_pool, descriptor)?;
         let (_, md) = parse_method_descriptor(&desc)?;
         ret = md.return_type;
         for (i, p) in md.param_types.into_iter().enumerate() {
@@ -479,13 +480,13 @@ fn parse_method(
         let (info, _) = parse_method_parameters_attribute(info, 0)?;
         if signature_index.is_some() {
             for p in info {
-                let name = lookup_string(c, p.name_index)
+                let name = lookup_string(const_pool, p.name_index)
                     .ok()
                     .filter(|i| !i.is_empty());
                 parameter_names.push(name);
             }
         } else {
-            let (_, md) = parse_method_descriptor(&lookup_string(c, descriptor)?)?;
+            let (_, md) = parse_method_descriptor(&lookup_string(const_pool, descriptor)?)?;
             ret = md.return_type;
             let mut params = md.param_types.into_iter();
             for (i, p) in info.iter().enumerate() {
@@ -498,7 +499,7 @@ fn parse_method(
                         name: ntoident(no_name(i)),
                         flags: AstMethodParameterFlags::empty(),
                     });
-                } else if let Some(name) = lookup_string(c, p.name_index)
+                } else if let Some(name) = lookup_string(const_pool, p.name_index)
                     .ok()
                     .filter(|i| !i.is_empty())
                 {
@@ -530,7 +531,7 @@ fn parse_method(
 
         let info = attribute.lookup(data)?;
         let (sig, _) = get_u16(info, 0)?;
-        let sig = lookup_string(c, sig)?;
+        let sig = lookup_string(const_pool, sig)?;
         let (sig, _) = parse_method_signature_info(&sig)?;
         let mut name_iter = parameter_names.into_iter();
         sig.params.iter().enumerate().for_each(|(i, jtype)| {
@@ -566,7 +567,7 @@ fn parse_method(
         if !info.is_empty() {
             let mut throws = Vec::new();
             for exception in info {
-                let class_name = lookup_string(c, exception)?;
+                let class_name = lookup_string(const_pool, exception)?;
                 throws.push(AstJType {
                     range: RANGE,
                     annotated: Vec::new(),
@@ -591,10 +592,97 @@ fn parse_method(
     Ok((out, code_attribute))
 }
 
-fn debug_instruction(c: &Instruction) -> Result<NuVec, DecompilerError> {
+fn debug_instruction(c: &Instruction, const_pool: &ConstPool) -> Result<NuVec, DecompilerError> {
     let mut b = NuVecBuilder::new();
-    write!(b, "{c:?}").map_err(|_| DecompilerError::DebugInstruction)?;
+    match c {
+        Instruction::Getstatic(index) => {
+            b.pusha(b"Getstatic(");
+            debug_ref(const_pool, &mut b, index)?;
+            b.push(b')');
+        }
+        Instruction::Invokevirtual(index) => {
+            b.pusha(b"Invokevirtual(");
+            debug_ref(const_pool, &mut b, index)?;
+            b.push(b')');
+        }
+        Instruction::Invokestatic(index) => {
+            b.pusha(b"Invokestatic(");
+            debug_ref(const_pool, &mut b, index)?;
+            b.push(b')');
+        }
+        Instruction::Invokespecial(index) => {
+            b.pusha(b"Invokespecial(");
+            debug_ref(const_pool, &mut b, index)?;
+            b.push(b')');
+        }
+        Instruction::Invokeinterface { index, count } => {
+            b.pusha(b"Invokeinterface(");
+            debug_ref(const_pool, &mut b, index)?;
+            write!(b, ", count: {count}").map_err(|_| DecompilerError::DebugInstruction)?;
+            b.push(b')');
+        }
+        _ => {
+            write!(b, "{c:?}").map_err(|_| DecompilerError::DebugInstruction)?;
+        }
+    }
     Ok(b.finish())
+}
+
+fn debug_ref(
+    const_pool: &ConstPool,
+    b: &mut NuVecBuilder,
+    index: &u16,
+) -> Result<(), DecompilerError> {
+    let lookup = const_pool.get(index)?;
+    match lookup {
+        ConstEntry::FieldRef {
+            class,
+            name_and_type,
+        } => {
+            b.pusha(b"FieldRef");
+            debug_field_or_method_ref(const_pool, b, class, name_and_type)?;
+        }
+        ConstEntry::MethodRef {
+            class,
+            name_and_type,
+        } => {
+            b.pusha(b"MethodRef");
+            debug_field_or_method_ref(const_pool, b, class, name_and_type)?;
+        }
+        ConstEntry::InterfaceMethodRef {
+            class,
+            name_and_type,
+        } => {
+            b.pusha(b"InterfaceMethodRef");
+            debug_field_or_method_ref(const_pool, b, class, name_and_type)?;
+        }
+        _ => {
+            write!(b, "{lookup:?}").map_err(|_| DecompilerError::DebugInstruction)?;
+        }
+    }
+    Ok(())
+}
+
+fn debug_field_or_method_ref(
+    const_pool: &ConstPool,
+    b: &mut NuVecBuilder,
+    class: &u16,
+    name_and_type: &u16,
+) -> Result<(), DecompilerError> {
+    let class = lookup_string(const_pool, *class)?;
+    let ntl = const_pool.get(name_and_type)?;
+    if let ConstEntry::NameAndType { name, descriptor } = ntl {
+        let name = lookup_string(const_pool, *name)?;
+        let descriptor = lookup_string(const_pool, *descriptor)?;
+        write!(
+            b,
+            "(class: {class}, name_and_type: (name: \"{name}\", descriptor: \"{descriptor}\"))"
+        )
+        .map_err(|_| DecompilerError::DebugInstruction)?;
+    } else {
+        return Err(DecompilerError::ExpectedOther);
+    }
+    Ok(())
 }
 
 fn parse_runtime_visible_annotations(
@@ -2812,6 +2900,14 @@ pub struct ConstPool {
     pub pool: Vec<ConstEntry>,
 }
 
+impl ConstPool {
+    pub fn get(&self, index: &u16) -> Result<&ConstEntry, DecompilerError> {
+        self.pool
+            .get(index.saturating_sub(1) as usize)
+            .ok_or(DecompilerError::ConstEntryNotFound)
+    }
+}
+
 fn parse_const_pool(data: &[u8], pos: usize) -> Result<(ConstPool, usize), DecompilerError> {
     let (size, pos) = get_u16(data, pos)?;
     let size = size.saturating_sub(1) as usize;
@@ -2842,10 +2938,10 @@ pub enum ConstEntry {
     Module { name: u16 },
     Package { name: u16 },
     Class { name: u16 },
-    MethodRef,
-    NameAndType,
-    InterfaceMethodRef,
-    FieldRef,
+    MethodRef { class: u16, name_and_type: u16 },
+    NameAndType { name: u16, descriptor: u16 },
+    InterfaceMethodRef { class: u16, name_and_type: u16 },
+    FieldRef { class: u16, name_and_type: u16 },
     Dynamic,
     InvokeDynamic,
     Float(i32),
@@ -2868,10 +2964,10 @@ fn parse_constant(data: &[u8], pos: usize) -> Result<(ConstEntry, usize, usize),
         6 => parse_double_const(data, pos),
         7 => parse_class_const(data, pos),
         8 => parse_string_const(data, pos),
-        9 => Ok(parse_field_ref_const(pos)),
-        10 => Ok(parse_method_ref_const(pos)),
-        11 => Ok(parse_interface_method_ref_const(pos)),
-        12 => Ok(parse_name_and_type_const(pos)),
+        9 => parse_field_ref_const(data, pos),
+        10 => parse_method_ref_const(data, pos),
+        11 => parse_interface_method_ref_const(data, pos),
+        12 => parse_name_and_type_const(data, pos),
         15 => Ok(parse_method_handle_const(pos)),
         16 => Ok(parse_method_type_const(pos)),
         17 => Ok(parse_dynamic_const(pos)),
@@ -2922,22 +3018,39 @@ fn parse_package_const(
     let (name, pos) = get_u16(data, pos)?;
     Ok((ConstEntry::Package { name }, pos, 1))
 }
-const fn parse_field_ref_const(pos: usize) -> (ConstEntry, usize, usize) {
+fn parse_field_ref_const(
+    data: &[u8],
+    pos: usize,
+) -> Result<(ConstEntry, usize, usize), DecompilerError> {
     // content 2 * u16
-    (
-        ConstEntry::FieldRef,
-        pos.saturating_add(U16_LEN + U16_LEN),
+    let (class, pos) = get_u16(data, pos)?;
+    let (name_and_type, pos) = get_u16(data, pos)?;
+    Ok((
+        ConstEntry::FieldRef {
+            class,
+            name_and_type,
+        },
+        pos,
         1,
-    )
+    ))
 }
 
-const fn parse_method_ref_const(pos: usize) -> (ConstEntry, usize, usize) {
+fn parse_method_ref_const(
+    data: &[u8],
+    pos: usize,
+) -> Result<(ConstEntry, usize, usize), DecompilerError> {
     // content 2 * u16
-    (
-        ConstEntry::MethodRef,
-        pos.saturating_add(U16_LEN + U16_LEN),
+    let (class, pos) = get_u16(data, pos)?;
+    let (name_and_type, pos) = get_u16(data, pos)?;
+
+    Ok((
+        ConstEntry::MethodRef {
+            class,
+            name_and_type,
+        },
+        pos,
         1,
-    )
+    ))
 }
 fn parse_integer_const(
     data: &[u8],
@@ -2967,21 +3080,30 @@ fn parse_double_const(
     let (content, pos) = get_i64(data, pos)?;
     Ok((ConstEntry::Double(content), pos, 2))
 }
-const fn parse_interface_method_ref_const(pos: usize) -> (ConstEntry, usize, usize) {
+fn parse_interface_method_ref_const(
+    data: &[u8],
+    pos: usize,
+) -> Result<(ConstEntry, usize, usize), DecompilerError> {
     // content 2 * u16
-    (
-        ConstEntry::InterfaceMethodRef,
-        pos.saturating_add(U16_LEN + U16_LEN),
+    let (class, pos) = get_u16(data, pos)?;
+    let (name_and_type, pos) = get_u16(data, pos)?;
+    Ok((
+        ConstEntry::InterfaceMethodRef {
+            class,
+            name_and_type,
+        },
+        pos,
         1,
-    )
+    ))
 }
-const fn parse_name_and_type_const(pos: usize) -> (ConstEntry, usize, usize) {
+fn parse_name_and_type_const(
+    data: &[u8],
+    pos: usize,
+) -> Result<(ConstEntry, usize, usize), DecompilerError> {
     // content 2 * u16
-    (
-        ConstEntry::NameAndType,
-        pos.saturating_add(U16_LEN + U16_LEN),
-        1,
-    )
+    let (name, pos) = get_u16(data, pos)?;
+    let (descriptor, pos) = get_u16(data, pos)?;
+    Ok((ConstEntry::NameAndType { name, descriptor }, pos, 1))
 }
 const fn parse_dynamic_const(pos: usize) -> (ConstEntry, usize, usize) {
     // content 2 * u16
@@ -3106,7 +3228,7 @@ mod tests {
         .unwrap();
         let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
         let out = str::from_utf8(&formatted).unwrap();
-        let expected = expect![[r"
+        let expected = expect![[r#"
             package ch.emilycares;
             public class Everything {
                 int noprop;
@@ -3114,7 +3236,7 @@ mod tests {
                 private int privateproperty;
                 public void Everything() {
                     // Aload0
-                    // Invokespecial(1)
+                    // Invokespecial(MethodRef(class: java/lang/Object, name_and_type: (name: "<init>", descriptor: "()V")))
                     // Return
                 }
                 void method() {
@@ -3143,7 +3265,7 @@ mod tests {
                     // Ireturn
                 }
             }
-        "]];
+        "#]];
         expected.assert_eq(out);
     }
 
@@ -3157,7 +3279,7 @@ mod tests {
         let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
         let out = str::from_utf8(&formatted).unwrap();
 
-        let expected = expect![[r"
+        let expected = expect![[r#"
             package ch.emilycares;
             public class Everything {
                 int noprop;
@@ -3165,7 +3287,7 @@ mod tests {
                 private int privateproperty;
                 public void Everything() {
                     // Aload0
-                    // Invokespecial(1)
+                    // Invokespecial(MethodRef(class: java/lang/Object, name_and_type: (name: "<init>", descriptor: "()V")))
                     // Return
                 }
                 void method() {
@@ -3194,7 +3316,7 @@ mod tests {
                     // Ireturn
                 }
             }
-        "]];
+        "#]];
         expected.assert_eq(out);
     }
 
@@ -3233,7 +3355,7 @@ mod tests {
         let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
         let out = str::from_utf8(&formatted).unwrap();
 
-        let expected = expect![[r"
+        let expected = expect![[r#"
             package ch.emilycares;
             import java.util.Map;
             import java.util.List;
@@ -3254,10 +3376,10 @@ mod tests {
                 java.util.Map<java.lang.Integer, java.lang.String> one_map;
                 public void Types() {
                     // Aload0
-                    // Invokespecial(1)
+                    // Invokespecial(MethodRef(class: java/lang/Object, name_and_type: (name: "<init>", descriptor: "()V")))
                     // Aload0
                     // Ldc(7)
-                    // Invokestatic(9)
+                    // Invokestatic(MethodRef(class: java/util/logging/Logger, name_and_type: (name: "getLogger", descriptor: "(Ljava/lang/String;)Ljava/util/logging/Logger;")))
                     // Putfield(15)
                     // Aload0
                     // Iconst1
@@ -3288,12 +3410,12 @@ mod tests {
                     // Putfield(58)
                     // Aload0
                     // Ldc(62)
-                    // Invokestatic(64)
+                    // Invokestatic(InterfaceMethodRef(class: java/util/List, name_and_type: (name: "of", descriptor: "(Ljava/lang/Object;)Ljava/util/List;")))
                     // Putfield(70)
                     // Aload0
                     // New(74)
                     // Dup
-                    // Invokespecial(76)
+                    // Invokespecial(MethodRef(class: java/util/HashMap, name_and_type: (name: "<init>", descriptor: "()V")))
                     // Putfield(77)
                     // Return
                 }
@@ -3301,7 +3423,7 @@ mod tests {
                     // Return
                 }
             }
-        "]];
+        "#]];
         expected.assert_eq(out);
     }
 
@@ -3315,16 +3437,16 @@ mod tests {
         let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
         let out = str::from_utf8(&formatted).unwrap();
 
-        let expected = expect![[r"
+        let expected = expect![[r#"
             package ch.emilycares;
             public class Super extends IOException {
                 public void Super() {
                     // Aload0
-                    // Invokespecial(1)
+                    // Invokespecial(MethodRef(class: java/io/IOException, name_and_type: (name: "<init>", descriptor: "()V")))
                     // Return
                 }
             }
-        "]];
+        "#]];
         expected.assert_eq(out);
     }
     #[test]
@@ -3336,12 +3458,12 @@ mod tests {
         .unwrap();
         let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
         let out = str::from_utf8(&formatted).unwrap();
-        let expected = expect![[r"
+        let expected = expect![[r#"
             package ch.emilycares;
             public class Thrower {
                 public void Thrower() {
                     // Aload0
-                    // Invokespecial(1)
+                    // Invokespecial(MethodRef(class: java/lang/Object, name_and_type: (name: "<init>", descriptor: "()V")))
                     // Return
                 }
                 public void ioThrower() throws java.io.IOException {
@@ -3351,7 +3473,7 @@ mod tests {
                     // Return
                 }
             }
-        "]];
+        "#]];
         expected.assert_eq(out);
     }
     #[test]
@@ -3364,19 +3486,19 @@ mod tests {
         let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
         let out = str::from_utf8(&formatted).unwrap();
 
-        let expected = expect![[r"
+        let expected = expect![[r#"
             package ch.emilycares;
             import java.util.stream.Stream;
             public interface SuperInterface<E> {
                 default public java.util.stream.Stream<E> stream() {
                     // Aload0
-                    // Invokeinterface { index: 1, count: 1 }
+                    // Invokeinterface(InterfaceMethodRef(class: ch/emilycares/SuperInterface, name_and_type: (name: "spliterator", descriptor: "()Ljava/util/Spliterator;")), count: 1)
                     // Iconst0
-                    // Invokestatic(7)
+                    // Invokestatic(MethodRef(class: java/util/stream/StreamSupport, name_and_type: (name: "stream", descriptor: "(Ljava/util/Spliterator;Z)Ljava/util/stream/Stream;")))
                     // Areturn
                 }
             }
-        "]];
+        "#]];
         expected.assert_eq(out);
     }
     #[test]
@@ -3389,7 +3511,7 @@ mod tests {
         let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
         let out = str::from_utf8(&formatted).unwrap();
 
-        let expected = expect![[r"
+        let expected = expect![[r#"
             package ch.emilycares;
             import java.util.HashMap;
             import java.util.HashSet;
@@ -3397,24 +3519,24 @@ mod tests {
                 private java.util.HashSet<java.lang.String> a;
                 public void LocalVariableTable() {
                     // Aload0
-                    // Invokespecial(1)
+                    // Invokespecial(MethodRef(class: java/lang/Object, name_and_type: (name: "<init>", descriptor: "()V")))
                     // Aload0
                     // New(7)
                     // Dup
-                    // Invokespecial(9)
+                    // Invokespecial(MethodRef(class: java/util/HashSet, name_and_type: (name: "<init>", descriptor: "()V")))
                     // Putfield(10)
                     // Return
                 }
                 public void hereIsCode() {
                     // New(16)
                     // Dup
-                    // Invokespecial(18)
+                    // Invokespecial(MethodRef(class: java/util/HashMap, name_and_type: (name: "<init>", descriptor: "()V")))
                     // Astore1
                     // Aload1
                     // Iconst1
-                    // Invokestatic(19)
+                    // Invokestatic(MethodRef(class: java/lang/Integer, name_and_type: (name: "valueOf", descriptor: "(I)Ljava/lang/Integer;")))
                     // Ldc(25)
-                    // Invokevirtual(27)
+                    // Invokevirtual(MethodRef(class: java/util/HashMap, name_and_type: (name: "put", descriptor: "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;")))
                     // Pop
                     // Return
                 }
@@ -3429,7 +3551,7 @@ mod tests {
                     // Ireturn
                 }
             }
-        "]];
+        "#]];
         expected.assert_eq(out);
     }
     #[test]
@@ -3442,7 +3564,7 @@ mod tests {
         let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
         let out = str::from_utf8(&formatted).unwrap();
 
-        let expected = expect![[r"
+        let expected = expect![[r#"
             package ch.emilycares;
             import java.lang.String;
             public final enum Variants {
@@ -3452,15 +3574,15 @@ mod tests {
                 private final java.lang.String tag;
                 private static final ch.emilycares.Variants[] $VALUES;
                 public static ch.emilycares.Variants[] values() {
-                    // Getstatic(13)
-                    // Invokevirtual(17)
+                    // Getstatic(FieldRef(class: ch/emilycares/Variants, name_and_type: (name: "$VALUES", descriptor: "[Lch/emilycares/Variants;")))
+                    // Invokevirtual(MethodRef(class: [Lch/emilycares/Variants;, name_and_type: (name: "clone", descriptor: "()Ljava/lang/Object;")))
                     // Checkcast(18)
                     // Areturn
                 }
                 public static ch.emilycares.Variants valueOf(java.lang.String name) {
                     // Ldc(1)
                     // Aload0
-                    // Invokestatic(22)
+                    // Invokestatic(MethodRef(class: java/lang/Enum, name_and_type: (name: "valueOf", descriptor: "(Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/Enum;")))
                     // Checkcast(1)
                     // Areturn
                 }
@@ -3468,7 +3590,7 @@ mod tests {
                     // Aload0
                     // Aload1
                     // Iload2
-                    // Invokespecial(28)
+                    // Invokespecial(MethodRef(class: java/lang/Enum, name_and_type: (name: "<init>", descriptor: "(Ljava/lang/String;I)V")))
                     // Aload0
                     // Aload3
                     // Putfield(32)
@@ -3484,15 +3606,15 @@ mod tests {
                     // Anewarray(1)
                     // Dup
                     // Iconst0
-                    // Getstatic(3)
+                    // Getstatic(FieldRef(class: ch/emilycares/Variants, name_and_type: (name: "A", descriptor: "Lch/emilycares/Variants;")))
                     // Aastore
                     // Dup
                     // Iconst1
-                    // Getstatic(7)
+                    // Getstatic(FieldRef(class: ch/emilycares/Variants, name_and_type: (name: "B", descriptor: "Lch/emilycares/Variants;")))
                     // Aastore
                     // Dup
                     // Iconst2
-                    // Getstatic(10)
+                    // Getstatic(FieldRef(class: ch/emilycares/Variants, name_and_type: (name: "C", descriptor: "Lch/emilycares/Variants;")))
                     // Aastore
                     // Areturn
                 }
@@ -3502,28 +3624,28 @@ mod tests {
                     // Ldc(36)
                     // Iconst0
                     // Ldc(37)
-                    // Invokespecial(39)
+                    // Invokespecial(MethodRef(class: ch/emilycares/Variants, name_and_type: (name: "<init>", descriptor: "(Ljava/lang/String;ILjava/lang/String;)V")))
                     // Putstatic(3)
                     // New(1)
                     // Dup
                     // Ldc(42)
                     // Iconst1
                     // Ldc(43)
-                    // Invokespecial(39)
+                    // Invokespecial(MethodRef(class: ch/emilycares/Variants, name_and_type: (name: "<init>", descriptor: "(Ljava/lang/String;ILjava/lang/String;)V")))
                     // Putstatic(7)
                     // New(1)
                     // Dup
                     // Ldc(45)
                     // Iconst2
                     // Ldc(46)
-                    // Invokespecial(39)
+                    // Invokespecial(MethodRef(class: ch/emilycares/Variants, name_and_type: (name: "<init>", descriptor: "(Ljava/lang/String;ILjava/lang/String;)V")))
                     // Putstatic(10)
-                    // Invokestatic(48)
+                    // Invokestatic(MethodRef(class: ch/emilycares/Variants, name_and_type: (name: "$values", descriptor: "()[Lch/emilycares/Variants;")))
                     // Putstatic(13)
                     // Return
                 }
             }
-        "]];
+        "#]];
         expected.assert_eq(out);
     }
 
