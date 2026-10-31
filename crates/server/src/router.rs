@@ -23,7 +23,7 @@ use lsp_types::{
 };
 
 use common::{COMMAND_CMD, COMMAND_RELOAD_DEPENDENCIES, COMMAND_UPDATE_DEPENDENCIES};
-use lsp_server::{Message, RequestId, Response};
+use lsp_server::{Message, RequestId, Response, ResponseError};
 use serde_json::{Value, from_value, to_value};
 
 use crate::backend::Backend;
@@ -247,7 +247,10 @@ pub fn route(backend: &Backend) -> Result<(), Box<dyn std::error::Error + Send +
 fn send(backend: &Backend, id: RequestId, result: Option<Value>) {
     let _ = backend.connection.sender.send(Message::Response(Response {
         id,
-        result,
-        error: None,
+        response_result: result.ok_or_else(|| ResponseError {
+            code: 1,
+            message: "No data to return".to_string(),
+            data: None,
+        }),
     }));
 }

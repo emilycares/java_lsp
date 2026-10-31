@@ -131,18 +131,18 @@ references = { path = "crates/references"}
 decompiler = { path = "crates/decompiler"}
 
 # Rest
-bitflags = { version = "2.13.0", default-features = false }
+bitflags = { version = "2.13.2", default-features = false }
 ropey = "1.6.1"
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.150"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
 serde-xml-rs = "0.8.2"
-tokio = { version = "1.52.3", features = ["full"] }
-lsp-server = "0.7.9"
+tokio = { version = "1.54.1", features = ["full"] }
+lsp-server = "0.10.0"
 lsp-types = "0.97.0"
 rc-zip-tokio = "4.3.1"
-memchr = "2.8.2"
+memchr = "2.8.3"
 sha1_smol = "1.0.1"
-curl ="0.4.50"
+curl = "0.4.51"
 
 # For fuzzing
-arbitrary = { version = "1.4.2", features = ["derive"] }
+arbitrary = { version = "1.5.0", features = ["derive"] }
