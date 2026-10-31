@@ -621,11 +621,60 @@ fn debug_instruction(c: &Instruction, const_pool: &ConstPool) -> Result<NuVec, D
             write!(b, ", count: {count}").map_err(|_| DecompilerError::DebugInstruction)?;
             b.push(b')');
         }
+        Instruction::Putfield(index) => {
+            b.pusha(b"PutField(");
+            debug_ref(const_pool, &mut b, index)?;
+            b.push(b')');
+        }
+        Instruction::Ldc(index) => {
+            b.pusha(b"Ldc(");
+            let index = &(*index as u16);
+            ldc_helper(const_pool, &mut b, index)?;
+            b.push(b')');
+        }
+        Instruction::LdcW(index) => {
+            b.pusha(b"LdcW(");
+            ldc_helper(const_pool, &mut b, index)?;
+            b.push(b')');
+        }
+        Instruction::New(index) => {
+            let lookup = const_pool.get(index)?;
+            b.pusha(b"New(");
+            if let ConstEntry::Class { name } = lookup {
+                let name = lookup_string(const_pool, *name)?;
+                write!(b, "{:?}", name).map_err(|_| DecompilerError::DebugInstruction)?;
+            } else {
+                write!(b, "{:?}", lookup).map_err(|_| DecompilerError::DebugInstruction)?;
+            }
+            b.push(b')');
+        }
         _ => {
             write!(b, "{c:?}").map_err(|_| DecompilerError::DebugInstruction)?;
         }
     }
     Ok(b.finish())
+}
+
+fn ldc_helper(
+    const_pool: &ConstPool,
+    b: &mut NuVecBuilder,
+    index: &u16,
+) -> Result<(), DecompilerError> {
+    let lookup = const_pool.get(index)?;
+    match lookup {
+        ConstEntry::String { name } => {
+            let st = lookup_string(const_pool, *name)?;
+            write!(b, "String {:?}", st).map_err(|_| DecompilerError::DebugInstruction)?;
+        }
+        ConstEntry::Class { name } => {
+            let st = lookup_string(const_pool, *name)?;
+            write!(b, "Class {:?}", st).map_err(|_| DecompilerError::DebugInstruction)?;
+        }
+        _ => {
+            write!(b, "Entry {:?}", lookup).map_err(|_| DecompilerError::DebugInstruction)?;
+        }
+    }
+    Ok(())
 }
 
 fn debug_ref(
@@ -3378,45 +3427,45 @@ mod tests {
                     // Aload0
                     // Invokespecial(MethodRef(class: java/lang/Object, name_and_type: (name: "<init>", descriptor: "()V")))
                     // Aload0
-                    // Ldc(7)
+                    // Ldc(String "Types")
                     // Invokestatic(MethodRef(class: java/util/logging/Logger, name_and_type: (name: "getLogger", descriptor: "(Ljava/lang/String;)Ljava/util/logging/Logger;")))
-                    // Putfield(15)
+                    // PutField(FieldRef(class: a/test/Types, name_and_type: (name: "LOG", descriptor: "Ljava/util/logging/Logger;")))
                     // Aload0
                     // Iconst1
-                    // Putfield(21)
+                    // PutField(FieldRef(class: a/test/Types, name_and_type: (name: "IS_ACTIVE", descriptor: "Z")))
                     // Aload0
                     // Iconst0
-                    // Putfield(25)
+                    // PutField(FieldRef(class: a/test/Types, name_and_type: (name: "one_byte", descriptor: "B")))
                     // Aload0
                     // Iconst0
-                    // Putfield(29)
+                    // PutField(FieldRef(class: a/test/Types, name_and_type: (name: "one_int", descriptor: "I")))
                     // Aload0
                     // Iconst0
-                    // Putfield(33)
+                    // PutField(FieldRef(class: a/test/Types, name_and_type: (name: "one_short", descriptor: "S")))
                     // Aload0
                     // Ldc2W(37)
-                    // Putfield(39)
+                    // PutField(FieldRef(class: a/test/Types, name_and_type: (name: "one_long", descriptor: "J")))
                     // Aload0
                     // Dconst0
-                    // Putfield(43)
+                    // PutField(FieldRef(class: a/test/Types, name_and_type: (name: "one_double", descriptor: "D")))
                     // Aload0
-                    // Ldc(47)
-                    // Putfield(48)
+                    // Ldc(Entry Float(1066275963))
+                    // PutField(FieldRef(class: a/test/Types, name_and_type: (name: "one_float", descriptor: "F")))
                     // Aload0
                     // Bipush(97)
-                    // Putfield(52)
+                    // PutField(FieldRef(class: a/test/Types, name_and_type: (name: "one_char", descriptor: "C")))
                     // Aload0
-                    // Ldc(56)
-                    // Putfield(58)
+                    // Ldc(String "hihi")
+                    // PutField(FieldRef(class: a/test/Types, name_and_type: (name: "one_string", descriptor: "Ljava/lang/String;")))
                     // Aload0
-                    // Ldc(62)
+                    // Ldc(String "haha")
                     // Invokestatic(InterfaceMethodRef(class: java/util/List, name_and_type: (name: "of", descriptor: "(Ljava/lang/Object;)Ljava/util/List;")))
-                    // Putfield(70)
+                    // PutField(FieldRef(class: a/test/Types, name_and_type: (name: "one_list", descriptor: "Ljava/util/List;")))
                     // Aload0
-                    // New(74)
+                    // New("java/util/HashMap")
                     // Dup
                     // Invokespecial(MethodRef(class: java/util/HashMap, name_and_type: (name: "<init>", descriptor: "()V")))
-                    // Putfield(77)
+                    // PutField(FieldRef(class: a/test/Types, name_and_type: (name: "one_map", descriptor: "Ljava/util/Map;")))
                     // Return
                 }
                 public static void main(java.lang.String[] a) {
@@ -3521,21 +3570,21 @@ mod tests {
                     // Aload0
                     // Invokespecial(MethodRef(class: java/lang/Object, name_and_type: (name: "<init>", descriptor: "()V")))
                     // Aload0
-                    // New(7)
+                    // New("java/util/HashSet")
                     // Dup
                     // Invokespecial(MethodRef(class: java/util/HashSet, name_and_type: (name: "<init>", descriptor: "()V")))
-                    // Putfield(10)
+                    // PutField(FieldRef(class: ch/emilycares/LocalVariableTable, name_and_type: (name: "a", descriptor: "Ljava/util/HashSet;")))
                     // Return
                 }
                 public void hereIsCode() {
-                    // New(16)
+                    // New("java/util/HashMap")
                     // Dup
                     // Invokespecial(MethodRef(class: java/util/HashMap, name_and_type: (name: "<init>", descriptor: "()V")))
                     // Astore1
                     // Aload1
                     // Iconst1
                     // Invokestatic(MethodRef(class: java/lang/Integer, name_and_type: (name: "valueOf", descriptor: "(I)Ljava/lang/Integer;")))
-                    // Ldc(25)
+                    // Ldc(String "")
                     // Invokevirtual(MethodRef(class: java/util/HashMap, name_and_type: (name: "put", descriptor: "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;")))
                     // Pop
                     // Return
@@ -3580,7 +3629,7 @@ mod tests {
                     // Areturn
                 }
                 public static ch.emilycares.Variants valueOf(java.lang.String name) {
-                    // Ldc(1)
+                    // Ldc(Class "ch/emilycares/Variants")
                     // Aload0
                     // Invokestatic(MethodRef(class: java/lang/Enum, name_and_type: (name: "valueOf", descriptor: "(Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/Enum;")))
                     // Checkcast(1)
@@ -3593,7 +3642,7 @@ mod tests {
                     // Invokespecial(MethodRef(class: java/lang/Enum, name_and_type: (name: "<init>", descriptor: "(Ljava/lang/String;I)V")))
                     // Aload0
                     // Aload3
-                    // Putfield(32)
+                    // PutField(FieldRef(class: ch/emilycares/Variants, name_and_type: (name: "tag", descriptor: "Ljava/lang/String;")))
                     // Return
                 }
                 public java.lang.String getTag() {
@@ -3619,25 +3668,25 @@ mod tests {
                     // Areturn
                 }
                 static void clinit() {
-                    // New(1)
+                    // New("ch/emilycares/Variants")
                     // Dup
-                    // Ldc(36)
+                    // Ldc(String "A")
                     // Iconst0
-                    // Ldc(37)
+                    // Ldc(String "a")
                     // Invokespecial(MethodRef(class: ch/emilycares/Variants, name_and_type: (name: "<init>", descriptor: "(Ljava/lang/String;ILjava/lang/String;)V")))
                     // Putstatic(3)
-                    // New(1)
+                    // New("ch/emilycares/Variants")
                     // Dup
-                    // Ldc(42)
+                    // Ldc(String "B")
                     // Iconst1
-                    // Ldc(43)
+                    // Ldc(String "b")
                     // Invokespecial(MethodRef(class: ch/emilycares/Variants, name_and_type: (name: "<init>", descriptor: "(Ljava/lang/String;ILjava/lang/String;)V")))
                     // Putstatic(7)
-                    // New(1)
+                    // New("ch/emilycares/Variants")
                     // Dup
-                    // Ldc(45)
+                    // Ldc(String "C")
                     // Iconst2
-                    // Ldc(46)
+                    // Ldc(String "c")
                     // Invokespecial(MethodRef(class: ch/emilycares/Variants, name_and_type: (name: "<init>", descriptor: "(Ljava/lang/String;ILjava/lang/String;)V")))
                     // Putstatic(10)
                     // Invokestatic(MethodRef(class: ch/emilycares/Variants, name_and_type: (name: "$values", descriptor: "()[Lch/emilycares/Variants;")))
