@@ -13,3 +13,4 @@ license.workspace = true
 my_string.workspace = true
 ast.workspace = true
 dto.workspace = true
+dto_extra.workspace = true

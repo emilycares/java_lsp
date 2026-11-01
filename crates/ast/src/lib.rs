@@ -47,7 +47,6 @@ use crate::{
 
 pub mod annotation;
 pub mod class;
-pub mod dto_extra;
 pub mod enumeration;
 pub mod error;
 pub mod interface;

@@ -1,6 +1,7 @@
 use ast::types::{AstClassMethod, AstMethodParameter, AstRange};
 use bitflags::bitflags;
 use dto::JType;
+use dto_extra::ast_jtype_ref_to_jtype;
 use my_string::NuVec;
 
 /// variable or function in a ast
@@ -24,7 +25,7 @@ impl LocalVariable {
     #[must_use]
     pub fn from_class_method(i: &AstClassMethod) -> Self {
         Self {
-            jtype: (&i.header.jtype).into(),
+            jtype: ast_jtype_ref_to_jtype(&i.header.jtype),
             name: (&i.header.name).into(),
             range: i.range,
             flags: VarFlags::Function,
@@ -33,7 +34,7 @@ impl LocalVariable {
 
     pub fn from_method_parameter(parameter: &AstMethodParameter) -> Self {
         Self {
-            jtype: (&parameter.jtype).into(),
+            jtype: ast_jtype_ref_to_jtype(&parameter.jtype),
             name: (&parameter.name).into(),
             range: parameter.range,
             flags: VarFlags::empty(),

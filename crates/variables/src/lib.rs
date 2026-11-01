@@ -21,6 +21,7 @@ use ast::{
     },
 };
 use dto::{Class, ImportUnit, JType};
+use dto_extra::ast_jtype_ref_to_jtype;
 use local_variable::{LocalVariable, VarFlags};
 use my_string::NuVec;
 use tyres::{ResolveState, TyresError};
@@ -131,7 +132,7 @@ fn get_interface_constants(
     constants: &[AstInterfaceConstant],
 ) -> impl Iterator<Item = LocalVariable> {
     constants.iter().map(move |i| LocalVariable {
-        jtype: (&i.jtype).into(),
+        jtype: ast_jtype_ref_to_jtype(&i.jtype),
         name: (&i.name).into(),
         range: i.range,
         flags: VarFlags::empty(),
@@ -179,7 +180,7 @@ fn interface_method(
     out: &mut Vec<LocalVariable>,
 ) {
     out.push(LocalVariable {
-        jtype: (&method.header.jtype).into(),
+        jtype: ast_jtype_ref_to_jtype(&method.header.jtype),
         name: (&method.header.name).into(),
         range: method.range,
         flags: VarFlags::Function,
@@ -202,7 +203,7 @@ fn interface_default_method(
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
     out.push(LocalVariable {
-        jtype: (&method.header.jtype).into(),
+        jtype: ast_jtype_ref_to_jtype(&method.header.jtype),
         name: (&method.header.name).into(),
         range: method.range,
         flags: VarFlags::Function,
@@ -227,7 +228,7 @@ fn get_vars_method(
     out: &mut Vec<LocalVariable>,
 ) -> Result<(), VariablesError> {
     out.push(LocalVariable {
-        jtype: (&method.header.jtype).into(),
+        jtype: ast_jtype_ref_to_jtype(&method.header.jtype),
         name: (&method.header.name).into(),
         range: method.range,
         flags: VarFlags::Function,
@@ -333,7 +334,7 @@ fn get_block_entry_vars(
             ..
         }) => {
             out.push(LocalVariable {
-                jtype: jtype.into(),
+                jtype: ast_jtype_ref_to_jtype(jtype),
                 name: name.into(),
                 range: *range,
                 flags: VarFlags::empty(),
@@ -420,7 +421,7 @@ fn expression(
             AstExpressionKind::InstanceOf(i) => {
                 if let Some(name) = &i.variable {
                     out.push(LocalVariable {
-                        jtype: i.jtype.clone().into(),
+                        jtype: ast_jtype_ref_to_jtype(&i.jtype),
                         name: name.value.clone(),
                         range: name.range,
                         flags: VarFlags::empty(),
@@ -468,10 +469,7 @@ fn lambda(
             .iter()
             .filter(|i| i.name.value != "_")
             .map(|i| LocalVariable {
-                jtype: i
-                    .jtype
-                    .as_ref()
-                    .map_or(JType::Var, std::convert::Into::into),
+                jtype: i.jtype.as_ref().map_or(JType::Var, ast_jtype_ref_to_jtype),
                 name: i.name.value.clone(),
                 range: i.range,
                 flags: VarFlags::empty(),
@@ -504,7 +502,7 @@ fn try_catch_vars(
     {
         for ty in &case.variable.jtypes {
             out.push(LocalVariable {
-                jtype: ty.into(),
+                jtype: ast_jtype_ref_to_jtype(ty),
                 name: case.variable.name.value.clone(),
                 range: case.variable.range,
                 flags: VarFlags::empty(),
@@ -611,7 +609,7 @@ pub fn from_block_variable(
         }
     }
     out.push(LocalVariable {
-        jtype: (&v.jtype).into(),
+        jtype: ast_jtype_ref_to_jtype(&v.jtype),
         name: v.name.value.clone(),
         range: v.range,
         flags: VarFlags::empty(),
@@ -711,7 +709,7 @@ fn if_vars(
 }
 fn variables(variables: &[ast::types::AstClassVariable]) -> impl Iterator<Item = LocalVariable> {
     variables.iter().map(move |i| {
-        let jtype: JType = (&i.jtype).into();
+        let jtype: JType = ast_jtype_ref_to_jtype(&i.jtype);
         LocalVariable {
             range: i.range,
             jtype,

@@ -17,6 +17,7 @@ use ast::{
 use call_chain::get_call_chain;
 use document::Document;
 use dto::{Access, Class, ImportUnit, JType, Method, Parameter};
+use dto_extra::ast_jtype_ref_to_jtype;
 use hover::class_to_markdown;
 use local_variable::{LocalVariable, VarFlags};
 use lsp_types::{
@@ -518,7 +519,7 @@ fn parameter_helper(
         *in_parameter = true;
     }
     for param in &parameters.parameters {
-        let ty = &std::convert::Into::<JType>::into(param.jtype.clone()).to_nuvec();
+        let ty = ast_jtype_ref_to_jtype(&param.jtype).to_nuvec();
         let label = format!("{} {}", ty, param.name.value);
         out.push(CompletionItem {
             label: param.name.value.to_string(),

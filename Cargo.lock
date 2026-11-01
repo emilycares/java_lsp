@@ -23,7 +23,6 @@ version = "0.1.0"
 dependencies = [
  "arbitrary",
  "bitflags 2.13.2",
- "dto",
  "expect-test",
  "memchr",
  "my_string",
@@ -68,6 +67,7 @@ version = "0.1.0"
 dependencies = [
  "ast",
  "dto",
+ "dto_extra",
  "expect-test",
  "my_string",
 ]
@@ -140,6 +140,7 @@ dependencies = [
  "document",
  "document_link",
  "dto",
+ "dto_extra",
  "expect-test",
  "get_class",
  "local_variable",
@@ -206,6 +207,7 @@ dependencies = [
  "code_action",
  "document",
  "dto",
+ "dto_extra",
  "get_class",
  "hover",
  "imports",
@@ -394,6 +396,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dto_extra"
+version = "0.1.0"
+dependencies = [
+ "ast",
+ "dto",
+ "my_string",
+]
+
+[[package]]
 name = "dto_rw"
 version = "0.1.0"
 dependencies = [
@@ -565,6 +576,7 @@ version = "0.1.0"
 dependencies = [
  "ast",
  "dto",
+ "dto_extra",
  "my_string",
 ]
 
@@ -667,6 +679,7 @@ dependencies = [
  "ast",
  "bitflags 2.13.2",
  "dto",
+ "dto_extra",
  "my_string",
 ]
 
@@ -887,6 +900,7 @@ version = "0.1.0"
 dependencies = [
  "ast",
  "dto",
+ "dto_extra",
  "expect-test",
  "lombok",
  "my_string",
@@ -1367,6 +1381,7 @@ dependencies = [
  "ast",
  "call_chain",
  "dto",
+ "dto_extra",
  "expect-test",
  "local_variable",
  "my_string",

@@ -17,7 +17,6 @@ version = "0.1.0"
 dependencies = [
  "arbitrary",
  "bitflags",
- "dto",
  "memchr",
  "my_string",
 ]
@@ -89,6 +88,14 @@ version = "0.1.0"
 dependencies = [
  "bitflags",
  "my_string",
+]
+
+[[package]]
+name = "dto_extra"
+version = "0.1.0"
+dependencies = [
+ "ast",
+ "dto",
 ]
 
 [[package]]
@@ -199,6 +206,7 @@ version = "0.1.0"
 dependencies = [
  "ast",
  "dto",
+ "dto_extra",
  "lombok",
  "my_string",
 ]

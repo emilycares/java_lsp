@@ -18,6 +18,7 @@ lsp-types.workspace = true
 my_string.workspace = true
 tyres.workspace = true
 dto.workspace = true
+dto_extra.workspace = true
 get_class.workspace = true
 document_link.workspace = true
 

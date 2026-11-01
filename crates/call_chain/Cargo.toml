@@ -12,6 +12,7 @@ license.workspace = true
 [dependencies]
 ast.workspace = true
 dto.workspace = true
+dto_extra.workspace = true
 my_string.workspace = true
 
 [dev-dependencies]

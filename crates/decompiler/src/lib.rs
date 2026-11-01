@@ -595,11 +595,6 @@ fn parse_method(
 fn debug_instruction(c: &Instruction, const_pool: &ConstPool) -> Result<NuVec, DecompilerError> {
     let mut b = NuVecBuilder::new();
     match c {
-        Instruction::Getstatic(index) => {
-            b.pusha(b"Getstatic(");
-            debug_ref(const_pool, &mut b, index)?;
-            b.push(b')');
-        }
         Instruction::Invokevirtual(index) => {
             b.pusha(b"Invokevirtual(");
             debug_ref(const_pool, &mut b, index)?;
@@ -621,8 +616,23 @@ fn debug_instruction(c: &Instruction, const_pool: &ConstPool) -> Result<NuVec, D
             write!(b, ", count: {count}").map_err(|_| DecompilerError::DebugInstruction)?;
             b.push(b')');
         }
+        Instruction::Getfield(index) => {
+            b.pusha(b"GetField(");
+            debug_ref(const_pool, &mut b, index)?;
+            b.push(b')');
+        }
         Instruction::Putfield(index) => {
             b.pusha(b"PutField(");
+            debug_ref(const_pool, &mut b, index)?;
+            b.push(b')');
+        }
+        Instruction::Getstatic(index) => {
+            b.pusha(b"Getstatic(");
+            debug_ref(const_pool, &mut b, index)?;
+            b.push(b')');
+        }
+        Instruction::Putstatic(index) => {
+            b.pusha(b"Putstatic(");
             debug_ref(const_pool, &mut b, index)?;
             b.push(b')');
         }
@@ -3647,7 +3657,7 @@ mod tests {
                 }
                 public java.lang.String getTag() {
                     // Aload0
-                    // Getfield(32)
+                    // GetField(FieldRef(class: ch/emilycares/Variants, name_and_type: (name: "tag", descriptor: "Ljava/lang/String;")))
                     // Areturn
                 }
                 private static ch.emilycares.Variants[] $values() {
@@ -3674,23 +3684,23 @@ mod tests {
                     // Iconst0
                     // Ldc(String "a")
                     // Invokespecial(MethodRef(class: ch/emilycares/Variants, name_and_type: (name: "<init>", descriptor: "(Ljava/lang/String;ILjava/lang/String;)V")))
-                    // Putstatic(3)
+                    // Putstatic(FieldRef(class: ch/emilycares/Variants, name_and_type: (name: "A", descriptor: "Lch/emilycares/Variants;")))
                     // New("ch/emilycares/Variants")
                     // Dup
                     // Ldc(String "B")
                     // Iconst1
                     // Ldc(String "b")
                     // Invokespecial(MethodRef(class: ch/emilycares/Variants, name_and_type: (name: "<init>", descriptor: "(Ljava/lang/String;ILjava/lang/String;)V")))
-                    // Putstatic(7)
+                    // Putstatic(FieldRef(class: ch/emilycares/Variants, name_and_type: (name: "B", descriptor: "Lch/emilycares/Variants;")))
                     // New("ch/emilycares/Variants")
                     // Dup
                     // Ldc(String "C")
                     // Iconst2
                     // Ldc(String "c")
                     // Invokespecial(MethodRef(class: ch/emilycares/Variants, name_and_type: (name: "<init>", descriptor: "(Ljava/lang/String;ILjava/lang/String;)V")))
-                    // Putstatic(10)
+                    // Putstatic(FieldRef(class: ch/emilycares/Variants, name_and_type: (name: "C", descriptor: "Lch/emilycares/Variants;")))
                     // Invokestatic(MethodRef(class: ch/emilycares/Variants, name_and_type: (name: "$values", descriptor: "()[Lch/emilycares/Variants;")))
-                    // Putstatic(13)
+                    // Putstatic(FieldRef(class: ch/emilycares/Variants, name_and_type: (name: "$VALUES", descriptor: "[Lch/emilycares/Variants;")))
                     // Return
                 }
             }

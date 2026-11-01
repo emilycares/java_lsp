@@ -1,5 +1,4 @@
 use ast::{
-    dto_extra::access_from_availability,
     lexer,
     types::{
         AstAnnotated, AstAnnotationField, AstClassConstructor, AstClassMethod, AstClassVariable,
@@ -12,6 +11,7 @@ use ast::{
 use dto::{
     Access, Class, Field, ImportUnit, JType, Method, Parameter, SourceDestination, SuperClass,
 };
+use dto_extra::{access_from_availability, ast_import_ref_to_import_unit, ast_jtype_ref_to_jtype};
 use my_string::{NuVec, NuVecBuilder};
 
 #[derive(Debug)]
@@ -46,7 +46,9 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
                 class_path_base = ast_package.name.clone().into();
                 imports.push(ImportUnit::Package(ast_package.name.clone().into()));
             }
-            AstTopLevel::Import(ast_import) => imports.push(ast_import.into()),
+            AstTopLevel::Import(ast_import) => {
+                imports.push(ast_import_ref_to_import_unit(ast_import));
+            }
             AstTopLevel::Method(m) => {
                 methods.push(convert_class_method(m, None));
             }
@@ -100,7 +102,7 @@ pub fn load_java_tree(ast: &AstFile, source: SourceDestination) -> Class {
                         fields.extend(record.record_entries.entries.iter().map(|i| Field {
                             access: Access::empty(),
                             name: (&i.name).into(),
-                            jtype: (&i.jtype).into(),
+                            jtype: ast_jtype_ref_to_jtype(&i.jtype),
                             source: None,
                         }));
                     }
@@ -213,11 +215,9 @@ fn convert_class_method(
             jtype: check_type_parameters(&p.jtype, &type_parameters),
         })
         .collect();
-    let throws = m
-        .header
-        .throws
-        .as_ref()
-        .map_or_else(Vec::new, |t| t.parameters.iter().map(Into::into).collect());
+    let throws = m.header.throws.as_ref().map_or_else(Vec::new, |t| {
+        t.parameters.iter().map(ast_jtype_ref_to_jtype).collect()
+    });
     Method {
         access,
         name: Some((&m.header.name).into()),
@@ -258,11 +258,9 @@ fn convert_class_constructor(
             jtype: check_type_parameters(&p.jtype, &type_parameters),
         })
         .collect();
-    let throws = m
-        .header
-        .throws
-        .as_ref()
-        .map_or_else(Vec::new, |t| t.parameters.iter().map(Into::into).collect());
+    let throws = m.header.throws.as_ref().map_or_else(Vec::new, |t| {
+        t.parameters.iter().map(ast_jtype_ref_to_jtype).collect()
+    });
     Method {
         access,
         name: None,
@@ -343,7 +341,7 @@ fn convert_interface_constant(c: &AstInterfaceConstant) -> Field {
     Field {
         access,
         name: (&c.name).into(),
-        jtype: (&c.jtype).into(),
+        jtype: ast_jtype_ref_to_jtype(&c.jtype),
         source: None,
     }
 }
@@ -353,14 +351,14 @@ fn convert_annotation_field(c: &AstAnnotationField) -> Field {
     Field {
         access,
         name: (&c.name).into(),
-        jtype: (&c.jtype).into(),
+        jtype: ast_jtype_ref_to_jtype(&c.jtype),
         source: None,
     }
 }
 fn convert_class_field(c: &AstClassVariable) -> Field {
     let mut access = access_from_availability(&c.availability, Access::Public);
     load_deprecated(&mut access, &c.annotated);
-    let jtype: JType = (&c.jtype).into();
+    let jtype: JType = ast_jtype_ref_to_jtype(&c.jtype);
 
     Field {
         access,
@@ -383,7 +381,7 @@ fn check_type_parameters(
     jtype: &ast::types::AstJType,
     type_parameters: &[AstTypeParameter],
 ) -> JType {
-    let jtype: JType = jtype.into();
+    let jtype: JType = ast_jtype_ref_to_jtype(jtype);
 
     if let JType::Class(ref p) = jtype
         && type_parameters.iter().any(|i| i.name.value == *p)

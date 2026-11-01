@@ -11,6 +11,7 @@ license.workspace = true
 
 [dependencies]
 dto.workspace = true
+dto_extra.workspace = true
 my_string.workspace = true
 ast.workspace = true
 bitflags.workspace = true

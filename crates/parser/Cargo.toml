@@ -14,6 +14,7 @@ publish = false
 ast.workspace = true
 my_string.workspace = true
 dto.workspace = true
+dto_extra.workspace = true
 lombok.workspace = true
 
 [dev-dependencies]

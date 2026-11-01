@@ -137,7 +137,7 @@ pub fn replace_with_value_type(
     )
     .map_err(CodeActionError::Tyres)?;
 
-    if &value_resolve_state.jtype != current_type {
+    if value_resolve_state.jtype != dto_extra::ast_jtype_ref_to_jtype(current_type) {
         // Required by lsp types
         #[allow(clippy::mutable_key_type)]
         let mut changes = HashMap::new();

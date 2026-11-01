@@ -20,6 +20,7 @@ use ast::types::{
     AstValuesWithAnnotated, AstWhile, AstWhileContent,
 };
 use dto::JType;
+use dto_extra::ast_jtype_ref_to_jtype;
 use my_string::NuVec;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -829,7 +830,7 @@ fn cc_new_class(ast_new_class: &AstNewClass, point: &AstPoint, out: &mut Vec<Cal
         out.push(CallItem::ClassGeneric {
             name: c.value.clone(),
             range: ast_new_class.range,
-            args: args.iter().map(Into::into).collect(),
+            args: args.iter().map(ast_jtype_ref_to_jtype).collect(),
         });
     }
     match ast_new_class.rhs.as_ref() {

@@ -6,6 +6,7 @@
 #![allow(clippy::too_many_lines)]
 use ast::types::{AstFile, AstTopLevel};
 use dto::ImportUnit;
+use dto_extra::ast_import_ref_to_import_unit;
 use my_string::NuVec;
 
 #[must_use]
@@ -41,7 +42,7 @@ pub fn imports(ast: &AstFile) -> Vec<ImportUnit> {
                 out.push(ImportUnit::Package(package.name.value.clone()));
             }
             AstTopLevel::Import(ast_import) => {
-                out.push(ast_import.into());
+                out.push(ast_import_ref_to_import_unit(ast_import));
             }
             AstTopLevel::Thing(_) | AstTopLevel::Module(_) | AstTopLevel::Method(_) => (),
         }

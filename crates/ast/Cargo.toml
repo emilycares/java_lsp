@@ -14,7 +14,6 @@ publish = false
 arbitrary = ["dep:arbitrary", "bitflags/arbitrary"]
 
 [dependencies]
-dto = {path="../dto"}
 bitflags.workspace = true
 my_string.workspace = true
 memchr.workspace = true

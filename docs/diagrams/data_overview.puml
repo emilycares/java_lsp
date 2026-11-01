@@ -1,5 +1,4 @@
 @startuml
-
 state Code
 Code : Bytes of java source file
 state Vec_Tokens
@@ -32,6 +31,8 @@ Ast --> FormatterInput
 
 FormatterInput --> Code : crates/formatter
 
+ClassFile --> Ast : crates/decompiler
+
 Vec_Tokens --> Ast : crates/ast
 
 Ast --> Class : crates/parser
@@ -45,6 +46,4 @@ Ast --> DocumentInput
 DocumentInput --> Document : crates/document
 
 Document --> document_map : crates/server
-
 @enduml
-
