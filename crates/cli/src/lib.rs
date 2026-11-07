@@ -533,8 +533,9 @@ pub async fn decompile(file: PathBuf, out: PathBuf) {
 /// When decompile fails
 pub async fn decompile_file(class: PathBuf) {
     let buf = read(&class).unwrap();
-    let ast = decompiler::decompile_class(&buf, None).unwrap();
-    let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
+    let ast = decompiler::decompile_class(&buf).unwrap();
+    let formatted =
+        formatter::internal(&ast, decompiler::HEADER, &EditorConfigFilled::default()).unwrap();
     let out = str::from_utf8(&formatted).unwrap();
     println!("{out}");
 }

@@ -11,7 +11,7 @@ use ast::types::{
     AstBaseExpression, AstBlock, AstBlockEntry, AstBoolean, AstClass, AstClassBlock,
     AstClassMethod, AstClassVariable, AstDouble, AstEnumeration, AstEnumerationVariant,
     AstExpression, AstExpressionIdentifier, AstExpressionKind, AstExpressionOperator,
-    AstExpressionOrAnnotated, AstFile, AstIdentifier, AstImport, AstImportUnit, AstInt,
+    AstExpressionOrAnnotated, AstExtends, AstFile, AstIdentifier, AstImport, AstImportUnit, AstInt,
     AstInterface, AstInterfaceConstant, AstInterfaceMethod, AstInterfaceMethodDefault, AstJType,
     AstJTypeExpression, AstJTypeKind, AstLineComment, AstMethodHeader, AstMethodParameter,
     AstMethodParameterFlags, AstMethodParameters, AstPackage, AstPoint, AstRange, AstRecord,
@@ -56,11 +56,9 @@ pub enum DecompilerError {
     DebugInstruction,
     ConstEntryNotFound,
 }
+pub const HEADER: &[u8] = b"// Decompiled with the java_lsp decompiler\n";
 
-pub fn decompile_class(
-    data: &[u8],
-    class_path: Option<&NuVec>,
-) -> Result<AstFile, DecompilerError> {
+pub fn decompile_class(data: &[u8]) -> Result<AstFile, DecompilerError> {
     let pos =
         expect_data(data, 0, &[0xCA, 0xFE, 0xBA, 0xBE]).map_err(|_| DecompilerError::NotAClass)?;
 
@@ -71,10 +69,14 @@ pub fn decompile_class(
     let (class_access_flags, pos) = parse_class_access_flags(data, pos)?;
     let is_interface = class_access_flags.intersects(ClassAccessFlags::Interface);
     let (this_class, pos) = get_u16(data, pos)?;
-    let class_name = lookup_class_name(&const_pool, this_class.into())?;
+    let class_path = lookup_class_name(&const_pool, this_class)?;
+    let class_name = class_path
+        .rsplit_once_byte(b'.')
+        .ok_or(DecompilerError::InvalidName)?
+        .1;
     let (super_class, pos) = get_u16(data, pos)?;
 
-    let (_, pos) = parse_interfaces(data, pos)?;
+    let (implements, pos) = parse_interfaces(data, pos, &const_pool)?;
     let (fields, enum_variants, pos) = parse_fields(data, pos, &const_pool)?;
     let mut used_classes = HashSet::new();
     let (methods, pos) = parse_methods(
@@ -94,7 +96,7 @@ pub fn decompile_class(
     let mut permits = Vec::new();
 
     if super_class != 0 {
-        let c = lookup_class_name(&const_pool, super_class as usize)?;
+        let c = lookup_class_name(&const_pool, super_class)?;
         if c != "Object" && c != "java.lang.Object" {
             superclass.push(AstSuperClass::Name(ntoident(c)));
         }
@@ -171,20 +173,15 @@ pub fn decompile_class(
     }
 
     let mut file = AstFile { top: Vec::new() };
-    if let Some(class_path) = class_path {
-        let package = class_path
-            .trim_end_matches(class_name.as_bytes())
-            .trim_end_matches_byte(b'.');
-        file.top.push(AstTopLevel::Package(AstPackage {
-            range: RANGE,
-            annotated: Vec::new(),
-            name: ntoident(package),
-        }));
-    }
-    let mut imports: Vec<&NuVec> = class_path.map_or_else(
-        || used_classes.iter().collect(),
-        |class_path| used_classes.iter().filter(|i| *i != class_path).collect(),
-    );
+    let package = class_path
+        .trim_end_matches(class_name.as_bytes())
+        .trim_end_matches_byte(b'.');
+    file.top.push(AstTopLevel::Package(AstPackage {
+        range: RANGE,
+        annotated: Vec::new(),
+        name: ntoident(package),
+    }));
+    let mut imports: Vec<&NuVec> = used_classes.iter().filter(|i| **i != class_path).collect();
     imports.sort();
     file.top.extend(imports.into_iter().map(|i| {
         AstTopLevel::Import(AstImport {
@@ -211,7 +208,7 @@ pub fn decompile_class(
             attributes: AstThingAttributes::empty(),
             annotated,
             name: ntoident(class_name),
-            implements: Vec::new(),
+            implements,
             permits,
             superclass,
             variants: enum_variants,
@@ -224,6 +221,14 @@ pub fn decompile_class(
         let thing = AstTopLevel::Thing(Box::new(AstThing::Enumeration(enu)));
         file.top.push(thing);
     } else if is_interface {
+        let extends = if implements.is_empty() {
+            None
+        } else {
+            Some(AstExtends {
+                range: RANGE,
+                parameters: implements,
+            })
+        };
         let int = AstInterface {
             range: RANGE,
             availability,
@@ -231,7 +236,7 @@ pub fn decompile_class(
             annotated,
             name: ntoident(class_name),
             type_parameters,
-            extends: None,
+            extends,
             constants: fields
                 .into_iter()
                 .map(|i| AstInterfaceConstant {
@@ -280,7 +285,7 @@ pub fn decompile_class(
             name: ntoident(class_name),
             type_parameters,
             superclass,
-            implements: Vec::new(),
+            implements,
             block: AstClassBlock {
                 range: RANGE,
                 variables: fields,
@@ -303,7 +308,7 @@ pub fn decompile_class(
             name: ntoident(class_name),
             type_parameters,
             superclass,
-            implements: Vec::new(),
+            implements,
             permits,
             block: AstClassBlock {
                 range: RANGE,
@@ -334,14 +339,11 @@ const fn ntoident(value: NuVec) -> AstIdentifier {
     }
 }
 
-fn lookup_class_name(c: &ConstPool, index: usize) -> Result<NuVec, DecompilerError> {
-    match c.pool.get(index.saturating_sub(1)) {
-        Some(ConstEntry::Class { name }) => Ok(lookup_string(c, *name)?
-            .to_str()
-            .split('/')
-            .next_back()
-            .map(Into::into)
-            .ok_or(DecompilerError::InvalidName)?),
+fn lookup_class_name(const_pool: &ConstPool, index: u16) -> Result<NuVec, DecompilerError> {
+    match const_pool.pool.get(index.saturating_sub(1) as usize) {
+        Some(ConstEntry::Class { name }) => {
+            lookup_string(const_pool, *name).map(|i| i.replace_byte(b'/', b'.'))
+        }
         _ => Err(DecompilerError::ExpectedClass),
     }
 }
@@ -988,7 +990,7 @@ fn element_value_to_annotated_parameter(
             })
         }
         ElementValue::ClassInfoIndex(i) => {
-            let cname = lookup_class_name(c, i as usize)?;
+            let cname = lookup_class_name(c, i)?;
             Ok(AstAnnotatedParameter::NamedExpression {
                 range: RANGE,
                 name: ntoident(name),
@@ -1176,7 +1178,7 @@ fn element_value_to_expression_or_annotated(
             ]))
         }
         ElementValue::ClassInfoIndex(i) => {
-            let cname = lookup_class_name(c, i as usize)?;
+            let cname = lookup_class_name(c, i)?;
             Ok(AstExpressionOrAnnotated::Expression(vec![
                 AstExpressionKind::Base(AstBaseExpression {
                     range: RANGE,
@@ -1297,7 +1299,7 @@ fn parse_permitted_subclasses_attribute(
     let mut permits = Vec::with_capacity(count as usize);
     for _ in 0..count {
         let (idx, npos) = get_u16(data, pos)?;
-        let name = lookup_class_name(c, idx as usize)?;
+        let name = lookup_class_name(c, idx)?;
         permits.push(AstJType {
             annotated: Vec::new(),
             range: RANGE,
@@ -2941,7 +2943,11 @@ fn parse_attribute(data: &[u8], pos: usize) -> Result<(Attribute, usize), Decomp
     Ok((Attribute { name, start, end }, end))
 }
 
-fn parse_interfaces(data: &[u8], pos: usize) -> Result<(Vec<u16>, usize), DecompilerError> {
+fn parse_interfaces(
+    data: &[u8],
+    pos: usize,
+    const_pool: &ConstPool,
+) -> Result<(Vec<AstJType>, usize), DecompilerError> {
     let (size, pos) = get_u16(data, pos)?;
     let mut pos = pos;
     let mut out = Vec::with_capacity(size as usize);
@@ -2949,7 +2955,12 @@ fn parse_interfaces(data: &[u8], pos: usize) -> Result<(Vec<u16>, usize), Decomp
     for _ in 0..size {
         let (interface, npos) = get_u16(data, pos)?;
         pos = npos;
-        out.push(interface);
+        let interface = lookup_class_name(const_pool, interface)?;
+        out.push(AstJType {
+            annotated: Vec::new(),
+            range: RANGE,
+            value: AstJTypeKind::Class(ntoident(interface)),
+        });
     }
 
     Ok((out, pos))
@@ -3269,7 +3280,7 @@ fn expect_data(data: &[u8], pos: usize, expected: &[u8]) -> Result<usize, Decomp
 
 #[cfg(test)]
 mod tests {
-    use crate::{decompile_class, parse_class_signature_info, parse_field_type};
+    use crate::{HEADER, decompile_class, parse_class_signature_info, parse_field_type};
     use editorconfig::EditorConfigFilled;
     use expect_test::expect;
     use my_string::NuVec;
@@ -3278,16 +3289,14 @@ mod tests {
     #[test]
     fn relative_source() {
         use expect_test::expect;
-        use my_string::NuVec;
 
-        let ast = decompile_class(
-            include_bytes!("../../parser/test/Everything.class"),
-            Some(&NuVec::new(b"ch.emilycares.Everything")),
-        )
-        .unwrap();
-        let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
+        use crate::HEADER;
+
+        let ast = decompile_class(include_bytes!("../../parser/test/Everything.class")).unwrap();
+        let formatted = formatter::internal(&ast, HEADER, &EditorConfigFilled::default()).unwrap();
         let out = str::from_utf8(&formatted).unwrap();
         let expected = expect![[r#"
+            // Decompiled with the java_lsp decompiler
             package ch.emilycares;
             public class Everything {
                 int noprop;
@@ -3330,15 +3339,12 @@ mod tests {
 
     #[test]
     fn everything() {
-        let ast = decompile_class(
-            include_bytes!("../../parser/test/Everything.class"),
-            Some(&NuVec::new_static(b"ch.emilycares.Everything")),
-        )
-        .unwrap();
-        let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
+        let ast = decompile_class(include_bytes!("../../parser/test/Everything.class")).unwrap();
+        let formatted = formatter::internal(&ast, HEADER, &EditorConfigFilled::default()).unwrap();
         let out = str::from_utf8(&formatted).unwrap();
 
         let expected = expect![[r#"
+            // Decompiled with the java_lsp decompiler
             package ch.emilycares;
             public class Everything {
                 int noprop;
@@ -3381,15 +3387,12 @@ mod tests {
 
     #[test]
     fn constants() {
-        let ast = decompile_class(
-            include_bytes!("../../parser/test/Constants.class"),
-            Some(&NuVec::new_static(b"ch.emilycares.Constants")),
-        )
-        .unwrap();
-        let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
+        let ast = decompile_class(include_bytes!("../../parser/test/Constants.class")).unwrap();
+        let formatted = formatter::internal(&ast, HEADER, &EditorConfigFilled::default()).unwrap();
         let out = str::from_utf8(&formatted).unwrap();
 
         let expected = expect![[r#"
+            // Decompiled with the java_lsp decompiler
             package ch.emilycares;
             import java.net.Socket;
             import java.lang.String;
@@ -3406,16 +3409,13 @@ mod tests {
 
     #[test]
     fn types() {
-        let ast = decompile_class(
-            include_bytes!("../../parser/test/Types.class"),
-            Some(&NuVec::new_static(b"ch.emilycares.Types")),
-        )
-        .unwrap();
-        let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
+        let ast = decompile_class(include_bytes!("../../parser/test/Types.class")).unwrap();
+        let formatted = formatter::internal(&ast, HEADER, &EditorConfigFilled::default()).unwrap();
         let out = str::from_utf8(&formatted).unwrap();
 
         let expected = expect![[r#"
-            package ch.emilycares;
+            // Decompiled with the java_lsp decompiler
+            package a.test;
             import java.util.Map;
             import java.util.List;
             import java.lang.String;
@@ -3488,17 +3488,14 @@ mod tests {
 
     #[test]
     fn super_base() {
-        let ast = decompile_class(
-            include_bytes!("../../parser/test/Super.class"),
-            Some(&NuVec::new_static(b"ch.emilycares.Super")),
-        )
-        .unwrap();
-        let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
+        let ast = decompile_class(include_bytes!("../../parser/test/Super.class")).unwrap();
+        let formatted = formatter::internal(&ast, HEADER, &EditorConfigFilled::default()).unwrap();
         let out = str::from_utf8(&formatted).unwrap();
 
         let expected = expect![[r#"
+            // Decompiled with the java_lsp decompiler
             package ch.emilycares;
-            public class Super extends IOException {
+            public class Super extends java.io.IOException {
                 public void Super() {
                     // Aload0
                     // Invokespecial(MethodRef(class: java/io/IOException, name_and_type: (name: "<init>", descriptor: "()V")))
@@ -3510,14 +3507,11 @@ mod tests {
     }
     #[test]
     fn thrower() {
-        let ast = decompile_class(
-            include_bytes!("../../parser/test/Thrower.class"),
-            Some(&NuVec::new_static(b"ch.emilycares.Thrower")),
-        )
-        .unwrap();
-        let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
+        let ast = decompile_class(include_bytes!("../../parser/test/Thrower.class")).unwrap();
+        let formatted = formatter::internal(&ast, HEADER, &EditorConfigFilled::default()).unwrap();
         let out = str::from_utf8(&formatted).unwrap();
         let expected = expect![[r#"
+            // Decompiled with the java_lsp decompiler
             package ch.emilycares;
             public class Thrower {
                 public void Thrower() {
@@ -3537,18 +3531,16 @@ mod tests {
     }
     #[test]
     fn super_interfaces() {
-        let ast = decompile_class(
-            include_bytes!("../../parser/test/SuperInterface.class"),
-            Some(&NuVec::new_static(b"ch.emilycares.SuperInterface")),
-        )
-        .unwrap();
-        let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
+        let ast =
+            decompile_class(include_bytes!("../../parser/test/SuperInterface.class")).unwrap();
+        let formatted = formatter::internal(&ast, HEADER, &EditorConfigFilled::default()).unwrap();
         let out = str::from_utf8(&formatted).unwrap();
 
         let expected = expect![[r#"
+            // Decompiled with the java_lsp decompiler
             package ch.emilycares;
             import java.util.stream.Stream;
-            public interface SuperInterface<E> {
+            public interface SuperInterface<E> extends java.util.Collection, java.util.List {
                 default public java.util.stream.Stream<E> stream() {
                     // Aload0
                     // Invokeinterface(InterfaceMethodRef(class: ch/emilycares/SuperInterface, name_and_type: (name: "spliterator", descriptor: "()Ljava/util/Spliterator;")), count: 1)
@@ -3562,15 +3554,13 @@ mod tests {
     }
     #[test]
     fn variables() {
-        let ast = decompile_class(
-            include_bytes!("../../parser/test/LocalVariableTable.class"),
-            Some(&NuVec::new_static(b"ch.emilycares.LocalVariableTable")),
-        )
-        .unwrap();
-        let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
+        let ast =
+            decompile_class(include_bytes!("../../parser/test/LocalVariableTable.class")).unwrap();
+        let formatted = formatter::internal(&ast, HEADER, &EditorConfigFilled::default()).unwrap();
         let out = str::from_utf8(&formatted).unwrap();
 
         let expected = expect![[r#"
+            // Decompiled with the java_lsp decompiler
             package ch.emilycares;
             import java.util.HashMap;
             import java.util.HashSet;
@@ -3615,15 +3605,12 @@ mod tests {
     }
     #[test]
     fn variants() {
-        let ast = decompile_class(
-            include_bytes!("../../parser/test/Variants.class"),
-            Some(&NuVec::new_static(b"ch.emilycares.Variants")),
-        )
-        .unwrap();
-        let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default()).unwrap();
+        let ast = decompile_class(include_bytes!("../../parser/test/Variants.class")).unwrap();
+        let formatted = formatter::internal(&ast, HEADER, &EditorConfigFilled::default()).unwrap();
         let out = str::from_utf8(&formatted).unwrap();
 
         let expected = expect![[r#"
+            // Decompiled with the java_lsp decompiler
             package ch.emilycares;
             import java.lang.String;
             public final enum Variants {

@@ -204,7 +204,7 @@ async fn reindex(
 ) -> Option<ClassFolder> {
     let source = deps_get_source(&deps_bas);
     if let Some(source_str) = source.as_path().to_str() {
-        let buf = read(&source).ok()?;
+        let buf = read(&jar).ok()?;
         #[allow(clippy::collapsible_if)]
         if false {
             if !source.exists() {

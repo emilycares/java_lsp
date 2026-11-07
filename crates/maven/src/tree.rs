@@ -13,8 +13,8 @@ pub enum MavenTreeError {
     GotError(String),
 }
 
-pub async fn load(maven_executable: &str) -> Result<Vec<Dependency>, MavenTreeError> {
-    let log: String = get_cli_output(maven_executable).await?;
+pub async fn load(maven_executable: &str, online: bool) -> Result<Vec<Dependency>, MavenTreeError> {
+    let log: String = get_cli_output(maven_executable, online).await?;
     let cut: String = cut_output(&log);
 
     Ok(parser(&cut))
@@ -55,9 +55,12 @@ fn parser(cut: &str) -> Vec<Dependency> {
     out
 }
 
-async fn get_cli_output(maven_executable: &str) -> Result<String, MavenTreeError> {
+async fn get_cli_output(maven_executable: &str, online: bool) -> Result<String, MavenTreeError> {
     // mvn dependency:tree -DoutputType=dot
     let mut output = Command::new(maven_executable);
+    if !online {
+        output.arg("-o");
+    }
     let output = output.arg("dependency:tree").arg("-DoutputType=dot");
     let output = overwrite_settings_xml_tokio(output);
     let output = output.output().await.map_err(MavenTreeError::Cli)?;

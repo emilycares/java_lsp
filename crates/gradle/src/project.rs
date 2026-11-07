@@ -67,14 +67,19 @@ pub struct InitScriptOutput {
     class_path: HashSet<String>,
 }
 
-pub fn run_init_script(executable_gradle: String) -> Result<InitScriptOutput, GradleProjectError> {
+pub fn run_init_script(
+    executable_gradle: String,
+    online: bool,
+) -> Result<InitScriptOutput, GradleProjectError> {
     let script = ensure_init_script()?;
-    let out = Command::new(executable_gradle)
-        .arg("--init-script")
-        .arg(script)
-        .arg("printLspClasspath")
-        .output()
-        .map_err(GradleProjectError::IO)?;
+    let mut out = Command::new(executable_gradle);
+    if !online {
+        out.arg("--offline");
+    }
+    out.arg("--init-script");
+    out.arg(script);
+    out.arg("printLspClasspath");
+    let out = out.output().map_err(GradleProjectError::IO)?;
 
     let content = from_utf8(&out.stdout).map_err(GradleProjectError::Utf8)?;
     let mut class_path = HashSet::new();
@@ -150,7 +155,7 @@ async fn index(
     let deps_path = deps_dir();
     let deps_path = deps_path.as_path();
 
-    let inits = run_init_script(executable_gradle)?;
+    let inits = run_init_script(executable_gradle, online)?;
     let tasks_number = u32::try_from(inits.class_path.len()).unwrap_or(1);
     let completed_number = Arc::new(AtomicU32::new(0));
     let m2 = m2::get_maven_m2_folder().map_err(GradleProjectError::MTwo)?;

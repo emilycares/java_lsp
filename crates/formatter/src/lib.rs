@@ -35,12 +35,6 @@ pub enum FormatError {
     Lexer(ast::lexer::LexerError),
 }
 
-#[derive(Debug)]
-pub struct FormatLineError {
-    pub line: u32,
-    pub col: u32,
-    pub message: String,
-}
 #[must_use]
 pub fn get_formatter_name(formatter: &FormatterConfig) -> String {
     match formatter {
@@ -67,6 +61,8 @@ pub fn internal(
     editorconfig: &EditorConfigFilled,
 ) -> Result<Vec<u8>, FormatError> {
     let mut f = Formatter::new(content, editorconfig)?;
+
+    f.insert_comments(AstPoint { line: 1, col: 0 });
 
     let mut top = ast.top.iter().peekable();
 

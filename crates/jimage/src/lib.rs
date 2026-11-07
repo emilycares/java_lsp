@@ -104,7 +104,7 @@ pub fn parser(
         c.extend(&class_name);
         let class_path = c.finish();
 
-        match load_class(bytes, class_path.clone(), source, filter) {
+        match load_class(bytes, source, filter) {
             Ok(c) => classes.push(c),
             Err(ClassParserError::NotAClass | ClassParserError::Ignoring) => (),
             Err(e) => {

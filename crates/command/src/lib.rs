@@ -127,7 +127,7 @@ pub fn reload_maven_project(
                 message: "...".to_string(),
             });
         let cache = project_cache_dir();
-        let tree = get_tree(&project_kind, &con).await;
+        let tree = get_tree(&project_kind, &con, online).await;
         if let Some(tree) = tree {
             tokio::select! {
                 () = read_forward(receiver, con.clone(), task.clone(), progress.clone())  => {},
@@ -208,7 +208,7 @@ async fn reload_dependencies_maven_cli(
     let repos = Arc::new(maven::get_repositories(&project_dir));
     let tree_task = "Load Dependencies".to_string();
     progress_start_option_token(&con.clone(), &progress, &tree_task);
-    let tree = get_tree(&project_kind, &con).await;
+    let tree = get_tree(&project_kind, &con, false).await;
     progress_end_option_token(&con.clone(), &progress, &tree_task);
 
     let task = format!("Command: {COMMAND_RELOAD_DEPENDENCIES}");
@@ -297,7 +297,7 @@ pub fn update_dependencies_maven(
     handles.spawn(async move {
         let task = "Load Dependency Tree".to_string();
         progress_start_option_token(&con.clone(), &progress, &task);
-        let tree = get_tree(&project_kind, &con).await;
+        let tree = get_tree(&project_kind, &con, true).await;
         progress_end_option_token(&con.clone(), &progress, &task);
 
         let task = format!("Command: {COMMAND_UPDATE_DEPENDENCIES}");
@@ -386,7 +386,7 @@ async fn update_dependencies_maven_cli(
 
     let task = "Load Dependency tree".to_string();
     progress_start_option_token(&con.clone(), &progress, &task);
-    let tree = get_tree(&project_kind, &con).await;
+    let tree = get_tree(&project_kind, &con, true).await;
     progress_end_option_token(&con.clone(), &progress, &task);
 
     let task = format!("Command: {COMMAND_UPDATE_DEPENDENCIES}");
@@ -468,62 +468,65 @@ pub fn cmd(
 pub async fn get_tree(
     project_kind: &ProjectKind,
     con: &Arc<Connection>,
+    online: bool,
 ) -> Option<Vec<Dependency>> {
     let mut diagnostics = Vec::new();
     let range = Range::default();
     let out = match *project_kind {
-        ProjectKind::Maven { ref executable } => match maven::tree::load(executable).await {
-            Ok(t) => {
-                let cache = PathBuf::from(maven::compile::CLASSPATH_FILE);
-                if cache.exists() {
-                    let _ = fs::remove_file(cache);
+        ProjectKind::Maven { ref executable } => {
+            match maven::tree::load(executable, online).await {
+                Ok(t) => {
+                    let cache = PathBuf::from(maven::compile::CLASSPATH_FILE);
+                    if cache.exists() {
+                        let _ = fs::remove_file(cache);
+                    }
+                    Some(t)
                 }
-                Some(t)
+                Err(MavenTreeError::GotError(e)) => {
+                    let message = format!("Unable load maven dependency tree {e:?}");
+                    diagnostics.push(Diagnostic::new(
+                        range,
+                        Some(DiagnosticSeverity::ERROR),
+                        None,
+                        Some(String::from(SERVER_NAME)),
+                        message,
+                        None,
+                        None,
+                    ));
+                    None
+                }
+                Err(MavenTreeError::Cli(e)) => {
+                    let message = format!("Unable load maven dependency tree {e:?}");
+                    diagnostics.push(Diagnostic::new(
+                        range,
+                        Some(DiagnosticSeverity::ERROR),
+                        None,
+                        Some(String::from(SERVER_NAME)),
+                        message,
+                        None,
+                        None,
+                    ));
+                    None
+                }
+                Err(MavenTreeError::UnknownDependencyScope(scope)) => {
+                    let message = format!("Unsupported dependency scope found: {scope:?}");
+                    diagnostics.push(Diagnostic::new(
+                        range,
+                        Some(DiagnosticSeverity::ERROR),
+                        None,
+                        Some(String::from(SERVER_NAME)),
+                        message,
+                        None,
+                        None,
+                    ));
+                    None
+                }
+                Err(e) => {
+                    eprintln!("Failed to load tree: {e:?}");
+                    None
+                }
             }
-            Err(MavenTreeError::GotError(e)) => {
-                let message = format!("Unable load maven dependency tree {e:?}");
-                diagnostics.push(Diagnostic::new(
-                    range,
-                    Some(DiagnosticSeverity::ERROR),
-                    None,
-                    Some(String::from(SERVER_NAME)),
-                    message,
-                    None,
-                    None,
-                ));
-                None
-            }
-            Err(MavenTreeError::Cli(e)) => {
-                let message = format!("Unable load maven dependency tree {e:?}");
-                diagnostics.push(Diagnostic::new(
-                    range,
-                    Some(DiagnosticSeverity::ERROR),
-                    None,
-                    Some(String::from(SERVER_NAME)),
-                    message,
-                    None,
-                    None,
-                ));
-                None
-            }
-            Err(MavenTreeError::UnknownDependencyScope(scope)) => {
-                let message = format!("Unsupported dependency scope found: {scope:?}");
-                diagnostics.push(Diagnostic::new(
-                    range,
-                    Some(DiagnosticSeverity::ERROR),
-                    None,
-                    Some(String::from(SERVER_NAME)),
-                    message,
-                    None,
-                    None,
-                ));
-                None
-            }
-            Err(e) => {
-                eprintln!("Failed to load tree: {e:?}");
-                None
-            }
-        },
+        }
         ProjectKind::Gradle { .. } | ProjectKind::Unknown => None,
     };
     report_maven_gradle_diagnostic(project_kind, con, diagnostics);

@@ -58,14 +58,13 @@ where
 pub fn load_class_fs<T>(
     path: T,
     source: SourceDestination,
-    class_path: NuVec,
     filter: bool,
 ) -> Result<Class, LoaderError>
 where
     T: AsRef<Path> + Debug,
 {
     let buf = read(path).map_err(LoaderError::IO)?;
-    class::load_class(&buf, class_path, source, filter).map_err(LoaderError::ClassParser)
+    class::load_class(&buf, source, filter).map_err(LoaderError::ClassParser)
 }
 
 pub fn save_class_folder<P: AsRef<Path> + Debug>(
@@ -275,7 +274,7 @@ pub fn load_class_files(
         src.extend(source);
         src.extend(&sr);
         let src = src.finish();
-        match load_class_fs(p, SourceDestination::Here(src), class_path, filter) {
+        match load_class_fs(p, SourceDestination::Here(src), filter) {
             Ok(c) => {
                 out.push(c);
             }
@@ -381,16 +380,10 @@ pub async fn base_load_classes_zip(
                 continue 'entries;
             }
         }
-        let class_path = nfile.trim_start_matches(b"/");
-        let class_path = class_path.trim_end_matches(b".class");
-        let mut class_path = class_path.replace_byte(b'/', b'.');
-        if let Some(trim_prefix) = trim_prefix {
-            class_path = class_path.replace(trim_prefix.as_bytes(), b"");
-        }
 
         let buf = entry.bytes().await.map_err(LoaderError::IO)?;
 
-        match load_class(buf.as_slice(), class_path.clone(), source.clone(), true) {
+        match load_class(buf.as_slice(), source.clone(), true) {
             Ok(c) => classes.push(c),
             Err(ClassParserError::Ignoring | ClassParserError::NotAClass) => (),
             Err(e) => {
@@ -498,19 +491,13 @@ pub async fn base_decompile_classes_zip(
                 }
             }
         }
-        let class_path = nfile.trim_start_matches(b"/");
-        let class_path = class_path.trim_end_matches(b".class");
-        let mut class_path = class_path.replace_byte(b'/', b'.');
-        if let Some(trim_prefix) = trim_prefix {
-            class_path = class_path.replace(trim_prefix.as_bytes(), b"");
-        }
 
         let buf = entry.bytes().await.map_err(LoaderDecompilerError::IO)?;
 
-        let ast = decompiler::decompile_class(&buf, Some(&class_path))
-            .map_err(LoaderDecompilerError::Decompiler)?;
-        let formatted = formatter::internal(&ast, b"", &EditorConfigFilled::default())
-            .map_err(LoaderDecompilerError::Formatter)?;
+        let ast = decompiler::decompile_class(&buf).map_err(LoaderDecompilerError::Decompiler)?;
+        let formatted =
+            formatter::internal(&ast, decompiler::HEADER, &EditorConfigFilled::default())
+                .map_err(LoaderDecompilerError::Formatter)?;
 
         let mut path = extract_dir.join(file_name);
         path.set_extension("java");
